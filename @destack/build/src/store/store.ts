@@ -41,7 +41,7 @@ import {
 } from "./table.ts";
 
 /** The rows one statement binds: 500, far under SQLite's 32,766 parameters at two columns. */
-const BATCH_ROWS = 500;
+export const BATCH_ROWS = 500;
 
 /** The path prefix a build's module graph files are attached at, each by its module's path. */
 const GRAPH_PREFIX = "graph/";

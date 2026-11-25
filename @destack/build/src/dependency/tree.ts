@@ -1,5 +1,5 @@
 import { dirname, join, relative, sep } from "node:path";
-import { type FileSystem, FileSystemError } from "@destack/environment";
+import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import {
     DependencyName,
     PackageDefinition,
@@ -562,6 +562,32 @@ export class BuildTree {
     /** Name a tree root: a build and its edges, then what the tree places. */
     static #rootName(base: string, scope: TreeScope): string {
         return scope.kind === "compile" ? base : `${base}.${scope.runtime}`;
+    }
+
+    /** Stamp what a directory's workspace installs: its lockfile and its Bun store's packages. */
+    static async stamp(
+        directory: string,
+        files: FileSystem,
+        crypto: Environment["crypto"],
+    ): Promise<Digest> {
+        // read the lockfile and list the store's package directories, either absent before an install
+        const located = await BuildTree.#workspace(directory, files);
+        const lockfile = join(located, "bun.lock");
+        const locked = (await files.exists(lockfile)) ? await files.readTextFile(lockfile) : null;
+        const installed = join(located, "node_modules", ".bun");
+        const listed = (await files.exists(installed)) ? await files.readDirectory(installed) : [];
+        const entries = listed.map((entry) => entry.name).toSorted();
+
+        return await Digest.json({ workspace: located, locked, entries }, crypto);
+    }
+
+    /** Report whether every root the tree places still stands, which a store sweep removes. */
+    async isPlaced(files: FileSystem): Promise<boolean> {
+        const placed = await Promise.all(
+            Object.values(this.directories).map((each) => files.exists(each)),
+        );
+
+        return placed.every(Boolean);
     }
 
     /** Locate a directory's workspace where its lockfile really is, past a linked lockfile. */

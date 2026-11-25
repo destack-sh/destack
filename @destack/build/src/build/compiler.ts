@@ -10,7 +10,7 @@ import { FamilyError } from "@destack/error";
 import type { EvaluatedDeclaration } from "../declaration/index.ts";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
-import { present } from "@destack/schema";
+import { Digest, present } from "@destack/schema";
 import type { LocalBuildStore } from "../store/local.ts";
 import type { PackageBuildOptions } from "./build.ts";
 import { BuildTree } from "../dependency/tree.ts";
@@ -142,6 +142,8 @@ export class Compiler implements AsyncDisposable {
     #input: WritableStreamDefaultWriter<Uint8Array>;
     /** Compiler completion, including native compiler shutdown. */
     #closed: Promise<void>;
+    /** The tree the last request installed, keyed by its dependencies and installation. */
+    #tree: { readonly key: Digest; readonly tree: BuildTree } | undefined;
     /** The request awaiting a response. */
     #pending:
         | {
@@ -191,6 +193,7 @@ export class Compiler implements AsyncDisposable {
         this.#temporary = temporary;
         this.#read = read;
         this.#compiler = compiler;
+        this.#tree = undefined;
         this.#scope = TelemetryScope.of(import.meta.destack.package, store.environment.telemetry);
 
         // watch the started compiler
@@ -243,9 +246,28 @@ export class Compiler implements AsyncDisposable {
     async #install(
         options: Pick<PackageBuildOptions, "dependencies" | "links">,
     ): Promise<BuildTree> {
+        // key the tree by the dependency builds, their links and the workspace's installation
         const { dependencies, links } = options;
+        const { files, crypto } = this.store.environment;
+        const manifests = Object.entries(dependencies).map(([name, each]) => [name, each.manifest]);
+        const stamp = await BuildTree.stamp(this.workspace, files, crypto);
+        const key = await Digest.json({ manifests, links, stamp }, crypto);
 
-        return await BuildTree.install(dependencies, links, this.workspace, this.store);
+        // reuse the last tree while its key holds and its roots stand, using its builds as installing does
+        const last = this.#tree;
+        if (last?.key === key && (await last.tree.isPlaced(files))) {
+            const used = [
+                ...Object.values(dependencies).map((each) => each.manifest),
+                ...Object.values(links).flatMap((each) => Object.values(each)),
+            ];
+            await this.store.use([...new Set(used)]);
+
+            return last.tree;
+        }
+        const tree = await BuildTree.install(dependencies, links, this.workspace, this.store);
+        this.#tree = { key, tree };
+
+        return tree;
     }
 
     /** Start the compiler again after a failed one. */

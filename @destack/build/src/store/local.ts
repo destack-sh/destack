@@ -1,11 +1,11 @@
-import { blobTable, eq } from "@destack/db";
+import { blobTable, inArray } from "@destack/db";
 import { dirname, join } from "node:path";
 import { LocalBlobStorage } from "@destack/bucket/bun";
 import { BlobStore } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { type PackageFile, PackagePath } from "@destack/package/file";
-import { BuildObject, BuildStore } from "./store.ts";
+import { BATCH_ROWS, BuildObject, BuildStore } from "./store.ts";
 import { CACHE_MILLISECONDS, USE_MILLISECONDS } from "../cache/cache.ts";
 import { BuildError } from "../error/index.ts";
 import {
@@ -277,7 +277,7 @@ export class LocalBuildStore
     /** Renew the builds a closed view used, then close this store. */
     async #release(view: LocalBuildStore): Promise<void> {
         for (const digest of view.#used) {
-            await this.#use(digest);
+            await this.use([digest]);
         }
         await this[Symbol.asyncDispose]();
     }
@@ -285,35 +285,41 @@ export class LocalBuildStore
     /** Store a build, retaining it a week past this use. */
     override async put(...stored: Parameters<BuildStore["put"]>): Promise<Digest> {
         const digest = await super.put(...stored);
-        await this.#use(digest);
+        await this.use([digest]);
 
         return digest;
     }
 
     /** Open a stored build, retaining it a week past this use, as a cache does. */
     override async contents(digest: Digest): Promise<BuildReader> {
-        await this.#use(digest);
+        await this.use([digest]);
 
         return super.contents(digest);
     }
 
-    /** Lease a stored build a week on once a day it is used, retaining it and its files. */
-    async #use(digest: Digest): Promise<void> {
-        // record the use for the maintaining store to renew once this view closes
+    /** Lease stored builds a week on once a day they are used, retaining them and their files. */
+    async use(digests: readonly Digest[]): Promise<void> {
+        // record the uses for the maintaining store to renew once this view closes
         if (this.#maintainer !== undefined) {
-            this.#used.add(digest);
+            for (const digest of digests) {
+                this.#used.add(digest);
+            }
+
+            return;
         }
-        // renew a stored build's lease a day or more old, a layered build having none
-        else {
-            const now = this.environment.clock.now();
-            const [leased] = await this.database
-                .select({ until: blobTable.leasedUntil })
+
+        // renew each lease a day or more old, a layered build having none
+        const now = this.environment.clock.now();
+        for (let start = 0; start < digests.length; start += BATCH_ROWS) {
+            const batch = digests.slice(start, start + BATCH_ROWS);
+            const leased = await this.database
+                .select({ digest: blobTable.digest, until: blobTable.leasedUntil })
                 .from(blobTable)
-                .where(eq(blobTable.digest, digest));
-            const isDue =
-                leased !== undefined && leased.until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS;
-            if (isDue) {
-                await this.lease(digest, new Date(now + CACHE_MILLISECONDS));
+                .where(inArray(blobTable.digest, batch));
+            for (const { digest, until } of leased) {
+                if (until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS) {
+                    await this.lease(Digest.parse(digest), new Date(now + CACHE_MILLISECONDS));
+                }
             }
         }
     }
