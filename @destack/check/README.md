@@ -108,6 +108,7 @@ Every rule is an error, beside Oxlint's own rules.
 | `prevent-abbreviations`   | whole words in declared names                                                   |
 | `require-block-comment`   | a comment at the start of each block of a longer function                       |
 | `require-jsdoc`           | documentation on declarations, members and fields                               |
+| `require-render-part`     | a part drawn by `renderPart`                                                    |
 | `style-attribute`         | StyleX styles passed as `xstyle`, inline styles as `style`                      |
 | `style-focus`             | focus rings drawn with the theme's shared focus style                           |
 | `style-hover`             | hover styles only where the pointer hovers                                      |

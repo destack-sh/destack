@@ -22,6 +22,7 @@ import { paddingBeforeReturn } from "./padding-before-return.ts";
 import { preventAbbreviations } from "./prevent-abbreviations.ts";
 import { requireBlockComment } from "./require-block-comment.ts";
 import { requireJsdoc } from "./require-jsdoc.ts";
+import { requireRenderPart } from "./require-render-part.ts";
 import { styleAttribute } from "./style-attribute.ts";
 import { styleFocus } from "./style-focus.ts";
 import { styleHover } from "./style-hover.ts";
@@ -68,6 +69,7 @@ export const rules = {
     "prevent-abbreviations": preventAbbreviations,
     "require-block-comment": requireBlockComment,
     "require-jsdoc": requireJsdoc,
+    "require-render-part": requireRenderPart,
     "style-attribute": styleAttribute,
     "style-focus": styleFocus,
     "style-hover": styleHover,

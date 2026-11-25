@@ -1210,6 +1210,29 @@ tester.run("style-focus", rules["style-focus"], {
     ],
 });
 
+/** A part of the kit. */
+const PART = "/workspace/@destack/ui/src/card/card.tsx";
+
+tester.run("require-render-part", rules["require-render-part"], {
+    valid: [
+        ...[
+            '<div data-slot="card" {...style.attrs(styles.card)} />',
+            '<div data-slot="card" {...style.attributes([styles.card, properties.xstyle])} />',
+            "<div {...rest} {...style.attributes([styles.card, properties.xstyle])} />",
+            '<svg data-slot="icon" {...rest} {...style.attributes([styles.icon, properties.xstyle])} />',
+            'renderPart("div", "card", properties, styles.card)',
+        ].map((code) => ({ code, filename: PART })),
+        {
+            code: '<div data-slot="card" {...rest} {...style.attributes([properties.xstyle])} />',
+            filename: "/workspace/@acme/notes/src/card.tsx",
+        },
+    ],
+    invalid: [
+        '<div data-slot="card" {...rest} {...style.attributes([styles.card, properties.xstyle])} />',
+        '<li data-slot="item" {...mergeProperties(press, rest)} {...style.attributes([item.xstyle], item.style)} />',
+    ].map((code) => ({ code, filename: PART, errors: [{ messageId: "part" }] })),
+});
+
 tester.run("style-motion", rules["style-motion"], {
     valid: [
         'const styles = style.create({ link: { transitionProperty: "opacity", transitionDuration: "1s", transitionTimingFunction: "ease" } });',
