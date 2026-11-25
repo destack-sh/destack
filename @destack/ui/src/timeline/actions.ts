@@ -1,21 +1,6 @@
 import { t } from "@destack/locale";
 import { defineAction } from "@destack/object";
-
-/** Move the row up among its siblings. */
-export const moveRowUp = defineAction({
-    name: "row.moveUp",
-    title: t`Move up`,
-    category: t`Timeline`,
-    keybinding: "mod+shift+up",
-});
-
-/** Move the row down among its siblings. */
-export const moveRowDown = defineAction({
-    name: "row.moveDown",
-    title: t`Move down`,
-    category: t`Timeline`,
-    keybinding: "mod+shift+down",
-});
+import { items } from "../action/action.ts";
 
 /** Start a link from the end of the row's item. */
 export const linkItem = defineAction({
@@ -23,6 +8,7 @@ export const linkItem = defineAction({
     title: t`Link`,
     category: t`Timeline`,
     keybinding: "l",
+    input: { items },
 });
 
 /** Show more of the window to the left. */

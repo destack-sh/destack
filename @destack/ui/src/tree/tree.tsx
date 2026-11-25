@@ -1,9 +1,12 @@
 import { state } from "@destack/theme/state";
+import type { ObjectReference } from "@destack/sync";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, radius, space, stroke, size } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
+    type ActionRegistry,
     createContext,
     createControllableSignal,
     createMemo,
@@ -11,10 +14,13 @@ import {
     type JSX,
     omit,
     Show,
+    useActions,
     useContext,
     useLocale,
 } from "@destack/view";
 import type { Direction } from "@destack/locale";
+import { provideItems } from "../action/index.ts";
+import { useCommandPlatform } from "../kbd/index.ts";
 import { Collection, CollectionBuilder } from "../collection/index.ts";
 import { DisclosureCaret, indent, indicator } from "../disclosure/index.ts";
 import { Focus, ListDelegate } from "../focus/index.ts";
@@ -49,6 +55,14 @@ const styles = style.create({
         borderRadius: radius[2],
         cursor: "default",
         userSelect: "none",
+    },
+    // keep the fill under the menu open on the item
+    hover: {
+        backgroundColor: {
+            default: "transparent",
+            ":is([data-menu-open] > *)": color.hover,
+            ":hover": { default: null, [media.hover]: color.hover },
+        },
     },
     focused: {
         outlineStyle: "solid",
@@ -158,6 +172,14 @@ export class TreeControl {
         return stop;
     }
 
+    /** List the item a person is on at an element, none outside one. */
+    targets(element: Element | null): readonly string[] {
+        const item = element?.closest<HTMLElement>("[role=treeitem][data-value]") ?? null;
+        const value = item?.dataset["value"];
+
+        return value === undefined || this.node(value) === undefined ? [] : [value];
+    }
+
     /** Select an item and tell the change handler. */
     select(value: string): void {
         this.selection.add(value);
@@ -196,6 +218,8 @@ export interface TreeProperties extends Omit<JSX.HTMLAttributes<HTMLUListElement
     readonly defaultValue?: string;
     /** Handle another item being selected. */
     readonly onValueChange?: (value: string) => void;
+    /** Read the object an item stands for, which actions on its type take, absent for none. */
+    readonly reference?: (value: string) => ObjectReference | undefined;
     /** The StyleX styles applied after the tree's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with its attributes, its own by default. */
@@ -238,13 +262,20 @@ export function Tree(properties: TreeProperties): JSX.Element {
     // share one tree with its items and read the reading direction
     const control = new TreeControl(properties);
     const locale = useLocale();
-    const rest = omit(properties, "value", "defaultValue", "onValueChange");
+    const actions = useActions();
+    const isCommand = useCommandPlatform();
+    const rest = omit(properties, "value", "defaultValue", "onValueChange", "reference");
 
     return (
         <TreeContext value={control}>
             {renderPart("ul", "tree", rest, [text.sm, styles.tree], {
                 role: "tree" as const,
-                onKeyDown: (event) => navigate(event, control, locale.direction),
+                ref: provideItems({
+                    targets: (element) => control.targets(element),
+                    reference: (value) => properties.reference?.(value),
+                }),
+                onKeyDown: (event) =>
+                    navigate(event, control, locale.direction, actions, isCommand()),
                 onFocusOut: (event) => control.focus.focusOut(event),
             })}
         </TreeContext>
@@ -430,8 +461,8 @@ export function TreeItemRow(properties: TreeItemElementProperties<HTMLDivElement
         "tree-item-row",
         properties,
         () => [
-            state.hover,
             styles.row,
+            styles.hover,
             indent.by("0px", level - 1),
             isFocused() && styles.focused,
             isSelected() && state.selected,
@@ -540,20 +571,28 @@ function expandOrCollapse(
 }
 
 /** Move the focus among a tree's visible items, or to a parent. */
-function navigate(event: KeyboardEvent, control: TreeControl, direction: Direction): void {
+function navigate(
+    event: KeyboardEvent,
+    control: TreeControl,
+    direction: Direction,
+    actions: ActionRegistry,
+    isCommand: boolean,
+): void {
     // read the focused item and the key that closes toward its parent
     const active = control.focus.current();
     const node = active === undefined ? undefined : control.node(active);
     const closes = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
 
-    // choose the focused item, step out to its parent, or move along the visible items
-    if ((event.key === "Enter" || event.key === " ") && node !== undefined) {
+    // choose the focused item, step out to its parent, run an action, or move along the visible items
+    if (event.defaultPrevented) {
+        return;
+    } else if ((event.key === "Enter" || event.key === " ") && node !== undefined) {
         event.preventDefault();
         node.activate();
     } else if (event.key === closes && node?.parent !== undefined && node.parent !== null) {
         event.preventDefault();
         control.focus.focus(node.parent);
-    } else {
+    } else if (!actions.press(event, isCommand)) {
         control.focus.move(event, direction);
     }
 }

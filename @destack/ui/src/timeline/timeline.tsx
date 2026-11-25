@@ -16,7 +16,10 @@ import {
 import { DragAnnouncer, useDragManager } from "../drag/index.ts";
 import {
     clearSelection,
+    moveItemsDown,
+    moveItemsUp,
     openItem,
+    provideItems,
     selectAll,
     toggleSelection,
     zoomIn,
@@ -32,7 +35,7 @@ import {
     useTimeline,
     type TimelinePartProperties,
 } from "./control.ts";
-import { linkItem, moveRowDown, moveRowUp, panLeft, panRight } from "./actions.ts";
+import { linkItem, panLeft, panRight } from "./actions.ts";
 import { TimelineHeader } from "./header.tsx";
 import { TimelineLinkLayer } from "./links.tsx";
 import { TimelineGrid } from "./marker.tsx";
@@ -156,6 +159,18 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
         });
     const isMovable = (): boolean => control.options.onRowMove !== undefined;
     const handlers = [
+        // give the rows to the actions on them
+        provideItems({
+            targets: (element) => {
+                const key = rowAt(element);
+
+                return key === undefined
+                    ? control.selection.values()
+                    : control.selection.targets(key, control.tree.collection);
+            },
+            reference: (key) => control.options.reference?.(key),
+        }),
+
         // select rows
         onRow(
             toggleSelection,
@@ -176,8 +191,8 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
             () => control.options.onAction !== undefined,
             (key) => control.open(key),
         ),
-        onRow(moveRowUp, isMovable, (key) => control.stepRow(key, -1)),
-        onRow(moveRowDown, isMovable, (key) => control.stepRow(key, 1)),
+        onRow(moveItemsUp, isMovable, (key) => control.stepRow(key, -1)),
+        onRow(moveItemsDown, isMovable, (key) => control.stepRow(key, 1)),
         onRow(
             linkItem,
             () => isLinkable,

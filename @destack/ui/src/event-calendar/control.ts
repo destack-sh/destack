@@ -1,3 +1,4 @@
+import type { ObjectReference } from "@destack/sync";
 import {
     nth,
     type DateSpan,
@@ -39,6 +40,7 @@ import {
     createItem,
     duplicateItems,
     openItem,
+    provideItems,
     removeItems,
     selectAll,
 } from "../action/index.ts";
@@ -136,6 +138,8 @@ export type EventCalendarView = (typeof EVENT_CALENDAR_VIEWS)[number];
 export interface EventCalendarOptions extends CalendarAvailabilityOptions {
     /** The events. */
     readonly events: readonly CalendarEvent[];
+    /** Read the object an event stands for, which actions on its type take, absent for none. */
+    readonly reference?: (key: string) => ObjectReference | undefined;
     /** The view shown, which makes the view controlled. */
     readonly view?: EventCalendarView;
     /** The view shown at first while uncontrolled, the month by default. */
@@ -1185,10 +1189,14 @@ export class EventCalendarControl {
             this.options.mode === "availability" && this.availability.spans().length > 0;
 
         return [
-            // find events in the calendar's element
+            // find events in the calendar's element, and give them to the actions on them
             (element) => {
                 this.#root = element;
             },
+            provideItems({
+                targets: (element) => this.targetsAt(element),
+                reference: (key) => this.options.reference?.(key),
+            }),
 
             // move through dates, and switch among the offered views
             on(

@@ -1,3 +1,4 @@
+import type { ObjectReference } from "@destack/sync";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
@@ -18,7 +19,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
-import { openItem } from "../action/index.ts";
+import { openItem, provideItems } from "../action/index.ts";
 import { ListState } from "../focus/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { type Box, CollageLayout, type Flow, type Layout } from "./layout.ts";
@@ -236,7 +237,10 @@ type GalleryItemOpen =
 /** The properties of a gallery's item, with its element's attributes. */
 export type GalleryItemProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style"> &
     ElementPartProperties &
-    GalleryItemOpen;
+    GalleryItemOpen & {
+        /** The object it stands for, which actions on its type take, absent for none. */
+        readonly reference?: ObjectReference | undefined;
+    };
 
 /** Render an item where its gallery places it, such as a photo. */
 export function GalleryItem(properties: GalleryItemProperties): JSX.Element {
@@ -246,7 +250,7 @@ export function GalleryItem(properties: GalleryItemProperties): JSX.Element {
         throw new TypeError("a gallery item needs a gallery around it");
     }
     const locale = useLocale();
-    const rest = omit(properties, "onOpen", "label", "children");
+    const rest = omit(properties, "onOpen", "label", "reference", "children");
     const more = (): string =>
         item.more() > 0 ? locale.number(item.more(), { signDisplay: "always" }) : "";
     const key = createUniqueId();
@@ -282,6 +286,10 @@ export function GalleryItem(properties: GalleryItemProperties): JSX.Element {
                                 tabindex={item.list.focus.isActive(key) ? 0 : -1}
                                 ref={[
                                     (element: HTMLElement) => (button = element),
+                                    provideItems({
+                                        targets: () => [key],
+                                        reference: () => properties.reference,
+                                    }),
                                     handle(openItem, { run: () => button?.click() }),
                                 ]}
                                 onFocus={() => item.list.focus.focusIn(key)}

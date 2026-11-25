@@ -1,3 +1,4 @@
+import type { ObjectReference } from "@destack/sync";
 import { size, width } from "@destack/theme/tokens.stylex";
 import type { Hue } from "@destack/color";
 import type { Direction } from "@destack/locale";
@@ -70,6 +71,8 @@ export interface TimelineOptions {
     readonly propagate?: (changed: readonly TimelineItem[]) => readonly TimelineItem[];
     /** Handle the person moving a row, which makes the rows movable by a grip and keys. */
     readonly onRowMove?: (move: TimelineRowMove) => void;
+    /** Read the object a row stands for, which actions on its type take, absent for none. */
+    readonly reference?: (key: string) => ObjectReference | undefined;
     /** Handle the person opening an item. */
     readonly onAction?: (key: string) => void;
     /** The selection of items, several replaced by a plain press by default. */

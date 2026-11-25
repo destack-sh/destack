@@ -1,3 +1,4 @@
+import type { ObjectReference } from "@destack/sync";
 import arrowClockwise from "@destack/icon/phosphor/arrow-clockwise";
 import fileIcon from "@destack/icon/phosphor/file";
 import fileArchive from "@destack/icon/phosphor/file-archive";
@@ -38,7 +39,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { openItem, removeItems, retryItem } from "../action/index.ts";
+import { openItem, provideItems, removeItems, retryItem } from "../action/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { ListState } from "../focus/index.ts";
 import {
@@ -281,6 +282,8 @@ export interface FileItemProperties
         FileItemElementProperties,
         Omit<FileItemOptions, "layout" | "size">,
         Partial<Pick<FileItemOptions, "layout" | "size">> {
+    /** The object it stands for, which actions on its type take, absent for none. */
+    readonly reference?: ObjectReference | undefined;
     /** Its parts, the usual ones by default. */
     readonly children?: JSX.Element;
 }
@@ -311,9 +314,11 @@ export function FileItem(properties: FileItemProperties): JSX.Element {
         "onOpen",
         "onRetry",
         "onRemove",
+        "reference",
         "children",
     );
     const handlers = [
+        provideItems({ targets: () => [key], reference: () => properties.reference }),
         handle(openItem, {
             isEnabled: () => control.isOpenable,
             run: () => opens(element)?.click(),

@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
-import { createSignal, flush } from "@destack/view";
+import { ActionRegistry, createSignal, flush, handleOnPage } from "@destack/view";
+import { ActionMenu, removeItems } from "../action/index.ts";
 import {
     Tree,
     TreeItem,
@@ -8,7 +9,7 @@ import {
     TreeItemRow,
     TreeItemToggle,
 } from "./index.ts";
-import { render } from "@destack/view/test";
+import { render, stubPopovers, wait } from "@destack/view/test";
 import { treeWorkExpanded } from "./tree.example.tsx";
 
 /** Render the selected Porto under Portugal under Trips, reading the items with the tab stop. */
@@ -136,4 +137,52 @@ test("run a caller's handlers on an item beside its own", () => {
     flush();
 
     expect([calls, item?.getAttribute("aria-selected")]).toEqual([["click", "key"], "true"]);
+});
+
+test("act on the item a person is on, by its menu and by keys ahead of typed letters", async () => {
+    // ask for a nested item's menu, and delete its parent by the key
+    stubPopovers();
+    const removed: unknown[] = [];
+    const actions = new ActionRegistry();
+    const { container } = render(
+        () => {
+            handleOnPage(removeItems, { run: ({ values }) => void removed.push(values) });
+
+            return (
+                <>
+                    <Tree aria-label="Notebooks">
+                        <TreeItem value="trips" label="Trips" defaultExpanded>
+                            <TreeItem value="lisbon" label="Lisbon" />
+                        </TreeItem>
+                    </Tree>
+                    <ActionMenu />
+                </>
+            );
+        },
+        { actions },
+    );
+    flush();
+    const lisbon = container.querySelector<HTMLElement>("[data-value=lisbon]");
+    lisbon?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+    flush();
+    const isMarked = lisbon?.hasAttribute("data-menu-open");
+    document.querySelector<HTMLElement>("[role=menuitem]")?.click();
+    flush();
+    await wait(0);
+    container
+        .querySelector("[data-value=trips]")
+        ?.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Delete", bubbles: true, cancelable: true }),
+        );
+    await wait(0);
+
+    expect({
+        isMarked,
+        isMarkedAfter: lisbon?.hasAttribute("data-menu-open"),
+        removed,
+    }).toEqual({
+        isMarked: true,
+        isMarkedAfter: false,
+        removed: [{ items: ["lisbon"] }, { items: ["trips"] }],
+    });
 });

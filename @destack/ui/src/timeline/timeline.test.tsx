@@ -1,7 +1,7 @@
 import { nth, type ScheduleLink, type TickUnit, type TimeScale } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { space } from "@destack/theme/tokens.stylex";
-import { Locale, Localization, Shortcut } from "@destack/locale";
+import { Locale, Localization } from "@destack/locale";
 import { createSignal, Errored, flush, type JSX, LocaleContext, Show } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import { layOutElements } from "../virtualizer/test/layout.ts";
@@ -716,7 +716,7 @@ test("select rows with X and Shift and the arrows, move the selected bars togeth
     });
 });
 
-test("move rows by Mod+Shift and the arrows and by their grips, into another parent, never into themselves", () => {
+test("move rows by Shift+Alt and the arrows and by their grips, into another parent, never into themselves", () => {
     // a launch phase with two tasks, a review, and a ship; keys then a grip move rows about
     measureElements();
     const day = 86_400_000;
@@ -736,10 +736,9 @@ test("move rows by Mod+Shift and the arrows and by their grips, into another par
 
     // move Review up past Build, into the phase, then Phase down past Review and Ship
     row("review")?.focus();
-    const mod = Shortcut.isCommand(navigator.userAgent) ? { metaKey: true } : { ctrlKey: true };
-    press(container, "ArrowUp", { shiftKey: true, ...mod });
+    press(container, "ArrowUp", { shiftKey: true, altKey: true });
     row("phase")?.focus();
-    press(container, "ArrowDown", { shiftKey: true, ...mod });
+    press(container, "ArrowDown", { shiftKey: true, altKey: true });
 
     // drag Ship's grip from its row up into the gap between Phase and Design
     const grip = row("ship")?.querySelector("[data-slot=timeline-row-grip]");
