@@ -56,7 +56,7 @@ test("split each view into a browser chunk", async () => {
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspacePackage = await (await Workspace.open(NOTEBOOK, compilers)).package();
     const dependencies = await workspacePackage.storeDependencies({});
-    const build = await compilers.use(NOTEBOOK, (compiler) =>
+    const { build } = await compilers.use(NOTEBOOK, (compiler) =>
         compiler.build({
             directory: NOTEBOOK,
             dependencies,
