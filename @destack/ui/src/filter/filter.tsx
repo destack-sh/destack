@@ -45,7 +45,12 @@ import {
     DropdownMenuTrigger,
 } from "../dropdown-menu/index.ts";
 import { Icon } from "../icon/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { Popover, PopoverContent, PopoverTrigger, usePopover } from "../popover/index.ts";
 import { ValueField, ValueIcon } from "../value-field/index.ts";
 import { addFilter, clearFilter } from "./actions.ts";
@@ -190,16 +195,14 @@ export function Filter(properties: FilterProperties): JSX.Element {
                 role: "group" as const,
                 "aria-label": locale.render(t`Filter`),
                 get children() {
-                    return (
-                        properties.children ?? (
-                            <>
-                                <FilterList />
-                                <FilterAdd />
-                                <FilterMatch />
-                                <FilterClear />
-                            </>
-                        )
-                    );
+                    return contentOr(properties, () => (
+                        <>
+                            <FilterList />
+                            <FilterAdd />
+                            <FilterMatch />
+                            <FilterClear />
+                        </>
+                    ));
                 },
             })}
         </FilterContext>
@@ -292,14 +295,14 @@ export function FilterItem(properties: FilterElementProperties): JSX.Element {
             {...rest}
             xstyle={[styles.item, properties.xstyle]}
         >
-            {properties.children ?? (
+            {contentOr(properties, () => (
                 <>
                     <FilterField />
                     <FilterOperator />
                     <FilterValue />
                     <FilterRemove />
                 </>
-            )}
+            ))}
         </ButtonGroup>
     );
 }
@@ -322,7 +325,7 @@ export function FilterField(properties: FilterElementProperties): JSX.Element {
             {...properties}
             xstyle={[text.xs, styles.field, properties.xstyle]}
         >
-            {properties.children ?? (
+            {contentOr(properties, () => (
                 <Show when={field()} fallback={locale.render(t`Another condition`)}>
                     {(each) => (
                         <>
@@ -331,7 +334,7 @@ export function FilterField(properties: FilterElementProperties): JSX.Element {
                         </>
                     )}
                 </Show>
-            )}
+            ))}
         </ButtonGroupText>
     );
 }
@@ -618,7 +621,9 @@ export function FilterRemove(properties: ButtonProperties): JSX.Element {
             aria-label={locale.render(t`Remove filter`)}
             {...mergeProperties({ onClick: remove }, properties)}
         >
-            {properties.children ?? <Icon icon={xIcon} />}
+            {contentOr(properties, () => (
+                <Icon icon={xIcon} />
+            ))}
         </Button>
     );
 }
@@ -670,12 +675,12 @@ export function FilterAdd(properties: FilterAddProperties): JSX.Element {
                 ref={(element: HTMLElement) => (trigger = element)}
                 data-slot="filter-add"
             >
-                {properties.children ?? (
+                {contentOr(properties, () => (
                     <>
                         <Icon icon={set === null ? funnelIcon : plusIcon} />
                         {label()}
                     </>
-                )}
+                ))}
             </PopoverTrigger>
             <PopoverContent align="start" xstyle={styles.menu}>
                 <Command aria-label={label()}>
@@ -779,12 +784,12 @@ export function FilterMenu(properties: ButtonProperties): JSX.Element {
                 )}
                 data-slot="filter-menu"
             >
-                {properties.children ?? (
+                {contentOr(properties, () => (
                     <>
                         <Icon icon={funnelIcon} />
                         {count() === 0 ? locale.render(t`Filter`) : countWords(count(), locale)}
                     </>
-                )}
+                ))}
             </PopoverTrigger>
             <PopoverContent align="start" xstyle={styles.panel}>
                 <FilterGroup />
@@ -848,7 +853,7 @@ export function FilterClear(properties: ButtonProperties): JSX.Element {
                 size="sm"
                 {...mergeProperties({ onClick: () => control.clear() }, properties)}
             >
-                {properties.children ?? locale.render(t`Clear filters`)}
+                {contentOr(properties, () => locale.render(t`Clear filters`))}
             </Button>
         </Show>
     );
@@ -878,19 +883,17 @@ export function FilterGroup(properties: FilterGroupProperties): JSX.Element {
             {renderPart("div", "filter-group", rest, [styles.group, isNested && styles.nested], {
                 role: "group" as const,
                 get children() {
-                    return (
-                        properties.children ?? (
-                            <>
-                                <FilterList orientation="vertical" />
-                                <div {...style.attrs(styles.footer)}>
-                                    <FilterAdd groups />
-                                    <Show when={isNested}>
-                                        <FilterRemove variant="ghost" />
-                                    </Show>
-                                </div>
-                            </>
-                        )
-                    );
+                    return contentOr(properties, () => (
+                        <>
+                            <FilterList orientation="vertical" />
+                            <div {...style.attrs(styles.footer)}>
+                                <FilterAdd groups />
+                                <Show when={isNested}>
+                                    <FilterRemove variant="ghost" />
+                                </Show>
+                            </div>
+                        </>
+                    ));
                 },
             })}
         </SetContext>
@@ -939,7 +942,7 @@ export function FilterMatch(properties: ButtonProperties): JSX.Element {
                         properties.xstyle,
                     ]}
                 >
-                    {properties.children ?? words()}
+                    {contentOr(properties, () => words())}
                 </Button>
             </Show>
         </Show>

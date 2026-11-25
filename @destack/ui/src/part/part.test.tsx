@@ -3,6 +3,7 @@ import { expect, test } from "@destack/test";
 import { createMemo, createSignal, flush, type JSX } from "@destack/view";
 import { markup, render } from "@destack/view/test";
 import {
+    contentOr,
     type ElementPartProperties,
     mergeProperties,
     type PartAttributes,
@@ -266,4 +267,29 @@ test("build a part's content once, whatever writes what its styles read", () => 
         ["nested", "before", 1],
         ["nested", "inside", 1],
     ]);
+});
+
+/** Render a part with content of its own. */
+function Standard(properties: { readonly children?: JSX.Element }): JSX.Element {
+    return <i>{contentOr(properties, () => "standard")}</i>;
+}
+
+test("draw a part's own content, the caller's once, and nothing for null", () => {
+    let built = 0;
+    const Content = (): JSX.Element => {
+        built += 1;
+
+        return "given";
+    };
+    const { container } = render(() => (
+        <>
+            <Standard />
+            <Standard>
+                <Content />
+            </Standard>
+            <Standard children={null} />
+        </>
+    ));
+
+    expect([markup(container), built]).toEqual(["<i>standard</i><i>given</i><i></i>", 1]);
 });

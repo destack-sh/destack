@@ -7,7 +7,12 @@ import { color, motion, radius, shadow, size, space, stroke } from "@destack/the
 import { createContext, type JSX, omit, useContext, useLocale } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { Textarea, type TextareaProperties } from "../textarea/index.ts";
 
 /** The tallest the text grows before it scrolls. */
@@ -358,7 +363,9 @@ export function ComposerSubmit(properties: ButtonProperties): JSX.Element {
             )}
             xstyle={[styles.submit, properties.xstyle]}
         >
-            {properties.children ?? <Icon icon={composer.isBusy() ? stopIcon : arrowUpIcon} />}
+            {contentOr(properties, () => (
+                <Icon icon={composer.isBusy() ? stopIcon : arrowUpIcon} />
+            ))}
         </Button>
     );
 }

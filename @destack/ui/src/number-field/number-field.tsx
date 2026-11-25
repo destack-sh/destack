@@ -11,7 +11,6 @@ import {
     omit,
     onCleanup,
     Show,
-    untrack,
     useEnvironment,
     useLocale,
 } from "@destack/view";
@@ -27,7 +26,12 @@ import {
 } from "../input-group/index.ts";
 import type { InputProperties } from "../input/index.ts";
 import { Move } from "../interaction/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import {
     NumberFieldContext,
     NumberFieldControl,
@@ -141,7 +145,9 @@ export function NumberField(given: NumberFieldProperties): JSX.Element {
                 get children() {
                     return (
                         <>
-                            {properties.children ?? <NumberFieldParts />}
+                            {contentOr(properties, () => (
+                                <NumberFieldParts />
+                            ))}
                             <Show when={isFormControl(properties) || control.refusal() !== ""}>
                                 <FormInput
                                     name={properties.name}
@@ -377,9 +383,9 @@ export function NumberFieldScrubArea(
     return renderPart(
         "span",
         "number-field-scrub-area",
-        untrack(() => properties),
+        properties,
         styles.scrub,
-        { role: "presentation" as const, ...move.attributes() },
+        mergeProperties({ role: "presentation" as const }, move.attributes()),
     );
 }
 

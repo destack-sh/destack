@@ -17,7 +17,7 @@ import {
     refuseDisabled,
 } from "../disclosure/index.ts";
 import { OpenChange, type OpenProperties, OpenState } from "../layer/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The nearest collapsible, null outside one. */
 const CollapsibleContext = createContext<CollapsibleControl | null>(null);
@@ -65,7 +65,7 @@ export type CollapsibleElementProperties<Attributes> = Omit<Attributes, "class">
 
 /** The properties of a collapsible, the native disclosure's attributes included. */
 export type CollapsibleProperties = CollapsibleElementProperties<
-    Omit<JSX.DetailsHtmlAttributes<HTMLDetailsElement>, "open" | "onToggle">
+    Omit<JSX.DetailsHtmlAttributes<HTMLDetailsElement>, "open">
 > &
     OpenProperties & {
         /** Whether the trigger ignores the person. */
@@ -75,37 +75,33 @@ export type CollapsibleProperties = CollapsibleElementProperties<
 /** Render a native disclosure that shows and hides its content. */
 export function Collapsible(properties: CollapsibleProperties): JSX.Element {
     // follow the controlled state or the collapsible's own
-    const rest = omit(
-        properties,
-        "open",
-        "defaultOpen",
-        "onOpenChange",
-        "disabled",
-        "xstyle",
-        "style",
-    );
+    const rest = omit(properties, "open", "defaultOpen", "onOpenChange", "disabled");
     const collapsible = new OpenState(properties, createUniqueId());
     const { isOpen } = collapsible;
 
     return (
         <CollapsibleContext value={{ isOpen, isDisabled: () => properties.disabled === true }}>
-            <details
-                data-slot="collapsible"
-                data-open={isOpen() ? "" : undefined}
-                data-closed={isOpen() ? undefined : ""}
-                data-disabled={properties.disabled === true ? "" : undefined}
-                open={isOpen()}
-                {...rest}
-                onToggle={(event) =>
+            {renderPart("details", "collapsible", rest, disclosure.root, {
+                get "data-open"() {
+                    return isOpen() ? "" : undefined;
+                },
+                get "data-closed"() {
+                    return isOpen() ? undefined : "";
+                },
+                get "data-disabled"() {
+                    return properties.disabled === true ? "" : undefined;
+                },
+                get open() {
+                    return isOpen();
+                },
+                onToggle: (event) =>
                     followToggle(
                         event,
                         isOpen,
                         (open) => collapsible.follow(open, new OpenChange("trigger-press", event)),
                         true,
-                    )
-                }
-                {...style.attributes([disclosure.root, properties.xstyle], properties.style)}
-            />
+                    ),
+            })}
         </CollapsibleContext>
     );
 }
@@ -148,7 +144,7 @@ export function CollapsibleIndicator(
         {
             "aria-hidden": "true" as const,
             get children() {
-                return properties.children ?? <DisclosureCaret />;
+                return contentOr(properties, () => <DisclosureCaret />);
             },
         },
     );

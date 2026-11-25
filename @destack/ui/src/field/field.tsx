@@ -22,7 +22,7 @@ import { Button } from "../button/index.ts";
 import { Label, type LabelProperties } from "../label/index.ts";
 import { FieldContext, FieldControl, useFieldControl } from "./control.ts";
 import { Separator } from "../separator/index.ts";
-import { mergeProperties, renderPart } from "../part/index.ts";
+import { mergeProperties, renderPart, type Render } from "../part/index.ts";
 
 /** The width of a field group above which responsive fields lay out in a row. */
 const RESPONSIVE_QUERY = "@container field-group (min-width: 28rem)";
@@ -166,6 +166,8 @@ export type FieldElementProperties<Target extends HTMLElement> = Omit<
 > & {
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** The properties of a field. */
@@ -196,16 +198,7 @@ export interface FieldErrorProperties extends FieldElementProperties<HTMLDivElem
 export function Field(properties: FieldProperties): JSX.Element {
     // share one control with the field's elements
     const field = merge(DEFAULTS, properties);
-    const rest = omit(
-        field,
-        "orientation",
-        "invalid",
-        "disabled",
-        "field",
-        "xstyle",
-        "style",
-        "children",
-    );
+    const rest = omit(field, "orientation", "invalid", "disabled", "field");
     const control = new FieldControl(
         () => field.invalid === true,
         () => field.disabled === true,
@@ -280,13 +273,24 @@ export function Field(properties: FieldProperties): JSX.Element {
 
     return (
         <FieldContext value={control}>
-            <div
-                role="group"
-                data-slot="field"
-                data-orientation={field.orientation}
-                data-invalid={control.isInvalid() ? "" : undefined}
-                data-disabled={control.isDisabled() ? "" : undefined}
-                {...mergeProperties(
+            {renderPart(
+                "div",
+                "field",
+                rest,
+                () => [styles.field, orientations[field.orientation]],
+                mergeProperties(
+                    {
+                        role: "group" as const,
+                        get "data-orientation"() {
+                            return field.orientation;
+                        },
+                        get "data-invalid"() {
+                            return control.isInvalid() ? "" : undefined;
+                        },
+                        get "data-disabled"() {
+                            return control.isDisabled() ? "" : undefined;
+                        },
+                    },
                     {
                         onFocusIn: enter,
                         onFocusOut: leave,
@@ -295,15 +299,8 @@ export function Field(properties: FieldProperties): JSX.Element {
                         ref: (element: HTMLElement) =>
                             element.addEventListener("invalid", refuse, { capture: true }),
                     },
-                    rest,
-                )}
-                {...style.attributes(
-                    [styles.field, orientations[field.orientation], field.xstyle],
-                    field.style,
-                )}
-            >
-                {field.children}
-            </div>
+                ),
+            )}
         </FieldContext>
     );
 }
@@ -344,7 +341,7 @@ export function FieldDescription(
 /** Render the nearest field's errors as an alert, or nothing when there are none. */
 export function FieldError(properties: FieldErrorProperties): JSX.Element {
     // list the children, else each distinct error message
-    const rest = omit(properties, "errors", "xstyle", "style", "children");
+    const rest = omit(properties, "errors", "children");
     const content = children(() => properties.children);
     const control = useFieldControl();
     const given = (): readonly ({ readonly message?: string | undefined } | undefined)[] =>
@@ -359,29 +356,29 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
 
     return (
         <Show when={isShown()}>
-            <div
-                id={id}
-                role="alert"
-                data-slot="field-error"
-                {...rest}
-                {...style.attributes(
-                    [
-                        text.xs,
-                        styles.error,
-                        control?.isAcross === true && styles.below,
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            >
-                <Show when={content.toArray().length === 0} fallback={content()}>
-                    <Show when={messages().length > 1} fallback={messages()[0]}>
-                        <ul {...style.attrs(styles.errors)}>
-                            <For each={messages()}>{(message) => <li>{message}</li>}</For>
-                        </ul>
-                    </Show>
-                </Show>
-            </div>
+            {renderPart(
+                "div",
+                "field-error",
+                rest,
+                () => [text.xs, styles.error, control?.isAcross === true && styles.below],
+                {
+                    id: id,
+                    role: "alert" as const,
+                    get children() {
+                        return (
+                            <Show when={content.toArray().length === 0} fallback={content()}>
+                                <Show when={messages().length > 1} fallback={messages()[0]}>
+                                    <ul {...style.attrs(styles.errors)}>
+                                        <For each={messages()}>
+                                            {(message) => <li>{message}</li>}
+                                        </For>
+                                    </ul>
+                                </Show>
+                            </Show>
+                        );
+                    },
+                },
+            )}
         </Show>
     );
 }
@@ -398,7 +395,7 @@ export function FieldConflict(properties: FieldConflictProperties): JSX.Element 
     const locale = useLocale();
     const control = useFieldControl();
     const value = control?.value;
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
     const write = (theirs: unknown): JSX.Element =>
         properties.children?.(theirs) ??
         (typeof theirs === "number"
@@ -413,28 +410,28 @@ export function FieldConflict(properties: FieldConflictProperties): JSX.Element 
 
     return (
         <Show when={value?.conflict()}>
-            {(conflict) => (
-                <div
-                    id={id}
-                    role="status"
-                    data-slot="field-conflict"
-                    {...rest}
-                    {...style.attributes(
-                        [text.xs, styles.conflict, properties.xstyle],
-                        properties.style,
-                    )}
-                >
-                    <span>
-                        {locale.render(t`Changed meanwhile:`)} <b>{write(conflict().value)}</b>
-                    </span>
-                    <Button size="sm" variant="outline" onClick={() => value?.take()}>
-                        {locale.render(t`Use this`)}
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => value?.keep()}>
-                        {locale.render(t`Keep mine`)}
-                    </Button>
-                </div>
-            )}
+            {(conflict) =>
+                renderPart("div", "field-conflict", rest, [text.xs, styles.conflict], {
+                    id: id,
+                    role: "status" as const,
+                    get children() {
+                        return (
+                            <>
+                                <span>
+                                    {locale.render(t`Changed meanwhile:`)}{" "}
+                                    <b>{write(conflict().value)}</b>
+                                </span>
+                                <Button size="sm" variant="outline" onClick={() => value?.take()}>
+                                    {locale.render(t`Use this`)}
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => value?.keep()}>
+                                    {locale.render(t`Keep mine`)}
+                                </Button>
+                            </>
+                        );
+                    },
+                })
+            }
         </Show>
     );
 }
@@ -458,18 +455,18 @@ export function FieldSet(properties: FieldElementProperties<HTMLFieldSetElement>
 /** Render the legend of a fieldset as a heading or a label. */
 export function FieldLegend(properties: FieldLegendProperties): JSX.Element {
     const legend = merge(LEGEND_DEFAULTS, properties);
-    const rest = omit(legend, "variant", "xstyle", "style");
+    const rest = omit(legend, "variant");
 
-    return (
-        <legend
-            data-slot="field-legend"
-            data-variant={legend.variant}
-            {...rest}
-            {...style.attributes(
-                [legends[legend.variant], styles.legend, legend.xstyle],
-                legend.style,
-            )}
-        />
+    return renderPart(
+        "legend",
+        "field-legend",
+        rest,
+        () => [legends[legend.variant], styles.legend],
+        {
+            get "data-variant"() {
+                return legend.variant;
+            },
+        },
     );
 }
 
@@ -496,22 +493,27 @@ export function FieldTitle(properties: FieldElementProperties<HTMLDivElement>): 
 
 /** Render a line between fields, with optional text in its middle. */
 export function FieldSeparator(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
     const content = children(() => properties.children);
 
-    return (
-        <div
-            data-slot="field-separator"
-            data-content={content.toArray().length > 0 ? "" : undefined}
-            {...rest}
-            {...style.attributes([text.xs, styles.separator, properties.xstyle], properties.style)}
-        >
-            <Separator xstyle={styles.line} />
-            <Show when={content.toArray().length > 0}>
-                <span data-slot="field-separator-content" {...style.attrs(styles.separatorContent)}>
-                    {content()}
-                </span>
-            </Show>
-        </div>
-    );
+    return renderPart("div", "field-separator", rest, [text.xs, styles.separator], {
+        get "data-content"() {
+            return content.toArray().length > 0 ? "" : undefined;
+        },
+        get children() {
+            return (
+                <>
+                    <Separator xstyle={styles.line} />
+                    <Show when={content.toArray().length > 0}>
+                        <span
+                            data-slot="field-separator-content"
+                            {...style.attrs(styles.separatorContent)}
+                        >
+                            {content()}
+                        </span>
+                    </Show>
+                </>
+            );
+        },
+    });
 }

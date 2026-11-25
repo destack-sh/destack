@@ -1,3 +1,4 @@
+import { contentOr, renderPart, type Render } from "../part/index.ts";
 import { Icon } from "@destack/ui/icon";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { type Direction, t } from "@destack/locale";
@@ -319,6 +320,8 @@ export function useCombobox(): ComboboxControl {
 export type ComboboxElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** Hold the chosen value of an input whose list of options filters as the person types. */
@@ -498,18 +501,18 @@ export function ComboboxItemIndicator(properties: ComboboxItemIndicatorPropertie
     if (isChosen === null) {
         throw new TypeError("a combobox item indicator needs a combobox item around it");
     }
-    const rest = omit(properties, "keepMounted", "xstyle", "style", "children");
+    const rest = omit(properties, "keepMounted", "children");
 
     return (
         <Show when={properties.keepMounted === true || isChosen()}>
-            <span
-                data-slot="combobox-item-indicator"
-                data-selected={isChosen() ? "" : undefined}
-                {...rest}
-                {...style.attributes([styles.indicator, properties.xstyle], properties.style)}
-            >
-                {properties.children ?? <Icon name="check" />}
-            </span>
+            {renderPart("span", "combobox-item-indicator", rest, styles.indicator, {
+                get "data-selected"() {
+                    return isChosen() ? "" : undefined;
+                },
+                get children() {
+                    return contentOr(properties, () => <Icon name="check" />);
+                },
+            })}
         </Show>
     );
 }
@@ -577,21 +580,17 @@ export function ComboboxChips(
     properties: ComboboxElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useCombobox();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            data-slot="combobox-chips"
-            {...rest}
-            {...style.attributes([styles.chips, properties.xstyle], properties.style)}
-        >
-            {properties.children ?? (
+    return renderPart("div", "combobox-chips", rest, styles.chips, {
+        get children() {
+            return contentOr(properties, () => (
                 <For each={control.selection.values()}>
                     {(value) => <ComboboxChip value={value} />}
                 </For>
-            )}
-        </div>
-    );
+            ));
+        },
+    });
 }
 
 /** The properties of a chip of a multiple combobox, the native element's attributes included. */
@@ -607,25 +606,26 @@ const ComboboxChipContext = createContext<string | null>(null);
 /** Render one chosen value of a multiple combobox as a chip. */
 export function ComboboxChip(properties: ComboboxChipProperties): JSX.Element {
     const control = useCombobox();
-    const rest = omit(properties, "value", "xstyle", "style", "children");
+    const rest = omit(properties, "value", "children");
 
     return (
         <ComboboxChipContext value={properties.value}>
-            <span
-                data-slot="combobox-chip"
-                {...rest}
-                {...style.attributes(
-                    [badgeVariants({ variant: "secondary" }), styles.chip, properties.xstyle],
-                    properties.style,
-                )}
-            >
-                {properties.children ?? (
-                    <>
-                        {control.labelOf(properties.value)}
-                        <ComboboxChipRemove />
-                    </>
-                )}
-            </span>
+            {renderPart(
+                "span",
+                "combobox-chip",
+                rest,
+                () => [badgeVariants({ variant: "secondary" }), styles.chip],
+                {
+                    get children() {
+                        return contentOr(properties, () => (
+                            <>
+                                {control.labelOf(properties.value)}
+                                <ComboboxChipRemove />
+                            </>
+                        ));
+                    },
+                },
+            )}
         </ComboboxChipContext>
     );
 }
@@ -643,21 +643,19 @@ export function ComboboxChipRemove(
     if (value === null) {
         throw new TypeError("a combobox chip remove button needs a combobox chip around it");
     }
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
-    return (
-        <button
-            type="button"
-            tabindex={-1}
-            aria-label={locale.render(t`Remove ${control.labelOf(value)}`)}
-            data-slot="combobox-chip-remove"
-            {...rest}
-            onClick={() => control.selection.toggle(value)}
-            {...style.attributes([state.touch, styles.remove, properties.xstyle], properties.style)}
-        >
-            {properties.children ?? <Icon name="x" size="0.75em" />}
-        </button>
-    );
+    return renderPart("button", "combobox-chip-remove", rest, [state.touch, styles.remove], {
+        type: "button" as const,
+        tabindex: -1,
+        get "aria-label"() {
+            return locale.render(t`Remove ${control.labelOf(value)}`);
+        },
+        onClick: () => control.selection.toggle(value),
+        get children() {
+            return contentOr(properties, () => <Icon name="x" size="0.75em" />);
+        },
+    });
 }
 
 /** Render an option that creates one from the typed text while no item has that text. */

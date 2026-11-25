@@ -13,9 +13,9 @@ test("connect each tab to its panel and show only the selected panel", () => {
             '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-edit" aria-controls="id-1-panel-edit" aria-selected="true" tabindex="0" data-active="" data-value="edit" data-orientation="horizontal">Edit</button>' +
             '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-preview" aria-controls="id-1-panel-preview" aria-selected="false" tabindex="-1" data-value="preview" data-orientation="horizontal">Preview</button>' +
             '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-history" aria-controls="id-1-panel-history" aria-selected="false" tabindex="-1" data-value="history" data-orientation="horizontal" disabled="">History</button></div></div>' +
-            '<div role="tabpanel" id="id-1-panel-edit" aria-labelledby="id-1-tab-edit" tabindex="0" data-slot="tabs-content" data-orientation="horizontal">Editor</div>' +
-            '<div role="tabpanel" id="id-1-panel-preview" aria-labelledby="id-1-tab-preview" tabindex="0" hidden="" data-slot="tabs-content" data-hidden="" data-orientation="horizontal">Rendered</div>' +
-            '<div role="tabpanel" id="id-1-panel-history" aria-labelledby="id-1-tab-history" tabindex="0" hidden="" data-slot="tabs-content" data-hidden="" data-orientation="horizontal">Versions</div></div>',
+            '<div data-slot="tabs-content" role="tabpanel" id="id-1-panel-edit" aria-labelledby="id-1-tab-edit" tabindex="0" data-orientation="horizontal">Editor</div>' +
+            '<div data-slot="tabs-content" role="tabpanel" id="id-1-panel-preview" aria-labelledby="id-1-tab-preview" tabindex="0" hidden="" data-hidden="" data-orientation="horizontal">Rendered</div>' +
+            '<div data-slot="tabs-content" role="tabpanel" id="id-1-panel-history" aria-labelledby="id-1-tab-history" tabindex="0" hidden="" data-hidden="" data-orientation="horizontal">Versions</div></div>',
     );
 });
 

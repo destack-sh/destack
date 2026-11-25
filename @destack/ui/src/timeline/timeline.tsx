@@ -24,7 +24,7 @@ import {
     zoomToFit,
 } from "../action/index.ts";
 import { Move, Zoom } from "../interaction/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import {
     type TimelineOptions,
     TimelineControl,
@@ -134,8 +134,6 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
         "labelWidth",
         "onLabelWidthChange",
         "children",
-        "xstyle",
-        "style",
     );
 
     // handle the timeline's keys on its rows
@@ -242,22 +240,35 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
 
     return (
         <TimelineContext value={control}>
-            <div
-                data-slot="timeline"
-                data-linking={control.drag.manager.operation()?.kind === "link" ? "" : undefined}
-                {...mergeProperties(keys, rest)}
-                {...style.attributes([styles.timeline, properties.xstyle], properties.style)}
-            >
-                {"children" in properties ? (
-                    properties.children
-                ) : (
-                    <>
-                        <TimelineHeader />
-                        <TimelineBody />
-                    </>
-                )}
-                {control.rowLength.render()}
-            </div>
+            {renderPart(
+                "div",
+                "timeline",
+                rest,
+                styles.timeline,
+                mergeProperties(
+                    {
+                        get "data-linking"() {
+                            return control.drag.manager.operation()?.kind === "link"
+                                ? ""
+                                : undefined;
+                        },
+                        get children() {
+                            return (
+                                <>
+                                    {contentOr(properties, () => (
+                                        <>
+                                            <TimelineHeader />
+                                            <TimelineBody />
+                                        </>
+                                    ))}
+                                    {control.rowLength.render()}
+                                </>
+                            );
+                        },
+                    },
+                    keys,
+                ),
+            )}
             <Show when={!drags.isShared}>
                 <DragAnnouncer manager={control.drag.manager} />
             </Show>
@@ -271,7 +282,7 @@ export function TimelineBody(properties: TimelinePartProperties): JSX.Element {
     const control = useTimeline();
     const locale = useLocale();
     const mirror = (share: number) => (locale.direction === "rtl" ? -share : share);
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     let track: HTMLElement | undefined;
     const zoom = new Zoom({
         onZoom: (event) => {
@@ -319,48 +330,59 @@ export function TimelineBody(properties: TimelinePartProperties): JSX.Element {
         useEnvironment().clock,
     );
 
-    return (
-        <div
-            data-slot="timeline-body"
-            role="treegrid"
-            aria-label={locale.render(t`Timeline`)}
-            aria-rowcount={control.tree.rows().length}
-            aria-multiselectable="true"
-            {...mergeProperties(
-                mergeProperties(
-                    mergeProperties(mergeProperties(zoom.attributes(), pan), drag.attributes()),
-                    rest,
-                ),
+    return renderPart(
+        "div",
+        "timeline-body",
+        rest,
+        styles.body,
+        mergeProperties(
+            mergeProperties(
+                mergeProperties(mergeProperties(zoom.attributes(), pan), drag.attributes()),
                 { ref: (created: HTMLDivElement) => control.attachScroller(created) },
-            )}
-            {...style.attributes([styles.body, properties.xstyle], properties.style)}
-        >
-            <div {...style.attrs(styles.rows, places.height(control.virtualizer.totalSize()))}>
-                {/* Track width probe */}
-                <div
-                    aria-hidden="true"
-                    {...style.attrs(styles.probe, places.columns(control.template()))}
-                >
-                    <div
-                        ref={(created) => {
-                            track = created;
-                            control.window.attachTrack(created);
-                        }}
-                        {...style.attrs(styles.probeTrack)}
-                    />
-                </div>
+            ),
+            {
+                role: "treegrid" as const,
+                get "aria-label"() {
+                    return locale.render(t`Timeline`);
+                },
+                get "aria-rowcount"() {
+                    return control.tree.rows().length;
+                },
+                "aria-multiselectable": "true" as const,
+                get children() {
+                    return (
+                        <div
+                            {...style.attrs(
+                                styles.rows,
+                                places.height(control.virtualizer.totalSize()),
+                            )}
+                        >
+                            {/* Track width probe */}
+                            <div
+                                aria-hidden="true"
+                                {...style.attrs(styles.probe, places.columns(control.template()))}
+                            >
+                                <div
+                                    ref={(created) => {
+                                        track = created;
+                                        control.window.attachTrack(created);
+                                    }}
+                                    {...style.attrs(styles.probeTrack)}
+                                />
+                            </div>
 
-                {/* Parts */}
-                {"children" in properties ? (
-                    properties.children
-                ) : (
-                    <>
-                        <TimelineGrid />
-                        <TimelineLinkLayer />
-                        <TimelineRowList />
-                    </>
-                )}
-            </div>
-        </div>
+                            {/* Parts */}
+                            {contentOr(properties, () => (
+                                <>
+                                    <TimelineGrid />
+                                    <TimelineLinkLayer />
+                                    <TimelineRowList />
+                                </>
+                            ))}
+                        </div>
+                    );
+                },
+            },
+        ),
     );
 }

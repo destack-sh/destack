@@ -63,21 +63,23 @@ export interface ButtonGroupProperties extends ButtonGroupElementProperties {
 /** Render buttons, inputs and selects joined into one control, or groups of them spaced apart. */
 export function ButtonGroup(properties: ButtonGroupProperties): JSX.Element {
     const group = merge(DEFAULTS, properties);
-    const rest = omit(group, "orientation", "divided", "xstyle", "style");
+    const rest = omit(group, "orientation", "divided");
 
     return (
         <JoinContext value={() => group.orientation}>
             <DivideContext value={untrack(() => group.divided === true)}>
-                <div
-                    data-slot="button-group"
-                    data-orientation={group.orientation}
-                    role="group"
-                    {...rest}
-                    {...style.attributes(
-                        [styles.group, orientations[group.orientation], group.xstyle],
-                        group.style,
-                    )}
-                />
+                {renderPart(
+                    "div",
+                    "button-group",
+                    rest,
+                    () => [styles.group, orientations[group.orientation]],
+                    {
+                        get "data-orientation"() {
+                            return group.orientation;
+                        },
+                        role: "group" as const,
+                    },
+                )}
             </DivideContext>
         </JoinContext>
     );

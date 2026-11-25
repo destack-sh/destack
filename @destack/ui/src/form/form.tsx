@@ -24,7 +24,7 @@ import {
     AlertDialogTitle,
 } from "../alert-dialog/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** What a form asks of its draft. */
 type Draft = Pick<FormControl<never>, "status" | "error" | "isEdited" | "submit" | "reset">;
@@ -97,19 +97,19 @@ export function FormError(properties: FormErrorProperties): JSX.Element {
     // read the failure
     const form = useDraft();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
     return (
         <Show when={form.status() === "failed"}>
-            <div
-                role="alert"
-                data-slot="form-error"
-                {...rest}
-                {...style.attributes([text.sm, styles.error, properties.xstyle], properties.style)}
-            >
-                {properties.children?.(form.error()) ??
-                    locale.render(t`This could not be saved. Try again.`)}
-            </div>
+            {renderPart("div", "form-error", rest, [text.sm, styles.error], {
+                role: "alert" as const,
+                get children() {
+                    return (
+                        properties.children?.(form.error()) ??
+                        locale.render(t`This could not be saved. Try again.`)
+                    );
+                },
+            })}
         </Show>
     );
 }
@@ -158,7 +158,7 @@ export function FormStatus(properties: FormStatusProperties): JSX.Element {
     // say what matters most: what runs, then what is not saved yet
     const form = useDraft();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
     const standing = (): FormStanding => {
         const status = form.status();
 
@@ -185,17 +185,15 @@ export function FormStatus(properties: FormStatusProperties): JSX.Element {
         }
     };
 
-    return (
-        <span
-            role="status"
-            data-slot="form-status"
-            data-standing={standing()}
-            {...rest}
-            {...style.attributes([text.sm, styles.status, properties.xstyle], properties.style)}
-        >
-            {properties.children?.(standing()) ?? words()}
-        </span>
-    );
+    return renderPart("span", "form-status", rest, [text.sm, styles.status], {
+        role: "status" as const,
+        get "data-standing"() {
+            return standing();
+        },
+        get children() {
+            return properties.children?.(standing()) ?? words();
+        },
+    });
 }
 
 /** What holds navigation within a page, such as `useBlocker`'s answer. */
@@ -243,7 +241,7 @@ export function FormGuard(properties: {
                 <AlertDialogHeader>
                     <AlertDialogTitle>{locale.render(t`Leave without saving?`)}</AlertDialogTitle>
                     <AlertDialogDescription>
-                        {properties.children ?? locale.render(t`Your changes will be lost.`)}
+                        {contentOr(properties, () => locale.render(t`Your changes will be lost.`))}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

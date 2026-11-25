@@ -36,7 +36,7 @@ import {
     GridListProvider,
     GridListViewport,
 } from "../grid-list/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, renderPart } from "../part/index.ts";
 import { RadioGroup, RadioGroupItem } from "../radio-group/index.ts";
 
 /** The emoji in each row of a picker's grid by default. */
@@ -268,8 +268,6 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
         "skinTone",
         "defaultSkinTone",
         "onSkinToneChange",
-        "xstyle",
-        "style",
     );
     const [skinTone, setSkinTone] = createControllableSignal<SkinTone>({
         isControlled: () => properties.skinTone !== undefined,
@@ -314,14 +312,9 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
         <EmojiPickerContext value={control}>
             <AutocompleteContext value={autocomplete}>
                 <GridListProvider control={grid}>
-                    <div
-                        data-slot="emoji-picker"
-                        {...mergeProperties({ ref: fit.measure }, rest)}
-                        {...style.attributes(
-                            [layout.picker, fit.style(), properties.xstyle],
-                            properties.style,
-                        )}
-                    />
+                    {renderPart("div", "emoji-picker", rest, () => [layout.picker, fit.style()], {
+                        ref: fit.measure,
+                    })}
                     {fit.render()}
                 </GridListProvider>
             </AutocompleteContext>
@@ -381,18 +374,18 @@ export function EmojiPickerFooter(
     properties: GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const picker = useEmojiPicker();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            data-slot="emoji-picker-footer"
-            {...rest}
-            {...style.attributes([layout.footer, properties.xstyle], properties.style)}
-        >
-            {picker.activeCell(picker.grid.active())}
-            {properties.children}
-        </div>
-    );
+    return renderPart("div", "emoji-picker-footer", rest, layout.footer, {
+        get children() {
+            return (
+                <>
+                    {picker.activeCell(picker.grid.active())}
+                    {properties.children}
+                </>
+            );
+        },
+    });
 }
 
 /** Render one emoji of an emoji picker's grid, marked while active. */
@@ -405,7 +398,7 @@ export function EmojiPickerEmoji(properties: GridListCellProperties<EmojiEntry>)
             {...rest}
             xstyle={[styles.emoji, properties.xstyle]}
         >
-            {properties.children ?? properties.item.emoji}
+            {contentOr(properties, () => properties.item.emoji)}
         </GridListCell>
     );
 }
@@ -455,22 +448,23 @@ export function EmojiPickerSkinToneSelector(
     // read the picker and the tone after the current one
     const picker = useEmojiPicker();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
-    return (
-        <button
-            type="button"
-            data-slot="emoji-picker-skin-tone-selector"
-            aria-label={locale.render(t`Change the skin tone`)}
-            {...rest}
-            onClick={() => picker.setSkinTone(NEXT_TONES[picker.skinTone()])}
-            {...style.attributes(
-                [state.hover, styles.selector, properties.xstyle],
-                properties.style,
-            )}
-        >
-            {properties.children ?? TONE_HANDS[picker.skinTone()]}
-        </button>
+    return renderPart(
+        "button",
+        "emoji-picker-skin-tone-selector",
+        rest,
+        [state.hover, styles.selector],
+        {
+            type: "button" as const,
+            get "aria-label"() {
+                return locale.render(t`Change the skin tone`);
+            },
+            onClick: () => picker.setSkinTone(NEXT_TONES[picker.skinTone()]),
+            get children() {
+                return contentOr(properties, () => TONE_HANDS[picker.skinTone()]);
+            },
+        },
     );
 }
 

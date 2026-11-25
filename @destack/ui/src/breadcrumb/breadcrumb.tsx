@@ -7,9 +7,9 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, size, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, omit, Show, useContext, useLocale } from "@destack/view";
+import { type JSX, omit, useContext, useLocale } from "@destack/view";
 import { OverflowContext, OverflowEntryContext, useOverflowEntry } from "../overflow/index.ts";
-import { type Render, renderPart } from "../part/index.ts";
+import { contentOr, type Render, renderPart } from "../part/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a breadcrumb and its elements. */
@@ -54,6 +54,8 @@ const styles = style.create({
 export type BreadcrumbElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** Render the navigation landmark of the trail of pages above the current one. */
@@ -131,29 +133,22 @@ export function BreadcrumbSeparator(
 ): JSX.Element {
     // point along the text
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
     // show only between two that show
     let element: HTMLElement | undefined;
     useOverflowEntry({ kind: "separator", element: () => element });
 
-    return (
-        <li
-            role="presentation"
-            aria-hidden="true"
-            data-slot="breadcrumb-separator"
-            {...rest}
-            ref={[rest.ref, (created: HTMLElement) => (element = created)]}
-            {...style.attributes([styles.item, properties.xstyle], properties.style)}
-        >
-            <Show
-                when={"children" in properties}
-                fallback={<Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />}
-            >
-                {properties.children}
-            </Show>
-        </li>
-    );
+    return renderPart("li", "breadcrumb-separator", rest, styles.item, {
+        role: "presentation" as const,
+        "aria-hidden": "true" as const,
+        ref: [rest.ref, (created: HTMLElement) => (element = created)],
+        get children() {
+            return contentOr(properties, () => (
+                <Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />
+            ));
+        },
+    });
 }
 
 /** Render the mark for steps left out of a long trail. */

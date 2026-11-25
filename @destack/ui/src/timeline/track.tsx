@@ -15,7 +15,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Move, Sweep } from "../interaction/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import { TimelineBar } from "./bar.tsx";
 import {
     type TimelineBarControl,
@@ -142,19 +142,17 @@ export function TimelineTrack(properties: TimelinePartProperties): JSX.Element {
         !("children" in properties) &&
         control.tree.lanes(node().item.key).length === 0 &&
         control.tree.rollup(node().item.key).length === 0;
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
     return (
         <TimelineTrackContext value={true}>
             <Show when={!isEmpty()} fallback={<UndatedTrack xstyle={properties.xstyle} />}>
-                <div
-                    role="gridcell"
-                    data-slot="timeline-track"
-                    {...rest}
-                    {...style.attributes([styles.track, properties.xstyle], properties.style)}
-                >
-                    {"children" in properties ? properties.children : <TimelineBarList />}
-                </div>
+                {renderPart("div", "timeline-track", rest, styles.track, {
+                    role: "gridcell" as const,
+                    get children() {
+                        return contentOr(properties, () => <TimelineBarList />);
+                    },
+                })}
             </Show>
         </TimelineTrackContext>
     );

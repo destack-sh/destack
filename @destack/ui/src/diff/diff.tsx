@@ -43,7 +43,7 @@ import { Badge } from "../badge/index.ts";
 import { Button } from "../button/index.ts";
 import { onNear } from "../code/index.ts";
 import { CopyButton } from "../copy-button/index.ts";
-import type { ElementPartProperties } from "../part/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 import {
     acceptChange,
@@ -396,8 +396,6 @@ export function Diff(properties: DiffProperties): JSX.Element {
         "onReject",
         "aria-label",
         "children",
-        "xstyle",
-        "style",
     );
     const annotations = createMemo(() =>
         Map.groupBy(properties.annotations ?? [], ({ side, line }) => `${side} ${String(line)}`),
@@ -503,19 +501,25 @@ export function Diff(properties: DiffProperties): JSX.Element {
 
     return (
         <DiffContext value={value}>
-            <section
-                {...rest}
-                ref={[(element: HTMLElement) => (root = element), ...handlers]}
-                aria-label={properties["aria-label"] ?? path() ?? locale.render(t`Changes`)}
-                data-slot="diff"
-                data-layout={control.isSplit() ? "split" : "unified"}
-                {...style.attributes([text.sm, styles.diff, properties.xstyle], properties.style)}
-            >
-                <Show when={path()}>{(shown) => <DiffHeader path={shown()} />}</Show>
-                <Show when={!control.isCollapsed()}>
-                    <DiffContent />
-                </Show>
-            </section>
+            {renderPart("section", "diff", rest, [text.sm, styles.diff], {
+                ref: [(element: HTMLElement) => (root = element), ...handlers],
+                get "aria-label"() {
+                    return properties["aria-label"] ?? path() ?? locale.render(t`Changes`);
+                },
+                get "data-layout"() {
+                    return control.isSplit() ? "split" : "unified";
+                },
+                get children() {
+                    return (
+                        <>
+                            <Show when={path()}>{(shown) => <DiffHeader path={shown()} />}</Show>
+                            <Show when={!control.isCollapsed()}>
+                                <DiffContent />
+                            </Show>
+                        </>
+                    );
+                },
+            })}
         </DiffContext>
     );
 }

@@ -17,7 +17,12 @@ import { CollectionBuilder } from "../collection/index.ts";
 import { DragAnnouncer, DragContext, useDragManager } from "../drag/index.ts";
 import { tabbablesIn } from "../focus/index.ts";
 import { Move } from "../interaction/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { Sortable } from "../sortable/index.ts";
 import { TabsControl } from "../tabs/index.ts";
 import {
@@ -374,14 +379,12 @@ export function Pane(properties: PaneProperties): JSX.Element {
             },
             {
                 get children() {
-                    return "children" in properties ? (
-                        properties.children
-                    ) : (
+                    return contentOr(properties, () => (
                         <>
                             <PaneTabs />
                             <PaneContent />
                         </>
-                    );
+                    ));
                 },
             },
         ),

@@ -1,3 +1,4 @@
+import { renderPart, type Render } from "../part/index.ts";
 import * as style from "@destack/style";
 import type { IconName } from "@destack/icon";
 import { LazyIcon } from "@destack/ui/icon";
@@ -23,6 +24,8 @@ export interface GlyphProperties extends Omit<JSX.HTMLAttributes<HTMLSpanElement
     readonly label?: string;
     /** The StyleX styles applied after the glyph's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The styles of a glyph and what it shows. */
@@ -55,7 +58,7 @@ const sizes = style.create({
 /** Render an emoji, an icon or an image at one size. */
 export function Glyph(properties: GlyphProperties): JSX.Element {
     // split the native attributes from the glyph's own
-    const rest = omit(properties, "glyph", "size", "label", "xstyle", "style");
+    const rest = omit(properties, "glyph", "size", "label", "children");
 
     // draw the emoji, the icon or the image
     const content = (): JSX.Element => {
@@ -69,20 +72,27 @@ export function Glyph(properties: GlyphProperties): JSX.Element {
         }
     };
 
-    return (
-        <span
-            data-slot="glyph"
-            data-size={properties.size ?? "default"}
-            {...rest}
-            role={properties.label === undefined ? undefined : "img"}
-            aria-label={properties.label}
-            aria-hidden={properties.label === undefined ? "true" : undefined}
-            {...style.attributes(
-                [styles.glyph, sizes[properties.size ?? "default"], properties.xstyle],
-                properties.style,
-            )}
-        >
-            {content()}
-        </span>
+    return renderPart(
+        "span",
+        "glyph",
+        rest,
+        () => [styles.glyph, sizes[properties.size ?? "default"]],
+        {
+            get "data-size"() {
+                return properties.size ?? "default";
+            },
+            get role() {
+                return properties.label === undefined ? undefined : "img";
+            },
+            get "aria-label"() {
+                return properties.label;
+            },
+            get "aria-hidden"() {
+                return properties.label === undefined ? "true" : undefined;
+            },
+            get children() {
+                return content();
+            },
+        },
     );
 }

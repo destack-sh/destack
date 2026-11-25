@@ -10,7 +10,7 @@ import { type Accessor, For, type JSX, omit, Show, untrack, useLocale } from "@d
 import { Draggable } from "../drag/index.ts";
 import { DisclosureCaret, indent, indicator } from "../disclosure/index.ts";
 import { Press } from "../interaction/index.ts";
-import { mergeProperties, renderPart } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import {
     TimelineRowContext,
     useTimeline,
@@ -156,7 +156,7 @@ export function TimelineRow(properties: TimelinePartProperties): JSX.Element {
     const control = useTimeline();
     const row = useTimelineRow();
     const key = untrack(() => row.node().item.key);
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     let element: HTMLElement | undefined;
     control.focus.bind(
         () => key,
@@ -168,44 +168,53 @@ export function TimelineRow(properties: TimelinePartProperties): JSX.Element {
         onFocus: () => control.focus.focusIn(key),
     };
 
-    return (
-        <div
-            role="row"
-            data-slot="timeline-row"
-            data-key={key}
-            aria-rowindex={row.index() + 1}
-            aria-selected={control.selection.isSelected(key) ? "true" : "false"}
-            aria-level={row.node().depth + 1}
-            aria-expanded={row.node().hasChildren ? (isFolded() ? "false" : "true") : undefined}
-            tabindex={control.focus.isActive(key) ? 0 : -1}
-            {...mergeProperties(attributes, rest)}
-            {...style.attributes(
-                [
-                    rowMarker,
-                    text.sm,
-                    state.focusInset,
-                    state.hover,
-                    styles.row,
-                    places.columns(control.template()),
-                    places.row(
-                        control.rowTop(row.index()),
-                        control.rowTop(row.index() + 1) - control.rowTop(row.index()),
-                    ),
-                    control.selection.isSelected(key) && state.selected,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {"children" in properties ? (
-                properties.children
-            ) : (
-                <>
-                    <TimelineRowLabel />
-                    <TimelineTrack />
-                </>
-            )}
-        </div>
+    return renderPart(
+        "div",
+        "timeline-row",
+        rest,
+        () => [
+            rowMarker,
+            text.sm,
+            state.focusInset,
+            state.hover,
+            styles.row,
+            places.columns(control.template()),
+            places.row(
+                control.rowTop(row.index()),
+                control.rowTop(row.index() + 1) - control.rowTop(row.index()),
+            ),
+            control.selection.isSelected(key) && state.selected,
+        ],
+        mergeProperties(
+            {
+                role: "row" as const,
+                "data-key": key,
+                get "aria-rowindex"() {
+                    return row.index() + 1;
+                },
+                get "aria-selected"() {
+                    return control.selection.isSelected(key) ? "true" : "false";
+                },
+                get "aria-level"() {
+                    return row.node().depth + 1;
+                },
+                get "aria-expanded"() {
+                    return row.node().hasChildren ? (isFolded() ? "false" : "true") : undefined;
+                },
+                get tabindex() {
+                    return control.focus.isActive(key) ? 0 : -1;
+                },
+                get children() {
+                    return contentOr(properties, () => (
+                        <>
+                            <TimelineRowLabel />
+                            <TimelineTrack />
+                        </>
+                    ));
+                },
+            },
+            attributes,
+        ),
     );
 }
 
@@ -215,7 +224,7 @@ export function TimelineRowLabel(properties: TimelinePartProperties): JSX.Elemen
     const control = useTimeline();
     const { node } = useTimelineRow();
     const gutter = untrack(() => gutterOf(control));
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
     // select or open the item on a press beside the buttons in the label
     const press = new Press({
@@ -232,27 +241,27 @@ export function TimelineRowLabel(properties: TimelinePartProperties): JSX.Elemen
         shouldCancelOnMove: true,
     });
 
-    return (
-        <div
-            role="gridcell"
-            data-slot="timeline-row-label"
-            {...mergeProperties(press.attributes(), rest)}
-            {...style.attributes(
-                [styles.label, indent.by(gutter, node().depth), properties.xstyle],
-                properties.style,
-            )}
-        >
-            {"children" in properties ? (
-                properties.children
-            ) : (
-                <>
-                    <TimelineRowGrip />
-                    <TimelineRowGuide />
-                    <TimelineRowToggle />
-                    <span {...style.attrs(styles.words)}>{node().item.label}</span>
-                </>
-            )}
-        </div>
+    return renderPart(
+        "div",
+        "timeline-row-label",
+        rest,
+        () => [styles.label, indent.by(gutter, node().depth)],
+        mergeProperties(
+            {
+                role: "gridcell" as const,
+                get children() {
+                    return contentOr(properties, () => (
+                        <>
+                            <TimelineRowGrip />
+                            <TimelineRowGuide />
+                            <TimelineRowToggle />
+                            <span {...style.attrs(styles.words)}>{node().item.label}</span>
+                        </>
+                    ));
+                },
+            },
+            press.attributes(),
+        ),
     );
 }
 
@@ -368,14 +377,9 @@ export function TimelineRowToggle(
 
 /** Render a row's cell of a column beside its label, in the order of the header's columns. */
 export function TimelineCell(properties: TimelinePartProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
+    const rest = properties;
 
-    return (
-        <div
-            role="gridcell"
-            data-slot="timeline-cell"
-            {...rest}
-            {...style.attributes([text.xs, styles.cell, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "timeline-cell", rest, [text.xs, styles.cell], {
+        role: "gridcell" as const,
+    });
 }

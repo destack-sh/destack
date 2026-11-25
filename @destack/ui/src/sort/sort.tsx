@@ -38,7 +38,12 @@ import {
 } from "../dropdown-menu/index.ts";
 import { Icon } from "../icon/index.ts";
 import { useJoin } from "../join/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import {
     Sortable,
@@ -125,7 +130,7 @@ export function Sort(properties: SortProperties): JSX.Element {
                 role: "group" as const,
                 "aria-label": locale.render(t`Sort`),
                 get children() {
-                    return properties.children ?? <SortMenu />;
+                    return contentOr(properties, () => <SortMenu />);
                 },
             })}
         </SortContext>
@@ -188,14 +193,14 @@ export function SortItem(properties: SortElementProperties): JSX.Element {
                 aria-label={control.field(name)?.label}
                 {...rest}
             >
-                {properties.children ?? (
+                {contentOr(properties, () => (
                     <>
                         <SortHandle />
                         <SortField />
                         <SortDirection />
                         <SortRemove />
                     </>
-                )}
+                ))}
             </ButtonGroup>
         </SortableItem>
     );
@@ -213,7 +218,9 @@ export function SortHandle(properties: SortableHandleProperties): JSX.Element {
                 {...properties}
                 xstyle={[styles.handle, join(), properties.xstyle]}
             >
-                {properties.children ?? <Icon icon={handleIcon} />}
+                {contentOr(properties, () => (
+                    <Icon icon={handleIcon} />
+                ))}
             </SortableHandle>
         </Show>
     );
@@ -242,7 +249,9 @@ export function SortField(properties: ButtonProperties): JSX.Element {
                 disabled={others().length === 0}
                 data-slot="sort-field"
             >
-                {properties.children ?? <FieldLabel name={name} />}
+                {contentOr(properties, () => (
+                    <FieldLabel name={name} />
+                ))}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
                 <For each={others()}>
@@ -294,12 +303,12 @@ export function SortDirection(properties: ButtonProperties): JSX.Element {
             )}
             xstyle={[styles.label, properties.xstyle]}
         >
-            {properties.children ?? (
+            {contentOr(properties, () => (
                 <>
                     <Icon icon={direction() === "asc" ? ascendingIcon : descendingIcon} />
                     {control.words(name, direction(), locale)}
                 </>
-            )}
+            ))}
         </Button>
     );
 }
@@ -336,7 +345,9 @@ export function SortRemove(properties: ButtonProperties): JSX.Element {
             aria-label={locale.render(t`Remove sort`)}
             {...mergeProperties({ onClick: remove }, properties)}
         >
-            {properties.children ?? <Icon icon={xIcon} />}
+            {contentOr(properties, () => (
+                <Icon icon={xIcon} />
+            ))}
         </Button>
     );
 }
@@ -371,12 +382,12 @@ export function SortAdd(properties: ButtonProperties): JSX.Element {
                     ref={(element: HTMLElement) => (trigger = element)}
                     data-slot="sort-add"
                 >
-                    {properties.children ?? (
+                    {contentOr(properties, () => (
                         <>
                             <Icon icon={plusIcon} />
                             {locale.render(t`Sort`)}
                         </>
-                    )}
+                    ))}
                 </PopoverTrigger>
                 <PopoverContent align="start" xstyle={styles.menu}>
                     <FieldCommand onSelect={add} />
@@ -461,7 +472,7 @@ export function SortMenu(properties: ButtonProperties): JSX.Element {
                 )}
                 data-slot="sort-menu"
             >
-                {properties.children ?? (
+                {contentOr(properties, () => (
                     <Show
                         when={only()}
                         fallback={
@@ -486,7 +497,7 @@ export function SortMenu(properties: ButtonProperties): JSX.Element {
                             </>
                         )}
                     </Show>
-                )}
+                ))}
             </PopoverTrigger>
             <PopoverContent
                 ref={(element: HTMLElement) => (content = element)}
@@ -518,7 +529,7 @@ export function SortClear(properties: ButtonProperties): JSX.Element {
                 size="sm"
                 {...mergeProperties({ onClick: () => control.clear() }, properties)}
             >
-                {properties.children ?? locale.render(t`Clear sort`)}
+                {contentOr(properties, () => locale.render(t`Clear sort`))}
             </Button>
         </Show>
     );

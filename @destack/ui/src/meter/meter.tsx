@@ -14,7 +14,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { CollectionBuilder } from "../collection/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The range a meter covers without its own minimum and maximum. */
 const RANGE = { min: 0, max: 100 };
@@ -170,7 +170,7 @@ export function Meter(properties: MeterProperties): JSX.Element {
                     return level();
                 },
                 get children() {
-                    return properties.children ?? <MeterTrack />;
+                    return contentOr(properties, () => <MeterTrack />);
                 },
             })}
         </MeterContext>
@@ -222,7 +222,7 @@ export function MeterTrack(properties: MeterElementProperties<HTMLDivElement>): 
 
     return renderPart("div", "meter-track", rest, styles.track, {
         get children() {
-            return properties.children ?? <MeterIndicator />;
+            return contentOr(properties, () => <MeterIndicator />);
         },
     });
 }

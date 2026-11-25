@@ -49,10 +49,7 @@ export class ToggleGroupControl {
 }
 
 /** The properties of a toggle group, the native element's attributes included. */
-export type ToggleGroupProperties = Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "onKeyDown"
-> & {
+export type ToggleGroupProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The look of every item, default by default. */
     readonly variant?: ToggleVariant;
     /** The height and padding of every item, default by default. */
@@ -63,12 +60,14 @@ export type ToggleGroupProperties = Omit<
     readonly disabled?: boolean;
     /** The StyleX styles applied after the group's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 } & SelectionProperties;
 
 /** The properties of a toggle group's item, the native button's attributes included. */
 export interface ToggleGroupItemProperties extends Omit<
     JSX.ButtonHTMLAttributes<HTMLButtonElement>,
-    "class" | "value" | "onClick" | "onFocus"
+    "class" | "value"
 > {
     /** The value the item stands for. */
     readonly value: string;
@@ -108,27 +107,27 @@ export function ToggleGroup(given: ToggleGroupProperties): JSX.Element {
         "size",
         "orientation",
         "disabled",
-        "xstyle",
-        "style",
     );
     const group = merge(DEFAULTS, properties);
 
     return (
         <ToggleGroupContext value={control}>
-            <div
-                role={properties.multiple === true ? "group" : "radiogroup"}
-                data-slot="toggle-group"
-                aria-orientation={group.orientation}
-                aria-disabled={properties.disabled === true ? "true" : undefined}
-                data-disabled={properties.disabled === true ? "" : undefined}
-                {...rest}
-                onKeyDown={(event) => control.list.focus.move(event, locale.direction)}
-                onFocusOut={(event) => control.list.focus.focusOut(event)}
-                {...style.attributes(
-                    [orientations[group.orientation], properties.xstyle],
-                    properties.style,
-                )}
-            />
+            {renderPart("div", "toggle-group", rest, () => orientations[group.orientation], {
+                get role() {
+                    return properties.multiple === true ? "group" : "radiogroup";
+                },
+                get "aria-orientation"() {
+                    return group.orientation;
+                },
+                get "aria-disabled"() {
+                    return properties.disabled === true ? "true" : undefined;
+                },
+                get "data-disabled"() {
+                    return properties.disabled === true ? "" : undefined;
+                },
+                onKeyDown: (event) => control.list.focus.move(event, locale.direction),
+                onFocusOut: (event) => control.list.focus.focusOut(event),
+            })}
         </ToggleGroupContext>
     );
 }

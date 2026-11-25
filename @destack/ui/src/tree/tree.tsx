@@ -18,7 +18,7 @@ import type { Direction } from "@destack/locale";
 import { Collection, CollectionBuilder } from "../collection/index.ts";
 import { DisclosureCaret, indent, indicator } from "../disclosure/index.ts";
 import { Focus, ListDelegate } from "../focus/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, renderPart, type Render } from "../part/index.ts";
 import { Selection, type SingleSelection } from "../selection/index.ts";
 
 /** The tree of the nearest tree, null outside one. */
@@ -189,10 +189,7 @@ function defaultOf(value: string | undefined): Pick<SingleSelection, "defaultVal
 }
 
 /** The properties of a tree, the native list's attributes included. */
-export interface TreeProperties extends Omit<
-    JSX.HTMLAttributes<HTMLUListElement>,
-    "class" | "onKeyDown"
-> {
+export interface TreeProperties extends Omit<JSX.HTMLAttributes<HTMLUListElement>, "class"> {
     /** The selected item's value, which makes the selection controlled. */
     readonly value?: string | undefined;
     /** The item selected at first when the selection is uncontrolled. */
@@ -201,12 +198,14 @@ export interface TreeProperties extends Omit<
     readonly onValueChange?: (value: string) => void;
     /** The StyleX styles applied after the tree's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of a tree item, the native list item's attributes included. */
 export interface TreeItemProperties extends Omit<
     JSX.LiHTMLAttributes<HTMLLIElement>,
-    "class" | "value" | "onClick" | "onFocus"
+    "class" | "value"
 > {
     /** The value the item stands for. */
     readonly value: string;
@@ -220,6 +219,8 @@ export interface TreeItemProperties extends Omit<
     readonly onExpandedChange?: (expanded: boolean) => void;
     /** The StyleX styles applied after a standard row's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Read the tree of the nearest tree, refusing items outside one. */
@@ -237,18 +238,15 @@ export function Tree(properties: TreeProperties): JSX.Element {
     // share one tree with its items and read the reading direction
     const control = new TreeControl(properties);
     const locale = useLocale();
-    const rest = omit(properties, "value", "defaultValue", "onValueChange", "xstyle", "style");
+    const rest = omit(properties, "value", "defaultValue", "onValueChange");
 
     return (
         <TreeContext value={control}>
-            <ul
-                role="tree"
-                data-slot="tree"
-                {...rest}
-                onKeyDown={(event) => navigate(event, control, locale.direction)}
-                onFocusOut={(event) => control.focus.focusOut(event)}
-                {...style.attributes([text.sm, styles.tree, properties.xstyle], properties.style)}
-            />
+            {renderPart("ul", "tree", rest, [text.sm, styles.tree], {
+                role: "tree" as const,
+                onKeyDown: (event) => navigate(event, control, locale.direction),
+                onFocusOut: (event) => control.focus.focusOut(event),
+            })}
         </TreeContext>
     );
 }
@@ -314,63 +312,73 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
         addGroup: (group) => void groups.add(group),
     };
 
-    return (
-        <li
-            role="treeitem"
-            aria-labelledby={rowId}
-            aria-level={level}
-            aria-expanded={isParent() ? (isExpanded() ? "true" : "false") : undefined}
-            aria-selected={isSelected() ? "true" : "false"}
-            tabindex={control.focus.isActive(properties.value) ? 0 : -1}
-            data-slot="tree-item"
-            data-open={isParent() && isExpanded() ? "" : undefined}
-            data-closed={isParent() && !isExpanded() ? "" : undefined}
-            data-value={properties.value}
-            {...rest}
-            ref={(created) => (element = created)}
-            onClick={(event) => {
-                // select the clicked row's own item and toggle a parent
-                event.stopPropagation();
-                activate();
-            }}
-            onFocus={(event) => {
-                // follow the focus onto the item's own element
-                if (event.target === event.currentTarget) {
-                    control.focus.focusIn(properties.value);
-                }
-            }}
-            onKeyDown={(event) => {
-                // expand, enter and collapse with the arrow keys along the reading direction
-                if (event.target === event.currentTarget && isParent()) {
-                    expandOrCollapse(
-                        event,
-                        control,
-                        properties.value,
-                        isExpanded(),
-                        setExpanded,
-                        locale.direction,
-                    );
-                }
-            }}
-            {...style.attrs(styles.item)}
-        >
-            <TreeItemContext value={item}>
-                {properties.label === undefined ? (
-                    properties.children
-                ) : (
-                    <>
-                        <TreeItemRow xstyle={properties.xstyle}>
-                            <TreeItemToggle />
-                            {properties.label}
-                        </TreeItemRow>
-                        <Show when={"children" in properties}>
-                            <TreeItemGroup>{properties.children}</TreeItemGroup>
-                        </Show>
-                    </>
-                )}
-            </TreeItemContext>
-        </li>
-    );
+    return renderPart("li", "tree-item", rest, styles.item, {
+        role: "treeitem" as const,
+        "aria-labelledby": rowId,
+        "aria-level": level,
+        get "aria-expanded"() {
+            return isParent() ? (isExpanded() ? "true" : "false") : undefined;
+        },
+        get "aria-selected"() {
+            return isSelected() ? "true" : "false";
+        },
+        get tabindex() {
+            return control.focus.isActive(properties.value) ? 0 : -1;
+        },
+        get "data-open"() {
+            return isParent() && isExpanded() ? "" : undefined;
+        },
+        get "data-closed"() {
+            return isParent() && !isExpanded() ? "" : undefined;
+        },
+        get "data-value"() {
+            return properties.value;
+        },
+        ref: (created) => (element = created),
+        onClick: (event) => {
+            // select the clicked row's own item and toggle a parent
+            event.stopPropagation();
+            activate();
+        },
+        onFocus: (event) => {
+            // follow the focus onto the item's own element
+            if (event.target === event.currentTarget) {
+                control.focus.focusIn(properties.value);
+            }
+        },
+        onKeyDown: (event) => {
+            // expand, enter and collapse with the arrow keys along the reading direction
+            if (event.target === event.currentTarget && isParent()) {
+                expandOrCollapse(
+                    event,
+                    control,
+                    properties.value,
+                    isExpanded(),
+                    setExpanded,
+                    locale.direction,
+                );
+            }
+        },
+        get children() {
+            return (
+                <TreeItemContext value={item}>
+                    {properties.label === undefined ? (
+                        properties.children
+                    ) : (
+                        <>
+                            <TreeItemRow xstyle={properties.xstyle}>
+                                <TreeItemToggle />
+                                {properties.label}
+                            </TreeItemRow>
+                            <Show when={"children" in properties}>
+                                <TreeItemGroup>{properties.children}</TreeItemGroup>
+                            </Show>
+                        </>
+                    )}
+                </TreeItemContext>
+            );
+        },
+    });
 }
 
 /** An item of a tree as its parts read it. */
@@ -472,7 +480,13 @@ export function TreeItemToggle(properties: TreeItemElementProperties): JSX.Eleme
         {
             "aria-hidden": "true" as const,
             get children() {
-                return <Show when={isParent()}>{properties.children ?? <DisclosureCaret />}</Show>;
+                return (
+                    <Show when={isParent()}>
+                        {contentOr(properties, () => (
+                            <DisclosureCaret />
+                        ))}
+                    </Show>
+                );
             },
         },
     );

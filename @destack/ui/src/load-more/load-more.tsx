@@ -1,3 +1,4 @@
+import { renderPart, type Render } from "../part/index.ts";
 import * as style from "@destack/style";
 import { stroke } from "@destack/theme/tokens.stylex";
 import { createEffect, createSignal, type JSX, omit, Show, untrack } from "@destack/view";
@@ -25,21 +26,15 @@ export interface LoadMoreProperties extends Omit<JSX.HTMLAttributes<HTMLDivEleme
     readonly children?: JSX.Element;
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Render the end of a list that loads more as it scrolls near the view, after React Aria. */
 export function LoadMore(properties: LoadMoreProperties): JSX.Element {
     // watch the element against the view, widened by the offset on every side
     const [element, setElement] = createSignal<HTMLElement>();
-    const rest = omit(
-        properties,
-        "onLoadMore",
-        "isLoading",
-        "scrollOffset",
-        "children",
-        "xstyle",
-        "style",
-    );
+    const rest = omit(properties, "onLoadMore", "isLoading", "scrollOffset", "children");
     createEffect(
         () => ({
             watched: element(),
@@ -68,15 +63,13 @@ export function LoadMore(properties: LoadMoreProperties): JSX.Element {
         },
     );
 
-    return (
-        <div
-            data-slot="load-more"
-            data-loading={properties.isLoading === true ? "" : undefined}
-            {...rest}
-            ref={setElement}
-            {...style.attributes([styles.more, properties.xstyle], properties.style)}
-        >
-            <Show when={properties.isLoading === true}>{properties.children}</Show>
-        </div>
-    );
+    return renderPart("div", "load-more", rest, styles.more, {
+        get "data-loading"() {
+            return properties.isLoading === true ? "" : undefined;
+        },
+        ref: setElement,
+        get children() {
+            return <Show when={properties.isLoading === true}>{properties.children}</Show>;
+        },
+    });
 }

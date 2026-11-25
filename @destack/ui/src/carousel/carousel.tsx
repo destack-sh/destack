@@ -29,7 +29,12 @@ import {
 } from "@destack/view";
 import { Hover } from "../interaction/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ElementPartProperties,
+    renderPart,
+    mergeProperties,
+    type Render,
+} from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The orientation of a carousel that sets none. */
@@ -261,10 +266,7 @@ export class CarouselControl {
 }
 
 /** The properties of a carousel, the native element's attributes included. */
-export interface CarouselProperties extends Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "onKeyDown"
-> {
+export interface CarouselProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The direction the slides line up in, horizontal by default. */
     readonly orientation?: Axis;
     /** The index of the slide shown, which makes it controlled. */
@@ -281,6 +283,8 @@ export interface CarouselProperties extends Omit<
     readonly setApi?: (api: CarouselApi) => void;
     /** The StyleX styles applied after the carousel's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of an element of a carousel, the native element's attributes included. */
@@ -312,8 +316,6 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
         "loop",
         "autoplay",
         "setApi",
-        "xstyle",
-        "style",
     );
 
     // move to the next slide on each autoplay tick of the page's clock, which a server render has none of
@@ -335,25 +337,31 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
 
     return (
         <CarouselContext value={control}>
-            <div
-                role="region"
-                aria-roledescription={locale.render(t`carousel`)}
-                data-slot="carousel"
-                data-orientation={carousel.orientation}
-                {...rest}
-                {...hover.attributes()}
-                onFocusIn={() => control.rest(true)}
-                onFocusOut={() => control.rest(false)}
-                onKeyDown={(event) => {
-                    // move to the previous or next slide along the reading direction
-                    const step = stepOf(event.key, carousel.orientation, locale.direction);
-                    if (step !== 0) {
-                        event.preventDefault();
-                        control.go(control.index() + step);
-                    }
-                }}
-                {...style.attributes([styles.carousel, carousel.xstyle], carousel.style)}
-            />
+            {renderPart(
+                "div",
+                "carousel",
+                rest,
+                styles.carousel,
+                mergeProperties(hover.attributes(), {
+                    role: "region" as const,
+                    get "aria-roledescription"() {
+                        return locale.render(t`carousel`);
+                    },
+                    get "data-orientation"() {
+                        return carousel.orientation;
+                    },
+                    onFocusIn: () => control.rest(true),
+                    onFocusOut: () => control.rest(false),
+                    onKeyDown: (event: KeyboardEvent & { readonly currentTarget: HTMLElement }) => {
+                        // move to the previous or next slide along the reading direction
+                        const step = stepOf(event.key, carousel.orientation, locale.direction);
+                        if (step !== 0) {
+                            event.preventDefault();
+                            control.go(control.index() + step);
+                        }
+                    },
+                }),
+            )}
         </CarouselContext>
     );
 }

@@ -69,7 +69,7 @@ import type {
 import { Button } from "../button/index.ts";
 import { Checkbox } from "../checkbox/index.ts";
 import { DisclosureCaret, indent, indicator } from "../disclosure/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { mergeProperties, renderPart, type Render } from "../part/index.ts";
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -439,7 +439,7 @@ const styles = style.create({
 export interface DataTableProperties<
     Features extends TableFeatures,
     Row extends RowData,
-> extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "onKeyDown"> {
+> extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The headless table, from `createTable`. */
     readonly table: DataTableInstance<Features, Row>;
     /** The content shown while no row matches, a message by default. */
@@ -456,6 +456,8 @@ export interface DataTableProperties<
     readonly gutter?: DataTableGutter;
     /** The StyleX styles applied after the table's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Render a table's headers and rows as a grid. */
@@ -473,8 +475,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         "onRowMove",
         "rowActions",
         "gutter",
-        "xstyle",
-        "style",
+        "children",
     );
     const headerGroups = createMemo(() => {
         properties.table.tracked();
@@ -641,17 +642,23 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         { equals: isSamePins },
     );
 
-    return (
-        <div
-            data-slot="data-table"
-            {...rest}
-            ref={(element) => {
+    return renderPart(
+        "div",
+        "data-table",
+        rest,
+        () => [
+            styles.frame,
+            gutter() > 0 && styles.hung(`${String(gutter())}px`),
+            isVirtual && styles.scroller,
+        ],
+        {
+            ref: (element) => {
                 setRoot(element);
                 rowHandlers.forEach((attach) => attach(element));
                 setScroller(isVirtual ? element : undefined);
-            }}
-            onKeyDown={(event) => keyDown(event, control, openRowMenu, locale.direction)}
-            onClick={(event) => {
+            },
+            onKeyDown: (event) => keyDown(event, control, openRowMenu, locale.direction),
+            onClick: (event) => {
                 // open a row's menu under its grip on a click
                 const grip =
                     event.target instanceof Element
@@ -666,146 +673,163 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
                         y: bounds.bottom,
                     });
                 }
-            }}
-            onCopy={(event) => control.copy(event)}
-            onPaste={(event) => control.paste(event)}
-            onFocusOut={(event) => control.focus.focusOut(event)}
-            {...style.attributes(
-                [
-                    styles.frame,
-                    gutter() > 0 && styles.hung(`${String(gutter())}px`),
-                    isVirtual && styles.scroller,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {/* Refused paste */}
-            <div
-                role="status"
-                data-slot="data-table-refusal"
-                {...style.attrs(visuallyHiddenStyle())}
-            >
-                {refusalText()}
-            </div>
-
-            {/* Row height */}
-            <Show when={isVirtual}>{rowLength.render()}</Show>
-
-            <Menu control={menu}>
-                <DataTableContext value={slices}>
-                    <Sortable onMove={onMove} xstyle={styles.sortable}>
-                        <table
-                            data-slot="table"
-                            {...style.attrs(tableStyle())}
-                            role={follow(properties.table.tracked, () =>
-                                rows().some(isExpandableRow) ? "treegrid" : "grid",
-                            )}
-                            aria-multiselectable={control.isSelecting() ? "true" : undefined}
-                            aria-rowcount={rows().length + headerGroups().length}
+            },
+            onCopy: (event) => control.copy(event),
+            onPaste: (event) => control.paste(event),
+            onFocusOut: (event) => control.focus.focusOut(event),
+            get children() {
+                return (
+                    <>
+                        {/* Refused paste */}
+                        <div
+                            role="status"
+                            data-slot="data-table-refusal"
+                            {...style.attrs(visuallyHiddenStyle())}
                         >
-                            <TableHeader>
-                                <For each={headerGroups()}>
-                                    {(group, row) => (
-                                        <HeaderRow
-                                            isOrdered={
-                                                isColumnOrdered &&
-                                                row() === headerGroups().length - 1
-                                            }
-                                            aria-rowindex={row() + 1}
-                                        >
-                                            <For each={group.headers}>
-                                                {(header, column) => (
-                                                    <DataTableHeaderCell
-                                                        control={control}
-                                                        pins={pins}
-                                                        header={header}
-                                                        cell={{
-                                                            kind: "head",
-                                                            row: row(),
-                                                            column: column(),
-                                                        }}
+                            {refusalText()}
+                        </div>
+
+                        {/* Row height */}
+                        <Show when={isVirtual}>{rowLength.render()}</Show>
+
+                        <Menu control={menu}>
+                            <DataTableContext value={slices}>
+                                <Sortable onMove={onMove} xstyle={styles.sortable}>
+                                    <table
+                                        data-slot="table"
+                                        {...style.attrs(tableStyle())}
+                                        role={follow(properties.table.tracked, () =>
+                                            rows().some(isExpandableRow) ? "treegrid" : "grid",
+                                        )}
+                                        aria-multiselectable={
+                                            control.isSelecting() ? "true" : undefined
+                                        }
+                                        aria-rowcount={rows().length + headerGroups().length}
+                                    >
+                                        <TableHeader>
+                                            <For each={headerGroups()}>
+                                                {(group, row) => (
+                                                    <HeaderRow
                                                         isOrdered={
                                                             isColumnOrdered &&
                                                             row() === headerGroups().length - 1
                                                         }
+                                                        aria-rowindex={row() + 1}
+                                                    >
+                                                        <For each={group.headers}>
+                                                            {(header, column) => (
+                                                                <DataTableHeaderCell
+                                                                    control={control}
+                                                                    pins={pins}
+                                                                    header={header}
+                                                                    cell={{
+                                                                        kind: "head",
+                                                                        row: row(),
+                                                                        column: column(),
+                                                                    }}
+                                                                    isOrdered={
+                                                                        isColumnOrdered &&
+                                                                        row() ===
+                                                                            headerGroups().length -
+                                                                                1
+                                                                    }
+                                                                />
+                                                            )}
+                                                        </For>
+                                                    </HeaderRow>
+                                                )}
+                                            </For>
+                                        </TableHeader>
+                                        <BodyRows isOrdered={isRowOrdered}>
+                                            <SpacerRow height={spacers().before} width={width()} />
+                                            <For
+                                                each={shown()}
+                                                keyed={(entry) => entry.row.id}
+                                                fallback={
+                                                    <TableRow>
+                                                        <TableCell
+                                                            colspan={width()}
+                                                            xstyle={styles.empty}
+                                                        >
+                                                            {properties.empty ??
+                                                                locale.render(t`No results.`)}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                }
+                                            >
+                                                {(entry) => (
+                                                    <BodyRow
+                                                        control={control}
+                                                        pins={pins}
+                                                        row={entry().row}
+                                                        index={
+                                                            headerGroups().length +
+                                                            entry().index +
+                                                            1
+                                                        }
+                                                        isOrdered={isRowOrdered}
+                                                        onContextMenu={(id, event) => {
+                                                            // open the row's menu at the pointer, from the cell it is on
+                                                            const cell =
+                                                                event.target instanceof Element
+                                                                    ? event.target.closest<HTMLElement>(
+                                                                          "td",
+                                                                      )
+                                                                    : null;
+                                                            const point = {
+                                                                x: event.clientX,
+                                                                y: event.clientY,
+                                                            };
+                                                            if (
+                                                                cell !== null &&
+                                                                openRowMenu(id, cell, point)
+                                                            ) {
+                                                                event.preventDefault();
+                                                            }
+                                                        }}
                                                     />
                                                 )}
                                             </For>
-                                        </HeaderRow>
-                                    )}
-                                </For>
-                            </TableHeader>
-                            <BodyRows isOrdered={isRowOrdered}>
-                                <SpacerRow height={spacers().before} width={width()} />
-                                <For
-                                    each={shown()}
-                                    keyed={(entry) => entry.row.id}
-                                    fallback={
-                                        <TableRow>
-                                            <TableCell colspan={width()} xstyle={styles.empty}>
-                                                {properties.empty ?? locale.render(t`No results.`)}
-                                            </TableCell>
-                                        </TableRow>
-                                    }
-                                >
-                                    {(entry) => (
-                                        <BodyRow
-                                            control={control}
-                                            pins={pins}
-                                            row={entry().row}
-                                            index={headerGroups().length + entry().index + 1}
-                                            isOrdered={isRowOrdered}
-                                            onContextMenu={(id, event) => {
-                                                // open the row's menu at the pointer, from the cell it is on
-                                                const cell =
-                                                    event.target instanceof Element
-                                                        ? event.target.closest<HTMLElement>("td")
-                                                        : null;
-                                                const point = {
-                                                    x: event.clientX,
-                                                    y: event.clientY,
-                                                };
-                                                if (cell !== null && openRowMenu(id, cell, point)) {
-                                                    event.preventDefault();
-                                                }
-                                            }}
-                                        />
-                                    )}
-                                </For>
-                                <SpacerRow height={spacers().after} width={width()} />
-                            </BodyRows>
-                            <Show
-                                when={leafHeaders().some(
-                                    (header) => metaOf(header.column).summary !== undefined,
-                                )}
-                            >
-                                <TableFooter xstyle={styles.footer}>
-                                    <TableRow data-slot="data-table-summaries" xstyle={styles.row}>
-                                        <For each={leafHeaders()}>
-                                            {(header) => (
-                                                <DataTableSummaryCell
-                                                    pins={pins}
-                                                    table={properties.table}
-                                                    column={header.column}
-                                                />
+                                            <SpacerRow height={spacers().after} width={width()} />
+                                        </BodyRows>
+                                        <Show
+                                            when={leafHeaders().some(
+                                                (header) =>
+                                                    metaOf(header.column).summary !== undefined,
                                             )}
-                                        </For>
-                                    </TableRow>
-                                </TableFooter>
+                                        >
+                                            <TableFooter xstyle={styles.footer}>
+                                                <TableRow
+                                                    data-slot="data-table-summaries"
+                                                    xstyle={styles.row}
+                                                >
+                                                    <For each={leafHeaders()}>
+                                                        {(header) => (
+                                                            <DataTableSummaryCell
+                                                                pins={pins}
+                                                                table={properties.table}
+                                                                column={header.column}
+                                                            />
+                                                        )}
+                                                    </For>
+                                                </TableRow>
+                                            </TableFooter>
+                                        </Show>
+                                    </table>
+                                </Sortable>
+                            </DataTableContext>
+                            <Show when={rowActions.length > 0}>
+                                <ContextMenuContent data-slot="data-table-row-menu">
+                                    <For each={rowActions}>
+                                        {({ action }) => <MenuAction action={action} />}
+                                    </For>
+                                </ContextMenuContent>
                             </Show>
-                        </table>
-                    </Sortable>
-                </DataTableContext>
-                <Show when={rowActions.length > 0}>
-                    <ContextMenuContent data-slot="data-table-row-menu">
-                        <For each={rowActions}>
-                            {({ action }) => <MenuAction action={action} />}
-                        </For>
-                    </ContextMenuContent>
-                </Show>
-            </Menu>
-        </div>
+                        </Menu>
+                    </>
+                );
+            },
+        },
     );
 }
 

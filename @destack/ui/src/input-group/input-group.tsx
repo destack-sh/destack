@@ -16,7 +16,7 @@ import { Input, type InputProperties } from "../input/index.ts";
 import { JoinContext, useJoin } from "../join/index.ts";
 import { Textarea, type TextareaProperties } from "../textarea/index.ts";
 import { addonMarker, controlMarker, multilineMarker } from "./marker.stylex.ts";
-import { renderPart } from "../part/index.ts";
+import { renderPart, type Render } from "../part/index.ts";
 
 /** The alignment of an addon that sets none. */
 const ADDON_DEFAULTS: Required<Pick<InputGroupAddonProperties, "align">> = {
@@ -155,6 +155,8 @@ export type InputGroupElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivE
 > & {
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** The properties of an input group's addon, the native element's attributes included. */
@@ -170,42 +172,38 @@ export type InputGroupButtonProperties = ButtonProperties;
 export function InputGroup(properties: InputGroupElementProperties): JSX.Element {
     // join the group to its neighbours, never its own control and buttons
     const join = useJoin();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            data-slot="input-group"
-            role="group"
-            {...rest}
-            {...style.attributes([styles.group, join(), properties.xstyle], properties.style)}
-        >
-            <JoinContext value={() => undefined}>{properties.children}</JoinContext>
-        </div>
-    );
+    return renderPart("div", "input-group", rest, () => [styles.group, join()], {
+        role: "group" as const,
+        get children() {
+            return <JoinContext value={() => undefined}>{properties.children}</JoinContext>;
+        },
+    });
 }
 
 /** Render icons, text or buttons beside or around a group's control. */
 export function InputGroupAddon(properties: InputGroupAddonProperties): JSX.Element {
     const addon = merge(ADDON_DEFAULTS, properties);
-    const rest = omit(addon, "align", "xstyle", "style", "onClick");
+    const rest = omit(addon, "align", "onClick");
 
-    return (
-        <div
-            data-slot="input-group-addon"
-            data-align={addon.align}
-            role="group"
-            {...rest}
-            onClick={(event) => {
+    return renderPart(
+        "div",
+        "input-group-addon",
+        rest,
+        () => [text.sm, styles.addon, alignments[addon.align], addonMarker],
+        {
+            get "data-align"() {
+                return addon.align;
+            },
+            role: "group" as const,
+            onClick: (event) => {
                 focusControl(event);
                 if (typeof addon.onClick === "function") {
                     addon.onClick(event);
                 }
-            }}
-            {...style.attributes(
-                [text.sm, styles.addon, alignments[addon.align], addonMarker, addon.xstyle],
-                addon.style,
-            )}
-        />
+            },
+        },
     );
 }
 

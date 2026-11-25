@@ -8,7 +8,7 @@ import {
     ContextMenuTrigger,
 } from "../context-menu/index.ts";
 import { Menu, MenuControl } from "../menu/index.ts";
-import { mergeProperties, type PartAttributes } from "../part/index.ts";
+import { contentOr, mergeProperties, type PartAttributes } from "../part/index.ts";
 import { Overflow, OverflowMenu } from "../overflow/index.ts";
 import { SortableContainer, SortableItem } from "../sortable/index.ts";
 import {
@@ -212,16 +212,14 @@ export function PaneTab(properties: PaneTabProperties): JSX.Element {
                 )
             }
         >
-            {"children" in properties ? (
-                properties.children
-            ) : (
+            {contentOr(properties, () => (
                 <>
                     <PaneLink item={properties.item}>
                         {group.options.label?.(properties.item) ?? properties.item.value}
                     </PaneLink>
                     <TabsClose />
                 </>
-            )}
+            ))}
         </SortableItem>
     );
 }

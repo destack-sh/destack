@@ -447,7 +447,7 @@ export interface GridListCellProperties<Item> extends GridListCellFramePropertie
 
 /** The properties of a grid list, the native element's attributes included. */
 export interface GridListProperties<Item> extends GridListElementProperties<
-    Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "children">
+    Omit<JSX.HTMLAttributes<HTMLDivElement>, "children">
 > {
     /** The grid list state its owner created. */
     readonly control: GridListControl<Item>;
@@ -500,37 +500,37 @@ export function GridList<Item>(properties: GridListProperties<Item>): JSX.Elemen
     const control = properties.control;
     const locale = useLocale();
     const isVirtual = control.focus.mode === "virtual";
-    const rest = omit(
-        properties,
-        "control",
-        "label",
-        "sectionHeader",
-        "children",
-        "xstyle",
-        "style",
-    );
+    const rest = omit(properties, "control", "label", "sectionHeader", "children");
 
-    return (
-        <div
-            id={control.id}
-            role="grid"
-            tabindex={isVirtual ? 0 : undefined}
-            aria-rowcount={control.delegate.rows().length}
-            aria-colcount={control.columnCount()}
-            aria-activedescendant={isVirtual ? control.focus.descendant() : undefined}
-            aria-multiselectable={control.selection?.isMultiple() === true ? "true" : undefined}
-            data-slot="grid-list"
-            {...rest}
-            ref={(element) => control.attach(element)}
-            onKeyDown={(event) => control.keyDown(event, locale.direction)}
-            onFocusOut={(event) => control.focus.focusOut(event)}
-            {...style.attributes([styles.list, properties.xstyle], properties.style)}
-        >
-            <GridListContext value={control}>
-                <GridListRows {...properties} />
-            </GridListContext>
-        </div>
-    );
+    return renderPart("div", "grid-list", rest, styles.list, {
+        id: control.id,
+        role: "grid" as const,
+        get tabindex() {
+            return isVirtual ? 0 : undefined;
+        },
+        get "aria-rowcount"() {
+            return control.delegate.rows().length;
+        },
+        get "aria-colcount"() {
+            return control.columnCount();
+        },
+        get "aria-activedescendant"() {
+            return isVirtual ? control.focus.descendant() : undefined;
+        },
+        get "aria-multiselectable"() {
+            return control.selection?.isMultiple() === true ? "true" : undefined;
+        },
+        ref: (element) => control.attach(element),
+        onKeyDown: (event) => control.keyDown(event, locale.direction),
+        onFocusOut: (event) => control.focus.focusOut(event),
+        get children() {
+            return (
+                <GridListContext value={control}>
+                    <GridListRows {...properties} />
+                </GridListContext>
+            );
+        },
+    });
 }
 
 /** Render the element that scrolls the nearest grid list. */
@@ -549,17 +549,13 @@ export function GridListViewport(
 
 /** Render a section's heading in a grid list. */
 export function GridListSectionHeader(properties: GridListSectionHeaderProperties): JSX.Element {
-    const rest = omit(properties, "label", "xstyle", "style");
+    const rest = omit(properties, "label", "children");
 
-    return (
-        <div
-            data-slot="grid-list-section-header"
-            {...rest}
-            {...style.attributes([text.xs, styles.header, properties.xstyle], properties.style)}
-        >
-            <span role="columnheader">{properties.label}</span>
-        </div>
-    );
+    return renderPart("div", "grid-list-section-header", rest, [text.xs, styles.header], {
+        get children() {
+            return <span role="columnheader">{properties.label}</span>;
+        },
+    });
 }
 
 /** Render a row of a grid list. */
@@ -572,28 +568,31 @@ export function GridListCell(properties: GridListCellFrameProperties): JSX.Eleme
     // fill the active cell unless its focus ring shows it
     const { isFitted, focus } = useGridList();
     const isFilled = !isFitted || focus.mode === "virtual";
-    const rest = omit(properties, "isActive", "isSelected", "xstyle", "style");
+    const rest = omit(properties, "isActive", "isSelected");
 
-    return (
-        <div
-            data-slot="grid-list-cell"
-            data-highlighted={properties.isActive ? "" : undefined}
-            data-selected={properties.isSelected ? "" : undefined}
-            data-disabled={properties["aria-disabled"] === "true" ? "" : undefined}
-            {...rest}
-            {...style.attributes(
-                [
-                    styles.cell,
-                    isFitted ? [state.focus, styles.fitted] : styles.square,
-                    properties.isActive && isFilled && state.selected,
-                    properties.isSelected && state.selected,
-                    properties.isSelected && styles.selected,
-                    properties["aria-disabled"] === "true" && state.inert,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "grid-list-cell",
+        rest,
+        () => [
+            styles.cell,
+            isFitted ? [state.focus, styles.fitted] : styles.square,
+            properties.isActive && isFilled && state.selected,
+            properties.isSelected && state.selected,
+            properties.isSelected && styles.selected,
+            properties["aria-disabled"] === "true" && state.inert,
+        ],
+        {
+            get "data-highlighted"() {
+                return properties.isActive ? "" : undefined;
+            },
+            get "data-selected"() {
+                return properties.isSelected ? "" : undefined;
+            },
+            get "data-disabled"() {
+                return properties["aria-disabled"] === "true" ? "" : undefined;
+            },
+        },
     );
 }
 

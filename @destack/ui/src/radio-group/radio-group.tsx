@@ -17,7 +17,7 @@ import {
 import { ToggleInput, isSubmitted } from "../toggle-state/index.ts";
 import { ListState } from "../focus/index.ts";
 import { Selection, type SingleSelection, valuesOf } from "../selection/index.ts";
-import { type Render, renderPart } from "../part/index.ts";
+import { contentOr, type Render, renderPart } from "../part/index.ts";
 import { useFieldValue, readChoice } from "../field/control.ts";
 
 /** The checked value of the nearest radio group, null outside a group. */
@@ -79,10 +79,7 @@ const styles = style.create({
 });
 
 /** The properties of a radio group, the native element's attributes included. */
-export interface RadioGroupProperties extends Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "onKeyDown"
-> {
+export interface RadioGroupProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The form field name the radios submit under. */
     readonly name?: string;
     /** The id of the form the radios belong to, their ancestor form by default. */
@@ -103,12 +100,14 @@ export interface RadioGroupProperties extends Omit<
     readonly orientation?: Axis;
     /** The StyleX styles applied after the group's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of a radio, the native button's attributes included. */
 export interface RadioGroupItemProperties extends Omit<
     JSX.ButtonHTMLAttributes<HTMLButtonElement>,
-    "class" | "type" | "role" | "name" | "value" | "form" | "onClick"
+    "class" | "type" | "role" | "name" | "value" | "form"
 > {
     /** The value the radio stands for. */
     readonly value: string;
@@ -124,6 +123,8 @@ export type RadioGroupIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLSpanElem
     readonly keepMounted?: boolean;
     /** The StyleX styles applied after the indicator's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** The checked value and radios of a radio group, which its radios share. */
@@ -222,40 +223,48 @@ export function RadioGroup(given: RadioGroupProperties): JSX.Element {
         "readOnly",
         "required",
         "orientation",
-        "xstyle",
-        "style",
     );
 
     return (
         <RadioGroupContext value={control}>
-            <div
-                role="radiogroup"
-                data-slot="radio-group"
-                data-orientation={properties.orientation}
-                data-disabled={properties.disabled === true ? "" : undefined}
-                aria-orientation={properties.orientation}
-                data-readonly={properties.readOnly === true ? "" : undefined}
-                aria-readonly={properties.readOnly === true ? "true" : undefined}
-                aria-required={properties.required === true ? "true" : undefined}
-                aria-disabled={properties.disabled === true ? "true" : undefined}
-                {...rest}
-                onKeyDown={(event) => {
-                    // move to the next or previous radio and check it
-                    const target = control.list.focus.move(event, locale.direction);
-                    if (target !== undefined) {
-                        control.choose(target);
-                    }
-                }}
-                onFocusOut={(event) => control.list.focus.focusOut(event)}
-                {...style.attributes(
-                    [
-                        styles.group,
-                        properties.orientation === "horizontal" && styles.horizontal,
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            />
+            {renderPart(
+                "div",
+                "radio-group",
+                rest,
+                () => [styles.group, properties.orientation === "horizontal" && styles.horizontal],
+                {
+                    role: "radiogroup" as const,
+                    get "data-orientation"() {
+                        return properties.orientation;
+                    },
+                    get "data-disabled"() {
+                        return properties.disabled === true ? "" : undefined;
+                    },
+                    get "aria-orientation"() {
+                        return properties.orientation;
+                    },
+                    get "data-readonly"() {
+                        return properties.readOnly === true ? "" : undefined;
+                    },
+                    get "aria-readonly"() {
+                        return properties.readOnly === true ? "true" : undefined;
+                    },
+                    get "aria-required"() {
+                        return properties.required === true ? "true" : undefined;
+                    },
+                    get "aria-disabled"() {
+                        return properties.disabled === true ? "true" : undefined;
+                    },
+                    onKeyDown: (event) => {
+                        // move to the next or previous radio and check it
+                        const target = control.list.focus.move(event, locale.direction);
+                        if (target !== undefined) {
+                            control.choose(target);
+                        }
+                    },
+                    onFocusOut: (event) => control.list.focus.focusOut(event),
+                },
+            )}
         </RadioGroupContext>
     );
 }
@@ -320,7 +329,7 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
                     onClick: () => group.choose(properties.value),
                     onFocus: () => group.list.focus.focusIn(properties.value),
                     get children() {
-                        return properties.children ?? <RadioGroupIndicator />;
+                        return contentOr(properties, () => <RadioGroupIndicator />);
                     },
                 },
             )}
@@ -347,18 +356,21 @@ export function RadioGroupIndicator(properties: RadioGroupIndicatorProperties): 
     if (item === null) {
         throw new TypeError("a radio group indicator needs a radio group item around it");
     }
-    const rest = omit(properties, "keepMounted", "xstyle", "style");
+    const rest = omit(properties, "keepMounted");
 
     return (
         <Show when={properties.keepMounted === true || item.isChecked()}>
-            <span
-                data-slot="radio-group-indicator"
-                data-checked={item.isChecked() ? "" : undefined}
-                data-unchecked={item.isChecked() ? undefined : ""}
-                data-disabled={item.isDisabled() ? "" : undefined}
-                {...rest}
-                {...style.attributes([styles.indicator, properties.xstyle], properties.style)}
-            />
+            {renderPart("span", "radio-group-indicator", rest, styles.indicator, {
+                get "data-checked"() {
+                    return item.isChecked() ? "" : undefined;
+                },
+                get "data-unchecked"() {
+                    return item.isChecked() ? undefined : "";
+                },
+                get "data-disabled"() {
+                    return item.isDisabled() ? "" : undefined;
+                },
+            })}
         </Show>
     );
 }

@@ -34,7 +34,7 @@ test("check one radio at a time on click, showing its indicator and moving the t
     container.querySelectorAll<HTMLElement>("[role=radio]")[1]?.click();
     flush();
     expect(markup(container)).toBe(
-        '<div role="radiogroup" data-slot="radio-group" aria-label="Density">' +
+        '<div data-slot="radio-group" role="radiogroup" aria-label="Density">' +
             '<button data-slot="radio-group-item" type="button" role="radio" aria-checked="false" tabindex="-1" data-value="compact" aria-label="Compact" data-unchecked=""></button>' +
             '<button data-slot="radio-group-item" type="button" role="radio" aria-checked="true" tabindex="0" data-value="regular" aria-label="Regular" data-checked=""><span data-slot="radio-group-indicator" data-checked=""></span></button></div>',
     );

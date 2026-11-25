@@ -23,7 +23,12 @@ import {
 } from "../dropdown-menu/index.ts";
 import { Icon } from "../icon/index.ts";
 import { type MenuContentProperties, useMenu } from "../menu/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import type { Axis } from "../position/index.ts";
 import {
     OverflowContext,
@@ -157,14 +162,12 @@ export function OverflowMenu(properties: {
 }): JSX.Element {
     return (
         <DropdownMenu>
-            {"children" in properties ? (
-                properties.children
-            ) : (
+            {contentOr(properties, () => (
                 <>
                     <OverflowMenuTrigger />
                     <OverflowMenuContent />
                 </>
-            )}
+            ))}
         </DropdownMenu>
     );
 }
@@ -205,7 +208,9 @@ export function OverflowMenuTrigger(properties: ButtonProperties): JSX.Element {
                     data-slot="overflow-menu-trigger"
                     xstyle={[styles.trigger, properties.xstyle]}
                 >
-                    {"children" in properties ? properties.children : <Icon icon={dotsThree} />}
+                    {contentOr(properties, () => (
+                        <Icon icon={dotsThree} />
+                    ))}
                 </Button>
             )}
             ref={(created: HTMLElement) => {
@@ -260,8 +265,7 @@ export function OverflowMenuItem(properties: {
 
         return value();
     };
-    const content = (): JSX.Element =>
-        "children" in properties ? properties.children : read(() => entry.label());
+    const content = (): JSX.Element => contentOr(properties, () => read(() => entry.label()));
     const isChecked = (): boolean | undefined => read(() => entry.isChecked());
     const isDisabled = (): boolean => read(() => entry.isDisabled());
 

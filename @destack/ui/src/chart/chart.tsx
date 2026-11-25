@@ -1,3 +1,4 @@
+import { renderPart, type Render } from "../part/index.ts";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -119,6 +120,8 @@ export interface ChartProperties<
     readonly onSelect?: (point: ChartPoint<Datum, XValue, YValue> | null) => void;
     /** The StyleX styles applied after the chart's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Draw a chart as an SVG in the theme's colors. */
@@ -140,8 +143,7 @@ export function Chart<
         "table",
         "onFocusChange",
         "onSelect",
-        "xstyle",
-        "style",
+        "children",
     );
     const prefix = `chart-${createUniqueId().replaceAll(/[^\w-]/gu, "")}`;
     const renderer =
@@ -206,55 +208,52 @@ export function Chart<
               );
     };
 
-    return (
-        <div
-            data-slot="chart"
-            {...rest}
-            {...style.attributes(
-                [text.xs, styles.chart, size(), properties.xstyle],
-                properties.style,
-            )}
-        >
-            {/* Drawing */}
-            <div
-                data-slot="chart-surface"
-                ref={(element) => {
-                    surface = element;
-                }}
-                innerHTML={markup}
-                {...style.attributes([styles.surface, grown()])}
-            />
+    return renderPart("div", "chart", rest, () => [text.xs, styles.chart, size()], {
+        get children() {
+            return (
+                <>
+                    {/* Drawing */}
+                    <div
+                        data-slot="chart-surface"
+                        ref={(element) => {
+                            surface = element;
+                        }}
+                        innerHTML={markup}
+                        {...style.attributes([styles.surface, grown()])}
+                    />
 
-            {textLength.render()}
+                    {textLength.render()}
 
-            {/* Values */}
-            <Show when={properties.table}>
-                {(table) => (
-                    <table data-slot="chart-table" {...style.attrs(visuallyHiddenStyle())}>
-                        <caption>{properties.label}</caption>
-                        <thead>
-                            <tr>
-                                <For each={table().columns}>
-                                    {(column) => <th scope="col">{column.label}</th>}
-                                </For>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <For each={table().rows}>
-                                {(row) => (
+                    {/* Values */}
+                    <Show when={properties.table}>
+                        {(table) => (
+                            <table data-slot="chart-table" {...style.attrs(visuallyHiddenStyle())}>
+                                <caption>{properties.label}</caption>
+                                <thead>
                                     <tr>
                                         <For each={table().columns}>
-                                            {(column) => <td>{cellOf(row, column)}</td>}
+                                            {(column) => <th scope="col">{column.label}</th>}
                                         </For>
                                     </tr>
-                                )}
-                            </For>
-                        </tbody>
-                    </table>
-                )}
-            </Show>
-        </div>
-    );
+                                </thead>
+                                <tbody>
+                                    <For each={table().rows}>
+                                        {(row) => (
+                                            <tr>
+                                                <For each={table().columns}>
+                                                    {(column) => <td>{cellOf(row, column)}</td>}
+                                                </For>
+                                            </tr>
+                                        )}
+                                    </For>
+                                </tbody>
+                            </table>
+                        )}
+                    </Show>
+                </>
+            );
+        },
+    });
 }
 
 /** Give a definition the theme's scene colors under any it sets itself. */

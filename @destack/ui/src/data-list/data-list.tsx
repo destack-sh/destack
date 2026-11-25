@@ -74,18 +74,18 @@ export interface DataListProperties extends DataListElementProperties<HTMLDListE
 /** Render a list of labelled values, such as an error's code and request id, after Radix's. */
 export function DataList(properties: DataListProperties): JSX.Element {
     const list = merge(DEFAULTS, properties);
-    const rest = omit(list, "orientation", "xstyle", "style");
+    const rest = omit(list, "orientation");
 
-    return (
-        <dl
-            data-slot="data-list"
-            data-orientation={list.orientation}
-            {...rest}
-            {...style.attributes(
-                [text.sm, styles.list, styles[list.orientation], list.xstyle],
-                list.style,
-            )}
-        />
+    return renderPart(
+        "dl",
+        "data-list",
+        rest,
+        () => [text.sm, styles.list, styles[list.orientation]],
+        {
+            get "data-orientation"() {
+                return list.orientation;
+            },
+        },
     );
 }
 

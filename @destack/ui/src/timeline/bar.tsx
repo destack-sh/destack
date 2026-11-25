@@ -19,7 +19,7 @@ import {
 import { CollectionBuilder } from "../collection/index.ts";
 import { Icon } from "../icon/index.ts";
 import { Press } from "../interaction/index.ts";
-import { mergeProperties, renderPart } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import {
     Tooltip,
     TooltipContent,
@@ -280,7 +280,7 @@ export function TimelineBar(properties: TimelineBarProperties): JSX.Element {
         node().item.key === key && properties.color === undefined && control.tree.isSummary(item());
     const isMovable = untrack(() => control.options.onItemsChange !== undefined);
     const isLate = (): boolean => TimelineItem.isLate(item());
-    const rest = omit(properties, "color", "variant", "children", "xstyle", "style");
+    const rest = omit(properties, "color", "variant", "children");
 
     // fill the bar itself, or a layer of it that turns or fades
     const isHollow = (): boolean => isMilestone() || open() !== undefined;
@@ -308,68 +308,91 @@ export function TimelineBar(properties: TimelineBarProperties): JSX.Element {
         <TimelineBarContext value={bar}>
             <Tooltip>
                 <TooltipTrigger
-                    render={(trigger) => (
-                        <div
-                            role="group"
-                            aria-label={item().label}
-                            {...mergeProperties(
-                                trigger,
+                    render={(trigger) =>
+                        renderPart(
+                            "div",
+                            "timeline-bar",
+                            mergeProperties(mergeProperties(trigger, rest), {
+                                "data-slot": "timeline-bar",
+                                get "aria-describedby"() {
+                                    return cards.items().length > 0
+                                        ? trigger["aria-describedby"]
+                                        : undefined;
+                                },
+                            }),
+                            () => [
+                                text.xs,
+                                state.focus,
+                                styles.bar,
+                                isMilestone()
+                                    ? [styles.milestone, places.at(from())]
+                                    : places.span(from(), to() - from()),
+                                fill(),
+                                isHollow() && styles.hollow,
+                                isLine() && styles.line,
+                                isMovable && styles.movable,
+                                isMoving() && styles.lifted,
+                                control.isLinked(key) && styles.linked,
+                                isLate() && styles.late,
+                            ],
+                            mergeProperties(
                                 mergeProperties(
+                                    {
+                                        role: "group" as const,
+                                        get "aria-label"() {
+                                            return item().label;
+                                        },
+                                        ref: bar.register("body"),
+                                    },
                                     mergeProperties(
-                                        mergeProperties(
-                                            { ref: bar.register("body") },
-                                            press.attributes(),
-                                        ),
+                                        press.attributes(),
                                         isMovable && bar.drags !== undefined ? bar.drags.body : {},
                                     ),
-                                    rest,
                                 ),
-                            )}
-                            tabindex={-1}
-                            aria-describedby={
-                                cards.items().length > 0 ? trigger["aria-describedby"] : undefined
-                            }
-                            data-slot="timeline-bar"
-                            data-variant={bar.variant()}
-                            data-summary={isSummary() ? "" : undefined}
-                            data-milestone={isMilestone() ? "" : undefined}
-                            data-dragging={isMoving() ? "" : undefined}
-                            data-linked={control.isLinked(key) ? "" : undefined}
-                            data-late={isLate() ? "" : undefined}
-                            {...style.attributes(
-                                [
-                                    text.xs,
-                                    state.focus,
-                                    styles.bar,
-                                    isMilestone()
-                                        ? [styles.milestone, places.at(from())]
-                                        : places.span(from(), to() - from()),
-                                    fill(),
-                                    isHollow() && styles.hollow,
-                                    isLine() && styles.line,
-                                    isMovable && styles.movable,
-                                    isMoving() && styles.lifted,
-                                    control.isLinked(key) && styles.linked,
-                                    isLate() && styles.late,
-                                    properties.xstyle,
-                                ],
-                                properties.style,
-                            )}
-                        >
-                            <Show when={isHollow()}>
-                                <span
-                                    aria-hidden="true"
-                                    {...style.attrs(
-                                        styles.fill,
-                                        fill(),
-                                        isMilestone() && styles.diamond,
-                                        fade(),
-                                    )}
-                                />
-                            </Show>
-                            {"children" in properties ? properties.children : <BarParts />}
-                        </div>
-                    )}
+                                {
+                                    tabindex: -1,
+                                    get "data-variant"() {
+                                        return bar.variant();
+                                    },
+                                    get "data-summary"() {
+                                        return isSummary() ? "" : undefined;
+                                    },
+                                    get "data-milestone"() {
+                                        return isMilestone() ? "" : undefined;
+                                    },
+                                    get "data-dragging"() {
+                                        return isMoving() ? "" : undefined;
+                                    },
+                                    get "data-linked"() {
+                                        return control.isLinked(key) ? "" : undefined;
+                                    },
+                                    get "data-late"() {
+                                        return isLate() ? "" : undefined;
+                                    },
+                                    get children() {
+                                        return (
+                                            <>
+                                                <Show when={isHollow()}>
+                                                    <span
+                                                        aria-hidden="true"
+                                                        {...style.attrs(
+                                                            styles.fill,
+                                                            fill(),
+                                                            isMilestone() && styles.diamond,
+                                                            fade(),
+                                                        )}
+                                                    />
+                                                </Show>
+                                                {contentOr(properties, () => (
+                                                    <BarParts />
+                                                ))}
+                                            </>
+                                        );
+                                    },
+                                },
+                            ),
+                        )
+                    }
                 />
                 <Outside />
             </Tooltip>
@@ -445,7 +468,7 @@ export function TimelineBarLabel(properties: TimelineElementProperties): JSX.Ele
                         isMilestone() && styles.besideMilestone,
                     )}
                 >
-                    {properties.children ?? item().label}
+                    {contentOr(properties, () => item().label)}
                 </span>
             </Show>
         </>
@@ -497,7 +520,9 @@ export function TimelineBarCard(properties: TooltipContentProperties): JSX.Eleme
                 onPointerDown={(event: PointerEvent) => event.stopPropagation()}
                 {...properties}
             >
-                {"children" in properties ? properties.children : <BarDates />}
+                {contentOr(properties, () => (
+                    <BarDates />
+                ))}
             </TooltipContent>
         </Show>
     );

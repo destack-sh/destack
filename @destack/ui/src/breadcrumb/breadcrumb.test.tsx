@@ -32,7 +32,7 @@ test("render a breadcrumb trail ending at the current page", () => {
             </BreadcrumbList>
         </Breadcrumb>
     ));
-    const separator = `<li role="presentation" aria-hidden="true" data-slot="breadcrumb-separator">${ICON}</li>`;
+    const separator = `<li data-slot="breadcrumb-separator" role="presentation" aria-hidden="true">${ICON}</li>`;
     expect(markup(container)).toBe(
         '<nav data-slot="breadcrumb" aria-label="Breadcrumb"><ol data-slot="breadcrumb-list">' +
             '<li data-slot="breadcrumb-item"><a data-slot="breadcrumb-link" href="/">Home</a></li>' +

@@ -5,7 +5,7 @@ import { color, radius, size, space, stroke, weight } from "@destack/theme/token
 import { text } from "@destack/theme/text";
 import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
-import { renderPart } from "../part/index.ts";
+import { renderPart, type Render } from "../part/index.ts";
 
 /** The variant and size of an item that sets neither. */
 const DEFAULTS: Required<ItemVariantProperties> = { variant: "default", size: "default" };
@@ -160,6 +160,8 @@ export type ItemElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivElement
 > & {
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** The variant and size of an item's styles. */
@@ -198,27 +200,24 @@ export function Item(properties: ItemProperties): JSX.Element {
     // list the item in its group
     const isGrouped = useContext(ItemGroupContext);
     const item = merge(DEFAULTS, properties);
-    const rest = omit(item, "variant", "size", "xstyle", "style");
+    const rest = omit(item, "variant", "size");
 
-    return (
-        <div
-            data-slot="item"
-            data-variant={item.variant}
-            data-size={item.size}
-            role={isGrouped ? "listitem" : undefined}
-            {...rest}
-            {...style.attributes(
-                [
-                    text.sm,
-                    state.focus,
-                    styles.item,
-                    variants[item.variant],
-                    sizes[item.size],
-                    item.xstyle,
-                ],
-                item.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "item",
+        rest,
+        () => [text.sm, state.focus, styles.item, variants[item.variant], sizes[item.size]],
+        {
+            get "data-variant"() {
+                return item.variant;
+            },
+            get "data-size"() {
+                return item.size;
+            },
+            get role() {
+                return isGrouped ? "listitem" : undefined;
+            },
+        },
     );
 }
 
@@ -246,19 +245,13 @@ export function ItemSeparator(properties: SeparatorProperties): JSX.Element {
 /** Render an item's icon, avatar or picture. */
 export function ItemMedia(properties: ItemMediaProperties): JSX.Element {
     const figure = merge(MEDIA_DEFAULTS, properties);
-    const rest = omit(figure, "variant", "xstyle", "style");
+    const rest = omit(figure, "variant");
 
-    return (
-        <div
-            data-slot="item-media"
-            data-variant={figure.variant}
-            {...rest}
-            {...style.attributes(
-                [styles.media, medias[figure.variant], figure.xstyle],
-                figure.style,
-            )}
-        />
-    );
+    return renderPart("div", "item-media", rest, () => [styles.media, medias[figure.variant]], {
+        get "data-variant"() {
+            return figure.variant;
+        },
+    });
 }
 
 /** Render the title and description of an item, taking the row's free width. */

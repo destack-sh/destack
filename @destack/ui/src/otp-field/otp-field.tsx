@@ -18,7 +18,12 @@ import {
     useContext,
 } from "@destack/view";
 import { readText, useFieldControl, useFieldValue } from "../field/control.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ElementPartProperties,
+    renderPart,
+    mergeProperties,
+    type Render,
+} from "../part/index.ts";
 
 /** The characters a code takes when its owner allows no others. */
 const DIGITS = "[0-9]";
@@ -213,6 +218,8 @@ export interface OtpFieldProperties extends Omit<
     readonly children?: JSX.Element;
     /** The StyleX styles applied after the root's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of an element of a one-time code input. */
@@ -224,6 +231,9 @@ export interface OtpFieldSlotProperties extends OtpFieldElementProperties {
     /** The position of the character the slot shows. */
     readonly index: number;
 }
+
+/** An event of the field's input. */
+type FieldEvent = Event & { readonly currentTarget: HTMLInputElement };
 
 /** Render a one-time code input as one character per slot. */
 export function OtpField(given: OtpFieldProperties): JSX.Element {
@@ -261,22 +271,32 @@ export function OtpField(given: OtpFieldProperties): JSX.Element {
                 {...style.attributes([styles.root, code.xstyle], code.style)}
             >
                 {code.children}
-                <input
-                    data-slot="otp-field-input"
-                    autocomplete="one-time-code"
-                    inputmode={code.pattern === DIGITS ? "numeric" : "text"}
-                    spellcheck={false}
-                    {...field?.attributes()}
-                    {...rest}
-                    maxlength={code.maxLength}
-                    value={control.value()}
-                    onInput={(event) => control.input(event.currentTarget)}
-                    onSelect={(event) => control.select(event.currentTarget)}
-                    onKeyUp={(event) => control.select(event.currentTarget)}
-                    onFocus={(event) => control.focus(event.currentTarget, true)}
-                    onBlur={(event) => control.focus(event.currentTarget, false)}
-                    {...style.attrs(styles.input, inputMarker)}
-                />
+                {renderPart(
+                    "input",
+                    "otp-field-input",
+                    rest,
+                    [styles.input, inputMarker],
+                    mergeProperties(field?.attributes() ?? {}, {
+                        autocomplete: "one-time-code" as const,
+                        get inputmode() {
+                            return code.pattern === DIGITS
+                                ? ("numeric" as const)
+                                : ("text" as const);
+                        },
+                        spellcheck: "false" as const,
+                        get maxlength() {
+                            return code.maxLength;
+                        },
+                        get value() {
+                            return control.value();
+                        },
+                        onInput: (event: FieldEvent) => control.input(event.currentTarget),
+                        onSelect: (event: FieldEvent) => control.select(event.currentTarget),
+                        onKeyUp: (event: FieldEvent) => control.select(event.currentTarget),
+                        onFocus: (event: FieldEvent) => control.focus(event.currentTarget, true),
+                        onBlur: (event: FieldEvent) => control.focus(event.currentTarget, false),
+                    }),
+                )}
             </div>
         </OtpFieldContext>
     );
@@ -290,32 +310,39 @@ export function OtpFieldGroup(properties: OtpFieldElementProperties): JSX.Elemen
 /** Render one character of the code, with a blinking caret while it waits for it. */
 export function OtpFieldSlot(properties: OtpFieldSlotProperties): JSX.Element {
     const control = useOtpField();
-    const rest = omit(properties, "index", "xstyle", "style");
+    const rest = omit(properties, "index", "children");
 
-    return (
-        <div
-            data-slot="otp-field-slot"
-            data-active={control.isActive(properties.index) ? "" : undefined}
-            aria-hidden="true"
-            {...rest}
-            {...style.attributes(
-                [
-                    text.base,
-                    styles.slot,
-                    control.isActive(properties.index) && styles.active,
-                    control.isInvalid() && state.invalid,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {control.charAt(properties.index)}
-            <Show
-                when={control.isActive(properties.index) && control.charAt(properties.index) === ""}
-            >
-                <div {...style.attrs(styles.caret)} />
-            </Show>
-        </div>
+    return renderPart(
+        "div",
+        "otp-field-slot",
+        rest,
+        () => [
+            text.base,
+            styles.slot,
+            control.isActive(properties.index) && styles.active,
+            control.isInvalid() && state.invalid,
+        ],
+        {
+            get "data-active"() {
+                return control.isActive(properties.index) ? "" : undefined;
+            },
+            "aria-hidden": "true" as const,
+            get children() {
+                return (
+                    <>
+                        {control.charAt(properties.index)}
+                        <Show
+                            when={
+                                control.isActive(properties.index) &&
+                                control.charAt(properties.index) === ""
+                            }
+                        >
+                            <div {...style.attrs(styles.caret)} />
+                        </Show>
+                    </>
+                );
+            },
+        },
     );
 }
 

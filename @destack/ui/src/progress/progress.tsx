@@ -14,7 +14,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { CollectionBuilder } from "../collection/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, renderPart, type Render } from "../part/index.ts";
 
 /** The maximum of a progress bar that sets none. */
 const MAXIMUM = 100;
@@ -118,6 +118,8 @@ export interface ProgressProperties extends Omit<JSX.HTMLAttributes<HTMLDivEleme
     readonly getValueLabel?: (value: number, max: number) => string;
     /** The StyleX styles applied after the progress bar's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of a progress bar's indicator, the native element's attributes included. */
@@ -128,17 +130,7 @@ export type ProgressIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLDivElement
 export function Progress(properties: ProgressProperties): JSX.Element {
     // clamp the value to the range and read the state it puts the bar in
     const locale = useLocale();
-    const rest = omit(
-        properties,
-        "value",
-        "min",
-        "max",
-        "format",
-        "getValueLabel",
-        "xstyle",
-        "style",
-        "children",
-    );
+    const rest = omit(properties, "value", "min", "max", "format", "getValueLabel", "children");
     const labels = new CollectionBuilder<string>();
     const min = (): number => properties.min ?? 0;
     const max = (): number => maximumOf(min(), properties.max);
@@ -180,24 +172,42 @@ export function Progress(properties: ProgressProperties): JSX.Element {
         <ProgressContext
             value={{ value, max, share, written, state, addLabel: (id) => void labels.add(id) }}
         >
-            <div
-                role="progressbar"
-                aria-valuemin={min()}
-                aria-valuemax={max()}
-                aria-valuenow={value()}
-                aria-valuetext={label()}
-                aria-labelledby={labels.items().at(-1)}
-                data-slot="progress"
-                data-indeterminate={state() === "indeterminate" ? "" : undefined}
-                data-progressing={state() === "loading" ? "" : undefined}
-                data-complete={state() === "complete" ? "" : undefined}
-                data-value={value()}
-                data-max={max()}
-                {...rest}
-                {...style.attributes([styles.progress, properties.xstyle], properties.style)}
-            >
-                {properties.children ?? <ProgressTrack />}
-            </div>
+            {renderPart("div", "progress", rest, styles.progress, {
+                role: "progressbar" as const,
+                get "aria-valuemin"() {
+                    return min();
+                },
+                get "aria-valuemax"() {
+                    return max();
+                },
+                get "aria-valuenow"() {
+                    return value();
+                },
+                get "aria-valuetext"() {
+                    return label();
+                },
+                get "aria-labelledby"() {
+                    return labels.items().at(-1);
+                },
+                get "data-indeterminate"() {
+                    return state() === "indeterminate" ? "" : undefined;
+                },
+                get "data-progressing"() {
+                    return state() === "loading" ? "" : undefined;
+                },
+                get "data-complete"() {
+                    return state() === "complete" ? "" : undefined;
+                },
+                get "data-value"() {
+                    return value();
+                },
+                get "data-max"() {
+                    return max();
+                },
+                get children() {
+                    return contentOr(properties, () => <ProgressTrack />);
+                },
+            })}
         </ProgressContext>
     );
 }
@@ -233,7 +243,7 @@ export function ProgressTrack(
 
     return renderPart("div", "progress-track", rest, styles.track, {
         get children() {
-            return properties.children ?? <ProgressIndicator />;
+            return contentOr(properties, () => <ProgressIndicator />);
         },
     });
 }

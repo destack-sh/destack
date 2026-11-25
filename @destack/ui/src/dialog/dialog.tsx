@@ -39,7 +39,7 @@ import {
     TopLayer,
     type TriggerProperties,
 } from "../layer/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { type ElementPartProperties, renderPart, type Render } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import { scrim } from "./scrim.stylex.ts";
 
@@ -246,12 +246,14 @@ export type DialogTriggerProperties<Payload = unknown> = DialogButtonProperties 
 /** The properties of a dialog's content, the native dialog's attributes included. */
 export interface DialogContentProperties extends Omit<
     JSX.DialogHtmlAttributes<HTMLDialogElement>,
-    "class" | "ref" | "onCancel" | "onClose"
+    "class" | "onClose"
 > {
     /** Whether to show a close button in the top corner, true by default. */
     readonly showCloseButton?: boolean;
     /** The StyleX styles applied after the dialog's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of an element of a dialog, the native element's attributes included. */
@@ -324,7 +326,7 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
     // read the dialog and store its element for the effect below
     const control = useDialog();
     const locale = useLocale();
-    const rest = omit(properties, "showCloseButton", "xstyle", "style", "children");
+    const rest = omit(properties, "showCloseButton", "children");
     let element: HTMLDialogElement | undefined;
     onCleanup(() => {
         // leave the stack when the dialog unmounts open
@@ -346,37 +348,46 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
 
     return (
         <TopLayer>
-            <dialog
-                id={control.id}
-                data-slot="dialog-content"
-                data-open={control.isOpen() ? "" : undefined}
-                data-closed={control.isOpen() ? undefined : ""}
-                closedby="any"
-                aria-labelledby={control.isTitled() ? control.titleId : undefined}
-                aria-describedby={control.isDescribed() ? control.descriptionId : undefined}
-                {...rest}
-                ref={(dialog) => (element = dialog)}
-                onCancel={(event) => control.request(event)}
-                onClose={(event) => control.follow(event.currentTarget)}
-                {...style.attributes(
-                    [styles.content, transition.dialog, properties.xstyle],
-                    properties.style,
-                )}
-            >
-                {properties.children}
-                <Show when={properties.showCloseButton !== false}>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        data-slot="dialog-close"
-                        aria-label={locale.render(t`Close`)}
-                        onClick={(event) => control.close(new OpenChange("close-press", event))}
-                        xstyle={styles.close}
-                    >
-                        <Icon name="x" />
-                    </Button>
-                </Show>
-            </dialog>
+            {renderPart("dialog", "dialog-content", rest, [styles.content, transition.dialog], {
+                id: control.id,
+                get "data-open"() {
+                    return control.isOpen() ? "" : undefined;
+                },
+                get "data-closed"() {
+                    return control.isOpen() ? undefined : "";
+                },
+                closedby: "any" as const,
+                get "aria-labelledby"() {
+                    return control.isTitled() ? control.titleId : undefined;
+                },
+                get "aria-describedby"() {
+                    return control.isDescribed() ? control.descriptionId : undefined;
+                },
+                ref: (dialog) => (element = dialog),
+                onCancel: (event) => control.request(event),
+                onClose: (event) => control.follow(event.currentTarget),
+                get children() {
+                    return (
+                        <>
+                            {properties.children}
+                            <Show when={properties.showCloseButton !== false}>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    data-slot="dialog-close"
+                                    aria-label={locale.render(t`Close`)}
+                                    onClick={(event) =>
+                                        control.close(new OpenChange("close-press", event))
+                                    }
+                                    xstyle={styles.close}
+                                >
+                                    <Icon name="x" />
+                                </Button>
+                            </Show>
+                        </>
+                    );
+                },
+            })}
         </TopLayer>
     );
 }

@@ -38,6 +38,7 @@ import {
 } from "./tree.ts";
 import type { TimelineAxisMode } from "./scale.ts";
 import { TimelineWindow } from "./window.ts";
+import type { Render } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The height of a row in pixels until it is measured, about Jaeger's. */
@@ -509,6 +510,8 @@ export function useTimelineRow(): TimelineRowControl {
 export interface TimelinePartProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The StyleX styles applied after the part's. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of an element part of a timeline, the native element's attributes included. */

@@ -1,3 +1,4 @@
+import { renderPart } from "../part/index.ts";
 import { TimeScale } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
@@ -72,7 +73,7 @@ export function TimelineMinimap(properties: TimelinePartProperties): JSX.Element
     // place each item as a line, and the window as a lens over the span
     const control = useTimeline();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
+    const rest = omit(properties, "children");
     let element: HTMLElement | undefined;
     const span = () => control.tree.span();
     const dated = () => control.options.items.filter((item) => TimelineItem.isDated(item));
@@ -130,55 +131,56 @@ export function TimelineMinimap(properties: TimelinePartProperties): JSX.Element
             clock,
         ).attributes();
 
-    return (
-        <div
-            data-slot="timeline-minimap"
-            aria-hidden="true"
-            {...rest}
-            ref={(created) => (element = created)}
-            {...style.attributes([styles.minimap, properties.xstyle], properties.style)}
-        >
-            <For each={dated()}>
-                {(item, index) => (
-                    <span
-                        {...style.attrs(
-                            styles.trace,
-                            places.trace(
-                                TimeScale.at(span(), control.tree.drawn(item).start),
-                                (control.tree.drawn(item).end - control.tree.drawn(item).start) /
-                                    (span().end - span().start),
-                                (index() + 0.5) / dated().length,
-                                control.tree.isSummary(item)
-                                    ? color.mutedForeground
-                                    : swatch[`${TimelineItem.hue(item)}Mark`],
-                            ),
+    return renderPart("div", "timeline-minimap", rest, styles.minimap, {
+        "aria-hidden": "true" as const,
+        ref: (created) => (element = created),
+        get children() {
+            return (
+                <>
+                    <For each={dated()}>
+                        {(item, index) => (
+                            <span
+                                {...style.attrs(
+                                    styles.trace,
+                                    places.trace(
+                                        TimeScale.at(span(), control.tree.drawn(item).start),
+                                        (control.tree.drawn(item).end -
+                                            control.tree.drawn(item).start) /
+                                            (span().end - span().start),
+                                        (index() + 0.5) / dated().length,
+                                        control.tree.isSummary(item)
+                                            ? color.mutedForeground
+                                            : swatch[`${TimelineItem.hue(item)}Mark`],
+                                    ),
+                                )}
+                            />
                         )}
-                    />
-                )}
-            </For>
+                    </For>
 
-            {/* Lens, once the window shows less than every item */}
-            <Show when={lens().width < WHOLE_SPAN}>
-                <span
-                    data-slot="timeline-minimap-lens"
-                    {...move.attributes()}
-                    {...style.attrs(styles.lens, places.span(lens().left, lens().width))}
-                >
-                    {/* The grips that resize the window */}
-                    <span
-                        data-slot="timeline-minimap-grip"
-                        data-edge="start"
-                        {...grip("start")}
-                        {...style.attrs(styles.lensGrip, styles.lensGripStart)}
-                    />
-                    <span
-                        data-slot="timeline-minimap-grip"
-                        data-edge="end"
-                        {...grip("end")}
-                        {...style.attrs(styles.lensGrip, styles.lensGripEnd)}
-                    />
-                </span>
-            </Show>
-        </div>
-    );
+                    {/* Lens, once the window shows less than every item */}
+                    <Show when={lens().width < WHOLE_SPAN}>
+                        <span
+                            data-slot="timeline-minimap-lens"
+                            {...move.attributes()}
+                            {...style.attrs(styles.lens, places.span(lens().left, lens().width))}
+                        >
+                            {/* The grips that resize the window */}
+                            <span
+                                data-slot="timeline-minimap-grip"
+                                data-edge="start"
+                                {...grip("start")}
+                                {...style.attrs(styles.lensGrip, styles.lensGripStart)}
+                            />
+                            <span
+                                data-slot="timeline-minimap-grip"
+                                data-edge="end"
+                                {...grip("end")}
+                                {...style.attrs(styles.lensGrip, styles.lensGripEnd)}
+                            />
+                        </span>
+                    </Show>
+                </>
+            );
+        },
+    });
 }

@@ -18,7 +18,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Draggable, Droppable } from "../drag/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import { EventCalendarBackground, EventCalendarEvent, placement } from "./chip.tsx";
 import {
     EVENT_TYPE,
@@ -251,7 +251,7 @@ function MonthView(properties: EventCalendarPartProperties): JSX.Element {
     const locale = useLocale();
     const month = new EventCalendarMonthControl(control);
     const measured = new Map<PlainDate, DOMRect>();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     let element: HTMLElement | undefined;
 
     // take dropped events on the days, stepping a day along a week and a week across weeks
@@ -324,10 +324,23 @@ function MonthView(properties: EventCalendarPartProperties): JSX.Element {
 
     return (
         <EventCalendarMonthContext value={month}>
-            <div
-                data-slot="event-calendar-month"
-                role="grid"
-                {...mergeProperties(
+            {renderPart(
+                "div",
+                "event-calendar-month",
+                rest,
+                () => [styles.month, paging.style()],
+                mergeProperties(
+                    {
+                        role: "grid" as const,
+                        get children() {
+                            return contentOr(properties, () => (
+                                <>
+                                    <EventCalendarWeekdayHeader />
+                                    <EventCalendarDayGrid />
+                                </>
+                            ));
+                        },
+                    },
                     {
                         ...paging.attributes(),
                         ref: (created: HTMLDivElement) => (element = created),
@@ -338,20 +351,8 @@ function MonthView(properties: EventCalendarPartProperties): JSX.Element {
                         onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>
                             control.focus.focusOut(event),
                     },
-                    rest,
-                )}
-                {...style.attributes(
-                    [styles.month, paging.style(), properties.xstyle],
-                    properties.style,
-                )}
-            >
-                {properties.children ?? (
-                    <>
-                        <EventCalendarWeekdayHeader />
-                        <EventCalendarDayGrid />
-                    </>
-                )}
-            </div>
+                ),
+            )}
         </EventCalendarMonthContext>
     );
 }
@@ -361,31 +362,32 @@ export function EventCalendarWeekdayHeader(properties: EventCalendarPartProperti
     // name the weekdays of the first week, the hidden ones left out
     const locale = useLocale();
     const month = useEventCalendarMonth();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            role="row"
-            data-slot="event-calendar-weekday-header"
-            {...rest}
-            {...style.attributes(
-                [styles.weekdays, places.columns(nth(month.weeks(), 0).length), properties.xstyle],
-                properties.style,
-            )}
-        >
-            <For each={month.weeks()[0]}>
-                {(day) => (
-                    <div role="columnheader" {...style.attrs(text.xs, styles.weekday)}>
-                        <abbr
-                            title={locale.plainDate(day, { weekday: "long" })}
-                            {...style.attrs(styles.weekdayName)}
-                        >
-                            {locale.plainDate(day, { weekday: "short" })}
-                        </abbr>
-                    </div>
-                )}
-            </For>
-        </div>
+    return renderPart(
+        "div",
+        "event-calendar-weekday-header",
+        rest,
+        () => [styles.weekdays, places.columns(nth(month.weeks(), 0).length)],
+        {
+            role: "row" as const,
+            get children() {
+                return (
+                    <For each={month.weeks()[0]}>
+                        {(day) => (
+                            <div role="columnheader" {...style.attrs(text.xs, styles.weekday)}>
+                                <abbr
+                                    title={locale.plainDate(day, { weekday: "long" })}
+                                    {...style.attrs(styles.weekdayName)}
+                                >
+                                    {locale.plainDate(day, { weekday: "short" })}
+                                </abbr>
+                            </div>
+                        )}
+                    </For>
+                );
+            },
+        },
     );
 }
 
@@ -430,62 +432,60 @@ export function EventCalendarWeek(
     const locale = useLocale();
     const month = useEventCalendarMonth();
     const { days } = useEventCalendarWeek();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            role="row"
-            data-slot="event-calendar-week"
-            {...rest}
-            {...style.attributes(
-                [
-                    styles.week,
-                    places.columns(days.length),
-                    places.rows(control.dayMaxEvents()),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {/* Days */}
-            <For each={days}>
-                {(day, index) => (
-                    <EventCalendarDayContext value={{ day, index }}>
-                        {properties.children === undefined ? (
-                            <EventCalendarMonthDay />
-                        ) : (
-                            properties.children({ day, index })
-                        )}
-                    </EventCalendarDayContext>
-                )}
-            </For>
+    return renderPart(
+        "div",
+        "event-calendar-week",
+        rest,
+        () => [styles.week, places.columns(days.length), places.rows(control.dayMaxEvents())],
+        {
+            role: "row" as const,
+            get children() {
+                return (
+                    <>
+                        {/* Days */}
+                        <For each={days}>
+                            {(day, index) => (
+                                <EventCalendarDayContext value={{ day, index }}>
+                                    {properties.children === undefined ? (
+                                        <EventCalendarMonthDay />
+                                    ) : (
+                                        properties.children({ day, index })
+                                    )}
+                                </EventCalendarDayContext>
+                            )}
+                        </For>
 
-            {/* The week of the year, at the row's start */}
-            <Show when={control.options.weekNumbers === true}>
-                <span
-                    data-slot="event-calendar-week-number"
-                    aria-hidden="true"
-                    {...style.attrs(text.xs, styles.weekNumber)}
-                >
-                    {locale.render(control.weekNumber(nth(days, 0)))}
-                </span>
-            </Show>
+                        {/* The week of the year, at the row's start */}
+                        <Show when={control.options.weekNumbers === true}>
+                            <span
+                                data-slot="event-calendar-week-number"
+                                aria-hidden="true"
+                                {...style.attrs(text.xs, styles.weekNumber)}
+                            >
+                                {locale.render(control.weekNumber(nth(days, 0)))}
+                            </span>
+                        </Show>
 
-            {/* Whole days shaded behind the events */}
-            <For each={control.stack(month.shades(), days)}>
-                {(segment) => {
-                    const columns = () => Segment.columns(segment, days);
+                        {/* Whole days shaded behind the events */}
+                        <For each={control.stack(month.shades(), days)}>
+                            {(segment) => {
+                                const columns = () => Segment.columns(segment, days);
 
-                    return (
-                        <EventCalendarBackground
-                            aria-hidden="true"
-                            event={control.eventOf(segment.key)}
-                            xstyle={places.shade(columns().start + 1, columns().span)}
-                        />
-                    );
-                }}
-            </For>
-        </div>
+                                return (
+                                    <EventCalendarBackground
+                                        aria-hidden="true"
+                                        event={control.eventOf(segment.key)}
+                                        xstyle={places.shade(columns().start + 1, columns().span)}
+                                    />
+                                );
+                            }}
+                        </For>
+                    </>
+                );
+            },
+        },
     );
 }
 
@@ -495,7 +495,7 @@ export function EventCalendarMonthDay(properties: EventCalendarPartProperties): 
     const control = useEventCalendar();
     const month = useEventCalendarMonth();
     const { day, index } = useEventCalendarDay();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     let cell: HTMLDivElement | undefined;
     onCleanup(() => {
         // forget the cell unless a new grid's cell for the day took its place first
@@ -511,39 +511,40 @@ export function EventCalendarMonthDay(properties: EventCalendarPartProperties): 
             {...style.attrs(styles.cell)}
         >
             {/* Background */}
-            <div
-                data-slot="event-calendar-day"
-                data-date={day}
-                data-target={month.isTarget(day) ? "" : undefined}
-                {...mergeProperties(
+            {renderPart(
+                "div",
+                "event-calendar-day",
+                rest,
+                () => [
+                    state.focusInset,
+                    styles.day,
+                    index() > 0 && styles.divided,
+                    places.column(index() + 1),
+                    control.isRestDay(day) && styles.weekend,
+                    month.isTarget(day) && state.target,
+                ],
+                mergeProperties(
+                    {
+                        "data-date": day,
+                        get "data-target"() {
+                            return month.isTarget(day) ? "" : undefined;
+                        },
+                    },
                     {
                         ref: (created: HTMLDivElement) => {
                             cell = created;
                             month.cells.set(day, created);
                         },
                     },
-                    rest,
-                )}
-                {...style.attributes(
-                    [
-                        state.focusInset,
-                        styles.day,
-                        index() > 0 && styles.divided,
-                        places.column(index() + 1),
-                        control.isRestDay(day) && styles.weekend,
-                        month.isTarget(day) && state.target,
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            />
-            {properties.children ?? (
+                ),
+            )}
+            {contentOr(properties, () => (
                 <>
                     <EventCalendarDate />
                     <EventCalendarDayContent />
                     <EventCalendarMore />
                 </>
-            )}
+            ))}
         </div>
     );
 }
@@ -560,7 +561,7 @@ export function EventCalendarDate(
     const locale = useLocale();
     const month = useEventCalendarMonth();
     const { day, index } = useEventCalendarDay();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const isToday = () => PlainDate.equals(day, control.today());
     let date: HTMLElement | undefined;
     control.focus.bind(
@@ -568,36 +569,40 @@ export function EventCalendarDate(
         () => date,
     );
 
-    return (
-        <button
-            type="button"
-            data-slot="event-calendar-date"
-            data-today={isToday() ? "" : undefined}
-            tabindex={control.focus.isActive(day) ? 0 : -1}
-            aria-label={locale.plainDate(day, { dateStyle: "full" })}
-            {...mergeProperties(
-                {
-                    ref: (created: HTMLButtonElement) => (date = created),
-                    onFocus: () => control.focus.focusIn(day),
-                    onClick: () => control.open(day),
+    return renderPart(
+        "button",
+        "event-calendar-date",
+        rest,
+        () => [
+            text.xs,
+            state.hover,
+            styles.number,
+            places.column(index() + 1),
+            MonthGrid.isOutside(month.grid(), day) && styles.outside,
+            isToday() && [state.checked, styles.today],
+        ],
+        mergeProperties(
+            {
+                type: "button" as const,
+                get "data-today"() {
+                    return isToday() ? "" : undefined;
                 },
-                rest,
-            )}
-            {...style.attributes(
-                [
-                    text.xs,
-                    state.hover,
-                    styles.number,
-                    places.column(index() + 1),
-                    MonthGrid.isOutside(month.grid(), day) && styles.outside,
-                    isToday() && [state.checked, styles.today],
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {properties.children ?? locale.number(PlainDate.day(day))}
-        </button>
+                get tabindex() {
+                    return control.focus.isActive(day) ? 0 : -1;
+                },
+                get "aria-label"() {
+                    return locale.plainDate(day, { dateStyle: "full" });
+                },
+                get children() {
+                    return contentOr(properties, () => locale.number(PlainDate.day(day)));
+                },
+            },
+            {
+                ref: (created: HTMLButtonElement) => (date = created),
+                onFocus: () => control.focus.focusIn(day),
+                onClick: () => control.open(day),
+            },
+        ),
     );
 }
 
@@ -632,29 +637,35 @@ export function EventCalendarMore(
     const locale = useLocale();
     const { day, index } = useEventCalendarDay();
     const { segments } = useEventCalendarWeek();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const hidden = () => Segment.hidden(segments(), day, control.dayMaxEvents());
 
     return (
         <Show when={hidden() > 0}>
-            <button
-                type="button"
-                data-slot="event-calendar-more"
-                {...mergeProperties({ onClick: () => control.open(day) }, rest)}
-                {...style.attributes(
-                    [
-                        text.xs,
-                        state.hover,
-                        styles.more,
-                        places.span(index() + 1, 1, control.dayMaxEvents() + 2),
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            >
-                {properties.children ??
-                    locale.render(t`${plural(hidden(), { one: "+# more", other: "+# more" })}`)}
-            </button>
+            {renderPart(
+                "button",
+                "event-calendar-more",
+                rest,
+                () => [
+                    text.xs,
+                    state.hover,
+                    styles.more,
+                    places.span(index() + 1, 1, control.dayMaxEvents() + 2),
+                ],
+                mergeProperties(
+                    {
+                        type: "button" as const,
+                        get children() {
+                            return contentOr(properties, () =>
+                                locale.render(
+                                    t`${plural(hidden(), { one: "+# more", other: "+# more" })}`,
+                                ),
+                            );
+                        },
+                    },
+                    { onClick: () => control.open(day) },
+                ),
+            )}
         </Show>
     );
 }

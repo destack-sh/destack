@@ -33,7 +33,7 @@ import {
 import { Timeout } from "@destack/view/primitives/timer";
 import { type HoverEvent, SafePolygon } from "../interaction/index.ts";
 import { type Align, type Anchor, Position, PositionAnchor, type Side } from "../position/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { type ElementPartProperties, renderPart, type Render } from "../part/index.ts";
 import { Viewport } from "./viewport.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
@@ -547,7 +547,7 @@ export interface PopoverProperties<Payload = unknown> extends PopoverOptions {
 
 /** The properties of a popover's trigger, a native button's attributes included. */
 export type PopoverTriggerProperties<Payload = unknown> = ElementPartProperties &
-    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref"> &
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style"> &
     TriggerProperties<Payload, PopoverControl<Payload>>;
 
 /** The properties of a popover's content. */
@@ -567,6 +567,8 @@ export interface PopoverContentProperties extends Omit<
     readonly sideOffset?: number;
     /** The StyleX styles applied after the popover's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Read the popover of the nearest popover root, refusing elements outside one. */
@@ -640,16 +642,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
     // read the popover and its placement
     const popover = usePopover();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(
-        content,
-        "anchor",
-        "side",
-        "align",
-        "sideOffset",
-        "xstyle",
-        "style",
-        "onToggle",
-    );
+    const rest = omit(content, "anchor", "side", "align", "sideOffset", "onToggle");
     const modalRest = omit(rest, "tabindex");
     const label = (): string | undefined =>
         properties["aria-label"] === undefined
@@ -669,41 +662,48 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
             />
             <Show
                 when={popover.isModal()}
-                fallback={
-                    <div
-                        id={popover.id}
-                        popover="auto"
-                        role="dialog"
-                        tabindex={-1}
-                        aria-labelledby={label()}
-                        aria-describedby={
-                            popover.isDescribed() ? `${popover.id}-description` : undefined
-                        }
-                        data-slot="popover-content"
-                        data-open={popover.isOpen() ? "" : undefined}
-                        data-closed={popover.isOpen() ? undefined : ""}
-                        data-side={content.side}
-                        data-align={content.align}
-                        {...rest}
-                        ref={(element) => popover.setContent(element)}
-                        onBeforeToggle={(event) => popover.request(event)}
-                        onToggle={(event) => {
+                fallback={renderPart(
+                    "div",
+                    "popover-content",
+                    rest,
+                    () => [
+                        text.sm,
+                        styles.content,
+                        Position.beside(content.side, content.align),
+                        Position.offset(content.side, content.sideOffset),
+                    ],
+                    {
+                        id: popover.id,
+                        popover: "auto" as const,
+                        role: "dialog" as const,
+                        tabindex: -1,
+                        get "aria-labelledby"() {
+                            return label();
+                        },
+                        get "aria-describedby"() {
+                            return popover.isDescribed() ? `${popover.id}-description` : undefined;
+                        },
+                        get "data-open"() {
+                            return popover.isOpen() ? "" : undefined;
+                        },
+                        get "data-closed"() {
+                            return popover.isOpen() ? undefined : "";
+                        },
+                        get "data-side"() {
+                            return content.side;
+                        },
+                        get "data-align"() {
+                            return content.align;
+                        },
+                        ref: (element) => popover.setContent(element),
+                        onBeforeToggle: (event) => popover.request(event),
+                        onToggle: (event) => {
                             // follow the platform before the caller's handler
                             popover.follow(event);
                             content.onToggle?.(event);
-                        }}
-                        {...style.attributes(
-                            [
-                                text.sm,
-                                styles.content,
-                                Position.beside(content.side, content.align),
-                                Position.offset(content.side, content.sideOffset),
-                                content.xstyle,
-                            ],
-                            content.style,
-                        )}
-                    />
-                }
+                        },
+                    },
+                )}
             >
                 <dialog
                     id={popover.id}

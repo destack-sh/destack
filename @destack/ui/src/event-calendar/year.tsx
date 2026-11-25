@@ -12,7 +12,7 @@ import {
 } from "./control.ts";
 import { CalendarEvent } from "./event.ts";
 import { OfferedView } from "./view.tsx";
-import { mergeProperties } from "../part/index.ts";
+import { mergeProperties, renderPart } from "../part/index.ts";
 
 /** The views the part shows. */
 const YEAR_VIEWS: readonly EventCalendarView[] = ["year"];
@@ -95,7 +95,7 @@ function YearView(properties: EventCalendarPartProperties): JSX.Element {
     // count the events of each day of the shown year
     const control = useEventCalendar();
     const locale = useLocale();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const counts = createMemo(() => {
         // read the year's range
         const days = new Map<PlainDate, number>();
@@ -126,72 +126,79 @@ function YearView(properties: EventCalendarPartProperties): JSX.Element {
     };
     const weekdays = () => months()[0]?.weeks[0] ?? [];
 
-    return (
-        <div
-            data-slot="event-calendar-year"
-            {...mergeProperties(
-                {
-                    onKeyDown: (event: KeyboardEvent) =>
-                        event.defaultPrevented
-                            ? undefined
-                            : control.focus.move(event, locale.direction),
-                    onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>
-                        control.focus.focusOut(event),
-                },
-                rest,
-            )}
-            {...style.attributes([styles.year, properties.xstyle], properties.style)}
-        >
-            <For each={months()}>
-                {(grid) => (
-                    <section
-                        data-slot="event-calendar-year-month"
-                        aria-label={locale.plainDate(grid.month, {
-                            month: "long",
-                            year: "numeric",
-                        })}
-                        {...style.attrs(styles.month)}
-                    >
-                        {/* The month's name, which opens it */}
-                        <button
-                            type="button"
-                            tabindex={-1}
-                            onClick={() => {
-                                control.setDate(grid.month);
-                                control.setView("month");
-                            }}
-                            {...style.attrs(text.sm, state.hover, styles.title)}
-                        >
-                            {locale.plainDate(grid.month, { month: "long" })}
-                        </button>
+    return renderPart(
+        "div",
+        "event-calendar-year",
+        rest,
+        styles.year,
+        mergeProperties(
+            {
+                get children() {
+                    return (
+                        <For each={months()}>
+                            {(grid) => (
+                                <section
+                                    data-slot="event-calendar-year-month"
+                                    aria-label={locale.plainDate(grid.month, {
+                                        month: "long",
+                                        year: "numeric",
+                                    })}
+                                    {...style.attrs(styles.month)}
+                                >
+                                    {/* The month's name, which opens it */}
+                                    <button
+                                        type="button"
+                                        tabindex={-1}
+                                        onClick={() => {
+                                            control.setDate(grid.month);
+                                            control.setView("month");
+                                        }}
+                                        {...style.attrs(text.sm, state.hover, styles.title)}
+                                    >
+                                        {locale.plainDate(grid.month, { month: "long" })}
+                                    </button>
 
-                        {/* The weekdays */}
-                        <For each={weekdays()}>
-                            {(day) => (
-                                <span aria-hidden="true" {...style.attrs(text.xs, styles.weekday)}>
-                                    {locale.plainDate(day, { weekday: "narrow" })}
-                                </span>
+                                    {/* The weekdays */}
+                                    <For each={weekdays()}>
+                                        {(day) => (
+                                            <span
+                                                aria-hidden="true"
+                                                {...style.attrs(text.xs, styles.weekday)}
+                                            >
+                                                {locale.plainDate(day, { weekday: "narrow" })}
+                                            </span>
+                                        )}
+                                    </For>
+
+                                    {/* The month's days, the weeks' days of other months left blank */}
+                                    <For each={grid.weeks.flat()}>
+                                        {(day, index) =>
+                                            MonthGrid.isOutside(grid, day) ? (
+                                                <span aria-hidden="true" />
+                                            ) : (
+                                                <YearDay
+                                                    day={day}
+                                                    count={counts().get(day) ?? 0}
+                                                    column={(index() % WEEK_DAYS) + 1}
+                                                />
+                                            )
+                                        }
+                                    </For>
+                                </section>
                             )}
                         </For>
-
-                        {/* The month's days, the weeks' days of other months left blank */}
-                        <For each={grid.weeks.flat()}>
-                            {(day, index) =>
-                                MonthGrid.isOutside(grid, day) ? (
-                                    <span aria-hidden="true" />
-                                ) : (
-                                    <YearDay
-                                        day={day}
-                                        count={counts().get(day) ?? 0}
-                                        column={(index() % WEEK_DAYS) + 1}
-                                    />
-                                )
-                            }
-                        </For>
-                    </section>
-                )}
-            </For>
-        </div>
+                    );
+                },
+            },
+            {
+                onKeyDown: (event: KeyboardEvent) =>
+                    event.defaultPrevented
+                        ? undefined
+                        : control.focus.move(event, locale.direction),
+                onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>
+                    control.focus.focusOut(event),
+            },
+        ),
     );
 }
 

@@ -50,7 +50,7 @@ import {
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 import { KbdShortcut } from "../kbd/index.ts";
 import { OpenContext } from "../layer/index.ts";
-import { mergeProperties, renderPart } from "../part/index.ts";
+import { mergeProperties, renderPart, type Render } from "../part/index.ts";
 
 /** The distance of a command dialog from the viewport's top. */
 const DIALOG_OFFSET = "12vh";
@@ -362,12 +362,16 @@ export interface CommandProperties
     readonly loop?: boolean;
     /** The StyleX styles applied after the command's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of an element of a command, the native element's attributes included. */
 export type CommandElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** The properties of a command option. */
@@ -445,27 +449,17 @@ export function Command(properties: CommandProperties): JSX.Element {
         "defaultValue",
         "onValueChange",
         "loop",
-        "xstyle",
-        "style",
     );
 
     return (
         <CommandContext value={command}>
             <AutocompleteContext value={autocomplete}>
                 <ListBoxContext value={list}>
-                    <div
-                        data-slot="command"
-                        {...rest}
-                        {...style.attributes(
-                            [
-                                text.sm,
-                                styles.command,
-                                isDialog && dialogStyles.command,
-                                properties.xstyle,
-                            ],
-                            properties.style,
-                        )}
-                    />
+                    {renderPart("div", "command", rest, () => [
+                        text.sm,
+                        styles.command,
+                        isDialog && dialogStyles.command,
+                    ])}
                 </ListBoxContext>
             </AutocompleteContext>
         </CommandContext>
@@ -662,19 +656,17 @@ export type CommandShortcutProperties = CommandElementProperties<
 /** Render the keyboard shortcut of an option at its end, from its keys or its text. */
 export function CommandShortcut(properties: CommandShortcutProperties): JSX.Element {
     // draw the keys as the footer's hints do, else the caller's own text
-    const rest = omit(properties, "keys", "xstyle", "style");
+    const rest = omit(properties, "keys", "children");
 
-    return (
-        <span
-            data-slot="command-shortcut"
-            {...rest}
-            {...style.attributes([text.xs, styles.shortcut, properties.xstyle], properties.style)}
-        >
-            <Show when={properties.keys} fallback={properties.children}>
-                {(keys) => <KbdShortcut keys={keys()} />}
-            </Show>
-        </span>
-    );
+    return renderPart("span", "command-shortcut", rest, [text.xs, styles.shortcut], {
+        get children() {
+            return (
+                <Show when={properties.keys} fallback={properties.children}>
+                    {(keys) => <KbdShortcut keys={keys()} />}
+                </Show>
+            );
+        },
+    });
 }
 
 /** Render a command in a modal dialog near the viewport's top, titled for assistive technology. */
@@ -756,18 +748,18 @@ export type CommandHintProperties = CommandElementProperties<
 
 /** Render what a key combination does to the highlighted option, such as Open with Enter. */
 export function CommandHint(properties: CommandHintProperties): JSX.Element {
-    const rest = omit(properties, "keys", "children", "xstyle", "style");
+    const rest = omit(properties, "keys", "children");
 
-    return (
-        <span
-            data-slot="command-hint"
-            {...rest}
-            {...style.attributes([styles.hint, properties.xstyle], properties.style)}
-        >
-            {properties.children}
-            <KbdShortcut keys={properties.keys} />
-        </span>
-    );
+    return renderPart("span", "command-hint", rest, styles.hint, {
+        get children() {
+            return (
+                <>
+                    {properties.children}
+                    <KbdShortcut keys={properties.keys} />
+                </>
+            );
+        },
+    });
 }
 
 /** Render a command's options beside the detail of the highlighted one. */
@@ -822,20 +814,14 @@ export type CommandDetailFieldProperties = CommandElementProperties<
 
 /** Render one field of a detail: its label, then its value. */
 export function CommandDetailField(properties: CommandDetailFieldProperties): JSX.Element {
-    const rest = omit(properties, "label", "children", "xstyle", "style");
+    const rest = omit(properties, "label");
 
     return (
         <>
             <dt data-slot="command-detail-label" {...style.attrs(styles.label)}>
                 {properties.label}
             </dt>
-            <dd
-                data-slot="command-detail-value"
-                {...rest}
-                {...style.attributes([styles.value, properties.xstyle], properties.style)}
-            >
-                {properties.children}
-            </dd>
+            {renderPart("dd", "command-detail-value", rest, styles.value)}
         </>
     );
 }

@@ -116,3 +116,24 @@ test("render an item from its parts, a row and a group", () => {
         ["tree-item-toggle"],
     ]);
 });
+
+test("run a caller's handlers on an item beside its own", () => {
+    const calls: string[] = [];
+    const { container } = render(() => (
+        <Tree aria-label="Files">
+            <TreeItem
+                value="plan"
+                label="Plan"
+                onClick={() => calls.push("click")}
+                onKeyDown={() => calls.push("key")}
+            />
+        </Tree>
+    ));
+    flush();
+    const item = container.querySelector<HTMLElement>("[role=treeitem]");
+    item?.click();
+    item?.dispatchEvent(new KeyboardEvent("keydown", { key: "x", bubbles: true }));
+    flush();
+
+    expect([calls, item?.getAttribute("aria-selected")]).toEqual([["click", "key"], "true"]);
+});

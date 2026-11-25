@@ -17,7 +17,7 @@ import {
 import { SELECTION_OPTIONS, Selection, type SelectionProperties } from "../selection/index.ts";
 import { disclosure, DisclosurePanel, followToggle, refuseDisabled } from "../disclosure/index.ts";
 import { ListState } from "../focus/index.ts";
-import { renderPart } from "../part/index.ts";
+import { renderPart, type Render } from "../part/index.ts";
 
 /** The open items of the nearest accordion, null outside one. */
 const AccordionContext = createContext<AccordionControl | null>(null);
@@ -87,21 +87,20 @@ const styles = style.create({
 });
 
 /** The properties of an accordion, the native element's attributes included. */
-export type AccordionProperties = Omit<
-    JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "onKeyDown"
-> & {
+export type AccordionProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The direction the arrow keys move between triggers along, vertical by default. */
     readonly orientation?: Axis;
     /** Whether every trigger ignores the person. */
     readonly disabled?: boolean;
     /** The StyleX styles applied after the accordion's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 } & SelectionProperties;
 
 /** The properties of an item of an accordion, the native disclosure's attributes included. */
 export type AccordionItemProperties = AccordionElementProperties<
-    Omit<JSX.DetailsHtmlAttributes<HTMLDetailsElement>, "open" | "name" | "onToggle">
+    Omit<JSX.DetailsHtmlAttributes<HTMLDetailsElement>, "open" | "name">
 > & {
     /** The value the item stands for in the accordion's open values. */
     readonly value: string;
@@ -113,6 +112,8 @@ export type AccordionItemProperties = AccordionElementProperties<
 export type AccordionElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** The open items of an accordion and its triggers, which its items share. */
@@ -178,22 +179,15 @@ export function Accordion(properties: AccordionProperties): JSX.Element {
     // share the open items with the items and read the text direction for the arrow keys
     const control = new AccordionControl(properties);
     const locale = useLocale();
-    const rest = omit(
-        properties,
-        ...SELECTION_OPTIONS,
-        "orientation",
-        "disabled",
-        "xstyle",
-        "style",
-    );
+    const rest = omit(properties, ...SELECTION_OPTIONS, "orientation", "disabled");
 
     return (
         <AccordionContext value={control}>
-            <div
-                data-slot="accordion"
-                data-orientation={properties.orientation ?? "vertical"}
-                {...rest}
-                onKeyDown={(event) => {
+            {renderPart("div", "accordion", rest, null, {
+                get "data-orientation"() {
+                    return properties.orientation ?? "vertical";
+                },
+                onKeyDown: (event) => {
                     // move between the triggers when the focus rests on one
                     if (
                         event.target instanceof HTMLElement &&
@@ -201,10 +195,9 @@ export function Accordion(properties: AccordionProperties): JSX.Element {
                     ) {
                         control.list.focus.move(event, locale.direction);
                     }
-                }}
-                onFocusOut={(event) => control.list.focus.focusOut(event)}
-                {...style.attributes([properties.xstyle], properties.style)}
-            />
+                },
+                onFocusOut: (event) => control.list.focus.focusOut(event),
+            })}
         </AccordionContext>
     );
 }
@@ -213,7 +206,7 @@ export function Accordion(properties: AccordionProperties): JSX.Element {
 export function AccordionItem(properties: AccordionItemProperties): JSX.Element {
     // read the accordion, refusing an item outside one
     const accordion = useAccordion();
-    const rest = omit(properties, "value", "disabled", "xstyle", "style");
+    const rest = omit(properties, "value", "disabled");
     const isDisabled = (): boolean =>
         properties.disabled === true || accordion.properties.disabled === true;
 
@@ -225,28 +218,31 @@ export function AccordionItem(properties: AccordionItemProperties): JSX.Element 
                 isOpen: () => accordion.isOpen(properties.value),
             }}
         >
-            <details
-                name={accordion.name}
-                data-slot="accordion-item"
-                data-open={accordion.isOpen(properties.value) ? "" : undefined}
-                data-closed={accordion.isOpen(properties.value) ? undefined : ""}
-                data-disabled={isDisabled() ? "" : undefined}
-                open={accordion.isOpen(properties.value)}
-                {...rest}
-                onToggle={(event) =>
+            {renderPart("details", "accordion-item", rest, [disclosure.root, styles.item], {
+                get name() {
+                    return accordion.name;
+                },
+                get "data-open"() {
+                    return accordion.isOpen(properties.value) ? "" : undefined;
+                },
+                get "data-closed"() {
+                    return accordion.isOpen(properties.value) ? undefined : "";
+                },
+                get "data-disabled"() {
+                    return isDisabled() ? "" : undefined;
+                },
+                get open() {
+                    return accordion.isOpen(properties.value);
+                },
+                onToggle: (event) =>
                     followToggle(
                         event,
                         () => accordion.isOpen(properties.value),
                         (isOpening) =>
                             accordion.toggle(properties.value, isOpening, event.currentTarget),
                         "value" in accordion.properties,
-                    )
-                }
-                {...style.attributes(
-                    [disclosure.root, styles.item, properties.xstyle],
-                    properties.style,
-                )}
-            />
+                    ),
+            })}
         </AccordionItemContext>
     );
 }
@@ -261,7 +257,7 @@ export function AccordionTrigger(
     const accordion = useAccordion();
     const item = useAccordionItem();
     const isDisabled = (): boolean => item.isDisabled();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
     let element: HTMLElement | undefined;
     accordion.list.add({
         key: item.value,
@@ -270,28 +266,37 @@ export function AccordionTrigger(
         element: () => element,
     });
 
-    return (
-        <summary
-            data-slot="accordion-trigger"
-            data-panel-open={item.isOpen() ? "" : undefined}
-            data-disabled={isDisabled() ? "" : undefined}
-            aria-disabled={isDisabled() ? "true" : undefined}
-            {...rest}
-            ref={(summary) => {
+    return renderPart(
+        "summary",
+        "accordion-trigger",
+        rest,
+        [text.sm, state.focus, styles.trigger],
+        {
+            get "data-panel-open"() {
+                return item.isOpen() ? "" : undefined;
+            },
+            get "data-disabled"() {
+                return isDisabled() ? "" : undefined;
+            },
+            get "aria-disabled"() {
+                return isDisabled() ? "true" : undefined;
+            },
+            ref: (summary) => {
                 element = summary;
                 refuseDisabled(summary, isDisabled);
-            }}
-            onFocus={() => accordion.list.focus.focusIn(item.value)}
-            {...style.attributes(
-                [text.sm, state.focus, styles.trigger, properties.xstyle],
-                properties.style,
-            )}
-        >
-            {properties.children}
-            <span {...style.attrs(styles.chevron, item.isOpen() && styles.turned)}>
-                <Icon name="caret-down" />
-            </span>
-        </summary>
+            },
+            onFocus: () => accordion.list.focus.focusIn(item.value),
+            get children() {
+                return (
+                    <>
+                        {properties.children}
+                        <span {...style.attrs(styles.chevron, item.isOpen() && styles.turned)}>
+                            <Icon name="caret-down" />
+                        </span>
+                    </>
+                );
+            },
+        },
     );
 }
 /** Render the content an item reveals when open. */

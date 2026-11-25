@@ -14,7 +14,7 @@ import {
     useActions,
     useLocale,
 } from "@destack/view";
-import { mergeProperties, type PartAttributes } from "../part/index.ts";
+import { contentOr, mergeProperties, type PartAttributes } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
@@ -146,7 +146,7 @@ export function ActionButton<Inputs extends ActionInputs>(
                 <Show when={properties.icon}>
                     {(icon) => <Icon icon={icon()} weight={properties.weight ?? "regular"} />}
                 </Show>
-                <Show when={!isAlone()}>{properties.children ?? title()}</Show>
+                <Show when={!isAlone()}>{contentOr(properties, () => title())}</Show>
             </TooltipTrigger>
             <TooltipContent>
                 {title()}

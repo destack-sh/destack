@@ -151,7 +151,7 @@ export const timelineTrace = defineExample({
                                         </TimelineCell>
                                         <TimelineCell xstyle={styles.figure}>
                                             <Show when={shown().tokens}>
-                                                {(tokens) => locale.number(tokens())}
+                                                {(tokens) => <>{locale.number(tokens())}</>}
                                             </Show>
                                         </TimelineCell>
                                     </Show>

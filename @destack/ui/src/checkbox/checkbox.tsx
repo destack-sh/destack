@@ -14,7 +14,7 @@ import {
 } from "@destack/view";
 import { CheckboxGroupContext } from "./group.tsx";
 import { useFieldControl, useFieldValue } from "../field/control.ts";
-import { type Render, renderPart } from "../part/index.ts";
+import { contentOr, type Render, renderPart } from "../part/index.ts";
 import {
     ToggleInput,
     type ToggleFormProperties,
@@ -85,7 +85,7 @@ export interface CheckboxProperties
     extends
         Omit<
             JSX.ButtonHTMLAttributes<HTMLButtonElement>,
-            "class" | "type" | "role" | "name" | "value" | "form" | "onClick" | "onKeyDown"
+            "class" | "type" | "role" | "name" | "value" | "form"
         >,
         ToggleStateProperties,
         ToggleFormProperties {
@@ -105,6 +105,8 @@ export type CheckboxIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLSpanElemen
     readonly keepMounted?: boolean;
     /** The StyleX styles applied after the indicator's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** Edit the value of the nearest field's form. */
@@ -207,7 +209,7 @@ export function Checkbox(given: CheckboxProperties): JSX.Element {
                             }
                         },
                         get children() {
-                            return properties.children ?? <CheckboxIndicator />;
+                            return contentOr(properties, () => <CheckboxIndicator />);
                         },
                     },
                     field?.attributes() ?? {},
@@ -241,25 +243,30 @@ export function CheckboxIndicator(properties: CheckboxIndicatorProperties): JSX.
     if (control === null) {
         throw new TypeError("a checkbox indicator needs a checkbox around it");
     }
-    const rest = omit(properties, "keepMounted", "xstyle", "style", "children");
+    const rest = omit(properties, "keepMounted", "children");
 
     return (
         <Show when={properties.keepMounted === true || control.state() !== "unchecked"}>
-            <span
-                data-slot="checkbox-indicator"
-                data-checked={control.state() === "checked" ? "" : undefined}
-                data-indeterminate={control.state() === "indeterminate" ? "" : undefined}
-                data-disabled={control.isDisabled() ? "" : undefined}
-                {...rest}
-                {...style.attributes([styles.indicator, properties.xstyle], properties.style)}
-            >
-                {properties.children ??
-                    (control.state() === "indeterminate" ? (
-                        <Icon name="minus" weight="bold" />
-                    ) : (
-                        <Icon name="check" weight="bold" />
-                    ))}
-            </span>
+            {renderPart("span", "checkbox-indicator", rest, styles.indicator, {
+                get "data-checked"() {
+                    return control.state() === "checked" ? "" : undefined;
+                },
+                get "data-indeterminate"() {
+                    return control.state() === "indeterminate" ? "" : undefined;
+                },
+                get "data-disabled"() {
+                    return control.isDisabled() ? "" : undefined;
+                },
+                get children() {
+                    return contentOr(properties, () =>
+                        control.state() === "indeterminate" ? (
+                            <Icon name="minus" weight="bold" />
+                        ) : (
+                            <Icon name="check" weight="bold" />
+                        ),
+                    );
+                },
+            })}
         </Show>
     );
 }

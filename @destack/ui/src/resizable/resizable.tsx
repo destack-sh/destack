@@ -24,7 +24,7 @@ import {
 } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Move } from "../interaction/index.ts";
-import { mergeProperties, renderPart } from "../part/index.ts";
+import { mergeProperties, renderPart, type Render } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The storage key prefix of saved layouts. */
@@ -347,6 +347,8 @@ export interface ResizablePanelGroupProperties extends Omit<
     readonly autoSaveId?: string;
     /** The StyleX styles applied after the group's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of a panel, the native element's attributes included. */
@@ -366,6 +368,8 @@ export interface ResizablePanelProperties extends Omit<
     readonly collapsedSize?: ResizableSize;
     /** The StyleX styles applied after the panel's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of a handle between two panels, the native element's attributes included. */
@@ -394,23 +398,25 @@ export function ResizablePanelGroup(properties: ResizablePanelGroupProperties): 
     // share one group with its panels and handles
     const group = merge(DEFAULTS, properties);
     const control = new ResizableControl(() => group.direction, properties);
-    const rest = omit(group, "direction", "onLayout", "autoSaveId", "xstyle", "style");
+    const rest = omit(group, "direction", "onLayout", "autoSaveId");
 
     // restore the saved layout once settled, so the server and the hydrating page render alike
     onSettled(() => control.restore());
 
     return (
         <ResizableContext value={control}>
-            <div
-                data-slot="resizable-panel-group"
-                data-panel-group-direction={group.direction}
-                {...rest}
-                ref={(element) => control.setElement(element)}
-                {...style.attributes(
-                    [styles.group, directions[group.direction], group.xstyle],
-                    group.style,
-                )}
-            />
+            {renderPart(
+                "div",
+                "resizable-panel-group",
+                rest,
+                () => [styles.group, directions[group.direction]],
+                {
+                    get "data-panel-group-direction"() {
+                        return group.direction;
+                    },
+                    ref: (element) => control.setElement(element),
+                },
+            )}
         </ResizableContext>
     );
 }
@@ -473,7 +479,7 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
     const locale = useLocale();
     let element: HTMLElement | undefined;
     const handle = control.addHandle(() => element);
-    const rest = omit(properties, "withHandle", "xstyle", "style");
+    const rest = omit(properties, "withHandle", "children");
     const before = (): ResizablePanelState | undefined => control.panels()[handle()];
     let start: { readonly extent: number; readonly layout: number[] } = { extent: 0, layout: [] };
 
@@ -522,27 +528,46 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
         },
     };
 
-    return (
-        <div
-            role="separator"
-            tabindex={0}
-            aria-orientation={control.direction() === "horizontal" ? "vertical" : "horizontal"}
-            aria-controls={before()?.id}
-            aria-valuenow={Math.round(sizeOrZero(control, before()))}
-            aria-valuemin={limitOf(control, before()?.minimum ?? 0)}
-            aria-valuemax={limitOf(control, before()?.maximum ?? 100)}
-            data-slot="resizable-handle"
-            {...mergeProperties({ ref: (created: HTMLDivElement) => (element = created) }, rest)}
-            {...mergeProperties(move.attributes(), keys)}
-            {...style.attributes(
-                [state.focus, styles.handle, handles[control.direction()], properties.xstyle],
-                properties.style,
-            )}
-        >
-            <Show when={properties.withHandle === true}>
-                <div aria-hidden="true" {...style.attrs(styles.grip, grips[control.direction()])} />
-            </Show>
-        </div>
+    return renderPart(
+        "div",
+        "resizable-handle",
+        rest,
+        () => [state.focus, styles.handle, handles[control.direction()]],
+        mergeProperties(
+            mergeProperties(move.attributes(), keys),
+            mergeProperties(
+                {
+                    role: "separator" as const,
+                    tabindex: 0,
+                    get "aria-orientation"() {
+                        return control.direction() === "horizontal" ? "vertical" : "horizontal";
+                    },
+                    get "aria-controls"() {
+                        return before()?.id;
+                    },
+                    get "aria-valuenow"() {
+                        return Math.round(sizeOrZero(control, before()));
+                    },
+                    get "aria-valuemin"() {
+                        return limitOf(control, before()?.minimum ?? 0);
+                    },
+                    get "aria-valuemax"() {
+                        return limitOf(control, before()?.maximum ?? 100);
+                    },
+                    get children() {
+                        return (
+                            <Show when={properties.withHandle === true}>
+                                <div
+                                    aria-hidden="true"
+                                    {...style.attrs(styles.grip, grips[control.direction()])}
+                                />
+                            </Show>
+                        );
+                    },
+                },
+                { ref: (created: HTMLDivElement) => (element = created) },
+            ),
+        ),
     );
 }
 

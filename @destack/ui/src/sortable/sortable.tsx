@@ -34,7 +34,12 @@ import {
     useDragManager,
 } from "../drag/index.ts";
 import { LayoutAnimation } from "../motion/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { type VirtualHost, VirtualHostContext, type VirtualWindow } from "../virtual-list/index.ts";
 import { CollectionBuilder, inDocumentOrder } from "../collection/index.ts";
 
@@ -889,22 +894,29 @@ export function Sortable(properties: SortableProperties): JSX.Element {
     const drags = useDragManager();
     const control = new SortableControl(properties, drags.manager, useEnvironment());
     const manager = control.manager;
-    const rest = omit(properties, "onMove", "nesting", "indicator", "xstyle", "style", "children");
+    const rest = omit(properties, "onMove", "nesting", "indicator", "children");
 
     return (
         <SortableContext value={control}>
-            <div
-                data-slot="sortable"
-                data-dragging={manager.operation() === undefined ? undefined : ""}
-                {...rest}
-                {...style.attributes([properties.xstyle], properties.style)}
-            >
-                {properties.children}
-                <DragPreview manager={manager} element={(id) => control.elementOf(id)} />
-                <Show when={!drags.isShared}>
-                    <DragAnnouncer manager={manager} />
-                </Show>
-            </div>
+            {renderPart("div", "sortable", rest, null, {
+                get "data-dragging"() {
+                    return manager.operation() === undefined ? undefined : "";
+                },
+                get children() {
+                    return (
+                        <>
+                            {properties.children}
+                            <DragPreview
+                                manager={manager}
+                                element={(id) => control.elementOf(id)}
+                            />
+                            <Show when={!drags.isShared}>
+                                <DragAnnouncer manager={manager} />
+                            </Show>
+                        </>
+                    );
+                },
+            })}
         </SortableContext>
     );
 }
@@ -1218,7 +1230,9 @@ export function SortableHandle(properties: SortableHandleProperties): JSX.Elemen
                 properties.style,
             )}
         >
-            {properties.children ?? <Icon name="dots-six-vertical" />}
+            {contentOr(properties, () => (
+                <Icon name="dots-six-vertical" />
+            ))}
         </button>
     );
 }

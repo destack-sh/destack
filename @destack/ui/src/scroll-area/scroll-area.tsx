@@ -15,7 +15,13 @@ import {
 } from "@destack/view";
 import { Timeout } from "@destack/view/primitives/timer";
 import { Move } from "../interaction/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+    type Render,
+} from "../part/index.ts";
 import { type Axis, Scroll, scrollFade } from "../position/index.ts";
 import { areaMarker } from "./scroll-area.stylex.ts";
 
@@ -134,6 +140,8 @@ export interface ScrollAreaProperties extends Omit<JSX.HTMLAttributes<HTMLDivEle
     readonly bars?: JSX.Element;
     /** The StyleX styles applied after the scroll area's styles, usually its size. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Render a region that scrolls natively, its bars over its content. */
@@ -357,7 +365,7 @@ export function ScrollAreaBar(properties: ScrollAreaBarProperties): JSX.Element 
                     onWheel: (event: WheelEvent) =>
                         area.viewport()?.scrollBy({ left: event.deltaX, top: event.deltaY }),
                     get children() {
-                        return "children" in properties ? properties.children : <ScrollAreaThumb />;
+                        return contentOr(properties, () => <ScrollAreaThumb />);
                     },
                 }),
             )}

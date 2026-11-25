@@ -41,7 +41,12 @@ import {
 import { openItem, removeItems, retryItem } from "../action/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { ListState } from "../focus/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import {
     FileItemContext,
     FileItemControl,
@@ -363,19 +368,21 @@ export function FileItem(properties: FileItemProperties): JSX.Element {
             get children() {
                 return (
                     <FileItemContext value={control}>
-                        <Show when={!("children" in properties)} fallback={properties.children}>
-                            <FileItemOpen />
-                            <FileItemMedia />
-                            <FileItemContent>
-                                <FileItemTitle />
-                                <Show when={!isSmallRow() || control.status !== "done"}>
-                                    <FileItemDescription />
+                        {contentOr(properties, () => (
+                            <>
+                                <FileItemOpen />
+                                <FileItemMedia />
+                                <FileItemContent>
+                                    <FileItemTitle />
+                                    <Show when={!isSmallRow() || control.status !== "done"}>
+                                        <FileItemDescription />
+                                    </Show>
+                                </FileItemContent>
+                                <Show when={control.isRetryable || control.isRemovable}>
+                                    <FileItemActions />
                                 </Show>
-                            </FileItemContent>
-                            <Show when={control.isRetryable || control.isRemovable}>
-                                <FileItemActions />
-                            </Show>
-                        </Show>
+                            </>
+                        ))}
                     </FileItemContext>
                 );
             },
@@ -439,14 +446,12 @@ export function FileItemMedia(properties: FileItemElementProperties): JSX.Elemen
         ],
         {
             get children() {
-                return (
-                    properties.children ?? (
-                        <>
-                            <FileItemPicture />
-                            <FileItemProgress />
-                        </>
-                    )
-                );
+                return contentOr(properties, () => (
+                    <>
+                        <FileItemPicture />
+                        <FileItemProgress />
+                    </>
+                ));
             },
         },
     );
@@ -563,7 +568,7 @@ export function FileItemTitle(properties: FileItemElementProperties<HTMLSpanElem
             return item.file.name;
         },
         get children() {
-            return properties.children ?? item.file.name;
+            return contentOr(properties, () => item.file.name);
         },
     });
 }
@@ -586,7 +591,7 @@ export function FileItemDescription(
                 return item.isFailed ? "alert" : undefined;
             },
             get children() {
-                return properties.children ?? describe(item, locale);
+                return contentOr(properties, () => describe(item, locale));
             },
         },
     );
@@ -603,14 +608,12 @@ export function FileItemActions(properties: FileItemElementProperties): JSX.Elem
         () => [styles.actions, item.layout === "card" && styles.actionsCard],
         {
             get children() {
-                return (
-                    properties.children ?? (
-                        <>
-                            <FileItemRetry />
-                            <FileItemRemove />
-                        </>
-                    )
-                );
+                return contentOr(properties, () => (
+                    <>
+                        <FileItemRetry />
+                        <FileItemRemove />
+                    </>
+                ));
             },
         },
     );
@@ -645,7 +648,9 @@ export function FileItemRetry(properties: ButtonProperties): JSX.Element {
                 aria-label={locale.render(t`Send ${item.file.name} again`)}
                 {...mergeProperties({ onClick: () => item.retry() }, omit(properties, "children"))}
             >
-                {properties.children ?? <Icon icon={arrowClockwise} />}
+                {contentOr(properties, () => (
+                    <Icon icon={arrowClockwise} />
+                ))}
             </FileItemAction>
         </Show>
     );
@@ -682,7 +687,9 @@ export function FileItemRemove(properties: ButtonProperties): JSX.Element {
                 aria-label={locale.render(t`Remove ${item.file.name}`)}
                 {...mergeProperties({ onClick: remove }, omit(properties, "children"))}
             >
-                {properties.children ?? <Icon icon={xIcon} />}
+                {contentOr(properties, () => (
+                    <Icon icon={xIcon} />
+                ))}
             </FileItemAction>
         </Show>
     );

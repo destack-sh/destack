@@ -1,3 +1,4 @@
+import { contentOr } from "../part/index.ts";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { Color, DEFAULT_HUES, HUES, type Hue } from "@destack/color";
@@ -144,9 +145,9 @@ export function ColorSwatchPicker(given: ColorSwatchPickerProperties): JSX.Eleme
             {...rest}
             xstyle={[styles.picker, properties.xstyle]}
         >
-            {properties.children ?? (
+            {contentOr(properties, () => (
                 <For each={colors()}>{(value) => <ColorSwatchPickerItem value={value} />}</For>
-            )}
+            ))}
             <Show when={properties.name !== undefined || properties.form !== undefined}>
                 <ColorSwatchPickerInput name={properties.name} form={properties.form} />
             </Show>
@@ -179,7 +180,7 @@ export function ColorSwatchPickerItem(properties: ColorSwatchPickerItemPropertie
             {...rest}
             xstyle={[styles.swatch, fills.fill(fill()), properties.xstyle]}
         >
-            {properties.children ?? false}
+            {properties.children}
         </ListBoxItem>
     );
 }

@@ -29,7 +29,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { createDropzone } from "@destack/view/primitives/upload";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, renderPart } from "../part/index.ts";
 import { attachFiles } from "../action/index.ts";
 import { useFieldControl } from "../field/control.ts";
 import {
@@ -380,15 +380,17 @@ export function Dropzone(properties: DropzoneProperties): JSX.Element {
                             {announcement()}
                         </span>
                         <DropzoneContext value={control}>
-                            <Show when={!("children" in properties)} fallback={properties.children}>
-                                <DropzoneOpen />
-                                <DropzoneMedia />
-                                <DropzoneContent>
-                                    <DropzoneTitle />
-                                    <DropzoneHint />
-                                    <DropzoneRefusal />
-                                </DropzoneContent>
-                            </Show>
+                            {contentOr(properties, () => (
+                                <>
+                                    <DropzoneOpen />
+                                    <DropzoneMedia />
+                                    <DropzoneContent>
+                                        <DropzoneTitle />
+                                        <DropzoneHint />
+                                        <DropzoneRefusal />
+                                    </DropzoneContent>
+                                </>
+                            ))}
                         </DropzoneContext>
                     </>
                 );
@@ -453,11 +455,9 @@ export function DropzoneMedia(properties: DropzoneElementProperties): JSX.Elemen
 
     return renderPart("div", "dropzone-media", properties, styles.frame, {
         get children() {
-            return (
-                properties.children ?? (
-                    <Icon icon={zone.drag === "reject" ? prohibit : uploadSimple} />
-                )
-            );
+            return contentOr(properties, () => (
+                <Icon icon={zone.drag === "reject" ? prohibit : uploadSimple} />
+            ));
         },
     });
 }
@@ -474,11 +474,10 @@ export function DropzoneTitle(properties: DropzoneElementProperties<HTMLSpanElem
 
     return renderPart("span", "dropzone-title", properties, styles.title, {
         get children() {
-            return (
-                properties.children ??
-                (zone.drag === "reject"
+            return contentOr(properties, () =>
+                zone.drag === "reject"
                     ? locale.render(t`These files do not fit`)
-                    : titleOf(zone, locale))
+                    : titleOf(zone, locale),
             );
         },
     });
@@ -491,7 +490,7 @@ export function DropzoneHint(properties: DropzoneElementProperties<HTMLSpanEleme
 
     return renderPart("span", "dropzone-hint", properties, [text.xs, styles.hint], {
         get children() {
-            return properties.children ?? describeLimits(zone.limits, locale);
+            return contentOr(properties, () => describeLimits(zone.limits, locale));
         },
     });
 }
@@ -562,16 +561,14 @@ export function DropzoneOverlay(properties: DropzoneOverlayProperties): JSX.Elem
                 ],
                 {
                     get children() {
-                        return (
-                            properties.children ?? (
-                                <>
-                                    <Icon icon={isRejecting() ? prohibit : uploadSimple} />
-                                    {locale.render(
-                                        isRejecting() ? t`These files do not fit` : t`Drop to add`,
-                                    )}
-                                </>
-                            )
-                        );
+                        return contentOr(properties, () => (
+                            <>
+                                <Icon icon={isRejecting() ? prohibit : uploadSimple} />
+                                {locale.render(
+                                    isRejecting() ? t`These files do not fit` : t`Drop to add`,
+                                )}
+                            </>
+                        ));
                     },
                 },
             )}

@@ -477,6 +477,8 @@ export interface SidebarProviderProperties extends Omit<
     readonly maxWidth?: number;
     /** The StyleX styles applied after the wrapper's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of a sidebar, the native element's attributes included. */
@@ -492,6 +494,8 @@ export interface SidebarProperties extends Omit<
     readonly collapsible?: SidebarCollapsible;
     /** The StyleX styles applied after the sidebar's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of an element of a sidebar, the native element's attributes included. */
@@ -538,16 +542,7 @@ export function useSidebar(): SidebarControl {
 export function SidebarProvider(properties: SidebarProviderProperties): JSX.Element {
     // share one state with the sidebar
     const control = new SidebarControl(properties);
-    const rest = omit(
-        properties,
-        "open",
-        "defaultOpen",
-        "onOpenChange",
-        "minWidth",
-        "maxWidth",
-        "xstyle",
-        "style",
-    );
+    const rest = omit(properties, "open", "defaultOpen", "onOpenChange", "minWidth", "maxWidth");
 
     // follow the remembered state and the viewport's width once mounted, and the person's keys
     onSettled(() => control.follow());
@@ -555,11 +550,7 @@ export function SidebarProvider(properties: SidebarProviderProperties): JSX.Elem
 
     return (
         <SidebarContext value={control}>
-            <div
-                data-slot="sidebar-wrapper"
-                {...rest}
-                {...style.attributes([styles.wrapper, properties.xstyle], properties.style)}
-            />
+            {renderPart("div", "sidebar-wrapper", rest, styles.wrapper)}
             <Tooltip control={control.tooltip}>
                 {(hint) => <TooltipContent side="right">{hint()}</TooltipContent>}
             </Tooltip>
@@ -573,7 +564,7 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
     const control = useSidebar();
     const locale = useLocale();
     const sidebar = merge(DEFAULTS, properties);
-    const rest = omit(sidebar, "side", "variant", "collapsible", "xstyle", "style", "children");
+    const rest = omit(sidebar, "side", "variant", "collapsible", "children");
     const dragged = () => {
         const pixels = control.width();
 
@@ -606,32 +597,46 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
                 </Sheet>
             }
         >
-            <div
-                id={control.id}
-                data-slot="sidebar"
-                data-open={control.isOpen() ? "" : undefined}
-                data-closed={control.isOpen() ? undefined : ""}
-                data-collapsible={control.isOpen() ? undefined : sidebar.collapsible}
-                data-variant={sidebar.variant}
-                data-side={sidebar.side}
-                inert={!control.isOpen() && sidebar.collapsible === "offcanvas"}
-                {...rest}
-                {...style.attributes(
-                    [
-                        style.defaultMarker(),
-                        text.sm,
-                        styles.sidebar,
-                        styles[sidebar.side],
-                        sidebar.variant === "sidebar" ? null : styles.floating,
-                        sizing(),
-                        (control.isResizing() || control.isInstant()) && styles.resizing,
-                        sidebar.xstyle,
-                    ],
-                    sidebar.style,
-                )}
-            >
-                <div {...style.attrs(styles.inner, dragged())}>{sidebar.children}</div>
-            </div>
+            {renderPart(
+                "div",
+                "sidebar",
+                rest,
+                () => [
+                    style.defaultMarker(),
+                    text.sm,
+                    styles.sidebar,
+                    styles[sidebar.side],
+                    sidebar.variant === "sidebar" ? null : styles.floating,
+                    sizing(),
+                    (control.isResizing() || control.isInstant()) && styles.resizing,
+                ],
+                {
+                    id: control.id,
+                    get "data-open"() {
+                        return control.isOpen() ? "" : undefined;
+                    },
+                    get "data-closed"() {
+                        return control.isOpen() ? undefined : "";
+                    },
+                    get "data-collapsible"() {
+                        return control.isOpen() ? undefined : sidebar.collapsible;
+                    },
+                    get "data-variant"() {
+                        return sidebar.variant;
+                    },
+                    get "data-side"() {
+                        return sidebar.side;
+                    },
+                    get inert() {
+                        return !control.isOpen() && sidebar.collapsible === "offcanvas";
+                    },
+                    get children() {
+                        return (
+                            <div {...style.attrs(styles.inner, dragged())}>{sidebar.children}</div>
+                        );
+                    },
+                },
+            )}
         </Show>
     );
 }
@@ -894,23 +899,23 @@ export function SidebarMenuSkeleton(
     },
 ): JSX.Element {
     // vary the text's width between rows
-    const rest = omit(properties, "showIcon", "xstyle", "style");
+    const rest = omit(properties, "showIcon", "children");
     const textWidth = `${50 + (hashOf(createUniqueId()) % 40)}%`;
 
-    return (
-        <div
-            data-slot="sidebar-menu-skeleton"
-            {...rest}
-            {...style.attributes([styles.skeleton, properties.xstyle], properties.style)}
-        >
-            <Show when={properties.showIcon === true}>
-                <Skeleton data-sidebar="menu-skeleton-icon" xstyle={styles.skeletonIcon} />
-            </Show>
-            <div {...style.attrs(styles.skeletonText, styles.skeletonWidth(textWidth))}>
-                <Skeleton data-sidebar="menu-skeleton-text" xstyle={styles.skeletonLine} />
-            </div>
-        </div>
-    );
+    return renderPart("div", "sidebar-menu-skeleton", rest, styles.skeleton, {
+        get children() {
+            return (
+                <>
+                    <Show when={properties.showIcon === true}>
+                        <Skeleton data-sidebar="menu-skeleton-icon" xstyle={styles.skeletonIcon} />
+                    </Show>
+                    <div {...style.attrs(styles.skeletonText, styles.skeletonWidth(textWidth))}>
+                        <Skeleton data-sidebar="menu-skeleton-text" xstyle={styles.skeletonLine} />
+                    </div>
+                </>
+            );
+        },
+    });
 }
 
 /** Render a button at the end of an entry, such as one that opens the entry's menu. */

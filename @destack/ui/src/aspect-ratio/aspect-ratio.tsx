@@ -1,3 +1,4 @@
+import { renderPart, type Render } from "../part/index.ts";
 import * as style from "@destack/style";
 import { type JSX, omit } from "@destack/view";
 
@@ -18,20 +19,16 @@ export interface AspectRatioProperties extends Omit<JSX.HTMLAttributes<HTMLDivEl
     readonly ratio?: number;
     /** The StyleX styles applied after the box's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Render a box at a width-to-height ratio as its width changes. */
 export function AspectRatio(properties: AspectRatioProperties): JSX.Element {
-    const rest = omit(properties, "ratio", "xstyle", "style");
+    const rest = omit(properties, "ratio");
 
-    return (
-        <div
-            data-slot="aspect-ratio"
-            {...rest}
-            {...style.attributes(
-                [styles.box, styles.ratio(properties.ratio ?? 1), properties.xstyle],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "aspect-ratio", rest, () => [
+        styles.box,
+        styles.ratio(properties.ratio ?? 1),
+    ]);
 }

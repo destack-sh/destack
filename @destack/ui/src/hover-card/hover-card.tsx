@@ -1,4 +1,9 @@
-import { type ElementPartProperties, renderPart, mergeProperties } from "../part/index.ts";
+import {
+    type ElementPartProperties,
+    renderPart,
+    mergeProperties,
+    type Render,
+} from "../part/index.ts";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, width } from "@destack/theme/tokens.stylex";
 import {
@@ -87,16 +92,13 @@ export interface HoverCardProperties<Payload = unknown> extends HoverCardOptions
 
 /** The properties of a hover card's trigger, the native link's attributes included. */
 export type HoverCardTriggerProperties<Payload = unknown> = ElementPartProperties &
-    Omit<
-        JSX.AnchorHTMLAttributes<HTMLAnchorElement>,
-        "class" | "style" | "ref" | "onPointerEnter" | "onPointerLeave"
-    > &
+    Omit<JSX.AnchorHTMLAttributes<HTMLAnchorElement>, "class" | "style"> &
     TriggerProperties<Payload, HoverCardControl<Payload>>;
 
 /** The properties of a hover card's content, the native element's attributes included. */
 export interface HoverCardContentProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "ref" | "onToggle" | "onPointerEnter" | "onPointerLeave"
+    "class"
 > {
     /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
     readonly anchor?: Anchor | undefined;
@@ -108,6 +110,8 @@ export interface HoverCardContentProperties extends Omit<
     readonly sideOffset?: number;
     /** The StyleX styles applied after the hover card's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Read the hover card of the nearest hover card root, refusing elements outside one. */
@@ -176,7 +180,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
     // read the hover card and its placement
     const card = useHoverCard();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "anchor", "side", "align", "sideOffset", "xstyle", "style");
+    const rest = omit(content, "anchor", "side", "align", "sideOffset");
 
     // show and hide the card as it opens and closes
     createEffect(card.isOpen, (isOpen) => untrack(() => card.sync(isOpen)));
@@ -193,28 +197,35 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
                 anchor={content.anchor}
                 onAnchor={(element) => card.setAnchor(element)}
             />
-            <div
-                id={card.id}
-                popover="hint"
-                data-slot="hover-card-content"
-                data-open={card.isOpen() ? "" : undefined}
-                data-closed={card.isOpen() ? undefined : ""}
-                data-side={content.side}
-                data-align={content.align}
-                {...rest}
-                ref={(element) => card.setContent(element)}
-                onToggle={(event) => card.follow(event)}
-                {...hover.attributes()}
-                {...style.attributes(
-                    [
-                        styles.content,
-                        Position.beside(content.side, content.align),
-                        Position.offset(content.side, content.sideOffset),
-                        content.xstyle,
-                    ],
-                    content.style,
-                )}
-            />
+            {renderPart(
+                "div",
+                "hover-card-content",
+                rest,
+                () => [
+                    styles.content,
+                    Position.beside(content.side, content.align),
+                    Position.offset(content.side, content.sideOffset),
+                ],
+                mergeProperties(hover.attributes(), {
+                    id: card.id,
+                    popover: "hint" as const,
+                    get "data-open"() {
+                        return card.isOpen() ? "" : undefined;
+                    },
+                    get "data-closed"() {
+                        return card.isOpen() ? undefined : "";
+                    },
+                    get "data-side"() {
+                        return content.side;
+                    },
+                    get "data-align"() {
+                        return content.align;
+                    },
+                    ref: (element: HTMLElement) => card.setContent(element),
+                    onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) =>
+                        card.follow(event),
+                }),
+            )}
         </TopLayer>
     );
 }

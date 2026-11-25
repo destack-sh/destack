@@ -29,7 +29,7 @@ import {
     ToggleState,
 } from "../toggle-state/index.ts";
 import { useFieldControl, useFieldValue } from "../field/control.ts";
-import { type ElementPartProperties, type Render, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, type Render, renderPart } from "../part/index.ts";
 
 /** The distance a checked thumb travels: the track's inner width less the thumb. */
 const TRAVEL = `calc(${size[2]} - 2 * ${stroke.border} - ${space[4]})`;
@@ -115,7 +115,7 @@ export interface SwitchProperties
     extends
         Omit<
             JSX.ButtonHTMLAttributes<HTMLButtonElement>,
-            "class" | "type" | "role" | "name" | "value" | "form" | "onClick"
+            "class" | "type" | "role" | "name" | "value" | "form"
         >,
         ToggleStateProperties,
         ToggleFormProperties {
@@ -209,7 +209,7 @@ export function Switch(given: SwitchProperties): JSX.Element {
                         },
                         onClick: () => toggle.set(!toggle.isChecked()),
                         get children() {
-                            return properties.children ?? <SwitchThumb />;
+                            return contentOr(properties, () => <SwitchThumb />);
                         },
                     },
                     field?.attributes() ?? {},

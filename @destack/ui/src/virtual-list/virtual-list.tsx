@@ -17,7 +17,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
-import { mergeProperties } from "../part/index.ts";
+import { mergeProperties, renderPart, type Render } from "../part/index.ts";
 import type { Axis } from "../position/index.ts";
 import {
     Length,
@@ -137,6 +137,8 @@ export interface VirtualItemsProperties<Item> extends Omit<
     readonly children: (item: Item, index: Accessor<number>) => JSX.Element;
     /** The StyleX styles applied after the items' styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Render the items a virtualizer has in view, each at its place in the room all of them take. */
@@ -152,41 +154,39 @@ export function VirtualItems<Item>(properties: VirtualItemsProperties<Item>): JS
         "gap",
         "itemProperties",
         "children",
-        "xstyle",
-        "style",
     );
 
-    return (
-        <div
-            data-slot="virtual-items"
-            {...rest}
-            {...style.attributes(
-                [
-                    styles.items,
-                    isVertical ? styles.roomAcross : styles.roomDown,
-                    isVertical
-                        ? places.vertical(virtualizer.totalSize())
-                        : places.horizontal(virtualizer.totalSize()),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            <For each={virtualizer.items()} keyed={(virtual) => virtual.key}>
-                {(virtual) => (
-                    <VirtualItemView
-                        virtual={virtual}
-                        virtualizer={virtualizer}
-                        each={properties.each}
-                        scrollMargin={properties.scrollMargin ?? 0}
-                        gap={properties.gap ?? 0}
-                        itemProperties={properties.itemProperties}
-                    >
-                        {properties.children}
-                    </VirtualItemView>
-                )}
-            </For>
-        </div>
+    return renderPart(
+        "div",
+        "virtual-items",
+        rest,
+        () => [
+            styles.items,
+            isVertical ? styles.roomAcross : styles.roomDown,
+            isVertical
+                ? places.vertical(virtualizer.totalSize())
+                : places.horizontal(virtualizer.totalSize()),
+        ],
+        {
+            get children() {
+                return (
+                    <For each={virtualizer.items()} keyed={(virtual) => virtual.key}>
+                        {(virtual) => (
+                            <VirtualItemView
+                                virtual={virtual}
+                                virtualizer={virtualizer}
+                                each={properties.each}
+                                scrollMargin={properties.scrollMargin ?? 0}
+                                gap={properties.gap ?? 0}
+                                itemProperties={properties.itemProperties}
+                            >
+                                {properties.children}
+                            </VirtualItemView>
+                        )}
+                    </For>
+                );
+            },
+        },
     );
 }
 
@@ -441,59 +441,74 @@ export function VirtualList<Item>(properties: VirtualListProperties<Item>): JSX.
         "after",
         "itemProperties",
         "children",
-        "xstyle",
-        "style",
     );
 
     return (
         <VirtualizerContext value={virtualizer}>
-            <div
-                data-slot="virtual-list"
-                data-orientation={orientation}
-                tabindex={host === null ? "0" : undefined}
-                {...mergeProperties({ ref: setScroller }, rest)}
-                {...style.attributes(
-                    [styles.list, styles[orientation], properties.xstyle],
-                    properties.style,
-                )}
-            >
-                {/* Gap length */}
-                <Show when={typeof properties.gap === "string"}>{gapLength.render()}</Show>
-                {reachLength.render()}
+            {renderPart(
+                "div",
+                "virtual-list",
+                rest,
+                () => [styles.list, styles[orientation]],
+                mergeProperties(
+                    {
+                        "data-orientation": orientation,
+                        get tabindex() {
+                            return host === null ? "0" : undefined;
+                        },
+                        get children() {
+                            return (
+                                <>
+                                    {/* Gap length */}
+                                    <Show when={typeof properties.gap === "string"}>
+                                        {gapLength.render()}
+                                    </Show>
+                                    {reachLength.render()}
 
-                {/* Before */}
-                <Show when={properties.before}>
-                    {(before) => (
-                        <div
-                            data-slot="virtual-list-before"
-                            ref={setLead}
-                            {...style.attrs(styles.roomAround)}
-                        >
-                            {before()}
-                        </div>
-                    )}
-                </Show>
+                                    {/* Before */}
+                                    <Show when={properties.before}>
+                                        {(before) => (
+                                            <div
+                                                data-slot="virtual-list-before"
+                                                ref={setLead}
+                                                {...style.attrs(styles.roomAround)}
+                                            >
+                                                {before()}
+                                            </div>
+                                        )}
+                                    </Show>
 
-                {/* Items */}
-                <VirtualItems
-                    virtualizer={virtualizer}
-                    each={properties.each}
-                    scrollMargin={scrollMargin()}
-                    itemProperties={properties.itemProperties}
-                    {...(properties.gap === undefined ? {} : { gap: properties.gap })}
-                >
-                    {properties.children}
-                </VirtualItems>
+                                    {/* Items */}
+                                    <VirtualItems
+                                        virtualizer={virtualizer}
+                                        each={properties.each}
+                                        scrollMargin={scrollMargin()}
+                                        itemProperties={properties.itemProperties}
+                                        {...(properties.gap === undefined
+                                            ? {}
+                                            : { gap: properties.gap })}
+                                    >
+                                        {properties.children}
+                                    </VirtualItems>
 
-                {/* After */}
-                <Show when={properties.after}>
-                    {(after) => (
-                        <div data-slot="virtual-list-after" {...style.attrs(styles.roomAround)}>
-                            {after()}
-                        </div>
-                    )}
-                </Show>
-            </div>
+                                    {/* After */}
+                                    <Show when={properties.after}>
+                                        {(after) => (
+                                            <div
+                                                data-slot="virtual-list-after"
+                                                {...style.attrs(styles.roomAround)}
+                                            >
+                                                {after()}
+                                            </div>
+                                        )}
+                                    </Show>
+                                </>
+                            );
+                        },
+                    },
+                    { ref: setScroller },
+                ),
+            )}
         </VirtualizerContext>
     );
 }

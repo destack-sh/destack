@@ -299,9 +299,7 @@ export type ListBoxElementProperties<Attributes> = Omit<Attributes, "class"> &
     ElementPartProperties;
 
 /** The properties of a list box: its selection, layout and focus. */
-export type ListBoxProperties = ListBoxElementProperties<
-    Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "onFocusOut">
-> &
+export type ListBoxProperties = ListBoxElementProperties<JSX.HTMLAttributes<HTMLDivElement>> &
     Omit<ListBoxOptions, "selection" | "autocomplete"> & {
         /** The list box state a composite created. */
         readonly control?: ListBoxControl;
@@ -311,10 +309,7 @@ export type ListBoxProperties = ListBoxElementProperties<
 
 /** The properties of an option of a list box, the native element's attributes included. */
 export interface ListBoxItemProperties extends ListBoxElementProperties<
-    Omit<
-        JSX.HTMLAttributes<HTMLDivElement>,
-        "onSelect" | "onClick" | "onPointerMove" | "onPointerDown" | "onFocus" | "ref"
-    >
+    Omit<JSX.HTMLAttributes<HTMLDivElement>, "onSelect">
 > {
     /** The value the option stands for, its text by default. */
     readonly value?: string;
@@ -380,39 +375,34 @@ export function ListBox(properties: ListBoxProperties): JSX.Element {
         "defaultActiveValue",
         "onActiveChange",
         "onAction",
-        "xstyle",
-        "style",
-        "children",
     );
     const isGrid = (): boolean => properties.layout === "grid";
 
     return (
         <ListBoxContext value={control}>
-            <div
-                id={control.id}
-                role="listbox"
-                aria-multiselectable={control.selection?.isMultiple() === true ? "true" : undefined}
-                aria-orientation={
-                    isGrid() || properties.orientation === "both"
-                        ? undefined
-                        : properties.orientation
-                }
-                data-slot="list-box"
-                data-layout={properties.layout ?? "list"}
-                {...rest}
-                onKeyDown={(event) => steer(event, control, locale.direction)}
-                onFocusOut={(event) => control.focus.focusOut(event)}
-                {...style.attributes(
-                    [
-                        styles.listBox,
-                        isGrid() && styles.grid(properties.columns ?? 1),
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            >
-                {properties.children}
-            </div>
+            {renderPart(
+                "div",
+                "list-box",
+                rest,
+                () => [styles.listBox, isGrid() && styles.grid(properties.columns ?? 1)],
+                {
+                    id: control.id,
+                    role: "listbox" as const,
+                    get "aria-multiselectable"() {
+                        return control.selection?.isMultiple() === true ? "true" : undefined;
+                    },
+                    get "aria-orientation"() {
+                        return isGrid() || properties.orientation === "both"
+                            ? undefined
+                            : properties.orientation;
+                    },
+                    get "data-layout"() {
+                        return properties.layout ?? "list";
+                    },
+                    onKeyDown: (event) => steer(event, control, locale.direction),
+                    onFocusOut: (event) => control.focus.focusOut(event),
+                },
+            )}
         </ListBoxContext>
     );
 }
@@ -429,23 +419,29 @@ export function ListBoxSection(properties: ListBoxSectionProperties): JSX.Elemen
             headings.add(id);
         },
     };
-    const rest = omit(properties, "heading", "forceMount", "xstyle", "style", "children");
+    const rest = omit(properties, "heading", "forceMount", "children");
 
     return (
         <ListBoxSectionContext value={section}>
-            <div
-                role="group"
-                aria-labelledby={section.isLabelled() ? `${section.key}-heading` : undefined}
-                hidden={properties.forceMount !== true && !control.isSectionShown(section.key)}
-                data-slot="list-box-section"
-                {...rest}
-                {...style.attributes([properties.xstyle], properties.style)}
-            >
-                <Show when={"heading" in properties}>
-                    <ListBoxSectionHeading>{properties.heading}</ListBoxSectionHeading>
-                </Show>
-                {properties.children}
-            </div>
+            {renderPart("div", "list-box-section", rest, null, {
+                role: "group" as const,
+                get "aria-labelledby"() {
+                    return section.isLabelled() ? `${section.key}-heading` : undefined;
+                },
+                get hidden() {
+                    return properties.forceMount !== true && !control.isSectionShown(section.key);
+                },
+                get children() {
+                    return (
+                        <>
+                            <Show when={"heading" in properties}>
+                                <ListBoxSectionHeading>{properties.heading}</ListBoxSectionHeading>
+                            </Show>
+                            {properties.children}
+                        </>
+                    );
+                },
+            })}
         </ListBoxSectionContext>
     );
 }
@@ -481,8 +477,6 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
         "disabled",
         "forceMount",
         "onSelect",
-        "xstyle",
-        "style",
         "children",
     );
     let element: HTMLDivElement | undefined;
@@ -511,51 +505,69 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
         control.selection !== undefined && !isVirtual && control.isSelected(option);
     const isFilled = control.isGrid || control.isFollowing;
 
-    return (
-        <div
-            id={control.focus.id(option.key)}
-            role="option"
-            aria-selected={control.isSelected(option) ? "true" : "false"}
-            aria-disabled={properties.disabled === true ? "true" : undefined}
-            tabindex={isVirtual ? undefined : isActive() ? 0 : -1}
-            hidden={!control.isShown(option.key)}
-            data-slot="list-box-item"
-            data-highlighted={isActive() ? "" : undefined}
-            data-disabled={properties.disabled === true ? "" : undefined}
-            data-value={option.value()}
-            {...rest}
-            ref={(item) => (element = item)}
-            onPointerDown={(event) => {
+    return renderPart(
+        "div",
+        "list-box-item",
+        rest,
+        () => [
+            state.focus,
+            styles.option,
+            isVirtual && isActive() && state.selected,
+            isChosen() && isFilled && state.selected,
+            properties.disabled === true && state.inert,
+        ],
+        {
+            get id() {
+                return control.focus.id(option.key);
+            },
+            role: "option" as const,
+            get "aria-selected"() {
+                return control.isSelected(option) ? "true" : "false";
+            },
+            get "aria-disabled"() {
+                return properties.disabled === true ? "true" : undefined;
+            },
+            get tabindex() {
+                return isVirtual ? undefined : isActive() ? 0 : -1;
+            },
+            get hidden() {
+                return !control.isShown(option.key);
+            },
+            get "data-highlighted"() {
+                return isActive() ? "" : undefined;
+            },
+            get "data-disabled"() {
+                return properties.disabled === true ? "" : undefined;
+            },
+            get "data-value"() {
+                return option.value();
+            },
+            ref: (item) => (element = item),
+            onPointerDown: (event) => {
                 // leave the focus in the search field of a virtual list box
                 if (isVirtual) {
                     event.preventDefault();
                 }
-            }}
-            onPointerMove={() => {
+            },
+            onPointerMove: () => {
                 // focus an available option under the pointer behind a search field
                 if (isVirtual && !option.isDisabled()) {
                     control.focus.focus(option.key);
                 }
-            }}
-            onFocus={() => control.focus.focusIn(option.key)}
-            onClick={() => control.choose(option.key)}
-            {...style.attributes(
-                [
-                    state.focus,
-                    styles.option,
-                    isVirtual && isActive() && state.selected,
-                    isChosen() && isFilled && state.selected,
-                    properties.disabled === true && state.inert,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {properties.children}
-            <Show when={isChosen() && !isFilled}>
-                <Icon icon={check} xstyle={styles.check} />
-            </Show>
-        </div>
+            },
+            onFocus: () => control.focus.focusIn(option.key),
+            onClick: () => control.choose(option.key),
+            get children() {
+                return (
+                    <>
+                        {properties.children}
+                        <Show when={isChosen() && !isFilled}>
+                            <Icon icon={check} xstyle={styles.check} />
+                        </Show>
+                    </>
+                );
+            },
+        },
     );
 }
 

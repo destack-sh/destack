@@ -26,7 +26,12 @@ import {
     NumberFieldInput,
     type NumberFieldProperties,
 } from "../number-field/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { Slider, type SliderProperties, SliderThumb, SliderTrack } from "../slider/index.ts";
 import {
     CHANNEL_NAMES,
@@ -236,13 +241,13 @@ export function ColorPicker(given: ColorPickerProperties): JSX.Element {
                 get children() {
                     return (
                         <>
-                            {properties.children ?? (
+                            {contentOr(properties, () => (
                                 <>
                                     <ColorArea />
                                     <ColorSlider channel="hue" />
                                     <ColorField />
                                 </>
-                            )}
+                            ))}
                             <Show when={properties.name}>
                                 <input
                                     type="hidden"
@@ -306,15 +311,7 @@ export function ColorArea(properties: ColorAreaProperties): JSX.Element {
 
         return (current().get(channel) - min) / (max - min);
     };
-    const rest = omit(
-        properties,
-        "colorSpace",
-        "xChannel",
-        "yChannel",
-        "children",
-        "xstyle",
-        "style",
-    );
+    const rest = omit(properties, "colorSpace", "xChannel", "yChannel", "children");
 
     // paint the colors of every point, anew as the channel left out changes
     const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>(undefined, {
@@ -432,30 +429,47 @@ export function ColorArea(properties: ColorAreaProperties): JSX.Element {
 
     return (
         <ColorAreaContext value={thumb}>
-            <div
-                data-slot="color-area"
-                data-disabled={picker.isDisabled() ? "" : undefined}
-                {...mergeProperties(
+            {renderPart(
+                "div",
+                "color-area",
+                rest,
+                styles.area,
+                mergeProperties(
+                    {
+                        get "data-disabled"() {
+                            return picker.isDisabled() ? "" : undefined;
+                        },
+                        get children() {
+                            return (
+                                <>
+                                    <canvas
+                                        ref={(element) => setCanvas(element)}
+                                        width={POINTS}
+                                        height={POINTS}
+                                        aria-hidden="true"
+                                        data-slot="color-area-paint"
+                                        {...style.attrs(styles.paint)}
+                                        style={{
+                                            transform:
+                                                locale.direction === "rtl"
+                                                    ? "scaleX(-1)"
+                                                    : undefined,
+                                        }}
+                                    />
+                                    {contentOr(properties, () => (
+                                        <ColorThumb />
+                                    ))}
+                                </>
+                            );
+                        },
+                    },
                     {
                         role: "group" as const,
                         ref: (element: HTMLElement) => (area = element),
                         onPointerDown: drag,
                     },
-                    rest,
-                )}
-                {...style.attributes([styles.area, properties.xstyle], properties.style)}
-            >
-                <canvas
-                    ref={(element) => setCanvas(element)}
-                    width={POINTS}
-                    height={POINTS}
-                    aria-hidden="true"
-                    data-slot="color-area-paint"
-                    {...style.attrs(styles.paint)}
-                    style={{ transform: locale.direction === "rtl" ? "scaleX(-1)" : undefined }}
-                />
-                {properties.children ?? <ColorThumb />}
-            </div>
+                ),
+            )}
         </ColorAreaContext>
     );
 }
@@ -778,7 +792,9 @@ export function ColorEyeDropper(properties: ButtonProperties): JSX.Element {
                     disabled={picker.isDisabled()}
                     {...mergeProperties({ onClick: () => void take() }, rest)}
                 >
-                    {properties.children ?? <Icon icon={eyedropperIcon} />}
+                    {contentOr(properties, () => (
+                        <Icon icon={eyedropperIcon} />
+                    ))}
                 </Button>
             </Show>
         </span>

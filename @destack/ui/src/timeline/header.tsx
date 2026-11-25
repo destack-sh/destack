@@ -7,7 +7,7 @@ import { text } from "@destack/theme/text";
 import { createSignal, For, type JSX, omit, Show, useEnvironment, useLocale } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Move, Sweep } from "../interaction/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { ToggleGroup, ToggleGroupItem, type ToggleGroupProperties } from "../toggle-group/index.ts";
 import {
@@ -155,7 +155,7 @@ export function TimelineHeader(
     // lay the corner and the axis out beside the labels' column
     const control = useTimeline();
     const locale = useLocale();
-    const rest = omit(properties, "corner", "children", "xstyle", "style");
+    const rest = omit(properties, "corner", "children");
 
     // measure the labels' column and the header, which the edge reports and is bounded by
     const [corner, setCorner] = createSignal<HTMLElement | undefined>(undefined, {
@@ -184,58 +184,68 @@ export function TimelineHeader(
         useEnvironment().clock,
     );
 
-    return (
-        <div
-            data-slot="timeline-header"
-            ref={setHeader}
-            {...rest}
-            {...style.attributes(
-                [styles.header, places.columns(control.template()), properties.xstyle],
-                properties.style,
-            )}
-        >
-            <div
-                data-slot="timeline-corner"
-                ref={setCorner}
-                {...style.attrs(text.xs, styles.corner)}
-            >
-                {properties.corner}
-            </div>
-            {"children" in properties ? properties.children : <TimelineAxis />}
+    return renderPart(
+        "div",
+        "timeline-header",
+        rest,
+        () => [styles.header, places.columns(control.template())],
+        {
+            ref: setHeader,
+            get children() {
+                return (
+                    <>
+                        <div
+                            data-slot="timeline-corner"
+                            ref={setCorner}
+                            {...style.attrs(text.xs, styles.corner)}
+                        >
+                            {properties.corner}
+                        </div>
+                        {contentOr(properties, () => (
+                            <TimelineAxis />
+                        ))}
 
-            {/* The edge of the labels' column, dragged or stepped by the arrow keys */}
-            <div
-                role="separator"
-                tabindex={0}
-                aria-orientation="vertical"
-                aria-label={locale.render(t`Resize the labels`)}
-                aria-valuemin={MIN_LABEL_WIDTH}
-                aria-valuenow={cornerSize.width === null ? undefined : Math.round(cornerSize.width)}
-                aria-valuemax={
-                    headerSize.width === null ? undefined : Math.round(headerSize.width / 2)
-                }
-                data-slot="timeline-resize"
-                {...resize.attributes()}
-                {...style.attrs(state.focus, styles.resize, places.after(control.labelWidth()))}
-            />
-        </div>
+                        {/* The edge of the labels' column, dragged or stepped by the arrow keys */}
+                        <div
+                            role="separator"
+                            tabindex={0}
+                            aria-orientation="vertical"
+                            aria-label={locale.render(t`Resize the labels`)}
+                            aria-valuemin={MIN_LABEL_WIDTH}
+                            aria-valuenow={
+                                cornerSize.width === null ? undefined : Math.round(cornerSize.width)
+                            }
+                            aria-valuemax={
+                                headerSize.width === null
+                                    ? undefined
+                                    : Math.round(headerSize.width / 2)
+                            }
+                            data-slot="timeline-resize"
+                            {...resize.attributes()}
+                            {...style.attrs(
+                                state.focus,
+                                styles.resize,
+                                places.after(control.labelWidth()),
+                            )}
+                        />
+                    </>
+                );
+            },
+        },
     );
 }
 
 /** Render a bar of controls above the axis, such as Today and the zoom presets. */
 export function TimelineToolbar(properties: TimelinePartProperties): JSX.Element {
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
+    const rest = properties;
 
-    return (
-        <div
-            role="toolbar"
-            aria-label={locale.render(t`Timeline`)}
-            data-slot="timeline-toolbar"
-            {...rest}
-            {...style.attributes([styles.toolbar, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "timeline-toolbar", rest, styles.toolbar, {
+        role: "toolbar" as const,
+        get "aria-label"() {
+            return locale.render(t`Timeline`);
+        },
+    });
 }
 
 /** Render the zoom presets, a week, a month or a quarter per column, the one shown pressed. */
@@ -291,7 +301,7 @@ export function TimelineToday(properties: Omit<ButtonProperties, "onClick">): JS
             {...properties}
             onClick={() => control.window.reveal(control.window.now() ?? clock.now())}
         >
-            {properties.children ?? locale.render(t`Today`)}
+            {contentOr(properties, () => locale.render(t`Today`))}
         </Button>
     );
 }
@@ -301,7 +311,7 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
     // place the periods and the marks by their share of the window
     const control = useTimeline();
     const locale = useLocale();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const share = (at: number) => control.window.share(at);
 
     // sweep a span across the axis and zoom to it on release
@@ -332,85 +342,104 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
         useEnvironment().clock,
     );
 
-    return (
-        <div
-            data-slot="timeline-axis"
-            {...mergeProperties(
-                mergeProperties(
-                    { ref: (created: HTMLElement) => (element = created) },
-                    zoom.attributes(),
-                ),
-                rest,
-            )}
-            {...style.attributes([styles.axis, properties.xstyle], properties.style)}
-        >
-            {/* The span a sweep zooms to */}
-            <Show when={zoom.span()}>
-                {(swept) => (
-                    <span
-                        data-slot="timeline-axis-sweep"
-                        {...style.attrs(
-                            styles.sweep,
-                            places.span(swept().start, swept().end - swept().start),
-                        )}
-                    />
-                )}
-            </Show>
-
-            {/* Periods */}
-            <Show when={control.window.periods().length > 0}>
-                <div
-                    data-slot="timeline-axis-periods"
-                    aria-hidden="true"
-                    {...style.attrs(styles.axisRow)}
-                >
-                    <For each={control.window.periods()} keyed={(period) => period.start}>
-                        {(period) => (
-                            <span
-                                data-slot="timeline-axis-period"
-                                {...style.attrs(
-                                    text.xs,
-                                    styles.period,
-                                    places.span(
-                                        share(period().start),
-                                        share(period().end) - share(period().start),
-                                    ),
+    return renderPart(
+        "div",
+        "timeline-axis",
+        rest,
+        styles.axis,
+        mergeProperties(
+            {
+                get children() {
+                    return (
+                        <>
+                            {/* The span a sweep zooms to */}
+                            <Show when={zoom.span()}>
+                                {(swept) => (
+                                    <span
+                                        data-slot="timeline-axis-sweep"
+                                        {...style.attrs(
+                                            styles.sweep,
+                                            places.span(swept().start, swept().end - swept().start),
+                                        )}
+                                    />
                                 )}
-                            >
-                                {period().label}
-                            </span>
-                        )}
-                    </For>
-                </div>
-            </Show>
+                            </Show>
 
-            {/* Marks */}
-            <div
-                data-slot="timeline-axis-marks"
-                aria-hidden="true"
-                {...style.attrs(styles.axisRow)}
-            >
-                <For each={control.window.ticks()} keyed={(tick) => tick.at}>
-                    {(tick) => (
-                        <span {...style.attrs(text.xs, styles.tick, places.at(share(tick().at)))}>
-                            <span
-                                data-slot="timeline-axis-mark"
-                                data-today={tick().isCurrent === true ? "" : undefined}
-                                {...style.attrs(
-                                    styles.mark,
-                                    tick().isCurrent === true && state.checked,
-                                )}
-                            >
-                                {control.window.tickLabel(tick())}
-                            </span>
-                        </span>
-                    )}
-                </For>
-            </div>
+                            {/* Periods */}
+                            <Show when={control.window.periods().length > 0}>
+                                <div
+                                    data-slot="timeline-axis-periods"
+                                    aria-hidden="true"
+                                    {...style.attrs(styles.axisRow)}
+                                >
+                                    <For
+                                        each={control.window.periods()}
+                                        keyed={(period) => period.start}
+                                    >
+                                        {(period) => (
+                                            <span
+                                                data-slot="timeline-axis-period"
+                                                {...style.attrs(
+                                                    text.xs,
+                                                    styles.period,
+                                                    places.span(
+                                                        share(period().start),
+                                                        share(period().end) - share(period().start),
+                                                    ),
+                                                )}
+                                            >
+                                                {period().label}
+                                            </span>
+                                        )}
+                                    </For>
+                                </div>
+                            </Show>
 
-            {/* What stands on the axis, such as a playhead or a loop */}
-            <TimelineTrackContext value={true}>{properties.children}</TimelineTrackContext>
-        </div>
+                            {/* Marks */}
+                            <div
+                                data-slot="timeline-axis-marks"
+                                aria-hidden="true"
+                                {...style.attrs(styles.axisRow)}
+                            >
+                                <For each={control.window.ticks()} keyed={(tick) => tick.at}>
+                                    {(tick) => (
+                                        <span
+                                            {...style.attrs(
+                                                text.xs,
+                                                styles.tick,
+                                                places.at(share(tick().at)),
+                                            )}
+                                        >
+                                            <span
+                                                data-slot="timeline-axis-mark"
+                                                data-today={
+                                                    tick().isCurrent === true ? "" : undefined
+                                                }
+                                                {...style.attrs(
+                                                    styles.mark,
+                                                    tick().isCurrent === true && state.checked,
+                                                )}
+                                            >
+                                                {control.window.tickLabel(tick())}
+                                            </span>
+                                        </span>
+                                    )}
+                                </For>
+                            </div>
+
+                            {/* What stands on the axis, such as a playhead or a loop */}
+                            <TimelineTrackContext value={true}>
+                                {properties.children}
+                            </TimelineTrackContext>
+                        </>
+                    );
+                },
+            },
+            mergeProperties(
+                { ref: (created: HTMLElement) => (element = created) },
+                zoom.attributes(),
+            ),
+        ),
     );
 }
 
@@ -437,15 +466,10 @@ export function TimelineColumn(properties: TimelineColumnProperties): JSX.Elemen
         ownedWrite: true,
     });
     control.addColumn({ element, width: () => properties.width });
-    const rest = omit(properties, "width", "xstyle", "style", "ref");
+    const rest = omit(properties, "width", "ref");
 
-    return (
-        <div
-            ref={[properties.ref, setElement]}
-            role="columnheader"
-            data-slot="timeline-column"
-            {...rest}
-            {...style.attributes([text.xs, styles.column, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "timeline-column", rest, [text.xs, styles.column], {
+        ref: [properties.ref, setElement],
+        role: "columnheader" as const,
+    });
 }

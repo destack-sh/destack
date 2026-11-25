@@ -204,3 +204,21 @@ test("check items and select radio items, reporting their state", () => {
         sort: "date",
     });
 });
+
+test("run a caller's click on a checkbox item beside its own", () => {
+    const calls: string[] = [];
+    const [container] = drawMenu(() => (
+        <MenuCheckboxItem
+            checked={false}
+            onCheckedChange={() => calls.push("check")}
+            onClick={() => calls.push("click")}
+        >
+            Wrap
+        </MenuCheckboxItem>
+    ));
+    open(container);
+    container.querySelector<HTMLElement>("[role=menuitemcheckbox]")?.click();
+    flush();
+
+    expect(calls.toSorted()).toEqual(["check", "click"]);
+});

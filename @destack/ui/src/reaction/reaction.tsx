@@ -1,3 +1,4 @@
+import { contentOr } from "../part/index.ts";
 import { plural, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -108,12 +109,12 @@ export function Reaction(properties: ReactionProperties): JSX.Element {
             {...rest}
             xstyle={[text.xs, state.touch, styles.reaction, properties.xstyle]}
         >
-            {properties.children ?? (
+            {contentOr(properties, () => (
                 <>
                     <span>{properties.emoji}</span>
                     <span {...style.attrs(styles.count)}>{locale.number(properties.count)}</span>
                 </>
-            )}
+            ))}
         </Toggle>
     );
 

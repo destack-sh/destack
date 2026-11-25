@@ -6,7 +6,7 @@ import { t } from "@destack/locale";
 import { type JSX, merge, omit, useLocale } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The width an alert takes inside a parent sized to its content, which its queries cannot read. */
 const INTRINSIC_WIDTH = "28rem";
@@ -140,19 +140,21 @@ export interface AlertProperties extends AlertElementProperties {
 /** Render a message that calls for attention, with an optional leading icon. */
 export function Alert(properties: AlertProperties): JSX.Element {
     const alert = merge(DEFAULTS, properties);
-    const rest = omit(alert, "variant", "xstyle", "style");
+    const rest = omit(alert, "variant");
 
-    return (
-        <div
-            data-slot="alert"
-            data-variant={alert.variant}
-            role={ROLES[alert.variant]}
-            {...rest}
-            {...style.attributes(
-                [text.sm, styles.alert, variants[alert.variant], alert.xstyle],
-                alert.style,
-            )}
-        />
+    return renderPart(
+        "div",
+        "alert",
+        rest,
+        () => [text.sm, styles.alert, variants[alert.variant]],
+        {
+            get "data-variant"() {
+                return alert.variant;
+            },
+            get role() {
+                return ROLES[alert.variant];
+            },
+        },
     );
 }
 
@@ -185,7 +187,9 @@ export function AlertClose(properties: Omit<ButtonProperties, "variant" | "size"
             {...rest}
             xstyle={[styles.close, properties.xstyle]}
         >
-            {properties.children ?? <Icon icon={x} />}
+            {contentOr(properties, () => (
+                <Icon icon={x} />
+            ))}
         </Button>
     );
 }

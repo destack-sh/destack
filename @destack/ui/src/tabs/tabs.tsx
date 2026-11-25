@@ -500,6 +500,8 @@ export interface TabsProperties extends Omit<
     readonly activationMode?: TabsActivationMode;
     /** The StyleX styles applied after the root's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of an element of a set of tabs, the native element's attributes included. */
@@ -667,7 +669,7 @@ export function TabsList(properties: TabsListProperties): JSX.Element {
 
 /** The properties of a tab, the native button's attributes included. */
 export type TabsTriggerProperties = TabsElementProperties<
-    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "value">
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "value">
 > & {
     /** The value the tab and its panel stand for, its item's in an item. */
     readonly value?: string;
@@ -973,20 +975,25 @@ export function TabsContent(
     properties: TabsValueProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const control = useTabs();
-    const rest = omit(properties, "value", "xstyle", "style");
+    const rest = omit(properties, "value");
 
-    return (
-        <div
-            role="tabpanel"
-            id={control.panelId(properties.value)}
-            aria-labelledby={control.tabId(properties.value)}
-            tabindex={0}
-            hidden={control.value() !== properties.value}
-            data-slot="tabs-content"
-            data-hidden={control.value() === properties.value ? undefined : ""}
-            data-orientation={control.properties.orientation}
-            {...rest}
-            {...style.attributes([state.focus, styles.panel, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "tabs-content", rest, [state.focus, styles.panel], {
+        role: "tabpanel" as const,
+        get id() {
+            return control.panelId(properties.value);
+        },
+        get "aria-labelledby"() {
+            return control.tabId(properties.value);
+        },
+        tabindex: 0,
+        get hidden() {
+            return control.value() !== properties.value;
+        },
+        get "data-hidden"() {
+            return control.value() === properties.value ? undefined : "";
+        },
+        get "data-orientation"() {
+            return control.properties.orientation;
+        },
+    });
 }

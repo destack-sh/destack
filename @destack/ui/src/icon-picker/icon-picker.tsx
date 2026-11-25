@@ -25,7 +25,7 @@ import {
     GridListProvider,
     GridListViewport,
 } from "../grid-list/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, renderPart } from "../part/index.ts";
 
 /** The icons in each row of a picker's grid by default. */
 const COLUMNS = 9;
@@ -129,15 +129,7 @@ export interface IconPickerProperties extends GridListElementProperties<
 export function IconPicker(properties: IconPickerProperties): JSX.Element {
     // load the icons once and lay out the ones the search finds by category
     const locale = useLocale();
-    const rest = omit(
-        properties,
-        "onIconSelect",
-        "columns",
-        "cell",
-        "activeCell",
-        "xstyle",
-        "style",
-    );
+    const rest = omit(properties, "onIconSelect", "columns", "cell", "activeCell");
     const autocomplete = new AutocompleteControl({});
     const icons = new Load(loadIcons());
     const fit = new ColumnFit(() => properties.columns ?? COLUMNS);
@@ -166,14 +158,9 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
         <IconPickerContext value={control}>
             <AutocompleteContext value={autocomplete}>
                 <GridListProvider control={grid}>
-                    <div
-                        data-slot="icon-picker"
-                        {...mergeProperties({ ref: fit.measure }, rest)}
-                        {...style.attributes(
-                            [styles.picker, fit.style(), properties.xstyle],
-                            properties.style,
-                        )}
-                    />
+                    {renderPart("div", "icon-picker", rest, () => [styles.picker, fit.style()], {
+                        ref: fit.measure,
+                    })}
                     {fit.render()}
                 </GridListProvider>
             </AutocompleteContext>
@@ -233,18 +220,18 @@ export function IconPickerFooter(
     properties: GridListElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     const picker = useIconPicker();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            data-slot="icon-picker-footer"
-            {...rest}
-            {...style.attributes([styles.footer, properties.xstyle], properties.style)}
-        >
-            {picker.activeCell(picker.grid.active())}
-            {properties.children}
-        </div>
-    );
+    return renderPart("div", "icon-picker-footer", rest, styles.footer, {
+        get children() {
+            return (
+                <>
+                    {picker.activeCell(picker.grid.active())}
+                    {properties.children}
+                </>
+            );
+        },
+    });
 }
 
 /** Render one icon of an icon picker's grid, marked while active. */
@@ -257,7 +244,9 @@ export function IconPickerIcon(properties: GridListCellProperties<IconName>): JS
             {...rest}
             xstyle={[styles.icon, properties.xstyle]}
         >
-            {properties.children ?? <LazyIcon name={properties.item} />}
+            {contentOr(properties, () => (
+                <LazyIcon name={properties.item} />
+            ))}
         </GridListCell>
     );
 }

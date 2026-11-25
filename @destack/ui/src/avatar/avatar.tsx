@@ -152,22 +152,26 @@ export function Avatar(properties: AvatarProperties): JSX.Element {
     // overlap the avatar in a group at the group's size, and start with its image loading
     const group = useContext(AvatarGroupContext);
     const avatar = merge(DEFAULTS, group ?? {}, properties);
-    const rest = omit(avatar, "size", "color", "xstyle", "style");
+    const rest = omit(avatar, "size", "color");
     const isGrouped = group !== null;
     const [status, setStatus] = createSignal<AvatarImageStatus>("loading", { ownedWrite: true });
 
     return (
         <AvatarContext value={{ status, setStatus, color: () => avatar.color }}>
-            <span
-                data-slot="avatar"
-                data-size={avatar.size}
-                data-color={avatar.color}
-                {...rest}
-                {...style.attributes(
-                    [styles.avatar, sizes[avatar.size], isGrouped && styles.grouped, avatar.xstyle],
-                    avatar.style,
-                )}
-            />
+            {renderPart(
+                "span",
+                "avatar",
+                rest,
+                () => [styles.avatar, sizes[avatar.size], isGrouped && styles.grouped],
+                {
+                    get "data-size"() {
+                        return avatar.size;
+                    },
+                    get "data-color"() {
+                        return avatar.color;
+                    },
+                },
+            )}
         </AvatarContext>
     );
 }
@@ -176,7 +180,7 @@ export function Avatar(properties: AvatarProperties): JSX.Element {
 export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
     // read the avatar the image reports to
     const avatar = useAvatar();
-    const rest = omit(properties, "xstyle", "style", "onStatusChange");
+    const rest = omit(properties, "onStatusChange");
 
     // report the image's status to the avatar and its owner
     const report = (status: AvatarImageStatus): void => {
@@ -186,20 +190,13 @@ export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
 
     return (
         <Show when={avatar.status() !== "error"}>
-            <img
-                data-slot="avatar-image"
-                {...rest}
-                onLoad={() => report("loaded")}
-                onError={() => report("error")}
-                {...style.attributes(
-                    [
-                        styles.image,
-                        avatar.status() === "loading" && styles.loading,
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            />
+            {renderPart(
+                "img",
+                "avatar-image",
+                rest,
+                () => [styles.image, avatar.status() === "loading" && styles.loading],
+                { onLoad: () => report("loaded"), onError: () => report("error") },
+            )}
         </Show>
     );
 }

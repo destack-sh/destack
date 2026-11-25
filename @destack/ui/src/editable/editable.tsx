@@ -22,7 +22,12 @@ import {
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { type FieldControl, readText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { Icon } from "../icon/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 
 /** How a text is changed and kept where its owner does not say. */
 const DEFAULTS = { activationMode: "click", submitMode: "both" } as const;
@@ -290,12 +295,12 @@ export function Editable(given: EditableProperties): JSX.Element {
                 get children() {
                     return (
                         <>
-                            {properties.children ?? (
+                            {contentOr(properties, () => (
                                 <>
                                     <EditablePreview />
                                     <EditableInput />
                                 </>
-                            )}
+                            ))}
                             <Show when={properties.name}>
                                 <input
                                     type="hidden"
@@ -370,11 +375,10 @@ export function EditablePreview(
                         }
                     },
                     get children() {
-                        return (
-                            properties.children ??
-                            (control.value() === ""
+                        return contentOr(properties, () =>
+                            control.value() === ""
                                 ? (control.properties.placeholder ?? "")
-                                : control.value())
+                                : control.value(),
                         );
                     },
                 },
@@ -509,7 +513,9 @@ export function EditableTrigger(properties: ButtonProperties): JSX.Element {
                 aria-label={locale.render(t`Edit`)}
                 {...mergeProperties({ onClick: () => control.begin() }, properties)}
             >
-                {properties.children ?? <Icon icon={pencilIcon} />}
+                {contentOr(properties, () => (
+                    <Icon icon={pencilIcon} />
+                ))}
             </Button>
         </Show>
     );
@@ -536,7 +542,9 @@ export function EditableSubmit(properties: ButtonProperties): JSX.Element {
                     properties,
                 )}
             >
-                {properties.children ?? <Icon icon={checkIcon} />}
+                {contentOr(properties, () => (
+                    <Icon icon={checkIcon} />
+                ))}
             </Button>
         </Show>
     );
@@ -564,7 +572,9 @@ export function EditableCancel(properties: ButtonProperties): JSX.Element {
                     properties,
                 )}
             >
-                {properties.children ?? <Icon icon={xIcon} />}
+                {contentOr(properties, () => (
+                    <Icon icon={xIcon} />
+                ))}
             </Button>
         </Show>
     );

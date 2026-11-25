@@ -67,6 +67,7 @@ import { CalendarAvailability, type CalendarAvailabilityOptions } from "./availa
 import type { CalendarResource, CalendarSource } from "./source.ts";
 import type { Hue } from "@destack/color";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
+import type { Render } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The kind of item a calendar's draggable events are. */
@@ -264,6 +265,8 @@ export interface EventCalendarPartProperties extends Omit<
 > {
     /** The StyleX styles applied after the part's. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** The properties of a calendar, the native element's attributes included. */

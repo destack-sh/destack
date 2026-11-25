@@ -51,7 +51,12 @@ import {
     DropdownMenuTrigger,
 } from "../dropdown-menu/index.ts";
 import { Icon } from "../icon/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { Slider, SliderIndicator, SliderThumb, SliderTrack } from "../slider/index.ts";
 import { Spinner } from "../spinner/index.ts";
 import {
@@ -862,8 +867,8 @@ function sourceOf(control: PlayerControl, options: PlayerOptions): object {
             preload: "metadata",
             playsinline: true,
             ref: (target: HTMLMediaElement) => {
-                control.attach(target, leaving.signal);
-                control.offer(() => untrack(session), leaving.signal);
+                untrack(() => control.attach(target, leaving.signal));
+                untrack(() => control.offer(() => untrack(session), leaving.signal));
             },
             onLoadedMetadata: (event: Event & { readonly currentTarget: HTMLMediaElement }) => {
                 const start = untrack(() => options.start);
@@ -1122,20 +1127,14 @@ export function PlayerError(properties: PlayerElementProperties): JSX.Element {
             {renderPart("div", "player-error", properties, [text.sm, styles.failure], {
                 role: "alert",
                 get children() {
-                    return (
-                        properties.children ?? (
-                            <>
-                                {locale.render(t`This could not be played.`)}
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() => control.retry()}
-                                >
-                                    {locale.render(t`Try again`)}
-                                </Button>
-                            </>
-                        )
-                    );
+                    return contentOr(properties, () => (
+                        <>
+                            {locale.render(t`This could not be played.`)}
+                            <Button variant="secondary" size="sm" onClick={() => control.retry()}>
+                                {locale.render(t`Try again`)}
+                            </Button>
+                        </>
+                    ));
                 },
             })}
         </Show>
@@ -1248,7 +1247,9 @@ export function VideoPlayer(properties: VideoPlayerProperties): JSX.Element {
         <Player data-slot="video-player" {...rest}>
             <PlayerFrame ratio={properties.ratio ?? 16 / 9}>
                 <PlayerVideo />
-                {properties.children ?? <VideoPlayerParts />}
+                {contentOr(properties, () => (
+                    <VideoPlayerParts />
+                ))}
             </PlayerFrame>
         </Player>
     );
@@ -1294,7 +1295,9 @@ export function AudioPlayer(properties: AudioPlayerProperties): JSX.Element {
     return (
         <Player data-slot="audio-player" {...rest} xstyle={[styles.audio, properties.xstyle]}>
             <PlayerAudio />
-            {properties.children ?? <AudioPlayerParts />}
+            {contentOr(properties, () => (
+                <AudioPlayerParts />
+            ))}
         </Player>
     );
 }

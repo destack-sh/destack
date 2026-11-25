@@ -32,7 +32,7 @@ import {
 } from "@destack/view";
 import { Timeout } from "@destack/view/primitives/timer";
 import { Hover, type HoverEvent, SafePolygon } from "../interaction/index.ts";
-import { type Render, renderPart } from "../part/index.ts";
+import { type Render, renderPart, mergeProperties } from "../part/index.ts";
 import { ListState, tabbablesIn } from "../focus/index.ts";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
@@ -293,11 +293,13 @@ export class NavigationMenuControl {
 export type NavigationMenuElementProperties<Attributes> = Omit<Attributes, "class"> & {
     /** The StyleX styles applied after the element's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** The properties of a navigation menu. */
 export type NavigationMenuProperties = NavigationMenuElementProperties<
-    Omit<JSX.HTMLAttributes<HTMLElement>, "onFocusOut" | "onKeyDown" | "onPointerLeave">
+    JSX.HTMLAttributes<HTMLElement>
 > & {
     /** The value of the open item, which makes the open item controlled. */
     readonly value?: string | undefined;
@@ -350,8 +352,6 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
         "viewport",
         "delay",
         "timeout",
-        "xstyle",
-        "style",
         "children",
     );
     const hover: Hover = new Hover({
@@ -366,40 +366,46 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
 
     return (
         <NavigationMenuContext value={control}>
-            <nav
-                data-slot="navigation-menu"
-                data-viewport={properties.viewport === false ? undefined : ""}
-                {...rest}
-                onFocusOut={(event) => {
-                    // close once the focus leaves the navigation
-                    if (
-                        !(event.relatedTarget instanceof Node) ||
-                        !event.currentTarget.contains(event.relatedTarget)
-                    ) {
-                        control.hide();
-                    }
-                }}
-                {...hover.attributes()}
-                onKeyDown={(event) => {
-                    // close on Escape and return the focus to the open item's trigger
-                    const item = control.open();
-                    if (event.key === "Escape" && item !== undefined) {
-                        control.hide();
-                        event.currentTarget.ownerDocument
-                            .getElementById(control.triggerId(item))
-                            ?.focus();
-                    }
-                }}
-                {...style.attributes(
-                    [styles.menu, styles.menuScope, properties.xstyle],
-                    properties.style,
-                )}
-            >
-                {properties.children}
-                <Show when={properties.viewport !== false}>
-                    <NavigationMenuViewport />
-                </Show>
-            </nav>
+            {renderPart(
+                "nav",
+                "navigation-menu",
+                rest,
+                [styles.menu, styles.menuScope],
+                mergeProperties(hover.attributes(), {
+                    get "data-viewport"() {
+                        return properties.viewport === false ? undefined : "";
+                    },
+                    onFocusOut: (event: FocusEvent & { readonly currentTarget: HTMLElement }) => {
+                        // close once the focus leaves the navigation
+                        if (
+                            !(event.relatedTarget instanceof Node) ||
+                            !event.currentTarget.contains(event.relatedTarget)
+                        ) {
+                            control.hide();
+                        }
+                    },
+                    onKeyDown: (event: KeyboardEvent & { readonly currentTarget: HTMLElement }) => {
+                        // close on Escape and return the focus to the open item's trigger
+                        const item = control.open();
+                        if (event.key === "Escape" && item !== undefined) {
+                            control.hide();
+                            event.currentTarget.ownerDocument
+                                .getElementById(control.triggerId(item))
+                                ?.focus();
+                        }
+                    },
+                    get children() {
+                        return (
+                            <>
+                                {properties.children}
+                                <Show when={properties.viewport !== false}>
+                                    <NavigationMenuViewport />
+                                </Show>
+                            </>
+                        );
+                    },
+                }),
+            )}
         </NavigationMenuContext>
     );
 }
@@ -436,15 +442,11 @@ export type NavigationMenuItemProperties = NavigationMenuElementProperties<
 /** Render one top-level entry of a navigation menu. */
 export function NavigationMenuItem(properties: NavigationMenuItemProperties): JSX.Element {
     const item = properties.value ?? createUniqueId();
-    const rest = omit(properties, "value", "xstyle", "style");
+    const rest = omit(properties, "value");
 
     return (
         <NavigationMenuItemContext value={item}>
-            <li
-                data-slot="navigation-menu-item"
-                {...rest}
-                {...style.attributes([styles.item, properties.xstyle], properties.style)}
-            />
+            {renderPart("li", "navigation-menu-item", rest, styles.item)}
         </NavigationMenuItemContext>
     );
 }
@@ -461,7 +463,7 @@ export function NavigationMenuTrigger(
     // read the menu and the item the trigger opens
     const control = useNavigationMenu();
     const item = useNavigationMenuItem();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
     const isOpen = (): boolean => control.open() === item;
     let element: HTMLButtonElement | undefined;
     control.join(item, () => element);
@@ -474,21 +476,36 @@ export function NavigationMenuTrigger(
         onHoverEnd: (event) => control.leave(item, event),
     });
 
-    return (
-        <button
-            type="button"
-            id={control.triggerId(item)}
-            aria-expanded={isOpen() ? "true" : "false"}
-            aria-controls={control.contentId(item)}
-            data-navigation-top=""
-            data-slot="navigation-menu-trigger"
-            data-popup-open={isOpen() ? "" : undefined}
-            {...rest}
-            ref={(button) => (element = button)}
-            onFocus={() => control.list.focus.focusIn(item)}
-            onClick={() => (isOpen() ? control.hide() : control.show(item))}
-            {...hover.attributes()}
-            onKeyDown={(event) => {
+    return renderPart(
+        "button",
+        "navigation-menu-trigger",
+        rest,
+        () => [
+            text.sm,
+            state.focus,
+            styles.trigger,
+            isOpen() && state.selected,
+            isOpen() && styles.anchor,
+        ],
+        mergeProperties(hover.attributes(), {
+            type: "button" as const,
+            get id() {
+                return control.triggerId(item);
+            },
+            get "aria-expanded"() {
+                return isOpen() ? "true" : "false";
+            },
+            get "aria-controls"() {
+                return control.contentId(item);
+            },
+            "data-navigation-top": "" as const,
+            get "data-popup-open"() {
+                return isOpen() ? "" : undefined;
+            },
+            ref: (button: HTMLButtonElement) => (element = button),
+            onFocus: () => control.list.focus.focusIn(item),
+            onClick: () => (isOpen() ? control.hide() : control.show(item)),
+            onKeyDown: (event: KeyboardEvent & { readonly currentTarget: HTMLElement }) => {
                 // move Tab from an open trigger into its panel, wherever the panel renders
                 const panel = event.currentTarget.ownerDocument.getElementById(
                     control.contentId(item),
@@ -504,24 +521,18 @@ export function NavigationMenuTrigger(
                     event.preventDefault();
                     first.focus();
                 }
-            }}
-            {...style.attributes(
-                [
-                    text.sm,
-                    state.focus,
-                    styles.trigger,
-                    isOpen() && state.selected,
-                    isOpen() && styles.anchor,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {properties.children}
-            <span {...style.attrs(styles.chevron, isOpen() && styles.turned)}>
-                <Icon name="caret-down" />
-            </span>
-        </button>
+            },
+            get children() {
+                return (
+                    <>
+                        {properties.children}
+                        <span {...style.attrs(styles.chevron, isOpen() && styles.turned)}>
+                            <Icon name="caret-down" />
+                        </span>
+                    </>
+                );
+            },
+        }),
     );
 }
 
@@ -534,26 +545,32 @@ export function NavigationMenuContent(
     // read the menu and the item the panel belongs to
     const control = useNavigationMenu();
     const item = useNavigationMenuItem();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
 
     // build the panel, framed on its own without a viewport
-    const panel = (isFramed: boolean) => (
-        <div
-            id={control.contentId(item)}
-            hidden={control.open() !== item}
-            data-slot="navigation-menu-content"
-            {...rest}
-            onKeyDown={(event) => leavePanel(event, control, item)}
-            {...style.attributes(
-                [isFramed && styles.surface, styles.content, properties.xstyle],
-                properties.style,
-            )}
-        >
-            <NavigationMenuContentContext value={true}>
-                {properties.children}
-            </NavigationMenuContentContext>
-        </div>
-    );
+    const panel = (isFramed: boolean) =>
+        renderPart(
+            "div",
+            "navigation-menu-content",
+            rest,
+            () => [isFramed && styles.surface, styles.content],
+            {
+                get id() {
+                    return control.contentId(item);
+                },
+                get hidden() {
+                    return control.open() !== item;
+                },
+                onKeyDown: (event) => leavePanel(event, control, item),
+                get children() {
+                    return (
+                        <NavigationMenuContentContext value={true}>
+                            {properties.children}
+                        </NavigationMenuContentContext>
+                    );
+                },
+            },
+        );
 
     return (
         <Show when={control.viewport()} fallback={panel(true)}>

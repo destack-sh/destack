@@ -63,7 +63,7 @@ import { Press, type InteractionEvent } from "../interaction/index.ts";
 import { OpenChange } from "../layer/index.ts";
 import { Menu, MenuAction, MenuControl } from "../menu/index.ts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropdown-menu/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import { type MultipleSelection, Selection } from "../selection/index.ts";
 import { type VirtualHost, VirtualHostContext, type VirtualWindow } from "../virtual-list/index.ts";
 import type { DragItem } from "../drag/index.ts";
@@ -1648,7 +1648,7 @@ export function BoardHiddenList(
     // list the hidden columns in the board's order, the list a place columns hide into
     const control = useBoard();
     control.addHiddenList();
-    const rest = omit(properties, "xstyle", "style");
+    const rest = omit(properties, "children");
     const locale = useLocale();
     const { manager } = useSortable();
     const hidden = () => control.columns.items().filter((column) => control.isHidden(column.key));
@@ -1663,54 +1663,68 @@ export function BoardHiddenList(
 
     return (
         <Show when={hidden().length > 0}>
-            <div
-                role="group"
-                aria-label={locale.render(t`Hidden columns`)}
-                data-slot="board-hidden-list"
-                {...rest}
-                {...style.attributes(
-                    [text.sm, styles.hiddenList, properties.xstyle],
-                    properties.style,
-                )}
-            >
-                <span {...style.attrs(styles.hiddenTitle)}>{locale.render(t`Hidden`)}</span>
-                <For each={hidden()}>
-                    {(column) => {
-                        // add the row as the place drags aim at for its column, once it mounts
-                        const [row, setRow] = createSignal<HTMLElement | undefined>(undefined, {
-                            ownedWrite: true,
-                        });
-                        control.addHiddenRow(column.key, row);
+            {renderPart("div", "board-hidden-list", rest, [text.sm, styles.hiddenList], {
+                role: "group" as const,
+                get "aria-label"() {
+                    return locale.render(t`Hidden columns`);
+                },
+                get children() {
+                    return (
+                        <>
+                            <span {...style.attrs(styles.hiddenTitle)}>
+                                {locale.render(t`Hidden`)}
+                            </span>
+                            <For each={hidden()}>
+                                {(column) => {
+                                    // add the row as the place drags aim at for its column, once it mounts
+                                    const [row, setRow] = createSignal<HTMLElement | undefined>(
+                                        undefined,
+                                        {
+                                            ownedWrite: true,
+                                        },
+                                    );
+                                    control.addHiddenRow(column.key, row);
 
-                        return (
-                            <div
-                                data-slot="board-hidden-column"
-                                ref={setRow}
-                                data-column={column.key}
-                                data-over={isAimed(column.key) ? "" : undefined}
-                                {...style.attrs(
-                                    styles.hiddenRow,
-                                    isAimed(column.key) && styles.hiddenRowAimed,
-                                )}
-                            >
-                                <span {...style.attrs(styles.hiddenLabel)}>{column.label()}</span>
-                                <span {...style.attrs(styles.count)}>
-                                    {locale.number(control.count(column.key))}
-                                </span>
-                                <button
-                                    type="button"
-                                    data-slot="board-column-show"
-                                    aria-label={locale.render(t`Show ${column.label()}`)}
-                                    onClick={() => control.toggleHidden(column.key)}
-                                    {...style.attrs(state.hover, styles.toggle, styles.end)}
-                                >
-                                    <Icon icon={eye} />
-                                </button>
-                            </div>
-                        );
-                    }}
-                </For>
-            </div>
+                                    return (
+                                        <div
+                                            data-slot="board-hidden-column"
+                                            ref={setRow}
+                                            data-column={column.key}
+                                            data-over={isAimed(column.key) ? "" : undefined}
+                                            {...style.attrs(
+                                                styles.hiddenRow,
+                                                isAimed(column.key) && styles.hiddenRowAimed,
+                                            )}
+                                        >
+                                            <span {...style.attrs(styles.hiddenLabel)}>
+                                                {column.label()}
+                                            </span>
+                                            <span {...style.attrs(styles.count)}>
+                                                {locale.number(control.count(column.key))}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                data-slot="board-column-show"
+                                                aria-label={locale.render(
+                                                    t`Show ${column.label()}`,
+                                                )}
+                                                onClick={() => control.toggleHidden(column.key)}
+                                                {...style.attrs(
+                                                    state.hover,
+                                                    styles.toggle,
+                                                    styles.end,
+                                                )}
+                                            >
+                                                <Icon icon={eye} />
+                                            </button>
+                                        </div>
+                                    );
+                                }}
+                            </For>
+                        </>
+                    );
+                },
+            })}
         </Show>
     );
 }
@@ -1775,15 +1789,9 @@ export function BoardColumn(properties: BoardColumnProperties): JSX.Element {
 export function BoardColumnHeader(
     properties: SortableElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
+    const rest = properties;
 
-    return (
-        <div
-            data-slot="board-column-header"
-            {...rest}
-            {...style.attributes([text.sm, styles.header, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "board-column-header", rest, [text.sm, styles.header]);
 }
 
 /** Render the nearest column's count of cards, against its limit where it has one. */
@@ -1794,7 +1802,7 @@ export function BoardColumnCount(
     const control = useBoard();
     const column = useBoardColumn();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
+    const rest = omit(properties, "children");
     const count = () => {
         const cards = locale.number(control.count(column.key));
         const limit = column.limit();
@@ -1802,23 +1810,24 @@ export function BoardColumnCount(
         return limit === undefined ? cards : locale.render(t`${cards} of ${locale.number(limit)}`);
     };
 
-    return (
-        <span
-            data-slot="board-column-count"
-            data-over={control.isOver(column.key) ? "" : undefined}
-            aria-label={
-                control.isOver(column.key)
+    return renderPart(
+        "span",
+        "board-column-count",
+        rest,
+        () => [styles.count, control.isOver(column.key) && styles.countOver],
+        {
+            get "data-over"() {
+                return control.isOver(column.key) ? "" : undefined;
+            },
+            get "aria-label"() {
+                return control.isOver(column.key)
                     ? locale.render(t`${count()}, over the limit`)
-                    : undefined
-            }
-            {...rest}
-            {...style.attributes(
-                [styles.count, control.isOver(column.key) && styles.countOver, properties.xstyle],
-                properties.style,
-            )}
-        >
-            {count()}
-        </span>
+                    : undefined;
+            },
+            get children() {
+                return count();
+            },
+        },
     );
 }
 
@@ -1867,18 +1876,28 @@ export function BoardColumnAdd(
     const control = useBoard();
     const column = useBoardColumn();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
     const composer = () => control.newComposerIn(column.key);
     let element: HTMLButtonElement | undefined;
 
     return (
         <Show when={composer()}>
-            {(id) => (
-                <button
-                    type="button"
-                    data-slot="board-column-add"
-                    aria-label={locale.render(t`New card in ${column.label()}`)}
-                    {...mergeProperties(
+            {(id) =>
+                renderPart(
+                    "button",
+                    "board-column-add",
+                    rest,
+                    () => [state.hover, styles.toggle, styles.action],
+                    mergeProperties(
+                        {
+                            type: "button" as const,
+                            get "aria-label"() {
+                                return locale.render(t`New card in ${column.label()}`);
+                            },
+                            get children() {
+                                return contentOr(properties, () => <Icon icon={plus} />);
+                            },
+                        },
                         {
                             ref: (created: HTMLButtonElement) => (element = created),
                             onClick: () =>
@@ -1890,16 +1909,9 @@ export function BoardColumnAdd(
                                     },
                                 }),
                         },
-                        rest,
-                    )}
-                    {...style.attributes(
-                        [state.hover, styles.toggle, styles.action, properties.xstyle],
-                        properties.style,
-                    )}
-                >
-                    {properties.children ?? <Icon icon={plus} />}
-                </button>
-            )}
+                    ),
+                )
+            }
         </Show>
     );
 }
@@ -1919,7 +1931,7 @@ export function BoardColumnHandle(properties: SortableHandleProperties): JSX.Ele
 export function BoardLane(properties: BoardLaneProperties): JSX.Element {
     // add the lane to the board's order of lanes
     const control = useBoard();
-    const rest = omit(properties, "id", "label", "xstyle", "style", "children");
+    const rest = omit(properties, "id", "label");
     let element: HTMLElement | undefined;
     const lane: BoardTrack = {
         key: untrack(() => properties.id),
@@ -1930,19 +1942,24 @@ export function BoardLane(properties: BoardLaneProperties): JSX.Element {
 
     return (
         <BoardLaneContext value={lane}>
-            <div
-                role="group"
-                aria-label={properties.label}
-                data-slot="board-lane"
-                data-collapsed={control.isLaneCollapsed(lane.key) ? "" : undefined}
-                {...mergeProperties(
+            {renderPart(
+                "div",
+                "board-lane",
+                rest,
+                styles.lane,
+                mergeProperties(
+                    {
+                        role: "group" as const,
+                        get "aria-label"() {
+                            return properties.label;
+                        },
+                        get "data-collapsed"() {
+                            return control.isLaneCollapsed(lane.key) ? "" : undefined;
+                        },
+                    },
                     { ref: (created: HTMLDivElement) => (element = created) },
-                    rest,
-                )}
-                {...style.attributes([styles.lane, properties.xstyle], properties.style)}
-            >
-                {properties.children}
-            </div>
+                ),
+            )}
         </BoardLaneContext>
     );
 }
@@ -1951,15 +1968,9 @@ export function BoardLane(properties: BoardLaneProperties): JSX.Element {
 export function BoardLaneHeader(
     properties: SortableElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
+    const rest = properties;
 
-    return (
-        <div
-            data-slot="board-lane-header"
-            {...rest}
-            {...style.attributes([text.sm, styles.laneHeader, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "board-lane-header", rest, [text.sm, styles.laneHeader]);
 }
 
 /** Render the button that collapses the nearest lane to its header, or expands it. */
@@ -1970,21 +1981,32 @@ export function BoardLaneCollapse(
     const control = useBoard();
     const lane = useBoardLane();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style", "children");
+    const rest = omit(properties, "children");
     const isCollapsed = () => control.isLaneCollapsed(lane.key);
     const label = () => (isCollapsed() ? t`Expand ${lane.label()}` : t`Collapse ${lane.label()}`);
 
-    return (
-        <button
-            type="button"
-            data-slot="board-lane-collapse"
-            aria-expanded={isCollapsed() ? "false" : "true"}
-            aria-label={locale.render(label())}
-            {...mergeProperties({ onClick: () => control.toggleLane(lane.key) }, rest)}
-            {...style.attributes([state.hover, styles.toggle, properties.xstyle], properties.style)}
-        >
-            {properties.children ?? <Icon icon={isCollapsed() ? caretRight : caretDown} />}
-        </button>
+    return renderPart(
+        "button",
+        "board-lane-collapse",
+        rest,
+        () => [state.hover, styles.toggle],
+        mergeProperties(
+            {
+                type: "button" as const,
+                get "aria-expanded"() {
+                    return isCollapsed() ? "false" : "true";
+                },
+                get "aria-label"() {
+                    return locale.render(label());
+                },
+                get children() {
+                    return contentOr(properties, () => (
+                        <Icon icon={isCollapsed() ? caretRight : caretDown} />
+                    ));
+                },
+            },
+            { onClick: () => control.toggleLane(lane.key) },
+        ),
     );
 }
 
@@ -1995,22 +2017,12 @@ export function BoardLaneRow(
     // hide the cells while the nearest lane is collapsed
     const control = useBoard();
     const lane = useBoardLane();
-    const rest = omit(properties, "xstyle", "style");
+    const rest = properties;
 
-    return (
-        <div
-            data-slot="board-lane-row"
-            {...rest}
-            {...style.attributes(
-                [
-                    styles.laneCells,
-                    control.isLaneCollapsed(lane.key) && styles.hidden,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        />
-    );
+    return renderPart("div", "board-lane-row", rest, () => [
+        styles.laneCells,
+        control.isLaneCollapsed(lane.key) && styles.hidden,
+    ]);
 }
 
 /** Render a lane's cell under a column, around its cards and composer. */
@@ -2019,25 +2031,21 @@ export function BoardLaneCell(properties: BoardLaneCellProperties): JSX.Element 
     const control = useBoard();
     const lane = useBoardLane();
     const cell: BoardCell = { column: untrack(() => properties.column), lane: lane.key };
-    const rest = omit(properties, "column", "xstyle", "style", "children");
+    const rest = omit(properties, "column");
 
     return (
         <BoardCellContext value={cell}>
-            <div
-                data-slot="board-lane-cell"
-                data-hidden={control.isHidden(cell.column) ? "" : undefined}
-                {...rest}
-                {...style.attributes(
-                    [
-                        styles.cell,
-                        control.isHidden(cell.column) && styles.hidden,
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            >
-                {properties.children}
-            </div>
+            {renderPart(
+                "div",
+                "board-lane-cell",
+                rest,
+                () => [styles.cell, control.isHidden(cell.column) && styles.hidden],
+                {
+                    get "data-hidden"() {
+                        return control.isHidden(cell.column) ? "" : undefined;
+                    },
+                },
+            )}
         </BoardCellContext>
     );
 }
@@ -2122,7 +2130,7 @@ export function BoardComposer(properties: BoardComposerProperties): JSX.Element 
     }
     control.addComposer(cell, position);
     const isOpen = () => control.composing()?.composer === id;
-    const rest = omit(properties, "position", "xstyle", "style", "children");
+    const rest = omit(properties, "position", "children");
     let button: HTMLButtonElement | undefined;
 
     // write a card on Enter, a blank field writing none, and stay open for the next
@@ -2166,10 +2174,23 @@ export function BoardComposer(properties: BoardComposerProperties): JSX.Element 
             when={!control.isHidden(cell.column) && isOpen()}
             fallback={
                 <Show when={!control.isHidden(cell.column) && position === "end"}>
-                    <button
-                        type="button"
-                        data-slot="board-composer-open"
-                        {...mergeProperties(
+                    {renderPart(
+                        "button",
+                        "board-composer-open",
+                        rest,
+                        () => [text.sm, state.hover, styles.add],
+                        mergeProperties(
+                            {
+                                type: "button" as const,
+                                get children() {
+                                    return contentOr(properties, () => (
+                                        <>
+                                            <Icon icon={plus} />
+                                            {locale.render(t`New`)}
+                                        </>
+                                    ));
+                                },
+                            },
                             {
                                 ref: (created: HTMLButtonElement) => (button = created),
                                 onClick: () => {
@@ -2182,20 +2203,8 @@ export function BoardComposer(properties: BoardComposerProperties): JSX.Element 
                                     });
                                 },
                             },
-                            rest,
-                        )}
-                        {...style.attributes(
-                            [text.sm, state.hover, styles.add, properties.xstyle],
-                            properties.style,
-                        )}
-                    >
-                        {properties.children ?? (
-                            <>
-                                <Icon icon={plus} />
-                                {locale.render(t`New`)}
-                            </>
-                        )}
-                    </button>
+                        ),
+                    )}
                 </Show>
             }
         >

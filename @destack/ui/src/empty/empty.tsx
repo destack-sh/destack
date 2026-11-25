@@ -93,16 +93,13 @@ export function EmptyHeader(properties: EmptyElementProperties): JSX.Element {
 /** Render an empty state's icon, avatar or picture. */
 export function EmptyMedia(properties: EmptyMediaProperties): JSX.Element {
     const media = merge(DEFAULTS, properties);
-    const rest = omit(media, "variant", "xstyle", "style");
+    const rest = omit(media, "variant");
 
-    return (
-        <div
-            data-slot="empty-media"
-            data-variant={media.variant}
-            {...rest}
-            {...style.attributes([styles.media, medias[media.variant], media.xstyle], media.style)}
-        />
-    );
+    return renderPart("div", "empty-media", rest, () => [styles.media, medias[media.variant]], {
+        get "data-variant"() {
+            return media.variant;
+        },
+    });
 }
 
 /** Render the title of an empty state. */

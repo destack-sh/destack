@@ -51,7 +51,12 @@ import { scrim } from "../dialog/scrim.stylex.ts";
 import { Icon } from "../icon/index.ts";
 import { Move, Zoom } from "../interaction/index.ts";
 import { OpenChange } from "../layer/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { LayoutAnimation } from "../motion/index.ts";
 import { useViewer, ViewerContext, type ViewerControl, type ViewerState } from "./control.ts";
 import { FIT, type Frame, type Place, type Point } from "./scale.ts";
@@ -451,8 +456,8 @@ export function ViewerCount(properties: DialogElementProperties<HTMLSpanElement>
     return renderPart("span", "viewer-count", properties, styles.count, {
         role: "status",
         get children() {
-            return (
-                properties.children ?? locale.render(t`${viewer.index() + 1} of ${viewer.count()}`)
+            return contentOr(properties, () =>
+                locale.render(t`${viewer.index() + 1} of ${viewer.count()}`),
             );
         },
     });
@@ -478,7 +483,9 @@ export function ViewerClose(properties: ButtonProperties): JSX.Element {
             )}
             xstyle={[styles.action, properties.xstyle]}
         >
-            {properties.children ?? <Icon icon={xIcon} />}
+            {contentOr(properties, () => (
+                <Icon icon={xIcon} />
+            ))}
         </Button>
     );
 }

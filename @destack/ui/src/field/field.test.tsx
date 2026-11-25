@@ -34,7 +34,7 @@ test("connect the label and description to the control by id", () => {
 
     // the label points at the control, and the control names its description
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical"><label id="id-1" data-slot="field-label" for="id-2">Email</label><input data-slot="input" id="id-2" type="email" aria-describedby="id-3"><p data-slot="field-description" id="id-3">Used to sign in.</p></div>',
+        '<div data-slot="field" role="group" data-orientation="vertical"><label id="id-1" data-slot="field-label" for="id-2">Email</label><input data-slot="input" id="id-2" type="email" aria-describedby="id-3"><p data-slot="field-description" id="id-3">Used to sign in.</p></div>',
     );
 });
 
@@ -54,15 +54,15 @@ test("mark an invalid field's control and describe it by its error", () => {
 
     // without errors the error renders nothing and the control names no description
     expect(valid).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical"><label id="id-1" data-slot="field-label" for="id-2">Title</label><textarea data-slot="textarea" id="id-2"></textarea></div>',
+        '<div data-slot="field" role="group" data-orientation="vertical"><label id="id-1" data-slot="field-label" for="id-2">Title</label><textarea data-slot="textarea" id="id-2"></textarea></div>',
     );
 
     // with an error the field, control and alert change together
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical" data-invalid="">' +
+        '<div data-slot="field" role="group" data-orientation="vertical" data-invalid="">' +
             '<label id="id-1" data-slot="field-label" for="id-2">Title</label>' +
             '<textarea data-slot="textarea" id="id-2" aria-describedby="id-3" aria-invalid="true"></textarea>' +
-            '<div id="id-3" role="alert" data-slot="field-error">enter a title</div></div>',
+            '<div data-slot="field-error" id="id-3" role="alert">enter a title</div></div>',
     );
     expect(classes(container)).toEqual(validClasses);
 });
@@ -81,7 +81,7 @@ test("drop a cleared error from the control's descriptions", () => {
 
     // the description stays and the error leaves
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical">' +
+        '<div data-slot="field" role="group" data-orientation="vertical">' +
             '<input data-slot="input" id="id-1" aria-describedby="id-2">' +
             '<p data-slot="field-description" id="id-2">Shown on the page.</p></div>',
     );
@@ -102,8 +102,8 @@ test("list several errors once each, and children before errors", () => {
         </>
     ));
     expect(markup(container)).toBe(
-        '<div id="id-1" role="alert" data-slot="field-error"><ul><li>too short</li><li>no digit</li></ul></div>' +
-            '<div id="id-2" role="alert" data-slot="field-error">try another password</div>',
+        '<div data-slot="field-error" id="id-1" role="alert"><ul><li>too short</li><li>no digit</li></ul></div>' +
+            '<div data-slot="field-error" id="id-2" role="alert">try another password</div>',
     );
 });
 
@@ -115,7 +115,7 @@ test("disable a disabled field's control", () => {
         </Field>
     ));
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical" data-disabled=""><label id="id-1" data-slot="field-label" for="id-2">Name</label><input data-slot="input" id="id-2" disabled=""></div>',
+        '<div data-slot="field" role="group" data-orientation="vertical" data-disabled=""><label id="id-1" data-slot="field-label" for="id-2">Name</label><input data-slot="input" id="id-2" disabled=""></div>',
     );
 });
 
@@ -155,7 +155,7 @@ test("prefer a control's attributes over its field's", () => {
         </Field>
     ));
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical">' +
+        '<div data-slot="field" role="group" data-orientation="vertical">' +
             '<input data-slot="input" id="name" aria-describedby="hint"></div>',
     );
 });
@@ -178,7 +178,7 @@ test("render a fieldset of grouped fields with a legend, title and separator", (
     expect(markup(container)).toBe(
         '<fieldset data-slot="field-set"><legend data-slot="field-legend" data-variant="label">Notifications</legend>' +
             '<div data-slot="field-group">' +
-            '<div role="group" data-slot="field" data-orientation="horizontal"><div data-slot="field-content">' +
+            '<div data-slot="field" role="group" data-orientation="horizontal"><div data-slot="field-content">' +
             '<div data-slot="field-label">Mentions</div></div></div>' +
             '<div data-slot="field-separator" data-content="">' +
             '<div data-slot="separator" data-orientation="horizontal" role="none"></div>' +

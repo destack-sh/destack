@@ -1,5 +1,5 @@
 import smileyIcon from "@destack/icon/phosphor/smiley";
-import { createSignal, type JSX } from "@destack/view";
+import { createSignal, type JSX, merge } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { EmojiPicker, EmojiPickerContent, EmojiPickerSearch } from "../emoji-picker/index.ts";
 import { Icon } from "../icon/index.ts";
@@ -22,13 +22,16 @@ export function EmojiButton(properties: {
             <PopoverTrigger
                 render={(attributes) => {
                     // fill the button the caller renders, or a round one
-                    const button: ButtonProperties = {
-                        ...attributes,
-                        variant: "ghost",
-                        size: "icon-sm",
-                        "aria-label": properties.label,
-                        children: <Icon icon={smileyIcon} />,
-                    };
+                    const button: ButtonProperties = merge(attributes, {
+                        variant: "ghost" as const,
+                        size: "icon-sm" as const,
+                        get "aria-label"() {
+                            return properties.label;
+                        },
+                        get children() {
+                            return <Icon icon={smileyIcon} />;
+                        },
+                    });
 
                     return properties.render?.(button) ?? <Button {...button} shape="round" />;
                 }}

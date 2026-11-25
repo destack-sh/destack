@@ -9,7 +9,13 @@ import { color, motion, radius, size, space, stroke } from "@destack/theme/token
 import { For, type JSX, omit, onSettled, Show, useLocale } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+    type Render,
+} from "../part/index.ts";
 import { Slider, type SliderProperties } from "../slider/index.ts";
 import {
     CropperContext,
@@ -277,17 +283,18 @@ export function CropperViewport(properties: CropperElementProperties): JSX.Eleme
 /** The properties of the image, the native element's attributes included. */
 export type CropperImageProperties = Omit<
     JSX.ImgHTMLAttributes<HTMLImageElement>,
-    "class" | "style" | "ref"
+    "class" | "style"
 > & {
     /** The StyleX styles applied after the image's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 };
 
 /** Render the image as it stands, turned, mirrored and zoomed. */
 export function CropperImage(properties: CropperImageProperties): JSX.Element {
     // put its middle where the turned one's is
     const control = useCropper();
-    const rest = omit(properties, "xstyle");
     const placed = () => {
         // place it by its middle
         const image = control.image() ?? { width: 0, height: 0 };
@@ -304,25 +311,25 @@ export function CropperImage(properties: CropperImageProperties): JSX.Element {
         );
     };
 
-    return (
-        <img
-            alt=""
-            draggable={false}
-            data-slot="cropper-image"
-            {...rest}
-            ref={(element) => {
-                // take one that loaded before, such as from the browser's store
-                if (element.complete && element.naturalWidth > 0) {
-                    control.load(element);
-                }
-            }}
-            onLoad={(event) => control.load(event.currentTarget)}
-            {...style.attrs(
-                styles.image,
-                control.image() === undefined ? styles.waiting : placed(),
-                properties.xstyle,
-            )}
-        />
+    // leave one without a size of its own, such as some drawings
+    const load = (element: HTMLImageElement): void => {
+        if (element.naturalWidth > 0 && element.naturalHeight > 0) {
+            control.load(element);
+        }
+    };
+
+    return renderPart(
+        "img",
+        "cropper-image",
+        properties,
+        () => [styles.image, control.image() === undefined ? styles.waiting : placed()],
+        {
+            alt: "",
+            draggable: false,
+            // take one that loaded before too, such as from the browser's store
+            ref: (element: HTMLImageElement) => (element.complete ? load(element) : undefined),
+            onLoad: (event) => load(event.currentTarget),
+        },
     );
 }
 
@@ -391,18 +398,16 @@ export function CropperSelection(properties: CropperSelectionProperties): JSX.El
                     },
                     onKeyDown: (event: KeyboardEvent) => press(event, control),
                     get children() {
-                        return (
-                            properties.children ?? (
-                                <>
-                                    <CropperGrid />
-                                    <Show when={!isFixed()}>
-                                        <For each={POSITIONS}>
-                                            {(position) => <CropperHandle position={position} />}
-                                        </For>
-                                    </Show>
-                                </>
-                            )
-                        );
+                        return contentOr(properties, () => (
+                            <>
+                                <CropperGrid />
+                                <Show when={!isFixed()}>
+                                    <For each={POSITIONS}>
+                                        {(position) => <CropperHandle position={position} />}
+                                    </For>
+                                </Show>
+                            </>
+                        ));
                     },
                 },
             )}
@@ -512,13 +517,13 @@ export function CropperRotate(
             disabled={control.options.disabled === true}
             {...mergeProperties({ onClick: () => control.rotate(properties.direction) }, rest)}
         >
-            {properties.children ?? (
+            {contentOr(properties, () => (
                 <Icon
                     icon={
                         properties.direction === -1 ? arrowCounterClockwiseIcon : arrowClockwiseIcon
                     }
                 />
-            )}
+            ))}
         </Button>
     );
 }
@@ -545,9 +550,9 @@ export function CropperFlip(
             disabled={control.options.disabled === true}
             {...mergeProperties({ onClick: () => control.flip(properties.axis) }, rest)}
         >
-            {properties.children ?? (
+            {contentOr(properties, () => (
                 <Icon icon={isVertical() ? flipVerticalIcon : flipHorizontalIcon} />
-            )}
+            ))}
         </Button>
     );
 }

@@ -41,7 +41,7 @@ import { createElementSize, createResizeObserver } from "@destack/view/primitive
 import { Length } from "../virtualizer/index.ts";
 import { Draggable, type DragStep, type DragTarget, Droppable } from "../drag/index.ts";
 import { Sweep } from "../interaction/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import { EventCalendarBackground, EventCalendarEvent, placement } from "./chip.tsx";
 import {
     COLUMNS,
@@ -443,7 +443,7 @@ export function EventCalendarTime(properties: EventCalendarPartProperties): JSX.
 function TimeView(properties: EventCalendarPartProperties): JSX.Element {
     // show the days there is room for
     const control = useEventCalendar();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const locale = useLocale();
     const paging = new Paging(control, () => locale.direction === "rtl");
     const [grid, setGrid] = createSignal<HTMLElement>();
@@ -464,25 +464,31 @@ function TimeView(properties: EventCalendarPartProperties): JSX.Element {
         },
     );
 
-    return (
-        <div
-            data-slot="event-calendar-time"
-            {...mergeProperties(mergeProperties({ ref: setGrid }, paging.attributes()), rest)}
-            {...style.attributes(
-                [styles.grid, paging.style(), properties.xstyle],
-                properties.style,
-            )}
-        >
-            {properties.children ?? (
-                <>
-                    <EventCalendarResourceHeader />
-                    <EventCalendarDayHeader />
-                    <EventCalendarAllDay />
-                    <EventCalendarTimeGrid />
-                </>
-            )}
-            {unit.render()}
-        </div>
+    return renderPart(
+        "div",
+        "event-calendar-time",
+        rest,
+        () => [styles.grid, paging.style()],
+        mergeProperties(
+            {
+                get children() {
+                    return (
+                        <>
+                            {contentOr(properties, () => (
+                                <>
+                                    <EventCalendarResourceHeader />
+                                    <EventCalendarDayHeader />
+                                    <EventCalendarAllDay />
+                                    <EventCalendarTimeGrid />
+                                </>
+                            ))}
+                            {unit.render()}
+                        </>
+                    );
+                },
+            },
+            mergeProperties({ ref: setGrid }, paging.attributes()),
+        ),
     );
 }
 
@@ -490,42 +496,44 @@ function TimeView(properties: EventCalendarPartProperties): JSX.Element {
 export function EventCalendarResourceHeader(properties: EventCalendarPartProperties): JSX.Element {
     // label each resource across its shown days
     const control = useEventCalendar();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
     return (
         <Show when={(control.options.resources ?? []).length > 0}>
-            <div
-                data-slot="event-calendar-resource-header"
-                {...rest}
-                {...style.attributes(
-                    [
-                        styles.row,
-                        places.columns(control.columns().length, control.zones().length),
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            >
-                <For each={control.options.resources ?? []}>
-                    {(resource, index) => (
-                        <span
-                            data-slot="event-calendar-resource"
-                            data-resource={resource.key}
-                            {...style.attrs(
-                                text.sm,
-                                styles.resource,
-                                places.span(
-                                    index() * control.days().length + 2,
-                                    control.days().length,
-                                    1,
-                                ),
-                            )}
-                        >
-                            {resource.label}
-                        </span>
-                    )}
-                </For>
-            </div>
+            {renderPart(
+                "div",
+                "event-calendar-resource-header",
+                rest,
+                () => [
+                    styles.row,
+                    places.columns(control.columns().length, control.zones().length),
+                ],
+                {
+                    get children() {
+                        return (
+                            <For each={control.options.resources ?? []}>
+                                {(resource, index) => (
+                                    <span
+                                        data-slot="event-calendar-resource"
+                                        data-resource={resource.key}
+                                        {...style.attrs(
+                                            text.sm,
+                                            styles.resource,
+                                            places.span(
+                                                index() * control.days().length + 2,
+                                                control.days().length,
+                                                1,
+                                            ),
+                                        )}
+                                    >
+                                        {resource.label}
+                                    </span>
+                                )}
+                            </For>
+                        );
+                    },
+                },
+            )}
         </Show>
     );
 }
@@ -537,67 +545,68 @@ export function EventCalendarDayHeader(
     // head each shown day, the week of the year above the hour labels
     const control = useEventCalendar();
     const locale = useLocale();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            data-slot="event-calendar-day-header"
-            {...rest}
-            {...style.attributes(
-                [
-                    styles.row,
-                    places.columns(control.columns().length, control.zones().length),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {/* The week of the year and the zones' labels above the hour labels */}
-            <div {...style.attrs(text.xs, styles.gutter, places.column(1))}>
-                <Show when={control.options.weekNumbers === true}>
-                    <span
-                        data-slot="event-calendar-week-number"
-                        {...style.attrs(styles.weekNumber)}
-                    >
-                        {locale.render(control.weekNumber(nth(control.days(), 0)))}
-                    </span>
-                </Show>
-                <Show when={control.zones().length > 1}>
-                    <div {...style.attrs(styles.zones)}>
-                        <For each={control.zones()}>
-                            {(zone) => (
+    return renderPart(
+        "div",
+        "event-calendar-day-header",
+        rest,
+        () => [styles.row, places.columns(control.columns().length, control.zones().length)],
+        {
+            get children() {
+                return (
+                    <>
+                        {/* The week of the year and the zones' labels above the hour labels */}
+                        <div {...style.attrs(text.xs, styles.gutter, places.column(1))}>
+                            <Show when={control.options.weekNumbers === true}>
                                 <span
-                                    data-slot="event-calendar-zone"
-                                    data-zone={zone.zone}
-                                    {...style.attrs(styles.zoneLabel)}
+                                    data-slot="event-calendar-week-number"
+                                    {...style.attrs(styles.weekNumber)}
                                 >
-                                    {zone.label ?? zoneName(zone.zone)}
+                                    {locale.render(control.weekNumber(nth(control.days(), 0)))}
                                 </span>
-                            )}
-                        </For>
-                    </div>
-                </Show>
-            </div>
-            <For each={control.columns()}>
-                {(column, index) => {
-                    const day = {
-                        day: column.day,
-                        index,
-                        ...(column.resource === undefined ? {} : { resource: column.resource }),
-                    };
+                            </Show>
+                            <Show when={control.zones().length > 1}>
+                                <div {...style.attrs(styles.zones)}>
+                                    <For each={control.zones()}>
+                                        {(zone) => (
+                                            <span
+                                                data-slot="event-calendar-zone"
+                                                data-zone={zone.zone}
+                                                {...style.attrs(styles.zoneLabel)}
+                                            >
+                                                {zone.label ?? zoneName(zone.zone)}
+                                            </span>
+                                        )}
+                                    </For>
+                                </div>
+                            </Show>
+                        </div>
+                        <For each={control.columns()}>
+                            {(column, index) => {
+                                const day = {
+                                    day: column.day,
+                                    index,
+                                    ...(column.resource === undefined
+                                        ? {}
+                                        : { resource: column.resource }),
+                                };
 
-                    return (
-                        <EventCalendarDayContext value={day}>
-                            {properties.children === undefined ? (
-                                <EventCalendarDayHeading />
-                            ) : (
-                                properties.children(day)
-                            )}
-                        </EventCalendarDayContext>
-                    );
-                }}
-            </For>
-        </div>
+                                return (
+                                    <EventCalendarDayContext value={day}>
+                                        {properties.children === undefined ? (
+                                            <EventCalendarDayHeading />
+                                        ) : (
+                                            properties.children(day)
+                                        )}
+                                    </EventCalendarDayContext>
+                                );
+                            }}
+                        </For>
+                    </>
+                );
+            },
+        },
     );
 }
 
@@ -612,35 +621,35 @@ export function EventCalendarDayHeading(
     const control = useEventCalendar();
     const locale = useLocale();
     const { day, index } = useEventCalendarDay();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const isToday = () => PlainDate.equals(day, control.today());
 
-    return (
-        <button
-            type="button"
-            data-slot="event-calendar-heading"
-            data-today={isToday() ? "" : undefined}
-            {...mergeProperties({ onClick: () => control.open(day) }, rest)}
-            {...style.attributes(
-                [
-                    text.xs,
-                    state.hover,
-                    styles.heading,
-                    places.column(index() + 2),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {properties.children ?? (
-                <>
-                    {locale.plainDate(day, { weekday: "short" })}
-                    <span {...style.attrs(text.lg, styles.date, isToday() && state.checked)}>
-                        {locale.number(PlainDate.day(day))}
-                    </span>
-                </>
-            )}
-        </button>
+    return renderPart(
+        "button",
+        "event-calendar-heading",
+        rest,
+        () => [text.xs, state.hover, styles.heading, places.column(index() + 2)],
+        mergeProperties(
+            {
+                type: "button" as const,
+                get "data-today"() {
+                    return isToday() ? "" : undefined;
+                },
+                get children() {
+                    return contentOr(properties, () => (
+                        <>
+                            {locale.plainDate(day, { weekday: "short" })}
+                            <span
+                                {...style.attrs(text.lg, styles.date, isToday() && state.checked)}
+                            >
+                                {locale.number(PlainDate.day(day))}
+                            </span>
+                        </>
+                    ));
+                },
+            },
+            { onClick: () => control.open(day) },
+        ),
     );
 }
 
@@ -649,7 +658,7 @@ export function EventCalendarAllDay(properties: EventCalendarPartProperties): JS
     // read the shown days and their whole-day events, stacked in rows
     const control = useEventCalendar();
     const locale = useLocale();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const days = createMemo(() => control.days());
 
     // stack each resource's whole-day events over its days, or every event without resources
@@ -732,53 +741,60 @@ export function EventCalendarAllDay(properties: EventCalendarPartProperties): JS
         control.manager,
     );
 
-    return (
-        <div
-            data-slot="event-calendar-all-day"
-            {...mergeProperties({ ref: (created: HTMLDivElement) => (row = created) }, rest)}
-            {...style.attributes(
-                [
-                    styles.row,
-                    styles.allDay,
-                    places.columns(control.columns().length, control.zones().length),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {/* Whole days shaded behind the events */}
-            <For each={shades()}>
-                {(shade) => {
-                    const columns = () => Segment.columns(shade.segment, days());
-
+    return renderPart(
+        "div",
+        "event-calendar-all-day",
+        rest,
+        () => [
+            styles.row,
+            styles.allDay,
+            places.columns(control.columns().length, control.zones().length),
+        ],
+        mergeProperties(
+            {
+                get children() {
                     return (
-                        <EventCalendarBackground
-                            event={control.eventOf(shade.segment.key)}
-                            xstyle={places.shade(
-                                shade.offset + columns().start + 2,
-                                columns().span,
-                                levels(),
-                            )}
-                        />
-                    );
-                }}
-            </For>
+                        <>
+                            {/* Whole days shaded behind the events */}
+                            <For each={shades()}>
+                                {(shade) => {
+                                    const columns = () => Segment.columns(shade.segment, days());
 
-            {/* Events */}
-            <For
-                each={stacked()}
-                keyed={(each) => `${control.segmentKey(each.segment)} ${String(each.resource)}`}
-            >
-                {(each) => (
-                    <AllDayEvent
-                        segment={each().segment}
-                        days={days()}
-                        offset={each().offset}
-                        resource={each().resource}
-                    />
-                )}
-            </For>
-        </div>
+                                    return (
+                                        <EventCalendarBackground
+                                            event={control.eventOf(shade.segment.key)}
+                                            xstyle={places.shade(
+                                                shade.offset + columns().start + 2,
+                                                columns().span,
+                                                levels(),
+                                            )}
+                                        />
+                                    );
+                                }}
+                            </For>
+
+                            {/* Events */}
+                            <For
+                                each={stacked()}
+                                keyed={(each) =>
+                                    `${control.segmentKey(each.segment)} ${String(each.resource)}`
+                                }
+                            >
+                                {(each) => (
+                                    <AllDayEvent
+                                        segment={each().segment}
+                                        days={days()}
+                                        offset={each().offset}
+                                        resource={each().resource}
+                                    />
+                                )}
+                            </For>
+                        </>
+                    );
+                },
+            },
+            { ref: (created: HTMLDivElement) => (row = created) },
+        ),
     );
 }
 
@@ -786,7 +802,7 @@ export function EventCalendarAllDay(properties: EventCalendarPartProperties): JS
 export function EventCalendarTimeGrid(properties: EventCalendarPartProperties): JSX.Element {
     // read the hour height and the shown days the grid lays out
     const control = useEventCalendar();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
     // open on the working day's start once the hours have a height
     const [scroller, setScroller] = createSignal<HTMLElement>();
@@ -800,27 +816,34 @@ export function EventCalendarTimeGrid(properties: EventCalendarPartProperties): 
         element.scrollTop = (element.scrollHeight * minutes) / (DAY_HOURS * HOUR_MINUTES);
     });
 
-    return (
-        <div
-            data-slot="event-calendar-time-grid"
-            {...mergeProperties({ ref: setScroller }, rest)}
-            {...style.attributes([styles.scroller, properties.xstyle], properties.style)}
-        >
-            <div
-                {...style.attrs(
-                    styles.body,
-                    places.hours(control.options.hourHeight ?? HOUR_HEIGHT),
-                    places.columns(control.columns().length, control.zones().length),
-                )}
-            >
-                {properties.children ?? (
-                    <>
-                        <EventCalendarTimeAxis />
-                        <EventCalendarDayColumnList />
-                    </>
-                )}
-            </div>
-        </div>
+    return renderPart(
+        "div",
+        "event-calendar-time-grid",
+        rest,
+        styles.scroller,
+        mergeProperties(
+            {
+                get children() {
+                    return (
+                        <div
+                            {...style.attrs(
+                                styles.body,
+                                places.hours(control.options.hourHeight ?? HOUR_HEIGHT),
+                                places.columns(control.columns().length, control.zones().length),
+                            )}
+                        >
+                            {contentOr(properties, () => (
+                                <>
+                                    <EventCalendarTimeAxis />
+                                    <EventCalendarDayColumnList />
+                                </>
+                            ))}
+                        </div>
+                    );
+                },
+            },
+            { ref: setScroller },
+        ),
     );
 }
 
@@ -829,7 +852,7 @@ export function EventCalendarTimeAxis(properties: EventCalendarPartProperties): 
     // mark each local hour of the day, a daylight-saving day showing 23 or 25
     const control = useEventCalendar();
     const locale = useLocale();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const scale = () => control.dayScale(nth(control.days(), 0));
     const ticks = () =>
         control
@@ -867,60 +890,58 @@ export function EventCalendarTimeAxis(properties: EventCalendarPartProperties): 
         return current !== undefined && Math.abs(shareOf(current) - shareOfTick(at)) < reach;
     };
 
-    return (
-        <div
-            aria-hidden="true"
-            data-slot="event-calendar-time-axis"
-            {...rest}
-            {...style.attributes([styles.zones, properties.xstyle], properties.style)}
-        >
-            <For each={control.zones()}>
-                {(zone) => (
-                    <div
-                        data-slot="event-calendar-zone-hours"
-                        data-zone={zone.zone}
-                        {...style.attrs(styles.hours)}
-                    >
-                        <For each={ticks()}>
-                            {(tick) => (
-                                <span
-                                    {...style.attrs(
-                                        text.xs,
-                                        styles.hour,
-                                        isCovered(tick.at) && styles.covered,
-                                        places.at(shareOfTick(tick.at)),
-                                    )}
-                                >
-                                    {format(tick.at, zone.zone, false)}
-                                </span>
-                            )}
-                        </For>
-                        <Show when={marked()}>
-                            {(current) => (
-                                <span
-                                    data-slot={
-                                        control.hovered() === undefined
-                                            ? "event-calendar-now-label"
-                                            : "event-calendar-hover-label"
-                                    }
-                                    {...style.attrs(
-                                        text.xs,
-                                        styles.hour,
-                                        control.hovered() === undefined
-                                            ? styles.nowLabel
-                                            : styles.hoverLabel,
-                                        places.at(shareOf(current())),
-                                    )}
-                                >
-                                    {format(current(), zone.zone, true)}
-                                </span>
-                            )}
-                        </Show>
-                    </div>
-                )}
-            </For>
-        </div>
-    );
+    return renderPart("div", "event-calendar-time-axis", rest, styles.zones, {
+        "aria-hidden": "true" as const,
+        get children() {
+            return (
+                <For each={control.zones()}>
+                    {(zone) => (
+                        <div
+                            data-slot="event-calendar-zone-hours"
+                            data-zone={zone.zone}
+                            {...style.attrs(styles.hours)}
+                        >
+                            <For each={ticks()}>
+                                {(tick) => (
+                                    <span
+                                        {...style.attrs(
+                                            text.xs,
+                                            styles.hour,
+                                            isCovered(tick.at) && styles.covered,
+                                            places.at(shareOfTick(tick.at)),
+                                        )}
+                                    >
+                                        {format(tick.at, zone.zone, false)}
+                                    </span>
+                                )}
+                            </For>
+                            <Show when={marked()}>
+                                {(current) => (
+                                    <span
+                                        data-slot={
+                                            control.hovered() === undefined
+                                                ? "event-calendar-now-label"
+                                                : "event-calendar-hover-label"
+                                        }
+                                        {...style.attrs(
+                                            text.xs,
+                                            styles.hour,
+                                            control.hovered() === undefined
+                                                ? styles.nowLabel
+                                                : styles.hoverLabel,
+                                            places.at(shareOf(current())),
+                                        )}
+                                    >
+                                        {format(current(), zone.zone, true)}
+                                    </span>
+                                )}
+                            </Show>
+                        </div>
+                    )}
+                </For>
+            );
+        },
+    });
 }
 
 /** Render a line across a column at the wall time under the pointer, in every zone. */
@@ -928,7 +949,7 @@ export function EventCalendarHoverLine(properties: EventCalendarPartProperties):
     // take the pointer's wall time on this column's day
     const control = useEventCalendar();
     const column = useEventCalendarColumn();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const at = () => {
         const hovered = control.hovered();
         const zone = control.timeZone();
@@ -940,21 +961,15 @@ export function EventCalendarHoverLine(properties: EventCalendarPartProperties):
 
     return (
         <Show when={at()}>
-            {(current) => (
-                <div
-                    data-slot="event-calendar-hover-line"
-                    aria-hidden="true"
-                    {...rest}
-                    {...style.attributes(
-                        [
-                            styles.hoverLine,
-                            places.at(control.wallShare(column.day, current())),
-                            properties.xstyle,
-                        ],
-                        properties.style,
-                    )}
-                />
-            )}
+            {(current) =>
+                renderPart(
+                    "div",
+                    "event-calendar-hover-line",
+                    rest,
+                    () => [styles.hoverLine, places.at(control.wallShare(column.day, current()))],
+                    { "aria-hidden": "true" as const },
+                )
+            }
         </Show>
     );
 }
@@ -1020,7 +1035,7 @@ export function EventCalendarColumn(properties: EventCalendarPartProperties): JS
     );
     const column = new EventCalendarColumnControl(control, day, resource, sweep.span);
     const scale = () => column.scale();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     let element: HTMLElement | undefined;
     let bounds: DOMRect | undefined;
 
@@ -1096,10 +1111,29 @@ export function EventCalendarColumn(properties: EventCalendarPartProperties): JS
 
     return (
         <EventCalendarColumnContext value={column}>
-            <div
-                data-slot="event-calendar-column"
-                data-date={day}
-                {...mergeProperties(
+            {renderPart(
+                "div",
+                "event-calendar-column",
+                rest,
+                () => [styles.column, places.column(index() + 2)],
+                mergeProperties(
+                    {
+                        "data-date": day,
+                        get children() {
+                            return contentOr(properties, () => (
+                                <>
+                                    <EventCalendarNonWorking />
+                                    <EventCalendarHourGrid />
+                                    <EventCalendarHoverLine />
+                                    <EventCalendarColumnContent />
+                                    <EventCalendarAvailability />
+                                    <EventCalendarSweep />
+                                    <EventCalendarLanding />
+                                    <EventCalendarNow />
+                                </>
+                            ));
+                        },
+                    },
                     mergeProperties(
                         {
                             ref: (created: HTMLDivElement) => (element = created),
@@ -1115,26 +1149,8 @@ export function EventCalendarColumn(properties: EventCalendarPartProperties): JS
                         },
                         sweep.attributes(),
                     ),
-                    rest,
-                )}
-                {...style.attributes(
-                    [styles.column, places.column(index() + 2), properties.xstyle],
-                    properties.style,
-                )}
-            >
-                {properties.children ?? (
-                    <>
-                        <EventCalendarNonWorking />
-                        <EventCalendarHourGrid />
-                        <EventCalendarHoverLine />
-                        <EventCalendarColumnContent />
-                        <EventCalendarAvailability />
-                        <EventCalendarSweep />
-                        <EventCalendarLanding />
-                        <EventCalendarNow />
-                    </>
-                )}
-            </div>
+                ),
+            )}
         </EventCalendarColumnContext>
     );
 }
@@ -1168,27 +1184,24 @@ export function EventCalendarNonWorking(properties: EventCalendarPartProperties)
     // shade each span of the day the working hours leave out
     const control = useEventCalendar();
     const column = useEventCalendarColumn();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const spans = createMemo(() => control.calendar().nonWorking(column.scale()));
 
     return (
         <For each={spans()} keyed={(span) => span.start}>
-            {(span) => (
-                <div
-                    data-slot="event-calendar-non-working"
-                    aria-hidden="true"
-                    {...rest}
-                    {...style.attributes(
-                        [
-                            styles.shade,
-                            styles.nonWorking,
-                            places.box(column.box(span()).top, column.box(span()).height, 0, 1),
-                            properties.xstyle,
-                        ],
-                        properties.style,
-                    )}
-                />
-            )}
+            {(span) =>
+                renderPart(
+                    "div",
+                    "event-calendar-non-working",
+                    rest,
+                    () => [
+                        styles.shade,
+                        styles.nonWorking,
+                        places.box(column.box(span()).top, column.box(span()).height, 0, 1),
+                    ],
+                    { "aria-hidden": "true" as const },
+                )
+            }
         </For>
     );
 }
@@ -1257,7 +1270,7 @@ export function EventCalendarAvailability(properties: EventCalendarPartPropertie
     const control = useEventCalendar();
     const locale = useLocale();
     const column = useEventCalendarColumn();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
     const spans = createMemo(() =>
         control.availability
             .spans()
@@ -1283,32 +1296,34 @@ export function EventCalendarAvailability(properties: EventCalendarPartPropertie
                         timeZone: control.timeZone(),
                     });
 
-                return (
-                    <div
-                        data-slot="event-calendar-availability"
-                        {...rest}
-                        {...style.attributes(
-                            [
-                                text.xs,
-                                styles.sweep,
-                                styles.free,
-                                places.box(column.box(cut()).top, column.box(cut()).height, 0, 1),
-                                properties.xstyle,
-                            ],
-                            properties.style,
-                        )}
-                    >
-                        {times()}
-                        <button
-                            type="button"
-                            data-slot="event-calendar-availability-remove"
-                            aria-label={locale.render(t`Take back ${times()}`)}
-                            onClick={() => control.availability.unmark(span())}
-                            {...style.attrs(state.hover, styles.remove)}
-                        >
-                            ×
-                        </button>
-                    </div>
+                return renderPart(
+                    "div",
+                    "event-calendar-availability",
+                    rest,
+                    () => [
+                        text.xs,
+                        styles.sweep,
+                        styles.free,
+                        places.box(column.box(cut()).top, column.box(cut()).height, 0, 1),
+                    ],
+                    {
+                        get children() {
+                            return (
+                                <>
+                                    {times()}
+                                    <button
+                                        type="button"
+                                        data-slot="event-calendar-availability-remove"
+                                        aria-label={locale.render(t`Take back ${times()}`)}
+                                        onClick={() => control.availability.unmark(span())}
+                                        {...style.attrs(state.hover, styles.remove)}
+                                    >
+                                        ×
+                                    </button>
+                                </>
+                            );
+                        },
+                    },
                 );
             }}
         </For>
@@ -1321,32 +1336,33 @@ export function EventCalendarSweep(properties: EventCalendarPartProperties): JSX
     const control = useEventCalendar();
     const locale = useLocale();
     const column = useEventCalendarColumn();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
     return (
         <Show when={column.sweep()}>
-            {(swept) => (
-                <div
-                    data-slot="event-calendar-sweep"
-                    {...rest}
-                    {...style.attributes(
-                        [
-                            text.xs,
-                            styles.sweep,
-                            places.box(column.box(swept()).top, column.box(swept()).height, 0, 1),
-                            properties.xstyle,
-                        ],
-                        properties.style,
-                    )}
-                >
-                    {properties.children ??
-                        locale.dateRange(swept().start, swept().end, {
-                            hour: "numeric",
-                            minute: "2-digit",
-                            timeZone: control.timeZone(),
-                        })}
-                </div>
-            )}
+            {(swept) =>
+                renderPart(
+                    "div",
+                    "event-calendar-sweep",
+                    rest,
+                    () => [
+                        text.xs,
+                        styles.sweep,
+                        places.box(column.box(swept()).top, column.box(swept()).height, 0, 1),
+                    ],
+                    {
+                        get children() {
+                            return contentOr(properties, () =>
+                                locale.dateRange(swept().start, swept().end, {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    timeZone: control.timeZone(),
+                                }),
+                            );
+                        },
+                    },
+                )
+            }
         </Show>
     );
 }
@@ -1356,35 +1372,37 @@ export function EventCalendarLanding(properties: EventCalendarPartProperties): J
     // draw the event with the caller's part, retimed to where it would land
     const column = useEventCalendarColumn();
     const Render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
     return (
         <Show when={column.landing()}>
-            {(landed) => (
-                <div
-                    data-slot="event-calendar-landing"
-                    aria-hidden="true"
-                    {...rest}
-                    {...style.attributes(
-                        [
-                            styles.event,
-                            styles.landing,
-                            places.box(column.box(landed()).top, column.box(landed()).height, 0, 1),
-                            properties.xstyle,
-                        ],
-                        properties.style,
-                    )}
-                >
-                    <Render
-                        event={landed()}
-                        layout="block"
-                        isStart={true}
-                        isEnd={true}
-                        tabindex={-1}
-                        xstyle={styles.fill}
-                    />
-                </div>
-            )}
+            {(landed) =>
+                renderPart(
+                    "div",
+                    "event-calendar-landing",
+                    rest,
+                    () => [
+                        styles.event,
+                        styles.landing,
+                        places.box(column.box(landed()).top, column.box(landed()).height, 0, 1),
+                    ],
+                    {
+                        "aria-hidden": "true" as const,
+                        get children() {
+                            return (
+                                <Render
+                                    event={landed()}
+                                    layout="block"
+                                    isStart={true}
+                                    isEnd={true}
+                                    tabindex={-1}
+                                    xstyle={styles.fill}
+                                />
+                            );
+                        },
+                    },
+                )
+            }
         </Show>
     );
 }
@@ -1394,25 +1412,19 @@ export function EventCalendarNow(properties: EventCalendarPartProperties): JSX.E
     // show the line on today's column alone
     const control = useEventCalendar();
     const column = useEventCalendarColumn();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
     return (
         <Show when={PlainDate.equals(column.day, control.today()) ? control.now() : undefined}>
-            {(now) => (
-                <div
-                    data-slot="event-calendar-now"
-                    aria-hidden="true"
-                    {...rest}
-                    {...style.attributes(
-                        [
-                            styles.now,
-                            places.at(control.wallShare(column.day, now())),
-                            properties.xstyle,
-                        ],
-                        properties.style,
-                    )}
-                />
-            )}
+            {(now) =>
+                renderPart(
+                    "div",
+                    "event-calendar-now",
+                    rest,
+                    () => [styles.now, places.at(control.wallShare(column.day, now()))],
+                    { "aria-hidden": "true" as const },
+                )
+            }
         </Show>
     );
 }

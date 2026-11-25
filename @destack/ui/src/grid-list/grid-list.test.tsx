@@ -53,7 +53,7 @@ test("render every row without a viewport: headings, and cells numbered, tabbed 
 
     expect({ markup: markup(container), picked }).toEqual({
         markup:
-            '<div id="id-1" role="grid" aria-rowcount="3" aria-colcount="3" data-slot="grid-list">' +
+            '<div data-slot="grid-list" id="id-1" role="grid" aria-rowcount="3" aria-colcount="3">' +
             '<div aria-hidden="true" style="--x-height: 0px;"></div>' +
             '<div data-index="0" role="row" aria-rowindex="1">Digits</div>' +
             '<div data-index="1" data-slot="grid-list-row" role="row" aria-rowindex="2">' +

@@ -25,10 +25,10 @@ test("give a single accordion's items one shared name so the platform has one op
         '<span><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span>';
     expect(markup(container)).toBe(
         '<div data-slot="accordion" data-orientation="vertical">' +
-            '<details name="id-1" data-slot="accordion-item" data-closed="">' +
+            '<details data-slot="accordion-item" name="id-1" data-closed="">' +
             `<summary data-slot="accordion-trigger">Is it accessible?${chevron}</summary>` +
             '<div><div data-slot="accordion-content" data-closed="">Yes.</div></div></details>' +
-            '<details name="id-1" data-slot="accordion-item" data-open="" open="">' +
+            '<details data-slot="accordion-item" name="id-1" data-open="" open="">' +
             `<summary data-slot="accordion-trigger" data-panel-open="">Is it styled?${chevron}</summary>` +
             '<div><div data-slot="accordion-content" data-open="">Yes.</div></div></details></div>',
     );

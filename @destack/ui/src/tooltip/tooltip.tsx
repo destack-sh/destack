@@ -17,7 +17,12 @@ import {
     untrack,
 } from "@destack/view";
 import { Hover } from "../interaction/index.ts";
-import { type ElementPartProperties, renderPart, mergeProperties } from "../part/index.ts";
+import {
+    type ElementPartProperties,
+    renderPart,
+    mergeProperties,
+    type Render,
+} from "../part/index.ts";
 import { HoverPopover } from "../popover/index.ts";
 import { type Align, type Anchor, Position, PositionAnchor, type Side } from "../position/index.ts";
 import {
@@ -213,16 +218,13 @@ export interface TooltipProperties<Payload = unknown> extends TooltipOptions {
 
 /** The properties of a tooltip's trigger, a native button's attributes included. */
 export type TooltipTriggerProperties<Payload = unknown> = ElementPartProperties &
-    Omit<
-        JSX.ButtonHTMLAttributes<HTMLButtonElement>,
-        "class" | "style" | "ref" | "onPointerEnter" | "onPointerLeave"
-    > &
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style"> &
     TriggerProperties<Payload, TooltipControl<Payload>>;
 
 /** The properties of a tooltip's content, the native element's attributes included. */
 export interface TooltipContentProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "ref" | "onToggle" | "onPointerEnter" | "onPointerLeave"
+    "class"
 > {
     /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
     readonly anchor?: Anchor | undefined;
@@ -234,6 +236,8 @@ export interface TooltipContentProperties extends Omit<
     readonly sideOffset?: number;
     /** The StyleX styles applied after the tooltip's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Read the tooltip of the nearest tooltip root, refusing elements outside one. */
@@ -331,7 +335,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
     const tooltip = useTooltip();
     const isInstant = tooltip.isInstant;
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "anchor", "side", "align", "sideOffset", "xstyle", "style");
+    const rest = omit(content, "anchor", "side", "align", "sideOffset");
 
     // show and hide the tooltip as it opens and closes
     createEffect(tooltip.isOpen, (isOpen) => untrack(() => tooltip.sync(isOpen)));
@@ -348,32 +352,41 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
                 anchor={content.anchor}
                 onAnchor={(element) => tooltip.setAnchor(element)}
             />
-            <div
-                id={tooltip.id}
-                popover="hint"
-                role="tooltip"
-                data-slot="tooltip-content"
-                data-open={tooltip.isOpen() ? "" : undefined}
-                data-closed={tooltip.isOpen() ? undefined : ""}
-                data-instant={isInstant() ? "" : undefined}
-                data-side={content.side}
-                data-align={content.align}
-                {...rest}
-                ref={(element) => tooltip.setContent(element)}
-                onToggle={(event) => tooltip.follow(event)}
-                {...hover.attributes()}
-                {...style.attributes(
-                    [
-                        text.xs,
-                        styles.content,
-                        Position.beside(content.side, content.align),
-                        Position.offset(content.side, content.sideOffset),
-                        isInstant() && styles.instant,
-                        content.xstyle,
-                    ],
-                    content.style,
-                )}
-            />
+            {renderPart(
+                "div",
+                "tooltip-content",
+                rest,
+                () => [
+                    text.xs,
+                    styles.content,
+                    Position.beside(content.side, content.align),
+                    Position.offset(content.side, content.sideOffset),
+                    isInstant() && styles.instant,
+                ],
+                mergeProperties(hover.attributes(), {
+                    id: tooltip.id,
+                    popover: "hint" as const,
+                    role: "tooltip" as const,
+                    get "data-open"() {
+                        return tooltip.isOpen() ? "" : undefined;
+                    },
+                    get "data-closed"() {
+                        return tooltip.isOpen() ? undefined : "";
+                    },
+                    get "data-instant"() {
+                        return isInstant() ? "" : undefined;
+                    },
+                    get "data-side"() {
+                        return content.side;
+                    },
+                    get "data-align"() {
+                        return content.align;
+                    },
+                    ref: (element: HTMLElement) => tooltip.setContent(element),
+                    onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) =>
+                        tooltip.follow(event),
+                }),
+            )}
         </TopLayer>
     );
 }

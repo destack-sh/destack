@@ -7,7 +7,7 @@ import { radius, size, space } from "@destack/theme/tokens.stylex";
 import { type JSX, omit, useLocale } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { contentOr, type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The lines of a quote before it is cut. */
 const LINES = 3;
@@ -70,7 +70,7 @@ export function QuoteIcon(properties: QuoteElementProperties<HTMLSpanElement>): 
     return renderPart("span", "quote-icon", rest, styles.icon, {
         "aria-hidden": "true" as const,
         get children() {
-            return properties.children ?? <Icon icon={quotesIcon} />;
+            return contentOr(properties, () => <Icon icon={quotesIcon} />);
         },
     });
 }
@@ -94,7 +94,9 @@ export function QuoteDismiss(properties: ButtonProperties): JSX.Element {
             {...properties}
             xstyle={[styles.dismiss, properties.xstyle]}
         >
-            {properties.children ?? <Icon icon={xIcon} />}
+            {contentOr(properties, () => (
+                <Icon icon={xIcon} />
+            ))}
         </Button>
     );
 }

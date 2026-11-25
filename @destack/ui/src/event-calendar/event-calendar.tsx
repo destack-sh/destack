@@ -22,7 +22,7 @@ import {
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { HoverCard } from "../hover-card/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import { DragAnnouncer, useDragManager } from "../drag/index.ts";
 import {
     DropdownMenu,
@@ -167,39 +167,50 @@ export function EventCalendar(properties: EventCalendarProperties): JSX.Element 
         "scrollTime",
         "hourHeight",
         "children",
-        "xstyle",
-        "style",
     );
 
     return (
         <EventCalendarContext value={control}>
-            <div
-                data-slot="event-calendar"
-                data-view={control.view()}
-                data-mode={properties.mode ?? "events"}
-                {...mergeProperties(keys, rest)}
-                {...style.attributes([styles.calendar, properties.xstyle], properties.style)}
-            >
-                <HoverCard control={control.card}>{properties.children}</HoverCard>
-                <Show when={!drags.isShared}>
-                    <DragAnnouncer manager={control.manager} />
-                </Show>
-            </div>
+            {renderPart(
+                "div",
+                "event-calendar",
+                rest,
+                styles.calendar,
+                mergeProperties(
+                    {
+                        get "data-view"() {
+                            return control.view();
+                        },
+                        get "data-mode"() {
+                            return properties.mode ?? "events";
+                        },
+                        get children() {
+                            return (
+                                <>
+                                    <HoverCard control={control.card}>
+                                        {properties.children}
+                                    </HoverCard>
+                                    <Show when={!drags.isShared}>
+                                        <DragAnnouncer manager={control.manager} />
+                                    </Show>
+                                </>
+                            );
+                        },
+                    },
+                    keys,
+                ),
+            )}
         </EventCalendarContext>
     );
 }
 
 /** Render the header: previous, today, next, the title and the views by default. */
 export function EventCalendarHeader(properties: EventCalendarPartProperties): JSX.Element {
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            data-slot="event-calendar-header"
-            {...rest}
-            {...style.attributes([styles.header, properties.xstyle], properties.style)}
-        >
-            {properties.children ?? (
+    return renderPart("div", "event-calendar-header", rest, styles.header, {
+        get children() {
+            return contentOr(properties, () => (
                 <>
                     <EventCalendarPrevious />
                     <EventCalendarToday />
@@ -208,9 +219,9 @@ export function EventCalendarHeader(properties: EventCalendarPartProperties): JS
                     <EventCalendarViewSwitcher />
                     <EventCalendarViewMenu />
                 </>
-            )}
-        </div>
-    );
+            ));
+        },
+    });
 }
 
 /** Render the button that moves a view back. */
@@ -245,7 +256,7 @@ export function EventCalendarToday(properties: Omit<ButtonProperties, "onClick">
             xstyle={[styles.tight, properties.xstyle]}
             onClick={() => control.showToday()}
         >
-            {properties.children ?? locale.render(t`Today`)}
+            {contentOr(properties, () => locale.render(t`Today`))}
         </Button>
     );
 }
@@ -313,23 +324,19 @@ export function EventCalendarTitle(properties: EventCalendarPartProperties): JSX
     };
 
     // take the caller's attributes, and their title in place of the range
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
-    return (
-        <h2
-            data-slot="event-calendar-title"
-            aria-live="polite"
-            {...rest}
-            {...style.attributes([text.lg, styles.title, properties.xstyle], properties.style)}
-        >
-            {properties.children ?? (
+    return renderPart("h2", "event-calendar-title", rest, [text.lg, styles.title], {
+        "aria-live": "polite" as const,
+        get children() {
+            return contentOr(properties, () => (
                 <>
                     <span {...style.attrs(styles.wide)}>{title()}</span>
                     <span {...style.attrs(styles.narrow)}>{shortTitle()}</span>
                 </>
-            )}
-        </h2>
-    );
+            ));
+        },
+    });
 }
 
 /** Render the choice among the views the calendar's view parts offer. */
@@ -386,7 +393,7 @@ export function EventCalendarViewMenu(properties: ButtonProperties): JSX.Element
                 )}
                 data-slot="event-calendar-view-menu"
             >
-                {properties.children ?? title(control.view())}
+                {contentOr(properties, () => title(control.view()))}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
                 <DropdownMenuRadioGroup

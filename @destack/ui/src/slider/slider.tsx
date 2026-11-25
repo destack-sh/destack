@@ -29,7 +29,12 @@ import {
     useLocale,
 } from "@destack/view";
 import { type FieldControl, useFieldControl, useFieldValue } from "../field/control.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The range a slider covers without its own minimum and maximum, the native default. */
@@ -526,45 +531,52 @@ export function Slider(given: SliderProperties): JSX.Element {
         "readOnly",
         "name",
         "form",
-        "xstyle",
-        "style",
         "children",
     );
 
     return (
         <SliderContext value={control}>
-            <div
-                role="group"
-                data-slot="slider"
-                data-orientation={properties.orientation ?? "horizontal"}
-                data-disabled={properties.disabled === true ? "" : undefined}
-                data-readonly={properties.readOnly === true ? "" : undefined}
-                data-dragging={control.dragged() === undefined ? undefined : ""}
-                {...mergeProperties(
+            {renderPart(
+                "div",
+                "slider",
+                rest,
+                () => [styles.slider, control.isVertical() && styles.vertical],
+                mergeProperties(
+                    {
+                        role: "group" as const,
+                        get "data-orientation"() {
+                            return properties.orientation ?? "horizontal";
+                        },
+                        get "data-disabled"() {
+                            return properties.disabled === true ? "" : undefined;
+                        },
+                        get "data-readonly"() {
+                            return properties.readOnly === true ? "" : undefined;
+                        },
+                        get "data-dragging"() {
+                            return control.dragged() === undefined ? undefined : "";
+                        },
+                        get children() {
+                            return contentOr(properties, () => (
+                                <>
+                                    <SliderTrack>
+                                        <SliderIndicator />
+                                    </SliderTrack>
+                                    <SliderMarks />
+                                    <Repeat count={control.values().length}>
+                                        {(index) => <SliderThumb index={index} />}
+                                    </Repeat>
+                                </>
+                            ));
+                        },
+                    },
                     {
                         onPointerDown: (
                             event: PointerEvent & { readonly currentTarget: HTMLElement },
                         ) => control.drag(event),
                     },
-                    rest,
-                )}
-                {...style.attributes(
-                    [styles.slider, control.isVertical() && styles.vertical, properties.xstyle],
-                    properties.style,
-                )}
-            >
-                {properties.children ?? (
-                    <>
-                        <SliderTrack>
-                            <SliderIndicator />
-                        </SliderTrack>
-                        <SliderMarks />
-                        <Repeat count={control.values().length}>
-                            {(index) => <SliderThumb index={index} />}
-                        </Repeat>
-                    </>
-                )}
-            </div>
+                ),
+            )}
         </SliderContext>
     );
 }
@@ -600,45 +612,49 @@ export function SliderMarks(
     },
 ): JSX.Element {
     const control = useSlider();
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
     return (
         <Show when={control.properties.marks}>
-            {(marks) => (
-                <div
-                    data-slot="slider-marks"
-                    {...rest}
-                    {...style.attributes([styles.marks, properties.xstyle], properties.style)}
-                >
-                    <For each={marks()}>
-                        {(mark) => (
-                            <span
-                                data-slot="slider-mark"
-                                {...style.attrs(
-                                    styles.mark,
-                                    control.isVertical()
-                                        ? styles.markAt("50%", control.offset(mark, "end"))
-                                        : styles.markAt(control.offset(mark, "start"), "50%"),
-                                )}
-                            >
-                                <Show when={properties.children?.(mark)}>
-                                    {(label) => (
-                                        <span
-                                            {...style.attrs(
-                                                text.xs,
-                                                styles.label,
-                                                control.isVertical() && styles.verticalLabel,
+            {(marks) =>
+                renderPart("div", "slider-marks", rest, styles.marks, {
+                    get children() {
+                        return (
+                            <For each={marks()}>
+                                {(mark) => (
+                                    <span
+                                        data-slot="slider-mark"
+                                        {...style.attrs(
+                                            styles.mark,
+                                            control.isVertical()
+                                                ? styles.markAt("50%", control.offset(mark, "end"))
+                                                : styles.markAt(
+                                                      control.offset(mark, "start"),
+                                                      "50%",
+                                                  ),
+                                        )}
+                                    >
+                                        <Show when={properties.children?.(mark)}>
+                                            {(label) => (
+                                                <span
+                                                    {...style.attrs(
+                                                        text.xs,
+                                                        styles.label,
+                                                        control.isVertical() &&
+                                                            styles.verticalLabel,
+                                                    )}
+                                                >
+                                                    {label()}
+                                                </span>
                                             )}
-                                        >
-                                            {label()}
-                                        </span>
-                                    )}
-                                </Show>
-                            </span>
-                        )}
-                    </For>
-                </div>
-            )}
+                                        </Show>
+                                    </span>
+                                )}
+                            </For>
+                        );
+                    },
+                })
+            }
         </Show>
     );
 }

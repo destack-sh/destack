@@ -1,3 +1,4 @@
+import { renderPart, type Render } from "../part/index.ts";
 import type { Hue } from "@destack/color";
 import * as style from "@destack/style";
 import { color, radius, space, swatch } from "@destack/theme/tokens.stylex";
@@ -50,12 +51,14 @@ export interface ObjectChipProperties extends Omit<
     readonly href?: string;
     /** The StyleX styles applied after the chip's styles. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Render a reference to an object: its icon, title and accent, linking to its page. */
 export function ObjectChip(properties: ObjectChipProperties): JSX.Element {
     // show the icon, the title and the accent's dot, on a link where the object has a page
-    const rest = omit(properties, "title", "glyph", "color", "href", "xstyle", "style");
+    const rest = omit(properties, "title", "glyph", "color", "href", "children");
     const body = (
         <>
             <Show when={properties.glyph}>
@@ -71,26 +74,22 @@ export function ObjectChip(properties: ObjectChipProperties): JSX.Element {
     return (
         <Show
             when={properties.href}
-            fallback={
-                <span
-                    data-slot="object-chip"
-                    {...rest}
-                    {...style.attributes([styles.chip, properties.xstyle], properties.style)}
-                >
-                    {body}
-                </span>
-            }
+            fallback={renderPart("span", "object-chip", rest, styles.chip, {
+                get children() {
+                    return body;
+                },
+            })}
         >
-            {(href) => (
-                <a
-                    data-slot="object-chip"
-                    href={href()}
-                    {...rest}
-                    {...style.attributes([styles.chip, properties.xstyle], properties.style)}
-                >
-                    {body}
-                </a>
-            )}
+            {(href) =>
+                renderPart("a", "object-chip", rest, styles.chip, {
+                    get href() {
+                        return href();
+                    },
+                    get children() {
+                        return body;
+                    },
+                })
+            }
         </Show>
     );
 }

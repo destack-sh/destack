@@ -28,7 +28,7 @@ import { ActionButton, duplicateItems, openItem, removeItems } from "../action/i
 import { HoverCardContent, type HoverCardContentProperties } from "../hover-card/index.ts";
 import { OpenChange } from "../layer/index.ts";
 import { Hover, Press } from "../interaction/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { mergeProperties, renderPart, type Render } from "../part/index.ts";
 import { useEventCalendar } from "./control.ts";
 import { CalendarEvent, type TimedCalendarEvent } from "./event.ts";
 
@@ -275,16 +275,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
         locale.date(at, { hour: "numeric", minute: "2-digit", timeZone: control.timeZone() });
     const isDayLong = (): boolean =>
         timed() !== undefined && CalendarEvent.isAllDay(properties.event);
-    const rest = omit(
-        properties,
-        "event",
-        "layout",
-        "isStart",
-        "isEnd",
-        "xstyle",
-        "style",
-        "children",
-    );
+    const rest = omit(properties, "event", "layout", "isStart", "isEnd", "children");
 
     // preview the event in the calendar's card while a pointer rests on it or it has the focus
     const { card } = control;
@@ -321,102 +312,119 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
         properties.layout === "block" ||
         (properties.layout === "inline" && (timed() === undefined || isDayLong()));
 
-    return (
-        <button
-            {...mergeProperties(mergeProperties(press.attributes(), preview), rest)}
-            type="button"
-            data-slot="event-calendar-event"
-            data-event={properties.event.key}
-            data-color={hue()}
-            data-busy={isBusy() ? "" : undefined}
-            data-selected={control.selection.isSelected(properties.event.key) ? "" : undefined}
-            aria-pressed={control.selection.isSelected(properties.event.key) ? "true" : "false"}
-            data-layout={properties.layout}
-            {...style.attributes(
-                [
-                    text.xs,
-                    state.focus,
-                    styles.event,
-                    layouts[properties.layout],
-                    isTinted() &&
-                        !isBusy() &&
-                        fills.tint(swatch[`${hue()}Tint`], swatch[`${hue()}TintText`]),
-                    properties.layout === "block" &&
-                        !isBusy() &&
-                        fills.edge(swatch[`${hue()}Mark`]),
-                    properties.layout === "inline" &&
-                        !isBusy() && [styles.edged, fills.edge(swatch[`${hue()}Mark`])],
-                    isBusy() && styles.busy,
-                    control.selection.isSelected(properties.event.key) && styles.selected,
-                    !properties.isEnd && styles.continues,
-                    !properties.isStart && styles.continued,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {/* An event in a list: its time or all day, then its color's dot */}
-            <Show when={properties.layout === "list"}>
-                <span {...style.attrs(styles.time, styles.below)}>
-                    <Show when={timed()} fallback={locale.render(t`All day`)}>
-                        {(current) => (
-                            <>
-                                {locale.dateRange(current().start, current().end, {
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                    timeZone: control.timeZone(),
-                                })}
-                            </>
-                        )}
-                    </Show>
-                </span>
-                <span {...style.attrs(styles.dot, fills.dot(swatch[`${hue()}Mark`]))} />
-            </Show>
+    return renderPart(
+        "button",
+        "event-calendar-event",
+        rest,
+        () => [
+            text.xs,
+            state.focus,
+            styles.event,
+            layouts[properties.layout],
+            isTinted() &&
+                !isBusy() &&
+                fills.tint(swatch[`${hue()}Tint`], swatch[`${hue()}TintText`]),
+            properties.layout === "block" && !isBusy() && fills.edge(swatch[`${hue()}Mark`]),
+            properties.layout === "inline" &&
+                !isBusy() && [styles.edged, fills.edge(swatch[`${hue()}Mark`])],
+            isBusy() && styles.busy,
+            control.selection.isSelected(properties.event.key) && styles.selected,
+            !properties.isEnd && styles.continues,
+            !properties.isStart && styles.continued,
+        ],
+        mergeProperties(
+            {
+                type: "button" as const,
+                get "data-event"() {
+                    return properties.event.key;
+                },
+                get "data-color"() {
+                    return hue();
+                },
+                get "data-busy"() {
+                    return isBusy() ? "" : undefined;
+                },
+                get "data-selected"() {
+                    return control.selection.isSelected(properties.event.key) ? "" : undefined;
+                },
+                get "aria-pressed"() {
+                    return control.selection.isSelected(properties.event.key) ? "true" : "false";
+                },
+                get "data-layout"() {
+                    return properties.layout;
+                },
+                get children() {
+                    return (
+                        <>
+                            {/* An event in a list: its time or all day, then its color's dot */}
+                            <Show when={properties.layout === "list"}>
+                                <span {...style.attrs(styles.time, styles.below)}>
+                                    <Show when={timed()} fallback={locale.render(t`All day`)}>
+                                        {(current) => (
+                                            <>
+                                                {locale.dateRange(current().start, current().end, {
+                                                    hour: "numeric",
+                                                    minute: "2-digit",
+                                                    timeZone: control.timeZone(),
+                                                })}
+                                            </>
+                                        )}
+                                    </Show>
+                                </span>
+                                <span
+                                    {...style.attrs(styles.dot, fills.dot(swatch[`${hue()}Mark`]))}
+                                />
+                            </Show>
 
-            {/* A timed event on a row: its color's dot and its start */}
-            <Show when={properties.layout === "inline" ? timed() : undefined}>
-                {(current) => (
-                    <>
-                        <Show when={!isDayLong()}>
+                            {/* A timed event on a row: its color's dot and its start */}
+                            <Show when={properties.layout === "inline" ? timed() : undefined}>
+                                {(current) => (
+                                    <>
+                                        <Show when={!isDayLong()}>
+                                            <span
+                                                {...style.attrs(
+                                                    styles.dot,
+                                                    styles.lone,
+                                                    fills.dot(swatch[`${hue()}Mark`]),
+                                                )}
+                                            />
+                                        </Show>
+                                        <span {...style.attrs(styles.time, styles.whole)}>
+                                            {time(current().start)}
+                                        </span>
+                                    </>
+                                )}
+                            </Show>
+
+                            {/* Title */}
                             <span
                                 {...style.attrs(
-                                    styles.dot,
-                                    styles.lone,
-                                    fills.dot(swatch[`${hue()}Mark`]),
+                                    styles.title,
+                                    properties.layout === "block" && styles.lead,
+                                    properties.layout === "inline" && styles.clipped,
                                 )}
-                            />
-                        </Show>
-                        <span {...style.attrs(styles.time, styles.whole)}>
-                            {time(current().start)}
-                        </span>
-                    </>
-                )}
-            </Show>
+                            >
+                                {isBusy() ? locale.render(t`Busy`) : properties.event.title}
+                            </span>
 
-            {/* Title */}
-            <span
-                {...style.attrs(
-                    styles.title,
-                    properties.layout === "block" && styles.lead,
-                    properties.layout === "inline" && styles.clipped,
-                )}
-            >
-                {isBusy() ? locale.render(t`Busy`) : properties.event.title}
-            </span>
-
-            {/* A timed event in a column: its start and end */}
-            <Show when={properties.layout === "block" ? timed() : undefined}>
-                {(current) => (
-                    <span {...style.attrs(styles.time, styles.span)}>
-                        {locale.dateRange(current().start, current().end, {
-                            hour: "numeric",
-                            minute: "2-digit",
-                            timeZone: control.timeZone(),
-                        })}
-                    </span>
-                )}
-            </Show>
-        </button>
+                            {/* A timed event in a column: its start and end */}
+                            <Show when={properties.layout === "block" ? timed() : undefined}>
+                                {(current) => (
+                                    <span {...style.attrs(styles.time, styles.span)}>
+                                        {locale.dateRange(current().start, current().end, {
+                                            hour: "numeric",
+                                            minute: "2-digit",
+                                            timeZone: control.timeZone(),
+                                        })}
+                                    </span>
+                                )}
+                            </Show>
+                        </>
+                    );
+                },
+            },
+            mergeProperties(press.attributes(), preview),
+        ),
     );
 }
 
@@ -558,6 +566,8 @@ export interface EventCalendarBackgroundProperties extends Omit<
     readonly event: CalendarEvent;
     /** The StyleX styles applied after the shading's, such as its place in the view. */
     readonly xstyle?: style.Styles;
+    /** Render another element with its attributes, its own by default. */
+    readonly render?: Render;
 }
 
 /** Render an event as shading behind the others: its color's tint under its title. */
@@ -567,24 +577,24 @@ export function EventCalendarBackground(
     // take the event's color, else its calendar's
     const control = useEventCalendar();
     const hue = (): Hue => control.colorOf(properties.event);
-    const rest = omit(properties, "event", "xstyle", "style", "children");
+    const rest = omit(properties, "event", "children");
 
-    return (
-        <div
-            {...rest}
-            data-slot="event-calendar-background"
-            data-color={hue()}
-            {...style.attributes(
-                [
-                    text.xs,
-                    styles.background,
-                    fills.shade(swatch[`${hue()}Tint`], swatch[`${hue()}TintText`]),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            <span {...style.attrs(styles.title)}>{properties.event.title}</span>
-        </div>
+    return renderPart(
+        "div",
+        "event-calendar-background",
+        rest,
+        () => [
+            text.xs,
+            styles.background,
+            fills.shade(swatch[`${hue()}Tint`], swatch[`${hue()}TintText`]),
+        ],
+        {
+            get "data-color"() {
+                return hue();
+            },
+            get children() {
+                return <span {...style.attrs(styles.title)}>{properties.event.title}</span>;
+            },
+        },
     );
 }

@@ -18,7 +18,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Move } from "../interaction/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { mergeProperties, renderPart } from "../part/index.ts";
 import {
     leave,
     TimelineTrackContext,
@@ -99,45 +99,45 @@ export function TimelineGrid(properties: TimelinePartProperties): JSX.Element {
     // shade the days off and line the marks, on a layer over the rows
     const control = useTimeline();
     const share = (at: number) => control.window.share(at);
-    const rest = omit(properties, "children", "xstyle", "style");
+    const rest = omit(properties, "children");
 
-    return (
-        <div
-            data-slot="timeline-grid"
-            aria-hidden="true"
-            {...rest}
-            {...style.attributes([styles.grid, properties.xstyle], properties.style)}
-        >
-            <For each={control.window.nonWorking()} keyed={(span) => span.start}>
-                {(span) => (
-                    <span
-                        data-slot="timeline-non-working"
-                        aria-hidden="true"
-                        {...style.attrs(
-                            styles.shade,
-                            places.markSpan(
-                                control.labelArea(),
-                                share(span().start),
-                                share(span().end) - share(span().start),
-                            ),
+    return renderPart("div", "timeline-grid", rest, styles.grid, {
+        "aria-hidden": "true" as const,
+        get children() {
+            return (
+                <>
+                    <For each={control.window.nonWorking()} keyed={(span) => span.start}>
+                        {(span) => (
+                            <span
+                                data-slot="timeline-non-working"
+                                aria-hidden="true"
+                                {...style.attrs(
+                                    styles.shade,
+                                    places.markSpan(
+                                        control.labelArea(),
+                                        share(span().start),
+                                        share(span().end) - share(span().start),
+                                    ),
+                                )}
+                            />
                         )}
-                    />
-                )}
-            </For>
-            <For each={control.window.ticks()} keyed={(tick) => tick.at}>
-                {(tick) => (
-                    <span
-                        data-slot="timeline-grid-line"
-                        aria-hidden="true"
-                        {...style.attrs(
-                            styles.line,
-                            places.mark(control.labelArea(), share(tick().at)),
+                    </For>
+                    <For each={control.window.ticks()} keyed={(tick) => tick.at}>
+                        {(tick) => (
+                            <span
+                                data-slot="timeline-grid-line"
+                                aria-hidden="true"
+                                {...style.attrs(
+                                    styles.line,
+                                    places.mark(control.labelArea(), share(tick().at)),
+                                )}
+                            />
                         )}
-                    />
-                )}
-            </For>
-        </div>
-    );
+                    </For>
+                </>
+            );
+        },
+    });
 }
 
 /** How far past its line a marker or an edge takes the pointer, more for a finger. */
@@ -276,7 +276,7 @@ export function TimelineMarker(properties: TimelineMarkerProperties): JSX.Elemen
     const isInTrack = useContext(TimelineTrackContext);
     const share = () => control.window.share(properties.at);
     const isShown = (): boolean => share() >= 0 && share() <= 1;
-    const rest = omit(properties, "at", "onAtChange", "children", "xstyle", "style");
+    const rest = omit(properties, "at", "onAtChange", "children");
 
     // slide it where the caller takes its place
     const slide = untrack(() => properties.onAtChange !== undefined)
@@ -288,12 +288,23 @@ export function TimelineMarker(properties: TimelineMarkerProperties): JSX.Elemen
 
     return (
         <Show when={isShown() || slide?.isMoving() === true}>
-            <span
-                data-slot="timeline-marker"
-                {...(slide === undefined
-                    ? rest
-                    : mergeProperties(
-                          mergeProperties(slide.attributes, {
+            {renderPart(
+                "span",
+                "timeline-marker",
+                rest,
+                () => [
+                    styles.marker,
+                    slide !== undefined && [
+                        state.focus,
+                        drags.movable,
+                        drags.within(`${String(-share() * 100)}%`, `${String(share() * 100)}%`),
+                    ],
+                    isInTrack ? places.at(share()) : places.mark(control.labelArea(), share()),
+                ],
+                mergeProperties(
+                    slide === undefined
+                        ? {}
+                        : mergeProperties(slide.attributes, {
                               role: "slider" as const,
                               tabindex: 0,
                               get "aria-valuemin"() {
@@ -309,26 +320,19 @@ export function TimelineMarker(properties: TimelineMarkerProperties): JSX.Elemen
                                   return control.window.instantLabel(properties.at);
                               },
                           }),
-                          rest,
-                      ))}
-                {...style.attributes(
-                    [
-                        styles.marker,
-                        slide !== undefined && [
-                            state.focus,
-                            drags.movable,
-                            drags.within(`${String(-share() * 100)}%`, `${String(share() * 100)}%`),
-                        ],
-                        isInTrack ? places.at(share()) : places.mark(control.labelArea(), share()),
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            >
-                <Show when={properties.children}>
-                    <span {...style.attrs(text.xs, styles.markerLabel)}>{properties.children}</span>
-                </Show>
-            </span>
+                    {
+                        get children() {
+                            return (
+                                <Show when={properties.children}>
+                                    <span {...style.attrs(text.xs, styles.markerLabel)}>
+                                        {properties.children}
+                                    </span>
+                                </Show>
+                            );
+                        },
+                    },
+                ),
+            )}
         </Show>
     );
 }
@@ -380,16 +384,7 @@ export function TimelineRange(properties: TimelineRangeProperties): JSX.Element 
     const from = () => Math.max(0, share(properties.start));
     const to = () => Math.min(1, share(properties.end));
     const isShown = (at: number): boolean => share(at) >= 0 && share(at) <= 1;
-    const rest = omit(
-        properties,
-        "start",
-        "end",
-        "onRangeChange",
-        "color",
-        "children",
-        "xstyle",
-        "style",
-    );
+    const rest = omit(properties, "start", "end", "onRangeChange", "color", "children");
 
     // move it whole where the caller takes its range
     const isMovable = untrack(() => properties.onRangeChange !== undefined);
@@ -402,56 +397,64 @@ export function TimelineRange(properties: TimelineRangeProperties): JSX.Element 
 
     return (
         <Show when={to() > from() || slide?.isMoving() === true}>
-            <span
-                data-slot="timeline-range"
-                data-color={properties.color}
-                {...(slide === undefined ? rest : mergeProperties(slide.attributes, rest))}
-                {...style.attributes(
-                    [
-                        styles.range,
-                        isMovable && drags.body,
-                        isInTrack
-                            ? places.span(from(), to() - from())
-                            : places.markSpan(control.labelArea(), from(), to() - from()),
-                        properties.color === undefined
-                            ? styles.tint(color.muted, color.mutedForeground)
-                            : styles.tint(
-                                  swatch[`${properties.color}Tint`],
-                                  swatch[`${properties.color}TintText`],
-                              ),
-                        properties.xstyle,
-                    ],
-                    properties.style,
-                )}
-            >
-                <Show when={properties.children}>
-                    <span {...style.attrs(text.xs, styles.rangeLabel)}>{properties.children}</span>
-                </Show>
-                <Show when={isMovable && isShown(properties.start)}>
-                    <RangeEdge
-                        edge="start"
-                        at={properties.start}
-                        onSlide={(start) =>
-                            properties.onRangeChange?.({
-                                start: Math.min(start, properties.end - 1),
-                                end: properties.end,
-                            })
-                        }
-                    />
-                </Show>
-                <Show when={isMovable && isShown(properties.end)}>
-                    <RangeEdge
-                        edge="end"
-                        at={properties.end}
-                        onSlide={(end) =>
-                            properties.onRangeChange?.({
-                                start: properties.start,
-                                end: Math.max(end, properties.start + 1),
-                            })
-                        }
-                    />
-                </Show>
-            </span>
+            {renderPart(
+                "span",
+                "timeline-range",
+                rest,
+                () => [
+                    styles.range,
+                    isMovable && drags.body,
+                    isInTrack
+                        ? places.span(from(), to() - from())
+                        : places.markSpan(control.labelArea(), from(), to() - from()),
+                    properties.color === undefined
+                        ? styles.tint(color.muted, color.mutedForeground)
+                        : styles.tint(
+                              swatch[`${properties.color}Tint`],
+                              swatch[`${properties.color}TintText`],
+                          ),
+                ],
+                mergeProperties(slide === undefined ? {} : slide.attributes, {
+                    get "data-color"() {
+                        return properties.color;
+                    },
+                    get children() {
+                        return (
+                            <>
+                                <Show when={properties.children}>
+                                    <span {...style.attrs(text.xs, styles.rangeLabel)}>
+                                        {properties.children}
+                                    </span>
+                                </Show>
+                                <Show when={isMovable && isShown(properties.start)}>
+                                    <RangeEdge
+                                        edge="start"
+                                        at={properties.start}
+                                        onSlide={(start) =>
+                                            properties.onRangeChange?.({
+                                                start: Math.min(start, properties.end - 1),
+                                                end: properties.end,
+                                            })
+                                        }
+                                    />
+                                </Show>
+                                <Show when={isMovable && isShown(properties.end)}>
+                                    <RangeEdge
+                                        edge="end"
+                                        at={properties.end}
+                                        onSlide={(end) =>
+                                            properties.onRangeChange?.({
+                                                start: properties.start,
+                                                end: Math.max(end, properties.start + 1),
+                                            })
+                                        }
+                                    />
+                                </Show>
+                            </>
+                        );
+                    },
+                }),
+            )}
         </Show>
     );
 }

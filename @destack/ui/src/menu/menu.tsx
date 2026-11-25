@@ -39,10 +39,12 @@ import { present } from "@destack/schema";
 import { Timeout } from "@destack/view/primitives/timer";
 import { Hover, type HoverEvent, SafePolygon } from "../interaction/index.ts";
 import {
+    contentOr,
     type ElementPartProperties,
     type PartEvent,
     type Render,
     renderPart,
+    mergeProperties,
 } from "../part/index.ts";
 import { type Direction, Shortcut } from "@destack/locale";
 import type { Action, ActionInput, ActionInputs, Choice, ValuesOf } from "@destack/object";
@@ -611,10 +613,7 @@ export type MenuElementProperties<Target extends HTMLElement> = Omit<
     ElementPartProperties;
 
 /** The properties of a menu's content. */
-export interface MenuContentProperties extends Omit<
-    MenuElementProperties<HTMLDivElement>,
-    "ref" | "onKeyDown" | "onToggle"
-> {
+export interface MenuContentProperties extends MenuElementProperties<HTMLDivElement> {
     /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
     readonly anchor?: Anchor | undefined;
     /** The side of the trigger it opens on, bottom by default. */
@@ -626,10 +625,7 @@ export interface MenuContentProperties extends Omit<
 }
 
 /** The properties of a menu item. */
-export interface MenuItemProperties extends Omit<
-    MenuElementProperties<HTMLDivElement>,
-    "onClick" | "onKeyDown" | "onPointerEnter" | "onFocus" | "ref"
-> {
+export interface MenuItemProperties extends MenuElementProperties<HTMLDivElement> {
     /** Handle the item being chosen. */
     readonly onSelect?: (event: Event) => void;
     /** Whether the item is unavailable. */
@@ -688,7 +684,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
     const control = useMenu();
     const locale = useLocale();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "anchor", "side", "align", "sideOffset", "xstyle", "style");
+    const rest = omit(content, "anchor", "side", "align", "sideOffset");
 
     // show and hide the menu as it opens and closes
     createEffect(control.isOpen, (isOpen) => untrack(() => control.sync(isOpen)));
@@ -706,35 +702,38 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                 anchor={content.anchor}
                 onAnchor={(element) => control.setAnchor(element)}
             />
-            <div
-                id={control.id}
-                popover="auto"
-                role="menu"
-                tabindex={-1}
-                aria-labelledby={
-                    control.point() === undefined ? control.state.labelId() : undefined
-                }
-                data-slot="menu-content"
-                data-side={content.side}
-                data-align={content.align}
-                {...rest}
-                ref={(element) => control.setContent(element)}
-                onToggle={(event) => control.follow(event)}
-                onKeyDown={(event) => navigate(event, control, locale.direction)}
-                onFocusOut={(event) => control.list.focus.focusOut(event)}
-                {...style.attributes(
-                    [
-                        text.sm,
-                        styles.content,
-                        Position.beside(content.side, content.align),
-                        Position.offset(content.side, content.sideOffset),
-                        control.parent !== null && styles.submenu,
-                        position(),
-                        content.xstyle,
-                    ],
-                    content.style,
-                )}
-            />
+            {renderPart(
+                "div",
+                "menu-content",
+                rest,
+                () => [
+                    text.sm,
+                    styles.content,
+                    Position.beside(content.side, content.align),
+                    Position.offset(content.side, content.sideOffset),
+                    control.parent !== null && styles.submenu,
+                    position(),
+                ],
+                {
+                    id: control.id,
+                    popover: "auto" as const,
+                    role: "menu" as const,
+                    tabindex: -1,
+                    get "aria-labelledby"() {
+                        return control.point() === undefined ? control.state.labelId() : undefined;
+                    },
+                    get "data-side"() {
+                        return content.side;
+                    },
+                    get "data-align"() {
+                        return content.align;
+                    },
+                    ref: (element) => control.setContent(element),
+                    onToggle: (event) => control.follow(event),
+                    onKeyDown: (event) => navigate(event, control, locale.direction),
+                    onFocusOut: (event) => control.list.focus.focusOut(event),
+                },
+            )}
         </TopLayer>
     );
 }
@@ -790,8 +789,6 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
         "onSelect",
         "disabled",
         "variant",
-        "xstyle",
-        "style",
         "children",
     );
     const item = control.join(() => properties.disabled === true);
@@ -799,47 +796,59 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
         onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
     });
 
-    return (
-        <div
-            role="menuitemcheckbox"
-            tabindex={-1}
-            aria-checked={properties.checked ? "true" : "false"}
-            aria-disabled={properties.disabled === true ? "true" : undefined}
-            data-checked={properties.checked ? "" : undefined}
-            data-unchecked={properties.checked ? undefined : ""}
-            data-disabled={properties.disabled === true ? "" : undefined}
-            data-menu-item=""
-            data-slot="menu-checkbox-item"
-            {...rest}
-            ref={item.ref}
-            onFocus={item.onFocus}
-            onClick={(event) => {
+    return renderPart(
+        "div",
+        "menu-checkbox-item",
+        rest,
+        () => [styles.item, properties.disabled === true && state.inert],
+        mergeProperties(hover.attributes(), {
+            role: "menuitemcheckbox" as const,
+            tabindex: -1,
+            get "aria-checked"() {
+                return properties.checked ? "true" : "false";
+            },
+            get "aria-disabled"() {
+                return properties.disabled === true ? "true" : undefined;
+            },
+            get "data-checked"() {
+                return properties.checked ? "" : undefined;
+            },
+            get "data-unchecked"() {
+                return properties.checked ? undefined : "";
+            },
+            get "data-disabled"() {
+                return properties.disabled === true ? "" : undefined;
+            },
+            "data-menu-item": "" as const,
+            ref: item.ref,
+            onFocus: item.onFocus,
+            onClick: (event: MouseEvent) => {
                 // flip the check of an enabled item and run its action
                 if (properties.disabled !== true) {
                     properties.onCheckedChange?.(!properties.checked);
                 }
                 choose(event, control, properties);
-            }}
-            onKeyDown={(event) => activate(event)}
-            {...hover.attributes()}
-            {...style.attributes(
-                [styles.item, properties.disabled === true && state.inert, properties.xstyle],
-                properties.style,
-            )}
-        >
-            {properties.children}
-            <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
-                <Show when={properties.checked}>
-                    <Icon name="check" />
-                </Show>
-            </span>
-        </div>
+            },
+            onKeyDown: (event: PartEvent<KeyboardEvent>) => activate(event),
+            get children() {
+                return (
+                    <>
+                        {properties.children}
+                        <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
+                            <Show when={properties.checked}>
+                                <Icon name="check" />
+                            </Show>
+                        </span>
+                    </>
+                );
+            },
+        }),
     );
 }
 
 /** Render a group of radio items that share one selected value. */
 export function MenuRadioGroup(properties: MenuRadioGroupProperties): JSX.Element {
-    const rest = omit(properties, "value", "onValueChange", "xstyle", "style");
+    const rest = omit(properties, "value", "onValueChange");
     const radio: MenuRadioControl = {
         value: () => properties.value,
         select: (value) => properties.onValueChange?.(value),
@@ -847,12 +856,7 @@ export function MenuRadioGroup(properties: MenuRadioGroupProperties): JSX.Elemen
 
     return (
         <MenuRadioContext value={radio}>
-            <div
-                role="group"
-                data-slot="menu-radio-group"
-                {...rest}
-                {...style.attributes([properties.xstyle], properties.style)}
-            />
+            {renderPart("div", "menu-radio-group", rest, null, { role: "group" as const })}
         </MenuRadioContext>
     );
 }
@@ -865,71 +869,68 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
     if (radio === null) {
         throw new TypeError("a menu radio item needs a menu radio group around it");
     }
-    const rest = omit(
-        properties,
-        "value",
-        "onSelect",
-        "disabled",
-        "variant",
-        "xstyle",
-        "style",
-        "children",
-    );
+    const rest = omit(properties, "value", "onSelect", "disabled", "variant", "children");
     const isChecked = (): boolean => radio.value() === properties.value;
     const item = control.join(() => properties.disabled === true);
     const hover: Hover = new Hover({
         onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
     });
 
-    return (
-        <div
-            role="menuitemradio"
-            tabindex={-1}
-            aria-checked={isChecked() ? "true" : "false"}
-            aria-disabled={properties.disabled === true ? "true" : undefined}
-            data-checked={isChecked() ? "" : undefined}
-            data-unchecked={isChecked() ? undefined : ""}
-            data-disabled={properties.disabled === true ? "" : undefined}
-            data-menu-item=""
-            data-slot="menu-radio-item"
-            {...rest}
-            ref={item.ref}
-            onFocus={item.onFocus}
-            onClick={(event) => {
+    return renderPart(
+        "div",
+        "menu-radio-item",
+        rest,
+        () => [styles.item, properties.disabled === true && state.inert],
+        mergeProperties(hover.attributes(), {
+            role: "menuitemradio" as const,
+            tabindex: -1,
+            get "aria-checked"() {
+                return isChecked() ? "true" : "false";
+            },
+            get "aria-disabled"() {
+                return properties.disabled === true ? "true" : undefined;
+            },
+            get "data-checked"() {
+                return isChecked() ? "" : undefined;
+            },
+            get "data-unchecked"() {
+                return isChecked() ? undefined : "";
+            },
+            get "data-disabled"() {
+                return properties.disabled === true ? "" : undefined;
+            },
+            "data-menu-item": "" as const,
+            ref: item.ref,
+            onFocus: item.onFocus,
+            onClick: (event: MouseEvent) => {
                 // select the value of an enabled item and run its action
                 if (properties.disabled !== true) {
                     radio.select(properties.value);
                 }
                 choose(event, control, properties);
-            }}
-            onKeyDown={(event) => activate(event)}
-            {...hover.attributes()}
-            {...style.attributes(
-                [styles.item, properties.disabled === true && state.inert, properties.xstyle],
-                properties.style,
-            )}
-        >
-            {properties.children}
-            <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
-                <Show when={isChecked()}>
-                    <Icon name="circle" weight="fill" size="0.5em" />
-                </Show>
-            </span>
-        </div>
+            },
+            onKeyDown: (event: PartEvent<KeyboardEvent>) => activate(event),
+            get children() {
+                return (
+                    <>
+                        {properties.children}
+                        <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
+                            <Show when={isChecked()}>
+                                <Icon name="circle" weight="fill" size="0.5em" />
+                            </Show>
+                        </span>
+                    </>
+                );
+            },
+        }),
     );
 }
 
 /** Render a label over a group of items. */
 export function MenuLabel(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
+    const rest = properties;
 
-    return (
-        <div
-            data-slot="menu-label"
-            {...rest}
-            {...style.attributes([styles.label, properties.xstyle], properties.style)}
-        />
-    );
+    return renderPart("div", "menu-label", rest, styles.label);
 }
 
 /** Render a group of related items. */
@@ -954,7 +955,7 @@ export function MenuSubTrigger(
     // read the submenu and the direction its arrow key points in
     const control = useMenu();
     const locale = useLocale();
-    const rest = omit(properties, "disabled", "xstyle", "style", "children");
+    const rest = omit(properties, "disabled", "children");
     const isEnabled = (): boolean => properties.disabled !== true;
     const parent = control.parent;
     if (parent === null) {
@@ -977,45 +978,50 @@ export function MenuSubTrigger(
         onHoverEnd: (event) => control.leaveTrigger(event),
     });
 
-    return (
-        <div
-            id={id}
-            role="menuitem"
-            tabindex={-1}
-            aria-haspopup="menu"
-            aria-expanded={control.isOpen() ? "true" : "false"}
-            aria-controls={control.id}
-            aria-disabled={properties.disabled === true ? "true" : undefined}
-            data-menu-item=""
-            data-slot="menu-sub-trigger"
-            {...rest}
-            ref={[item.ref, (element: HTMLElement) => control.setTrigger(element)]}
-            onFocus={item.onFocus}
-            onClick={() => isEnabled() && control.open("first")}
-            onKeyDown={(event) => {
+    return renderPart(
+        "div",
+        "menu-sub-trigger",
+        rest,
+        () => [
+            styles.item,
+            control.isOpen() && styles.open,
+            properties.disabled === true && state.inert,
+        ],
+        mergeProperties(hover.attributes(), {
+            id: id,
+            role: "menuitem" as const,
+            tabindex: -1,
+            "aria-haspopup": "menu" as const,
+            get "aria-expanded"() {
+                return control.isOpen() ? "true" : "false";
+            },
+            "aria-controls": control.id,
+            get "aria-disabled"() {
+                return properties.disabled === true ? "true" : undefined;
+            },
+            "data-menu-item": "" as const,
+            ref: [item.ref, (element: HTMLElement) => control.setTrigger(element)],
+            onFocus: item.onFocus,
+            onClick: () => isEnabled() && control.open("first"),
+            onKeyDown: (event: KeyboardEvent & { readonly currentTarget: HTMLElement }) => {
                 // open the submenu of an enabled trigger and focus its first item
                 if (isEnabled() && opens(event.key)) {
                     event.preventDefault();
                     event.stopPropagation();
                     control.open("first");
                 }
-            }}
-            {...hover.attributes()}
-            {...style.attributes(
-                [
-                    styles.item,
-                    control.isOpen() && styles.open,
-                    properties.disabled === true && state.inert,
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {properties.children}
-            <span {...style.attrs(styles.chevron)}>
-                <Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />
-            </span>
-        </div>
+            },
+            get children() {
+                return (
+                    <>
+                        {properties.children}
+                        <span {...style.attrs(styles.chevron)}>
+                            <Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />
+                        </span>
+                    </>
+                );
+            },
+        }),
     );
 }
 
@@ -1135,8 +1141,9 @@ export function MenuAction<Inputs extends ActionInputs>(
     const title = () => (
         <>
             <Show when={properties.icon}>{(icon) => <Icon icon={icon()} />}</Show>
-            {properties.children ??
-                actions.sentence(properties.action, element(), locale, properties.given)}
+            {contentOr(properties, () =>
+                actions.sentence(properties.action, element(), locale, properties.given),
+            )}
         </>
     );
     const shortcut = () => (

@@ -57,9 +57,7 @@ export interface ToggleVariantProperties {
 
 /** The properties of a toggle, the native button's attributes included. */
 export interface ToggleProperties
-    extends
-        Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "onClick">,
-        ToggleVariantProperties {
+    extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class">, ToggleVariantProperties {
     /** Whether the toggle starts on when its state is uncontrolled. */
     readonly defaultPressed?: boolean;
     /** Handle the toggle turning on or off. */

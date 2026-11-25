@@ -1,3 +1,4 @@
+import { renderPart } from "../part/index.ts";
 import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
@@ -135,8 +136,6 @@ const CALENDAR_OPTIONS = [
     "showWeekNumber",
     "showOutsideDays",
     "autoFocus",
-    "xstyle",
-    "style",
 ] as const;
 
 /** The years a year picker reaches back without an earliest day. */
@@ -403,52 +402,60 @@ function CalendarMonths(properties: {
         }
     });
 
-    return (
-        <div
-            data-slot="calendar"
-            {...omit(calendar, ...CALENDAR_OPTIONS)}
-            onFocusOut={(event) => control.focus.focusOut(event)}
-            {...style.attributes([text.xs, styles.calendar, calendar.xstyle], calendar.style)}
-        >
-            <CalendarHeader
-                direction={locale.direction}
-                canMove={(step) => control.canShift(step)}
-                onMove={(step) => control.shift(step)}
-            />
-            <For each={control.shown()}>
-                {(month) => (
-                    <CalendarMonth
-                        month={month}
-                        layout={calendar.captionLayout ?? "label"}
-                        min={calendar.min}
-                        max={calendar.max}
-                        onPick={(picked) =>
-                            control.moveTo(
-                                PlainDate.add(control.focused(), {
-                                    months: monthsBetween(month, picked),
-                                }),
-                            )
-                        }
-                    >
-                        {(captionId) => (
-                            <CalendarGrid
-                                captionId={captionId}
-                                weeks={MonthGrid.of(month, week(), "fit").weeks}
-                                week={week()}
-                                month={month}
-                                focus={control.focus}
-                                stateOf={(day) => stateOf(calendar, control.value(), day)}
-                                today={today()}
-                                weekNumbers={calendar.showWeekNumber === true}
-                                outsideDays={calendar.showOutsideDays !== false}
-                                isDisabled={(day) => control.isUnavailable(day)}
-                                onSelect={(day) => control.select(day)}
-                            />
-                        )}
-                    </CalendarMonth>
-                )}
-            </For>
-        </div>
+    return renderPart(
+        "div",
+        "calendar",
+        omit(calendar, ...CALENDAR_OPTIONS),
+        [text.xs, styles.calendar],
+        {
+            onFocusOut: (event) => control.focus.focusOut(event),
+            get children() {
+                return (
+                    <>
+                        <CalendarHeader
+                            direction={locale.direction}
+                            canMove={(step) => control.canShift(step)}
+                            onMove={(step) => control.shift(step)}
+                        />
+                        <For each={control.shown()}>
+                            {(month) => (
+                                <CalendarMonth
+                                    month={month}
+                                    layout={calendar.captionLayout ?? "label"}
+                                    min={calendar.min}
+                                    max={calendar.max}
+                                    onPick={(picked) =>
+                                        control.moveTo(
+                                            PlainDate.add(control.focused(), {
+                                                months: monthsBetween(month, picked),
+                                            }),
+                                        )
+                                    }
+                                >
+                                    {(captionId) => (
+                                        <CalendarGrid
+                                            captionId={captionId}
+                                            weeks={MonthGrid.of(month, week(), "fit").weeks}
+                                            week={week()}
+                                            month={month}
+                                            focus={control.focus}
+                                            stateOf={(day) =>
+                                                stateOf(calendar, control.value(), day)
+                                            }
+                                            today={today()}
+                                            weekNumbers={calendar.showWeekNumber === true}
+                                            outsideDays={calendar.showOutsideDays !== false}
+                                            isDisabled={(day) => control.isUnavailable(day)}
+                                            onSelect={(day) => control.select(day)}
+                                        />
+                                    )}
+                                </CalendarMonth>
+                            )}
+                        </For>
+                    </>
+                );
+            },
+        },
     );
 }
 

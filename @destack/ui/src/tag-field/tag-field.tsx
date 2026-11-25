@@ -23,7 +23,12 @@ import { badgeVariants } from "../badge/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { type FieldControl, useFieldControl, useFieldValue } from "../field/control.ts";
 import { Icon } from "../icon/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 import { VisuallyHidden } from "../visually-hidden/index.ts";
 
 /** What divides the tags a person types or pastes, commas and line breaks by default. */
@@ -470,12 +475,12 @@ export function TagField(given: TagFieldProperties): JSX.Element {
                 get children() {
                     return (
                         <>
-                            {properties.children ?? (
+                            {contentOr(properties, () => (
                                 <>
                                     <TagFieldList />
                                     <TagFieldInput />
                                 </>
-                            )}
+                            ))}
                             <VisuallyHidden role="status">{news()}</VisuallyHidden>
                             <Show when={properties.name}>
                                 <For each={control.values()}>
@@ -595,16 +600,14 @@ export function TagFieldItem(properties: TagFieldItemProperties): JSX.Element {
                         return (
                             <Show
                                 when={isEdited()}
-                                fallback={
-                                    properties.children ?? (
-                                        <>
-                                            <span {...style.attrs(styles.words)}>
-                                                {properties.value}
-                                            </span>
-                                            <TagFieldRemove />
-                                        </>
-                                    )
-                                }
+                                fallback={contentOr(properties, () => (
+                                    <>
+                                        <span {...style.attrs(styles.words)}>
+                                            {properties.value}
+                                        </span>
+                                        <TagFieldRemove />
+                                    </>
+                                ))}
                             >
                                 <TagEdit value={properties.value} place={properties.place} />
                             </Show>
@@ -690,7 +693,7 @@ export function TagFieldRemove(
                     control.focus(control.values().length);
                 },
                 get children() {
-                    return properties.children ?? <Icon icon={xIcon} size="0.75em" />;
+                    return contentOr(properties, () => <Icon icon={xIcon} size="0.75em" />);
                 },
             })}
         </Show>
@@ -805,7 +808,9 @@ export function TagFieldClear(properties: ButtonProperties): JSX.Element {
                     properties,
                 )}
             >
-                {properties.children ?? <Icon icon={xIcon} />}
+                {contentOr(properties, () => (
+                    <Icon icon={xIcon} />
+                ))}
             </Button>
         </Show>
     );

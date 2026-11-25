@@ -173,6 +173,14 @@ export interface ElementPartProperties {
     readonly [PART_STYLES]?: style.Styles;
 }
 
+/** Read what a caller puts in a part, null for nothing, else the part's own content. */
+export function contentOr(
+    properties: { readonly children?: JSX.Element },
+    standard: () => JSX.Element,
+): JSX.Element {
+    return "children" in properties ? properties.children : standard();
+}
+
 /** Render a part's own element of a tag, or the element its caller renders, with its attributes. */
 export function useRender(options: UseRenderOptions): JSX.Element {
     // render the caller's element with the attributes any element takes
