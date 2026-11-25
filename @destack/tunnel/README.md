@@ -173,6 +173,6 @@ Machines dial out to a relay, as `cloudflared` dials Cloudflare's edge.
 
 | Cloudflare Tunnel       | `@destack/tunnel`          | Difference                                                               |
 | ----------------------- | -------------------------- | ------------------------------------------------------------------------ |
-| `cloudflared`           | `TunnelClient`             | One WebSocket to the residency's relay.                                  |
+| `cloudflared`           | `TunnelClient`             | One WebSocket to the region's relay.                                  |
 | a tunnel token          | the machine's access token | Renewed through the session at 80% of its lifetime.                      |
 | hostnames routed in DNS | `Renewal.name`             | The relay names the machine, such as `laptop--florian.destack.computer`. |
