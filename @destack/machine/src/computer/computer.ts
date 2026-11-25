@@ -1100,13 +1100,13 @@ export class Computer implements AsyncDisposable {
     /** Serve this computer until shutdown, with its device's local objects. */
     static async run(
         bundle: Pick<ComputerOptions, "localObjects">,
-        environment: ComputerOptions["environment"],
-        configuration = Computer.configure(environment),
+        base: ComputerOptions["environment"],
+        configuration = Computer.configure(base),
     ): Promise<void> {
         // take the directory's database exclusively
         const { port } = configuration;
-        const { files } = environment;
-        const machineProcess = new MachineProcess(configuration.directory, environment);
+        const { files } = base;
+        const machineProcess = new MachineProcess(configuration.directory, base);
         await machineProcess.createDirectory();
         const directory = await files.realPath(configuration.directory);
         await using cleanup = new AsyncDisposableStack();
@@ -1121,13 +1121,13 @@ export class Computer implements AsyncDisposable {
 
         // record the process's telemetry from its start: in its own log, and in its owner's home once enrolled
         let running: Computer | undefined;
-        const telemetry = await Computer.#startTelemetry(environment, () => running?.machine);
+        const telemetry = await Computer.#startTelemetry(base, () => running?.machine);
         const instruments = TelemetryScope.of(MACHINE_PACKAGE, telemetry);
+        const environment = Environment.instrument(base, telemetry);
 
         // choose the keys' store, and log it
         const store = Computer.keychainStore(directory, environment);
         instruments.log.info("destack.keychain.chosen", { "destack.keychain.store": store.kind });
-        const recorded = Environment.instrument(environment, telemetry);
 
         // compose the machine with the system's keychains, this channel's distribution and its toolchain
         const stopping = new AbortController();
@@ -1137,18 +1137,18 @@ export class Computer implements AsyncDisposable {
         const toolchain = isStandalone
             ? () => installed.distribution.toolchain()
             : async () => Toolchain.workspace();
-        const shipped = await BunDistribution.read(configuration.shipped, files);
+        const shipped = await BunDistribution.read(configuration.shipped, environment.files);
         const started = await Computer.start({
             isolation: "sandbox",
             directory,
-            environment: recorded,
+            environment,
             universe: configuration.universe,
             port,
             ...(configuration.relay === undefined ? {} : { relay: configuration.relay }),
             ...bundle,
             shipped,
             layer: await Computer.#layer(configuration.shipped, shipped, environment),
-            keychain: (service) => new BunKeychain(service, files, store),
+            keychain: (service) => new BunKeychain(service, environment.files, store),
             process: {
                 version: MACHINE_PACKAGE.version,
                 pid: environment.process.id,
