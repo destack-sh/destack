@@ -58,16 +58,28 @@ const MAX_CAUSES = 8;
 export const Failure = Object.assign(failureSchema, {
     /** List a thrown error and the errors that caused it, nearest first. */
     causes(error: unknown): Error[] {
-        // follow the causes up to the bound, a suppression's original and then its later failure
+        // follow the causes up to the bound
         const causes: Error[] = [];
         const pending: unknown[] = [error];
         while (pending.length > 0 && causes.length <= MAX_CAUSES) {
             const each = pending.shift();
-            if (each instanceof Error) {
-                causes.push(each);
-                const next: unknown[] =
-                    each instanceof SuppressedError ? [each.suppressed, each.error] : [each.cause];
-                pending.unshift(...next);
+            if (!(each instanceof Error)) {
+                continue;
+            }
+            causes.push(each);
+
+            // follow a suppression's original, then its later failure
+            if (each instanceof SuppressedError) {
+                pending.unshift(each.suppressed, each.error);
+            }
+            // follow each error an aggregate gathers
+            else if (each instanceof AggregateError) {
+                const gathered: unknown[] = each.errors;
+                pending.unshift(...gathered);
+            }
+            // follow the cause
+            else {
+                pending.unshift(each.cause);
             }
         }
 

@@ -135,6 +135,17 @@ test("read a suppressed failure as the original, naming the later one, and list 
     ]);
 });
 
+test("list an aggregate's errors as its causes, each with its own", () => {
+    // gather two failures, one with a cause of its own
+    const cause = new Error("disk full");
+    const first = new Error("first close failed", { cause });
+    const second = new Error("second close failed");
+    const gathered = new AggregateError([first, second], "closing failed");
+
+    // list the aggregate, then each error with its causes in order
+    expect(Failure.causes(gathered)).toEqual([gathered, first, cause, second]);
+});
+
 test("read each status's HTTP reason code, else its class's", () => {
     expect([401, 402, 403, 409, 410, 507].map((status) => CallErrorCode.of(status))).toEqual([
         "UNAUTHORIZED",
