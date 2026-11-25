@@ -815,14 +815,14 @@ Components, parts and props follow shadcn/ui and Radix, and some follow their ow
 
 Chats follow shadcn/ui, and a list of changes follows Primer.
 
-| Prior art                     | `@destack/ui`     | Difference                                                          |
-| ----------------------------- | ----------------- | ------------------------------------------------------------------- |
-| shadcn/ui's `MessageScroller` | `MessageScroller` | Works without a provider. Counts messages unseen and steps by keys. |
-| shadcn/ui's `Message`         | `Message`         | Adds actions by hover, focus and long press, and a swipe.           |
-| shadcn/ui's `Bubble`          | `Bubble`          | The same.                                                           |
-| shadcn/ui's `Marker`          | `Marker`          | Adds `busy`.                                                        |
-| shadcn/ui's `Attachment`      | `FileItem`        | Shows uploads and opens files.                                      |
-| Primer's `Timeline`           | `Activity`        | Condenses an item's badge and body with it.                         |
+| Prior art                     | `@destack/ui`     | Difference                                                           |
+| ----------------------------- | ----------------- | -------------------------------------------------------------------- |
+| shadcn/ui's `MessageScroller` | `MessageScroller` | Works without a provider. Counts messages unseen and steps by keys.  |
+| shadcn/ui's `Message`         | `Message`         | Adds actions by hover, focus and long press, and a swipe.            |
+| shadcn/ui's `Bubble`          | `Bubble`          | The same.                                                            |
+| shadcn/ui's `Marker`          | `Marker`          | Adds `status` and `MarkerDescription`, and so serves as `Trace` too. |
+| shadcn/ui's `Attachment`      | `FileItem`        | Shows uploads and opens files.                                       |
+| Primer's `Timeline`           | `Activity`        | Condenses an item's badge and body with it.                          |
 
 ### React Aria and dnd-kit
 

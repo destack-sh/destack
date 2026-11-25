@@ -2,8 +2,8 @@ import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { state } from "@destack/theme/state";
 import { text } from "@destack/theme/text";
-import { color, motion, radius, space, stroke } from "@destack/theme/tokens.stylex";
-import { type JSX, merge, omit } from "@destack/view";
+import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import { type Accessor, createContext, type JSX, merge, omit, useContext } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The light that runs over the words of a status under way. */
@@ -40,6 +40,14 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.foreground },
         },
     },
+    error: {
+        color: swatch.destructiveText,
+    },
+    description: {
+        flexShrink: 0,
+        fontVariantNumeric: "tabular-nums",
+        color: color.mutedForeground,
+    },
     icon: {
         display: "inline-flex",
         flexShrink: 0,
@@ -47,7 +55,7 @@ const styles = style.create({
     content: {
         minWidth: 0,
     },
-    busy: {
+    running: {
         color: { default: "transparent", [media.forcedColors]: "CanvasText" },
         backgroundClip: "text",
         backgroundImage: {
@@ -94,33 +102,49 @@ const variants = style.create({
 /** The layout of a marker: inline, with a line below, or between two lines. */
 export type MarkerVariant = keyof typeof variants;
 
+/** The work a marker reports: under way, or failed. */
+export type MarkerStatus = "running" | "error";
+
+/** The status of the nearest marker. */
+const StatusContext = createContext<Accessor<MarkerStatus | undefined>>(() => undefined);
+
 /** The properties of a marker, the native element's attributes included. */
 export type MarkerProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties & {
         /** The layout, inline by default. */
         readonly variant?: MarkerVariant;
+        /** The work it reports, which its words say too, none by default. */
+        readonly status?: MarkerStatus | undefined;
     };
 
 /** Render a note in a stream, such as a status, a day or someone joining. */
 export function Marker(properties: MarkerProperties): JSX.Element {
     const marker = merge(DEFAULTS, properties);
-    const rest = omit(properties, "variant");
+    const rest = omit(properties, "variant", "status");
 
-    return renderPart(
-        "div",
-        "marker",
-        rest,
-        () => [
-            text.sm,
-            styles.marker,
-            variants[marker.variant],
-            marker.render !== undefined && [state.focus, styles.interactive],
-        ],
-        {
-            get "data-variant"() {
-                return marker.variant;
-            },
-        },
+    return (
+        <StatusContext value={() => properties.status}>
+            {renderPart(
+                "div",
+                "marker",
+                rest,
+                () => [
+                    text.sm,
+                    styles.marker,
+                    variants[marker.variant],
+                    marker.render !== undefined && [state.focus, styles.interactive],
+                    properties.status === "error" && styles.error,
+                ],
+                {
+                    get "data-variant"() {
+                        return marker.variant;
+                    },
+                    get "data-status"() {
+                        return properties.status;
+                    },
+                },
+            )}
+        </StatusContext>
     );
 }
 
@@ -135,18 +159,17 @@ export function MarkerIcon(properties: MarkerElementProperties): JSX.Element {
     });
 }
 
-/** The properties of a marker's words. */
-export type MarkerContentProperties = MarkerElementProperties & {
-    /** Whether a light runs over the words, as what they say is under way. */
-    readonly busy?: boolean;
-};
+/** Render the words of a marker, which a light runs over while their work is under way. */
+export function MarkerContent(properties: MarkerElementProperties): JSX.Element {
+    const status = useContext(StatusContext);
 
-/** Render the words of a marker. */
-export function MarkerContent(properties: MarkerContentProperties): JSX.Element {
-    const rest = omit(properties, "busy");
-
-    return renderPart("span", "marker-content", rest, () => [
+    return renderPart("span", "marker-content", properties, () => [
         styles.content,
-        properties.busy === true && styles.busy,
+        status() === "running" && styles.running,
     ]);
+}
+
+/** Render a detail after the words of a marker, such as a count or how long it took. */
+export function MarkerDescription(properties: MarkerElementProperties): JSX.Element {
+    return renderPart("span", "marker-description", properties, styles.description);
 }
