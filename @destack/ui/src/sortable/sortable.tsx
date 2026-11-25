@@ -1,5 +1,4 @@
 import { state } from "@destack/theme/state";
-import { isMotionReduced } from "@destack/view/motion";
 import type { Axis } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
@@ -33,6 +32,7 @@ import {
     type DroppableOptions,
     useDragManager,
 } from "../drag/index.ts";
+import { LayoutAnimation } from "../motion/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
 import { type VirtualHost, VirtualHostContext, type VirtualWindow } from "../virtual-list/index.ts";
 import { CollectionBuilder, inDocumentOrder } from "../collection/index.ts";
@@ -40,14 +40,11 @@ import { CollectionBuilder, inDocumentOrder } from "../collection/index.ts";
 /** The distance in pixels a pointer moves past an item's start to nest under it in a tree. */
 const NEST_DISTANCE = 32;
 
+/** The room items make while nothing is dragged. */
+const STILL: ReadonlyMap<string, number> = new Map();
+
 /** The line a target item shows along the edge the dragged item lands on. */
 const LINE = `calc(2 * ${stroke.border})`;
-
-/** The time a moved item glides to its new place, in milliseconds: an on-screen move. */
-const GLIDE_TIME = 250;
-
-/** The curve a moved item glides along: Emil Kowalski's strong ease-in-out for on-screen moves. */
-const GLIDE_EASING = "cubic-bezier(0.77, 0, 0.175, 1)";
 
 /** The type of an item and the type a container takes when neither sets one. */
 const DEFAULT_TYPE = "item";
@@ -64,6 +61,18 @@ const styles = style.create({
         opacity: 0.5,
         zIndex: 1,
     },
+    // leave a gap where the dragged item lands
+    gone: {
+        opacity: 0,
+    },
+    shifting: {
+        transitionProperty: "translate, opacity",
+        transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
+    },
+    room: (inline: string, block: string, backward: string) => ({
+        translate: { default: `${inline} ${block}`, ":dir(rtl)": `${backward} ${block}` },
+    }),
     lifted: {
         userSelect: "none",
     },
@@ -241,12 +250,16 @@ export class SortableControl {
     readonly #items = new Map<string, SortableEntry>();
     /** The one item the drag marks and the side it lands on, found once per step of the drag. */
     readonly #marked: Accessor<{ readonly id: string; readonly drop: SortableDrop } | undefined>;
-    /** The display whose next frame a glide waits for. */
+    /** How far each item makes room for the dragged one, found once per step of the drag. */
+    readonly #rooms: Accessor<ReadonlyMap<string, number>>;
+    /** The display whose next frame an animation waits for. */
     readonly #environment: Environment<"display">;
     /** The containers by their ids. */
     readonly #lists = new Map<string, SortableList>();
     /** The bounds of each container's items as the drag lifted, none for a virtual list's. */
     readonly #measured = new Map<string, readonly SortableBounds[]>();
+    /** The length the dragged item takes in each container, its gap to the next included. */
+    readonly #lengths = new Map<string, number>();
     /** Count each item that mounts or unmounts, which the marked item follows. */
     readonly #mounts: CollectionBuilder<string>;
 
@@ -256,7 +269,7 @@ export class SortableControl {
         manager: DragManager,
         environment: Environment<"display">,
     ) {
-        // glide every move the drags drop on the lists
+        // animate every move the drags drop on the lists
         this.properties = properties;
         this.#environment = environment;
         this.manager = manager;
@@ -280,10 +293,22 @@ export class SortableControl {
                     previous?.id === next?.id && previous?.drop === next?.drop,
             },
         );
+
+        // make room once per target, and again as items mount
+        this.#rooms = createMemo(() => {
+            // make none without a drag, and with a line
+            const aim = target();
+            this.#mounts.items();
+            if (manager.item() === undefined || this.properties.indicator !== "gap") {
+                return STILL;
+            }
+
+            return this.#roomsAt(aim);
+        });
     }
 
-    /** Run a move and glide each item from where it was to where the move puts it, after FLIP. */
-    glide(move: () => void): void {
+    /** Run a move and animate each item from where it was to where the move puts it, after FLIP. */
+    animate(move: () => void): void {
         // remember where each item was, unless the person wants reduced motion
         const elements = [...this.#items.values()].flatMap((entry) => {
             const element = entry.element();
@@ -291,10 +316,29 @@ export class SortableControl {
             return element === undefined ? [] : [element];
         });
         const [first] = elements;
-        const isStill = first !== undefined && isMotionReduced(first);
+        const isStill = first === undefined || !new LayoutAnimation(first).isEnabled();
         const before = new Map(
             elements.map((element) => [element, element.getBoundingClientRect()]),
         );
+
+        // land the dragged item from under the pointer
+        const operation = this.manager.current();
+        const dragged =
+            operation === undefined || operation.pointer === "keyboard"
+                ? undefined
+                : this.elementOf(operation.item);
+        const stood = dragged === undefined ? undefined : before.get(dragged);
+        if (operation !== undefined && dragged !== undefined && stood !== undefined) {
+            before.set(
+                dragged,
+                new DOMRect(
+                    stood.x + operation.offsetX,
+                    stood.y + operation.offsetY,
+                    stood.width,
+                    stood.height,
+                ),
+            );
+        }
         move();
         if (isStill) {
             return;
@@ -303,16 +347,10 @@ export class SortableControl {
         // once the move renders, play each item that moved from its old place to its new one
         void this.#environment.display.frame().then(() => {
             for (const [element, was] of before) {
+                new LayoutAnimation(element).stop();
                 const now = element.getBoundingClientRect();
-                const [x, y] = [was.left - now.left, was.top - now.top];
-                if (element.isConnected && (x !== 0 || y !== 0)) {
-                    element.animate(
-                        [
-                            { transform: `translate(${String(x)}px, ${String(y)}px)` },
-                            { transform: "none" },
-                        ],
-                        { duration: GLIDE_TIME, easing: GLIDE_EASING },
-                    );
+                if (element.isConnected) {
+                    new LayoutAnimation(element).from(was.left - now.left, was.top - now.top);
                 }
             }
         });
@@ -433,8 +471,37 @@ export class SortableControl {
         return { kind: "list", droppable: entry.container, index };
     }
 
+    /** Read how far an item makes room for the dragged one along its container, in pixels. */
+    roomOf(id: string): number {
+        return this.#rooms().get(id) ?? 0;
+    }
+
+    /** Read how far each item makes room at a target, none with a line. */
+    #roomsAt(target: DragTarget | undefined): ReadonlyMap<string, number> {
+        // add up what each item makes
+        const from = this.manager.current()?.from;
+        const rooms = new Map<string, number>();
+
+        // take the room at the place it lands, and close up where it stood
+        for (const at of [from, target]) {
+            if (at?.kind === "list") {
+                const sign = at === target ? 1 : -1;
+                const length = this.#lengths.get(at.droppable) ?? 0;
+                for (const id of this.idsOf(at.droppable).slice(at.index)) {
+                    rooms.set(id, (rooms.get(id) ?? 0) + sign * length);
+                }
+            }
+        }
+
+        return rooms;
+    }
+
     /** Read the side of an item the dragged item lands on. */
     dropOf(id: string): SortableDrop | undefined {
+        // mark nothing where the others make room
+        if (this.properties.indicator === "gap") {
+            return undefined;
+        }
         const marked = this.#marked();
 
         return marked?.id === id ? marked.drop : undefined;
@@ -505,7 +572,7 @@ export class SortableControl {
             describe: (target) => this.#describe(list, target),
             drop: (operation) => {
                 const move = this.moveOf(operation);
-                this.glide(() => this.properties.onMove?.(move));
+                this.animate(() => this.properties.onMove?.(move));
             },
             scroller: () => list.window()?.scroller(),
             reveal: (target, item) => this.#reveal(list, target, item),
@@ -514,7 +581,16 @@ export class SortableControl {
 
     /** Read the bounds of a container's items as a drag lifts, a virtual list's at each move. */
     #measure(list: SortableList): void {
+        // read the items' bounds, and the room the dragged one takes among them
         this.#measured.set(list.id, list.window() === undefined ? this.#boundsOf(list) : []);
+        const dragged = this.dragged();
+        const element = dragged === undefined ? undefined : this.elementOf(dragged);
+        const first = this.#entriesOf(list.id)[0]?.element()?.parentElement ?? undefined;
+        const isVertical = untrack(list.orientation) === "vertical";
+        const gap =
+            first === undefined ? "" : getComputedStyle(first)[isVertical ? "rowGap" : "columnGap"];
+        const length = isVertical ? element?.offsetHeight : element?.offsetWidth;
+        this.#lengths.set(list.id, (length ?? 0) + (Number.parseFloat(gap) || 0));
     }
 
     /** Find the place a point lands at among a container's items. */
@@ -525,9 +601,17 @@ export class SortableControl {
             list.window() === undefined
                 ? (this.#measured.get(list.id) ?? [])
                 : this.#boundsOf(list);
-        const found = items.findIndex(({ bounds }) =>
-            isVertical ? y < bounds.top + bounds.height / 2 : x < bounds.left + bounds.width / 2,
-        );
+        const isBackward = this.manager.locale.direction === "rtl";
+        const found = items.findIndex(({ bounds }) => {
+            // compare with its middle in the direction of the text
+            const middle = bounds.left + bounds.width / 2;
+
+            return isVertical
+                ? y < bounds.top + bounds.height / 2
+                : isBackward
+                  ? x > middle
+                  : x < middle;
+        });
         const index = found === -1 || list.isEndOnly() ? items.length : found;
 
         // nest under the item before when the pointer moves past its start in a tree
@@ -712,6 +796,9 @@ interface SortableItemControl {
 export type SortableElementProperties<Attributes> = Omit<Attributes, "class" | "style"> &
     ElementPartProperties;
 
+/** How a drag shows where it lands: a line, or a gap the others make. */
+export type SortableIndicator = "line" | "gap";
+
 /** The properties of a sortable, the native element's attributes included. */
 export interface SortableProperties extends SortableElementProperties<
     JSX.HTMLAttributes<HTMLDivElement>
@@ -720,6 +807,8 @@ export interface SortableProperties extends SortableElementProperties<
     readonly onMove?: (move: SortableMove) => void;
     /** Whether items nest under one another as a tree. */
     readonly nesting?: boolean;
+    /** How a drag shows where it lands: a line, or the others making room, a line by default. */
+    readonly indicator?: SortableIndicator;
 }
 
 /** The properties of a sortable's container, the native element's attributes included. */
@@ -790,7 +879,7 @@ export function Sortable(properties: SortableProperties): JSX.Element {
     const drags = useDragManager();
     const control = new SortableControl(properties, drags.manager, useEnvironment());
     const manager = control.manager;
-    const rest = omit(properties, "onMove", "nesting", "xstyle", "style", "children");
+    const rest = omit(properties, "onMove", "nesting", "indicator", "xstyle", "style", "children");
 
     return (
         <SortableContext value={control}>
@@ -1032,12 +1121,26 @@ export function SortableItem(properties: SortableItemProperties): JSX.Element {
                     "div",
                     "sortable-item",
                     rest,
-                    () => [
-                        styles.item,
-                        isLiftedWhole && styles.lifted,
-                        isDragging() && styles.dragging,
-                        dropStyle(control.dropOf(id), isVertical()),
-                    ],
+                    () => {
+                        // make room, or mark the side it lands on
+                        const room = control.roomOf(id);
+                        const along = `${String(room)}px`;
+                        const isGap = control.properties.indicator === "gap";
+
+                        return [
+                            styles.item,
+                            isLiftedWhole && styles.lifted,
+                            isDragging() && (isGap ? styles.gone : styles.dragging),
+                            isGap &&
+                                control.manager.item() !== undefined && [
+                                    styles.shifting,
+                                    isVertical()
+                                        ? styles.room("0px", along, "0px")
+                                        : styles.room(along, "0px", `${String(-room)}px`),
+                                ],
+                            dropStyle(control.dropOf(id), isVertical()),
+                        ];
+                    },
                     mergeProperties(lifting, {
                         get "data-dragging"() {
                             return isDragging() ? "" : undefined;

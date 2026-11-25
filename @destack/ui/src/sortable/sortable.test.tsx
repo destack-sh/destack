@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
-import { Errored, flush } from "@destack/view";
+import { Locale, Localization } from "@destack/locale";
+import { Errored, For, flush, LocaleContext } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import { VirtualList } from "../virtual-list/index.ts";
 import { layOutElements } from "../virtualizer/test/layout.ts";
@@ -283,4 +284,73 @@ test("refuse two virtual lists in one container", () => {
     expect(container.textContent).toBe(
         "TypeError: sortable container 'tasks' has several virtual lists",
     );
+});
+
+/** Drag the first of three items in a row past the second, and read what each does meanwhile. */
+function dragInRow(tag: string, indicator: "line" | "gap") {
+    stubPopovers();
+    layOutElements({ client: 100, scroll: 100 });
+    const moves: SortableMove[] = [];
+    const { container } = render(() => (
+        <LocaleContext value={Localization.of(Locale.parse(tag), [])}>
+            <Sortable indicator={indicator} onMove={(move) => moves.push(move)}>
+                <SortableContainer id="row" orientation="horizontal">
+                    <For each={["a", "b", "c"]}>
+                        {(id) => (
+                            <SortableItem id={id} activator="item">
+                                {id}
+                            </SortableItem>
+                        )}
+                    </For>
+                </SortableContainer>
+            </Sortable>
+        </LocaleContext>
+    ));
+    const isBackward = tag === "ar";
+    const items = [...container.querySelectorAll<HTMLElement>("[data-slot=sortable-item]")];
+    const row = container.querySelector("[data-slot=sortable-container]") ?? container;
+    Object.defineProperty(row, "getBoundingClientRect", {
+        value: () => new DOMRect(0, 0, 300, 20),
+    });
+    items.forEach((item, index) => {
+        const left = isBackward ? 200 - index * 100 : index * 100;
+        Object.defineProperty(item, "getBoundingClientRect", {
+            value: () => new DOMRect(left, 0, 100, 20),
+        });
+        Object.defineProperty(item, "offsetWidth", { value: 100 });
+    });
+    const x = (at: number): number => (isBackward ? 300 - at : at);
+    for (const [type, at] of [
+        ["pointerdown", 50],
+        ["pointermove", 60],
+        ["pointermove", 190],
+    ] as const) {
+        items[0]?.dispatchEvent(
+            new PointerEvent(type, { clientX: x(at), clientY: 10, button: 0, bubbles: true }),
+        );
+        flush();
+    }
+    const rooms = items.map(
+        (item) => /: ([^;]*);/u.exec(item.getAttribute("style") ?? "")?.[1] ?? "none",
+    );
+    items[0]?.dispatchEvent(
+        new PointerEvent("pointerup", { clientX: x(190), clientY: 10, button: 0, bubbles: true }),
+    );
+    flush();
+
+    return { rooms, moves: moves.map(({ previous, next }) => [previous, next]) };
+}
+
+test("land between the same items in either direction of the text", () => {
+    expect([dragInRow("en", "line").moves, dragInRow("ar", "line").moves]).toEqual([
+        [["b", "c"]],
+        [["b", "c"]],
+    ]);
+});
+
+test("make room for a dragged item where it lands", () => {
+    expect([dragInRow("en", "gap").rooms, dragInRow("en", "line").rooms]).toEqual([
+        ["0px 0px", "-100px 0px", "0px 0px"],
+        ["none", "none", "none"],
+    ]);
 });

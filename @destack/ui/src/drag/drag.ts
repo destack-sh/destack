@@ -20,7 +20,7 @@ const LIFT_DELAY = 500;
 
 /** The elements inside a lifted element that a press acts on instead: controls, links, fields. */
 const INTERACTIVE =
-    "button, a[href], input, select, textarea, label, summary, [contenteditable], [role=button], [role=menuitem], [role=checkbox], [role=switch], [role=tab], [role=link]";
+    "button, a[href], input, select, textarea, label, summary, [contenteditable], [role=button], [role=menuitem], [role=checkbox], [role=switch], [role=link]";
 
 /** The pixels from a scroller's edge where a drag scrolls it, about a finger's width. */
 const SCROLL_EDGE = 48;
@@ -75,6 +75,14 @@ export type DragTarget =
           readonly key: string;
           /** Which edge: the item's start or its end. */
           readonly edge: "start" | "end";
+      }
+    | {
+          /** A side of a place, or its middle. */
+          readonly kind: "side";
+          /** The droppable. */
+          readonly droppable: string;
+          /** The side. */
+          readonly side: "start" | "end" | "top" | "bottom" | "middle";
       };
 
 /** The verbs of drag targets. */
@@ -94,6 +102,8 @@ export const DragTarget = {
             );
         } else if (left.kind === "edge") {
             return right.kind === "edge" && left.key === right.key && left.edge === right.edge;
+        } else if (left.kind === "side") {
+            return right.kind === "side" && left.side === right.side;
         }
         // compare a time and its row
         else {
@@ -170,6 +180,8 @@ export interface DraggableOptions {
     readonly home: () => DragTarget;
     /** Report whether the item stays where it is, which leaves it unlifted and plain. */
     readonly isDisabled?: () => boolean;
+    /** Report whether a press lifts it, every one outside its controls by default. */
+    readonly canLift?: (event: PointerEvent) => boolean;
 }
 
 /** The options of a droppable. */
@@ -245,7 +257,7 @@ export class Draggable {
                 delay: LIFT_DELAY,
                 keys: [],
                 isDisabled: () => this.isDisabled(),
-                canStart: (event) => !isOnControl(event),
+                canStart: (event) => !isOnControl(event) && options.canLift?.(event) !== false,
                 onMoveStart: (event) => manager.lift(this.id, this.kind, event.pointerType),
                 onMove: (event) =>
                     manager.follow(
@@ -714,19 +726,13 @@ export class DragManager {
                   ];
         });
 
-        // order nested droppables before the ones around them
-        this.#measured = measured.toSorted((left, right) => {
-            // compare only droppables one of which is around the other
-            const outer = left.droppable.element();
-            const inner = right.droppable.element();
-            if (outer === undefined || inner === undefined || outer === inner) {
-                return 0;
-            } else if (outer.contains(inner)) {
-                return 1;
-            }
-
-            return inner.contains(outer) ? -1 : 0;
-        });
+        // order nested droppables before the ones around them, by how deep they stand
+        const depths = new Map(
+            measured.map(({ droppable }) => [droppable, depthOf(droppable.element())]),
+        );
+        this.#measured = measured.toSorted(
+            (left, right) => (depths.get(right.droppable) ?? 0) - (depths.get(left.droppable) ?? 0),
+        );
     }
 
     /** Scroll the scroller under the pointer while it rests near an edge. */
@@ -929,6 +935,17 @@ function stepOf(key: string, direction: Direction): DragStep | undefined {
     return undefined;
 }
 
+/** Count the elements around an element. */
+function depthOf(element: Element | undefined): number {
+    // walk up to the document
+    let depth = 0;
+    for (let each = element?.parentElement ?? null; each !== null; each = each.parentElement) {
+        depth += 1;
+    }
+
+    return depth;
+}
+
 /** Report whether a point lies within bounds. */
 function contains(bounds: DOMRect, x: number, y: number): boolean {
     return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
@@ -958,6 +975,8 @@ function isOnControl(event: PointerEvent): boolean {
     return (
         control !== null &&
         control !== event.currentTarget &&
+        // lift a tab's item by its tab
+        !control.matches("[role=tab]") &&
         event.currentTarget instanceof Node &&
         event.currentTarget.contains(control)
     );
