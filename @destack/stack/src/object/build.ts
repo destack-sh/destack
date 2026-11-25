@@ -1,7 +1,7 @@
 import { PackageDirectory, defineObject, field, type ResultsOf } from "@destack/object";
 import { and, desc, eq, isNull, type Select } from "@destack/db";
 import type { DatabaseConnection, Snapshot } from "@destack/db/database";
-import { none, through } from "@destack/access";
+import { none, principal, through } from "@destack/access";
 import { PackageId, PackageRelease } from "@destack/package";
 import type { Call } from "@destack/sync";
 import {
@@ -86,6 +86,8 @@ export const build = defineObject(
             key: field.string(),
             /** The commit of a commit build, which the followers of its references join on. */
             commit: field.string(Commit).optional(),
+            /** The machine compiling a commit build. */
+            runner: field.reference(principal.machine).optional(),
             /** The stored build's image once succeeded, kept until retention expires it. */
             image: field.blob({ while: { expiredAt: { isNull: true } } }).optional(),
             /** Why the build failed, once failed. */
@@ -122,6 +124,15 @@ export const build = defineObject(
                     OR: [
                         { state: "failed", failure: { isNotNull: true } },
                         { state: { ne: "failed" }, failure: { isNull: true } },
+                    ],
+                },
+            },
+            runner: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        { commit: { isNotNull: true }, runnerId: { isNotNull: true } },
+                        { commit: { isNull: true }, runnerId: { isNull: true } },
                     ],
                 },
             },
@@ -168,7 +179,7 @@ export const build = defineObject(
     },
     (method) => ({
         create: method.create("create", {
-            fields: ["source", "outputs", "version"],
+            fields: ["source", "outputs", "version", "runnerId"],
             onConflict: { key: "source" },
         }),
         cancel: method.update("cancel", { fields: [] }),
