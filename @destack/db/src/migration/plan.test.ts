@@ -1829,7 +1829,7 @@ test("declare a replicated table unique among its home rows, without foreign key
             ],
         );
 
-    // add the declarer's keys, and keep a replicated table's unique among the rows its home wrote
+    // add the declarer's keys, and keep a replicated table's unique and required among the rows its home wrote
     const [lists, items] = [list[TABLE].sqlName, item[TABLE].sqlName];
     const checks = TestDatabase.target() === "sqlite" ? ["check"] : [];
     expect([shape([]), shape([lists])]).toEqual([
@@ -1838,7 +1838,11 @@ test("declare a replicated table unique among its home rows, without foreign key
             [items, ["primaryKey", "foreignKey", ...checks], []],
         ],
         [
-            [lists, ["primaryKey", ...checks], [[`${lists}_name`, true, `"is_replica" = 0`]]],
+            [
+                lists,
+                ["primaryKey", ...checks, "check"],
+                [[`${lists}_name`, true, `"is_replica" = 0`]],
+            ],
             [items, ["primaryKey", ...checks], []],
         ],
     ]);

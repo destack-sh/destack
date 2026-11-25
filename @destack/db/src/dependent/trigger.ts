@@ -18,7 +18,9 @@ function install(dependent: DependentDescription, dialect: Dialect, namespace?: 
     const idle = `NOT EXISTS (SELECT 1 FROM ${replica})`;
     const source = quote(dependent.source);
     const rows = `${source} WHERE ${[
-        `${source}.${quote(dependent.key)} = OLD.${quote(dependent.id)}`,
+        ...dependent.keys.map(
+            (key) => `${source}.${quote(key.column)} = OLD.${quote(key.references)}`,
+        ),
         ...dependent.where.map(
             (entry) => `${source}.${quote(entry.column)} ${match(entry.value, dialect)}`,
         ),
@@ -81,7 +83,9 @@ function remove(dependent: DependentDescription, dialect: Dialect): string[] {
 
 /** Build a dependent's trigger name. */
 function triggerName(dependent: DependentDescription): string {
-    return quote(boundedName(`${dependent.table}__${dependent.source}_${dependent.key}`));
+    const columns = dependent.keys.map((key) => key.column).join("_");
+
+    return quote(boundedName(`${dependent.table}__${dependent.source}_${columns}`));
 }
 
 /** The triggers that maintain dependents. */

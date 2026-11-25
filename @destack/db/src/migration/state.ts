@@ -1,17 +1,21 @@
-import { sql } from "../sql/index.ts";
 import { canonicalize, present, schema, Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import { PackageVersion, type PackageId } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { type IndexDescription, TableDescription } from "../table/description.ts";
+import {
+    type ConstraintDescription,
+    describeColumn,
+    describeTable,
+    type IndexDescription,
+    TableDescription,
+} from "../table/description.ts";
 import { ChangeDescription } from "../log/description.ts";
 import { AggregateDescription } from "../aggregate/description.ts";
 import { DependentDescription } from "../dependent/description.ts";
-import { describeColumn, describeTable } from "../table/description.ts";
-import { dialectSQL, inline, placed } from "../sql/index.ts";
-import { qualify, relation } from "../table/namespace.ts";
+import { dialectSQL, inline, placed, sql } from "../sql/index.ts";
+import { boundedName, qualify, relation } from "../table/namespace.ts";
 import { describeLog, loggedKey, REPLICA_COLUMN } from "../log/schema.ts";
 import { integer } from "../table/column.ts";
 import { literal, quote } from "../dialect/quote.ts";
@@ -19,6 +23,7 @@ import { DatabaseError } from "../error/error.ts";
 
 import { MultikeyIndexDescription } from "../multikey/description.ts";
 import { expandMultikeyIndexes } from "../multikey/multikey.ts";
+
 /** The SQL name of the applied state table. */
 export const STATE = "__destack_state";
 
@@ -30,6 +35,9 @@ export const DATABASE_MANAGER = "database";
 
 /** The column of the state and stamp tables with the manager that applied a row. */
 const MANAGER_COLUMN = "manager";
+
+/** A foreign key as the database stores it. */
+type ForeignKeyDescription = Extract<ConstraintDescription, { readonly kind: "foreignKey" }>;
 
 /** A managed table as declared or applied. */
 export const TableState = schema.object({
@@ -234,7 +242,13 @@ export function declareState(
         const conversions = describeConversions(table);
         const predefined = describePredefined(table, dialect);
         const isReplicated = replicated.has(definition.sqlName);
-        const dependents = isReplica ? [] : describeDependents(table, tables, isReplicated);
+        const database = { dialect, local, replicated };
+        const dependents = isReplica
+            ? []
+            : [
+                  ...describeDependents(table, tables, isReplicated),
+                  ...declared.flatMap((source) => describeReferences(source, table, database)),
+              ];
         const aggregated = aggregates.get(definition.sqlName);
 
         // keep a replicated table's keys unique among its home rows, leaving references logical
@@ -810,9 +824,13 @@ function describeDependents(
 
         return {
             table: definition.sqlName,
-            id: id.definition.name,
             source: source[TABLE].sqlName,
-            key: source[TABLE].column(dependent.key).definition.name,
+            keys: [
+                {
+                    column: source[TABLE].column(dependent.key).definition.name,
+                    references: id.definition.name,
+                },
+            ],
             where: Object.entries(dependent.where ?? {}).map(([name, value]) => ({
                 column: source[TABLE].column(name).definition.name,
                 value,
@@ -857,15 +875,36 @@ function asReplicated(described: TableDescription, dialect: Dialect): TableDescr
     // cover the rows the home wrote
     const home = `${quote(REPLICA_COLUMN)} = 0`;
 
+    // require values in the home's rows alone, except in the primary key and the scope, which the log keys rows by
+    const keyed = new Set([
+        "scope",
+        ...described.constraints.flatMap((constraint) =>
+            constraint.kind === "primaryKey" ? constraint.columns : [],
+        ),
+    ]);
+    const required = described.columns.filter(
+        (column) => !column.nullable && !keyed.has(column.name),
+    );
+    const checks = required.map((column) => ({
+        kind: "check" as const,
+        name: boundedName(`${described.name}_${column.name}_home`),
+        expression: `${quote(column.name)} IS NOT NULL OR ${quote(REPLICA_COLUMN)} = 1`,
+    }));
+
     return {
         ...described,
         columns: [
-            ...described.columns,
+            ...described.columns.map((column) =>
+                keyed.has(column.name) ? column : { ...column, nullable: true },
+            ),
             describeColumn(integer(REPLICA_COLUMN).notNull().default(0), dialect),
         ],
-        constraints: described.constraints.filter(
-            (constraint) => constraint.kind !== "unique" && constraint.kind !== "foreignKey",
-        ),
+        constraints: [
+            ...described.constraints.filter(
+                (constraint) => constraint.kind !== "unique" && constraint.kind !== "foreignKey",
+            ),
+            ...checks,
+        ],
         indexes: [...described.indexes, ...uniqueIndexes(described)].map((index) =>
             !index.unique
                 ? index
@@ -875,6 +914,66 @@ function asReplicated(described: TableDescription, dialect: Dialect): TableDescr
                   },
         ),
     };
+}
+
+/** Describe a replicated table's home rows referencing a local table as its dependents. */
+function describeReferences(
+    source: Table,
+    target: Table,
+    database: {
+        /** The dialect the foreign keys are described in. */
+        readonly dialect: Dialect;
+        /** The SQL names of the database's tables. */
+        readonly local: ReadonlySet<string>;
+        /** The SQL names of the replicated tables. */
+        readonly replicated: ReadonlySet<string>;
+    },
+): DependentDescription[] {
+    // take a replicated table's foreign keys to the target, a local table whose rows all live here
+    const { dialect, local, replicated } = database;
+    const name = target[TABLE].sqlName;
+    if (!replicated.has(source[TABLE].sqlName) || !local.has(name) || replicated.has(name)) {
+        return [];
+    }
+    const keys = describeTable(source, dialect).constraints.filter(
+        (constraint): constraint is ForeignKeyDescription =>
+            constraint.kind === "foreignKey" && constraint.table === name,
+    );
+
+    // cascade or refuse the target's deletes into the home's rows, which replicas leave alone
+    return keys.map((constraint) => ({
+        table: name,
+        source: source[TABLE].sqlName,
+        keys: constraint.columns.map((column, index) => ({
+            column,
+            references: present(
+                constraint.references[index],
+                "the foreign key's referenced column",
+            ),
+        })),
+        where: [{ column: REPLICA_COLUMN, value: 0 }],
+        onDelete: deletion(constraint),
+    }));
+}
+
+/** Read how deleting a referenced row treats a foreign key's rows: cascade or refuse. */
+function deletion(constraint: ForeignKeyDescription): DependentDescription["onDelete"] {
+    const { onDelete = "no action" } = constraint;
+
+    // cascade
+    if (onDelete === "cascade") {
+        return "cascade";
+    }
+    // refuse for no action
+    else if (onDelete === "no action") {
+        return "restrict";
+    }
+    // reject an action that writes the referencing rows, which a trigger here does not
+    else {
+        throw new TypeError(
+            `foreign key '${constraint.name}' is invalid: a replicated table deletes by cascade or no action, not '${onDelete}'`,
+        );
+    }
 }
 
 /** Describe a table's unique constraints as unique indexes over the same columns. */
