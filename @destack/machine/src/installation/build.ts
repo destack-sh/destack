@@ -185,12 +185,14 @@ export function implementBuild(options: BuildOptions) {
                         }),
                     );
 
-                    // start its compile as the package's code
-                    const started = compile.start(
-                        { build: created.id },
-                        { actor: context.self.subject, key: created.id },
-                    );
-                    await context.mutate(context.self, [started]);
+                    // start its compile as the package's code, leaving a live build the creation answers that already ended
+                    if (created.state === "running") {
+                        const started = compile.start(
+                            { build: created.id },
+                            { actor: context.self.subject, key: created.id },
+                        );
+                        await context.mutate(context.self, [started]);
+                    }
 
                     return created;
                 },

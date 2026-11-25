@@ -348,11 +348,16 @@ test("build and deploy each commit a push moves main to", async () => {
     // root the second build alone in the machine's builds, as the space no longer runs the first
     const root = present((await machine.builds.roots()).get(`space:${space}`), "the space's root");
     const rooted = builds.map((row) => root.has(present(row.image, "the image")));
+
+    // compile each build once, though the reconcile creates a deployed commit's build again
+    const runs = await served.select().from(stackObject.compile.run.table);
+    const compiled = builds.map((row) => runs.filter((run) => run.key === row.id).length);
     expect([
         builds.map((row) => [row.source, row.outputs, row.state, row.key]),
         packages,
         await followedBuild(served, installed.id),
         rooted,
+        compiled,
     ]).toEqual([
         [first, second].map((commit) => {
             const source = {
@@ -372,6 +377,7 @@ test("build and deploy each commit a push moves main to", async () => {
         [SITE, SITE],
         builds[1]?.id,
         [false, true],
+        [1, 1],
     ]);
 });
 
