@@ -36,7 +36,7 @@
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
         "rolldown": "1.3.3",
-        "vite": "8.3.8"
+        "vite": "8.4.0-beta.1"
     },
     "peerDependenciesMeta": {
         "@cloudflare/workers-types": {
@@ -105,7 +105,7 @@
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
         "rolldown": "1.3.3",
-        "vite": "8.3.8"
+        "vite": "8.4.0-beta.1"
     },
     "scripts": {
         "update": "UPDATE_BUILD_FIXTURES=1 bun run --cwd ../cli dev test ../build --update"
