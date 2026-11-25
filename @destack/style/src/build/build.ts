@@ -1,7 +1,6 @@
 import * as stylex from "@stylexswc/rs-compiler";
 import { transform } from "lightningcss";
 import type { Environment } from "@destack/environment";
-import type { Rollup } from "vite";
 import { basename, join, relative } from "node:path";
 import { type BuildExtension, type Plugin, runtimeCss } from "@destack/package/build";
 import { Digest, schema } from "@destack/schema";
@@ -13,6 +12,9 @@ const SHEET_ID = "virtual:stylex.css";
 
 /** The stylesheet module's resolved identifier, prefixed as Vite marks virtual modules. */
 const RESOLVED_SHEET_ID = `\0${SHEET_ID}`;
+
+/** The name of the stylesheet each build writes its StyleX rules into. */
+const SHEET_FILE = "stylex.css";
 
 /** The file a build keeps its StyleX rules in, beside each output's modules. */
 const RULES_FILE = "stylex.json";
@@ -95,8 +97,7 @@ function stylePlugin(
         name: "destack:style",
         enforce: "pre",
         buildStart: async () => {
-            // forget earlier builds' rules, then add the rules each dependency's build keeps under its modules
-            own.clear();
+            // add the rules each dependency's build keeps under its modules, keeping the package's own across rebuilds
             depended.clear();
             for (const dependency of dependencies) {
                 let read = RULES.get(dependency);
@@ -128,6 +129,14 @@ function stylePlugin(
             },
         },
         async generateBundle(_options, bundle) {
+            // forget the rules of modules that left the graph, as a rebuild transforms only the changed ones
+            const graph = new Set(this.getModuleIds());
+            for (const module of own.keys()) {
+                if (!graph.has(module)) {
+                    own.delete(module);
+                }
+            }
+
             // keep the build's own rules for the builds depending on it, sorted by module path in the package
             const kept = [...own]
                 .map(([module, rules]) => [relative(directory, module), rules] as const)
@@ -141,13 +150,19 @@ function stylePlugin(
                 });
             }
 
-            // append every rule to the stylesheet of the chunk importing the sheet module, leaving a build without one
+            // write every rule into the build's own stylesheet, which the chunk importing the sheet module imports
             const chunks = Object.values(bundle).filter((output) => output.type === "chunk");
             const holder = chunks.find((chunk) => chunk.moduleIds.includes(RESOLVED_SHEET_ID));
-            const file = holder?.viteMetadata?.importedCss.values().next().value;
-            if (file !== undefined) {
+            if (holder !== undefined && holder.viteMetadata === undefined) {
+                throw new TypeError(
+                    `chunk '${holder.fileName}' is invalid: it imports the sheet module without the stylesheets it imports`,
+                );
+            }
+            const imported = holder?.viteMetadata?.importedCss;
+            if (imported !== undefined) {
                 const css = await cachedSheet([...depended, ...own], cache, environment);
-                injectSheet(bundle, file, css);
+                const reference = this.emitFile({ type: "asset", name: SHEET_FILE, source: css });
+                imported.add(this.getFileName(reference));
             }
         },
     };
@@ -224,18 +239,6 @@ function sheetOf(rules: readonly Rule[]): string {
     });
 
     return new TextDecoder().decode(code);
-}
-
-/** Append the StyleX rules to the build's stylesheet in place. */
-function injectSheet(bundle: Rollup.OutputBundle, file: string, css: string): void {
-    // append the rules to the stylesheet's source
-    const asset = bundle[file];
-    if (asset?.type !== "asset") {
-        throw new TypeError(`stylesheet '${file}' is not an asset of the bundle`);
-    }
-    const current =
-        typeof asset.source === "string" ? asset.source : new TextDecoder().decode(asset.source);
-    asset.source = current === "" ? css : `${current}\n${css}`;
 }
 
 /** Read a module's path within its package, a dependency's below its build's digest-named tree. */
