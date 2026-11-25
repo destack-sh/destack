@@ -1,7 +1,5 @@
-import caretLeftIcon from "@destack/icon/phosphor/caret-left";
-import caretRightIcon from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
-import { color, motion, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, space, stroke } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -9,10 +7,15 @@ import {
     type JSX,
     omit,
     useContext,
-    useLocale,
 } from "@destack/view";
-import { disclosure, DisclosurePanel, followToggle, refuseDisabled } from "../disclosure/index.ts";
-import { Icon } from "../icon/index.ts";
+import {
+    disclosure,
+    DisclosureCaret,
+    DisclosurePanel,
+    followToggle,
+    indicator,
+    refuseDisabled,
+} from "../disclosure/index.ts";
 import { OpenChange, type OpenProperties, OpenState } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -44,15 +47,6 @@ const styles = style.create({
         cursor: { default: "pointer", ":is([aria-disabled=true])": "not-allowed" },
         "::-webkit-details-marker": { display: "none" },
     },
-    indicator: {
-        display: "inline-flex",
-        flexShrink: 0,
-        transitionProperty: "rotate",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
-    },
-    turned: { rotate: "90deg" },
-    turnedBack: { rotate: "-90deg" },
     // run a line down the start of it, below the middle of the trigger's icon
     line: {
         minWidth: 0,
@@ -144,26 +138,17 @@ export function CollapsibleIndicator(
 ): JSX.Element {
     // turn down from the reading direction
     const control = useCollapsible();
-    const locale = useLocale();
-    const isRightToLeft = (): boolean => locale.direction === "rtl";
     const rest = omit(properties, "children");
 
     return renderPart(
         "span",
         "collapsible-indicator",
         rest,
-        () => [
-            styles.indicator,
-            control.isOpen() && (isRightToLeft() ? styles.turnedBack : styles.turned),
-        ],
+        () => [indicator.base, control.isOpen() && indicator.open],
         {
             "aria-hidden": "true" as const,
             get children() {
-                return (
-                    properties.children ?? (
-                        <Icon icon={isRightToLeft() ? caretLeftIcon : caretRightIcon} />
-                    )
-                );
+                return properties.children ?? <DisclosureCaret />;
             },
         },
     );

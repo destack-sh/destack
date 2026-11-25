@@ -68,6 +68,7 @@ import type {
 } from "@tanstack/table-core";
 import { Button } from "../button/index.ts";
 import { Checkbox } from "../checkbox/index.ts";
+import { DisclosureCaret, indent, indicator } from "../disclosure/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import {
     DropdownMenu,
@@ -290,9 +291,6 @@ const styles = style.create({
         justifyContent: "flex-end",
         textAlign: "end",
     },
-    nested: (depth: string) => ({
-        paddingInlineStart: `calc(${space[2]} + ${depth} * ${space[4]})`,
-    }),
     columnHeader: {
         display: "inline-flex",
         alignItems: "center",
@@ -399,12 +397,11 @@ const styles = style.create({
         backgroundColor: "transparent",
         backgroundImage: "none",
     },
-    toggle: (depth: string) => ({
+    toggle: {
         display: "inline-flex",
         alignItems: "center",
         gap: space[1],
-        paddingInlineStart: `calc(${depth} * ${space[4]})`,
-    }),
+    },
     expand: {
         marginInlineStart: `calc(-1 * ${space[2]})`,
     },
@@ -1026,7 +1023,7 @@ function DataTableBodyCell<Features extends TableFeatures, Data extends RowData>
                 styles.cell,
                 styles.fixed,
                 isEnd(cell().column) && styles.end,
-                properties.depth > 0 && styles.nested(String(properties.depth)),
+                properties.depth > 0 && indent.by(space[2], properties.depth),
                 metaOf(cell().column).isControl !== true && [styles.divided, styles.lined],
                 control.isSelecting() && styles.selecting,
                 isRefused() && styles.refused,
@@ -1854,10 +1851,12 @@ function RowToggle(properties: {
 
         return row.getIsExpanded();
     };
-    const collapsedIcon = locale.direction === "rtl" ? caretLeft : caretRight;
 
     return (
-        <span data-slot="data-table-toggle" {...style.attrs(styles.toggle(String(row.depth)))}>
+        <span
+            data-slot="data-table-toggle"
+            {...style.attrs(styles.toggle, indent.by("0px", row.depth))}
+        >
             <Show when={row.getCanExpand()} fallback={<span {...style.attrs(styles.selection)} />}>
                 <Button
                     variant="ghost"
@@ -1867,7 +1866,9 @@ function RowToggle(properties: {
                     aria-label={locale.render(isExpanded() ? t`Collapse row` : t`Expand row`)}
                     onClick={() => row.toggleExpanded()}
                 >
-                    <Icon icon={isExpanded() ? caretDown : collapsedIcon} />
+                    <span {...style.attrs(indicator.base, isExpanded() && indicator.open)}>
+                        <DisclosureCaret />
+                    </span>
                 </Button>
             </Show>
             {properties.children}
