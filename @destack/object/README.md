@@ -1017,6 +1017,36 @@ export const contact = defineObject({
 });
 ```
 
+### Derive a field from one an edition removes
+
+`convert` reads each stored row, and each input of a caller built against an earlier edition, as that edition wrote it.
+
+```ts
+import { Expression } from "@destack/db";
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field } from "@destack/object";
+
+// derive the label from the kind the second edition removes
+export const task = defineObject({
+    name: "task",
+    plural: "tasks",
+    title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
+    container: "scope",
+    fields: { label: field.string() },
+    convert: {
+        2: {
+            label: Expression.case(
+                Expression.column("kind"),
+                [{ when: "bug", then: Expression.literal("Bug") }],
+                Expression.literal("Other"),
+            ),
+        },
+    },
+});
+```
+
+Editions only go forward: each one converts from the one before it, and a type's outputs only gain fields.
+
 ## Comparison
 
 ### Convex
