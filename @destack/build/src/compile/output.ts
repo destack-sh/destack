@@ -273,9 +273,9 @@ export class ModuleOutput implements Compilation {
         compiled: OutputBuild,
         entries: readonly string[],
     ): Promise<OutputBuild> {
-        // bundle the entries with the extensions' plugins
+        // bundle the entries with the extensions' plugins, which emit this bundle's entries anew
         const facades = new Map<string, string>();
-        const plugins = this.#plugins();
+        const plugins = this.#collectPlugins();
         const input = { dependencies, sources: files, destinationRoot: files.directory, entries };
         const generated =
             this.runtime === "browser"
@@ -297,18 +297,22 @@ export class ModuleOutput implements Compilation {
             this.#startSession(dependencies, entries),
         );
         const session = this.#session;
-        const { generated, modules } = await this.#scope.span(
-            "destack.bundle.latest",
-            {},
-            async (span) => {
+        const { generated, modules } = await this.#scope
+            .span("destack.bundle.latest", {}, async (span) => {
                 // take the output, recording how many builds it took
                 const before = session.bundle.builds;
                 const output = session.first ?? (await session.bundle.latest());
                 span.setAttribute("destack.bundle.builds", session.bundle.builds - before);
 
                 return output;
-            },
-        );
+            })
+            .catch(async (error: unknown) => {
+                // stop a bundle whose engine broke, so the next compile starts it again
+                if (BuildError.is(error, "BUNDLE_BROKEN")) {
+                    await this[Symbol.asyncDispose]();
+                }
+                throw error;
+            });
         session.first = undefined;
 
         // keep the files of the modules still in the graph, the sources retained and the assets copied
@@ -374,7 +378,9 @@ export class ModuleOutput implements Compilation {
             name: "@destack/build/rebuild",
             buildStart: () => retained.clear(),
         };
-        const plugins = [rebuilding, ...this.#plugins()];
+
+        // collect the plugins, which emit this bundle's entries anew
+        const plugins = [rebuilding, ...this.#collectPlugins()];
         const input = { dependencies, sources: retaining, destinationRoot: directory, entries };
 
         // start a server output's bundle on its options, its first output from the bundle
@@ -531,8 +537,12 @@ export class ModuleOutput implements Compilation {
         }
     }
 
-    /** Collect extension transforms before compiling plugins, reporting failures as build ones. */
-    #plugins(): PluginOption[] {
+    /** Collect the extensions' transforms and plugins anew, the extensions emitting the entries. */
+    #collectPlugins(): PluginOption[] {
+        // forget the entries the extensions emitted before, as they emit them again
+        this.#entries.clear();
+
+        // collect each extension's plugins, reporting its failure as the build's
         const compiling = this.extensions.flatMap((extension) => {
             try {
                 return extension.compile?.(this) ?? [];
@@ -541,6 +551,7 @@ export class ModuleOutput implements Compilation {
             }
         });
 
+        // transform with the context the output builds in
         const context = {
             directory: this.directory,
             runtime: this.runtime,

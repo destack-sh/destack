@@ -8,7 +8,8 @@ import type {
     RolldownOutput,
 } from "rolldown";
 import { dev, type DevEngine } from "rolldown/experimental";
-import { bundleFailureOf } from "../error/index.ts";
+import { BuildError, bundleFailureOf } from "../error/index.ts";
+import { present } from "@destack/schema";
 
 /** A bundle's output with the modules of the graph it was built from. */
 export interface BundleOutput {
@@ -96,20 +97,11 @@ export class Bundle implements AsyncDisposable {
 
     /** Take the newest output once it reflects the disk's bytes of every file it read. */
     async latest(): Promise<BundleOutput> {
-        // wait for the build running now
-        await this.#engine.ensureCurrentBuildFinish();
-        while (this.#output === undefined || !(await this.#isCurrent(this.#output.modules))) {
-            // wait for the next output, starting a full build when the watcher saw no change
-            const next = this.#next.promise;
-            const state = await this.#engine.getBundleState();
-            if (this.#output !== undefined && !state.hasStaleOutput) {
-                this.#engine.triggerFullBuild();
-            }
-            await next;
-        }
+        // wait for the newest output
+        await this.#settle();
 
         // fail with the newest build's failure
-        const { result, modules } = this.#output;
+        const { result, modules } = present(this.#output, "the bundle's output");
         if (result instanceof Error) {
             throw bundleFailureOf(result);
         }
@@ -120,6 +112,34 @@ export class Bundle implements AsyncDisposable {
     /** Stop the engine and its watcher. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#engine.close();
+    }
+
+    /** Wait until the engine's newest output reflects the files as they read now. */
+    async #settle(): Promise<void> {
+        // wait for the build running now
+        await this.#engineCall(() => this.#engine.ensureCurrentBuildFinish());
+        while (this.#output === undefined || !(await this.#isCurrent(this.#output.modules))) {
+            // wait for the next output, starting a full build when the watcher saw no change
+            const next = this.#next.promise;
+            const state = await this.#engineCall(() => this.#engine.getBundleState());
+            if (this.#output !== undefined && !state.hasStaleOutput) {
+                await this.#engineCall(() => this.#engine.triggerFullBuild());
+            }
+            await next;
+        }
+    }
+
+    /** Call the engine, refusing the bundle once the engine itself fails apart from a build. */
+    async #engineCall<Value>(call: () => Value | Promise<Value>): Promise<Value> {
+        try {
+            return await call();
+        } catch (cause) {
+            throw BuildError.of(
+                "BUNDLE_BROKEN",
+                "bundle is broken: its engine failed apart from a build",
+                { cause },
+            );
+        }
     }
 
     /** Keep an output with its graph's modules, and wake the waits for it. */
