@@ -6,10 +6,10 @@ import { Locale, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { schema, TimeZone } from "@destack/schema";
 import { AccountHandle } from "../address/handle.ts";
 import { DisplayName } from "../object/display-name.ts";
-import { Residency, ResidencyCode } from "../object/residency.ts";
+import { Region, RegionCode } from "../object/region.ts";
 import { Account } from "../object/account.ts";
-import { HANDLE_CHECK_PATH, RESIDENCY_CHOICE_PATH } from "../authentication/path.ts";
-import { HandleCheck, ResidencyChoice } from "../authentication/request.ts";
+import { HANDLE_CHECK_PATH, REGION_CHOICE_PATH } from "../authentication/path.ts";
+import { HandleCheck, RegionChoice } from "../authentication/request.ts";
 
 /** The header Cloudflare's edge reads the visitor's country into, ISO 3166-1 alpha-2. */
 const COUNTRY_HEADER = "cf-ipcountry";
@@ -35,7 +35,7 @@ const SignUpValues = SignUpPerson.extend({
     /** The handle the person's personal account claims. */
     handle: AccountHandle,
     /** The jurisdiction the person's personal account stores data in. */
-    residencyId: ResidencyCode,
+    regionId: RegionCode,
 });
 
 /** What a person signs up with. */
@@ -46,7 +46,7 @@ export const SignUp = Object.assign(SignUpValues, {
     /** The schema of the time zone and locale the person stores. */
     person: SignUpPerson,
 
-    /** Answer what a sign-up asks before the person exists: handles and residencies. */
+    /** Answer what a sign-up asks before the person exists: handles and regions. */
     plugin(database: DatabaseConnection): BetterAuthPlugin {
         return {
             id: "destack-sign-up",
@@ -68,21 +68,21 @@ export const SignUp = Object.assign(SignUpValues, {
                     },
                 ),
 
-                /** List the residencies, and the one offered the visitor's country, if any. */
-                listResidencies: createAuthEndpoint(
-                    RESIDENCY_CHOICE_PATH,
+                /** List the regions, and the one offered the visitor's country, if any. */
+                listRegions: createAuthEndpoint(
+                    REGION_CHOICE_PATH,
                     { method: "GET" },
                     async (context) => {
-                        // offer the residency listing the edge's country of the visitor
-                        const residencies = await Residency.list(database);
+                        // offer the region listing the edge's country of the visitor
+                        const regions = await Region.list(database);
                         const country = context.request?.headers.get(COUNTRY_HEADER)?.toUpperCase();
-                        const suggested = residencies.find(
+                        const suggested = regions.find(
                             (each) => country !== undefined && each.countries.includes(country),
                         );
 
                         return context.json(
-                            ResidencyChoice.parse({
-                                residencies: residencies.map(({ code, name }) => ({ code, name })),
+                            RegionChoice.parse({
+                                regions: regions.map(({ code, name }) => ({ code, name })),
                                 suggested: suggested?.code ?? null,
                             }),
                         );
@@ -117,17 +117,17 @@ export const SignUp = Object.assign(SignUpValues, {
             });
         }
 
-        // refuse a missing or malformed handle or residency
+        // refuse a missing or malformed handle or region
         const parsed = SignUpValues.safeParse({
             ...person,
             name: name.data,
             handle: values["handle"],
-            residencyId: values["residencyId"],
+            regionId: values["regionId"],
         });
         if (!parsed.success) {
             throw new APIError("BAD_REQUEST", {
                 code: "INVALID_SIGN_UP",
-                message: "a sign-up needs a handle and a residency",
+                message: "a sign-up needs a handle and a region",
             });
         }
 
@@ -155,7 +155,7 @@ export const SignUp = Object.assign(SignUpValues, {
             timeZone: zone?.success === true ? zone.data : state["timeZone"],
             locale: tag ?? state["locale"],
             handle: state["handle"],
-            residencyId: state["residencyId"],
+            regionId: state["regionId"],
         };
     },
 });

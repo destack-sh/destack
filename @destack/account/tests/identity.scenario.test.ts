@@ -12,12 +12,12 @@ import { expect, refusal, test } from "@destack/test";
 import { found, Identifier, present, schema } from "@destack/schema";
 import { MachineKey } from "../src/client/index.ts";
 import { TOKEN_PATH } from "../src/authentication/path.ts";
-import { Account, account, Identity, key, machine, residency } from "../src/object/index.ts";
+import { Account, account, Identity, key, machine, region } from "../src/object/index.ts";
 import { JWT_BEARER } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
 import { MemoryKeychain } from "@destack/identity";
 import {
-    TestAccountStore,
+    TestAccount,
     TestJwt,
     type TestPerson,
     ids,
@@ -53,7 +53,7 @@ const StoredKey = schema.looseObject({
 
 /** Ask the token endpoint for a token of the audience by an assertion, answering a refusal. */
 async function ask(
-    accounts: TestAccountStore,
+    accounts: TestAccount,
     assertion: string,
     partition?: PartitionId,
 ): Promise<"done" | readonly [number, unknown]> {
@@ -82,7 +82,7 @@ async function ask(
 
 /** Grant a machine a token for the audience by a fresh assertion, in a partition when given. */
 async function grant(
-    accounts: TestAccountStore,
+    accounts: TestAccount,
     signer: MachineKey,
     partition?: PartitionId,
 ): Promise<"done" | readonly [number, unknown]> {
@@ -91,7 +91,7 @@ async function grant(
 
 /** Create a space in the owner's account, placed on a machine. */
 async function place(
-    accounts: TestAccountStore,
+    accounts: TestAccount,
     owner: TestPerson,
     id: Identifier<"space">,
     machineId: Identifier<"machine">,
@@ -106,7 +106,7 @@ async function place(
 }
 
 /** Enroll a cloud machine of the platform as the operator, its first key stored apart. */
-async function enrollCloud(accounts: TestAccountStore) {
+async function enrollCloud(accounts: TestAccount) {
     // enroll the machine with a keychain of its own
     const operator = await accounts.signIn(OPERATOR_EMAIL);
     const keys = new MemoryKeychain();
@@ -116,11 +116,11 @@ async function enrollCloud(accounts: TestAccountStore) {
         accounts.environment,
     );
     await identity.enroll(operator.client(accountPackage), {
-        scope: accounts.platform,
+        accountId: accounts.platform,
         requestId: RequestId.create(accounts.environment),
         name: "edge",
-        kind: "cloud",
-        residencyId: "eu",
+        kind: "managed",
+        regionId: "eu",
         providerCode: "cloudflare",
         location: "eu",
     });
@@ -143,7 +143,7 @@ async function enrollCloud(accounts: TestAccountStore) {
 
 test("enroll a machine as its account's owner, authenticate it across a key rotation, and refuse its tokens once revoked", async () => {
     // enroll a machine under the owner's account and read itself by its token
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const stranger = await accounts.signIn(STRANGER_EMAIL);
     const accountId = ids.account;
@@ -153,7 +153,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
             accounts
                 .as(identity)
                 .client(accountPackage)
-                .machine.get({ scope: accountId, id: identity.machineId }),
+                .machine.get({ accountId: accountId, id: identity.machineId }),
         );
     expect(await itself()).toBe("done");
 
@@ -164,10 +164,10 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
         accounts.environment,
     );
     const enrolling = {
-        scope: accountId,
+        accountId: accountId,
         requestId: RequestId.create(accounts.environment),
         name: "stray",
-        kind: "personal" as const,
+        kind: "self" as const,
         platform: "macOS" as const,
         architecture: "arm64",
         model: "Mac14,2",
@@ -203,7 +203,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
         accounts
             .as(identity)
             .client(accountPackage)
-            .machine.get({ scope: accountId, id: identity.machineId });
+            .machine.get({ accountId: accountId, id: identity.machineId });
     const taken = (await read()).name;
     const rename = (name: string) =>
         refusal(
@@ -211,7 +211,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
                 .as(identity)
                 .client(accountPackage)
                 .machine.rename({
-                    scope: accountId,
+                    accountId: accountId,
                     id: identity.machineId,
                     requestId: RequestId.create(accounts.environment),
                     name,
@@ -230,7 +230,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
         await rename("studio--main"),
         await refusal(
             owner.client(accountPackage).machine.rename({
-                scope: accountId,
+                accountId: accountId,
                 id: identity.machineId,
                 requestId: RequestId.create(accounts.environment),
                 name: "atelier",
@@ -275,7 +275,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
 
     // delete the machine as the owner
     await owner.client(accountPackage).machine.delete({
-        scope: accountId,
+        accountId: accountId,
         id: identity.machineId,
         requestId: RequestId.create(accounts.environment),
     });
@@ -284,7 +284,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
 
 test("grant a machine a token lasting as long as it asks, a minute without and ten at most, which verifies", async () => {
     // take a token without a lifetime, one asked to last ten minutes, and one asked to last an hour
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { identity } = await enrollCloud(accounts);
     const fetch = (request: Request) => accounts.fetch(request);
     const minute = 60_000;
@@ -323,8 +323,8 @@ test("grant a machine a token lasting as long as it asks, a minute without and t
 });
 
 test("grant a cloud machine a token for a minute as itself alone, by its enrolled key", async () => {
-    // enroll a cloud machine of the residency and take a token as it
-    await using accounts = await TestAccountStore.open();
+    // enroll a cloud machine of the region and take a token as it
+    await using accounts = await TestAccount.open();
     const { identity, enrolled } = await enrollCloud(accounts);
     const fetch = (request: Request) => accounts.fetch(request);
     const accessToken = await identity.at(ISSUER, fetch).token(AUDIENCE, {});
@@ -359,14 +359,14 @@ test("grant a cloud machine a token for a minute as itself alone, by its enrolle
     ]).toEqual([
         { kind: "machine-key", id: enrolled.thumbprint },
         principal.machine.reference(Scope.universe.id, identity.machineId),
-        [await residentOf(accounts, identity.machineId)],
+        await containersOf(accounts, identity.machineId),
         TOKEN_LIFETIME_MILLISECONDS,
     ]);
 });
 
 test("spend each of a machine's assertions once, and refuse an assertion for another endpoint", async () => {
     // assert twice for the token endpoint and once for another
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { identity } = await enrollCloud(accounts);
     const assertion = await identity.assert(ENDPOINT);
     const other = await identity.assert("https://elsewhere.test/oauth2/token");
@@ -391,7 +391,7 @@ test("spend each of a machine's assertions once, and refuse an assertion for ano
 
 test("refuse a machine's assertions by its first key once it rotates, and revoking the rotated key again", async () => {
     // rotate the cloud machine's key as the machine
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { identity, first, enrolled } = await enrollCloud(accounts);
     const accountId = accounts.platform;
     await identity.rotate(accounts.as(identity).client(accountPackage), accountId);
@@ -416,10 +416,10 @@ test("refuse a machine's assertions by its first key once it rotates, and revoki
 
 test("refuse a cloud machine's grants while the operator disables it and once the operator deletes it", async () => {
     // disable the cloud machine, grant once enabled again, then delete it
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { operator, identity } = await enrollCloud(accounts);
     const target = () => ({
-        scope: accounts.platform,
+        accountId: accounts.platform,
         id: identity.machineId,
         requestId: RequestId.create(accounts.environment),
     });
@@ -439,11 +439,11 @@ test("refuse a cloud machine's grants while the operator disables it and once th
 
 test("issue a machine's token at the store clock's time, verifiable after the clock advances to it", async () => {
     // run the account package ten minutes ahead of real time, standing still there
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     await fixture.simulation.jump(fixture.clock.now() + 10 * 60_000);
 
     // declare a cloud machine on the same clock and take its token
-    const identity = await fixture.declareCloudMachine(fixture.platform, "eu");
+    const identity = await fixture.declareManagedMachine(fixture.platform, "eu");
     const fetch = (request: Request) => fixture.fetch(request);
     const accessToken = await identity.at(ISSUER, fetch).token(AUDIENCE, {});
 
@@ -491,7 +491,7 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
             jti: ANY_STRING,
             caller: {
                 subject,
-                groups: [await residentOf(fixture, identity.machineId)],
+                groups: await containersOf(fixture, identity.machineId),
                 contacts: [],
                 credential: {
                     kind: "machine-key",
@@ -505,7 +505,7 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
 
 test("reuse a machine's token for several calls to one package, exchanging it once", async () => {
     // count the machine's exchanges at the token endpoint
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const identity = await accounts.enroll(ids.account, owner);
     const exchanged: string[] = [];
@@ -538,11 +538,11 @@ test("reuse a machine's token for several calls to one package, exchanging it on
 });
 
 test("grant a machine tokens for its own partition and any space, whose access decides what it may do there, and refuse another machine's partition", async () => {
-    // enroll an account's machine, take the residency's shared cloud machine and place a space on the cloud
-    await using accounts = await TestAccountStore.open();
+    // enroll an account's machine, take the region's shared cloud machine and place a space on the cloud
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const laptop = await accounts.enroll(ids.account, owner);
-    const cloud = accounts.cloud(ids.machine);
+    const cloud = accounts.managed(ids.machine);
     const served = Identifier.create("space", accounts.environment);
     await place(accounts, owner, served, cloud.machineId);
 
@@ -552,7 +552,7 @@ test("grant a machine tokens for its own partition and any space, whose access d
         await grant(accounts, laptop, served),
         await grant(accounts, cloud, served),
         await grant(accounts, laptop, Account.home(ids.account)),
-        await grant(accounts, laptop, await accounts.residencySpace("eu")),
+        await grant(accounts, laptop, await accounts.platformHome("eu")),
         // refuse another machine's partition
         await grant(accounts, laptop, cloud.machineId),
     ]).toEqual([
@@ -573,7 +573,7 @@ test("grant a machine tokens for its own partition and any space, whose access d
 
 test("grant a space a token in another space stating the people it is home to, and refuse it a machine's partition", async () => {
     // sign the owner in, whose home space asserts itself, and take another space and a machine
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const laptop = await accounts.enroll(ids.account, owner);
     const other = Identifier.create("space", accounts.environment);
@@ -606,14 +606,14 @@ test("grant a space a token in another space stating the people it is home to, a
 
 test("disable, drain and enable a machine, refusing its token grants while disabled", async () => {
     // enroll a machine of the owner's account
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const stranger = await accounts.signIn(STRANGER_EMAIL);
     const identity = await accounts.enroll(ids.account, owner);
     const change = (person: TestPerson, name: "disable" | "drain" | "enable") =>
         refusal(
             person.client(accountPackage).machine[name]({
-                scope: ids.account,
+                accountId: ids.account,
                 id: identity.machineId,
                 requestId: RequestId.create(accounts.environment),
             }),
@@ -629,7 +629,7 @@ test("disable, drain and enable a machine, refusing its token grants while disab
     // refuse a stranger changing the status and any change once the machine is deleted
     const refused = await change(stranger, "disable");
     await owner.client(accountPackage).machine.delete({
-        scope: ids.account,
+        accountId: ids.account,
         id: identity.machineId,
         requestId: RequestId.create(accounts.environment),
     });
@@ -641,7 +641,7 @@ test("disable, drain and enable a machine, refusing its token grants while disab
 
 test("store one key when two processes generate a machine's first key at once, both adopting the one stored first", async () => {
     // generate the first key from two identities sharing one keychain
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const keys = new MemoryKeychain();
     const machineId = Identifier.create("machine", accounts.environment);
     const generated = await Promise.all([
@@ -657,9 +657,9 @@ test("store one key when two processes generate a machine's first key at once, b
     ]);
 });
 
-/** Read the residency containment a machine's tokens carry: its account's residency's. */
-async function residentOf(accounts: TestAccountStore, machineId: Identifier<"machine">) {
-    // read the machine's account and its residency
+/** Read the containment a machine's tokens carry: its account and its account's region. */
+async function containersOf(accounts: TestAccount, machineId: Identifier<"machine">) {
+    // read the machine's account and its region
     const snapshot = accounts.database.snapshot();
     const row = present(
         await snapshot.read(machine.table).findFirst({ where: { id: machineId } }),
@@ -672,7 +672,10 @@ async function residentOf(accounts: TestAccountStore, machineId: Identifier<"mac
         "the machine's account",
     );
 
-    return { ...residency.reference(Scope.universe.id, owner.residencyId), relation: CONTAINED };
+    return [
+        { ...account.reference(owner.scope, owner.id), relation: CONTAINED },
+        { ...region.reference(Scope.universe.id, owner.regionId), relation: CONTAINED },
+    ];
 }
 
 /** Order public keys by their x coordinate. */
@@ -682,7 +685,7 @@ function byX(left: { readonly x: string }, right: { readonly x: string }): numbe
 
 test("rotate once for two identities of one machine rotating at once, ending on the key the universe has as current", async () => {
     // enroll a machine at a clock standing still
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const accountId = ids.account;
     const keys = new MemoryKeychain();
@@ -692,10 +695,10 @@ test("rotate once for two identities of one machine rotating at once, ending on 
         accounts.environment,
     );
     await identity.enroll(owner.client(accountPackage), {
-        scope: accountId,
+        accountId: accountId,
         requestId: RequestId.create(accounts.environment),
         name: "racer",
-        kind: "personal",
+        kind: "self",
         platform: "macOS",
         architecture: "arm64",
         model: "Mac14,2",
@@ -735,7 +738,7 @@ test("rotate once for two identities of one machine rotating at once, ending on 
 
 test("authenticate a machine's token in a space it serves while its key stands, and refuse it once the machine is revoked", async () => {
     // enroll a machine serving a space, and grant it a token there by its assertion
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const identity = await accounts.enroll(ids.account, owner);
     const spaceId = Identifier.create("space", accounts.environment);
@@ -768,7 +771,7 @@ test("authenticate a machine's token in a space it serves while its key stands, 
         );
     const standing = present(await authenticate(), "the standing machine's authentication");
     await owner.client(accountPackage).machine.delete({
-        scope: ids.account,
+        accountId: ids.account,
         id: identity.machineId,
         requestId: RequestId.create(accounts.environment),
     });

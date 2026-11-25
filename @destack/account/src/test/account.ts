@@ -67,11 +67,10 @@ import {
     type Membership,
     organization,
     ProviderCode,
-    RESIDENCY_RELAY,
-    Residency,
-    residency,
-    type ResidencyCode,
-    type ResidencyDefinition,
+    REGION_MERCHANT,
+    Region,
+    type RegionCode,
+    type RegionDefinition,
     StackRelease,
 } from "../object/index.ts";
 import accountPackage from "../package.ts";
@@ -119,9 +118,6 @@ export const ISSUER = UNIVERSE.issuer;
 /** The email of the person operating the fixture's universe. */
 export const OPERATOR_EMAIL = "operator@example.com";
 
-/** The installation a residency's space provides entitlements as in tests, as finance does. */
-const BILLING_INSTALLATION = "billing";
-
 /** The email of the person owning the fixture's accounts, the handle example's. */
 export const OWNER_EMAIL = "example@example.test";
 
@@ -134,7 +130,7 @@ export const SIGN_UP: Pick<SignUp, "timeZone" | "locale"> = {
     locale: "en",
 };
 
-/** The handle of the platform's account, whose home serves its residency. */
+/** The handle of the platform's account, whose home serves its region. */
 export const PLATFORM_HANDLE = "destack";
 
 /** The owner of the fixture's accounts. */
@@ -157,14 +153,14 @@ export const ids = {
     usMachine: schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-000000000006"),
 };
 
-/** Who serves the residencies' homes: the fixture as their cloud machines, or a real machine. */
+/** Who serves the platform's homes: the fixture as their managed machines, or a real machine. */
 export type HomeServer = "fixture" | "machine";
 
-/** The stand-in stack each residency's home runs. */
-export const RESIDENCY_STACK: StackRelease = {
+/** The stand-in stack the platform's home runs in each region. */
+export const REGION_STACK: StackRelease = {
     packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b1"),
     version: { kind: "release", version: "2026.9.0" },
-    export: "RESIDENCY",
+    export: "REGION",
     settings: {},
     routes: {},
 };
@@ -187,22 +183,22 @@ export const STACKS: PlatformDefinition["stacks"] = {
     },
 };
 
-/** The provider running the platform's cloud machines. */
+/** The provider running the platform's managed machines. */
 const PROVIDER = ProviderCode.parse("cloudflare");
 
-/** The provider location of the platform's cloud machines. */
+/** The provider location of the platform's managed machines. */
 const LOCATION = "eu";
 
 /** The operating system and hardware of the personal machines the fixture enrolls. */
-const PERSONAL_MACHINE = {
-    kind: "personal",
+const SELF_MACHINE = {
+    kind: "self",
     platform: "macOS",
     architecture: "arm64",
     model: "Mac14,2",
 } as const;
 
-/** The residencies of the universe, as the platform's bootstrap declares them. */
-const RESIDENCIES: readonly ResidencyDefinition[] = [
+/** The regions of the universe, as the platform's bootstrap declares them. */
+const REGIONS: readonly RegionDefinition[] = [
     {
         code: "eu",
         name: "European Union",
@@ -304,7 +300,7 @@ type TestSession = schema.Infer<typeof TestSession>;
 const ACCOUNTS = [{ id: ids.other, handle: "rival", kind: "shared" }] as const;
 
 /** How a test serves the account package. */
-export interface TestAccountStoreOptions {
+export interface TestAccountOptions {
     /** Open the release declaring a setting value. */
     readonly openRelease?: (packageId: PackageId, version: string) => Promise<BuildReader>;
     /** The policies of other packages' types. */
@@ -316,12 +312,12 @@ export interface TestAccountStoreOptions {
 }
 
 /** How a test serves the account package over its template's stacks and homes, in its world. */
-type ServeOptions = TestAccountStoreOptions & {
+type ServeOptions = TestAccountOptions & {
     /** The world the store runs in. */
     readonly simulation: Simulation;
     /** The stacks spaces are born with. */
     readonly stacks: PlatformDefinition["stacks"];
-    /** Who serves the residencies' homes. */
+    /** Who serves the platform's homes. */
     readonly homes: HomeServer;
 };
 
@@ -331,18 +327,18 @@ export interface AccountTemplateOptions<World extends JsonValue> {
     readonly name: string;
     /** The stacks spaces are born with, STACKS by default. */
     readonly stacks?: PlatformDefinition["stacks"];
-    /** Who serves the residencies' homes, the fixture by default. */
+    /** Who serves the platform's homes, the fixture by default. */
     readonly homes?: HomeServer;
     /** The dialects tests copy it in, every test dialect by default. */
     readonly dialects?: readonly Dialect[];
     /** How the template's write serves the account package. */
-    readonly serve?: TestAccountStoreOptions;
+    readonly serve?: TestAccountOptions;
     /** Write a world on the fixture's rows, returning what its copies share. */
     readonly world: {
         /** What the world's copies share, as its JSON form crosses to the tests. */
         readonly value: schema.Schema<World>;
         /** Write the world over the served fixture, storing files in a run's directory. */
-        readonly write: (accounts: TestAccountStore, directory: string) => Promise<World>;
+        readonly write: (accounts: TestAccount, directory: string) => Promise<World>;
     };
 }
 
@@ -354,7 +350,7 @@ export type AccountTemplateValue<World extends JsonValue> = {
     readonly sessions: Readonly<Record<string, TestSession>>;
     /** The stacks spaces are born with. */
     readonly stacks: PlatformDefinition["stacks"];
-    /** Who serves the residencies' homes. */
+    /** Who serves the platform's homes. */
     readonly homes: HomeServer;
     /** What the world's write returned. */
     readonly world: World;
@@ -383,7 +379,7 @@ interface Served {
 }
 
 /** The account package in one database, served as the universe serves it, with its people. */
-export class TestAccountStore implements AsyncDisposable {
+export class TestAccount implements AsyncDisposable {
     /** The universe's database: the account package and the core packages it serves beside. */
     static readonly database = defineDatabase({
         name: "account",
@@ -406,15 +402,15 @@ export class TestAccountStore implements AsyncDisposable {
     readonly store: ObjectStore;
     /** The world the store runs in, its clock flowing from the system's time until paused. */
     readonly simulation: Simulation;
-    /** The keys of the universe and of the residencies' home spaces, signing their tokens. */
+    /** The keys of the universe and of the platform's home spaces, signing their tokens. */
     readonly keystore: IdentityKeystore;
     /** The issuer as native clients call it: sign-in, refresh and token exchange. */
     readonly issuer: Issuer;
     /** The published releases declaring settings, by package and version. */
     readonly releases: Map<string, Promise<BuildReader>>;
-    /** The platform's account, whose home serves its residency. */
+    /** The platform's account, whose home serves its region. */
     readonly platform: Identifier<"account">;
-    /** Who serves the residencies' homes. */
+    /** Who serves the platform's homes. */
     readonly homes: HomeServer;
     /** The email sign-in mailed. */
     readonly #mail: TestMail;
@@ -424,16 +420,14 @@ export class TestAccountStore implements AsyncDisposable {
     readonly #sessions: Map<string, TestSession>;
     /** The machines tests act as: the declared and the enrolled ones, by machine. */
     readonly #machines: Map<string, MachineKey>;
-    /** The keychains storing the keys of the declared cloud machines, by machine. */
-    readonly #cloudKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
+    /** The keychains storing the keys of the declared managed machines, by machine. */
+    readonly #managedKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
     /** The keychain of the universe's keyring. */
     readonly #keychain: MemoryKeychain;
     /** Open another sign-in over the same store and mail with a keyring. */
     readonly #authenticate: (keyring: Keyring) => Promise<BetterAuthAuthenticator>;
     /** Route a request of the universe's origin to the package mounted at its path. */
     readonly #fetch: (request: Request) => Promise<Response>;
-    /** The billing installation of each residency's space, related once, by residency. */
-    readonly #entitlers = new Map<ResidencyCode, Promise<Subject>>();
 
     /** Store a served account package. */
     private constructor(
@@ -442,12 +436,12 @@ export class TestAccountStore implements AsyncDisposable {
         state: {
             /** The platform's account. */
             readonly platform: Identifier<"account">;
-            /** Who serves the residencies' homes. */
+            /** Who serves the platform's homes. */
             readonly homes: HomeServer;
             /** The world the store runs in. */
             readonly simulation: Simulation;
-            /** The keychains storing the keys of the declared cloud machines, by machine. */
-            readonly cloudKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
+            /** The keychains storing the keys of the declared managed machines, by machine. */
+            readonly managedKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
             /** The keychain of the universe's keyring. */
             readonly keychain: MemoryKeychain;
             /** The sessions of the people with an authenticator, by email. */
@@ -470,7 +464,7 @@ export class TestAccountStore implements AsyncDisposable {
         this.simulation = state.simulation;
         this.#mail = served.mail;
         this.#machines = served.machines;
-        this.#cloudKeychains = state.cloudKeychains;
+        this.#managedKeychains = state.managedKeychains;
         this.#keychain = state.keychain;
         this.#sessions = new Map(Object.entries(state.sessions));
         this.#authenticators = new Map(
@@ -501,7 +495,7 @@ export class TestAccountStore implements AsyncDisposable {
 
         return new TestTemplate({
             name: options.name,
-            databases: { universe: TestAccountStore.database },
+            databases: { universe: TestAccount.database },
             ...(options.dialects === undefined ? {} : { dialects: options.dialects }),
             value: schema.object({
                 keys: AccountKeys.schema,
@@ -519,10 +513,10 @@ export class TestAccountStore implements AsyncDisposable {
                     homes,
                     simulation,
                 };
-                const { keys, sessions } = await TestAccountStore.#write(storage, served);
-                const accounts = await TestAccountStore.#over(
+                const { keys, sessions } = await TestAccount.#write(storage, served);
+                const accounts = await TestAccount.#over(
                     storage,
-                    await TestAccountStore.#serve(storage, keys, served),
+                    await TestAccount.#serve(storage, keys, served),
                     keys,
                     { ...served, sessions },
                 );
@@ -536,38 +530,38 @@ export class TestAccountStore implements AsyncDisposable {
 
     /** Write and serve the fixture's rows in a fresh database, as a simulation builds one. */
     static async create(
-        options: TestAccountStoreOptions &
+        options: TestAccountOptions &
             Partial<Pick<AccountTemplateOptions<null>, "stacks" | "homes">> = {},
-    ): Promise<TestAccountStore> {
+    ): Promise<TestAccount> {
         // write the fixture's rows with the given stacks and homes, the defaults when absent
-        const simulation = TestAccountStore.#world();
-        const storage = await TestDatabase.create(TestAccountStore.database, {
+        const simulation = TestAccount.#world();
+        const storage = await TestDatabase.create(TestAccount.database, {
             environment: simulation.environment(WORLD_NODE),
             isMigrated: true,
         });
         const { stacks = STACKS, homes = "fixture", ...rest } = options;
         const served = { ...rest, stacks, homes, simulation };
-        const { keys, sessions } = await TestAccountStore.#write(storage, served);
+        const { keys, sessions } = await TestAccount.#write(storage, served);
 
         // serve them
-        return await TestAccountStore.#over(
+        return await TestAccount.#over(
             storage,
-            await TestAccountStore.#serve(storage, keys, served),
+            await TestAccount.#serve(storage, keys, served),
             keys,
             { ...served, sessions },
         );
     }
 
     /** Serve the account package with the owner's accounts and the platform's organization. */
-    static async open(options: TestAccountStoreOptions = {}): Promise<TestAccountStore> {
-        return (await TestAccountStore.copy(ACCOUNT_TEMPLATE, options)).accounts;
+    static async open(options: TestAccountOptions = {}): Promise<TestAccount> {
+        return (await TestAccount.copy(ACCOUNT_TEMPLATE, options)).accounts;
     }
 
     /** Serve a copy of a template's rows, with the world its write put on them. */
     static async copy<World extends JsonValue>(
         template: TestTemplate<AccountTemplateValue<World>, AccountTemplateDatabases>,
-        options: TestAccountStoreOptions = {},
-    ): Promise<{ readonly accounts: TestAccountStore; readonly world: World }> {
+        options: TestAccountOptions = {},
+    ): Promise<{ readonly accounts: TestAccount; readonly world: World }> {
         // fork the template's image
         const image = await TestRun.image(template);
         const { simulation, databases, value } = await image.fork("copy");
@@ -577,22 +571,25 @@ export class TestAccountStore implements AsyncDisposable {
         const { stacks, homes, sessions } = value;
         const serving = { ...options, stacks, homes, simulation };
         const storage = databases.universe;
-        const served = await TestAccountStore.#serve(storage, keys, serving);
+        const served = await TestAccount.#serve(storage, keys, serving);
 
         return {
-            accounts: await TestAccountStore.#over(storage, served, keys, { ...serving, sessions }),
+            accounts: await TestAccount.#over(storage, served, keys, { ...serving, sessions }),
             world: value.world,
         };
     }
 
-    /** Read a residency by its code. */
-    residency(code: ResidencyCode): Promise<Residency> {
-        return Residency.require(this.database.snapshot(), code);
+    /** Read a region by its code. */
+    region(code: RegionCode): Promise<Region> {
+        return Region.require(this.database.snapshot(), code);
     }
 
-    /** Read a residency's space, the home of the platform's account in it. */
-    async residencySpace(residencyId: ResidencyCode): Promise<Identifier<"space">> {
-        return Residency.space(this.database.snapshot(), residencyId);
+    /** Read the home of the platform's account in a region. */
+    async platformHome(code: RegionCode): Promise<Identifier<"space">> {
+        const handle = Platform.handle({ handle: PLATFORM_HANDLE, regionId: "eu" }, code);
+        const platform = await Account.byHandle(this.database.snapshot(), handle);
+
+        return Account.home(present(platform, `the platform's account in ${code}`).id);
     }
 
     /** Route a request of the universe's origin to the package mounted at its path. */
@@ -635,7 +632,7 @@ export class TestAccountStore implements AsyncDisposable {
             ...SIGN_UP,
             name: email,
             handle,
-            residencyId: "eu",
+            regionId: "eu",
         });
 
         // sign the same person in on a native client too, for calls beside the browser's pages
@@ -817,10 +814,10 @@ export class TestAccountStore implements AsyncDisposable {
         return (await Jwt.verify(token, keys, options, crypto)).claims;
     }
 
-    /** Create a new shared account of a person in a residency. */
+    /** Create a new shared account of a person in a region. */
     createAccount(
         person: TestPerson,
-        residencyId: ResidencyCode = "eu",
+        regionId: RegionCode = "eu",
     ): Promise<InstanceOf<typeof account>> {
         return person.client(accountPackage).account.create({
             kind: "shared",
@@ -828,18 +825,18 @@ export class TestAccountStore implements AsyncDisposable {
             requestId: RequestId.create(this.store.environment),
             handle: freshHandle(this.environment),
             name: "Account",
-            residencyId,
+            regionId,
         });
     }
 
     /** Place a new space in a new shared account of a person, on a machine enrolled in it. */
-    async createSpace(person: TestPerson, residencyId: ResidencyCode = "eu") {
-        const created = await this.createAccount(person, residencyId);
+    async createSpace(person: TestPerson, regionId: RegionCode = "eu") {
+        const created = await this.createAccount(person, regionId);
 
         return this.#place(person, created, Identifier.create("space", this.environment));
     }
 
-    /** Read a person's home, placed at sign-up, with the cloud machine serving it as a caller. */
+    /** Read a person's home, placed at sign-up, with the managed machine serving it as a caller. */
     async personalHome(person: TestPerson) {
         const spaceId = Account.home(person.account);
 
@@ -883,9 +880,9 @@ export class TestAccountStore implements AsyncDisposable {
 
     /** Set an account's allowances through account.entitle, as finance does. */
     async allow(accountId: Identifier<"account">, allowances: readonly Allowance[]): Promise<void> {
-        // act as the billing installation of the account's residency space
+        // act as the platform's merchant
         const owner = await Account.of(this.database.snapshot(), accountId);
-        const provider = await this.#entitler(owner.residencyId);
+        const provider = await this.merchant();
         const now = this.store.clock.now();
         await this.store.mutate(AccessContext.of(Caller.of(provider), now), {
             id: RequestId.create(this.environment),
@@ -895,71 +892,34 @@ export class TestAccountStore implements AsyncDisposable {
         });
     }
 
-    /** Act as the cloud machine a space is placed on. */
+    /** Act as the managed machine a space is placed on. */
     async machine(spaceId: Identifier<"space">): Promise<MachineKey> {
         const placed = present(
             await this.database.snapshot().read(placement.table).findFirst({ where: { spaceId } }),
             `the placement of ${spaceId}`,
         );
 
-        return this.cloud(placed.machineId);
+        return this.managed(placed.machineId);
     }
 
-    /** Read the billing installation of a residency's space, related to it by its operator once. */
-    #entitler(residencyId: Identifier<"residency">): Promise<Subject> {
-        // relate each residency's installation once, whichever entitlement asks first
-        const known = this.#entitlers.get(residencyId);
-        if (known !== undefined) {
-            return known;
-        }
-        const relating = (async () => {
-            // derive the installation the residency's space declares for billing
-            const snapshot = this.database.snapshot();
-            const served = await snapshot
-                .read(residency.table)
-                .findFirst({ where: { id: residencyId } });
-            const residencySpace = Residency.requireSpace(
-                present(served, `residency ${residencyId}`),
-            );
-            const home = await Scope.object(snapshot, residencySpace);
-            const id = await InstallationId.of(home, BILLING_INSTALLATION, this.environment.crypto);
-            const installed = principal.installation.reference(home.id, id);
-
-            // relate it to the residency as the universe's operator
-            const operator = await this.signIn(OPERATOR_EMAIL);
-            await operator.client(objectPackage).relationship.create({
-                scope: Scope.universe.id,
-                requestId: RequestId.create(this.store.environment),
-                object: residency.reference(Scope.universe.id, residencyId),
-                relation: "installation",
-                subject: installed,
-            });
-
-            return installed;
-        })();
-        this.#entitlers.set(residencyId, relating);
-
-        return relating;
-    }
-
-    /** Read the relay a residency's home declares, which the universe relates to the residency. */
-    async relay(residencyId: ResidencyCode): Promise<Subject> {
-        // derive the installation the home's stack declares under the relay's name
+    /** Read the platform's merchant, the finance installation its home declares. */
+    async merchant(): Promise<Subject> {
+        // derive the installation the home's stack declares under the merchant's name
         const snapshot = this.database.snapshot();
-        const home = await Scope.object(snapshot, await this.residencySpace(residencyId));
-        const id = await InstallationId.of(home, RESIDENCY_RELAY, this.environment.crypto);
+        const home = await Scope.object(snapshot, await this.platformHome("eu"));
+        const id = await InstallationId.of(home, REGION_MERCHANT, this.environment.crypto);
 
         return principal.installation.reference(home.id, id);
     }
 
-    /** Act as a cloud machine the platform declares, such as a residency's shared machine. */
-    cloud(machineId: Identifier<"machine">): MachineKey {
+    /** Act as a managed machine the platform declares, such as one of a region's shared pool. */
+    managed(machineId: Identifier<"machine">): MachineKey {
         return found(this.#machines, machineId);
     }
 
-    /** Read the keychain storing a declared cloud machine's key. */
-    cloudKeychain(machineId: Identifier<"machine">): Keychain {
-        return found(this.#cloudKeychains, machineId);
+    /** Read the keychain storing a declared managed machine's key. */
+    managedKeychain(machineId: Identifier<"machine">): Keychain {
+        return found(this.#managedKeychains, machineId);
     }
 
     /** Add a person to an organization through an accepted invitation, returning the membership. */
@@ -998,14 +958,14 @@ export class TestAccountStore implements AsyncDisposable {
             this.environment,
         );
         await identity.enroll(person.client(accountPackage), {
-            scope: accountId,
+            accountId,
             requestId: RequestId.create(this.store.environment),
             name: options.name ?? `machine-${identity.machineId.slice(-12)}`,
-            ...(options.residencyId === undefined
-                ? PERSONAL_MACHINE
+            ...(options.regionId === undefined
+                ? SELF_MACHINE
                 : {
-                      kind: "cloud",
-                      residencyId: options.residencyId,
+                      kind: "managed",
+                      regionId: options.regionId,
                       providerCode: PROVIDER,
                       location: LOCATION,
                   }),
@@ -1015,16 +975,16 @@ export class TestAccountStore implements AsyncDisposable {
         return identity;
     }
 
-    /** Declare an account's dedicated cloud machine at an origin under its plan. */
-    async declareCloudMachine(
+    /** Declare an account's dedicated managed machine at an origin under its plan. */
+    async declareManagedMachine(
         accountId: Identifier<"account">,
-        residencyId: ResidencyCode,
+        regionId: RegionCode,
         origin?: string,
     ): Promise<MachineKey> {
         // entitle the account to dedicated tenancy, which the platform requires to declare its machine
         await this.entitle(accountId, "tenancy", {
             kind: "static",
-            value: ["shared", "dedicated", "local"],
+            value: ["shared", "dedicated", "self"],
         });
 
         // store a new identity's machine as the universe with its key
@@ -1034,15 +994,15 @@ export class TestAccountStore implements AsyncDisposable {
             this.environment,
         );
         const { publicKey } = await identity.generate();
-        const name = `cloud-${identity.machineId.slice(-12)}`;
+        const name = `managed-${identity.machineId.slice(-12)}`;
         await this.store.mutate(this.store.as(machine), {
             id: RequestId.create(this.store.environment),
             calls: [
                 machine.call("declare", {
                     ...machine.target({ scope: accountId, id: identity.machineId }),
                     name,
-                    kind: "cloud",
-                    residencyId,
+                    kind: "managed",
+                    regionId,
                     providerCode: PROVIDER,
                     location: LOCATION,
                     publicKey,
@@ -1079,18 +1039,18 @@ export class TestAccountStore implements AsyncDisposable {
             /** The sessions of the people with an authenticator, by email. */
             readonly sessions: Readonly<Record<string, TestSession>>;
         },
-    ): Promise<TestAccountStore> {
-        return new TestAccountStore(storage, served, {
-            platform: await TestAccountStore.#platform(storage.database),
+    ): Promise<TestAccount> {
+        return new TestAccount(storage, served, {
+            platform: await TestAccount.#platform(storage.database),
             homes: options.homes,
             simulation: options.simulation,
-            cloudKeychains: keys.cloud,
+            managedKeychains: keys.managed,
             keychain: keys.universe,
             sessions: options.sessions,
         });
     }
 
-    /** Store the residencies, the people, the platform, its homes and the owner's accounts. */
+    /** Store the regions, the people, the platform, its homes and the owner's accounts. */
     static async #write(
         storage: TestDatabase,
         options: ServeOptions,
@@ -1100,13 +1060,13 @@ export class TestAccountStore implements AsyncDisposable {
     }> {
         // serve the account package with new keys, storing the platform before the universe's identity
         const keys = AccountKeys.create();
-        const definition = await TestAccountStore.#platformDefinition(
+        const definition = await TestAccount.#platformDefinition(
             options.stacks,
-            keys.cloud,
+            keys.managed,
             options.simulation.environment(WORLD_NODE),
         );
-        const served = await TestAccountStore.#serve(storage, keys, options, definition);
-        const fixture = await TestAccountStore.#over(storage, served, keys, {
+        const served = await TestAccount.#serve(storage, keys, options, definition);
+        const fixture = await TestAccount.#over(storage, served, keys, {
             ...options,
             sessions: {},
         });
@@ -1132,7 +1092,7 @@ export class TestAccountStore implements AsyncDisposable {
         for (const { isEnrolled: _, ...person } of PEOPLE) {
             // seed each person proven, as no mailbox answers the template's write
             await context.internalAdapter.createUser(
-                { ...person, emailVerified: true, ...SIGN_UP, residencyId: "eu" },
+                { ...person, emailVerified: true, ...SIGN_UP, regionId: "eu" },
                 { method: "email-otp" },
             );
         }
@@ -1157,15 +1117,15 @@ export class TestAccountStore implements AsyncDisposable {
         return sessions;
     }
 
-    /** Declare the platform with its spaces' stacks and a cloud machine per residency. */
+    /** Declare the platform with its spaces' stacks and a managed machine per region. */
     static async #platformDefinition(
         stacks: PlatformDefinition["stacks"],
-        cloudKeychains: Map<Identifier<"machine">, MemoryKeychain>,
+        managedKeychains: Map<Identifier<"machine">, MemoryKeychain>,
         environment: Environment,
     ): Promise<PlatformDefinition> {
         return {
             name: "Destack",
-            residencyId: "eu",
+            regionId: "eu",
             operator: OPERATOR_EMAIL,
             reserved: [],
             transfers: {},
@@ -1173,12 +1133,18 @@ export class TestAccountStore implements AsyncDisposable {
             clients: [],
             handle: PLATFORM_HANDLE,
             domains: [],
-            homes: { eu: RESIDENCY_STACK, us: RESIDENCY_STACK },
+            homes: { eu: REGION_STACK, us: REGION_STACK },
             hostnames: { eu: [], us: [] },
             stacks,
             machines: [
-                await cloudMachine(cloudKeychains, environment, ids.machine, "eu-central", "eu"),
-                await cloudMachine(cloudKeychains, environment, ids.usMachine, "us-east", "us"),
+                await managedMachine(
+                    managedKeychains,
+                    environment,
+                    ids.machine,
+                    "eu-central",
+                    "eu",
+                ),
+                await managedMachine(managedKeychains, environment, ids.usMachine, "us-east", "us"),
             ],
         };
     }
@@ -1197,7 +1163,7 @@ export class TestAccountStore implements AsyncDisposable {
         const releases = new Map<string, Promise<BuildReader>>();
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const events = await testEvents(database, environment);
-        const opening = options.openRelease ?? TestAccountStore.#opening(releases);
+        const opening = options.openRelease ?? TestAccount.#opening(releases);
         const store = new ObjectStore({
             blobs: new MemoryBlobStorage(environment.crypto),
             servers: [
@@ -1207,7 +1173,6 @@ export class TestAccountStore implements AsyncDisposable {
                     resolver: options.resolver ?? new TestDns(),
                     stacks: options.stacks,
                     signIn: signIn.promise,
-                    releases: { open: opening, distribution: [] },
                 }),
                 settingServer({ after: [] }),
             ],
@@ -1228,7 +1193,7 @@ export class TestAccountStore implements AsyncDisposable {
 
         // store the platform before the universe's identity
         if (platform !== undefined) {
-            await Residency.apply(store, RESIDENCIES);
+            await Region.apply(store, REGIONS);
             await new Platform(store, platform).apply(clock.now());
         }
 
@@ -1257,16 +1222,16 @@ export class TestAccountStore implements AsyncDisposable {
         );
         signIn.resolve(authenticator);
 
-        // act as the declared cloud machines with their keys
+        // act as the declared managed machines with their keys
         const machines = new Map(
-            [...keys.cloud].map(([id, keychain]) => [
+            [...keys.managed].map(([id, keychain]) => [
                 id,
                 new MachineKey(id, keychain, environment),
             ]),
         );
 
         // serve each package to bearers, signing machines by their keys and spaces by their space's
-        const fetch = (request: Request) => TestAccountStore.#route(store, served, request);
+        const fetch = (request: Request) => TestAccount.#route(store, served, request);
         const issuer = new Issuer(ISSUER, fetch, environment, new Bookmark());
         const identities = new Map<string, Identity>();
         const verifier = AccountAuthentication.universe(database.snapshot(), ISSUER, environment);
@@ -1274,7 +1239,7 @@ export class TestAccountStore implements AsyncDisposable {
             credential: {
                 sign: async (request, signer) => {
                     // send the token the caller's key proves
-                    const token = await TestAccountStore.#token(signer, {
+                    const token = await TestAccount.#token(signer, {
                         machines,
                         identities,
                         keystore: authenticator.keystore,
@@ -1435,7 +1400,7 @@ export class TestAccountStore implements AsyncDisposable {
                 handle: declared.handle,
                 name: declared.handle,
                 kind: declared.kind,
-                residencyId: "eu",
+                regionId: "eu",
             });
         }
     }
@@ -1455,15 +1420,19 @@ export class TestAccountStore implements AsyncDisposable {
         });
     }
 
-    /** Start the identities of the residencies' homes as the cloud machines serving them. */
+    /** Start the identities of the platform's homes as the machines serving them. */
     async #serveHomes(): Promise<void> {
-        for (const entry of await Residency.list(this.database)) {
-            const home = await this.residencySpace(entry.code);
+        // let the scheduler place the homes once the pool admits their accounts
+        await this.simulation.idle();
+
+        // start each home's identity as the machine it runs on
+        for (const entry of await Region.list(this.database)) {
+            const home = await this.platformHome(entry.code);
             await this.startIdentity(home, this.as(await this.machine(home)));
         }
     }
 
-    /** Read where people sign in: the issuer, its mail, the origin, the world and the residency. */
+    /** Read where people sign in: the issuer, its mail, the origin, the world and the region. */
     #signIn(): TestSignIn {
         return {
             issuer: this.issuer,
@@ -1471,7 +1440,7 @@ export class TestAccountStore implements AsyncDisposable {
             origin: ORIGIN,
             fetch: (request) => this.fetch(request),
             environment: this.environment,
-            residencyId: "eu",
+            regionId: "eu",
         };
     }
 
@@ -1491,12 +1460,12 @@ export class TestAccountStore implements AsyncDisposable {
     }
 }
 
-/** How a test enrolls a machine: its name and the residency a cloud machine serves. */
+/** How a test enrolls a machine: its name and the region a managed machine serves. */
 export interface MachineEnrollment {
     /** The proposed name. */
     readonly name?: string;
-    /** The residency a cloud machine serves. */
-    readonly residencyId?: ResidencyCode;
+    /** The region a managed machine serves. */
+    readonly regionId?: RegionCode;
 }
 
 /** A client a test authorizes with PKCE: its redirect, scopes, state and package. */
@@ -1544,13 +1513,13 @@ export class TestMail implements MailTransport {
     }
 }
 
-/** Declare a cloud machine of the universe serving a residency, storing its keychain. */
-async function cloudMachine(
+/** Declare a managed machine of the universe serving a region, storing its keychain. */
+async function managedMachine(
     keychains: Map<Identifier<"machine">, MemoryKeychain>,
     environment: Environment,
     id: Identifier<"machine">,
     name: string,
-    residencyId: ResidencyCode,
+    regionId: RegionCode,
 ): Promise<PlatformDefinition["machines"][number]> {
     // generate its key, storing its keychain for tests to act as it and run it
     const keychain = new MemoryKeychain();
@@ -1560,7 +1529,7 @@ async function cloudMachine(
     return {
         id,
         name,
-        residencyId,
+        regionId,
         providerCode: PROVIDER,
         location: LOCATION,
         key: publicKey,
@@ -1569,25 +1538,25 @@ async function cloudMachine(
     };
 }
 
-/** The keys of the universe and the declared cloud machines, which each seed copy shares. */
+/** The keys of the universe and the declared managed machines, which each seed copy shares. */
 class AccountKeys {
     /** The keychains' secrets, as an account template's value stores them. */
     static readonly schema = schema.object({
         /** The universe keychain's secrets, by name. */
         universe: schema.record(schema.string(), schema.string()),
-        /** Each cloud machine's keychain secrets, by machine and name. */
-        cloud: schema.record(schema.string(), schema.record(schema.string(), schema.string())),
+        /** Each managed machine's keychain secrets, by machine and name. */
+        managed: schema.record(schema.string(), schema.record(schema.string(), schema.string())),
     });
 
     /** The keychain of the universe's keyring. */
     readonly universe: MemoryKeychain;
-    /** The keychains of the declared cloud machines, by machine. */
-    readonly cloud: Map<Identifier<"machine">, MemoryKeychain>;
+    /** The keychains of the declared managed machines, by machine. */
+    readonly managed: Map<Identifier<"machine">, MemoryKeychain>;
 
     /** Store the keychains. */
-    constructor(universe: MemoryKeychain, cloud: Map<Identifier<"machine">, MemoryKeychain>) {
+    constructor(universe: MemoryKeychain, managed: Map<Identifier<"machine">, MemoryKeychain>) {
         this.universe = universe;
-        this.cloud = cloud;
+        this.managed = managed;
     }
 
     /** Start empty keychains. */
@@ -1597,7 +1566,7 @@ class AccountKeys {
 
     /** Open keychains with the secrets of a template's value. */
     static of(value: AccountKeysValue): AccountKeys {
-        const cloud = Object.entries(value.cloud).map(
+        const managed = Object.entries(value.managed).map(
             ([machineId, secrets]) =>
                 [
                     schema.identifier("machine").parse(machineId),
@@ -1605,15 +1574,15 @@ class AccountKeys {
                 ] as const,
         );
 
-        return new AccountKeys(AccountKeys.#keychain(value.universe), new Map(cloud));
+        return new AccountKeys(AccountKeys.#keychain(value.universe), new Map(managed));
     }
 
     /** Read the keychains' secrets as a template's value stores them. */
     value(): AccountKeysValue {
         return {
             universe: Object.fromEntries(this.universe.secrets),
-            cloud: Object.fromEntries(
-                [...this.cloud].map(([machineId, keychain]) => [
+            managed: Object.fromEntries(
+                [...this.managed].map(([machineId, keychain]) => [
                     machineId,
                     Object.fromEntries(keychain.secrets),
                 ]),
@@ -1633,13 +1602,13 @@ class AccountKeys {
 }
 
 /** The one database an account template writes: the universe's. */
-type AccountTemplateDatabases = { readonly universe: typeof TestAccountStore.database };
+type AccountTemplateDatabases = { readonly universe: typeof TestAccount.database };
 
 /** The keychains' secrets, as an account template's value stores them. */
 type AccountKeysValue = schema.Infer<typeof AccountKeys.schema>;
 
 /** The account fixture's rows with the default stacks and the fixture's homes, which tests copy. */
-export const ACCOUNT_TEMPLATE = TestAccountStore.template({
+export const ACCOUNT_TEMPLATE = TestAccount.template({
     name: "account",
     world: { value: schema.null(), write: async () => null },
 });

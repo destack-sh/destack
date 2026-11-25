@@ -11,7 +11,7 @@ import {
     ids,
     ISSUER,
     SIGN_UP,
-    TestAccountStore,
+    TestAccount,
     TestJwt,
     type TestPerson,
     OWNER_EMAIL,
@@ -23,7 +23,7 @@ import { space } from "../src/object/space.ts";
 
 test("rename a user as themselves, the user created and changed on the store's clock", async () => {
     // sign the user up and rename them at a clock standing still
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const signedUpAt = fixture.clock.now();
     const owner = await fixture.signIn("newcomer@example.test");
     const client = owner.client(accountPackage);
@@ -48,7 +48,7 @@ test("rename a user as themselves, the user created and changed on the store's c
 
 test("change a user's time zone and locale, and refuse an unknown time zone", async () => {
     // change the time zone to an unknown one, then to a known one with a locale
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const users = owner.client(accountPackage).user;
     const current = await users.get({ id: owner.id });
@@ -87,7 +87,7 @@ test("change a user's time zone and locale, and refuse an unknown time zone", as
 
 test("create a person's shared account beside their personal one, and refuse a second personal one", async () => {
     // create a shared account, and another personal one
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("person@example.com");
     const client = owner.client(accountPackage);
     const creation = {
@@ -95,7 +95,7 @@ test("create a person's shared account beside their personal one, and refuse a s
         requestId: RequestId.create(fixture.environment),
         handle: "florian",
         name: "Personal",
-        residencyId: "eu" as const,
+        regionId: "eu" as const,
         kind: "shared" as const,
     };
     const shared = await client.account.create(creation);
@@ -130,7 +130,7 @@ test("create a person's shared account beside their personal one, and refuse a s
             tags: {},
             handle: "florian",
             name: "Personal",
-            residencyId: (await fixture.residency("eu")).id,
+            regionId: (await fixture.region("eu")).id,
             kind: "shared",
             deletedAt: null,
             scope: owner.id,
@@ -145,14 +145,14 @@ test("create a person's shared account beside their personal one, and refuse a s
 
 test("give every account's home the home stack, a shared account's and a person's alike", async () => {
     // sign a person up, then create a shared account
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("person@example.com");
     const shared = await owner.client(accountPackage).account.create({
         scope: owner.id,
         requestId: RequestId.create(fixture.environment),
         handle: "shared-home",
         name: "Shared",
-        residencyId: "eu",
+        regionId: "eu",
         kind: "shared",
     });
 
@@ -173,7 +173,7 @@ test("give every account's home the home stack, a shared account's and a person'
 
 test("let another signed-in user find a person's accounts by their profile alone, and read, change or add none", async () => {
     // create a shared account of the owner
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const shared = await fixture.createAccount(owner);
     const outsider = await fixture.signIn(STRANGER_EMAIL);
@@ -196,7 +196,7 @@ test("let another signed-in user find a person's accounts by their profile alone
                 requestId: RequestId.create(fixture.environment),
                 handle: "intruder",
                 name: "Intruder",
-                residencyId: "eu",
+                regionId: "eu",
                 kind: "shared",
             }),
         ].map((attempt) => refusal(attempt)),
@@ -208,12 +208,12 @@ test("let another signed-in user find a person's accounts by their profile alone
         handle,
         name,
         kind,
-        residencyId: shared.residencyId,
+        regionId: shared.regionId,
         revision: 1,
         deletedAt: null,
     });
 
-    // show the outsider each account's profile, its residency, revision and trash state alone
+    // show the outsider each account's profile, its region, revision and trash state alone
     expect({ hidden, listed: listed.items }).toEqual({
         hidden: [
             "done",
@@ -231,7 +231,7 @@ test("let another signed-in user find a person's accounts by their profile alone
 
 test("refuse exchanging a person's token once they revoke the client it was issued to", async () => {
     // revoke the client the owner signed in on
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     await owner.client(accountPackage).client.revoke({
         scope: owner.id,
@@ -250,7 +250,7 @@ test("refuse exchanging a person's token once they revoke the client it was issu
 });
 
 test("exchange tokens acting as a user through lent authority or account administration", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     let administrator = await fixture.signIn("administrator@example.com");
     let member = await fixture.signIn("member@example.com");
     let assistant = await fixture.signIn("assistant@example.com");
@@ -318,7 +318,7 @@ test("exchange tokens acting as a user through lent authority or account adminis
 });
 
 test("exchange a token acting as a member in the account's space, with the member's memberships and the acting administrator", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     let administrator = await fixture.signIn("administrator@example.com");
     const member = await fixture.signIn("member@example.com");
 
@@ -374,7 +374,7 @@ test("exchange a token acting as a member in the account's space, with the membe
 });
 
 test("resolve the paying account: an organization's payer for it and its accounts, a person's account itself, and a space's through its account", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const founder = await fixture.signIn("founder@example.com");
 
     // create an organization paying through its account, with a second account in it
@@ -382,7 +382,7 @@ test("resolve the paying account: an organization's payer for it and its account
         requestId: RequestId.create(fixture.store.environment),
         name: "Example",
         handle: "example-pays",
-        residencyId: "us",
+        regionId: "us",
     });
     const second = await founder.client(accountPackage).account.create({
         scope: example.id,
@@ -390,7 +390,7 @@ test("resolve the paying account: an organization's payer for it and its account
         handle: "example-second",
         name: "Example",
         kind: "shared",
-        residencyId: "us",
+        regionId: "us",
     });
 
     // charge the organization and both its accounts to its payer, the person's account and home space to the account
@@ -405,7 +405,7 @@ test("resolve the paying account: an organization's payer for it and its account
 });
 
 test("create accounts in an organization, administered by its owner members", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     let founder = await fixture.signIn("founder@example.com");
     const partner = await fixture.signIn("partner@example.com");
 
@@ -414,7 +414,7 @@ test("create accounts in an organization, administered by its owner members", as
         requestId: RequestId.create(fixture.store.environment),
         name: "Example",
         handle: "example-inc",
-        residencyId: "us",
+        regionId: "us",
     });
     const created = await founder.client(accountPackage).account.create({
         scope: example.id,
@@ -422,7 +422,7 @@ test("create accounts in an organization, administered by its owner members", as
         handle: "initech",
         name: "Example",
         kind: "shared",
-        residencyId: "us",
+        regionId: "us",
     });
     expect(created).toEqual({
         id: created.id,
@@ -439,7 +439,7 @@ test("create accounts in an organization, administered by its owner members", as
         tags: {},
         handle: "initech",
         name: "Example",
-        residencyId: (await fixture.residency("us")).id,
+        regionId: (await fixture.region("us")).id,
         kind: "shared",
         deletedAt: null,
         scope: example.id,
@@ -476,12 +476,12 @@ test("create accounts in an organization, administered by its owner members", as
     });
 });
 
-test("create a person's home with their personal account at sign-up, placed on a cloud machine of their residency, which a machine reads", async () => {
-    await using fixture = await TestAccountStore.open();
+test("create a person's home with their personal account at sign-up, placed on a cloud machine of their region, which a machine reads", async () => {
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { machine } = await fixture.createSpace(owner);
 
-    // read the home as a machine and find it placed on the residency's cloud machine
+    // read the home as a machine and find it placed on the region's cloud machine
     const read = await machine.client(accountPackage).user.get({ id: owner.id });
     const placed = await fixture.database
         .select({
@@ -510,7 +510,7 @@ test("create a person's home with their personal account at sign-up, placed on a
 });
 
 test("show a person's public profile with their locale to anyone signed in, and their private fields to themselves alone", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("person@example.com");
     const stranger = await fixture.signIn(STRANGER_EMAIL);
 
@@ -534,7 +534,7 @@ test("show a person's public profile with their locale to anyone signed in, and 
 });
 
 test("refuse where a person receives notifications to another person's home and to other people", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const other = await fixture.signIn(STRANGER_EMAIL);
 
@@ -562,7 +562,7 @@ test("refuse where a person receives notifications to another person's home and 
 });
 
 test("let the machine serving an account read its spaces, whose rows its replicas follow", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId, machine } = await fixture.personalHome(owner);
 

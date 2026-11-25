@@ -157,10 +157,13 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
 
     /** Locate a space's placement and the URL its machine answers at now. */
     async locate(spaceId: Identifier<"space">, now: number): Promise<PlacementEndpoint> {
-        // read the placement, then where its machine answers
+        // read the placement, refusing a pending space, then where its machine answers
         const placed = await this.placement(spaceId);
         if (placed === undefined) {
-            throw AccountError.of("PLACEMENT_NOT_FOUND", "placement of this space not found");
+            throw AccountError.of(
+                "SPACE_UNAVAILABLE",
+                "space is unavailable: no machine runs it yet",
+            );
         }
         const url = await this.answering(placed.placement.machine, now);
 

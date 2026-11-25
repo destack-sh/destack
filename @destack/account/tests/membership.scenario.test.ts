@@ -2,17 +2,12 @@ import { RequestId, type Subject } from "@destack/sync";
 import { expect, test, refusal } from "@destack/test";
 import objectPackage from "@destack/object/package";
 import accountPackage from "../src/package.ts";
-import { space } from "../src/object/index.ts";
-import {
-    OWNER_EMAIL,
-    STRANGER_EMAIL,
-    TestAccountStore,
-    type TestPerson,
-} from "../src/test/index.ts";
+import { Account, space } from "../src/object/index.ts";
+import { OWNER_EMAIL, STRANGER_EMAIL, TestAccount, type TestPerson } from "../src/test/index.ts";
 
 test("let a space's account owner and its viewers read it, its guests find it alone, and a viewer granted later read it", async () => {
     // create the owner's space, and make the member its viewer and the partner its guest
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const [owner, member, partner, stranger] = [
         await accounts.signIn(OWNER_EMAIL),
         await accounts.signIn("member@example.com"),
@@ -35,9 +30,9 @@ test("let a space's account owner and its viewers read it, its guests find it al
     const reads = (person: TestPerson) =>
         refusal(person.client(accountPackage).space.get({ accountId, id: spaceId }));
     const finds = async (person: TestPerson) =>
-        (await person.client(accountPackage).space.list({ accountId })).items.map(
-            (item) => item.id,
-        );
+        (await person.client(accountPackage).space.list({ accountId })).items
+            .map((item) => item.id)
+            .toSorted();
     const decided = {
         read: [
             await reads(owner),
@@ -50,10 +45,12 @@ test("let a space's account owner and its viewers read it, its guests find it al
 
     // let the stranger read it once the owner makes them a viewer too
     await grant("viewer", stranger.subject);
+    // let everyone find the account's home, which is open to guests, and the guest the space too
     const hidden = ["NOT_FOUND", "NOT_FOUND", `space '${spaceId}' not found`];
+    const home = Account.home(accountId);
     expect({ ...decided, later: await reads(stranger) }).toEqual({
         read: ["done", "done", hidden, hidden],
-        list: [[spaceId], []],
+        list: [[home, spaceId].toSorted(), [home]],
         later: "done",
     });
 });

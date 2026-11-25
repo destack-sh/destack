@@ -7,12 +7,12 @@ import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { Identity } from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
 import { RECOVERY_MILLISECONDS } from "../src/server/index.ts";
-import { TestAccountStore, OWNER_EMAIL } from "../src/test/index.ts";
+import { TestAccount, OWNER_EMAIL } from "../src/test/index.ts";
 
 /** Serve identities through the account package, a space placed on a machine that starts them. */
 async function openRegistry(world: Environment) {
     // place a space on a machine a person enrolls, and enroll another machine serving nothing of it
-    const accounts = await TestAccountStore.open();
+    const accounts = await TestAccount.open();
     const { clock, environment } = accounts;
     onTestFinished(() => accounts[Symbol.asyncDispose]());
     const owner = await accounts.signIn(OWNER_EMAIL);

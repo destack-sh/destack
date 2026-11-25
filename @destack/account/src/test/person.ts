@@ -13,7 +13,7 @@ import { Identifier, present, schema, type UuidEnvironment } from "@destack/sche
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { type Issuer, type TokenBinding, TokenSet } from "../client/index.ts";
 import { Account } from "../object/index.ts";
-import type { ResidencyCode } from "../object/index.ts";
+import type { RegionCode } from "../object/index.ts";
 import type { TestMail } from "./account.ts";
 import { ACCESS_TOKEN_TYPE, type SubjectToken } from "../oauth/exchange.ts";
 import accountPackage from "../package.ts";
@@ -26,7 +26,7 @@ interface TestToken {
     readonly expiresAt: number;
 }
 
-/** Where people sign in as native clients do: the issuer, its mail and the residency. */
+/** Where people sign in as native clients do: the issuer, its mail and the region. */
 export interface TestSignIn {
     /** The issuer people sign up and in with. */
     readonly issuer: Issuer;
@@ -38,8 +38,8 @@ export interface TestSignIn {
     readonly fetch: (request: Request) => Promise<Response>;
     /** The world the person's calls run in, whose clock tokens expire by. */
     readonly environment: Environment;
-    /** The residency new people sign up in. */
-    readonly residencyId: ResidencyCode;
+    /** The region new people sign up in. */
+    readonly regionId: RegionCode;
 }
 
 /** A person's sign-in on a client, as a template stores it to restore the person. */
@@ -109,12 +109,12 @@ export class TestPerson {
         const codes = (await signIn.mail.codes()).filter((mailed) => mailed.email === email);
         const code = present(codes.at(-1), `a code mailed to ${email}`).otp;
 
-        // redeem it on a new client, signing a new person up in the residency
+        // redeem it on a new client, signing a new person up in the region
         const clientId = Identifier.create("client", signIn.environment);
         const { tokens, userId } = await signIn.issuer.redeemCode(clientId, email, code, {
             name: email,
             handle: freshHandle(signIn.environment),
-            residencyId: signIn.residencyId,
+            regionId: signIn.regionId,
             timeZone: "UTC",
             locale: "en",
         });
@@ -161,7 +161,7 @@ export class TestPerson {
         };
     }
 
-    /** Create an organization the person owns in their residency, as the command line does. */
+    /** Create an organization the person owns in their region, as the command line does. */
     async organize(handle: string, name: string): Promise<Identifier<"account">> {
         const created = await this.client(accountPackage).account.create({
             scope: this.id,
@@ -169,7 +169,7 @@ export class TestPerson {
             handle,
             name,
             kind: "shared",
-            residencyId: this.#signIn.residencyId,
+            regionId: this.#signIn.regionId,
         });
 
         return created.id;

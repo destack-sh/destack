@@ -22,16 +22,17 @@ import {
     client,
     organization,
     space,
+    Account,
 } from "../src/object/index.ts";
 import { Platform, PlatformDefinition, UniverseRole } from "../src/server/index.ts";
 import { LocalKeyring } from "@destack/identity";
 import { Identifier, nth, present } from "@destack/schema";
 import {
-    TestAccountStore,
+    TestAccount,
     ids,
     OPERATOR_EMAIL,
     type TestPerson,
-    RESIDENCY_STACK,
+    REGION_STACK,
     STACKS,
     STRANGER_EMAIL,
 } from "../src/test/index.ts";
@@ -47,7 +48,7 @@ const WORKFLOW = "repo:destack/destack:environment:production";
 /** The platform organization of the fixture's universe, declaring no cloud machines. */
 const PLATFORM: PlatformDefinition = {
     name: "Destack",
-    residencyId: "eu",
+    regionId: "eu",
     operator: OPERATOR_EMAIL,
     reserved: ["admin", "security"],
     transfers: {},
@@ -55,7 +56,7 @@ const PLATFORM: PlatformDefinition = {
     clients: [{ name: "Release", issuer: ISSUER, subject: WORKFLOW }],
     handle: "destack",
     domains: [],
-    homes: { eu: RESIDENCY_STACK, us: RESIDENCY_STACK },
+    homes: { eu: REGION_STACK, us: REGION_STACK },
     hostnames: { eu: [], us: [] },
     stacks: STACKS,
     machines: [],
@@ -68,7 +69,7 @@ const SUCCESSOR_EMAIL = "successor@example.com";
 const PROVIDER = "cloudflare";
 
 /** Create a shared account of a person under a handle, as the outcome of the call. */
-function claim(fixture: TestAccountStore, person: TestPerson, handle: string): Promise<Refusal> {
+function claim(fixture: TestAccount, person: TestPerson, handle: string): Promise<Refusal> {
     return refusal(
         person.client(accountPackage).account.create({
             scope: person.id,
@@ -76,7 +77,7 @@ function claim(fixture: TestAccountStore, person: TestPerson, handle: string): P
             handle,
             name: handle,
             kind: "shared",
-            residencyId: "eu",
+            regionId: "eu",
         }),
     );
 }
@@ -98,7 +99,7 @@ async function declare(environment: Environment): Promise<MachineKey> {
 
 test("apply the platform organization once, with its publishers as accounts and its reserved handles as names without accounts", async () => {
     // apply the platform twice
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const first = await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
     const second = await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
 
@@ -123,7 +124,7 @@ test("apply the platform organization once, with its publishers as accounts and 
 
 test("answer a person the platform's reserved and taken handles as taken", async () => {
     // apply the platform, and give a person an account of their own
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
     const person = await fixture.signIn("admin@example.com");
     const owned = await fixture.createAccount(person);
@@ -162,7 +163,7 @@ test("answer a person the platform's reserved and taken handles as taken", async
 
 test("transfer a reserved handle to the account it renames, once, keeping its lookalikes taken", async () => {
     // give a person an account, then transfer the reserved security handle to it twice
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
     const person = await fixture.signIn("owner@example.com");
     const owned = await fixture.createAccount(person);
@@ -181,15 +182,15 @@ test("transfer a reserved handle to the account it renames, once, keeping its lo
 });
 
 test("revoke the bindings of a universe role its definition no longer declares", async () => {
-    // apply the platform, then leave a binding of the servers' role an older definition declared
-    await using fixture = await TestAccountStore.open();
+    // apply the platform, then leave a binding of the machines' role an older definition declared
+    await using fixture = await TestAccount.open();
     const { database } = fixture.storage;
     await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
-    const [server] = await database
+    const [machines] = await database
         .select({ id: accessRole.id })
         .from(accessRole)
-        .where(eq(accessRole.name, "server"));
-    const role = present(server, "the servers' role").id;
+        .where(eq(accessRole.name, "machine"));
+    const role = present(machines, "the machines' role").id;
     const bindings = async () =>
         (
             await database
@@ -223,7 +224,7 @@ test("revoke the bindings of a universe role its definition no longer declares",
 
 test("make the platform organization's owners operators when an apply created it without the operator role", async () => {
     // apply the platform, then drop the operator role with its bindings, as an apply failing after the creation leaves it
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const first = await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     const { database } = fixture.storage;
     const [operator] = await database
@@ -250,17 +251,17 @@ test("make the platform organization's owners operators when an apply created it
     }).toEqual({ second: first, platform: first });
 });
 
-test("move each residency home to its own newly declared stack once, giving each residency's platform account its hostnames below the organization's declared domains once", async () => {
+test("move each region home to its own newly declared stack once, giving each region's platform account its hostnames below the organization's declared domains once", async () => {
     // apply the platform, then declare each home's stack at a new release with hostnames, and apply it twice
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     const europe = {
-        ...RESIDENCY_STACK,
-        version: { ...RESIDENCY_STACK.version, version: "2026.9.1" },
+        ...REGION_STACK,
+        version: { ...REGION_STACK.version, version: "2026.9.1" },
     };
     const america = {
-        ...RESIDENCY_STACK,
-        version: { ...RESIDENCY_STACK.version, version: "2026.9.2" },
+        ...REGION_STACK,
+        version: { ...REGION_STACK.version, version: "2026.9.2" },
     };
     const declared: PlatformDefinition = {
         ...PLATFORM,
@@ -274,12 +275,12 @@ test("move each residency home to its own newly declared stack once, giving each
     await new Platform(fixture.store, declared).apply(fixture.store.clock.now());
     await new Platform(fixture.store, declared).apply(fixture.store.clock.now());
 
-    // read the homes' stacks and revisions, and the accounts' hostnames
+    // read the homes' stacks and generations, and the accounts' hostnames
     const homes = await fixture.storage.database
         .select({
             handle: account.table.handle,
             stack: space.table.stack,
-            revision: space.table.revision,
+            generation: space.table.generation,
         })
         .from(space.table)
         .innerJoin(account.table, eq(account.table.id, space.table.scope))
@@ -296,8 +297,8 @@ test("move each residency home to its own newly declared stack once, giving each
         hostnames,
     }).toEqual({
         homes: [
-            { handle: "destack", stack: europe, revision: 2 },
-            { handle: "destack-us", stack: america, revision: 2 },
+            { handle: "destack", stack: europe, generation: 2 },
+            { handle: "destack-us", stack: america, generation: 2 },
         ],
         hostnames: [
             { handle: "destack", name: "*.destack.space" },
@@ -308,8 +309,8 @@ test("move each residency home to its own newly declared stack once, giving each
 });
 
 test("apply the declared cloud machines with their keys in the universe once, and the declared client alone as the platform accounts' publisher", async () => {
-    // declare a cloud machine for each residency
-    await using fixture = await TestAccountStore.open();
+    // declare a cloud machine for each region
+    await using fixture = await TestAccount.open();
     const [europe, america] = [
         await declare(fixture.store.environment),
         await declare(fixture.store.environment),
@@ -320,7 +321,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
             {
                 id: europe.machineId,
                 name: "eu-west",
-                residencyId: "eu",
+                regionId: "eu",
                 providerCode: PROVIDER,
                 location: "eu",
                 key: await europe.key(),
@@ -330,7 +331,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
             {
                 id: america.machineId,
                 name: "us-west",
-                residencyId: "us",
+                regionId: "us",
                 providerCode: PROVIDER,
                 location: "us",
                 key: await america.key(),
@@ -362,7 +363,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
             scope: machine.table.scope,
             name: machine.table.name,
             kind: machine.table.kind,
-            residencyId: machine.table.residencyId,
+            regionId: machine.table.regionId,
             providerCode: machine.table.providerCode,
             location: machine.table.location,
         })
@@ -400,7 +401,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
             ]),
         ]),
     );
-    const [eu, us] = [await fixture.residency("eu"), await fixture.residency("us")];
+    const [eu, us] = [await fixture.region("eu"), await fixture.region("us")];
     const trusted = await database
         .select({
             id: client.table.id,
@@ -414,19 +415,19 @@ test("apply the declared cloud machines with their keys in the universe once, an
         [
             {
                 id: europe.machineId,
-                scope: Scope.universe.id,
+                scope: Account.ofHome(await fixture.platformHome("eu")),
                 name: "eu-west",
-                kind: "cloud",
-                residencyId: eu.id,
+                kind: "managed",
+                regionId: eu.id,
                 providerCode: PROVIDER,
                 location: "eu",
             },
             {
                 id: america.machineId,
-                scope: Scope.universe.id,
+                scope: Account.ofHome(await fixture.platformHome("us")),
                 name: "us-west",
-                kind: "cloud",
-                residencyId: us.id,
+                kind: "managed",
+                regionId: us.id,
                 providerCode: PROVIDER,
                 location: "us",
             },
@@ -442,7 +443,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
 
 test("invite a new operator as the platform's owner beside the first", async () => {
     // apply the platform for a new operator at a clock standing still, and sign in a stranger and the new operator
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const successor = { ...PLATFORM, operator: SUCCESSOR_EMAIL };
     const platformId = await new Platform(fixture.store, successor).apply(fixture.clock.now());
     const stranger = await fixture.signIn(STRANGER_EMAIL);
@@ -496,20 +497,20 @@ test("invite a new operator as the platform's owner beside the first", async () 
     ]);
 });
 
-test("enroll a cloud machine serving a residency as an owner of the platform organization, and refuse anyone else", async () => {
+test("enroll a cloud machine serving a region as an owner of the platform organization, and refuse anyone else", async () => {
     // give a stranger an account beside the platform of the operator
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const stranger = await fixture.signIn(STRANGER_EMAIL);
     const { id: accountId } = await fixture.createAccount(stranger);
 
-    // enroll a cloud machine of the eu residency as each person
+    // enroll a cloud machine of the eu region as each person
     expect([
         await refusal(
             fixture.enroll(fixture.platform, await fixture.signIn(OPERATOR_EMAIL), {
-                residencyId: "eu",
+                regionId: "eu",
             }),
         ),
-        await refusal(fixture.enroll(accountId, stranger, { residencyId: "eu" })),
+        await refusal(fixture.enroll(accountId, stranger, { regionId: "eu" })),
         await refusal(fixture.enroll(accountId, stranger)),
     ]).toEqual([
         "done",

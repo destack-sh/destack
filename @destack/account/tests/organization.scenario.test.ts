@@ -8,16 +8,16 @@ import { ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
 import { group } from "../src/object/group.ts";
 import { MEMBERSHIPS, type Membership, organization } from "../src/object/organization.ts";
-import { TestAccountStore, TestDns, type TestPerson, OWNER_EMAIL } from "../src/test/index.ts";
+import { TestAccount, TestDns, type TestPerson, OWNER_EMAIL } from "../src/test/index.ts";
 
 /** Create an organization with one account as its founder, paying for it. */
-async function foundOrganization(fixture: TestAccountStore, founder: TestPerson) {
+async function foundOrganization(fixture: TestAccount, founder: TestPerson) {
     // create the organization with its account
     const created = await founder.client(accountPackage).organization.create({
         requestId: RequestId.create(fixture.store.environment),
         name: "Example",
         handle: "initech",
-        residencyId: "eu",
+        regionId: "eu",
     });
 
     return { organizationId: created.id, accountId: created.payer };
@@ -75,7 +75,7 @@ async function access(
 }
 
 /** List the groups whose members a group's member relation includes. */
-async function nesting(fixture: TestAccountStore, groupId: string): Promise<string[]> {
+async function nesting(fixture: TestAccount, groupId: string): Promise<string[]> {
     const rows = await fixture.storage.database
         .select({ id: accessRelationship.subjectId })
         .from(accessRelationship)
@@ -93,7 +93,7 @@ async function nesting(fixture: TestAccountStore, groupId: string): Promise<stri
 
 test("grant an organization's members the access of their relations", async () => {
     // add a person in each relation below owner, and revoke one more person's membership
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const founder = await fixture.signIn("founder@example.com");
     const { organizationId, accountId } = await foundOrganization(fixture, founder);
     const relations: (readonly [string, Membership])[] = [
@@ -143,7 +143,7 @@ test("grant an organization's members the access of their relations", async () =
 
 test("change an organization's owners only as an owner, keeping at least one", async () => {
     // add an administrator and a member
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     let founder = await fixture.signIn("founder@example.com");
     const administrator = await fixture.signIn("administrator@example.com");
     const member = await fixture.signIn("member@example.com");
@@ -226,7 +226,7 @@ test("change an organization's owners only as an owner, keeping at least one", a
 
 test("list an invitation to a person's email to them, and make them a member once they accept it", async () => {
     // invite a signed-up person's email to the organization
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const founder = await fixture.signIn("founder@example.com");
     const { organizationId } = await foundOrganization(fixture, founder);
     const invitee = await fixture.signIn("person@example.com");
@@ -263,7 +263,7 @@ test("list an invitation to a person's email to them, and make them a member onc
 test("serve an organization's accounts on hostnames below the domains it verified", async () => {
     // claim a domain for the organization over a test DNS
     const dns = new TestDns();
-    await using fixture = await TestAccountStore.open({ resolver: dns });
+    await using fixture = await TestAccount.open({ resolver: dns });
     const founder = await fixture.signIn("founder@example.com");
     const { organizationId, accountId } = await foundOrganization(fixture, founder);
     await fixture.entitle(accountId, "domain", { kind: "boolean" });
@@ -306,7 +306,7 @@ test("serve an organization's accounts on hostnames below the domains it verifie
 
 test("make a nested group's members members of its parent, following moves and removals", async () => {
     // nest a team in one department and move it to another
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const founder = await fixture.signIn("founder@example.com");
     const { organizationId } = await foundOrganization(fixture, founder);
     const create = (name: string, parentId?: string) =>

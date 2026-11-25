@@ -18,7 +18,7 @@ import {
     KEY_SET_MILLISECONDS,
 } from "../src/identity/index.ts";
 import { Identity } from "../src/object/index.ts";
-import { TestAccountStore, OWNER_EMAIL } from "../src/test/index.ts";
+import { TestAccount, OWNER_EMAIL } from "../src/test/index.ts";
 import { TestDatabase } from "@destack/db/test";
 
 /** Read the key of a token. */
@@ -29,7 +29,7 @@ function kid(token: string): string | undefined {
 /** Serve a person's spaces on a machine, with a keystore of the spaces' identities. */
 async function openKeystore() {
     // place a person's space on a machine they enroll, which starts and extends the identities of what it serves
-    const accounts = await TestAccountStore.open();
+    const accounts = await TestAccount.open();
     onTestFinished(() => accounts[Symbol.asyncDispose]());
     const { clock, environment } = accounts;
     const owner = await accounts.signIn(OWNER_EMAIL);
@@ -68,7 +68,7 @@ async function openKeystore() {
 
 /** Open an account database holding a copy of a space's keys, as a move's other machine does. */
 async function openKeys(environment: Environment): Promise<TestDatabase> {
-    const storage = await TestDatabase.create(TestAccountStore.database, {
+    const storage = await TestDatabase.create(TestAccount.database, {
         environment,
         isMigrated: true,
     });
@@ -290,7 +290,7 @@ test("derive one key per space and label, the same after a move rewraps the spac
 
 test("send a request as the universe bound to the space it goes to, which a verifier of the universe's keys accepts for that space alone", async () => {
     // take the universe's identity, which its start generates
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { clock, database, keystore } = accounts;
 
     // call a package in a space as the universe

@@ -8,7 +8,7 @@ import { key } from "./key.ts";
 import { machine } from "./machine.ts";
 import { organization } from "./organization.ts";
 import { assignment, placement } from "./placement.ts";
-import { residency, ResidencyCode } from "./residency.ts";
+import { region } from "./region.ts";
 import { space } from "./space.ts";
 import { user } from "./user.ts";
 
@@ -29,12 +29,12 @@ export const spaceShape = defineShape({
     ],
 });
 
-/** The residencies, which a residency's home follows its residents by. */
-export const residencyShape = defineShape({
-    name: "residency",
+/** The regions, which relays follow to verify their tunnels. */
+export const regionShape = defineShape({
+    name: "region",
     parameters: schema.object({}),
-    objects: [residency],
-    queries: () => [residency.query({ scopes: "every" })],
+    objects: [region],
+    queries: () => [region.query({ scopes: "every" })],
 });
 
 /** The rows of one space alone, which a store reads to decide for that space as a caller. */
@@ -108,19 +108,6 @@ export const claimShape = defineShape({
     objects: [claim],
     queries: (claimed) => [
         claim.query({ scopes: "every", where: { index: claimed.index, key: claimed.key } }),
-    ],
-});
-
-/** Every account of a residency, which its home space serves. */
-export const residentsShape = defineShape({
-    name: "residents",
-    parameters: schema.object({
-        /** The residency whose accounts are replicated. */
-        residency: ResidencyCode,
-    }),
-    objects: [account],
-    queries: ({ residency: code }) => [
-        account.query({ scopes: "every", where: { residency: { code } } }),
     ],
 });
 

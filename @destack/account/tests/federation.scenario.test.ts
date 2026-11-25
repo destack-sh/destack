@@ -9,7 +9,7 @@ import { TOKEN_PATH } from "../src/authentication/path.ts";
 import { account } from "../src/object/index.ts";
 import { JWT_BEARER } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
-import { ISSUER, ORIGIN, OWNER_EMAIL, TestAccountStore } from "../src/test/index.ts";
+import { ISSUER, ORIGIN, OWNER_EMAIL, TestAccount } from "../src/test/index.ts";
 import { IssuerCredential, Session } from "../src/client/index.ts";
 import { Bookmark } from "@destack/object/client";
 import { Claim } from "@destack/object";
@@ -42,7 +42,7 @@ async function issuerKey(crypto: Crypto, kid: string) {
 
 test("grant a trusted workflow a token once by its issuer's OIDC token, refusing a replay, an untrusted workflow, another audience and a forged signature", async () => {
     // serve an OIDC issuer publishing its discovery document and one RS256 key
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { crypto, clock } = fixture.environment;
     const signing = await issuerKey(crypto, "issuer-key");
     const forger = await issuerKey(crypto, "issuer-key");

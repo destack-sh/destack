@@ -11,7 +11,7 @@ import { present, schema } from "@destack/schema";
 import { AccountHandle } from "../address/handle.ts";
 import { APIError } from "better-auth/api";
 import { Account, account } from "../object/account.ts";
-import { ResidencyCode } from "../object/residency.ts";
+import { RegionCode } from "../object/region.ts";
 import { rateLimit, verification } from "../authentication/table.ts";
 import { userLogin } from "../object/user-login.ts";
 import { passkey } from "../object/passkey.ts";
@@ -39,7 +39,7 @@ const NewUser = schema.looseObject({
     /** The handle the personal account claims. */
     handle: AccountHandle,
     /** The jurisdiction the personal account stores data in. */
-    residencyId: ResidencyCode,
+    regionId: RegionCode,
 });
 
 /** The object tables with rows Better Auth creates in their user's scope. */
@@ -361,8 +361,8 @@ async function createUser(
     data: unknown,
     now: number,
 ): Promise<Row> {
-    // split the personal account's handle and residency from the user's columns
-    const { handle, residencyId, ...person } = NewUser.parse(data);
+    // split the personal account's handle and region from the user's columns
+    const { handle, regionId, ...person } = NewUser.parse(data);
     const source: Table = user.table;
     const values = complete(source, person, now);
 
@@ -397,7 +397,7 @@ async function createUser(
                             kind: "personal",
                             handle,
                             name: handle,
-                            residencyId,
+                            regionId,
                         }),
                     ],
                 },

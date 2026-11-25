@@ -1,10 +1,10 @@
 import type { Select } from "@destack/db";
-import { none, permission, principal, relation, union } from "@destack/access";
+import { contained, none, permission, principal, relation, union } from "@destack/access";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { StackRelease } from "./stack-release.ts";
 import { AccountHandle } from "../address/handle.ts";
-import { residency, ResidencyCode } from "./residency.ts";
+import { RegionCode } from "./region.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
 import { recoverable } from "@destack/object";
@@ -44,8 +44,6 @@ export const organization = defineObject(
                 billing: MEMBERSHIP,
                 member: MEMBERSHIP,
                 guest: MEMBERSHIP,
-                // relate the servers of each residency of its accounts
-                resident: { subjects: [residency.members("server")], grantedBy: "place" },
             },
             permissions: {
                 read: union(
@@ -59,8 +57,8 @@ export const organization = defineObject(
                 manage: union(relation("owner"), relation("admin")),
                 bill: union(relation("owner"), relation("billing")),
                 administer: relation("owner"),
-                list: union(permission("read"), relation("resident")),
-                replicate: relation("resident"),
+                list: permission("read"),
+                replicate: contained(principal.space),
                 update: permission("manage"),
                 delete: permission("administer"),
                 place: none(),
@@ -80,7 +78,7 @@ export const organization = defineObject(
                 /** The handle the organization's account claims. */
                 handle: AccountHandle,
                 /** The jurisdiction the organization's account stores data in. */
-                residencyId: ResidencyCode,
+                regionId: RegionCode,
                 /** The stack the home of the organization's account runs, none when absent. */
                 stack: StackRelease.exactOptional(),
             }),

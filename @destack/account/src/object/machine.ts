@@ -3,14 +3,14 @@ import type { Select } from "@destack/db";
 import type { Snapshot } from "@destack/db/database";
 import { type MethodContext, defineObject, field, recoverable } from "@destack/object";
 import { ServerRuntime } from "@destack/package/runtime";
-import { schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import type { AssertionKey } from "@destack/access/token";
 import { CompactProof, PublicKey } from "@destack/identity";
 import { Label } from "../address/label.ts";
 import { key, Key } from "./key.ts";
 import { account } from "./account.ts";
-import { residency } from "./residency.ts";
+import { region } from "./region.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
 import { AccountError } from "../error/error.ts";
 import type { Tenancy } from "./space.ts";
@@ -22,13 +22,13 @@ const MACHINE_NAME_LENGTH = 37;
 /** Whether a machine hosts new work, drains its existing work, or refuses work. */
 const MACHINE_STATUSES = ["enabled", "draining", "disabled"] as const;
 
-/** The columns only a personal machine has. */
-const PERSONAL_COLUMNS = ["platform", "architecture", "model"] as const;
+/** The columns only a self-hosted machine has. */
+const SELF_COLUMNS = ["platform", "architecture", "model"] as const;
 
-/** The columns only a cloud machine has. */
-const CLOUD_COLUMNS = ["residencyId", "providerCode", "location"] as const;
+/** The columns only a managed machine has. */
+const MANAGED_COLUMNS = ["regionId", "providerCode", "location"] as const;
 
-/** The sizes of an account's dedicated cloud machines, smallest first. */
+/** The sizes of a managed machine, smallest first. */
 export const MACHINE_SIZES = ["small", "medium", "large", "xlarge"] as const;
 
 /** A machine's name within its account: a DNS label with single hyphens inside, other than `xn`. */
@@ -47,9 +47,9 @@ export const ProviderCode = schema.string().regex(/^[a-z][a-z0-9-]{1,30}$/u);
 /** A provider's code. */
 export type ProviderCode = schema.Infer<typeof ProviderCode>;
 
-/** The size of an account's dedicated cloud machine. */
+/** The size of a managed machine. */
 export const MachineSize = schema.enum(MACHINE_SIZES);
-/** The size of an account's dedicated cloud machine. */
+/** The size of a managed machine. */
 export type MachineSize = schema.Infer<typeof MachineSize>;
 
 /** The relay serving a machine's tunnel. */
@@ -62,10 +62,10 @@ export const EndpointRelay = schema.object({
 /** The relay serving a machine's tunnel. */
 export type EndpointRelay = schema.Infer<typeof EndpointRelay>;
 
-/** The fields of a person's computer: its operating system and hardware. */
-const PersonalMachine = schema.object({
-    /** A person's computer. */
-    kind: schema.literal("personal"),
+/** The fields of a self-hosted machine: its operating system and hardware. */
+const SelfMachine = schema.object({
+    /** A machine its account enrolled, on any hardware anywhere. */
+    kind: schema.literal("self"),
     /** The operating system. */
     platform: Platform,
     /** The processor architecture, such as arm64. */
@@ -74,22 +74,22 @@ const PersonalMachine = schema.object({
     model: schema.string().min(1),
 });
 
-/** The fields of a provider's cloud machine: its residency and where the provider runs it. */
-const CloudMachine = schema.object({
-    /** A provider's cloud machine. */
-    kind: schema.literal("cloud"),
+/** The fields of a managed machine: its region and where the provider runs it. */
+const ManagedMachine = schema.object({
+    /** A machine a provider runs, declared and priced through the platform. */
+    kind: schema.literal("managed"),
     /** The jurisdiction the machine serves. */
-    residencyId: schema.identifier("residency"),
+    regionId: schema.identifier("region"),
     /** The provider running the machine. */
     providerCode: ProviderCode,
     /** The provider location, such as Cloudflare's eu jurisdiction. */
     location: schema.string().min(1),
-    /** The size of an account's dedicated machine, null for a residency's shared one. */
+    /** The size, null for a machine of the platform's shared pool. */
     size: MachineSize.nullable(),
 });
 
 /** A machine's kind with the fields only that kind has. */
-export const MachineVariant = schema.discriminatedUnion("kind", [PersonalMachine, CloudMachine]);
+export const MachineVariant = schema.discriminatedUnion("kind", [SelfMachine, ManagedMachine]);
 /** A machine's kind with the fields only that kind has. */
 export type MachineVariant = schema.Infer<typeof MachineVariant>;
 
@@ -105,9 +105,9 @@ export const MachineUpdate = schema.object({
 /** The Destack update state a machine's device reports. */
 export type MachineUpdate = schema.Infer<typeof MachineUpdate>;
 
-/** The platform and architecture a personal machine reports each time, so later changes show. */
-export const MachinePlatform = PersonalMachine.pick({ platform: true, architecture: true });
-/** The platform and architecture a personal machine reports. */
+/** The platform and architecture a self-hosted machine reports each time, so later changes show. */
+export const MachinePlatform = SelfMachine.pick({ platform: true, architecture: true });
+/** The platform and architecture a self-hosted machine reports. */
 export type MachinePlatform = schema.Infer<typeof MachinePlatform>;
 
 /** A runner identity spaces are placed on. */
@@ -116,31 +116,31 @@ export const machine = defineObject(
         name: "machine",
         plural: "machines",
         title: t`${plural(argument("count"), { one: "Machine", other: "Machines" })}`,
-        scope: [account, "universe"],
+        scope: account,
         key: "name",
         attachments: [key.attach({ by: "rotate" })],
         fields: {
             /** The name within the account. */
             name: field.string(MachineName),
-            /** Whether the machine is a person's computer or a provider's cloud machine. */
-            kind: field.enum(["personal", "cloud"]),
+            /** Whether its account enrolled it or a provider runs it for the platform. */
+            kind: field.enum(["self", "managed"]),
 
-            // the fields of a personal machine, null for a cloud machine
-            /** The operating system of a personal machine. */
+            // the fields of a self-hosted machine, null for a managed one
+            /** The operating system of a self-hosted machine. */
             platform: field.enum(PLATFORMS).optional(),
-            /** The processor architecture of a personal machine. */
-            architecture: field.string(PersonalMachine.shape.architecture).optional(),
-            /** The hardware model of a personal machine. */
-            model: field.string(PersonalMachine.shape.model).optional(),
+            /** The processor architecture of a self-hosted machine. */
+            architecture: field.string(SelfMachine.shape.architecture).optional(),
+            /** The hardware model of a self-hosted machine. */
+            model: field.string(SelfMachine.shape.model).optional(),
 
-            // the fields of a cloud machine, null for a personal machine
-            /** The jurisdiction a cloud machine serves. */
-            residency: field.reference(residency, { delete: "restrict" }).optional(),
-            /** The provider running a cloud machine. */
+            // the fields of a managed machine, null for a self-hosted one
+            /** The jurisdiction a managed machine serves. */
+            region: field.reference(region, { delete: "restrict" }).optional(),
+            /** The provider running a managed machine. */
             providerCode: field.string(ProviderCode).optional(),
-            /** The provider location of a cloud machine. */
-            location: field.string(CloudMachine.shape.location).optional(),
-            /** The size of an account's dedicated cloud machine. */
+            /** The provider location of a managed machine. */
+            location: field.string(ManagedMachine.shape.location).optional(),
+            /** The size of a managed machine, null for one of the platform's shared pool. */
             size: field.enum(MACHINE_SIZES).optional(),
             /** The SKU rating each meter of the machine's spaces, by meter key. */
             rates: field.json(schema.record(schema.string(), schema.string())).default({}),
@@ -169,18 +169,18 @@ export const machine = defineObject(
                 condition: {
                     OR: [
                         {
-                            kind: "personal",
+                            kind: "self",
                             platform: { isNotNull: true },
                             architecture: { isNotNull: true },
                             model: { isNotNull: true },
-                            residencyId: { isNull: true },
+                            regionId: { isNull: true },
                             providerCode: { isNull: true },
                             location: { isNull: true },
                             size: { isNull: true },
                         },
                         {
-                            kind: "cloud",
-                            residencyId: { isNotNull: true },
+                            kind: "managed",
+                            regionId: { isNotNull: true },
                             providerCode: { isNotNull: true },
                             location: { length: { gt: 0 } },
                             platform: { isNull: true },
@@ -194,16 +194,19 @@ export const machine = defineObject(
         access: {
             represents: principal.machine,
             relations: {
-                tenant: { subjects: [account.members("member")], grantedBy: "share" },
+                // the people of other accounts who operate and observe the machine
+                operator: { subjects: [account.members("member")], grantedBy: "share" },
+                // the accounts whose spaces and steps the machine hosts, every account for a shared pool
+                tenant: { subjects: [account.policy, account.all()], grantedBy: "share" },
                 self: { subjects: [principal.machine], grantedBy: null },
                 // NOTE #Security: every machine verifies every machine's keys, to check its peers in moves
                 peers: { subjects: [principal.machine.all()] },
             },
             permissions: {
-                read: union(relation("tenant"), relation("self"), permission("relay")),
+                read: union(relation("operator"), relation("self")),
                 list: union(permission("read"), through("account", "serve")),
                 verify: union(
-                    relation("tenant"),
+                    relation("operator"),
                     relation("self"),
                     relation("peers"),
                     through("account", "serve"),
@@ -211,15 +214,16 @@ export const machine = defineObject(
                 enroll: none(),
                 rotate: relation("self"),
                 rename: relation("self"),
-                operate: union(relation("tenant"), relation("self")),
-                // let the package record a machine's endpoint through its package-only methods, as its declaration and its relay do
+                operate: union(relation("operator"), relation("self")),
+                // let the accounts it admits place their spaces and steps on it
+                host: relation("tenant"),
+                // let the machine record its own endpoint and tunnel
                 record: relation("self"),
-                // let the account's residency's relay record the tunnel it accepted
-                relay: through("account", "relaying"),
+                relay: relation("self"),
 
                 // let the account's members read the machine's telemetry, its managers unmasked, and the machine forward it
-                observe: relation("tenant"),
-                analyze: relation("tenant"),
+                observe: relation("operator"),
+                analyze: relation("operator"),
                 unmask: through("account", "manage"),
                 serve: relation("self"),
                 // let whoever replicates the account replicate its machines' chains, and its machines each other's
@@ -233,12 +237,12 @@ export const machine = defineObject(
                 revoke: relation("self"),
                 update: none(),
                 leave: none(),
-                // let the account's managers share the machine with another account's members as tenants
+                // let the account's managers share the machine with operators and tenants
                 share: through("account", "manage"),
                 declare: none(),
                 rate: none(),
             },
-            reserved: ["rotate", "serve", "relay", "replicate"],
+            reserved: ["rotate", "serve", "replicate"],
         },
         traits: [recoverable({ within: { days: 30 }, by: "delete" })],
     },
@@ -246,19 +250,19 @@ export const machine = defineObject(
         list: method.list("list"),
         enroll: method.create("enroll", {
             fields: ["name", "version", "runtimes"],
-            variants: { kind: { personal: PERSONAL_COLUMNS, cloud: CLOUD_COLUMNS } },
+            variants: { kind: { self: SELF_COLUMNS, managed: MANAGED_COLUMNS } },
             input: KeyProof,
         }),
         declare: method.create("declare", {
             visibility: "package",
             fields: ["name", "size", "rates"],
-            variants: { kind: { cloud: CLOUD_COLUMNS } },
+            variants: { kind: { managed: MANAGED_COLUMNS } },
             input: KeyProof.pick({ publicKey: true }).extend({
-                /** The URL the cloud machine answers at, its endpoint. */
+                /** The URL the managed machine answers at, its endpoint. */
                 origin: schema.url(),
             }),
         }),
-        /** Rate a declared cloud machine's spaces by other SKUs, as the universe declares them. */
+        /** Rate a managed machine's spaces by other SKUs, as the universe declares them. */
         rate: method.mutation({
             title: t`Rate`,
             permission: "rate",
@@ -268,7 +272,7 @@ export const machine = defineObject(
                 rates: schema.record(schema.string(), schema.string()),
             }),
         }),
-        /** Record the tunnel a relay accepted from a personal machine, at its derived name. */
+        /** Record a self-hosted machine's tunnel at its derived name. */
         relay: method.mutation({ title: t`Relay`, permission: "relay", input: EndpointRelay }),
         enable: method.mutation({ title: t`Enable`, permission: "operate" }),
         drain: method.mutation({ title: t`Drain`, permission: "operate" }),
@@ -290,7 +294,7 @@ export const machine = defineObject(
                 startedAt: schema.number().int().nonnegative().nullable(),
                 /** The Destack update state, null for a machine updating none. */
                 update: MachineUpdate.nullable(),
-                /** A personal machine's platform and architecture, null for a cloud machine. */
+                /** A self-hosted machine's platform and architecture, null for a managed one. */
                 host: MachinePlatform.nullable(),
             }),
         }),
@@ -307,18 +311,18 @@ export const machine = defineObject(
     methods: {
         leave: (call) => call.update({ lastSeenAt: call.now }),
         report: (call) => {
-            // refuse a host for a cloud machine, which has no platform of its own
+            // refuse a host for a managed machine, and require one of a self-hosted machine
             const { input } = call;
-            const isPersonal = call.target.kind === "personal";
-            if (input.host !== null && !isPersonal) {
+            const isSelf = call.target.kind === "self";
+            if (input.host !== null && !isSelf) {
                 throw AccountError.of(
                     "HOST_REPORT_INVALID",
-                    "host report is invalid: a cloud machine reports no host",
+                    "host report is invalid: a managed machine reports no host",
                 );
-            } else if (input.host === null && isPersonal) {
+            } else if (input.host === null && isSelf) {
                 throw AccountError.of(
                     "HOST_REQUIRED",
-                    "host is required: a personal machine reports its host",
+                    "host is required: a self-hosted machine reports its host",
                 );
             }
 
@@ -341,7 +345,7 @@ export type Machine = Omit<
     | "platform"
     | "architecture"
     | "model"
-    | "residencyId"
+    | "regionId"
     | "providerCode"
     | "location"
     | "size"
@@ -350,33 +354,43 @@ export type Machine = Omit<
 
 /** The checks and reads of machines that methods and the token endpoint route by. */
 export const Machine = {
-    /** Read the tenancy a machine runs its spaces at: shared, dedicated or local. */
-    tenancy(row: Pick<Select<typeof machine.table>, "kind" | "scope">): Tenancy {
-        return row.kind === "personal"
-            ? "local"
-            : row.scope === Scope.universe.id
-              ? "shared"
-              : "dedicated";
+    /** Read the tenancy a machine runs an account's spaces at: shared, self or dedicated. */
+    tenancy(
+        row: Pick<Select<typeof machine.table>, "kind" | "scope">,
+        accountId: Identifier<"account">,
+    ): Tenancy {
+        // another account's machine
+        if (row.scope !== accountId) {
+            return "shared";
+        }
+        // the account's self-hosted machine
+        else if (row.kind === "self") {
+            return "self";
+        }
+        // the account's managed machine
+        else {
+            return "dedicated";
+        }
     },
 
     /** Read a machine record as its kind's variant. */
     of(row: Select<typeof machine.table>): Machine {
-        // parse the columns of the row's kind apart from the shared ones
+        // parse the columns of the row's kind apart from the common ones
         const {
             kind,
             platform,
             architecture,
             model,
-            residencyId,
+            regionId,
             providerCode,
             location,
             size,
             ...shared
         } = row;
         const variant = MachineVariant.parse(
-            kind === "personal"
+            kind === "self"
                 ? { kind, platform, architecture, model }
-                : { kind, residencyId, providerCode, location, size },
+                : { kind, regionId, providerCode, location, size },
         );
 
         return { ...shared, ...variant };
@@ -389,7 +403,8 @@ export const Machine = {
         preferred: string,
     ): Promise<string> {
         // read the names of the account's live machines
-        const rows = await context.read(machine).findMany({ where: { scope: accountId } });
+        const owner = account.identifier(accountId);
+        const rows = await context.read(machine).findMany({ where: { scope: owner } });
         const taken = new Set(rows.map((row) => row.name));
 
         // number the name past the taken ones within a DNS label

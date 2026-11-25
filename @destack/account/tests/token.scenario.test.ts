@@ -17,13 +17,7 @@ import { Identity } from "../src/object/identity.ts";
 import { Credential } from "../src/credential/credential.ts";
 import { PERSONAL_ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
-import {
-    TestAccountStore,
-    TestJwt,
-    ISSUER,
-    OWNER_EMAIL,
-    STRANGER_EMAIL,
-} from "../src/test/index.ts";
+import { TestAccount, TestJwt, ISSUER, OWNER_EMAIL, STRANGER_EMAIL } from "../src/test/index.ts";
 import { ANY_NUMBER, ANY_STRING, firstPage } from "./fixture.ts";
 
 /** A month and a day, past the thirty days a refresh token lasts. */
@@ -41,7 +35,7 @@ function stampOf(claims: AccessToken): number {
 }
 
 test("issue a token client with its grant, act through it, and revoke both", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     let owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId } = await fixture.createSpace(owner);
 
@@ -289,7 +283,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
 });
 
 test("end a personal access token's exchanged tokens at its grant's lapse, and refuse it once lapsed", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { clock } = fixture;
     let owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
@@ -332,7 +326,7 @@ test("end a personal access token's exchanged tokens at its grant's lapse, and r
 });
 
 test("exchange an installation's token for tokens of its account's spaces with its account grants", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId, machine } = await fixture.createSpace(owner);
     const elsewhere = await fixture.createSpace(owner);
@@ -399,7 +393,7 @@ test("exchange an installation's token for tokens of its account's spaces with i
 });
 
 test("follow a space's chain at the universe as the space, through the tokens its issuer grants its assertions", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId, machine } = await fixture.createSpace(owner);
     await fixture.startIdentity(spaceId, machine);
@@ -430,7 +424,7 @@ test("follow a space's chain at the universe as the space, through the tokens it
 
 test("authenticate a person's universe token in the space it is bound to, refusing it in another and calling anonymously without one", async () => {
     // sign a person's token toward the account package in their home
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const person = await fixture.signIn("person@example.com");
     const { spaceId } = await fixture.personalHome(person);
     const { accessToken: token } = await person.exchange(accountPackage.id, { partition: spaceId });
@@ -472,7 +466,7 @@ test("authenticate a person's universe token in the space it is bound to, refusi
 
 test("refuse a person's refresh once their refresh token expired, as the issuer's OAuth error", async () => {
     // sign a person in, then let a month pass
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const person = await fixture.signIn("monthly@example.test");
     await fixture.simulation.jump(fixture.clock.now() + REFRESH_EXPIRED_MILLISECONDS);
 
@@ -486,7 +480,7 @@ test("refuse a person's refresh once their refresh token expired, as the issuer'
 
 test("sign a person in with a fresh code a month after their first sign-in, refusing only the old session's refresh", async () => {
     // sign a person in, then let a month pass and sign them in again with a new code
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const first = await fixture.signIn("returning@example.test");
     await fixture.simulation.jump(fixture.clock.now() + REFRESH_EXPIRED_MILLISECONDS);
     const again = await fixture.signIn("returning@example.test");
@@ -505,7 +499,7 @@ test("sign a person in with a fresh code a month after their first sign-in, refu
 
 test("grant an installation a token naming no space toward the universe, and one naming the space a call goes to, for the same package", async () => {
     // make an installation of a space its account's editor
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId, machine } = await fixture.createSpace(owner);
     await fixture.startIdentity(spaceId, machine);

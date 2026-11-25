@@ -19,7 +19,7 @@ import { ErrorResponse, TokenResponse, SECOND_MILLISECONDS } from "../authentica
 import { DEVICE_CODE, EMAIL_CODE } from "../oauth/party.ts";
 import { type SubjectToken, TOKEN_EXCHANGE } from "../oauth/exchange.ts";
 import accountPackage from "../package.ts";
-import type { Residency } from "../object/residency.ts";
+import type { Region } from "../object/region.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
@@ -342,7 +342,7 @@ export class Issuer {
                 : {
                       name: signUp.name,
                       handle: signUp.handle,
-                      residency_id: signUp.residencyId,
+                      region_id: signUp.regionId,
                       time_zone: signUp.timeZone,
                       locale: signUp.locale,
                   }),
@@ -481,9 +481,9 @@ export class Issuer {
         await response.arrayBuffer();
     }
 
-    /** List the residencies a new person's account may store data in. */
-    async residencies(): Promise<Pick<Residency, "code" | "name">[]> {
-        const items = await Array.fromAsync(ListPage.all(this.accounts().residency.list, {}));
+    /** List the regions a new person's account may store data in. */
+    async regions(): Promise<Pick<Region, "code" | "name">[]> {
+        const items = await Array.fromAsync(ListPage.all(this.accounts().region.list, {}));
 
         return items.map(({ code, name }) => ({ code, name }));
     }

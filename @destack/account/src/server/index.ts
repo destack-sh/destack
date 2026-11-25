@@ -13,6 +13,6 @@ export * from "./user.ts";
 export * from "./space.ts";
 export * from "./identity.ts";
 export * from "./operation.ts";
-export * from "./residency.ts";
+export * from "./region.ts";
 export * from "./placement.ts";
 export * from "./dns-resolver.ts";

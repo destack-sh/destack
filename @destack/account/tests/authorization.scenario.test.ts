@@ -5,11 +5,11 @@ import { type ObjectReference, RequestId, Scope, type Subject } from "@destack/s
 import { expect, test } from "@destack/test";
 import { account, group, user } from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
-import { TestAccountStore, OWNER_EMAIL } from "../src/test/index.ts";
+import { TestAccount, OWNER_EMAIL } from "../src/test/index.ts";
 
 test("decide access inside an account for its owner and its editors", async () => {
     // create two accounts as their owner, and make the member an editor of the first
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const member = await accounts.signIn("member@example.com");
     const { id: accountId } = await accounts.createAccount(owner);
@@ -70,7 +70,7 @@ test("decide access inside an account for its owner and its editors", async () =
 
 test("let a person's home follow on their behalf and read their contact from the user row alone, and no other space", async () => {
     // sign a person up, their home on their user row
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const person = await accounts.signIn("person@example.com");
     const { authorizer } = accounts.store;
 
@@ -100,7 +100,7 @@ test("let a person's home follow on their behalf and read their contact from the
 
 test("let a publisher of an account publish under its name without managing it, and refuse a member who is no publisher", async () => {
     // create an account as its owner, make one person its publisher and another an editor
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(OWNER_EMAIL);
     const publisher = await accounts.signIn("publisher@example.com");
     const editor = await accounts.signIn("editor@example.com");

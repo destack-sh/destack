@@ -2,12 +2,12 @@ import { Uuid } from "@destack/schema";
 import { type Environment } from "@destack/environment";
 import type { SimulatedClock } from "@destack/environment/simulation";
 import type { Identifier } from "@destack/schema";
-import { STRANGER_EMAIL, TestAccountStore, TestDns, type TestPerson } from "../src/test/index.ts";
+import { STRANGER_EMAIL, TestAccount, TestDns, type TestPerson } from "../src/test/index.ts";
 
 /** Two shared accounts with an owner each and a stranger, claiming domains over a test DNS. */
 export class TestDomain implements AsyncDisposable {
     /** The account package, with its people. */
-    readonly accounts: TestAccountStore;
+    readonly accounts: TestAccount;
     /** The DNS domain claims verify through. */
     readonly dns: TestDns;
     /** The owner of the first account. */
@@ -25,7 +25,7 @@ export class TestDomain implements AsyncDisposable {
 
     /** Keep the scenario's people and accounts. */
     private constructor(
-        accounts: TestAccountStore,
+        accounts: TestAccount,
         dns: TestDns,
         people: Pick<TestDomain, "owner" | "rival" | "stranger" | "accountId" | "otherId">,
     ) {
@@ -53,7 +53,7 @@ export class TestDomain implements AsyncDisposable {
     static async open(): Promise<TestDomain> {
         // serve the account package over the test DNS at a clock standing still
         const dns = new TestDns();
-        const accounts = await TestAccountStore.open({ resolver: dns });
+        const accounts = await TestAccount.open({ resolver: dns });
 
         // sign the people up, and let each owner create an account
         const owner = await accounts.signIn("owner@example.com");

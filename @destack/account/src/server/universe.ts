@@ -1,7 +1,6 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { type Call, RequestId, Scope } from "@destack/sync";
 import {
-    anyone,
     InstallationId,
     Contact,
     principal,
@@ -19,7 +18,6 @@ import type { ObjectStore } from "@destack/object/server";
 import { canonicalize, type Identifier, present, schema } from "@destack/schema";
 import { PublicKey } from "@destack/identity";
 import { Account, account } from "../object/account.ts";
-import { residentCalls } from "./account.ts";
 import { AccountHandle } from "../address/handle.ts";
 import { organization } from "../object/organization.ts";
 import { endpoint } from "../object/endpoint.ts";
@@ -27,7 +25,7 @@ import { identity } from "../object/identity.ts";
 import { machine, ProviderCode } from "../object/machine.ts";
 import { claim } from "../object/claim.ts";
 import { placement } from "../object/placement.ts";
-import { RESIDENCY_RELAY, Residency, residency, ResidencyCode } from "../object/residency.ts";
+import { REGION_MERCHANT, Region, region, RegionCode } from "../object/region.ts";
 import { space } from "../object/space.ts";
 import { user } from "../object/user.ts";
 import { StackRelease } from "../object/stack-release.ts";
@@ -42,41 +40,37 @@ import { AccountError } from "../error/error.ts";
 /** The universe role of the operating organization's owners. */
 const OPERATOR_ROLE = {
     name: "operator",
-    description: "Operate the cloud machines serving Destack's residencies, and suspend people",
-    permissions: [residency.permission("operate"), user.permission("suspend")],
-} as const satisfies RoleRequest;
-
-/** The universe role of every residency's servers, which route its names and serve its people. */
-const SERVER_ROLE = {
-    name: "server",
-    description: "Route Destack's names",
-    permissions: [
-        placement.permission("read"),
-        claim.permission("read"),
-        machine.permission("read"),
-    ],
+    description: "Operate the managed machines serving Destack's regions, and suspend people",
+    permissions: [region.permission("operate"), user.permission("suspend")],
 } as const satisfies RoleRequest;
 
 /** The universe role of every machine. */
 const MACHINE_ROLE = {
     name: "machine",
-    description:
-        "Read the placements of spaces and the names they route, and start the identities of the spaces machines serve",
+    description: "Read placements, names and machines, and start the identities of served spaces",
     permissions: [
         placement.permission("read"),
         claim.permission("read"),
+        machine.permission("read"),
         identity.permission("start"),
     ],
+} as const satisfies RoleRequest;
+
+/** The universe role of every space, whose installations follow the names they resolve. */
+const SPACE_ROLE = {
+    name: "space",
+    description: "Read the names spaces resolve",
+    permissions: [claim.permission("read")],
 } as const satisfies RoleRequest;
 
 /** The universe role of every signed-in caller. */
 const SIGNED_IN_ROLE = {
     name: "signed-in",
     description:
-        "Resolve Destack's names, find the residencies of accounts and the endpoints of machines, and read and extend identities",
+        "Resolve Destack's names, regions and the endpoints of machines, and read and extend identities",
     permissions: [
         claim.permission("resolve"),
-        residency.permission("locate"),
+        region.permission("read"),
         endpoint.permission("read"),
         identity.permission("read"),
         identity.permission("extend"),
@@ -92,19 +86,19 @@ export type PlatformStore = Pick<
     "database" | "principal" | "as" | "mutate" | "authorize" | "clock" | "environment"
 >;
 
-/** The organization operating the universe as it declares it, with its cloud machines. */
+/** The organization operating the universe as it declares it, with its managed machines. */
 export const PlatformDefinition = schema.object({
     /** The organization's display name, such as Destack. */
     name: schema.string().min(1),
     /** The jurisdiction the organization stores its data in. */
-    residencyId: ResidencyCode,
+    regionId: RegionCode,
     /** The email of the operator, invited as the organization's owner until they accept. */
     operator: schema.email(),
     /** The reserved handles, which the organization claims without an account. */
     reserved: schema.array(AccountHandle),
     /** The handles the organization transfers, each to the account it renames to it. */
     transfers: schema.record(AccountHandle, schema.identifier("account")),
-    /** The handles the organization publishes under, each an account in its residency. */
+    /** The handles the organization publishes under, each an account in its region. */
     publishers: schema.array(AccountHandle),
     /** The clients publishing the platform's releases, such as its release workflow. */
     clients: schema.array(
@@ -117,12 +111,12 @@ export const PlatformDefinition = schema.object({
             subject: schema.string().min(1),
         }),
     ),
-    /** The handle of the organization's account in the platform's residency. */
+    /** The handle of the organization's account in the platform's region. */
     handle: AccountHandle,
     /** The domains the platform's organization holds, which the universe declares verified. */
     domains: schema.array(Hostname),
-    /** The stack each residency's home runs, by residency. */
-    homes: schema.record(ResidencyCode, StackRelease),
+    /** The stack the platform's home runs in each region, by region. */
+    homes: schema.record(RegionCode, StackRelease),
     /** The stack each kind of space people create is born with. */
     stacks: schema.object({
         /** Every account's home. */
@@ -130,9 +124,9 @@ export const PlatformDefinition = schema.object({
         /** Any other space. */
         space: StackRelease,
     }),
-    /** The hostnames the platform's account in each residency serves its home's routes on. */
-    hostnames: schema.record(ResidencyCode, schema.array(HostnamePattern)),
-    /** The cloud machines serving the residencies. */
+    /** The hostnames the platform's account in each region serves its home's routes on. */
+    hostnames: schema.record(RegionCode, schema.array(HostnamePattern)),
+    /** The managed machines serving the regions. */
     machines: schema.array(
         schema.object({
             /** The machine's identifier. */
@@ -140,7 +134,7 @@ export const PlatformDefinition = schema.object({
             /** The machine's name, such as eu-central. */
             name: schema.string().min(1),
             /** The jurisdiction it serves. */
-            residencyId: ResidencyCode,
+            regionId: RegionCode,
             /** The provider running it. */
             providerCode: ProviderCode,
             /** The provider location, such as Cloudflare's eu jurisdiction. */
@@ -209,25 +203,25 @@ export class Platform {
         this.definition = definition;
     }
 
-    /** Read the handle of the platform's account in a residency. */
+    /** Read the handle of the platform's account in a region. */
     static handle(
-        definition: Pick<PlatformDefinition, "handle" | "residencyId">,
-        code: ResidencyCode,
+        definition: Pick<PlatformDefinition, "handle" | "regionId">,
+        code: RegionCode,
     ): AccountHandle {
-        const { handle, residencyId } = definition;
+        const { handle, regionId } = definition;
 
-        return AccountHandle.parse(code === residencyId ? handle : `${handle}-${code}`);
+        return AccountHandle.parse(code === regionId ? handle : `${handle}-${code}`);
     }
 
     /** List the steps applying the definition, in order. */
     steps(): readonly PlatformStep[] {
         return [
-            { name: "machines", apply: () => this.declareMachines() },
             { name: "organization", apply: (now) => this.upsertOrganization(now) },
             { name: "roles", apply: (now) => this.bindRoles(now) },
             { name: "names", apply: (now) => this.reserveNames(now) },
             { name: "domains", apply: () => this.declareDomains() },
-            { name: "homes", apply: (now) => this.serveResidencies(now) },
+            { name: "homes", apply: (now) => this.serveRegions(now) },
+            { name: "machines", apply: (now) => this.declareMachines(now) },
             { name: "invitation", apply: (now) => this.inviteOperator(now) },
         ];
     }
@@ -252,8 +246,8 @@ export class Platform {
         });
     }
 
-    /** Create the missing declared cloud machines in the universe, publishing their origins. */
-    async declareMachines(): Promise<void> {
+    /** Declare, rate and pool the managed machines in the platform's accounts. */
+    async declareMachines(now: number): Promise<void> {
         // skip an empty definition
         if (this.definition.machines.length === 0) {
             return;
@@ -277,49 +271,86 @@ export class Platform {
             if (origin !== declared.origin) {
                 throw AccountError.of(
                     "ORIGIN_BLOCKED",
-                    `cannot publish cloud machine '${row.id}': it is published at '${origin ?? "no origin"}', not its declared '${declared.origin}'`,
+                    `cannot publish managed machine '${row.id}': it is published at '${origin ?? "no origin"}', not its declared '${declared.origin}'`,
                 );
             }
         }
-        const missing = this.definition.machines.filter(
-            (entry) => !existing.some((row) => row.id === entry.id),
+
+        // declare, rate and pool each region's machines in the platform's account there
+        for (const [code, entries] of Map.groupBy(
+            this.definition.machines,
+            (each) => each.regionId,
+        )) {
+            // declare the missing ones at their origins, and rate the ones whose rates changed
+            const scope = await this.#account(code);
+            const calls = entries.flatMap((entry) => {
+                const target = machine.target({ scope, id: entry.id });
+                const row = existing.find((stored) => stored.id === entry.id);
+
+                // declare a missing machine
+                if (row === undefined) {
+                    return [
+                        machine.call("declare", {
+                            ...target,
+                            name: entry.name,
+                            kind: "managed" as const,
+                            regionId: entry.regionId,
+                            providerCode: entry.providerCode,
+                            location: entry.location,
+                            rates: entry.rates,
+                            publicKey: entry.key,
+                            origin: entry.origin,
+                        }),
+                    ];
+                }
+                // rate a machine whose declared rates changed
+                else if (!Platform.#isRated(row.rates, entry.rates)) {
+                    return [machine.call("rate", { ...target, rates: entry.rates })];
+                }
+                // leave an unchanged machine
+                else {
+                    return [];
+                }
+            });
+            if (calls.length > 0) {
+                await this.#mutate(calls);
+            }
+
+            // admit every account as a tenant of the region's shared pool
+            await this.#authorize(scope, now, async (authorization) => {
+                for (const entry of entries) {
+                    await Relationship.touch(
+                        {
+                            object: machine.reference(scope, entry.id),
+                            relation: "tenant",
+                            subject: account.reference("*", "*"),
+                        },
+                        authorization,
+                    );
+                }
+            });
+        }
+    }
+
+    /** Read whether a machine's stored rates are its declared ones, meter by meter. */
+    static #isRated(
+        stored: Readonly<Record<string, string>>,
+        declared: Readonly<Record<string, string>>,
+    ): boolean {
+        const entries = Object.entries(stored);
+
+        return (
+            entries.length === Object.keys(declared).length &&
+            entries.every(([meter, sku]) => declared[meter] === sku)
         );
+    }
 
-        // store the missing ones in the universe at their declared origins
-        await this.#mutate(
-            missing.map((entry) =>
-                machine.call("declare", {
-                    ...machine.target({ scope: Scope.universe.id, id: entry.id }),
-                    name: entry.name,
-                    kind: "cloud" as const,
-                    residencyId: entry.residencyId,
-                    providerCode: entry.providerCode,
-                    location: entry.location,
-                    rates: entry.rates,
-                    publicKey: entry.key,
-                    origin: entry.origin,
-                }),
-            ),
-        );
+    /** Read the platform's account in a region, created by the homes step. */
+    async #account(code: RegionCode): Promise<Identifier<"account">> {
+        const handle = Platform.handle(this.definition, code);
+        const found = await Account.byHandle(this.store.database.snapshot(), handle);
 
-        // rate the existing ones whose declared rates changed
-        const rated = existing.flatMap((row) => {
-            // read the machine's declared rates
-            const declared = present(
-                this.definition.machines.find((entry) => entry.id === row.id),
-                `the definition of ${row.id}`,
-            );
-
-            // compare the stored rates with the declared ones by meter
-            const stored = Object.entries(row.rates);
-            const isChanged =
-                stored.length !== Object.keys(declared.rates).length ||
-                stored.some(([meter, sku]) => declared.rates[meter] !== sku);
-            const target = machine.target({ scope: Scope.universe.id, id: row.id });
-
-            return isChanged ? [machine.call("rate", { ...target, rates: declared.rates })] : [];
-        });
-        await this.#mutate(rated);
+        return present(found, `the platform's account in ${code}`).id;
     }
 
     /** Create the operating organization with its account once, as the universe. */
@@ -379,35 +410,22 @@ export class Platform {
                 ...organization.in(Scope.universe.id),
                 name: this.definition.name,
                 handle: this.definition.handle,
-                residencyId: this.definition.residencyId,
-                stack: this.#home(this.definition.residencyId),
+                regionId: this.definition.regionId,
+                stack: this.#home(this.definition.regionId),
             }),
         ]);
 
         return present(created, "the operating organization").id;
     }
 
-    /** Bind the universe's roles to residency servers, machines and signed-in callers. */
+    /** Bind the universe's roles to machines, spaces and signed-in callers. */
     async bindRoles(now: number): Promise<void> {
-        // bind the roles of the residencies' servers, of every machine and of every signed-in caller
+        // bind the roles of every machine, every space and every signed-in caller
         await this.#authorize(Scope.universe.id, now, async (authorization) => {
-            // bind the servers' role to each residency's machines, space and relay, which route names
-            const residencies = await authorization.transaction.read(residency.table).findMany();
-            const servers = residencies.flatMap((entry) =>
-                ["machine", "space", "relay"].map((relation) => ({
-                    ...residency.reference(Scope.universe.id, entry.id),
-                    relation,
-                })),
-            );
-            await Role.declare(
-                Scope.universe,
-                { ...SERVER_ROLE, subjects: servers },
-                authorization,
-            );
-
-            // relate every machine and every signed-in caller to the universe through wildcards
+            // relate every machine, space and signed-in caller to the universe through wildcards
             const wildcards = [
                 { relation: "machine", subject: principal.machine.reference("*", "*") },
+                { relation: "space", subject: principal.space.reference("*", "*") },
                 ...SIGNED_IN.map((subject) => ({ relation: "signed-in", subject })),
             ];
             for (const { relation, subject } of wildcards) {
@@ -417,8 +435,13 @@ export class Platform {
                 );
             }
 
-            // bind the machines' and signed-in callers' roles to them
+            // bind the machines', spaces' and signed-in callers' roles to them
             const machines = { ...Scope.universe, relation: "machine" };
+            await Role.declare(
+                Scope.universe,
+                { ...SPACE_ROLE, subjects: [{ ...Scope.universe, relation: "space" }] },
+                authorization,
+            );
             const signedIn = { ...Scope.universe, relation: "signed-in" };
             await Role.declare(
                 Scope.universe,
@@ -544,7 +567,7 @@ export class Platform {
                         handle,
                         name: handle,
                         kind: "shared",
-                        residencyId: this.definition.residencyId,
+                        regionId: this.definition.regionId,
                     }),
                 ),
             );
@@ -652,11 +675,12 @@ export class Platform {
         }
     }
 
-    /** Serve each residency from the platform's account's home there, with its declared stack. */
-    async serveResidencies(now: number): Promise<void> {
+    /** Serve each region from the platform's account's home there, with its declared stack. */
+    async serveRegions(now: number): Promise<void> {
+        // create or update the platform's account in each region
         const organizationId = await this.#organization();
-        for (const entry of await Residency.list(this.store.database)) {
-            // read the platform's account in the residency
+        for (const entry of await Region.list(this.store.database)) {
+            // read the platform's account in the region
             const handle = Platform.handle(this.definition, entry.code);
             const [existing] = await this.store.database
                 .select({ id: account.table.id })
@@ -672,7 +696,7 @@ export class Platform {
                               handle,
                               name: handle,
                               kind: "shared",
-                              residencyId: entry.id,
+                              regionId: entry.id,
                               stack: this.#home(entry.code),
                           }),
                       ])
@@ -682,55 +706,30 @@ export class Platform {
             // give the account the hostnames its home's routes serve on, and move its home to its stack
             await this.#addHostnames(accountId, this.definition.hostnames[entry.code] ?? []);
             await this.#upgradeHome(Account.home(accountId), this.#home(entry.code));
+        }
 
-            // make its home the residency's space once
-            const stored = await Residency.require(this.store.database.snapshot(), entry.code);
-            const spaceId = stored.space ?? Account.home(accountId);
-            if (stored.space === null) {
-                await this.#mutate([
-                    residency.call("update", {
-                        ...residency.target(entry),
-                        space: spaceId,
-                    }),
-                ]);
-            }
-
-            // serve the residency with its space, and relay its machines' tunnels through the relay its space's stack declares
-            const served = residency.reference(Scope.universe.id, entry.id);
-            const subject = principal.space.reference(Scope.universe.id, spaceId);
-            const residencySpace = space.reference(accountId, spaceId);
-            const relayId = await InstallationId.of(
-                residencySpace,
-                RESIDENCY_RELAY,
-                this.store.environment.crypto,
-            );
-            const relay = principal.installation.reference(spaceId, relayId);
-            await this.#authorize(Scope.universe.id, now, async (authorization) => {
-                await Relationship.touch(
-                    { object: served, relation: "space", subject },
-                    authorization,
-                );
-                await Relationship.touch(
-                    { object: served, relation: "relay", subject: relay },
-                    authorization,
-                );
-            });
-
-            // let everyone find the residency's space, which serves its public registry
-            await this.#authorize(accountId, now, async (authorization) => {
+        // sell to every region's accounts through the finance installation in the platform's home
+        const home = Account.home(await this.#account(this.definition.regionId));
+        const owner = await Scope.object(this.store.database.snapshot(), home);
+        const merchantId = await InstallationId.of(
+            owner,
+            REGION_MERCHANT,
+            this.store.environment.crypto,
+        );
+        const merchant = principal.installation.reference(home, merchantId);
+        const regions = await Region.list(this.store.database);
+        await this.#authorize(Scope.universe.id, now, async (authorization) => {
+            for (const entry of regions) {
                 await Relationship.touch(
                     {
-                        object: residencySpace,
-                        relation: "guest",
-                        subject: anyone.reference("*", "*"),
+                        object: region.reference(Scope.universe.id, entry.id),
+                        relation: "merchant",
+                        subject: merchant,
                     },
                     authorization,
                 );
-            });
-        }
-
-        // relate the organization to the servers of its accounts' residencies
-        await this.#mutate(await residentCalls(this.store.database.snapshot(), organizationId));
+            }
+        });
     }
 
     /** Read whether the operator accepted an invitation to own the organization, or one waits. */
@@ -828,8 +827,8 @@ export class Platform {
         }
     }
 
-    /** Read the stack a residency's home runs, refusing a residency the definition leaves out. */
-    #home(code: ResidencyCode): StackRelease {
+    /** Read the stack the platform's home runs in a region, refusing one the definition lacks. */
+    #home(code: RegionCode): StackRelease {
         return present(this.definition.homes[code], `the stack of the home of ${code}`);
     }
 

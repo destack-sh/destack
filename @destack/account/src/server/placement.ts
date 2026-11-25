@@ -22,6 +22,18 @@ import { StoreRelationship } from "./relationship.ts";
 export function implementPlacement(): typeof placement {
     return placement.implement({
         methods: {
+            create: {
+                // let the machine it is placed on serve the space
+                handle: async (context, next) => {
+                    const created = await next();
+                    await StoreRelationship.touch(
+                        context,
+                        servingRelationship(created, created.machineId),
+                    );
+
+                    return created;
+                },
+            },
             place,
             move,
             decide,
@@ -39,19 +51,20 @@ export function implementPlacement(): typeof placement {
                     // decide again once a machine comes, goes or changes its standing, for its account
                     {
                         table: machine.table,
-                        fields: ["status", "deletedAt", "kind", "residencyId"],
+                        fields: ["status", "deletedAt", "kind", "regionId"],
                         on: { scope: "scope" },
                     },
-                    // decide again for every account of a shared machine's residency
+                    // TODO #Performance: decide only the machine's own and the waiting placements, once space keeps its machine
+
+                    // decide again for every account of a managed machine's region
                     {
                         table: machine.table,
-                        where: { scope: Scope.universe.id },
-                        fields: ["status", "deletedAt", "kind", "residencyId"],
+                        fields: ["status", "deletedAt", "kind", "regionId"],
                         path: [
                             {
                                 table: account.table,
                                 cardinality: "many",
-                                on: { kind: "key", column: "residencyId", parent: "residencyId" },
+                                on: { kind: "key", column: "regionId", parent: "regionId" },
                             },
                         ],
                         on: { scope: "id" },
@@ -93,8 +106,12 @@ async function place(
         );
     }
 
-    // end any move and its receiver's access
+    // end any move and its receiver's access, and hand serving to a machine taking the space over
     await releaseReceivers(context, current, null);
+    if (current.machineId !== caller) {
+        await StoreRelationship.delete(context, servingRelationship(current, current.machineId));
+        await StoreRelationship.touch(context, servingRelationship(current, caller));
+    }
 
     // serve the space at the epoch, decided again for the machine
     const placed = { ...current, machineId: caller };
@@ -128,6 +145,18 @@ async function move(
     });
 
     return context.update({ targetId: context.input.target, transferId: context.input.transferId });
+}
+
+/** Read the relationship letting a machine serve a placed space. */
+function servingRelationship(
+    row: Pick<Select<typeof placement.table>, "spaceId" | "scope">,
+    machineId: Identifier<"machine">,
+) {
+    return {
+        object: space.reference(row.scope, row.spaceId),
+        relation: "machine",
+        subject: principal.machine.reference(Scope.universe.id, machineId),
+    };
 }
 
 /** Revoke the receivers of a space's moves but a kept machine, as the store. */
@@ -203,8 +232,8 @@ export async function decideSchedule(
     );
 
     // keep the serving machine's tenancy while none is set, and the machine while it stands
-    const local = Machine.tenancy(serving);
-    const asked = placed.tenancy ?? local;
+    const current = Machine.tenancy(serving, row.scope);
+    const asked = placed.tenancy ?? current;
     const allowed = Entitlement.decide(entitled, { tenancy: asked });
     const isStanding = serving.status === "enabled" && serving.deletedAt === null;
 
@@ -213,9 +242,9 @@ export async function decideSchedule(
         return { kind: "stay", condition: allowed };
     }
     // leave a space on a standing machine of its tenancy, saying whether a person set it
-    else if (asked === local && isStanding) {
+    else if (asked === current && isStanding) {
         const reason = placed.tenancy === null ? "Unset" : "Placed";
-        const message = `placed ${local} on ${row.machineId}`;
+        const message = `placed ${current} on ${row.machineId}`;
 
         return { kind: "stay", condition: { status: "true", reason, message } };
     }
@@ -225,35 +254,39 @@ export async function decideSchedule(
     }
 }
 
-/** Find the machine running a tenancy for a space, a residency's or the account's own. */
+/** Find the machine running a tenancy for a space, a region's or the account's own. */
 async function tenancyMachine(
     reader: Pick<Snapshot, "read">,
     row: Pick<Select<typeof placement.table>, "spaceId" | "scope">,
     asked: Tenancy,
     crypto: DigestCrypto,
 ): Promise<Schedule> {
-    // read the residency's cloud machines for a shared space, else the account's machines of the tenancy's kind
-    const kind = asked === "dedicated" ? "cloud" : "personal";
-    const owner = await reader.read(account.table).findFirst({ where: { id: row.scope } });
-    const residencyId = present(owner, `account ${row.scope}`).residencyId;
+    // read the candidates for a shared space, else the account's own machines of the tenancy's kind
+    const kind = asked === "self" ? "self" : "managed";
+    const owner = present(
+        await reader.read(account.table).findFirst({ where: { id: row.scope } }),
+        `account ${row.scope}`,
+    );
+    const { regionId } = owner;
     const standing = { status: "enabled", deletedAt: { isNull: true } } as const;
-    const candidates = await reader.read(machine.table).findMany({
-        where:
-            asked === "shared"
-                ? { scope: Scope.universe.id, residencyId, ...standing }
-                : { scope: row.scope, kind, ...standing },
-        orderBy: { id: "asc" },
-    });
-    const ids = candidates.map((candidate) => candidate.id);
+    const ids =
+        asked === "shared"
+            ? await Placement.candidates(reader, owner)
+            : (
+                  await reader.read(machine.table).findMany({
+                      where: { scope: row.scope, kind, ...standing },
+                      orderBy: { id: "asc" },
+                  })
+              ).map((candidate) => candidate.id);
     const [only] = ids;
 
-    // pick a cloud machine of the residency for a shared space, staying where none serves it
+    // pick a candidate for a shared space, staying where none serves it
     if (asked === "shared") {
         const picked = await Placement.pick(row.spaceId, ids, crypto);
-        const message = `no cloud machine serves ${residencyId}`;
+        const message = `no shared machine serves ${regionId}`;
 
         return picked === undefined
-            ? { kind: "stay", condition: { status: "false", reason: "NoCloudMachine", message } }
+            ? { kind: "stay", condition: { status: "false", reason: "NoSharedMachine", message } }
             : { kind: "move", machine: picked };
     }
     // stay without a machine of the kind
@@ -281,6 +314,7 @@ async function withdraw(
     // remove the placement at the machine's epoch, which removes the work its assignments give
     const { target } = context;
     Placement.requireServed(target, context.input.epoch);
+    await StoreRelationship.delete(context, servingRelationship(target, target.machineId));
     await context.remove();
 
     return target;

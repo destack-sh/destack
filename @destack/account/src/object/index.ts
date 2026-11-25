@@ -21,7 +21,7 @@ export * from "./domain.ts";
 export * from "./display-name.ts";
 export * from "./hostname.ts";
 export * from "./machine.ts";
-export * from "./residency.ts";
+export * from "./region.ts";
 export * from "./claim.ts";
 export * from "./placement.ts";
 export * from "./platform.ts";

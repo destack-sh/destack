@@ -22,7 +22,7 @@ import {
     HANDLE_CHECK_PATH,
     HOME_LOCATION_PATH,
     JWKS_PATH,
-    RESIDENCY_CHOICE_PATH,
+    REGION_CHOICE_PATH,
 } from "../authentication/path.ts";
 import { Identity } from "../object/identity.ts";
 import type { CodeCheck } from "../oauth/email.ts";
@@ -77,9 +77,9 @@ const MODELS = {
             login: { type: "string", input: false, required: false },
             timeZone: { type: "string", input: true, required: true },
             locale: { type: "string", input: true, required: true },
-            // pass the personal account's handle and residency to the adapter
+            // pass the personal account's handle and region to the adapter
             handle: { type: "string", input: true, required: true, returned: false },
-            residencyId: { type: "string", input: true, required: true, returned: false },
+            regionId: { type: "string", input: true, required: true, returned: false },
         },
     },
     account: {
@@ -444,7 +444,7 @@ function settings(
             storage: "database",
             customRules: {
                 [HANDLE_CHECK_PATH]: FORM_READ_LIMIT,
-                [RESIDENCY_CHOICE_PATH]: FORM_READ_LIMIT,
+                [REGION_CHOICE_PATH]: FORM_READ_LIMIT,
                 [HOME_LOCATION_PATH]: FORM_READ_LIMIT,
             },
         },

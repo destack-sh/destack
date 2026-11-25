@@ -1,6 +1,5 @@
 import { principal } from "@destack/access";
-import { present, schema } from "@destack/schema";
-import { Entitlement, entitlement } from "../object/entitlement.ts";
+import { present } from "@destack/schema";
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { Proof, type PublicKey } from "@destack/identity";
@@ -10,10 +9,9 @@ import { account } from "../object/account.ts";
 import type { UniverseOrigin } from "../address/address.ts";
 import { key, Key } from "../object/key.ts";
 import { machine, Machine } from "../object/machine.ts";
-import { residency } from "../object/residency.ts";
+import { region } from "../object/region.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-import { StoreRelationship } from "./relationship.ts";
 
 /** The relationship letting every machine verify a machine's keys. */
 const PEERS = {
@@ -43,11 +41,11 @@ async function enroll(
     context: MethodContextOf<typeof machine, "enroll">,
     next: NextOf<typeof machine, "enroll">,
 ): Promise<ResultOf<typeof machine, "enroll">> {
-    // require the right to host the residency a cloud machine would serve
+    // require the right to operate the region a managed machine would serve
     const { input } = context;
-    if (input.kind === "cloud") {
-        const served = residency.reference(Scope.universe.id, input.residencyId);
-        await context.require(residency.permission("operate"), served);
+    if (input.kind === "managed") {
+        const served = region.reference(Scope.universe.id, input.regionId);
+        await context.require(region.permission("operate"), served);
     }
 
     // require the machine's proof by the key it registers
@@ -74,19 +72,6 @@ async function declare(
     context: MethodContextOf<typeof machine, "declare">,
     next: NextOf<typeof machine, "declare">,
 ): Promise<ResultOf<typeof machine, "declare">> {
-    // require an account's dedicated machine to be one its plan unlocks
-    if (context.scope !== Scope.universe.id) {
-        const accountId = schema.identifier("account").parse(context.scope);
-        const entitled = await context.read(entitlement).findMany({ where: { scope: accountId } });
-        const allowed = Entitlement.decide(entitled, { tenancy: "dedicated" });
-        if (allowed.status !== "true") {
-            throw AccountError.of(
-                "TENANCY_EXHAUSTED",
-                `dedicated tenancy exceeds this account's plan: ${allowed.message}`,
-            );
-        }
-    }
-
     // create the machine with its key and its endpoint at its origin
     const row = await next();
     await provision(context, row, context.input.publicKey);
@@ -99,16 +84,16 @@ async function declare(
     return row;
 }
 
-/** Record the tunnel a relay accepted from a personal machine, at its derived name. */
+/** Record a self-hosted machine's tunnel at its derived name. */
 async function relay(
     context: MethodContextOf<typeof machine, "relay">,
     universe: UniverseOrigin,
 ): Promise<ResultOf<typeof machine, "relay">> {
-    // require a personal machine, as a cloud one answers at its URL
-    if (context.target.kind === "cloud") {
+    // require a self-hosted machine, as a managed one answers at its URL
+    if (context.target.kind === "managed") {
         throw AccountError.of(
-            "MACHINE_CLOUD_DENIED",
-            `machine '${context.target.id}' is forbidden: it is a cloud machine, so it answers at its URL`,
+            "MACHINE_MANAGED_DENIED",
+            `machine '${context.target.id}' is forbidden: it is a managed machine, so it answers at its URL`,
         );
     }
 
@@ -131,14 +116,13 @@ async function relay(
     return context.target;
 }
 
-/** Delete a machine, revoking its keys, its residency role and its endpoint. */
+/** Delete a machine, revoking its keys and its endpoint. */
 async function remove(
     context: MethodContextOf<typeof machine, "delete">,
     next: NextOf<typeof machine, "delete">,
 ): Promise<ResultOf<typeof machine, "delete">> {
-    // end the machine's keys and its place among its residency's servers
+    // end the machine's keys
     await invokeKeys(context, context.target.id, "revoke");
-    await leaveResidency(context, Machine.of(context.target));
 
     // delete the machine with its endpoint
     const published = await context
@@ -175,7 +159,7 @@ async function rename(
     return context.update({ name: context.input.name });
 }
 
-/** Provision a new machine's first key, and relate a cloud machine to its residency. */
+/** Provision a new machine's first key. */
 async function provision(
     context: MethodContext,
     created: Select<typeof machine.table>,
@@ -188,29 +172,6 @@ async function provision(
             ...(await Key.columns(publicKey, context.now, context.environment.crypto)),
         }),
     ]);
-
-    // relate a cloud machine to its residency
-    const row = Machine.of(created);
-    if (row.kind === "cloud") {
-        await StoreRelationship.touch(context, residencyServer(row));
-    }
-}
-
-/** Revoke a cloud machine's place among its residency's servers. */
-async function leaveResidency(context: MethodContext, row: Machine): Promise<void> {
-    // revoke a cloud machine's relationship to its residency
-    if (row.kind === "cloud") {
-        await StoreRelationship.delete(context, residencyServer(row));
-    }
-}
-
-/** Read a cloud machine's relationship to the residency it serves. */
-function residencyServer(row: Extract<Machine, { kind: "cloud" }>) {
-    return {
-        object: residency.reference(Scope.universe.id, row.residencyId),
-        relation: "machine",
-        subject: principal.machine.reference(Scope.universe.id, row.id),
-    };
 }
 
 /** Invoke a method on each of a machine's unrevoked keys as the store. */

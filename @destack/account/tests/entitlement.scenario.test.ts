@@ -1,6 +1,10 @@
-import { expect, test } from "@destack/test";
-import { TestAccountStore } from "../src/test/account.ts";
+import { expect, refusal, test } from "@destack/test";
+import { AccessContext, Caller } from "@destack/access";
+import { RequestId } from "@destack/sync";
+import { OWNER_EMAIL, TestAccount } from "../src/test/account.ts";
 import {
+    Account,
+    account,
     Entitlement,
     entitlement,
     type Allowance,
@@ -53,7 +57,7 @@ test("decide a use from an account's entitlements: unknown until replicated, blo
             feature: "tenancy",
             kind: "static",
             resource: "tenancy",
-            value: ["shared", "local"],
+            value: ["shared", "self"],
             limit: null,
             resetAt: null,
             state: null,
@@ -124,7 +128,7 @@ test("keep a space's chosen retention where a plan grants custom retention, and 
 
 test("entitle an account to an allowance once, leaving it unchanged when entitled again, changing its kind in place, and refusing a repeated feature", async () => {
     // entitle an account to custom domains and a database limit, as finance does
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn("owner@example.com");
     const { id: accountId } = await accounts.createAccount(owner);
     const stored = () =>
@@ -191,5 +195,35 @@ test("entitle an account to an allowance once, leaving it unchanged when entitle
             "FEATURE_INVALID",
             "allowance is invalid: the account's allowances repeat a feature",
         ],
+    });
+});
+
+test("let the region's merchant alone entitle an account", async () => {
+    // entitle an account as its owner, then as the merchant
+    await using accounts = await TestAccount.open();
+    const owner = await accounts.signIn(OWNER_EMAIL);
+    const { id: accountId } = await accounts.createAccount(owner);
+    const stored = await Account.of(accounts.database.snapshot(), accountId);
+    const entitle = account.call("entitle", { ...account.target(stored), allowances: [] });
+    const refused = await refusal(
+        accounts.store.mutate(AccessContext.of(Caller.of(owner.subject), accounts.clock.now()), {
+            id: RequestId.create(accounts.environment),
+            calls: [entitle],
+        }),
+    );
+    await accounts.entitle(accountId, "domain", { kind: "boolean" });
+
+    // expect the owner refused and the merchant's allowance stored
+    const features = await accounts.database
+        .snapshot()
+        .read(entitlement.table)
+        .findMany({ where: { scope: accountId } });
+    expect({ refused, features: features.map((row) => row.feature) }).toEqual({
+        refused: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'entitle' is forbidden: it is not granted",
+        ],
+        features: ["domain"],
     });
 });

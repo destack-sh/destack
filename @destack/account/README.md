@@ -37,14 +37,14 @@ export async function createWorkspace(
     user: Identifier<"user">,
     requestId: string,
 ) {
-    // create the account in the EU residency
+    // create the account in the EU region
     const account = await client.account.create({
         scope: user,
         requestId,
         handle: "example",
         name: "Example",
         kind: "shared",
-        residencyId: "eu",
+        regionId: "eu",
     });
 
     // create a space in it, and list the account's spaces
@@ -164,10 +164,10 @@ export async function enrollLaptop(
     // generate the machine's key, and enroll it
     const key = new MachineKey(machineId, keychain, environment);
     await key.enroll(client, {
-        scope: accountId,
+        accountId,
         requestId,
         name: "laptop",
-        kind: "personal",
+        kind: "self",
         platform: "macOS",
         architecture: "arm64",
         model: "Mac14,2",
@@ -177,13 +177,13 @@ export async function enrollLaptop(
 
 ### Test code that signs people in
 
-`TestAccountStore` signs people in through the real issuer, over a test database.
+`TestAccount` signs people in through the real issuer, over a test database.
 
 ```ts
-import { OWNER_EMAIL, TestAccountStore } from "@destack/account/test";
+import { OWNER_EMAIL, TestAccount } from "@destack/account/test";
 
 // serve accounts, sign the owner in, and create a space
-await using accounts = await TestAccountStore.open();
+await using accounts = await TestAccount.open();
 const owner = await accounts.signIn(OWNER_EMAIL);
 const { accountId, spaceId } = await accounts.createSpace(owner);
 ```

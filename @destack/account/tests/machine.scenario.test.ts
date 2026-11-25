@@ -8,12 +8,7 @@ import { MemoryKeychain } from "@destack/identity";
 import { expect, test, refusal } from "@destack/test";
 import { MachineKey } from "../src/client/index.ts";
 import { account, key, Key, machine } from "../src/object/index.ts";
-import {
-    TestAccountStore,
-    type TestPerson,
-    OWNER_EMAIL,
-    STRANGER_EMAIL,
-} from "../src/test/index.ts";
+import { TestAccount, type TestPerson, OWNER_EMAIL, STRANGER_EMAIL } from "../src/test/index.ts";
 
 /** A year and a day, past every key's lifetime, in milliseconds. */
 const PAST_LIFETIME = 366 * 24 * 60 * 60 * 1000;
@@ -21,13 +16,15 @@ const PAST_LIFETIME = 366 * 24 * 60 * 60 * 1000;
 /** Read the name an enrolled machine took in its account. */
 async function nameOf(owner: TestPerson, accountId: string, enrolled: MachineKey): Promise<string> {
     return (
-        await owner.client(accountPackage).machine.get({ scope: accountId, id: enrolled.machineId })
+        await owner
+            .client(accountPackage)
+            .machine.get({ accountId: accountId, id: enrolled.machineId })
     ).name;
 }
 
 test("rotate a machine's key, revoking its other keys, and match the keys authenticating at a time", async () => {
     // enroll a machine and register a new key at a clock standing still
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const enrolled = await fixture.enroll(accountId, owner);
@@ -71,7 +68,7 @@ test("rotate a machine's key, revoking its other keys, and match the keys authen
     const now = fixture.store.clock.now();
     const selected = [await active(now), await active(now + PAST_LIFETIME)];
     await owner.client(accountPackage).machine.delete({
-        scope: accountId,
+        accountId: accountId,
         id: enrolled.machineId,
         requestId: RequestId.create(fixture.store.environment),
     });
@@ -84,7 +81,7 @@ test("rotate a machine's key, revoking its other keys, and match the keys authen
 
 test("enroll machines proposing one name under its first free numbered variants, and under the name of a deleted one, which then addresses the new machine", async () => {
     // enroll three machines proposing the same name in one account
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const preferred = "laptop";
@@ -97,14 +94,14 @@ test("enroll machines proposing one name under its first free numbered variants,
     // take the name of a deleted machine instead of a numbered variant
     const deleted = await enroll("desktop");
     await owner.client(accountPackage).machine.delete({
-        scope: accountId,
+        accountId: accountId,
         id: deleted.machineId,
         requestId: RequestId.create(fixture.store.environment),
     });
     const again = await enroll("desktop");
     const named = await owner
         .client(accountPackage)
-        .machine.get({ scope: accountId, id: "desktop" });
+        .machine.get({ accountId: accountId, id: "desktop" });
 
     // expect the name to address the new machine alone
     expect([...names, await nameOf(owner, accountId, again), named.id]).toEqual([
@@ -116,9 +113,9 @@ test("enroll machines proposing one name under its first free numbered variants,
     ]);
 });
 
-test("let a tenant read, drain and enable a machine and read its keys, and refuse renaming it and a stranger draining it", async () => {
-    // make the members of a tenant's account tenants of the owner's machine
-    await using fixture = await TestAccountStore.open();
+test("let an operator read, drain and enable a machine and read its keys, and refuse renaming it and a stranger draining it", async () => {
+    // make the members of a partner's account operators of the owner's machine
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const tenant = await fixture.signIn("partner@example.com");
     const stranger = await fixture.signIn(STRANGER_EMAIL);
@@ -126,18 +123,18 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
     const rival = await fixture.createAccount(tenant);
     const enrolled = await fixture.enroll(accountId, owner);
     const target = machine.reference(accountId, enrolled.machineId);
-    const tenants = { ...account.reference(tenant.id, rival.id), relation: "member" };
+    const operators = { ...account.reference(tenant.id, rival.id), relation: "member" };
     await owner.client(objectPackage).relationship.create({
         scope: accountId,
         requestId: RequestId.create(fixture.store.environment),
         object: target,
-        relation: "tenant",
-        subject: tenants,
+        relation: "operator",
+        subject: operators,
     });
     const change = (person: TestPerson, name: "drain" | "enable") =>
         refusal(
             person.client(accountPackage).machine[name]({
-                scope: accountId,
+                accountId: accountId,
                 id: enrolled.machineId,
                 requestId: RequestId.create(fixture.store.environment),
             }),
@@ -145,17 +142,19 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
 
     // read, drain and enable the machine as the tenant, and refuse renaming it
     const read = await refusal(
-        tenant.client(accountPackage).machine.get({ scope: accountId, id: enrolled.machineId }),
+        tenant.client(accountPackage).machine.get({ accountId: accountId, id: enrolled.machineId }),
     );
     const keys = await refusal(tenant.client(accountPackage).key.list({ scope: accountId }));
     const drained = await change(tenant, "drain");
     const status = (
-        await owner.client(accountPackage).machine.get({ scope: accountId, id: enrolled.machineId })
+        await owner
+            .client(accountPackage)
+            .machine.get({ accountId: accountId, id: enrolled.machineId })
     ).status;
     const enabled = await change(tenant, "enable");
     const renamed = await refusal(
         tenant.client(accountPackage).machine.rename({
-            scope: accountId,
+            accountId: accountId,
             id: enrolled.machineId,
             requestId: RequestId.create(fixture.store.environment),
             name: "taken-over",
@@ -184,14 +183,14 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
 
 test("record a machine's contact with what it reports, replacing its host, and refuse a report without one", async () => {
     // report the version, runtimes, host, system, start and update state as the machine at a clock standing still
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const enrolled = await fixture.enroll(accountId, owner);
     const machines = fixture.as(enrolled).client(accountPackage);
-    const before = await machines.machine.get({ scope: accountId, id: enrolled.machineId });
+    const before = await machines.machine.get({ accountId: accountId, id: enrolled.machineId });
     await machines.machine.report({
-        scope: accountId,
+        accountId: accountId,
         id: enrolled.machineId,
         requestId: RequestId.create(fixture.store.environment),
         version: "2026.9.1",
@@ -201,10 +200,10 @@ test("record a machine's contact with what it reports, replacing its host, and r
         update: { installed: "2026.9.1", staged: "2026.9.2", status: "staged" },
         host: { platform: "Linux", architecture: "x64" },
     });
-    const seen = await machines.machine.get({ scope: accountId, id: enrolled.machineId });
+    const seen = await machines.machine.get({ accountId: accountId, id: enrolled.machineId });
     const hostless = await refusal(
         machines.machine.report({
-            scope: accountId,
+            accountId: accountId,
             id: enrolled.machineId,
             requestId: RequestId.create(fixture.store.environment),
             version: "2026.9.1",
@@ -220,7 +219,7 @@ test("record a machine's contact with what it reports, replacing its host, and r
     expect(hostless).toEqual([
         "BAD_REQUEST",
         "HOST_REQUIRED",
-        "host is required: a personal machine reports its host",
+        "host is required: a self-hosted machine reports its host",
     ]);
     expect(seen).toEqual({
         ...before,
@@ -237,9 +236,9 @@ test("record a machine's contact with what it reports, replacing its host, and r
     });
 });
 
-test("refuse a machine sharing, unmasking or relaying its own row, which no role of its own covers", async () => {
+test("refuse a machine sharing or unmasking its own row, which no role of its own covers", async () => {
     // enroll a machine of the owner's account, and a tenant account to share it with
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const tenant = await fixture.signIn("partner@example.com");
     const { id: accountId } = await fixture.createAccount(owner);
@@ -248,23 +247,14 @@ test("refuse a machine sharing, unmasking or relaying its own row, which no role
     const self = fixture.as(enrolled);
     const target = machine.reference(accountId, enrolled.machineId);
 
-    // share it, relay it and unmask its telemetry as the machine itself
+    // share it and unmask its telemetry as the machine itself
     const shared = await refusal(
         self.client(objectPackage).relationship.create({
             scope: accountId,
             requestId: RequestId.create(fixture.store.environment),
             object: target,
-            relation: "tenant",
+            relation: "operator",
             subject: { ...account.reference(tenant.id, rival.id), relation: "member" },
-        }),
-    );
-    const relayed = await refusal(
-        self.client(accountPackage).machine.relay({
-            scope: accountId,
-            id: enrolled.machineId,
-            url: "https://eu.relay.test",
-            lapsesAt: fixture.store.clock.now() + 60_000,
-            requestId: RequestId.create(fixture.store.environment),
         }),
     );
     const { authorizer } = fixture.store;
@@ -275,30 +265,25 @@ test("refuse a machine sharing, unmasking or relaying its own row, which no role
         AccessContext.of(Caller.of(self.subject), fixture.store.clock.now()),
     );
     const unmasked = await authorizer.check(snapshot, machine.permission("unmask"), target, access);
-    expect({ shared, relayed, unmasked }).toEqual({
+    expect({ shared, unmasked }).toEqual({
         shared: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
             "permission 'share' is forbidden: it is not granted",
         ],
-        relayed: [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'relay' is forbidden: it is not granted",
-        ],
         unmasked: { isAllowed: false },
     });
 });
 
-test("refuse a cloud machine reporting a host, and its residency's relay publishing a tunnel for it", async () => {
+test("refuse a cloud machine's host and tunnel", async () => {
     // declare a dedicated cloud machine of the owner's account
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
-    const cloud = await fixture.declareCloudMachine(accountId, "eu");
-    const target = { scope: accountId, id: cloud.machineId };
+    const cloud = await fixture.declareManagedMachine(accountId, "eu");
+    const target = { accountId, id: cloud.machineId };
 
-    // report a host as the cloud machine, and relay its tunnel as the residency's relay
+    // report a host and publish a tunnel
     const reported = await refusal(
         fixture
             .as(cloud)
@@ -314,26 +299,28 @@ test("refuse a cloud machine reporting a host, and its residency's relay publish
                 host: { platform: "Linux", architecture: "x64" },
             }),
     );
-    const relaying = fixture.as(await fixture.relay("eu"));
     const relayed = await refusal(
-        relaying.client(accountPackage).machine.relay({
-            ...target,
-            url: "https://eu.relay.test",
-            lapsesAt: fixture.clock.now() + 60_000,
-            requestId: RequestId.create(fixture.store.environment),
-        }),
+        fixture
+            .as(cloud)
+            .client(accountPackage)
+            .machine.relay({
+                ...target,
+                url: "https://eu.relay.test",
+                lapsesAt: fixture.clock.now() + 60_000,
+                requestId: RequestId.create(fixture.store.environment),
+            }),
     );
 
     expect([reported, relayed]).toEqual([
         [
             "BAD_REQUEST",
             "HOST_REPORT_INVALID",
-            "host report is invalid: a cloud machine reports no host",
+            "host report is invalid: a managed machine reports no host",
         ],
         [
             "FORBIDDEN",
-            "MACHINE_CLOUD_DENIED",
-            `machine '${cloud.machineId}' is forbidden: it is a cloud machine, so it answers at its URL`,
+            "MACHINE_MANAGED_DENIED",
+            `machine '${cloud.machineId}' is forbidden: it is a managed machine, so it answers at its URL`,
         ],
     ]);
 });

@@ -8,7 +8,7 @@ import { KeyPair, Proof, type ProofRequest, PublicKey } from "@destack/identity"
 import { client } from "../src/object/client.ts";
 import { key } from "../src/object/key.ts";
 import accountPackage from "../src/package.ts";
-import { TestAccountStore, STRANGER_EMAIL } from "../src/test/index.ts";
+import { TestAccount, STRANGER_EMAIL } from "../src/test/index.ts";
 
 /** The browser's public key of RFC 8291's example subscription. */
 const RFC_8291_KEY =
@@ -37,7 +37,7 @@ function prove(
 }
 
 test("register clients with proven keys and revoke them with the sessions linked to them", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("person@example.com");
     const again = await fixture.signIn("person@example.com");
     const now = fixture.clock.now();
@@ -320,7 +320,7 @@ test("register clients with proven keys and revoke them with the sessions linked
 
 test("return the first registration of a browser registered twice", async () => {
     // register a browser by the id it generated, twice, as a page opening again does
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("person@example.com");
     const id = Identifier.create("client", fixture.environment);
     const register = () =>
@@ -339,7 +339,7 @@ test("return the first registration of a browser registered twice", async () => 
 
 test("refuse a stranger a registered client id", async () => {
     // register a browser as one person
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("person@example.com");
     const stranger = await fixture.signIn(STRANGER_EMAIL);
     const id = Identifier.create("client", fixture.environment);
@@ -362,7 +362,7 @@ test("refuse a stranger a registered client id", async () => {
 });
 
 test("refresh a person's access token once it expires, and keep calling as the person", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const person = await fixture.signIn("person@example.com");
 
     // read the person's account, then again past the access token's expiry

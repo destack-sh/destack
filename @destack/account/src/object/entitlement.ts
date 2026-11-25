@@ -3,7 +3,7 @@ import type { Select } from "@destack/db";
 import type { DatabaseConnection, Snapshot, Watch } from "@destack/db/database";
 import {
     type MethodContext,
-    type Condition,
+    type Decision,
     defineObject,
     defineShape,
     field,
@@ -95,8 +95,12 @@ export const entitlement = defineObject(
         },
         access: {
             permissions: {
-                // let the account's readers and its residency's servers read
-                read: union(through("scope", "read"), through("scope", "serve")),
+                // let the account's readers, its servers and its region's merchant read
+                read: union(
+                    through("scope", "read"),
+                    through("scope", "serve"),
+                    through("scope", "entitle"),
+                ),
                 // let the account's home set it alone, as account.entitle does
                 provide: none(),
             },
@@ -131,7 +135,7 @@ export const entitlementShape = defineShape({
 });
 
 /** The condition of a use before an account's entitlements finish replicating: not yet known. */
-const PENDING: Condition = {
+const PENDING: Decision = {
     status: "unknown",
     reason: "Pending",
     message: "waiting for the account's plan",
@@ -245,7 +249,7 @@ export const Entitlement = {
     },
 
     /** Decide the condition of a use from an account's replicated entitlements. */
-    decide(rows: readonly Allowance[] | undefined, use: EntitlementUse): Condition {
+    decide(rows: readonly Allowance[] | undefined, use: EntitlementUse): Decision {
         // wait while the entitlements replicate
         if (rows === undefined) {
             return PENDING;
@@ -285,7 +289,7 @@ export const Entitlement = {
         database: DatabaseConnection,
         accountId: Identifier<"account">,
         use: EntitlementUse,
-    ): Promise<Condition> {
+    ): Promise<Decision> {
         return Entitlement.decide(await Entitlement.replicated(database, accountId), use);
     },
 
@@ -331,7 +335,7 @@ export const Entitlement = {
         row: Space,
         database: DatabaseConnection,
         now: number,
-    ): Promise<Readonly<Record<SpaceResource, Condition>>> {
+    ): Promise<Readonly<Record<SpaceResource, Decision>>> {
         // decide each resource's condition from one read of the account's entitlements
         const rows = await Entitlement.replicated(database, account.identifier(row.scope));
         const conditions = {

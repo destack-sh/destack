@@ -27,7 +27,7 @@ import { Identifier, schema } from "@destack/schema";
 import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { organization } from "./organization.ts";
-import { Residency, residency } from "./residency.ts";
+import { Region, region } from "./region.ts";
 import { StackRelease } from "./stack-release.ts";
 import { user } from "./user.ts";
 import { sudo } from "../authentication/sudo.ts";
@@ -42,9 +42,6 @@ export const HOME_SPACE = "home";
 /** The installation a person lands in after signing in, which every home's stack installs. */
 export const HOME_APPLICATION = "home";
 
-/** The name a person calls the space of their account's residency by. */
-export const RESIDENCY_SPACE = "residency";
-
 /** An account, the scope of its spaces. */
 export const account = defineObject(
     {
@@ -58,7 +55,7 @@ export const account = defineObject(
             /** The display name. */
             name: field.string(DisplayName),
             /** The jurisdiction the account's spaces store data in. */
-            residency: field.reference(residency, { delete: "restrict" }),
+            region: field.reference(region, { delete: "restrict" }),
             /** Whether the account is its user's personal account or a shared one. */
             kind: field.enum(["personal", "shared"]).default("shared"),
         },
@@ -82,10 +79,8 @@ export const account = defineObject(
         access: {
             attributes: { kind: "string" },
             relations: {
-                resident: { subjects: [residency.members("server")], grantedBy: "place" },
-                claimant: { subjects: [residency.members("claim")], grantedBy: "place" },
-                relay: { subjects: [residency.members("relaying")], grantedBy: "place" },
-                installed: { subjects: [residency.members("installed")], grantedBy: "place" },
+                // the region's merchant, related as each account is created
+                merchant: { subjects: [region.members("sell")], grantedBy: "place" },
                 // the account's home space, and the installations living in it
                 home: { subjects: [principal.space, principal.space.members(CONTAINED)] },
                 // the people and the clients the account's managers let publish packages under its name
@@ -100,10 +95,12 @@ export const account = defineObject(
             permissions: {
                 // inherit from the organization: its members view and its administrators manage
                 member: through("organization", "view"),
+                // let the person, the organization's viewers, the account's contents and its merchant read it
                 read: union(
                     through("user", "self"),
                     contained(principal.space, principal.machine),
                     through("organization", "view"),
+                    relation("merchant"),
                 ),
                 comment: through("organization", "manage"),
                 edit: through("organization", "manage"),
@@ -112,20 +109,13 @@ export const account = defineObject(
                 list: union(permission("view"), relation("public")),
                 // let those reading or serving the account see it whole, its replicas among them
                 view: union(permission("read"), permission("serve")),
-                replicate: union(contained(principal.space), relation("resident")),
-                // let the residency's servers and installations, the account's home and its machines serve it
-                serve: union(
-                    relation("resident"),
-                    relation("home"),
-                    contained(principal.machine),
-                    relation("installed"),
-                ),
-                // let the residency's installations set the account's entitlements
-                entitle: relation("installed"),
-                // let the residency's machines and home claim names in the account
-                claim: relation("claimant"),
-                // let the residency's relay publish the tunnels of the account's machines
-                relaying: relation("relay"),
+                replicate: contained(principal.space),
+                // let the account's home and its machines serve it
+                serve: union(relation("home"), contained(principal.machine)),
+                // let the region's merchant entitle the account
+                entitle: relation("merchant"),
+                // let the account's spaces claim the names of their objects in the account
+                claim: contained(principal.space),
                 // let the person or the organization's managers found accounts in their scope
                 create: union(through("user", "self"), through("organization", "manage")),
                 update: permission("manage"),
@@ -139,10 +129,10 @@ export const account = defineObject(
                 // let the account's home declare and provision the account's own resources
                 provision: relation("home"),
             },
-            // show those who find the account without reading it its profile, residency, revision and trash state
+            // show those who find the account without reading it its profile, region, revision and trash state
             guard: {
                 read: "view",
-                except: ["handle", "name", "kind", "residencyId", "revision", "deletedAt"],
+                except: ["handle", "name", "kind", "regionId", "revision", "deletedAt"],
             },
             reserved: [
                 "administer",
@@ -160,7 +150,7 @@ export const account = defineObject(
     (method) => ({
         list: method.list("list"),
         create: method.create("create", {
-            fields: ["handle", "name", "kind", "residencyId"],
+            fields: ["handle", "name", "kind", "regionId"],
             input: schema.object({
                 /** The stack of the account's home. */
                 stack: StackRelease.exactOptional(),
@@ -184,7 +174,7 @@ export const account = defineObject(
 /** A persisted account record. */
 export type Account = Select<typeof account.table>;
 
-/** The residency, relations and payers of accounts. */
+/** The region, relations and payers of accounts. */
 export const Account = {
     /** Read the account a handle names, absent for a handle nobody holds. */
     byHandle(reader: Pick<Snapshot, "read">, handle: string): Promise<Account | undefined> {
@@ -277,32 +267,13 @@ export const Account = {
         return Account.home((await Account.of(reader, scope)).id);
     },
 
-    /** Locate the space of the residency the account a scope belongs to stores its data in. */
-    async locate(reader: Pick<Snapshot, "read">, scope: string): Promise<Identifier<"space">> {
-        return Residency.space(reader, (await Account.of(reader, scope)).residencyId);
-    },
-
-    /** Read an account's installations' relationship to its residency as residents. */
-    resident(row: Pick<Account, "id" | "scope" | "residencyId">) {
-        return {
-            object: residency.reference(Scope.universe.id, row.residencyId),
-            relation: "resident",
-            subject: { ...account.reference(row.scope, row.id), relation: CONTAINED },
-        };
-    },
-
-    /** Relate a new account's owner, home and residency servers. */
+    /** Relate a new account's owner, home and merchant. */
     async creation(context: MethodContext, object: ObjectReference): Promise<Creation> {
-        // read the residency the account stores data in
-        const residencyId = residency.identifier(
-            schema.string().parse(context.input["residencyId"]),
-        );
+        // read the region the account stores data in
+        const regionId = region.identifier(schema.string().parse(context.input["regionId"]));
 
-        // relate the residency's servers, claimants, relay and installations, and the account's home
-        const resident = { relation: "resident", subject: Residency.servers(residencyId) };
-        const claimant = { relation: "claimant", subject: Residency.claimants(residencyId) };
-        const relay = { relation: "relay", subject: Residency.relays(residencyId) };
-        const installed = { relation: "installed", subject: Residency.installations(residencyId) };
+        // relate the merchant and the home
+        const merchant = { relation: "merchant", subject: Region.merchant(regionId) };
         const homed = principal.space.reference(Scope.universe.id, Account.home(object.id));
         const home = { relation: "home", subject: homed };
         const inside = { relation: "home", subject: { ...homed, relation: CONTAINED } };
@@ -311,7 +282,7 @@ export const Account = {
         // leave an organization's account to the organization's members
         const scope = await Scope.object(context, context.scope);
         if (organization.is(scope)) {
-            return { relationships: [resident, claimant, relay, installed, home, inside, shown] };
+            return { relationships: [merchant, home, inside, shown] };
         }
 
         // require a creator of a user's account
@@ -321,16 +292,7 @@ export const Account = {
         }
 
         return {
-            relationships: [
-                { relation: "owner", subject: creator },
-                resident,
-                claimant,
-                relay,
-                installed,
-                home,
-                inside,
-                shown,
-            ],
+            relationships: [{ relation: "owner", subject: creator }, merchant, home, inside, shown],
             owner: { ...object, relation: "owner" },
         };
     },

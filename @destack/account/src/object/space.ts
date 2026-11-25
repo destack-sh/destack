@@ -13,7 +13,7 @@ import {
 import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { Scope, replica } from "@destack/sync";
-import { account } from "./account.ts";
+import { Account, account } from "./account.ts";
 import { organization } from "./organization.ts";
 import { StackRelease } from "./stack-release.ts";
 import { sudo } from "../authentication/sudo.ts";
@@ -34,10 +34,10 @@ import { AccountError } from "../error/error.ts";
 import { machine } from "./machine.ts";
 import { argument, plural, t } from "@destack/locale";
 
-/** The tenancies: shared or dedicated cloud machines, or a space's people's computers. */
-export const TENANCIES = ["shared", "dedicated", "local"] as const;
+/** The tenancies: another account's machines, or the account's managed or self-hosted ones. */
+export const TENANCIES = ["shared", "dedicated", "self"] as const;
 
-/** Where a space's work runs: shared or dedicated cloud machines, or its people's computers. */
+/** Where a space's work runs: another account's machines, or the account's own. */
 export const Tenancy = schema.enum(TENANCIES);
 /** Where a space's work runs. */
 export type Tenancy = schema.Infer<typeof Tenancy>;
@@ -81,9 +81,11 @@ export const space = defineObject(
                 guest: { subjects: [principal.user, anyone.all()], grantedBy: "manage" },
                 // the machine the space moves to, which its placement relates while the move runs
                 receiver: { subjects: [principal.machine], grantedBy: "receive" },
+                // the machine the space is placed on, related by its placement
+                machine: { subjects: [principal.machine], grantedBy: "receive" },
             },
             permissions: {
-                // let the machines serving the account and each space itself read the space's row, which their replicas follow
+                // let the machines serving the space and each space itself read the space's row, which their replicas follow
                 read: union(permission("serve"), contained(principal.space)),
                 // let the space's readers, its guests and the installations living in it find it
                 list: union(permission("read"), relation("guest"), contained()),
@@ -97,15 +99,15 @@ export const space = defineObject(
                 provision: none(),
                 // let the platform relate the machine a move targets
                 receive: none(),
-                // let the space and its installations, the machine it moves to and the account's servers replicate its chain
-                replicate: union(contained(), relation("receiver"), through("account", "serve")),
+                // let the space and its installations and the machines serving it or receiving it replicate its chain
+                replicate: union(contained(), relation("receiver"), permission("serve")),
 
                 // let the space's readers read its operational telemetry and product analytics, its managers unmasked
                 observe: permission("read"),
                 analyze: permission("read"),
                 unmask: permission("manage"),
-                // let the machines serving the account forward the space's telemetry
-                serve: through("account", "serve"),
+                // let the machine it is placed on and the account's own machines serve it
+                serve: union(relation("machine"), through("account", "serve")),
             },
             reserved: ["replicate", "upgrade", "receive", "serve", "provision"],
             elevated: { delete: sudo, rotate: sudo },
@@ -158,8 +160,11 @@ export const space = defineObject(
 /** A space row in the space's database. */
 export type Space = Select<typeof space.table>;
 
-/** The resources whose use sets a space's conditions. */
-export type SpaceResource = "database" | "bucket" | "compute" | "network";
+/** The resources whose use sets a space's conditions, each a condition of its name. */
+export const SPACE_RESOURCES = ["database", "bucket", "compute", "network"] as const;
+
+/** A resource whose use sets a space's condition. */
+export type SpaceResource = (typeof SPACE_RESOURCES)[number];
 
 /** The resources whose exceeded entitlement throttles a space's requests. */
 export const THROTTLED_RESOURCES = [
@@ -169,9 +174,13 @@ export const THROTTLED_RESOURCES = [
 
 /** The space checks, reads and replicates of a serving machine. */
 export const Space = {
-    /** Build the access a space's creation writes: the space is the owner of itself. */
-    creation(row: Pick<Space, "id">): Creation {
-        return { owner: principal.space.reference(Scope.universe.id, row.id) };
+    /** Build the access a space's creation writes: it owns itself, and a home is open to guests. */
+    creation(row: Pick<Space, "id" | "scope">): Creation {
+        // let anyone find an account's home, whose objects each decide who reads them
+        const isHome = row.id === Account.home(account.identifier(row.scope));
+        const open = isHome ? [{ relation: "guest", subject: anyone.reference("*", "*") }] : [];
+
+        return { owner: principal.space.reference(Scope.universe.id, row.id), relationships: open };
     },
 
     /** List the spaces of the accounts a payer pays for: its accounts and its organizations'. */

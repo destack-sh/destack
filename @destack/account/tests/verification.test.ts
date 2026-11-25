@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
 import { verification } from "../src/authentication/index.ts";
-import { TestAccountStore } from "../src/test/index.ts";
+import { TestAccount } from "../src/test/index.ts";
 
 test("remove an authentication challenge once it lapses, keeping a live one until then", async () => {
     // store a lapsed challenge and one lapsing in a minute
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const now = fixture.clock.now();
     const challenge = (id: string, expiresAt: number) => ({
         id,

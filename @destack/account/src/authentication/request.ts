@@ -173,11 +173,11 @@ export const HandleCheck = schema.object({
     availability: HandleAvailability,
 });
 
-/** The residencies a sign-up chooses from, and the one the visitor's country suggests. */
-export const ResidencyChoice = schema.object({
-    /** Every residency, by its code and the name people read. */
-    residencies: schema.array(schema.object({ code: schema.string(), name: schema.string() })),
-    /** The residency listing the visitor's country, null for none. */
+/** The regions a sign-up chooses from, and the one the visitor's country suggests. */
+export const RegionChoice = schema.object({
+    /** Every region, by its code and the name people read. */
+    regions: schema.array(schema.object({ code: schema.string(), name: schema.string() })),
+    /** The region listing the visitor's country, null for none. */
     suggested: schema.string().nullable(),
 });
 

@@ -21,8 +21,8 @@ export const AccountError = defineErrorFamily({
         PERSONAL_ACCOUNT_NOT_FOUND: {},
         PERSON_NOT_FOUND: {},
         PLACEMENT_NOT_FOUND: {},
-        RESIDENCY_NOT_FOUND: {},
-        RESIDENCY_SPACE_NOT_FOUND: {},
+        REGION_NOT_FOUND: {},
+        REGION_SPACE_NOT_FOUND: {},
         USER_NOT_FOUND: {},
 
         // exists
@@ -47,7 +47,7 @@ export const AccountError = defineErrorFamily({
         PAYER_INVALID: {},
         PERMISSION_INVALID: {},
         PROOF_INVALID: {},
-        RESIDENCY_INVALID: {},
+        REGION_INVALID: {},
         SCOPE_UNUSABLE_INVALID: {},
         SELF_SUSPENSION_INVALID: {},
         SUBJECT_INVALID: {},
@@ -88,7 +88,7 @@ export const AccountError = defineErrorFamily({
         KEY_PROOF_DENIED: {},
         LIVE_GRANT_DENIED: {},
         MACHINE_ASSERTION_DENIED: {},
-        MACHINE_CLOUD_DENIED: {},
+        MACHINE_MANAGED_DENIED: {},
         ORIGIN_DENIED: {},
         PARTITION_DENIED: {},
         REAUTHENTICATION_DENIED: {},
@@ -113,11 +113,11 @@ export const AccountError = defineErrorFamily({
         TENANCY_EXHAUSTED: {},
 
         // unavailable
-        CLOUD_MACHINE_UNAVAILABLE: {},
         DNS_LOOKUP_UNAVAILABLE: {},
         DNS_RESOLVER_UNAVAILABLE: {},
         ENTITLEMENTS_UNAVAILABLE: {},
         MAIL_UNAVAILABLE: {},
+        SPACE_UNAVAILABLE: {},
         TOKEN_ENDPOINT_UNAVAILABLE: { data: RetryAfter.partial() },
 
         // unreachable

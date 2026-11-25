@@ -1,16 +1,16 @@
 import accountPackage from "../src/package.ts";
 import { accessRelationship, Role } from "@destack/access";
-import { eq } from "@destack/db";
+import { and, eq } from "@destack/db";
 import { Claim, type ClaimLookup, type ClaimOwner } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import { expect, test, refusal } from "@destack/test";
 import { Account, placement, space } from "../src/object/index.ts";
-import { TestAccountStore, ids, OWNER_EMAIL, type TestPerson } from "../src/test/index.ts";
+import { TestAccount, ids, OWNER_EMAIL, type TestPerson } from "../src/test/index.ts";
 import type { Identifier } from "@destack/schema";
 
 /** Create a space of a name in a person's personal account, on a machine when given. */
 function create(
-    fixture: TestAccountStore,
+    fixture: TestAccount,
     person: TestPerson,
     name: string,
     machine?: Identifier<"machine">,
@@ -24,7 +24,7 @@ function create(
 }
 
 /** Read the placements of a person's personal account, in the order of their spaces. */
-function placements(fixture: TestAccountStore, person: TestPerson) {
+function placements(fixture: TestAccount, person: TestPerson) {
     return fixture.database
         .select({
             space: placement.table.spaceId,
@@ -37,13 +37,13 @@ function placements(fixture: TestAccountStore, person: TestPerson) {
         .orderBy(placement.table.spaceId);
 }
 
-test("place a new space on its account's residency cloud machine, on a machine of the account, or on a named cloud machine of the residency", async () => {
+test("place a new space on its account's region cloud machine, on a machine of the account, or on a named cloud machine of the region", async () => {
     // let a person create spaces in their personal account, with their machine enrolled in it
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const person = await fixture.signIn("person@example.com");
     const laptop = await fixture.enroll(person.account, person);
 
-    // place one on the residency's cloud machine, one on the person's machine and one on the named cloud machine, a millisecond apart so they order as created
+    // place one on the region's cloud machine, one on the person's machine and one on the named cloud machine, a millisecond apart so they order as created
     const cloud = await create(fixture, person, "work");
     await fixture.simulation.jump(fixture.clock.now() + 1);
     const local = await create(fixture, person, "notes", laptop.machineId);
@@ -84,9 +84,52 @@ test("place a new space on its account's residency cloud machine, on a machine o
     });
 });
 
+test("leave a new space unplaced while no machine hosts its account, and place it once one admits it", async () => {
+    // take every account's tenancy of the region's shared machine away
+    await using fixture = await TestAccount.open();
+    const person = await fixture.signIn("person@example.com");
+    const pooled = and(
+        eq(accessRelationship.objectId, ids.machine),
+        eq(accessRelationship.relation, "tenant"),
+    );
+    const tenancies = await fixture.database.select().from(accessRelationship).where(pooled);
+    await fixture.database.transaction(async (transaction) => {
+        await transaction.delete(accessRelationship).where(pooled);
+    });
+
+    // create a space, which no machine takes
+    const created = await create(fixture, person, "work");
+    await fixture.simulation.idle();
+    const unplaced = await placements(fixture, person);
+
+    // admit every account to the shared machine again, and let the controller place the space
+    await fixture.database.transaction(async (transaction) => {
+        await transaction.insert(accessRelationship).values(tenancies);
+    });
+    await fixture.simulation.idle();
+    const home = {
+        space: Account.home(person.account),
+        scope: person.account,
+        machine: ids.machine,
+        epoch: 1,
+    };
+    expect({
+        tenancies: tenancies.length,
+        unplaced,
+        placed: await placements(fixture, person),
+    }).toEqual({
+        tenancies: 1,
+        unplaced: [home],
+        placed: [
+            home,
+            { space: created.id, scope: person.account, machine: ids.machine, epoch: 1 },
+        ],
+    });
+});
+
 test("refuse a space under a taken name or on another account's machine, placing nothing", async () => {
     // let a person create a space, and enroll a machine of the owner's account
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const person = await fixture.signIn("person@example.com");
     const owner = await fixture.signIn(OWNER_EMAIL);
     const elsewhere = await fixture.enroll(ids.account, owner);
@@ -102,7 +145,7 @@ test("refuse a space under a taken name or on another account's machine, placing
         foreign: [
             "BAD_REQUEST",
             "MACHINE_INVALID",
-            `machine '${elsewhere.machineId}' is invalid: it is not a standing machine of the space's account or residency`,
+            `machine '${elsewhere.machineId}' is invalid: it is not a standing machine of the space's account or one hosting it`,
         ],
         placements: [Account.home(person.account), work.id],
     });
@@ -110,7 +153,7 @@ test("refuse a space under a taken name or on another account's machine, placing
 
 test("rename a space to a free address in its account, releasing the old one, and refuse a taken or malformed one", async () => {
     // let a person create two spaces in their personal account
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const first = await create(fixture, owner, "first");
     const second = await create(fixture, owner, "second");
@@ -156,7 +199,7 @@ test("rename a space to a free address in its account, releasing the old one, an
 
 test("create a space at the universe with its row and its own access, the space owning itself", async () => {
     // let a person create a space in their account at a clock standing still
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const created = await create(fixture, owner, "work");
 
@@ -198,6 +241,9 @@ test("create a space at the universe with its row and its own access, the space 
                 updatedAt: now,
             },
         ],
-        tuples: [[owner.account, Role.OWNER, "space", created.id]],
+        tuples: [
+            [owner.account, Role.OWNER, "space", created.id],
+            [owner.account, null, "machine", ids.machine],
+        ],
     });
 });

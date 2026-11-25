@@ -47,7 +47,7 @@ async function create(
     }
 
     // write it paying with the account created next
-    const { handle, residencyId, stack } = context.input;
+    const { handle, regionId, stack } = context.input;
     const payer = account.generateId(context.environment);
     const row = await next(context.with({ input: { ...context.input, payer } }));
 
@@ -58,7 +58,7 @@ async function create(
             handle,
             name: row.name,
             kind: "shared",
-            residencyId,
+            regionId,
             ...(stack === undefined ? {} : { stack }),
         }),
     ]);

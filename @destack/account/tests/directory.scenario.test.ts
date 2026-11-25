@@ -11,7 +11,7 @@ import { Directory } from "../src/client/index.ts";
 import { Account, endpoint, machine, placement } from "../src/object/index.ts";
 import {
     DOMAINS,
-    TestAccountStore,
+    TestAccount,
     UNIVERSE,
     ids,
     STRANGER_EMAIL,
@@ -20,8 +20,8 @@ import {
 import { claimNames, place } from "./fixture.ts";
 import { Claimant } from "@destack/object";
 
-/** The origin of the residency's relay serving the machine's tunnel. */
-const RELAY_ORIGIN = "https://eu.relay.test";
+/** The origin of the region's relay serving the machine's tunnel. */
+const RELAY_ORIGIN = "https://relay-eu.machine.test";
 
 /** How long the machine's tunnel stands before its token lapses: one minute. */
 const TUNNEL_MILLISECONDS = 60_000;
@@ -57,26 +57,26 @@ async function addressOf(
 
 /** Serve the owner's account with a place called notes on a machine its relay publishes. */
 async function openNotes() {
-    // claim the place's name as its machine
-    const fixture = await TestAccountStore.open();
+    // claim the place's name as the place itself
+    const fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, handle, spaceId, machine: computer } = await fixture.createSpace(owner);
     const row = { id: spaceId, scope: accountId, name: "notes" };
     const object = { objectId: spaceId, owner: accountId };
     const claimant = await Claimant.of(place, object, row, fixture.database.snapshot());
-    await claimNames(computer, fixture.database, claimant, fixture.environment);
+    await fixture.startIdentity(spaceId, computer);
+    await claimNames(fixture.as(spaceId), fixture.database, claimant, fixture.environment);
 
-    // publish the machine's tunnel as the residency's relay
-    const relay = fixture.as(await fixture.relay("eu"));
-    await relay.client(accountPackage).machine.relay({
-        scope: accountId,
+    // publish the tunnel
+    await computer.client(accountPackage).machine.relay({
+        accountId: accountId,
         id: computer.subject.id,
         url: RELAY_ORIGIN,
         lapsesAt: fixture.clock.now() + TUNNEL_MILLISECONDS,
         requestId: RequestId.create(fixture.environment),
     });
 
-    // address the machine below its account's handle, as the relay publishes it
+    // address the machine below its account's handle
     const named = await fixture.database
         .snapshot()
         .read(machine.table)
@@ -125,7 +125,7 @@ test("find and resolve a place's address over the directory's rows, to the URL i
 
 test("list an account's placements to those reading it and to any machine, and to no other person", async () => {
     // store a space of an account, and an outsider with a machine of their own account
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId, machine: computer } = await fixture.createSpace(owner);
     const outsider = await fixture.signIn(STRANGER_EMAIL);
@@ -134,7 +134,7 @@ test("list an account's placements to those reading it and to any machine, and t
         .identifier("account")
         .parse("account-01996ab0-0000-7000-8000-000000000009");
 
-    // list the account's home, placed with the account on the residency's cloud machine, beside the space,
+    // list the account's home, placed with the account on the region's cloud machine, beside the space,
     //  to every machine, which addresses any account's spaces
     const home = {
         space: Account.home(accountId),
@@ -193,7 +193,7 @@ test("find no account or place at an address once the account's deletion was req
 
 test("read a space's address in its account for those reading the account, an organization account's members among them, and for nobody else", async () => {
     // create a space in a person's and an organization's account
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const personal = await fixture.createAccount(owner);
     const notes = await owner.client(accountPackage).space.create({
@@ -206,7 +206,7 @@ test("read a space's address in its account for those reading the account, an or
         requestId: RequestId.create(fixture.store.environment),
         name: "Example",
         handle: "initech",
-        residencyId: "eu",
+        regionId: "eu",
     });
     const board = await founder.client(accountPackage).space.create({
         accountId: organization.payer,

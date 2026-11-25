@@ -3,7 +3,7 @@ import { PackageId } from "@destack/package";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import accountPackage from "../package.ts";
-import { OWNER_EMAIL, TestAccountStore } from "../test/index.ts";
+import { OWNER_EMAIL, TestAccount } from "../test/index.ts";
 import { FederatedVerifier } from "./federation.ts";
 
 /** A plain HTTP issuer, which only a universe answering over plain HTTP trusts. */
@@ -14,7 +14,7 @@ const WORKFLOW = "repo:example/notes:environment:release";
 
 test("refuse a plain HTTP issuer at a universe over HTTPS, before asking it for keys", async () => {
     // let an account trust a workflow of a plain HTTP issuer
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const owned = await fixture.createAccount(owner);
     await owner.client(accountPackage).client.trust({

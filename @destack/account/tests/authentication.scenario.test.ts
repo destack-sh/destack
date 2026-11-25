@@ -18,7 +18,7 @@ import {
     ORIGIN,
     PasskeyAuthenticator,
     SIGN_UP,
-    TestAccountStore,
+    TestAccount,
     TestBrowser,
     TestJwt,
 } from "../src/test/index.ts";
@@ -84,7 +84,7 @@ async function verifyWrongCode(browser: TestBrowser) {
 }
 
 /** Sign a browser in by the person's mailed code, answering whether the second factor is due. */
-async function signInByCode(fixture: TestAccountStore, browser: TestBrowser): Promise<unknown> {
+async function signInByCode(fixture: TestAccount, browser: TestBrowser): Promise<unknown> {
     await browser.fetch("/email-otp/send-verification-otp", { email: EMAIL, type: "sign-in" });
     const signedIn = await browser.fetch("/sign-in/email-otp", {
         email: EMAIL,
@@ -95,7 +95,7 @@ async function signInByCode(fixture: TestAccountStore, browser: TestBrowser): Pr
 }
 
 /** Enroll an authenticator in a browser a mailed code signs in, then sign the browser out. */
-async function enroll(fixture: TestAccountStore, browser: TestBrowser) {
+async function enroll(fixture: TestAccount, browser: TestBrowser) {
     // sign in with a mailed code
     const person = await fixture.signIn(EMAIL);
     await browser.fetch("/email-otp/send-verification-otp", { email: EMAIL, type: "sign-in" });
@@ -113,7 +113,7 @@ async function enroll(fixture: TestAccountStore, browser: TestBrowser) {
 }
 
 /** Serve the GitHub and Google endpoints Better Auth calls in callbacks, at the fixture's time. */
-function answerProviders(fixture: TestAccountStore): void {
+function answerProviders(fixture: TestAccount): void {
     // an ID token Google would sign for the configured client
     const now = Math.floor(fixture.clock.now() / 1000);
     const token = TestJwt.encode({
@@ -187,7 +187,7 @@ function answerProviders(fixture: TestAccountStore): void {
 }
 
 test("sign a person up by a mailed code once, its mail linking the sign-up view, and end the browser's session from the command line and by signing out", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { database, authenticator } = fixture;
     const started = (await auditedCalls(database)).length;
 
@@ -232,7 +232,7 @@ test("sign a person up by a mailed code once, its mail linking the sign-up view,
         ...SIGN_UP,
         name: "Florian",
         handle: "florian",
-        residencyId: "eu",
+        regionId: "eu",
     };
     const verified = await post("/sign-in/email-otp", signUp);
     const cookies = verified.headers
@@ -403,7 +403,7 @@ test("sign a person up by a mailed code once, its mail linking the sign-up view,
 
 test("sign a person with an unproven email in with a mailed code, proving the email", async () => {
     // store a person whose email nobody proved yet
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const browser = fixture.browser();
     const id = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000e1");
     const email = "ada@example.com";
@@ -449,7 +449,7 @@ test("sign a person with an unproven email in with a mailed code, proving the em
 
 test("sign a person in with the latest of two mailed codes", async () => {
     // send a code, leave it unused and send another
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const browser = fixture.browser();
     const person = await fixture.signIn("person@example.com");
     const send = () =>
@@ -474,7 +474,7 @@ test("sign a person in with the latest of two mailed codes", async () => {
 
 test("stop a passwordless sign-in at the second factor, and complete it with a recovery code once", async () => {
     // enroll an authenticator, storing its secret sealed and its recovery codes digested
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { backupCodes, userId } = await enroll(fixture, fixture.browser());
     const factorOf = async () =>
         single(
@@ -510,7 +510,7 @@ test("stop a passwordless sign-in at the second factor, and complete it with a r
 
 test("refuse a spent recovery code in a later sign-in", async () => {
     // spend a recovery code in one sign-in
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { backupCodes } = await enroll(fixture, fixture.browser());
     const first = fixture.browser();
     await signInByCode(fixture, first);
@@ -541,7 +541,7 @@ test("refuse a spent recovery code in a later sign-in", async () => {
 
 test("lock a factor after five wrong codes across sign-ins, and accept its codes again fifteen minutes later", async () => {
     // try three wrong codes in one sign-in and two in another
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { totpURI } = await enroll(fixture, fixture.browser());
     const first = fixture.browser();
     await signInByCode(fixture, first);
@@ -597,7 +597,7 @@ test("lock a factor after five wrong codes across sign-ins, and accept its codes
 
 test("accept one of two codes checked at once, refusing the other", async () => {
     // answer one sign-in's challenge with two right codes at once
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { totpURI, userId } = await enroll(fixture, fixture.browser());
     const sessionsOf = async () =>
         fixture.database
@@ -620,7 +620,7 @@ test("accept one of two codes checked at once, refusing the other", async () => 
 
 test("refuse enrolling an authenticator over a verified one", async () => {
     // enroll, sign in through the factor, and enroll again
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { totpURI } = await enroll(fixture, fixture.browser());
     const browser = fixture.browser();
     await signInByCode(fixture, browser);
@@ -640,7 +640,7 @@ test("refuse enrolling an authenticator over a verified one", async () => {
 
 test("disable an authenticator only with a current code", async () => {
     // sign in through the factor
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { totpURI, userId } = await enroll(fixture, fixture.browser());
     const browser = fixture.browser();
     await signInByCode(fixture, browser);
@@ -672,7 +672,7 @@ test("disable an authenticator only with a current code", async () => {
 
 test("approve a device's new client in a signed-in session, and redeem its code once as the client", async () => {
     // request a device code as a new client, and approve it in the person's signed-in browser
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { browser } = await fixture.signInBrowser(EMAIL);
     const device = fixture.browser();
     const clientId = Identifier.create("client", fixture.environment);
@@ -719,7 +719,7 @@ test("approve a device's new client in a signed-in session, and redeem its code 
 
 test("refuse refreshing a device's tokens once the person revokes its client", async () => {
     // sign a device's new client in by a device code the person approves
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person, browser } = await fixture.signInBrowser(EMAIL);
     const device = fixture.browser();
     const clientId = Identifier.create("client", fixture.environment);
@@ -768,7 +768,7 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
 
 test("list and revoke a session over the account package", async () => {
     // sign the owner in on two browsers, each beside a native client
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser: ownerBrowser } = await fixture.signInBrowser(EMAIL);
     const { browser: otherBrowser } = await fixture.signInBrowser(EMAIL);
     const sessions = owner.client(accountPackage).session;
@@ -848,7 +848,7 @@ test("list and revoke a session over the account package", async () => {
 
 test("register a passkey and sign in with it", async () => {
     // register the passkey through the browser ceremony
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser: ownerBrowser } = await fixture.signInBrowser(EMAIL);
     const authenticator = await PasskeyAuthenticator.generate(ORIGIN, fixture.environment);
     const creation = await ownerBrowser.fetch("/passkey/generate-register-options");
@@ -888,7 +888,7 @@ test("register a passkey and sign in with it", async () => {
 
 test("sign people up with github, google and microsoft, taking their name, time zone and locale from the profile or the sign-up", async () => {
     // complete each provider's authorization code callback in a separate browser
-    await using fixture = await TestAccountStore.open({
+    await using fixture = await TestAccount.open({
         signIn: {
             providers: {
                 github: { clientId: "github-client", clientSecret: "github-secret" },
@@ -904,7 +904,7 @@ test("sign people up with github, google and microsoft, taking their name, time 
         const started = await browser.fetch("/sign-in/social", {
             provider,
             callbackURL: "/",
-            additionalData: { ...SIGN_UP, name: "Octo", handle: provider, residencyId: "eu" },
+            additionalData: { ...SIGN_UP, name: "Octo", handle: provider, regionId: "eu" },
         });
         const page = new URL(Redirect.parse(await started.json()).url);
         const state = present(page.searchParams.get("state"), "the state");

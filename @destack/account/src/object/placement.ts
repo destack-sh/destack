@@ -1,9 +1,17 @@
-import { contained, none, principal, relation, through, union } from "@destack/access";
+import {
+    accessRelationship,
+    contained,
+    none,
+    principal,
+    relation,
+    Relationship,
+    through,
+    union,
+} from "@destack/access";
 import type { Select } from "@destack/db";
 import type { Snapshot } from "@destack/db/database";
-import { Condition, defineObject, field, type ObjectOf } from "@destack/object";
+import { Decision, defineObject, field, type ObjectOf } from "@destack/object";
 import { Digest, type DigestCrypto, Identifier, present, schema } from "@destack/schema";
-import { Scope } from "@destack/sync";
 import { account } from "./account.ts";
 import { machine } from "./machine.ts";
 import { space } from "./space.ts";
@@ -17,7 +25,7 @@ export const Schedule = schema.discriminatedUnion("kind", [
         /** The space stays on its machine. */
         kind: schema.literal("stay"),
         /** Why it stays: placed, unset, unentitled or without a machine to move to. */
-        condition: Condition,
+        condition: Decision,
     }),
     schema.object({
         /** The space moves. */
@@ -83,7 +91,36 @@ export const Placement = Object.assign(PlacementSchema, {
         }));
     },
 
-    /** Require a standing machine of the space's account, or a shared machine of its residency. */
+    /** List the machines an account's spaces may be placed on: its region's that admit it. */
+    async candidates(
+        reader: Pick<Snapshot, "read">,
+        tenant: Pick<Select<typeof account.table>, "id" | "scope" | "regionId">,
+    ): Promise<Select<typeof machine.table>["id"][]> {
+        // read the machines relating the account or every account as a tenant
+        const tenancies = await reader.read(accessRelationship).findMany({
+            where: {
+                ...Relationship.heldBy([account.reference(tenant.scope, tenant.id)]),
+                objectPackageId: machine.typeReference.packageId,
+                objectType: machine.typeReference.type,
+                relation: "tenant",
+            },
+        });
+
+        // keep the standing ones in the region
+        const candidates = await reader.read(machine.table).findMany({
+            where: {
+                id: { in: tenancies.map((row) => machine.identifier(row.objectId)) },
+                regionId: tenant.regionId,
+                status: "enabled",
+                deletedAt: { isNull: true },
+            },
+            orderBy: { id: "asc" },
+        });
+
+        return candidates.map((candidate) => candidate.id);
+    },
+
+    /** Require a standing machine of the space's account, or one of its candidates. */
     async requireMachine(
         reader: Pick<Snapshot, "read">,
         row: Pick<Placement, "scope">,
@@ -94,20 +131,18 @@ export const Placement = Object.assign(PlacementSchema, {
         const isStanding =
             found !== undefined && found.deletedAt === null && found.status !== "disabled";
 
-        // allow a machine of the account, or a shared machine of the account's residency
+        // allow a machine of the account, or one in its region hosting it
         const isAccountMachine = isStanding && found.scope === row.scope;
-        const isShared =
-            isStanding &&
-            found.scope === Scope.universe.id &&
-            found.residencyId ===
-                present(
-                    await reader.read(account.table).findFirst({ where: { id: row.scope } }),
-                    `the account ${row.scope}`,
-                ).residencyId;
-        if (!isAccountMachine && !isShared) {
+        const owner = present(
+            await reader.read(account.table).findFirst({ where: { id: row.scope } }),
+            `the account ${row.scope}`,
+        );
+        const isCandidate =
+            isStanding && (await Placement.candidates(reader, owner)).includes(target);
+        if (!isAccountMachine && !isCandidate) {
             throw AccountError.of(
                 "MACHINE_INVALID",
-                `machine '${target}' is invalid: it is not a standing machine of the space's account or residency`,
+                `machine '${target}' is invalid: it is not a standing machine of the space's account or one hosting it`,
             );
         }
 

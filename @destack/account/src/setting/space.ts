@@ -7,7 +7,7 @@ import { t } from "@destack/locale";
 export const spaceAliases = defineSetting({
     name: "space.aliases",
     title: t`Space names`,
-    description: t`Short names for spaces, such as work for work--example, beside home and residency.`,
+    description: t`Short names for spaces, such as work for work--example, beside home.`,
     schema: schema.record(SpaceName, SpaceAddress),
     default: {},
     scope: "user",

@@ -23,7 +23,7 @@ import {
     DOMAINS,
     ISSUER,
     ORIGIN,
-    TestAccountStore,
+    TestAccount,
     TestBrowser,
     TestDirectory,
     UNIVERSE,
@@ -59,7 +59,7 @@ function forged(browser: TestBrowser, path: string, body: object): Promise<Respo
 
 test("ask a sign-in at the level a request's acr values ask, refusing one the person's methods never reach", async () => {
     // register a client for ada, signed in by a mailed code alone
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser: owned } = await fixture.signInBrowser("ada@example.com");
     const redirect = "https://notes.test/callback";
     const client = await owner.client(accountPackage).application.create({
@@ -97,7 +97,7 @@ test("ask a sign-in at the level a request's acr values ask, refusing one the pe
 });
 
 test("send a browser to the sign-in view, then to the consent view, and approve a client from the issuer's own origin alone", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser: owned } = await fixture.signInBrowser("ada@example.com");
     const visitor = fixture.browser();
 
@@ -168,7 +168,7 @@ test("send a browser to the sign-in view, then to the consent view, and approve 
 });
 
 test("send a device's person to the verification view, refuse a signed-out read, and approve the device", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const native = fixture.browser();
     const { browser } = await fixture.signInBrowser("ada@example.com");
 
@@ -225,7 +225,7 @@ test("send a device's person to the verification view, refuse a signed-out read,
 });
 
 test("send an authorization refused before its redirect exists to the sign-in view with its error", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const browser = fixture.browser();
 
     // authorize a client the issuer does not know
@@ -244,7 +244,7 @@ test("send an authorization refused before its redirect exists to the sign-in vi
 });
 
 test("mail a known person's code with a link entering it on the sign-in view, which signs them in", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     await fixture.signInBrowser("ada@example.com");
 
     // ask for a code in a new browser, then sign in with the code the link carries
@@ -272,12 +272,12 @@ test("mail a known person's code with a link entering it on the sign-in view, wh
     });
 });
 
-test("answer a handle check on every keystroke and the residencies on every load, past the limit of sign-up attempts", async () => {
-    await using fixture = await TestAccountStore.open({
+test("answer a handle check on every keystroke and the regions on every load, past the limit of sign-up attempts", async () => {
+    await using fixture = await TestAccount.open({
         signIn: { ipAddress: { ipAddressHeaders: ["x-forwarded-for"] } },
     });
 
-    // check a handle as it is typed and list the residencies on five loads, all from one address
+    // check a handle as it is typed and list the regions on five loads, all from one address
     const browser = fixture.browser();
     const read = async (path: string, init: RequestInit = {}): Promise<number> => {
         const headers = { "x-forwarded-for": "192.0.2.1", "content-type": "application/json" };
@@ -293,7 +293,7 @@ test("answer a handle check on every keystroke and the residencies on every load
     }
     const loads = [];
     for (let index = 0; index < 5; index += 1) {
-        loads.push(await read("/sign-up/residency"));
+        loads.push(await read("/sign-up/region"));
     }
 
     // try signing in with a wrong code four times from the same address, which the strict rule limits
@@ -313,18 +313,18 @@ test("answer a handle check on every keystroke and the residencies on every load
     });
 });
 
-test("answer a sign-up's handle check and the residencies with the one the visitor's country is offered", async () => {
-    await using fixture = await TestAccountStore.open();
+test("answer a sign-up's handle check and the regions with the one the visitor's country is offered", async () => {
+    await using fixture = await TestAccount.open();
     await fixture.signInBrowser("ada@example.com", "ada");
     const browser = fixture.browser();
 
-    // check a free, a taken and an invalid handle, then list the residencies from Germany and from Japan
+    // check a free, a taken and an invalid handle, then list the regions from Germany and from Japan
     const check = async (handle: string): Promise<unknown> =>
         await (await browser.fetch(`/sign-up/handle?${new URLSearchParams({ handle })}`)).json();
-    const residencies = async (country: string): Promise<unknown> =>
+    const regions = async (country: string): Promise<unknown> =>
         await (
             await browser.send(
-                new Request(`${ISSUER}/sign-up/residency`, {
+                new Request(`${ISSUER}/sign-up/region`, {
                     headers: { "cf-ipcountry": country },
                 }),
             )
@@ -334,21 +334,21 @@ test("answer a sign-up's handle check and the residencies with the one the visit
         free: await check("bea"),
         taken: await check("ada"),
         invalid: await check("-"),
-        germany: await residencies("DE"),
-        elsewhere: await residencies("JP"),
+        germany: await regions("DE"),
+        elsewhere: await regions("JP"),
     }).toEqual({
         free: { handle: "bea", availability: "available" },
         taken: { handle: "ada", availability: "taken" },
         invalid: { handle: "-", availability: "invalid" },
         germany: {
-            residencies: [
+            regions: [
                 { code: "eu", name: "European Union" },
                 { code: "us", name: "United States" },
             ],
             suggested: "eu",
         },
         elsewhere: {
-            residencies: [
+            regions: [
                 { code: "eu", name: "European Union" },
                 { code: "us", name: "United States" },
             ],
@@ -358,7 +358,7 @@ test("answer a sign-up's handle check and the residencies with the one the visit
 });
 
 test("refuse reviewing a request without its reference, and deciding one by a malformed body", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { browser } = await fixture.signInBrowser("ada@example.com");
 
     // read both requests with no reference, and decide one with no decision
@@ -374,8 +374,8 @@ test("refuse reviewing a request without its reference, and deciding one by a ma
 });
 
 test("locate a signed-in person's Home once its machine reports it serving, starting before and while the machine answers nowhere, and refuse a signed-out browser", async () => {
-    // sign a person up, which places their home at the residency's machine, starting
-    await using fixture = await TestAccountStore.open();
+    // sign a person up, which places their home at the region's machine, starting
+    await using fixture = await TestAccount.open();
     const { person, browser } = await fixture.signInBrowser("ada@example.com", "ada");
     const located = async (): Promise<unknown> =>
         await (await browser.fetch(HOME_LOCATION_PATH)).json();
@@ -427,7 +427,7 @@ test("locate a signed-in person's Home once its machine reports it serving, star
 
 test("refuse an installation origin's unsigned request, and grant what its space's signed request asks for this sign-in alone once its person approves, asking again at the next sign-in", async () => {
     // ask the owner for notes' grant
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { owner, browser, notes, origin, asked, description, unsigned, consent, ask } =
         await askGrant(fixture);
     const requestUri = present(consent.searchParams.get("request_uri"), "the request's reference");
@@ -509,7 +509,7 @@ test("refuse an installation origin's unsigned request, and grant what its space
 
 test("list a person's consent with the grant it gave an installation, and revoke both", async () => {
     // ask the owner for notes' grant and approve it lastingly
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { owner, browser, notes, origin, asked, description, consent } = await askGrant(fixture);
     const requestUri = present(consent.searchParams.get("request_uri"), "the request's reference");
     await browser.fetch(AUTHORIZATION_REQUESTS, { requestUri, decision: "approve" });
@@ -562,7 +562,7 @@ test("list a person's consent with the grant it gave an installation, and revoke
 
 test("list an app allowed for this sign-in alone, and remove its grant with its consent", async () => {
     // ask the owner for notes' grant and approve it for this sign-in alone
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { owner, browser, notes, origin, asked, description, consent } = await askGrant(fixture);
     const requestUri = present(consent.searchParams.get("request_uri"), "the request's reference");
     await browser.fetch(AUTHORIZATION_REQUESTS, { requestUri, decision: "approve-once" });
@@ -598,7 +598,7 @@ test("list an app allowed for this sign-in alone, and remove its grant with its 
 
 test("revoke an app's grant for this sign-in alone once the person signs out", async () => {
     // approve notes' grant for this sign-in alone
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const notes = await askGrant(fixture);
     const once = present(notes.consent.searchParams.get("request_uri"), "notes' request");
     await notes.browser.fetch(AUTHORIZATION_REQUESTS, {
@@ -625,7 +625,7 @@ test("revoke an app's grant for this sign-in alone once the person signs out", a
 
 test("refuse a signed grant naming another installation than the origin asking", async () => {
     // sign notes' origin's request for a grant naming tasks
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { consent } = await askGrant(fixture, "tasks");
 
     // send the browser to the sign-in page with the refusal, no consent shown
@@ -641,7 +641,7 @@ test("refuse a signed grant naming another installation than the origin asking",
 });
 
 /** Ask the owner for notes' grant as its origin does: unsigned, then signed by its space. */
-async function askGrant(fixture: TestAccountStore, named = "notes") {
+async function askGrant(fixture: TestAccount, named = "notes") {
     // sign the owner in, and start an identity for their home, where notes is installed
     const { person: owner, browser } = await fixture.signInBrowser("ada@example.com");
     const { spaceId, machine } = await fixture.personalHome(owner);

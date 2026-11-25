@@ -16,7 +16,7 @@ import {
     UNIVERSE,
     ORIGIN,
     OPERATOR_EMAIL,
-    TestAccountStore,
+    TestAccount,
     TestBrowser,
     TestJwt,
     type TestPerson,
@@ -100,7 +100,7 @@ const Discovery = schema
 
 /** Send a request to the provider as another application does: a form post or a read. */
 function provider(
-    fixture: TestAccountStore,
+    fixture: TestAccount,
     path: string,
     form?: Record<string, string>,
     headers: Record<string, string> = {},
@@ -139,7 +139,7 @@ function issued(
 }
 
 /** Register a public client of a person returning to the application's page. */
-function registerNotes(fixture: TestAccountStore, person: TestPerson) {
+function registerNotes(fixture: TestAccount, person: TestPerson) {
     return person.client(accountPackage).application.create({
         scope: person.id,
         requestId: RequestId.create(fixture.environment),
@@ -152,7 +152,7 @@ function registerNotes(fixture: TestAccountStore, person: TestPerson) {
 
 test("sign a user in to another application through the authorization code flow with PKCE, until they revoke the consent", async () => {
     // let the person choose their time zone and locale, and register a public client
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser } = await fixture.signInBrowser("ada@example.com", "ada");
     const current = await owner.client(accountPackage).user.get({ id: owner.id });
     await owner.client(accountPackage).user.update({
@@ -384,7 +384,7 @@ test("sign a user in to another application through the authorization code flow 
 
 test("refuse a refresh token issued before a revoked consent was granted again", async () => {
     // register a public client and authorize it with PKCE, consenting once
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser } = await fixture.signInBrowser("ada@example.com", "ada");
     const registered = await registerNotes(fixture, owner);
     const authorization = {
@@ -449,7 +449,7 @@ test("refuse a refresh token issued before a revoked consent was granted again",
 });
 
 test("refuse a device authorization asking scopes beyond the client's", async () => {
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const asked = await provider(fixture, "/oauth2/device_authorization", {
         client_id: Identifier.create("client", fixture.environment),
         scope: "openid admin",
@@ -465,7 +465,7 @@ test("refuse a device authorization asking scopes beyond the client's", async ()
 
 test("sign a device in to a confidential application through the device authorization flow", async () => {
     // register a confidential client in an account from a secret only its registrar knows
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser: ownerBrowser } = await fixture.signInBrowser("ada@example.com");
     const { id: accountId } = await fixture.createAccount(owner);
     const secret = await Credential.create("client-secret", fixture.environment);
@@ -569,7 +569,7 @@ test("sign a device in to a confidential application through the device authoriz
 
 test("sign a device in as a new client through the browser once the person allows it, with a loopback redirect and PKCE", async () => {
     // authorize a fresh client with a challenge on the loopback, signed out and signed in
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser: ownerBrowser } = await fixture.signInBrowser("ada@example.com");
     const signedOut = fixture.browser();
     const clientId = Identifier.create("client", fixture.environment);
@@ -706,7 +706,7 @@ test("sign a device in as a new client through the browser once the person allow
 
 test("include the second factor and verified email of the session approving a device's client in its tokens, and keep them in refreshed ones", async () => {
     // authorize a fresh client in a browser the person stepped up in
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person, browser } = await fixture.signInBrowser("ada@example.com");
     await fixture.simulation.jump(fixture.clock.now() + 1000);
     await fixture.elevate(person, browser);
@@ -749,7 +749,7 @@ test("include the second factor and verified email of the session approving a de
 
 test("send a signed-in person asked to sign in again within an age to the sign-in page", async () => {
     // authorize a fresh client asking the person to sign in again, a second after they signed in
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { browser } = await fixture.signInBrowser("ada@example.com");
     await fixture.simulation.jump(fixture.clock.now() + 1000);
     const query = new URLSearchParams({
@@ -776,7 +776,7 @@ test("send a signed-in person asked to sign in again within an age to the sign-i
 
 test("continue an authorization asking a sign-in of no age once the person signed in again", async () => {
     // authorize a fresh client asking for a sign-in no older than zero seconds
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { browser } = await fixture.signInBrowser("ada@example.com");
     await fixture.simulation.jump(fixture.clock.now() + 1000);
     const clientId = Identifier.create("client", fixture.environment);
@@ -811,7 +811,7 @@ test("continue an authorization asking a sign-in of no age once the person signe
 
 test("sign a person in with a mailed code at the token endpoint as a new client, and refuse a wrong, a spent or an expired code", async () => {
     // mail a code, and exchange it for the person's tokens on a new client
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("ada@example.com");
     const browser = fixture.browser();
     const clientId = Identifier.create("client", fixture.environment);
@@ -898,7 +898,7 @@ test("sign a person in with a mailed code at the token endpoint as a new client,
 
 test("update, disable and delete an application", async () => {
     // register, rename and disable a public client
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser } = await fixture.signInBrowser("ada@example.com");
     const registered = await owner.client(accountPackage).application.create({
         scope: owner.id,
@@ -960,7 +960,7 @@ test("update, disable and delete an application", async () => {
 
 test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal is refused, rotate it at each use, revoke the family a spent token returns to, and refuse a lapsed code", async () => {
     // authorize a registered client with the challenge of RFC 7636 Appendix B
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser } = await fixture.signInBrowser("ada@example.com");
     const registered = await registerNotes(fixture, owner);
     const query = new URLSearchParams({
@@ -1042,7 +1042,7 @@ test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal i
 
 test("answer tokens uncached, introspect only the asking client's own standing tokens, renew offline after sign-out, and refuse repeated parameters and malformed basic credentials", async () => {
     // redeem a code of a registered client for its tokens
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { person: owner, browser } = await fixture.signInBrowser("ada@example.com");
     const registered = await registerNotes(fixture, owner);
     const query = new URLSearchParams({

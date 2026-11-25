@@ -5,11 +5,11 @@ import { expect, test } from "@destack/test";
 import { Directory } from "../src/client/index.ts";
 import { AccountHandle } from "../src/address/handle.ts";
 import { space } from "../src/object/index.ts";
-import { TestAccountStore } from "../src/test/index.ts";
+import { TestAccount } from "../src/test/index.ts";
 
 test("suggest the first free number of a person's email stem past the handles accounts take", async () => {
     // take the stem's handle at sign-up and its second number with another account
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("crowded@example.com");
     const personal = await owner.client(accountPackage).account.get({
         scope: owner.id,
@@ -28,7 +28,7 @@ test("suggest the first free number of a person's email stem past the handles ac
         handle: "crowded-2",
         name: "Crowded",
         kind: "shared",
-        residencyId: "eu",
+        regionId: "eu",
     });
 
     // suggest the third number
@@ -49,7 +49,7 @@ test("refuse handles with doubled hyphens, which punycode labels such as xn-- st
 
 test("keep a renamed handle naming its account and spaces until another account takes it", async () => {
     // create a space in an account, and read its address
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn("ada@example.com");
     const { accountId, handle, spaceId } = await fixture.createSpace(owner);
     const directory = new Directory(fixture.database.snapshot());

@@ -10,7 +10,7 @@ import { account } from "../object/account.ts";
 import { client } from "../object/client.ts";
 import accountPackage from "../package.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
-import { TestAccountStore, TestBrowser, ISSUER, ORIGIN, type TestPerson } from "../test/index.ts";
+import { TestAccount, TestBrowser, ISSUER, ORIGIN, type TestPerson } from "../test/index.ts";
 import { Issuer } from "../client/issuer.ts";
 import { ClientKey } from "./client-key.ts";
 import { SessionStore } from "./session.ts";
@@ -58,7 +58,7 @@ function loginRow(signedIn: { id: string; clientId: string }, person: TestPerson
 }
 
 /** Read the clients of a person, oldest first. */
-async function nativeClients(accounts: TestAccountStore, person: TestPerson) {
+async function nativeClients(accounts: TestAccount, person: TestPerson) {
     const rows = await accounts.database
         .select({ id: client.table.id, revokedAt: client.table.revokedAt })
         .from(client.table)
@@ -69,7 +69,7 @@ async function nativeClients(accounts: TestAccountStore, person: TestPerson) {
 }
 
 /** Sign people in on a native device against the fixture's issuer. */
-async function native(accounts: TestAccountStore) {
+async function native(accounts: TestAccount) {
     // store the laptop's logins in a local database on its own clock, in the accounts' world
     const laptop = accounts.simulation.environment("laptop");
     const device = { ...laptop, clock: new SimulatedClock(NOW) };
@@ -113,7 +113,7 @@ async function native(accounts: TestAccountStore) {
 }
 
 test("ask the issuer for a fresh sign-in within the challenged age in a step-up, which takes every factor the person enrolled", async () => {
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { nativeClient } = await native(accounts);
 
     // open the browser at the issuer and stop the sign-in before it returns
@@ -139,7 +139,7 @@ test("ask the issuer for a fresh sign-in within the challenged age in a step-up,
 });
 
 test("sign a person in through a browser redirect with PKCE as a new client, and forget them and their refresh token", async () => {
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { person: owner, browser: ownerBrowser } = await accounts.signInBrowser(EMAIL);
     const { nativeClient, logins, sessions, network } = await native(accounts);
     const before = await nativeClients(accounts, owner);
@@ -185,7 +185,7 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
 
 test("end a login whose refresh grant the issuer refuses", async () => {
     // sign a person in through the browser, then store a refresh token the issuer does not know
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { person: owner, browser: ownerBrowser } = await accounts.signInBrowser(EMAIL);
     const { nativeClient, sessions, network, laptop } = await native(accounts);
     const row = await nativeClient.browser(async (url) => {
@@ -217,7 +217,7 @@ test("end a login whose refresh grant the issuer refuses", async () => {
 
 test("end a login whose client was revoked", async () => {
     // sign a person in through the browser, then revoke the login's client as the person
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { person: owner, browser: ownerBrowser } = await accounts.signInBrowser(EMAIL);
     const { nativeClient, sessions, network, laptop } = await native(accounts);
     const row = await nativeClient.browser(async (url) => {
@@ -252,7 +252,7 @@ test("end a login whose client was revoked", async () => {
 });
 
 test("fail a browser sign-in redirected by another issuer", async () => {
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { nativeClient, logins, network } = await native(accounts);
 
     // answer the redirect with another issuer
@@ -288,7 +288,7 @@ test("fail a browser sign-in redirected by another issuer", async () => {
 });
 
 test("sign a person in with a device code once they approve it, and replace the client an earlier sign-in here registered", async () => {
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { person: owner, browser } = await accounts.signInBrowser(EMAIL);
     const { nativeClient, logins } = await native(accounts);
     const before = await nativeClients(accounts, owner);
@@ -325,7 +325,7 @@ test("sign a person in with a device code once they approve it, and replace the 
 });
 
 test("sign a person in with a mailed code as a new client, refusing a wrong code", async () => {
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(EMAIL);
     const { nativeClient, logins } = await native(accounts);
     const before = await nativeClients(accounts, owner);
@@ -351,13 +351,13 @@ test("sign a person in with a mailed code as a new client, refusing a wrong code
 });
 
 test("sign a new person up with a mailed code and their handle, refusing a new email without one", async () => {
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const { nativeClient, logins } = await native(accounts);
     const email = "bea@example.com";
     const signUp = SignUp.parse({
         name: "Bea",
         handle: "bea",
-        residencyId: "eu",
+        regionId: "eu",
         timeZone: "Europe/Zurich",
         locale: "en",
     });
@@ -385,7 +385,7 @@ test("sign a new person up with a mailed code and their handle, refusing a new e
 });
 
 test("read a person's account through tokens refreshed after a mailed code signed them in, without a browser session", async () => {
-    await using accounts = await TestAccountStore.open();
+    await using accounts = await TestAccount.open();
     const owner = await accounts.signIn(EMAIL);
     const { nativeClient, laptop } = await native(accounts);
 

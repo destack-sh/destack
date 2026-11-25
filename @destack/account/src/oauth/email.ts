@@ -33,8 +33,8 @@ const CodeRequest = schema.looseObject({
     name: schema.string().exactOptional(),
     /** A new person's handle, which signs them up. */
     handle: schema.string().exactOptional(),
-    /** A new person's residency. */
-    residency_id: schema.string().exactOptional(),
+    /** A new person's region. */
+    region_id: schema.string().exactOptional(),
     /** A new person's time zone. */
     time_zone: schema.string().exactOptional(),
     /** A new person's locale. */
@@ -175,7 +175,7 @@ export function emailGrant(options: EmailOptions): GrantType {
     };
 }
 
-/** Sign a new person up with a code request's handle, residency, name, time zone and locale. */
+/** Sign a new person up with a code request's handle, region, name, time zone and locale. */
 async function signUp(
     context: Pick<AuthContext, "internalAdapter">,
     request: schema.Infer<typeof CodeRequest>,
@@ -191,14 +191,14 @@ async function signUp(
     const values = SignUp.safeParse({
         name: request.name,
         handle: request.handle,
-        residencyId: request.residency_id,
+        regionId: request.region_id,
         timeZone: request.time_zone,
         locale: request.locale,
     });
     if (!values.success) {
         throw OAuthError.of(
             "REQUEST_INVALID",
-            "sign-up is invalid: it needs a name, a handle, a residency, a time zone and a locale",
+            "sign-up is invalid: it needs a name, a handle, a region, a time zone and a locale",
         );
     }
 

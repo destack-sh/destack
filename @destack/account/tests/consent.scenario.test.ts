@@ -6,7 +6,7 @@ import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { expect, refusal, single, test } from "@destack/test";
 import { client, session } from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
-import { TestAccountStore, TestJwt, OWNER_EMAIL, STRANGER_EMAIL } from "../src/test/index.ts";
+import { TestAccount, TestJwt, OWNER_EMAIL, STRANGER_EMAIL } from "../src/test/index.ts";
 
 /** The browser's public key of RFC 8291's example subscription. */
 const RFC_8291_KEY =
@@ -17,7 +17,7 @@ const RFC_8291_AUTH = "BTBZMqHH6r4Tts7J_aSIgg";
 
 test("let an installation act for a person under the grant the person created, until they revoke it", async () => {
     // store the owner's browser with a push subscription, and an installation of their space with an identity
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { spaceId, machine } = await fixture.createSpace(owner);
     await fixture.startIdentity(spaceId, machine);
@@ -108,7 +108,7 @@ test("let an installation act for a person under the grant the person created, u
 
 test("stamp a token acting for a person under their grant with the universe's position, living within the person's session", async () => {
     // grant an installation of the owner's space reading their clients
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { spaceId, machine } = await fixture.createSpace(owner);
     await fixture.startIdentity(spaceId, machine);
@@ -165,7 +165,7 @@ test("stamp a token acting for a person under their grant with the universe's po
 });
 
 /** Grant an installation of the owner's space reading their clients, with the owner. */
-async function grantInbox(fixture: TestAccountStore) {
+async function grantInbox(fixture: TestAccount) {
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { spaceId, machine } = await fixture.createSpace(owner);
     await fixture.startIdentity(spaceId, machine);
@@ -184,7 +184,7 @@ async function grantInbox(fixture: TestAccountStore) {
 }
 
 /** Read the client a person signed in on. */
-async function clientOf(fixture: TestAccountStore, userId: Identifier<"user">) {
+async function clientOf(fixture: TestAccount, userId: Identifier<"user">) {
     const [found] = await fixture.storage.database
         .select({ id: client.table.id })
         .from(client.table)
@@ -195,7 +195,7 @@ async function clientOf(fixture: TestAccountStore, userId: Identifier<"user">) {
 
 test("live an exchanged token within the person's client, refusing a revoked client and another person's", async () => {
     // exchange the installation's token for the owner's within the owner's client, then within a stranger's
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const { owner, inbox } = await grantInbox(fixture);
     const stranger = await fixture.signIn(STRANGER_EMAIL);
     const [owned, foreign] = [

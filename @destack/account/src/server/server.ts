@@ -18,7 +18,7 @@ import { implementMachine } from "./machine.ts";
 import { implementApplication } from "./application.ts";
 import { implementOrganization } from "./organization.ts";
 import { implementPlacement } from "./placement.ts";
-import { implementResidency } from "./residency.ts";
+import { implementRegion } from "./region.ts";
 import type { PackageId, PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { implementSpace } from "./space.ts";
@@ -34,8 +34,6 @@ export interface AccountOptions {
     readonly stacks: PlatformDefinition["stacks"];
     /** The universe's sign-in, which answers the oauth mount once the store exists. */
     readonly signIn: Promise<BetterAuthAuthenticator>;
-    /** The registry of the releases the residencies' homes install. */
-    readonly releases: ReleaseRegistry;
 }
 
 /** A registry of package releases, opened by version, and the releases it ships. */
@@ -63,7 +61,7 @@ export function accountServer(options: AccountOptions): PackageImplementation {
             implementMachine(options.universe),
             implementIdentity(),
             implementOperation(),
-            implementResidency(options.releases),
+            implementRegion(),
             implementPlacement(),
             // apply the stages an account's stack declares
             stage.implement({ declaration: {} }),

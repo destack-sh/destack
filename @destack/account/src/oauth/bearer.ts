@@ -12,7 +12,7 @@ import { Identity } from "../object/identity.ts";
 import { Machine, machine } from "../object/machine.ts";
 import { space } from "../object/space.ts";
 import { account } from "../object/account.ts";
-import { residency } from "../object/residency.ts";
+import { region } from "../object/region.ts";
 import { user } from "../object/user.ts";
 import accountPackage from "../package.ts";
 import { OAuthError, SECOND_MILLISECONDS } from "../authentication/token.ts";
@@ -176,7 +176,7 @@ function assertionKey(
     return Promise.resolve(undefined);
 }
 
-/** Read the sets a space or a machine belongs to: its account, residency and people. */
+/** Read the sets a space or a machine belongs to: its account, region and people. */
 async function containment(database: DatabaseConnection, subject: Subject): Promise<Subject[]> {
     // read the account of a space or a machine, none for other principals
     const snapshot = database.snapshot();
@@ -191,9 +191,6 @@ async function containment(database: DatabaseConnection, subject: Subject): Prom
         : await snapshot
               .read(machine.table)
               .findFirst({ where: { id: machine.identifier(subject.id) } });
-    if (living !== undefined && living.scope === Scope.universe.id) {
-        return [];
-    }
     const owner =
         living === undefined
             ? undefined
@@ -207,13 +204,13 @@ async function containment(database: DatabaseConnection, subject: Subject): Prom
         );
     }
 
-    // contain it in its account's residency, and a space in its account, as its chain places a machine there
-    const resident = {
-        ...residency.reference(Scope.universe.id, owner.residencyId),
+    // contain it in its account and its account's region
+    const inRegion = {
+        ...region.reference(Scope.universe.id, owner.regionId),
         relation: CONTAINED,
     };
     const inAccount = { ...account.reference(owner.scope, owner.id), relation: CONTAINED };
-    const contained = isSpace ? [inAccount, resident] : [resident];
+    const contained = [inAccount, inRegion];
 
     // state the people whose home a space is, as the universe stores them
     const people = isSpace

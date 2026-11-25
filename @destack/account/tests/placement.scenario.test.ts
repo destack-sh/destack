@@ -2,8 +2,6 @@ import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation, type TestCaller } from "@destack/object/test";
 import objectPackage from "@destack/object/package";
 import {
-    AccessContext,
-    Caller,
     principal,
     CHAIN_PUBLICATION,
     accessRelationship,
@@ -15,7 +13,7 @@ import { TABLE } from "@destack/db";
 import { nth, Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
-import { Directory, MachineKey } from "../src/client/index.ts";
+import { Directory } from "../src/client/index.ts";
 import {
     account,
     assignment,
@@ -26,15 +24,13 @@ import {
     machineShape,
     Placement,
     placement,
-    residency,
     space,
     type Tenancy,
 } from "../src/object/index.ts";
 import { ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
-import { MemoryKeychain } from "@destack/identity";
 import accountPackage from "../src/package.ts";
 import {
-    TestAccountStore,
+    TestAccount,
     ISSUER,
     UNIVERSE,
     ids,
@@ -42,18 +38,11 @@ import {
     OWNER_EMAIL,
 } from "../src/test/index.ts";
 import { claimNames, firstPage, place } from "./fixture.ts";
-import {
-    Claim,
-    Claimant,
-    type ClaimLookup,
-    type ClaimOwner,
-    relationship,
-    Shape,
-} from "@destack/object";
+import { Claim, Claimant, type ClaimLookup, type ClaimOwner, Shape } from "@destack/object";
 
-/** The machines a residency's spaces spread over. */
-/** The origin of the residency's relay, which publishes the tunnels it accepts. */
-const RELAY_ORIGIN = "https://eu.relay.test";
+/** The machines a region's spaces spread over. */
+/** The origin of the region's relay, which publishes the tunnels it accepts. */
+const RELAY_ORIGIN = "https://relay-eu.machine.test";
 
 /** How long a tunnel stands before its token lapses: one minute. */
 const TUNNEL_MILLISECONDS = 60_000;
@@ -75,7 +64,7 @@ const SPACES = Array.from({ length: 200 }, (_, index) =>
 /** Serve an account with a laptop serving a space called notes, a peer and an outside machine. */
 async function openPlacement() {
     // enroll two machines of the owner's account and a machine of another account
-    const fixture = await TestAccountStore.open();
+    const fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId, handle } = await fixture.createAccount(owner);
     const other = await fixture.createAccount(owner);
@@ -110,7 +99,7 @@ async function openPlacement() {
 
 /** Place a space again at an epoch as a machine, reporting the outcome. */
 function serve(
-    fixture: TestAccountStore,
+    fixture: TestAccount,
     caller: TestCaller,
     accountId: Identifier<"account">,
     id: Identifier<"space">,
@@ -128,7 +117,7 @@ function serve(
 
 /** Move a space at an epoch to a machine as a machine, reporting the outcome. */
 function move(
-    fixture: TestAccountStore,
+    fixture: TestAccount,
     caller: TestCaller,
     target: { readonly accountId: Identifier<"account">; readonly id: Identifier<"space"> },
     epoch: number,
@@ -167,14 +156,14 @@ async function machines(copier: TestCaller): Promise<unknown[][]> {
 
 /** Publish a machine's tunnel at a relay as a caller, lapsing at a time, reporting the outcome. */
 function relay(
-    fixture: TestAccountStore,
+    fixture: TestAccount,
     caller: TestCaller,
     target: { readonly scope: string; readonly machine: string },
     lapsesAt: number,
 ): Promise<Refusal> {
     return refusal(
         caller.client(accountPackage).machine.relay({
-            scope: target.scope,
+            accountId: target.scope,
             id: schema.identifier("machine").parse(target.machine),
             url: RELAY_ORIGIN,
             lapsesAt,
@@ -184,11 +173,7 @@ function relay(
 }
 
 /** Read the URL a personal machine answers at through its relay, below its account's handle. */
-async function relayed(
-    fixture: TestAccountStore,
-    machineId: string,
-    handle: string,
-): Promise<string> {
+async function relayed(fixture: TestAccount, machineId: string, handle: string): Promise<string> {
     const named = await fixture.database
         .snapshot()
         .read(machine.table)
@@ -209,7 +194,7 @@ async function locate(caller: TestCaller, accountId: string, spaceId: string) {
 }
 
 /** Read the URL a machine answers at as a caller, none once its tunnel lapsed. */
-async function url(fixture: TestAccountStore, caller: TestCaller, scope: string, id: string) {
+async function url(fixture: TestAccount, caller: TestCaller, scope: string, id: string) {
     // find the machine's endpoint, none once withdrawn, and read it as the caller
     const parentId = schema.identifier("machine").parse(id);
     const stored = await fixture.database
@@ -271,18 +256,18 @@ async function assignments(caller: TestCaller): Promise<unknown[]> {
         .map((change) => change.row["placementId"]);
 }
 
-/** Refuse moving a space to a machine that serves neither its account nor its residency. */
+/** Refuse moving a space to a machine that serves neither its account nor its region. */
 function unknownMachine(caller: TestCaller): Refusal {
     return [
         "BAD_REQUEST",
         "MACHINE_INVALID",
-        `machine '${caller.subject.id}' is invalid: it is not a standing machine of the space's account or residency`,
+        `machine '${caller.subject.id}' is invalid: it is not a standing machine of the space's account or one hosting it`,
     ];
 }
 
 /** Enroll a machine of an account as a person, and act as it. */
 async function enroll(
-    fixture: TestAccountStore,
+    fixture: TestAccount,
     accountId: Identifier<"account">,
     person: TestPerson,
 ): Promise<TestCaller> {
@@ -336,27 +321,30 @@ test("read who pays for a placed space only as the machine serving it", async ()
     ]);
 });
 
-test("reserve and confirm a space's names only as the machine serving it", async () => {
-    // reserve the laptop space's name as the peer and as the laptop
+test("reserve and confirm a space's names only as the space itself", async () => {
+    // reserve the laptop space's name as the peer, as the laptop serving it and as the space
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { accountId, laptop, local, peer, outsider } = opened;
     const row = { id: laptop, scope: accountId, name: "notes" };
     const object = { objectId: laptop, owner: accountId };
     const claimant = await Claimant.of(place, object, row, fixture.database.snapshot());
+    await fixture.startIdentity(laptop, local);
     const reserve = (caller: TestCaller) =>
         refusal(claimNames(caller, fixture.database, claimant, fixture.environment));
 
-    // refuse the peer, confirm it as the laptop, and find it as any machine
+    // refuse both machines, confirm it as the space, and find it as any machine
+    const denied = [
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'claim' is forbidden: it is not granted",
+    ];
     expect([
         await reserve(peer),
         await reserve(local),
+        await reserve(fixture.as(laptop)),
         await Claim.lookup(place, claims(outsider), "name", ["notes"], accountId),
-    ]).toEqual([
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: it is not granted"],
-        "done",
-        { scope: accountId, id: laptop, state: "active" },
-    ]);
+    ]).toEqual([denied, denied, "done", { scope: accountId, id: laptop, state: "active" }]);
 });
 
 test("store the account's row in the chain replica of a space storing accounts", async () => {
@@ -564,14 +552,14 @@ test("move a space only to a standing machine of its account, which serves it fr
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { owner, accountId, otherId, laptop, local, outsider } = opened;
-    const cloud = fixture.as(await fixture.declareCloudMachine(accountId, "eu"));
-    const rival = fixture.as(await fixture.declareCloudMachine(otherId, "eu"));
+    const cloud = fixture.as(await fixture.declareManagedMachine(accountId, "eu"));
+    const rival = fixture.as(await fixture.declareManagedMachine(otherId, "eu"));
     const [disabled, deleted] = [
         await enroll(fixture, accountId, owner),
         await enroll(fixture, accountId, owner),
     ];
     const status = (caller: TestCaller) => ({
-        scope: accountId,
+        accountId: accountId,
         id: caller.subject.id,
         requestId: RequestId.create(fixture.environment),
     });
@@ -607,74 +595,49 @@ test("move a space only to a standing machine of its account, which serves it fr
     ]);
 });
 
-test("publish a personal machine's tunnel only as its residency's relay, and read it as any machine and through the directory", async () => {
-    // claim the laptop space's name, and relate an installation of the residency's home as its relay
+test("publish a machine's tunnel as the machine alone", async () => {
+    // claim the laptop space's name
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { accountId, handle, laptop, local, peer, outsider } = opened;
     const row = { id: laptop, scope: accountId, name: "notes" };
     const object = { objectId: laptop, owner: accountId };
     const claimant = await Claimant.of(place, object, row, fixture.database.snapshot());
-    await claimNames(local, fixture.database, claimant, fixture.environment);
-    const relaying = fixture.as(await fixture.relay("eu"));
-    const home = await fixture.residencySpace("eu");
+    await fixture.startIdentity(laptop, local);
+    await claimNames(fixture.as(laptop), fixture.database, claimant, fixture.environment);
     const other = principal.installation.reference(
-        home,
+        await fixture.platformHome("eu"),
         Identifier.create("installation", fixture.environment),
     );
 
-    // publish the laptop's tunnel as the relay, the home's other installation, the residency's cloud machine and the laptop itself
+    // publish the tunnel as each caller
     const target = { scope: accountId, machine: local.subject.id };
     const lapsesAt = fixture.clock.now() + TUNNEL_MILLISECONDS;
     const published = [
-        await relay(fixture, relaying, target, lapsesAt),
         await relay(fixture, fixture.as(other), target, lapsesAt),
-        await relay(fixture, fixture.as(fixture.cloud(ids.machine)), target, lapsesAt),
+        await relay(fixture, fixture.as(fixture.managed(ids.machine)), target, lapsesAt),
         await relay(fixture, local, target, lapsesAt),
     ];
-
-    // refuse the other installation relating itself as the relay
-    const now = fixture.clock.now();
-    const related = await refusal(
-        fixture.store.mutate(AccessContext.of(Caller.of(other), now), {
-            id: RequestId.create(fixture.environment),
-            calls: [
-                relationship.call("create", {
-                    ...relationship.in(Scope.universe.id),
-                    object: residency.reference(Scope.universe.id, "eu"),
-                    relation: "relay",
-                    subject: other,
-                }),
-            ],
-        }),
-    );
 
     // read it as the peer and another account's machine, and resolve the laptop's space through the directory
     const address = await relayed(fixture, local.subject.id, handle);
     const resolver = new Directory(fixture.database.snapshot());
     expect([
         published,
-        related,
         await url(fixture, peer, accountId, local.subject.id),
         await url(fixture, outsider, accountId, local.subject.id),
         await resolver.resolve(place, `notes--${handle}`, fixture.clock.now()),
         await refusal(resolver.resolve(place, `missing--${handle}`, fixture.clock.now())),
     ]).toEqual([
         [
-            "done",
             ["NOT_FOUND", "NOT_FOUND", `machine '${local.subject.id}' not found`],
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
                 "permission 'relay' is forbidden: it is not granted",
             ],
-            [
-                "FORBIDDEN",
-                "PERMISSION_DENIED",
-                "permission 'relay' is forbidden: it is not granted",
-            ],
+            "done",
         ],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'operate' is forbidden: it is not granted"],
         address,
         address,
         {
@@ -688,19 +651,19 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
 });
 
 test("withdraw a deleted machine's published tunnel", async () => {
-    // publish a machine's tunnel as its relay, then delete the machine as the owner
+    // publish a tunnel, then delete the machine
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { owner, accountId, peer } = opened;
     const deleted = await enroll(fixture, accountId, owner);
     await relay(
         fixture,
-        fixture.as(await fixture.relay("eu")),
+        deleted,
         { scope: accountId, machine: deleted.subject.id },
         fixture.clock.now() + TUNNEL_MILLISECONDS,
     );
     await owner.client(accountPackage).machine.delete({
-        scope: accountId,
+        accountId: accountId,
         id: deleted.subject.id,
         requestId: RequestId.create(fixture.environment),
     });
@@ -756,7 +719,7 @@ test("move and withdraw a space only as the machine serving it, at the epoch it 
 
 test("replicate the spaces giving a machine work to that machine alone, until the work or the placement ends", async () => {
     // store a machine serving a space, a machine running its work and another machine
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const [serving, runner, other] = [
@@ -817,7 +780,7 @@ test("replicate the spaces giving a machine work to that machine alone, until th
 
 test("remove a space's delegated grants when the space is finalized", async () => {
     // store a space and the owner's space beside it
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { accountId, spaceId } = await fixture.createSpace(owner);
     const created = await owner.client(accountPackage).space.create({
@@ -877,14 +840,14 @@ test("remove a space's delegated grants when the space is finalized", async () =
 
 test("replicate a drained machine's status to every machine through the directory", async () => {
     // store two machines a millisecond apart, so their identifiers order as they enroll, and drain the first
-    await using fixture = await TestAccountStore.open();
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const drained = await enroll(fixture, accountId, owner);
     await fixture.simulation.jump(fixture.clock.now() + 1);
     const other = await enroll(fixture, accountId, owner);
     await owner.client(accountPackage).machine.drain({
-        scope: accountId,
+        accountId: accountId,
         id: drained.subject.id,
         requestId: RequestId.create(fixture.environment),
     });
@@ -901,21 +864,20 @@ test("replicate a drained machine's status to every machine through the director
     expect([await both(drained), await both(other)]).toEqual([statuses, statuses]);
 });
 
-test("read a personal machine's tunnel its relay published as absent once its token lapses", async () => {
-    // store a personal machine of a person's account, and the residency's relay
-    await using fixture = await TestAccountStore.open();
+test("drop a lapsed tunnel", async () => {
+    // store a personal machine of a person's account
+    await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const accountId = owner.account;
     const enrolled = await enroll(fixture, accountId, owner);
-    const relaying = fixture.as(await fixture.relay("eu"));
     const target = { scope: accountId, machine: enrolled.subject.id };
     const published = () => url(fixture, enrolled, accountId, enrolled.subject.id);
 
     // publish a tunnel lapsing later, then one that lapsed
     const later = fixture.clock.now() + TUNNEL_MILLISECONDS;
-    const first = [await relay(fixture, relaying, target, later), await published()];
+    const first = [await relay(fixture, enrolled, target, later), await published()];
     const lapsed = [
-        await relay(fixture, relaying, target, fixture.clock.now() - 1),
+        await relay(fixture, enrolled, target, fixture.clock.now() - 1),
         await published(),
     ];
     expect({ first, lapsed }).toEqual({
@@ -956,40 +918,6 @@ test("pick each space's machine regardless of the machines' order, and move only
     });
 });
 
-test("refuse declaring an account's dedicated cloud machine its plan does not unlock", async () => {
-    // declare a cloud machine into a new account without a plan unlocking dedicated tenancy, as the platform does
-    await using fixture = await TestAccountStore.open();
-    const owner = await fixture.signIn(OWNER_EMAIL);
-    const { id: accountId } = await fixture.createAccount(owner);
-    const identity = new MachineKey(
-        Identifier.create("machine", fixture.environment),
-        new MemoryKeychain(),
-        fixture.store.environment,
-    );
-    const { publicKey } = await identity.generate();
-    const declared = fixture.store.mutate(fixture.store.as(machine), {
-        id: RequestId.create(fixture.store.environment),
-        calls: [
-            machine.call("declare", {
-                ...machine.target({ scope: accountId, id: identity.machineId }),
-                name: "dedicated",
-                kind: "cloud",
-                residencyId: "eu",
-                providerCode: "test",
-                location: "test-1",
-                publicKey,
-                origin: "https://dedicated.machine.test/",
-            }),
-        ],
-    });
-
-    expect(await refusal(declared)).toEqual([
-        "TOO_MANY_REQUESTS",
-        "TENANCY_EXHAUSTED",
-        "dedicated tenancy exceeds this account's plan: no plan of the account grants dedicated tenancy",
-    ]);
-});
-
 test("schedule a space where its tenancy keeps it: unset, unentitled, placed, moving, without a machine, or ambiguous", async () => {
     // place the laptop's space on the laptop, a personal machine of the account, with no tenancy set
     const opened = await openPlacement();
@@ -1007,6 +935,7 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
 
     // set the space's tenancy as its owner, reading the decision its update records
     const schedule = async (tenancy: Tenancy | null) => {
+        await fixture.served.simulation.idle();
         const row = await fixture.database
             .snapshot()
             .read(space.table)
@@ -1023,22 +952,22 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
     };
 
     // refuse any tenancy no plan of the account unlocks
-    const unentitled = await schedule("local");
+    const unentitled = await schedule("self");
 
-    // keep it on the laptop once the plan unlocks its tenancy, move it to the residency's cloud machine, and keep it once unset
+    // keep it on the laptop once the plan unlocks its tenancy, move it to the region's cloud machine, and keep it once unset
     await fixture.entitle(accountId, "tenancy", {
         kind: "static",
-        value: ["shared", "dedicated", "local"],
+        value: ["shared", "dedicated", "self"],
     });
     await fixture.served.simulation.idle();
     const kept = [await decided(), await schedule("shared"), await schedule(null)];
 
     // find no dedicated machine of the account, then decide again once one and then two are declared
     const none = await schedule("dedicated");
-    const first = await fixture.declareCloudMachine(accountId, "eu");
+    const first = await fixture.declareManagedMachine(accountId, "eu");
     await fixture.served.simulation.idle();
     const one = await decided();
-    const second = await fixture.declareCloudMachine(accountId, "eu");
+    const second = await fixture.declareManagedMachine(accountId, "eu");
     await fixture.served.simulation.idle();
     const two = await decided();
 
@@ -1047,24 +976,24 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
     const unsetCondition = {
         status: "true",
         reason: "Unset",
-        message: `placed local on ${machineId}`,
+        message: `placed self on ${machineId}`,
     };
     expect([unset, unentitled, kept, none, one, two]).toEqual([
         { kind: "stay", condition: unsetCondition },
-        stay("Unentitled", "no plan of the account grants local tenancy"),
+        stay("Unentitled", "no plan of the account grants self tenancy"),
         [
             {
                 kind: "stay",
                 condition: {
                     status: "true",
                     reason: "Placed",
-                    message: `placed local on ${machineId}`,
+                    message: `placed self on ${machineId}`,
                 },
             },
             { kind: "move", machine: ids.machine },
             { kind: "stay", condition: unsetCondition },
         ],
-        stay("NoMachine", "the account has no cloud machine"),
+        stay("NoMachine", "the account has no managed machine"),
         { kind: "move", machine: first.machineId },
         stay(
             "Ambiguous",
@@ -1090,7 +1019,7 @@ test("move a space off a draining machine, decide again once it is placed, and k
 
     // drain the laptop, which moves the space to the peer
     await owner.client(accountPackage).machine.drain({
-        scope: accountId,
+        accountId: accountId,
         id: local.subject.id,
         requestId: RequestId.create(fixture.environment),
     });
@@ -1103,7 +1032,7 @@ test("move a space off a draining machine, decide again once it is placed, and k
     const moved = await read();
 
     // change the plan, which decides again without a new decision
-    await fixture.entitle(accountId, "tenancy", { kind: "static", value: ["local"] });
+    await fixture.entitle(accountId, "tenancy", { kind: "static", value: ["self"] });
     await fixture.served.simulation.idle();
     const kept = await read();
 
@@ -1157,6 +1086,6 @@ function stay(reason: string, message: string) {
 function stayUnset(machineId: string) {
     return {
         kind: "stay",
-        condition: { status: "true", reason: "Unset", message: `placed local on ${machineId}` },
+        condition: { status: "true", reason: "Unset", message: `placed self on ${machineId}` },
     };
 }

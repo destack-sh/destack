@@ -2,7 +2,6 @@ export * from "./account.ts";
 export * from "./entitlement.ts";
 export * from "./browser.ts";
 export * from "./directory.ts";
-export * from "./identity.ts";
 export * from "./person.ts";
 export * from "./authenticator.ts";
 export * from "./dns.ts";
