@@ -32,7 +32,7 @@ import {
     ids,
     OPERATOR_EMAIL,
     type TestPerson,
-    REGION_STACK,
+    PLATFORM_STACK,
     STACKS,
     STRANGER_EMAIL,
 } from "../src/test/index.ts";
@@ -56,8 +56,8 @@ const PLATFORM: PlatformDefinition = {
     clients: [{ name: "Release", issuer: ISSUER, subject: WORKFLOW }],
     handle: "destack",
     domains: [],
-    homes: { eu: REGION_STACK, us: REGION_STACK },
-    hostnames: { eu: [], us: [] },
+    home: PLATFORM_STACK,
+    hostnames: [],
     stacks: STACKS,
     machines: [],
 };
@@ -119,7 +119,7 @@ test("apply the platform organization once, with its publishers as accounts and 
         accounts.map((entry) => entry.handle),
         await directory.account("admin"),
         await directory.account("app"),
-    ]).toEqual([first, ["app", "destack", "destack-us"], undefined, publisher.id]);
+    ]).toEqual([first, ["app", "destack"], undefined, publisher.id]);
 });
 
 test("answer a person the platform's reserved and taken handles as taken", async () => {
@@ -159,6 +159,23 @@ test("answer a person the platform's reserved and taken handles as taken", async
         lookalike,
         taken,
     ]);
+});
+
+test("answer a handle's holder: its account for it and its lookalikes, none for a reserved or free one", async () => {
+    // apply the platform, whose account takes destack and whose organization reserves admin
+    await using fixture = await TestAccount.open();
+    await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
+    const person = await fixture.signIn("person@example.com");
+    const holder = (handle: string) => person.client(accountPackage).claim.holder({ handle });
+
+    // answer the platform's account for its handle and a lookalike, and none for the others
+    const platform = Account.ofHome(await fixture.platformHome());
+    expect([
+        await holder("destack"),
+        await holder("de-stack"),
+        await holder("admin"),
+        await holder("unclaimed"),
+    ]).toEqual([platform, platform, null, null]);
 });
 
 test("transfer a reserved handle to the account it renames, once, keeping its lookalikes taken", async () => {
@@ -251,31 +268,24 @@ test("make the platform organization's owners operators when an apply created it
     }).toEqual({ second: first, platform: first });
 });
 
-test("move each region home to its own newly declared stack once, giving each region's platform account its hostnames below the organization's declared domains once", async () => {
-    // apply the platform, then declare each home's stack at a new release with hostnames, and apply it twice
+test("move the platform's home to a newly declared stack once, with its hostnames", async () => {
+    // apply the platform, then declare its home's stack at a new release with hostnames, and apply it twice
     await using fixture = await TestAccount.open();
     await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
-    const europe = {
-        ...REGION_STACK,
-        version: { ...REGION_STACK.version, version: "2026.9.1" },
-    };
-    const america = {
-        ...REGION_STACK,
-        version: { ...REGION_STACK.version, version: "2026.9.2" },
+    const released = {
+        ...PLATFORM_STACK,
+        version: { ...PLATFORM_STACK.version, version: "2026.9.1" },
     };
     const declared: PlatformDefinition = {
         ...PLATFORM,
         domains: ["destack.space", "destack.computer"],
-        homes: { eu: europe, us: america },
-        hostnames: {
-            eu: ["*.destack.space", "relay-eu.destack.computer"],
-            us: ["relay-us.destack.computer"],
-        },
+        home: released,
+        hostnames: ["*.destack.space", "relay-eu.destack.computer", "relay-us.destack.computer"],
     };
     await new Platform(fixture.store, declared).apply(fixture.store.clock.now());
     await new Platform(fixture.store, declared).apply(fixture.store.clock.now());
 
-    // read the homes' stacks and generations, and the accounts' hostnames
+    // read the platform accounts' homes and hostnames
     const homes = await fixture.storage.database
         .select({
             handle: account.table.handle,
@@ -284,32 +294,26 @@ test("move each region home to its own newly declared stack once, giving each re
         })
         .from(space.table)
         .innerJoin(account.table, eq(account.table.id, space.table.scope))
-        .where(inArray(account.table.handle, ["destack", "destack-us"]));
+        .where(eq(space.table.id, await fixture.platformHome()));
     const hostnames = await fixture.storage.database
         .select({ handle: account.table.handle, name: hostname.table.name })
         .from(hostname.table)
         .innerJoin(account.table, eq(account.table.id, hostname.table.scope))
         .orderBy(account.table.handle, hostname.table.name);
 
-    // move each home to its own release in one update, and store each hostname once
-    expect({
-        homes: homes.toSorted((left, right) => left.handle.localeCompare(right.handle)),
-        hostnames,
-    }).toEqual({
-        homes: [
-            { handle: "destack", stack: europe, generation: 2 },
-            { handle: "destack-us", stack: america, generation: 2 },
-        ],
+    // move the one home to its release in one update, and store each hostname once
+    expect({ homes, hostnames }).toEqual({
+        homes: [{ handle: "destack", stack: released, generation: 2 }],
         hostnames: [
             { handle: "destack", name: "*.destack.space" },
             { handle: "destack", name: "relay-eu.destack.computer" },
-            { handle: "destack-us", name: "relay-us.destack.computer" },
+            { handle: "destack", name: "relay-us.destack.computer" },
         ],
     });
 });
 
-test("apply the declared cloud machines with their keys in the universe once, and the declared client alone as the platform accounts' publisher", async () => {
-    // declare a cloud machine for each region
+test("apply the declared managed machines with their keys once, and the declared client alone as the platform's publisher", async () => {
+    // declare a managed machine for each region
     await using fixture = await TestAccount.open();
     const [europe, america] = [
         await declare(fixture.store.environment),
@@ -415,7 +419,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
         [
             {
                 id: europe.machineId,
-                scope: Account.ofHome(await fixture.platformHome("eu")),
+                scope: Account.ofHome(await fixture.platformHome()),
                 name: "eu-west",
                 kind: "managed",
                 regionId: eu.id,
@@ -424,7 +428,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
             },
             {
                 id: america.machineId,
-                scope: Account.ofHome(await fixture.platformHome("us")),
+                scope: Account.ofHome(await fixture.platformHome()),
                 name: "us-west",
                 kind: "managed",
                 regionId: us.id,

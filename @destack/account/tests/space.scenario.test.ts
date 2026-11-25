@@ -23,6 +23,11 @@ function create(
     });
 }
 
+/** Order relationship tuples by their subject's identifier. */
+function bySubject(left: readonly unknown[], right: readonly unknown[]): number {
+    return String(left[3]).localeCompare(String(right[3]));
+}
+
 /** Read the placements of a person's personal account, in the order of their spaces. */
 function placements(fixture: TestAccount, person: TestPerson) {
     return fixture.database
@@ -197,13 +202,13 @@ test("rename a space to a free address in its account, releasing the old one, an
     });
 });
 
-test("create a space at the universe with its row and its own access, the space owning itself", async () => {
+test("create a space at the universe owning itself, served by its machine and its account's home", async () => {
     // let a person create a space in their account at a clock standing still
     await using fixture = await TestAccount.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const created = await create(fixture, owner, "work");
 
-    // store the row, its placement and the space's owner binding to itself at the universe
+    // store the row, its placement, its owner binding to itself and its machine and home at the universe
     const snapshot = fixture.database.snapshot();
     const now = fixture.clock.now();
     expect({
@@ -226,7 +231,9 @@ test("create a space at the universe with its row and its own access, the space 
             .where(eq(placement.table.spaceId, created.id)),
         tuples: (
             await snapshot.read(accessRelationship).findMany({ where: { objectId: created.id } })
-        ).map((row) => [row.scope, row.roleId, row.subjectType, row.subjectId]),
+        )
+            .map((row) => [row.scope, row.roleId, row.subjectType, row.subjectId])
+            .toSorted(bySubject),
     }).toEqual({
         row: [{ id: created.id, scope: owner.account, name: "work" }],
         placed: [
@@ -243,7 +250,8 @@ test("create a space at the universe with its row and its own access, the space 
         ],
         tuples: [
             [owner.account, Role.OWNER, "space", created.id],
+            [owner.account, null, "space", Account.home(owner.account)],
             [owner.account, null, "machine", ids.machine],
-        ],
+        ].toSorted(bySubject),
     });
 });

@@ -115,8 +115,8 @@ export const PlatformDefinition = schema.object({
     handle: AccountHandle,
     /** The domains the platform's organization holds, which the universe declares verified. */
     domains: schema.array(Hostname),
-    /** The stack the platform's home runs in each region, by region. */
-    homes: schema.record(RegionCode, StackRelease),
+    /** The stack the platform's home runs. */
+    home: StackRelease,
     /** The stack each kind of space people create is born with. */
     stacks: schema.object({
         /** Every account's home. */
@@ -124,8 +124,8 @@ export const PlatformDefinition = schema.object({
         /** Any other space. */
         space: StackRelease,
     }),
-    /** The hostnames the platform's account in each region serves its home's routes on. */
-    hostnames: schema.record(RegionCode, schema.array(HostnamePattern)),
+    /** The hostnames the platform's account serves its home's routes on. */
+    hostnames: schema.array(HostnamePattern),
     /** The managed machines serving the regions. */
     machines: schema.array(
         schema.object({
@@ -203,16 +203,6 @@ export class Platform {
         this.definition = definition;
     }
 
-    /** Read the handle of the platform's account in a region. */
-    static handle(
-        definition: Pick<PlatformDefinition, "handle" | "regionId">,
-        code: RegionCode,
-    ): AccountHandle {
-        const { handle, regionId } = definition;
-
-        return AccountHandle.parse(code === regionId ? handle : `${handle}-${code}`);
-    }
-
     /** List the steps applying the definition, in order. */
     steps(): readonly PlatformStep[] {
         return [
@@ -220,7 +210,7 @@ export class Platform {
             { name: "roles", apply: (now) => this.bindRoles(now) },
             { name: "names", apply: (now) => this.reserveNames(now) },
             { name: "domains", apply: () => this.declareDomains() },
-            { name: "homes", apply: (now) => this.serveRegions(now) },
+            { name: "home", apply: (now) => this.serveHome(now) },
             { name: "machines", apply: (now) => this.declareMachines(now) },
             { name: "invitation", apply: (now) => this.inviteOperator(now) },
         ];
@@ -276,60 +266,55 @@ export class Platform {
             }
         }
 
-        // declare, rate and pool each region's machines in the platform's account there
-        for (const [code, entries] of Map.groupBy(
-            this.definition.machines,
-            (each) => each.regionId,
-        )) {
-            // declare the missing ones at their origins, and rate the ones whose rates changed
-            const scope = await this.#account(code);
-            const calls = entries.flatMap((entry) => {
-                const target = machine.target({ scope, id: entry.id });
-                const row = existing.find((stored) => stored.id === entry.id);
+        // declare the missing machines in the platform's account, and rate the changed ones
+        const scope = await this.#account();
+        const { machines } = this.definition;
+        const calls = machines.flatMap((entry) => {
+            const target = machine.target({ scope, id: entry.id });
+            const row = existing.find((stored) => stored.id === entry.id);
 
-                // declare a missing machine
-                if (row === undefined) {
-                    return [
-                        machine.call("declare", {
-                            ...target,
-                            name: entry.name,
-                            kind: "managed" as const,
-                            regionId: entry.regionId,
-                            providerCode: entry.providerCode,
-                            location: entry.location,
-                            rates: entry.rates,
-                            publicKey: entry.key,
-                            origin: entry.origin,
-                        }),
-                    ];
-                }
-                // rate a machine whose declared rates changed
-                else if (!Platform.#isRated(row.rates, entry.rates)) {
-                    return [machine.call("rate", { ...target, rates: entry.rates })];
-                }
-                // leave an unchanged machine
-                else {
-                    return [];
-                }
-            });
-            if (calls.length > 0) {
-                await this.#mutate(calls);
+            // declare a missing machine
+            if (row === undefined) {
+                return [
+                    machine.call("declare", {
+                        ...target,
+                        name: entry.name,
+                        kind: "managed" as const,
+                        regionId: entry.regionId,
+                        providerCode: entry.providerCode,
+                        location: entry.location,
+                        rates: entry.rates,
+                        publicKey: entry.key,
+                        origin: entry.origin,
+                    }),
+                ];
             }
-
-            // admit every account as a tenant of the region's shared pool
-            await this.#authorize(scope, now, async (authorization) => {
-                for (const entry of entries) {
-                    await Relationship.touch(
-                        {
-                            object: machine.reference(scope, entry.id),
-                            relation: "tenant",
-                            subject: account.reference("*", "*"),
-                        },
-                        authorization,
-                    );
-                }
-            });
+            // rate a machine whose declared rates changed
+            else if (!Platform.#isRated(row.rates, entry.rates)) {
+                return [machine.call("rate", { ...target, rates: entry.rates })];
+            }
+            // leave an unchanged machine
+            else {
+                return [];
+            }
+        });
+        if (calls.length > 0) {
+            await this.#mutate(calls);
         }
+
+        // admit every account as a tenant of the shared pool
+        await this.#authorize(scope, now, async (authorization) => {
+            for (const entry of machines) {
+                await Relationship.touch(
+                    {
+                        object: machine.reference(scope, entry.id),
+                        relation: "tenant",
+                        subject: account.reference("*", "*"),
+                    },
+                    authorization,
+                );
+            }
+        });
     }
 
     /** Read whether a machine's stored rates are its declared ones, meter by meter. */
@@ -345,12 +330,14 @@ export class Platform {
         );
     }
 
-    /** Read the platform's account in a region, created by the homes step. */
-    async #account(code: RegionCode): Promise<Identifier<"account">> {
-        const handle = Platform.handle(this.definition, code);
-        const found = await Account.byHandle(this.store.database.snapshot(), handle);
+    /** Read the platform's account, which the organization step creates. */
+    async #account(): Promise<Identifier<"account">> {
+        const found = await Account.byHandle(
+            this.store.database.snapshot(),
+            this.definition.handle,
+        );
 
-        return present(found, `the platform's account in ${code}`).id;
+        return present(found, "the platform's account").id;
     }
 
     /** Create the operating organization with its account once, as the universe. */
@@ -411,7 +398,7 @@ export class Platform {
                 name: this.definition.name,
                 handle: this.definition.handle,
                 regionId: this.definition.regionId,
-                stack: this.#home(this.definition.regionId),
+                stack: this.definition.home,
             }),
         ]);
 
@@ -675,41 +662,15 @@ export class Platform {
         }
     }
 
-    /** Serve each region from the platform's account's home there, with its declared stack. */
-    async serveRegions(now: number): Promise<void> {
-        // create or update the platform's account in each region
-        const organizationId = await this.#organization();
-        for (const entry of await Region.list(this.store.database)) {
-            // read the platform's account in the region
-            const handle = Platform.handle(this.definition, entry.code);
-            const [existing] = await this.store.database
-                .select({ id: account.table.id })
-                .from(account.table)
-                .where(eq(account.table.handle, handle));
-
-            // create the account when missing
-            const [created] =
-                existing === undefined
-                    ? await this.#mutate([
-                          account.call("create", {
-                              ...account.in(organizationId),
-                              handle,
-                              name: handle,
-                              kind: "shared",
-                              regionId: entry.id,
-                              stack: this.#home(entry.code),
-                          }),
-                      ])
-                    : [existing];
-            const accountId = present(created, `the platform's account in ${entry.code}`).id;
-
-            // give the account the hostnames its home's routes serve on, and move its home to its stack
-            await this.#addHostnames(accountId, this.definition.hostnames[entry.code] ?? []);
-            await this.#upgradeHome(Account.home(accountId), this.#home(entry.code));
-        }
+    /** Serve the platform's home: its hostnames, its stack, and every region's merchant. */
+    async serveHome(now: number): Promise<void> {
+        // give the platform's account the hostnames its home's routes serve on, and move its home to its stack
+        const accountId = await this.#account();
+        const home = Account.home(accountId);
+        await this.#addHostnames(accountId, this.definition.hostnames);
+        await this.#upgradeHome(home, this.definition.home);
 
         // sell to every region's accounts through the finance installation in the platform's home
-        const home = Account.home(await this.#account(this.definition.regionId));
         const owner = await Scope.object(this.store.database.snapshot(), home);
         const merchantId = await InstallationId.of(
             owner,
@@ -825,11 +786,6 @@ export class Platform {
                 }),
             ]);
         }
-    }
-
-    /** Read the stack the platform's home runs in a region, refusing one the definition lacks. */
-    #home(code: RegionCode): StackRelease {
-        return present(this.definition.homes[code], `the stack of the home of ${code}`);
     }
 
     /** Give an account the declared hostnames it lacks. */

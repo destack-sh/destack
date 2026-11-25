@@ -3,7 +3,6 @@ import { implementPackage, type PackageImplementation } from "@destack/object/se
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
 import type { PlatformDefinition } from "./universe.ts";
-import { claim } from "../object/claim.ts";
 import { stage } from "../object/stage.ts";
 import accountPackage from "../package.ts";
 import { implementAccount } from "./account.ts";
@@ -18,6 +17,7 @@ import { implementMachine } from "./machine.ts";
 import { implementApplication } from "./application.ts";
 import { implementOrganization } from "./organization.ts";
 import { implementPlacement } from "./placement.ts";
+import { implementClaim } from "./claim.ts";
 import { implementRegion } from "./region.ts";
 import { implementSpace } from "./space.ts";
 import { implementUser } from "./user.ts";
@@ -55,7 +55,7 @@ export function accountServer(options: AccountOptions): PackageImplementation {
             implementPlacement(),
             // apply the stages an account's stack declares
             stage.implement({ declaration: {} }),
-            claim,
+            implementClaim(),
         ],
         mounts: { oauth: async (request) => (await options.signIn).handler(request) },
         responseHeaders: { "Cache-Control": "no-store" },

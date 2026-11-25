@@ -24,7 +24,6 @@ import {
     permission,
     principal,
     relation,
-    through,
     union,
     type Creation,
 } from "@destack/access";
@@ -83,6 +82,8 @@ export const space = defineObject(
                 receiver: { subjects: [principal.machine], grantedBy: "receive" },
                 // the machine the space is placed on, related by its placement
                 machine: { subjects: [principal.machine], grantedBy: "receive" },
+                // the home of the space's account, related as the space is created
+                home: { subjects: [principal.space], grantedBy: "receive" },
             },
             permissions: {
                 // let the machines serving the space and each space itself read the space's row, which their replicas follow
@@ -106,8 +107,8 @@ export const space = defineObject(
                 observe: permission("read"),
                 analyze: permission("read"),
                 unmask: permission("manage"),
-                // let the machine it is placed on and the account's own machines serve it
-                serve: union(relation("machine"), through("account", "serve")),
+                // let the machine it is placed on and its account's home serve it
+                serve: union(relation("machine"), relation("home")),
             },
             reserved: ["replicate", "upgrade", "receive", "serve", "provision"],
             elevated: { delete: sudo, rotate: sudo },
@@ -174,13 +175,23 @@ export const THROTTLED_RESOURCES = [
 
 /** The space checks, reads and replicates of a serving machine. */
 export const Space = {
-    /** Build the access a space's creation writes: it owns itself, and a home is open to guests. */
+    /** Build a space's creation access: itself as owner, its home as server, a home's guests. */
     creation(row: Pick<Space, "id" | "scope">): Creation {
-        // let anyone find an account's home, whose objects each decide who reads them
-        const isHome = row.id === Account.home(account.identifier(row.scope));
-        const open = isHome ? [{ relation: "guest", subject: anyone.reference("*", "*") }] : [];
+        // relate the account's home, which serves its spaces
+        const home = Account.home(account.identifier(row.scope));
+        const served = {
+            relation: "home",
+            subject: principal.space.reference(Scope.universe.id, home),
+        };
 
-        return { owner: principal.space.reference(Scope.universe.id, row.id), relationships: open };
+        // let anyone find an account's home, whose objects each decide who reads them
+        const open =
+            row.id === home ? [{ relation: "guest", subject: anyone.reference("*", "*") }] : [];
+
+        return {
+            owner: principal.space.reference(Scope.universe.id, row.id),
+            relationships: [served, ...open],
+        };
     },
 
     /** List the spaces of the accounts a payer pays for: its accounts and its organizations'. */

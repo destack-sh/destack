@@ -156,11 +156,11 @@ export const ids = {
 /** Who serves the platform's homes: the fixture as their managed machines, or a real machine. */
 export type HomeServer = "fixture" | "machine";
 
-/** The stand-in stack the platform's home runs in each region. */
-export const REGION_STACK: StackRelease = {
+/** The stand-in stack the platform's home runs. */
+export const PLATFORM_STACK: StackRelease = {
     packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b1"),
     version: { kind: "release", version: "2026.9.0" },
-    export: "REGION",
+    export: "PLATFORM",
     settings: {},
     routes: {},
 };
@@ -584,12 +584,11 @@ export class TestAccount implements AsyncDisposable {
         return Region.require(this.database.snapshot(), code);
     }
 
-    /** Read the home of the platform's account in a region. */
-    async platformHome(code: RegionCode): Promise<Identifier<"space">> {
-        const handle = Platform.handle({ handle: PLATFORM_HANDLE, regionId: "eu" }, code);
-        const platform = await Account.byHandle(this.database.snapshot(), handle);
+    /** Read the home of the platform's account. */
+    async platformHome(): Promise<Identifier<"space">> {
+        const platform = await Account.byHandle(this.database.snapshot(), PLATFORM_HANDLE);
 
-        return Account.home(present(platform, `the platform's account in ${code}`).id);
+        return Account.home(present(platform, "the platform's account").id);
     }
 
     /** Route a request of the universe's origin to the package mounted at its path. */
@@ -906,7 +905,7 @@ export class TestAccount implements AsyncDisposable {
     async merchant(): Promise<Subject> {
         // derive the installation the home's stack declares under the merchant's name
         const snapshot = this.database.snapshot();
-        const home = await Scope.object(snapshot, await this.platformHome("eu"));
+        const home = await Scope.object(snapshot, await this.platformHome());
         const id = await InstallationId.of(home, REGION_MERCHANT, this.environment.crypto);
 
         return principal.installation.reference(home.id, id);
@@ -1075,7 +1074,7 @@ export class TestAccount implements AsyncDisposable {
         await fixture.#signUpPeople();
         await fixture.#joinOperator();
         if (options.homes === "fixture") {
-            await fixture.#serveHomes();
+            await fixture.#serveHome();
         }
         await fixture.#createAccounts();
 
@@ -1133,8 +1132,8 @@ export class TestAccount implements AsyncDisposable {
             clients: [],
             handle: PLATFORM_HANDLE,
             domains: [],
-            homes: { eu: REGION_STACK, us: REGION_STACK },
-            hostnames: { eu: [], us: [] },
+            home: PLATFORM_STACK,
+            hostnames: [],
             stacks,
             machines: [
                 await managedMachine(
@@ -1420,16 +1419,14 @@ export class TestAccount implements AsyncDisposable {
         });
     }
 
-    /** Start the identities of the platform's homes as the machines serving them. */
-    async #serveHomes(): Promise<void> {
-        // let the scheduler place the homes once the pool admits their accounts
+    /** Start the identity of the platform's home as the machine serving it. */
+    async #serveHome(): Promise<void> {
+        // let the scheduler place the home once the pool admits its account
         await this.simulation.idle();
 
-        // start each home's identity as the machine it runs on
-        for (const entry of await Region.list(this.database)) {
-            const home = await this.platformHome(entry.code);
-            await this.startIdentity(home, this.as(await this.machine(home)));
-        }
+        // start the home's identity as the machine it runs on
+        const home = await this.platformHome();
+        await this.startIdentity(home, this.as(await this.machine(home)));
     }
 
     /** Read where people sign in: the issuer, its mail, the origin, the world and the region. */

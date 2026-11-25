@@ -2,6 +2,8 @@ import { none, principal, relation, through, union, ANY_SCOPE } from "@destack/a
 import { claimMethods, claimTable, defineObject } from "@destack/object";
 import { account } from "./account.ts";
 import { argument, plural, t } from "@destack/locale";
+import { schema } from "@destack/schema";
+import { AccountHandle } from "../address/handle.ts";
 
 /** A unique name an object claims across databases, stored in the universe. */
 export const claim = defineObject(
@@ -38,5 +40,19 @@ export const claim = defineObject(
             },
         },
     },
-    () => claimMethods,
+    (method) => ({
+        ...claimMethods,
+
+        /** Find the account holding a handle or a lookalike, none for a free or reserved handle. */
+        holder: method.query({
+            title: t`Read holder`,
+            permission: "resolve",
+            target: "scope",
+            input: schema.object({
+                /** The handle. */
+                handle: AccountHandle,
+            }),
+            output: schema.identifier("account").nullable(),
+        }),
+    }),
 );

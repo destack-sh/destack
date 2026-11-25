@@ -606,7 +606,7 @@ test("publish a machine's tunnel as the machine alone", async () => {
     await fixture.startIdentity(laptop, local);
     await claimNames(fixture.as(laptop), fixture.database, claimant, fixture.environment);
     const other = principal.installation.reference(
-        await fixture.platformHome("eu"),
+        await fixture.platformHome(),
         Identifier.create("installation", fixture.environment),
     );
 

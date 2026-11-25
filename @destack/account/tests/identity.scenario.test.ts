@@ -552,7 +552,7 @@ test("grant a machine tokens for its own partition and any space, whose access d
         await grant(accounts, laptop, served),
         await grant(accounts, cloud, served),
         await grant(accounts, laptop, Account.home(ids.account)),
-        await grant(accounts, laptop, await accounts.platformHome("eu")),
+        await grant(accounts, laptop, await accounts.platformHome()),
         // refuse another machine's partition
         await grant(accounts, laptop, cloud.machineId),
     ]).toEqual([
