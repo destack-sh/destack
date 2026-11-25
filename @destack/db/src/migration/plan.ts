@@ -13,6 +13,10 @@ import { bridgeTriggers } from "./bridge.ts";
 import type { TriggerSet } from "./trigger.ts";
 import type { Merge } from "./merge.ts";
 import { canonicalize, Edition, nth, present, Version } from "@destack/schema";
+import { Expression } from "../expression/expression.ts";
+import { DatabaseError } from "../error/error.ts";
+import { inline } from "../sql/render.ts";
+import { Table } from "../table/table.ts";
 import { Address, Plan, type Risk, type Step, type StepKind } from "@destack/resource";
 import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resource/error";
 
@@ -25,9 +29,12 @@ const TRIGGERS: readonly TriggerSet[] = [
     bridgeTriggers,
 ];
 
+/** The phases plan steps run in, in order: expand the tables, convert their rows, contract them. */
+const PHASES = ["tables", "rows", "contract"] as const;
+
 /** One change of a database plan to one table, addressed as `table/<name>` and its entries. */
 export interface TableStep extends Step {
-    /** When the step runs: with the table changes, or on the rows after them. */
+    /** When the step runs: expanding the tables, converting their rows, or contracting them. */
     readonly phase: TablePhase;
     /** The step's SQL, empty for log updates. */
     readonly statements: readonly string[];
@@ -37,8 +44,8 @@ export interface TableStep extends Step {
     readonly rebuild?: statement.TableRebuild;
 }
 
-/** When a table step runs: with the table changes, or on the rows after them and the triggers. */
-export type TablePhase = "tables" | "rows";
+/** When a table step runs: expanding tables, converting rows after the triggers, or contracting. */
+export type TablePhase = (typeof PHASES)[number];
 
 /** The steps from a database's applied state to its declared tables. */
 export interface TablePlan extends Plan<TableStep> {
@@ -48,6 +55,8 @@ export interface TablePlan extends Plan<TableStep> {
     readonly before: readonly string[];
     /** Create the log and state tables and install triggers after the steps. */
     readonly after: readonly string[];
+    /** Install again the triggers of the tables the contract rebuilds. */
+    readonly restored: readonly string[];
     /** The state recorded once the plan applied. */
     readonly state: readonly TableState[];
     /** The applied tables the plan drops. */
@@ -131,14 +140,17 @@ export function planTables(input: PlanInput): TablePlan {
 
             return {
                 ...step("replace", target, "safe", detail, []),
-                rebuild: { table, copied: copied.map((column) => column.name), filled: {} },
+                rebuild: { table, copied: copied.map((column) => column.name) },
             };
         }),
     ];
 
-    // keep a plan without rebuilds in its order
+    // rebuild every table together, in the contract once a conversion reads a table's old columns
     const rebuilds = rebuilt.flatMap((each) => (each.rebuild === undefined ? [] : [each.rebuild]));
-    const [first, ...rest] = rebuilt;
+    const phase: TablePhase = rebuilt.some((each) => each.phase === "contract")
+        ? "contract"
+        : "tables";
+    const [first, ...rest] = rebuilt.map((each) => ({ ...each, phase }));
     const steps =
         first === undefined
             ? planned.steps
@@ -183,7 +195,33 @@ export function planTables(input: PlanInput): TablePlan {
         input.namespace,
     );
 
-    return { dialect, steps, ...triggers, state: declared, dropped: dropped.ordered };
+    // install the triggers of the tables the contract rebuilds again, as a rebuild drops them
+    const contracted = new Set(
+        steps.flatMap((each) =>
+            each.phase === "contract" && each.rebuild !== undefined
+                ? [each.rebuild.table.name]
+                : [],
+        ),
+    );
+    const restored = [...declared, ...followed]
+        .filter((state) => contracted.has(state.table.name))
+        .flatMap((state) =>
+            TRIGGERS.flatMap((set) => set.install(state, dialect, input.namespace)),
+        );
+
+    // list the steps in the order the phases run them
+    const ordered = steps.toSorted(
+        (left, right) => PHASES.indexOf(left.phase) - PHASES.indexOf(right.phase),
+    );
+
+    return {
+        dialect,
+        steps: ordered,
+        ...triggers,
+        restored,
+        state: declared,
+        dropped: dropped.ordered,
+    };
 }
 
 /** Plan each declared table without a conflict. */
@@ -367,7 +405,8 @@ function planChange(
             ),
         );
     }
-    const assigned = assignedColumns(state, previous);
+    const rendered = renderConversions(state, previous, problems);
+    const assigned = assignedColumns(rendered);
     const changed = changeTable(
         { ...previous.table, name },
         state.table,
@@ -380,8 +419,9 @@ function planChange(
 
     // change the tables, convert rows, then run the changes that need the converted rows
     const changes = changed.filter((each) => each.phase === "tables");
-    changes.push(...convertSteps(state, previous, isEmpty, problems));
+    changes.push(...convertSteps(state, previous, rendered, isEmpty, problems));
     changes.push(...changed.filter((each) => each.phase === "rows"));
+    changes.push(...changed.filter((each) => each.phase === "contract"));
 
     // backfill newly bridged columns
     changes.push(...bridgeSteps(state, previous));
@@ -410,6 +450,7 @@ function planChange(
 function convertSteps(
     state: TableState,
     previous: TableState,
+    rendered: Readonly<Record<string, Readonly<Record<string, string>>>>,
     isEmpty: boolean,
     problems: Problem[],
 ): TableStep[] {
@@ -428,11 +469,11 @@ function convertSteps(
 
     // update rows for each edition assigning columns, an edition that only drops some updating none
     const assigning = conversions.filter(([, assignments]) => Object.keys(assignments).length > 0);
+    const updates = assigning.map(([edition]) =>
+        convertRows(state, edition, rendered[edition] ?? {}),
+    );
 
-    return [
-        ...assigning.map(([edition, assignments]) => convertRows(state, edition, assignments)),
-        ...changeValues(previous, state, editions, isEmpty, problems),
-    ];
+    return [...updates, ...changeValues(previous, state, editions, isEmpty, problems)];
 }
 
 /** Backfill the columns the declared state newly bridges from their previous names. */
@@ -799,7 +840,7 @@ function changeTable(
     return [
         ...steps,
         ...(next.dialect === "sqlite"
-            ? changeSQLiteTable(current, next, added, removed, changed, filled, isFollowing)
+            ? changeSQLiteTable(current, next, added, removed, changed, assigned, isFollowing)
             : changePostgresTable(current, next, added, removed, changed, filled)),
     ];
 }
@@ -811,7 +852,7 @@ function changeSQLiteTable(
     added: readonly TableDescription["columns"][number][],
     removed: readonly TableDescription["columns"][number][],
     changed: readonly ColumnChange[],
-    filled: Readonly<Record<string, string>>,
+    assigned: Readonly<Record<string, string>>,
     isFollowing: boolean,
 ): TableStep[] {
     // rebuild to follow a rebuilt table, for changes beyond additions and indexes, or a new required column, which SQLite cannot require in place
@@ -823,14 +864,29 @@ function changeSQLiteTable(
         added.some((column) => isUndefaulted(column)) ||
         canonicalize(previous.constraints) !== canonicalize(next.constraints);
     if (isRebuilt) {
+        // add the new columns before converting, as nullable, and rebuild in the contract once a conversion reads the old ones
+        const isContracted = Object.keys(assigned).length > 0;
+        const expanded = isContracted
+            ? added.filter((column) => column.generated === undefined)
+            : [];
+        const expansions = expanded.map((column) =>
+            step(
+                "create",
+                Address.join("table", next.name, "column", column.name),
+                "safe",
+                `add column ${column.name}`,
+                [statement.addColumn(next.name, { ...column, nullable: true }, "sqlite")],
+            ),
+        );
         const copied = next.columns
             .filter(
                 (column) =>
                     column.generated === undefined &&
-                    previous.columns.some(
-                        (applied) =>
-                            applied.name === column.name && applied.generated === undefined,
-                    ),
+                    (expanded.includes(column) ||
+                        previous.columns.some(
+                            (applied) =>
+                                applied.name === column.name && applied.generated === undefined,
+                        )),
             )
             .map((column) => column.name);
         const isLossy =
@@ -861,9 +917,11 @@ function changeSQLiteTable(
                     isLossy ? "destructive" : isChecked ? "fallible" : "safe",
                     `rebuild table: ${detail || reason}`,
                     [],
+                    isContracted ? "contract" : "tables",
                 ),
-                rebuild: { table: next, copied, filled },
+                rebuild: { table: next, copied },
             },
+            ...expansions,
         ];
     }
 
@@ -924,6 +982,7 @@ function changePostgresTable(
                 "destructive",
                 `drop column ${column.name}`,
                 [statement.dropColumn(next.name, column.name)],
+                "contract",
             ),
         ),
     ];
@@ -1265,16 +1324,103 @@ function changeValues(
     return steps;
 }
 
-/** Read the assignments of the conversions the applied state lacks, by column. */
-function assignedColumns(state: TableState, previous: TableState): Record<string, string> {
-    // take the new editions in order, a later edition's assignment replacing an earlier one's
-    const conversions = Object.entries(state.conversions ?? {})
+/** Read the new editions' rendered assignments by column, a later edition's winning. */
+function assignedColumns(
+    rendered: Readonly<Record<string, Readonly<Record<string, string>>>>,
+): Record<string, string> {
+    const editions = Object.entries(rendered).toSorted(
+        ([left], [right]) => Number(left) - Number(right),
+    );
+
+    return Object.fromEntries(editions.flatMap(([, assignments]) => Object.entries(assignments)));
+}
+
+/** Render the new editions' conversions as SQL, each over the row the edition before it stores. */
+function renderConversions(
+    state: TableState,
+    previous: TableState,
+    problems: Problem[],
+): Record<string, Record<string, string>> {
+    // start from the row as stored, under the table's new name and its moved columns' new names
+    const moved = new Map(
+        Object.entries(state.moved?.columns ?? {}).map(([to, from]) => [from, to]),
+    );
+    const columns = previous.table.columns.map((column) => ({
+        ...column,
+        name: moved.get(column.name) ?? column.name,
+    }));
+
+    // render the new editions in order, each over the row the earlier editions converted
+    const editions = Object.entries(state.conversions ?? {})
         .filter(([edition]) => previous.conversions?.[edition] === undefined)
         .toSorted(([left], [right]) => Number(left) - Number(right));
+    const rendered: Record<string, Record<string, string>> = {};
+    for (const [edition, assignments] of editions) {
+        const row = { ...previous.table, name: state.table.name, columns: [...columns] };
+        const stored = Table.from(row, previous.package);
+        rendered[edition] = Object.fromEntries(
+            Object.entries(assignments).flatMap(([column, expression]) => {
+                const assigned = renderAssignment(state, column, expression, stored, problems);
 
-    return Object.fromEntries(
-        conversions.flatMap(([, assignments]) => Object.entries(assignments)),
+                return assigned === undefined ? [] : [[column, assigned]];
+            }),
+        );
+
+        // add the columns this edition fills to the row the next edition reads
+        for (const column of state.table.columns) {
+            if (
+                Object.hasOwn(assignments, column.name) &&
+                !columns.some((each) => each.name === column.name)
+            ) {
+                columns.push(column);
+            }
+        }
+    }
+
+    return rendered;
+}
+
+/** Render an assignment over the stored row, refusing a missing column or another kind. */
+function renderAssignment(
+    state: TableState,
+    column: string,
+    expression: Expression,
+    stored: Table,
+    problems: Problem[],
+): string | undefined {
+    // read the declared column and the assignment's kind over the stored row
+    const target = Address.join("table", state.table.name, "column", column);
+    const declared = present(
+        state.table.columns.find((each) => each.name === column),
+        `the converted column '${column}'`,
     );
+    let kind: ReturnType<typeof Expression.kind>;
+    try {
+        kind = Expression.kind(expression, stored);
+    } catch (error) {
+        if (!DatabaseError.is(error, "QUERY_INVALID")) {
+            throw error;
+        }
+        problems.push({
+            target,
+            detail: `convert ${column} from the stored row: ${error.message}`,
+        });
+
+        return undefined;
+    }
+
+    // refuse another kind, reading integers as reals
+    const isSameKind = kind === declared.kind || (kind === "real" && declared.kind === "integer");
+    if (!isSameKind) {
+        problems.push({
+            target,
+            detail: `convert ${column} to a ${declared.kind}: the conversion produces ${kind}`,
+        });
+
+        return undefined;
+    }
+
+    return inline(Expression.render(expression, stored), state.table.dialect);
 }
 
 /** Decide whether a column needs a value from each row: required, without default or generator. */

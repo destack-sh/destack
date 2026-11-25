@@ -87,11 +87,11 @@ export const TableState = schema.object({
             }),
         )
         .exactOptional(),
-    /** The SQL assignments converting earlier rows, by the edition each leads to. */
+    /** The assignments converting each earlier row, by the edition each leads to and the column. */
     conversions: schema
         .record(
             schema.string().regex(/^[1-9]\d*$/u),
-            schema.record(schema.string(), schema.string()),
+            schema.record(schema.string(), Expression.schema),
         )
         .exactOptional(),
 });
@@ -230,7 +230,7 @@ export function declareState(
         const log = describeLog(table);
         const multikeyIndexes = definition.multikeyIndexes.map((each) => each.describe());
         const moved = describeMoves(table);
-        const conversions = describeConversions(table, dialect);
+        const conversions = describeConversions(table);
         const predefined = describePredefined(table, dialect);
         const isReplicated = replicated.has(definition.sqlName);
         const dependents = isReplica ? [] : describeDependents(table, tables, isReplicated);
@@ -680,36 +680,31 @@ function describePredefined(table: Table, dialect: Dialect): Record<string, stri
     );
 }
 
-/** Render each edition's conversion as SQL assignments of columns of the same kind. */
-function describeConversions(table: Table, dialect: Dialect): TableState["conversions"] {
-    // render each assignment, requiring the column's kind
+/** Describe each edition's conversion over the stored row, its declared columns by SQL name. */
+function describeConversions(table: Table): TableState["conversions"] {
+    // read each assignment's columns by SQL name, a name the table lacks as a stored column's
     const definition = table[TABLE];
     const releases = Object.entries(definition.convert);
     if (releases.length === 0) {
         return undefined;
     }
+    const columnOf = (property: string) =>
+        definition.columns[property]?.definition.name ?? property;
 
     return Object.fromEntries(
         releases.map(([release, conversion]) => [
             release,
             Object.fromEntries(
-                Object.entries(conversion).flatMap(([property, expression]) => {
-                    // skip an absent assignment, and require the column's kind
-                    if (expression === undefined) {
-                        return [];
-                    }
-                    const column = definition.column(property).definition;
-                    const kind = Expression.kind(expression, table);
-                    const isSameKind =
-                        kind === column.kind || (kind === "real" && column.kind === "integer");
-                    if (!isSameKind) {
-                        throw new TypeError(
-                            `conversion of '${definition.name}.${property}' produces ${kind} for a ${column.kind} column`,
-                        );
-                    }
-
-                    return [[column.name, inline(Expression.render(expression, table), dialect)]];
-                }),
+                Object.entries(conversion).flatMap(([property, expression]) =>
+                    expression === undefined
+                        ? []
+                        : [
+                              [
+                                  definition.column(property).definition.name,
+                                  Expression.rename(expression, columnOf),
+                              ],
+                          ],
+                ),
             ),
         ]),
     );

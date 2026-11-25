@@ -88,7 +88,7 @@ Each column takes `.primaryKey()`, `.notNull()`, `.default(value)`, `.references
 | `tree`             | the `id`, `scope` and `parent` properties of a tree per scope |
 | `aggregates`       | counts, sums, minimums and maximums kept on referenced rows   |
 | `dependents`       | rows of other tables that cascade or restrict deletion        |
-| `convert`, `moved` | how an edition converts rows, and the table's previous names  |
+| `convert`, `moved` | how an edition converts stored rows, and the previous names    |
 | `predefined`       | rows every database has                                       |
 
 ### Database
@@ -391,6 +391,37 @@ const relations = defineRelations({ project, task }, (r) => ({
 // define the database with the tables and their relations
 export const work = defineDatabase({ name: "work", tables: [project, task], relations });
 ```
+
+### Replace a column by a converted one
+
+`convert` reads each row as the previous edition stored it, so an edition can derive a column from one it drops.
+
+```ts
+import { defineTable, Expression, text } from "@destack/db";
+
+// derive the priority from the urgent flag the second edition drops
+export const task = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        title: text("title").notNull(),
+        priority: text("priority").notNull(),
+    },
+    {
+        convert: {
+            2: {
+                priority: Expression.case(
+                    Expression.column("urgent"),
+                    [{ when: 1, then: Expression.literal("high") }],
+                    Expression.literal("normal"),
+                ),
+            },
+        },
+    },
+);
+```
+
+The migration adds the new columns, converts the rows while the old columns still exist, then drops them.
 
 ### Rename a note in a transaction
 

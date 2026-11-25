@@ -123,8 +123,6 @@ export interface TableRebuild {
     readonly table: TableDescription;
     /** The columns copied from the table's rows. */
     readonly copied: readonly string[];
-    /** The new columns filled from each row by a conversion's SQL assignment, by column. */
-    readonly filled: Readonly<Record<string, string>>;
 }
 
 /** Rebuild SQLite tables with every table referencing them, under enforced foreign keys. */
@@ -142,13 +140,12 @@ export function rebuildTables(rebuilds: readonly TableRebuild[]): string[] {
     });
 
     // copy each table's kept columns once every staged table it references exists
-    const copies = rebuilds.map(({ table, copied, filled }) => {
-        // copy the kept columns and fill the converted new ones from each row
-        const columns = [...copied, ...Object.keys(filled)].map(quote).join(", ");
-        const values = [...copied.map(quote), ...Object.values(filled)].join(", ");
+    const copies = rebuilds.map(({ table, copied }) => {
+        // copy the kept columns of each row
+        const columns = copied.map(quote).join(", ");
         const target = quote(staging(table.name));
 
-        return `INSERT INTO ${target} (${columns}) SELECT ${values} FROM ${quote(table.name)}`;
+        return `INSERT INTO ${target} (${columns}) SELECT ${columns} FROM ${quote(table.name)}`;
     });
 
     // drop each table after the tables referencing it, so no drop deletes another's rows

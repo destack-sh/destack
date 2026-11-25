@@ -595,8 +595,8 @@ test("rename, drop, add and index columns while preserving rows", async () => {
             : [
                   `backward-incompatible rename table/${table(taskTwo)}/column/title: rename column name to title`,
                   `safe create table/${table(taskTwo)}/column/due_at: add column due_at`,
-                  `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
                   `safe create table/${table(taskTwo)}/index/${indexName(taskTwo, "task_due")}: create index ${indexName(taskTwo, "task_due")}`,
+                  `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
               ],
     );
 
@@ -910,6 +910,45 @@ test("refuse a conversion writing a value its column refuses, leaving the rows a
     ).toEqual([{ mode: TestDatabase.target() === "sqlite" ? '"emacs"' : "emacs" }]);
 });
 
+/** Preferences in the next release, whose editor replaces mode, misconverting emacs from it. */
+const preferenceReplaced = defineTable(
+    "preference",
+    { id: text("id").primaryKey(), editor: json("editor", schema.enum(["standard", "vim"])) },
+    {
+        convert: {
+            2: {
+                editor: Expression.case(
+                    Expression.scalar(Expression.column("mode"), "text"),
+                    [{ when: "emacs", then: Expression.json("nano") }],
+                    Expression.column("mode"),
+                ),
+            },
+        },
+    },
+    NEXT_RELEASE,
+);
+
+test("refuse a conversion from a dropped column writing a value its column refuses", async () => {
+    const database = await open([preferenceReplaced]);
+    await database.migrate([preferenceOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.relation(table(preferenceOne))} (id, mode) VALUES ('a', '"emacs"')`,
+    );
+
+    // refuse the conversion loudly, as the rebuild or the update writes it, and keep the dropped column
+    expect(await refusal(database.migrate([preferenceReplaced]))).toEqual([
+        "INTERNAL_SERVER_ERROR",
+        "MIGRATION_BROKEN",
+        `conversion writes a value that '${table(preferenceReplaced)}.editor' rejects: '✖ Invalid option: expected one of "standard"|"vim"'`,
+    ]);
+    expect(
+        await database.execute(
+            sql`SELECT mode FROM ${sql.relation(table(preferenceOne))}`,
+            schema.object({ mode: schema.unknown() }),
+        ),
+    ).toEqual([{ mode: TestDatabase.target() === "sqlite" ? '"emacs"' : "emacs" }]);
+});
+
 /** Preferences rebuilt within the first release, converting the emacs mode it drops. */
 const preferenceRebuilt = defineTable(
     "preference",
@@ -1056,8 +1095,9 @@ test("fill a new required column without a default by its edition's conversion o
         steps:
             TestDatabase.target() === "sqlite"
                 ? [
-                      `safe replace table/${table(taskRequired)}: rebuild table: add priority`,
+                      `safe create table/${table(taskRequired)}/column/priority: add column priority`,
                       `fallible convert table/${table(taskRequired)}: convert rows to edition 2`,
+                      `safe replace table/${table(taskRequired)}: rebuild table: add priority`,
                   ]
                 : [
                       `safe create table/${table(taskRequired)}/column/priority: add column priority`,
@@ -1070,6 +1110,104 @@ test("fill a new required column without a default by its edition's conversion o
         ],
         refused: "refused",
     });
+});
+
+/** Tasks in the next release, whose priority replaces urgent, converted from it. */
+const taskReplaced = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        title: text("title").notNull(),
+        priority: text("priority").notNull(),
+        dueAt: integer("due_at"),
+    },
+    {
+        log: {},
+        convert: {
+            2: {
+                priority: Expression.case(
+                    Expression.column("urgent"),
+                    [{ when: 1, then: Expression.literal("high") }],
+                    Expression.literal("normal"),
+                ),
+            },
+        },
+        constraints: (task) => [index("task_due").on(task.dueAt)],
+    },
+    CURRENT_RELEASE,
+);
+
+test("replace a column by a new one its edition's conversion derives from it, in one release", async () => {
+    // migrate tasks with rows to a release replacing urgent by the priority it converts to
+    const database = await open([taskReplaced]);
+    await database.migrate([taskTwo]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
+            ),
+    );
+    await database.migrate([taskReplaced]);
+
+    // expect each row's priority from its urgent, and urgent gone
+    expect(await database.select().from(taskReplaced).orderBy(taskReplaced.id)).toEqual([
+        { id: "a", scope: "inbox", title: "Plan", priority: "high", dueAt: null },
+        { id: "b", scope: "inbox", title: "Ship", priority: "normal", dueAt: 5 },
+    ]);
+});
+
+/** Tasks two editions on, labeled from the priority the second edition derives. */
+const taskLabeled = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        title: text("title").notNull(),
+        priority: text("priority").notNull(),
+        label: text("label").notNull(),
+        dueAt: integer("due_at"),
+    },
+    {
+        log: {},
+        convert: {
+            2: {
+                priority: Expression.case(
+                    Expression.column("urgent"),
+                    [{ when: 1, then: Expression.literal("high") }],
+                    Expression.literal("normal"),
+                ),
+            },
+            3: {
+                label: Expression.case(
+                    Expression.column("priority"),
+                    [{ when: "high", then: Expression.literal("Soon") }],
+                    Expression.literal("Later"),
+                ),
+            },
+        },
+        constraints: (task) => [index("task_due").on(task.dueAt)],
+    },
+    CURRENT_RELEASE,
+);
+
+test("convert rows across two new editions, the later reading what the earlier converted", async () => {
+    // migrate tasks with rows two editions on, dropping urgent on the way
+    const database = await open([taskLabeled]);
+    await database.migrate([taskTwo]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
+            ),
+    );
+    await database.migrate([taskLabeled]);
+
+    // expect the priority from urgent, and the label from that priority
+    expect(await database.select().from(taskLabeled).orderBy(taskLabeled.id)).toEqual([
+        { id: "a", scope: "inbox", title: "Plan", priority: "high", label: "Soon", dueAt: null },
+        { id: "b", scope: "inbox", title: "Ship", priority: "normal", label: "Later", dueAt: 5 },
+    ]);
 });
 
 /** Leases keyed by their holder alone, as first released. */
@@ -1571,9 +1709,9 @@ test("expand for two running releases, bridge a renamed column, then contract", 
                   `destructive replace table/${table(taskTwo)}: rebuild table: drop name, drop note, change title`,
               ]
             : [
+                  `fallible update table/${table(taskTwo)}/column/title: change column title`,
                   `destructive delete table/${table(taskTwo)}/column/name: drop column name`,
                   `destructive delete table/${table(taskTwo)}/column/note: drop column note`,
-                  `fallible update table/${table(taskTwo)}/column/title: change column title`,
               ],
     );
     await applyPlan(database, contract, DATABASE_MANAGER);

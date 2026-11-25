@@ -458,6 +458,7 @@ export class DatabaseConnection<
                     dialect: this.dialect,
                     before: [],
                     after: [],
+                    restored: [],
                     state: [],
                     dropped: [],
                 },

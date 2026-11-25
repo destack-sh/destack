@@ -54,10 +54,16 @@ async function applySteps(
         await runStatements(transaction, changes, manager);
         transaction.state.logging = "unknown";
 
-        // convert rows after the triggers
-        const pending = plan.steps
-            .filter((each) => each.phase === "rows")
-            .flatMap((step) => step.statements);
+        // convert rows after the triggers, then contract the tables, installing a rebuilt table's triggers again
+        const pending = [
+            ...plan.steps
+                .filter((each) => each.phase === "rows")
+                .flatMap((step) => step.statements),
+            ...plan.steps
+                .filter((each) => each.phase === "contract")
+                .flatMap((step) => step.statements),
+            ...plan.restored,
+        ];
 
         // record the declared state
         const recorded = plan.state.map((state) =>
