@@ -211,7 +211,7 @@ export class LocalCheckout {
                     // save in a trace of its own, linked to the command's
                     const attributes = { "destack.checkout.path": this.path };
                     await Telemetry.detach(telemetry, (links) =>
-                        span("destack.checkout.save", attributes, save, { links }),
+                        span("destack.checkout.save", attributes, save, { links, level: "info" }),
                     );
                 }
             }
