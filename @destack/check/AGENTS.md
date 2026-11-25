@@ -554,8 +554,8 @@ Merge back with history intact:
 
 ### Committing (SC)
 
-Commit only on explicit instruction:
-- **SC01** Agents MUST NOT commit or merge without explicit instruction.
+Commit only when explicitly approved (when in manual mode):
+- **SC01** Agents SHOULD NOT commit or merge without explicit instruction.
 - **SC02** Agents MAY present suggested commit slices after re-reviewing their work.
 
 Use conventional commit subjects:
@@ -582,3 +582,7 @@ Write boring, plain commit messages:
 - **SC33** Commit messages SHOULD name code concepts as proper nouns, not files: `add SiteTable, rename Foo -> Bar`.
 - **SC34** Commit messages SHOULD follow the style of the last 50 or so commits when in doubt.
 - **SC35** Commit messages MUST NOT mention non-human authors or contributors: no co-authors and no bylines.
+
+Re-review your own work thoroughly before suggesting or making commits:
+- **SC40** Prior to ANY commits, the full diff must be reviewed in full (not just hunks, the full diffs, including relevnat surrounding areas and call paths) to ensure compliance with all of the rules.
+- **SS41** Every diff MUST be aligned with the long term product objectives, have the right minimal compressed nouns and verbs, prefer subtraction / compression / generalisation over addition, and fulfill our modeling and sytle criteria. (Checklists MAY be helpful here.)
