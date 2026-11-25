@@ -9,6 +9,8 @@ import { defineDatabase } from "../../declare/database.ts";
 import { ResourceId, Plan } from "@destack/resource";
 import { durableObjectConnector } from "../connector.ts";
 import { DATABASE_PATH, DurableObjectDatabaseHost, DurableObjectMeasurement } from "../host.ts";
+import { Condition } from "../../query/condition.ts";
+import { Expression } from "../../expression/expression.ts";
 import { defineTable, TABLE } from "../../table/table.ts";
 import { bigint, binary, text } from "../../table/column.ts";
 import { playlist } from "../../multikey/test/fixture.ts";
@@ -31,6 +33,25 @@ const note = defineTable(
     {},
     MODULE,
 );
+
+/** Cards before their title is searched. */
+const plainCard = defineTable(
+    "card",
+    { id: text("id").primaryKey(), title: text("title").notNull() },
+    { log: {} },
+    MODULE,
+);
+
+/** Cards whose title is searched. */
+const card = defineTable(
+    "card",
+    { id: text("id").primaryKey(), title: text("title").notNull() },
+    { log: {}, fullText: ["title"] },
+    MODULE,
+);
+
+/** More cards than one statement binds values. */
+const CARDS = 300;
 
 /** Folders as first released, with a column a later release drops. */
 const folderOne = defineTable(
@@ -178,6 +199,8 @@ export class NoteStore {
             return await this.leaked();
         } else if (pathname === "/limits") {
             return await this.limits();
+        } else if (pathname === "/search") {
+            return await this.search();
         } else if (pathname === "/rebuild") {
             return await this.rebuild();
         } else if (pathname === "/drop") {
@@ -649,6 +672,47 @@ export class NoteStore {
         );
 
         return Response.json(read);
+    }
+
+    /** Search the cards of two namespaces, indexed by a migration and by changing them all. */
+    async search(): Promise<Response> {
+        // store the cards of each namespace before their title is searched
+        const found: unknown[] = [];
+        for (const namespace of ["first", "second"]) {
+            const plain = this.databases.connect([plainCard], { namespace });
+            await plain.log.create(`space-${namespace}`);
+            await plain.migrate([plainCard]);
+            const ids = Array.from({ length: CARDS }, (_, index) => `C-${String(index)}`);
+            await plain.transaction((transaction) =>
+                transaction
+                    .insert(plainCard)
+                    .values(ids.map((id) => ({ id, title: `${namespace} 東京都庁 ${id}` })))
+                    .execute(),
+            );
+
+            // search them, then change them all and search them again
+            const database = this.databases.connect([card], { namespace });
+            await database.migrate([card]);
+            const search = async (typed: string) => {
+                const relevance = Expression.relevance(["title"], typed);
+                const rows = await database
+                    .select({ id: card.id, score: Expression.select(relevance, card) })
+                    .from(card)
+                    .where(Condition.render({ SEARCH: typed }, card));
+
+                return [rows.length, rows.find(({ id }) => id === "C-7")?.score];
+            };
+            const filled = [await search(namespace), await search("都庁"), await search("c 7")];
+            await database.transaction(
+                async (transaction) =>
+                    await transaction.update(card).set({ title: `Łódź ${namespace}` }),
+            );
+            const changed = [await search("lodz"), await search("都庁")];
+            const index = present(card[TABLE].fullText, "the cards' index");
+            found.push({ filled, changed, terms: await index.terms(database, "lodx") });
+        }
+
+        return Response.json(found);
     }
 
     /** Migrate, write, roll back a failed nested transaction, and read the notes back. */

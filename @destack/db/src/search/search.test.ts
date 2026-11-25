@@ -139,6 +139,38 @@ test("cut the passage around the first match, whole words where there are spaces
     ]);
 });
 
+test("choose the word someone most likely meant", () => {
+    const terms = ["order", "ordering", "older", "orchid", "harbour", "harbours"].map(
+        (term, index) => ({
+            term,
+            rows: index === 1 ? 9 : 1,
+        }),
+    );
+    const closest = (word: string, isLast = false) => Search.closest(word, terms, isLast);
+
+    expect({
+        has: closest("order"),
+        start: closest("orch"),
+        left: closest("ordr"),
+        swapped: closest("odrer"),
+        plural: closest("orders"),
+        two: closest("harbuors"),
+        last: closest("ordri", true),
+        short: closest("ord2"),
+        far: closest("margin"),
+    }).toEqual({
+        has: "order",
+        start: "orch",
+        left: "order",
+        swapped: "order",
+        plural: "order",
+        two: "harbours",
+        last: "ordering",
+        short: undefined,
+        far: undefined,
+    });
+});
+
 test("refuse a condition's search of no words or too many, and read the first typed ones", () => {
     const many = Array.from({ length: 33 }, (_each, index) => `w${String(index)}`).join(" ");
 

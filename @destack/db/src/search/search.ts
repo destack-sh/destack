@@ -1,4 +1,5 @@
 import { DatabaseError } from "../error/error.ts";
+import type { Term } from "./fulltext.ts";
 import { type FoldedText, Tokenizer } from "./tokenizer.ts";
 
 /** The most words someone searches for, a long sentence. */
@@ -12,6 +13,9 @@ const STRETCH = /.{1,400}(?:\s|$)|.{1,400}/gu;
 
 /** What ends a line of a text: a line break, or the character that stands for a block or node. */
 const LINE_END = /[\n\ufffc]+/u;
+
+/** The lengths from which a word may have one typo, and two, as Algolia allows them. */
+const TYPOS = [4, 8];
 
 /** How well texts match, from a text that is the search to words somewhere inside them. */
 export const SEARCH_SCORE = {
@@ -149,6 +153,30 @@ export class Search {
             : joined(inside.map(([start, length]) => rangeOf(located, start, length)));
     }
 
+    /** Choose the word of an index someone most likely meant, undefined for none close. */
+    static closest(word: string, terms: readonly Term[], isLast: boolean): string | undefined {
+        // keep a word the index has, or whose start it has
+        if (terms.some(({ term }) => term.startsWith(word))) {
+            return word;
+        }
+
+        // take the fewest typos, then the most rows, comparing the start of a term with a last word
+        const allowed = TYPOS.filter((length) => word.length >= length).length;
+        const near = terms.flatMap(({ term, rows }) => {
+            const typos = typosOf(word, term, isLast);
+
+            return typos <= allowed ? [{ term, rows, typos }] : [];
+        });
+        const [best] = near.toSorted(
+            (one, other) =>
+                one.typos - other.typos ||
+                other.rows - one.rows ||
+                (one.term < other.term ? -1 : 1),
+        );
+
+        return best?.term;
+    }
+
     /** Cut the passage around the first match of a text, undefined for none. */
     excerpt(text: string, length: number = EXCERPT_LENGTH): string | undefined {
         // take the first of the stretches with the most tokens, each quick to fold
@@ -236,4 +264,41 @@ function joined(ranges: readonly SearchRange[]): SearchRange[] {
     }
 
     return apart;
+}
+
+/** Count the typos from a word to a term: letters left out, added, changed or swapped. */
+function typosOf(word: string, term: string, isStart: boolean): number {
+    // leave out terms whose lengths alone differ by more than two typos
+    if (word.length - term.length > 2 || (!isStart && term.length - word.length > 2)) {
+        return Infinity;
+    }
+
+    // count row by row, as Damerau and Levenshtein do
+    const width = Math.min(term.length, word.length + 2);
+    let beforeLast: number[] = [];
+    let last = Array.from({ length: width + 1 }, (_, column) => column);
+    for (let row = 1; row <= word.length; row += 1) {
+        const counts = [row];
+        for (let column = 1; column <= width; column += 1) {
+            const isSame = word[row - 1] === term[column - 1];
+            const isSwapped =
+                row > 1 &&
+                column > 1 &&
+                word[row - 1] === term[column - 2] &&
+                word[row - 2] === term[column - 1];
+            counts.push(
+                Math.min(
+                    (last[column] ?? Infinity) + 1,
+                    (counts[column - 1] ?? Infinity) + 1,
+                    (last[column - 1] ?? Infinity) + (isSame ? 0 : 1),
+                    isSwapped ? (beforeLast[column - 2] ?? Infinity) + 1 : Infinity,
+                ),
+            );
+        }
+        beforeLast = last;
+        last = counts;
+    }
+
+    // compare with the whole term, or with the start of it nearest the word
+    return isStart ? Math.min(...last) : (last[width] ?? Infinity);
 }

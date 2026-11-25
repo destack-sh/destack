@@ -54,6 +54,31 @@ onSqlite(
 );
 
 onSqlite(
+    "search the rows of a Durable Object's namespaces, indexed by a migration and as they change",
+    async () => {
+        const worker = await start();
+
+        // find each namespace's own cards by a word, a pair of characters and several words
+        const response = await worker.dispatchFetch("https://notes.test/search");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            ["first", "second"].map(() => ({
+                filled: [
+                    [300, 8],
+                    [300, 6],
+                    [11, 6],
+                ],
+                changed: [
+                    [300, 8],
+                    [0, null],
+                ],
+                terms: [{ term: "lodz", rows: 300 }],
+            })),
+        ]);
+    },
+);
+
+onSqlite(
     "keep the rows referencing a rebuilt table in a Durable Object, whose storage always enforces foreign keys",
     async () => {
         const worker = await start();

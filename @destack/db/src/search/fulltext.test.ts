@@ -1,9 +1,10 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, Condition, defineTable, eq, Expression, Order, TABLE, text } from "../index.ts";
+import { asc, Condition, defineTable, eq, Expression, Order, sql, TABLE, text } from "../index.ts";
 import { declareState } from "../migration/state.ts";
 import { changedTables, planTables } from "../migration/plan.ts";
 import { TestDatabase } from "../test/database.ts";
 import { Search } from "./search.ts";
+import { schema } from "@destack/schema";
 import { testSimulation } from "@destack/test/world";
 
 /** Notes before their text is searched. */
@@ -173,6 +174,12 @@ test("search rows by word prefixes, current through writes and a migration, alik
         lovelace: scoresOf([["b", 5]]),
     });
 
+    // list the words that start alike, with their rows
+    const terms = await note[TABLE].requireFullText().terms(database, "ancient");
+    expect(terms.toSorted((one, other) => (one.term < other.term ? -1 : 1))).toEqual([
+        { term: "analytical", rows: 1 },
+    ]);
+
     // refuse a search of no words
     expect(() => Condition.render({ SEARCH: " - " }, note)).toThrow(
         "search ' - ' is invalid: it has 0 words, not 1 to 32",
@@ -267,6 +274,45 @@ test("match and score random text of every script alike in SQL and memory", asyn
     expect(differences).toEqual([]);
 });
 
+test("look rows up by their keys, whether searched or changed", async () => {
+    // index more rows than one statement takes, then change them all
+    const environment = testSimulation().environment("test");
+    const storage = await TestDatabase.create([note], { environment, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const ids = Array.from({ length: 1200 }, (_, index) => `N-${String(index)}`);
+    await storage.database.transaction((transaction) =>
+        transaction
+            .insert(note)
+            .values(ids.map((id) => ({ id, scope: "s", title: `First ${id}`, body: null })))
+            .execute(),
+    );
+    await storage.database.transaction(
+        async (transaction) => await transaction.update(note).set({ title: "Second" }),
+    );
+    const count = async (typed: string) =>
+        (
+            await storage.database
+                .select({ id: note.id })
+                .from(note)
+                .where(Condition.render({ SEARCH: typed }, note))
+        ).length;
+    expect([await count("first"), await count("second")]).toEqual([0, 1200]);
+
+    // scan no table in SQLite
+    if (storage.database.dialect === "sqlite") {
+        const where = Condition.render({ SEARCH: "second" }, note);
+        const steps = await storage.database.transaction((transaction) =>
+            transaction.execute(
+                sql`EXPLAIN QUERY PLAN SELECT id FROM ${note} WHERE ${where}`,
+                schema.looseObject({ detail: schema.string() }),
+            ),
+        );
+        expect(steps[0]?.detail).toBe(
+            "SEARCH destack__db__note USING COVERING INDEX sqlite_autoindex_destack__db__note_1 (id=?)",
+        );
+    }
+});
+
 test("rebuild an index the database cut", () => {
     // plan the same table over one migrated before the index folded accents
     const declared = declareState([note], "sqlite");
@@ -284,8 +330,10 @@ test("rebuild an index the database cut", () => {
     expect({ same: steps(declared), kept: steps(kept) }).toEqual({
         same: [],
         kept: [
+            'DROP TABLE IF EXISTS "destack__db__note__search_terms"',
             'DROP TABLE IF EXISTS "destack__db__note__search"',
-            `CREATE VIRTUAL TABLE "destack__db__note__search" USING fts5("key" UNINDEXED, "title", "body", tokenize = 'ascii')`,
+            `CREATE VIRTUAL TABLE "destack__db__note__search" USING fts5("key" UNINDEXED, "row", "text0", "text1", tokenize = 'ascii')`,
+            `CREATE VIRTUAL TABLE "destack__db__note__search_terms" USING fts5vocab("destack__db__note__search", 'row')`,
         ],
     });
 });
