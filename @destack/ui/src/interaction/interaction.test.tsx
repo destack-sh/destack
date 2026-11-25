@@ -15,6 +15,10 @@ import {
     Sweep,
     Zoom,
     type ZoomEvent,
+    Frame,
+    FRAME_SIDES,
+    type FrameBounds,
+    type FrameSide,
 } from "./index.ts";
 
 /** The milliseconds a press holds before it turns long, by default. */
@@ -403,6 +407,20 @@ test("end a move whose element stops its release, and swallow the one click the 
     pointer(element, "click", 30, 10);
 
     expect({ ends: ends.length, clicks }).toEqual({ ends: 1, clicks: ["click"] });
+});
+
+test("end a move whose release never came as the pointer presses again", () => {
+    const { element, move, ends } = drawMove({ distance: 5 });
+    pointer(element, "pointerdown", 10, 10);
+    pointer(element, "pointermove", 30, 10);
+    const isMoving = move.isMoving();
+    pointer(element.ownerDocument.body, "pointerdown", 50, 10);
+
+    expect({ isMoving, after: move.isMoving(), ends: ends.map((end) => end.isCancelled) }).toEqual({
+        isMoving: true,
+        after: false,
+        ends: [true],
+    });
 });
 
 test("leave the click of a press that never moved, and of a move whose task has passed", () => {
@@ -1108,4 +1126,72 @@ test("leave two fingers to a pinch", () => {
     pointer(element, "pointerdown", 60, 10, { ...finger, pointerId: 4 });
 
     expect([pinched, move.isMoving()]).toEqual([[false, 0], true]);
+});
+
+/** Where the frame of these tests is, in a room five hundred pixels wide and four hundred high. */
+const FRAME = { start: 100, top: 80, width: 200, height: 160 };
+
+/** Drag a side of a frame, or its bar, and read where it goes. */
+function dragFrame(
+    side: FrameSide | "bar",
+    x: number,
+    y: number,
+    direction: "ltr" | "rtl" = "ltr",
+): FrameBounds {
+    let bounds: FrameBounds = FRAME;
+    const move = rooted(() => {
+        const frame = new Frame(
+            {
+                bounds: () => bounds,
+                room: () => ({ width: 500, height: 400 }),
+                least: () => ({ width: 120, height: 100 }),
+                onChange: (next) => (bounds = next),
+                direction: () => direction,
+            },
+            new ManualClock(),
+        );
+
+        return side === "bar" ? frame.move() : frame.resize(side);
+    });
+    const element = drawElement(() => move.attributes());
+    pointer(element, "pointerdown", 200, 200);
+    pointer(element, "pointermove", 200 + x, 200 + y);
+    pointer(element, "pointerup", 200 + x, 200 + y);
+
+    return bounds;
+}
+
+test("resize a frame by each side and corner, the sides across staying", () => {
+    const sized = FRAME_SIDES.map((side) => {
+        const { start, top, width, height } = dragFrame(side, 20, 10);
+
+        return [side, start, top, width, height];
+    });
+
+    expect(sized).toEqual([
+        ["start", 120, 80, 180, 160],
+        ["end", 100, 80, 220, 160],
+        ["top", 100, 90, 200, 150],
+        ["bottom", 100, 80, 200, 170],
+        ["top-start", 120, 90, 180, 150],
+        ["top-end", 100, 90, 220, 150],
+        ["bottom-start", 120, 80, 180, 170],
+        ["bottom-end", 100, 80, 220, 170],
+    ]);
+});
+
+test("keep a frame in its room and at its least size, mirrored along the text", () => {
+    expect([
+        dragFrame("bar", -400, 900),
+        dragFrame("bar", 30, 0, "rtl"),
+        dragFrame("end", -900, 0),
+        dragFrame("top-start", 900, 900),
+        dragFrame("bottom-end", 900, 900),
+    ]).toEqual([
+        { ...FRAME, start: 0, top: 240 },
+        { ...FRAME, start: 70 },
+        { ...FRAME, width: 120 },
+        { start: 180, top: 140, width: 120, height: 100 },
+        { ...FRAME, width: 400, height: 320 },
+    ]);
 });

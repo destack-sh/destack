@@ -195,6 +195,9 @@ export class Move {
         view.addEventListener("pointerup", (each) => this.#pointerEnd(each, false), options);
         view.addEventListener("pointercancel", (each) => this.#pointerEnd(each, true), options);
 
+        // end a press whose release never came, such as outside the browser, as it presses again
+        view.addEventListener("pointerdown", (each) => this.#pointerEnd(each, true), options);
+
         // select no text on the way
         view.document.addEventListener("selectstart", (select) => select.preventDefault(), {
             signal,
