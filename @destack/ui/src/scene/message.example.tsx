@@ -19,13 +19,10 @@ import {
     ComposerAddon,
     ComposerFooter,
     ComposerFrame,
-    ComposerHeader,
     ComposerInput,
     ComposerSubmit,
 } from "../composer/index.ts";
-import { Quote, QuoteContent, QuoteDismiss, QuoteIcon } from "../quote/index.ts";
 import { PICTURES } from "../example/picture.ts";
-import { FileItem, FileItemGroup } from "../file-item/index.ts";
 import { EmojiButton } from "../example/emoji.tsx";
 import { Icon } from "@destack/ui/icon";
 import {
@@ -58,76 +55,13 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../resizab
 import { RelativeTime } from "../relative-time/index.ts";
 import { Spinner } from "../spinner/index.ts";
 import { ToolbarButton } from "../toolbar/index.ts";
-import { App, Face, PEOPLE } from "./app.example.tsx";
+import { App, Face, PEOPLE } from "./app.tsx";
 
 /** The person who wrote to the inbox. */
 const MARTA = { name: "Marta Silva", initials: "MS" };
 
 /** The milliseconds of a minute. */
 const MINUTE = 60_000;
-
-/** A person of the examples. */
-type Person = (typeof PEOPLE)[keyof typeof PEOPLE];
-
-/** A message of the channel. */
-interface Post {
-    /** The message's id. */
-    readonly id: string;
-    /** Who wrote it. */
-    readonly person: Person;
-    /** How many minutes ago it was written. */
-    readonly ago: number;
-    /** What it says. */
-    readonly text: string;
-    /** How many reacted, by their emoji. */
-    readonly reactions?: Readonly<Record<string, number>>;
-    /** The file it brings. */
-    readonly file?: { readonly name: string; readonly size: number; readonly type: string };
-}
-
-/** The messages of the channel. */
-const POSTS: readonly Post[] = [
-    {
-        id: "p1",
-        person: PEOPLE.ada,
-        ago: 1500,
-        text: "The pricing page is up on staging. Two plans, one page, no asterisks.",
-    },
-    {
-        id: "p2",
-        person: PEOPLE.grace,
-        ago: 1496,
-        text: "Reads well. The yearly price wraps on small phones.",
-    },
-    {
-        id: "p3",
-        person: PEOPLE.grace,
-        ago: 1495,
-        text: "Never mind, that was my zoom.",
-        reactions: { "😅": 3 },
-    },
-    {
-        id: "p4",
-        person: PEOPLE.jonas,
-        ago: 95,
-        text: "Demo is down to 1:58. Here is the script we recorded from.",
-        file: { name: "demo-script.pdf", size: 48_120, type: "application/pdf" },
-    },
-    {
-        id: "p5",
-        person: PEOPLE.ada,
-        ago: 60,
-        text: "Watched it twice. Ship it.",
-        reactions: { "🚀": 4, "🎉": 2 },
-    },
-    {
-        id: "p6",
-        person: PEOPLE.grace,
-        ago: 12,
-        text: "Press note goes out at nine. I put the embargo line on top so nobody can miss it, and the three journalists who asked get it an hour early.",
-    },
-    { id: "p7", person: PEOPLE.grace, ago: 11, text: "Can someone read it once more before that?" },
-];
 
 /** The styles of the scenes. */
 const styles = style.create({
@@ -138,9 +72,6 @@ const styles = style.create({
         minHeight: 0,
         minWidth: 0,
         margin: `calc(-1 * ${space[5]})`,
-    },
-    rows: {
-        gap: space[1],
     },
     first: {
         marginBlockStart: space[3],
@@ -192,9 +123,6 @@ const styles = style.create({
         maxWidth: "100%",
         height: "auto",
     },
-    files: {
-        maxWidth: "20rem",
-    },
     selected: {
         backgroundColor: color.muted,
     },
@@ -218,185 +146,6 @@ function PostActions(): JSX.Element {
         </MessageToolbar>
     );
 }
-
-/** Render a message of the channel, without the face where the one before is the same person's. */
-function PostRow(properties: {
-    readonly post: Post;
-    readonly isFirst: boolean;
-    readonly onReply: () => void;
-}): JSX.Element {
-    const { clock } = useEnvironment();
-    const time = clock.now() - properties.post.ago * MINUTE;
-
-    return (
-        <MessageScrollerItem
-            messageId={properties.post.id}
-            xstyle={properties.isFirst && styles.first}
-        >
-            <Message onSwipe={properties.onReply}>
-                <MessageAvatar position="top">
-                    <Show when={properties.isFirst}>
-                        <Face person={properties.post.person} />
-                    </Show>
-                </MessageAvatar>
-                <MessageContent>
-                    <Show when={properties.isFirst}>
-                        <MessageHeader>
-                            <MessageAuthor>{properties.post.person.name}</MessageAuthor>
-                            <RelativeTime value={time} />
-                        </MessageHeader>
-                    </Show>
-                    <div {...style.attrs(text.sm)}>{properties.post.text}</div>
-                    <Show when={properties.post.file}>
-                        {(file) => (
-                            <FileItemGroup aria-label="Files" xstyle={styles.files}>
-                                <FileItem size="sm" file={file()} />
-                            </FileItemGroup>
-                        )}
-                    </Show>
-                    <Show when={properties.post.reactions}>
-                        {(reactions) => (
-                            <ReactionGroup>
-                                <For each={Object.entries(reactions())}>
-                                    {([emoji, count]) => <Reaction emoji={emoji} count={count} />}
-                                </For>
-                                <EmojiButton label="Add reaction" onSelect={() => {}} />
-                            </ReactionGroup>
-                        )}
-                    </Show>
-                </MessageContent>
-                <PostActions />
-            </Message>
-        </MessageScrollerItem>
-    );
-}
-
-/** A team's channel, whose messages one answers, reacts to and follows. */
-export const sceneChannel = defineExample({
-    of: MessageScroller,
-    name: "channel",
-    description: "a team's channel: days, people, files, reactions, replies and someone typing",
-    layout: "fullscreen",
-    render: () => {
-        // answer a message, and add what is written at the end
-        const [posts, setPosts] = createSignal(POSTS);
-        const [words, setWords] = createSignal("");
-        const [quoted, setQuoted] = createSignal<Post | undefined>(undefined);
-        const isFirst = (index: number): boolean =>
-            posts()[index]?.person !== posts()[index - 1]?.person || posts()[index]?.id === "p4";
-
-        return (
-            <App
-                name="Studio"
-                groups={[
-                    {
-                        label: "Channels",
-                        places: [
-                            { name: "general", icon: <Icon name="hash" /> },
-                            { name: "launch", icon: <Icon name="hash" /> },
-                            { name: "press", icon: <Icon name="hash" />, count: 2 },
-                        ],
-                    },
-                ]}
-                current="launch"
-            >
-                <div {...style.attrs(styles.conversation)}>
-                    <MessageScroller autoScroll>
-                        <MessageScrollerViewport>
-                            <MessageScrollerContent xstyle={styles.rows}>
-                                <MessageScrollerItem>
-                                    <Marker variant="separator">
-                                        <MarkerContent>Yesterday</MarkerContent>
-                                    </Marker>
-                                </MessageScrollerItem>
-                                <For each={posts()}>
-                                    {(post, index) => (
-                                        <>
-                                            <Show when={post.id === "p4"}>
-                                                <MessageScrollerItem xstyle={styles.first}>
-                                                    <Marker variant="separator">
-                                                        <MarkerContent>Today</MarkerContent>
-                                                    </Marker>
-                                                </MessageScrollerItem>
-                                            </Show>
-                                            <PostRow
-                                                post={post}
-                                                isFirst={isFirst(index())}
-                                                onReply={() => setQuoted(post)}
-                                            />
-                                        </>
-                                    )}
-                                </For>
-                                <MessageScrollerItem xstyle={styles.first}>
-                                    <Marker role="status">
-                                        <MarkerContent>Jonas is typing</MarkerContent>
-                                    </Marker>
-                                </MessageScrollerItem>
-                            </MessageScrollerContent>
-                        </MessageScrollerViewport>
-                        <MessageScrollerButton />
-                    </MessageScroller>
-                    <div {...style.attrs(styles.composer)}>
-                        <Composer
-                            onSubmit={() => {
-                                setPosts((all) => [
-                                    ...all,
-                                    {
-                                        id: String(all.length),
-                                        person: PEOPLE.ada,
-                                        ago: 0,
-                                        text: words(),
-                                    },
-                                ]);
-                                setWords("");
-                                setQuoted(undefined);
-                            }}
-                        >
-                            <ComposerFrame>
-                                <ComposerHeader>
-                                    <Show when={quoted()}>
-                                        {(post) => (
-                                            <Quote>
-                                                <QuoteIcon />
-                                                <QuoteContent>
-                                                    <strong>{post().person.name}</strong>
-                                                    <div>{post().text}</div>
-                                                </QuoteContent>
-                                                <QuoteDismiss
-                                                    onClick={() => setQuoted(undefined)}
-                                                />
-                                            </Quote>
-                                        )}
-                                    </Show>
-                                </ComposerHeader>
-                                <ComposerInput
-                                    placeholder="Message launch"
-                                    value={words()}
-                                    onInput={(event) => setWords(event.currentTarget.value)}
-                                />
-                                <ComposerFooter>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        shape="round"
-                                        aria-label="Attach a file"
-                                    >
-                                        <Icon icon={plusIcon} />
-                                    </Button>
-                                    <EmojiButton
-                                        label="Add emoji"
-                                        onSelect={(emoji) => setWords((all) => all + emoji)}
-                                    />
-                                    <ComposerSubmit disabled={words().trim() === ""} />
-                                </ComposerFooter>
-                            </ComposerFrame>
-                        </Composer>
-                    </div>
-                </div>
-            </App>
-        );
-    },
-});
 
 /** A conversation between two people in bubbles, with one line to write in. */
 export const sceneDirect = defineExample({

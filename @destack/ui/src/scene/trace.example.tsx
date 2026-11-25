@@ -62,7 +62,7 @@ import {
     TreeItemRow,
     TreeItemToggle,
 } from "../tree/index.ts";
-import { App, Face, PEOPLE } from "./app.example.tsx";
+import { App, Face, PEOPLE } from "./app.tsx";
 
 /** The narrow screens, on which the details stand below. */
 const NARROW = "@media (max-width: 60rem)";
