@@ -76,7 +76,7 @@ test("pack an image's root build below package/ in path order, with what a listi
     const released = {
         ...authored,
         dependencies: { "@destack/object": ">=2026.11.2", zod: "4.1.0" },
-        peerDependencies: { "@destack/test": "latest" },
+        peerDependencies: { "@destack/test": "*" },
         devDependencies: { "@destack/test": "latest" },
     };
     expect({
