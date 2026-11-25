@@ -1,6 +1,7 @@
 export * from "./element.ts";
 export * from "./anchor.ts";
 export * from "./mark.ts";
+export * from "./block.ts";
 export * from "./schema.ts";
 export * from "./edit.ts";
 export * from "./sequence.ts";

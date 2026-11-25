@@ -1,14 +1,15 @@
 import { expect, test } from "@destack/test";
 import { nth, present, schema } from "@destack/schema";
 import {
+    Block,
     RICH_TEXT,
-    TextSequence,
     TextChange,
-    TextSchema,
-    TextTypes,
-    type TextElement,
     type TextEdit,
+    type TextElement,
     type TextMark,
+    TextSchema,
+    TextSequence,
+    TextTypes,
 } from "./index.ts";
 
 /** The schema the sequence tests resolve marks and nodes with. */
@@ -521,4 +522,64 @@ test("find the one replacement between two texts, around their common start and 
         { from: 2, to: 2, insert: "a" },
         { from: 4, to: 4, insert: "" },
     ]);
+});
+
+/** An item of a list at an indent. */
+function item(indent: number) {
+    return { type: "list", value: { style: "bullet", indent } };
+}
+
+test("read blocks from their nodes on, nested by their indents and kept where they are the same", () => {
+    // write a first line, a heading and a list with a nested item
+    const steps: TextEdit[] = [
+        { insert: "first", run: "a.1", start: 0 },
+        { insert: { type: "heading", value: { level: 1 } }, run: "a.1", start: 5, after: at(4) },
+        { insert: "Plan", run: "a.1", start: 6, after: at(5) },
+        { insert: item(0), run: "a.1", start: 10, after: at(9) },
+        { insert: "one", run: "a.1", start: 11, after: at(10) },
+        { insert: item(1), run: "a.1", start: 14, after: at(13) },
+        { insert: "nested", run: "a.1", start: 15, after: at(14) },
+    ];
+    const sequence = steps.reduce((text, step) => text.apply(step), new TextSequence());
+    const blocks = sequence.blocks(SCHEMA);
+    const typed = sequence.apply({ insert: "!", run: "b.1", start: 0, after: at(20) });
+    const kept = Block.kept(typed.blocks(SCHEMA), blocks);
+    const list = { type: "list", value: { style: "bullet" } };
+
+    // cut them at every length of their plain text
+    const plain = Block.plain(kept);
+    const cuts = Array.from({ length: plain.length + 1 }, (_, length) =>
+        Block.plain(Block.cut(kept, length)).trimEnd(),
+    );
+    expect(cuts).toEqual(cuts.map((_, length) => plain.slice(0, length).trimEnd()));
+    expect(Block.cut(kept, plain.length).map((block, index) => block === kept[index])).toEqual([
+        true,
+        true,
+        true,
+    ]);
+
+    expect({
+        blocks,
+        plain,
+        same: kept.map((block, index) => block === blocks[index]),
+    }).toEqual({
+        blocks: [
+            { key: "", type: "paragraph", value: null, spans: [{ text: "first" }], blocks: [] },
+            {
+                key: "a.1:5",
+                type: "heading",
+                value: { level: 1 },
+                spans: [{ text: "Plan" }],
+                blocks: [],
+            },
+            {
+                key: "a.1:10",
+                ...list,
+                spans: [{ text: "one" }],
+                blocks: [{ key: "a.1:14", ...list, spans: [{ text: "nested" }], blocks: [] }],
+            },
+        ],
+        plain: "first\nPlan\none\nnested!\n\n",
+        same: [true, true, false],
+    });
 });

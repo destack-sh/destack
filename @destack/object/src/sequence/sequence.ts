@@ -2,6 +2,7 @@ import { canonicalize, type JsonValue, nth } from "@destack/schema";
 import type { TextAnchor } from "./anchor.ts";
 import type { TextElement, TextRun, TextNode } from "./element.ts";
 import type { TextEdit, TextChange } from "./edit.ts";
+import { Block } from "./block.ts";
 import type { TextMark, TextSpan } from "./mark.ts";
 import type { TextMarkType, TextSchema } from "./schema.ts";
 
@@ -297,6 +298,38 @@ export class TextSequence {
 
     /** Split the visible text into spans of equal marks, and nodes. */
     spans(schema: TextSchema): TextSpan[] {
+        return this.#spans(schema, new Map());
+    }
+
+    /** Split the visible text into blocks, each from its node on, the first a paragraph. */
+    blocks(schema: TextSchema): Block[] {
+        // start a block at each node that starts one
+        const elements = new Map<TextSpan, TextElement>();
+        const blocks: (Block & { readonly spans: TextSpan[] })[] = [];
+        for (const span of this.#spans(schema, elements)) {
+            const node = "node" in span ? span.node : undefined;
+            const type = node === undefined ? undefined : schema.nodes.get(node.type);
+            const element = elements.get(span);
+            if (node !== undefined && type?.isBlock === true && element !== undefined) {
+                const key = `${element.run}:${element.offset}`;
+                blocks.push({ key, type: node.type, value: node.value, spans: [], blocks: [] });
+            }
+            // add any other to the block it is in
+            else {
+                let block = blocks.at(-1);
+                if (block === undefined) {
+                    block = { key: "", type: "paragraph", value: null, spans: [], blocks: [] };
+                    blocks.push(block);
+                }
+                block.spans.push(span);
+            }
+        }
+
+        return Block.nested(blocks);
+    }
+
+    /** Split the visible text into spans, collecting the element of each node. */
+    #spans(schema: TextSchema, elements: Map<TextSpan, TextElement>): TextSpan[] {
         // place every mark's edges, element i at 2i + 1
         const pieces = this.#pieces();
         const placed = this.marks.flatMap((mark): PlacedMark[] => {
@@ -346,7 +379,9 @@ export class TextSequence {
                 );
                 const stop = Number.isFinite(next) ? Math.min(end, next / 2) : end;
                 if ("node" in piece) {
-                    spans.push({ node: piece.node });
+                    const span = { node: piece.node };
+                    spans.push(span);
+                    elements.set(span, { run: piece.run, offset: piece.start });
                 } else if (typeof piece.text === "string") {
                     resolved ??= TextSequence.#resolve([...active], schema);
                     const characters = piece.text.slice(cursor - ordinal, stop - ordinal);

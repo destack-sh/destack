@@ -1029,6 +1029,25 @@ export async function starAndUndo(
 }
 ```
 
+### Read and write Markdown
+
+`Markdown` reads and writes the blocks of a text, and a `MarkdownParser` reads them as the text comes in.
+
+```ts
+import { Markdown, MarkdownParser } from "@destack/object/markdown";
+
+/** Read an answer piece by piece, and write what it came to. */
+export async function readAnswer(pieces: AsyncIterable<string>) {
+    const parser = new MarkdownParser();
+    for await (const piece of pieces) {
+        parser.append(piece);
+        console.log(parser.blocks(true));
+    }
+
+    return Markdown.stringify(parser.blocks(false));
+}
+```
+
 ### Search a client's objects
 
 `client.search` finds the searchable objects of some types, the most relevant and newest first, and follows them live.
