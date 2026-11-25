@@ -12,4 +12,4 @@ export * from "./control/table.ts";
 export * from "./channel/index.ts";
 export * from "./error/index.ts";
 export * from "./multikey/index.ts";
-export { DatabaseState, TableState, declareState } from "./migration/state.ts";
+export { DatabaseState, TableState, declareState, replicatedState } from "./migration/state.ts";

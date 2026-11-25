@@ -262,6 +262,17 @@ export function declareState(
     });
 }
 
+/** Describe a declared table state as a database replicating the table stores it. */
+export function replicatedState(state: TableState, dialect: Dialect): TableState {
+    // keep a replicated state, else mark its replicas and leave its global indexes to its home
+    if (state.isReplicated === true) {
+        return state;
+    }
+    const { globalIndexes: _globalIndexes, ...kept } = state;
+
+    return { ...kept, isReplicated: true, table: asReplicated(state.table, dialect) };
+}
+
 /** Qualify a state's relations with a namespace, preserving the SQL name its log records. */
 export function namespaceState(state: TableState, namespace: string | undefined): TableState {
     return namespace === undefined
