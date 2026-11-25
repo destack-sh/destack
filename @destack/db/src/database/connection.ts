@@ -821,8 +821,8 @@ export class ConnectionState {
     readonly namespace: string | undefined;
     /** The PostgreSQL schema every statement names its relations in, absent for SQLite. */
     readonly schema: string | undefined;
-    /** The searched tables whose full-text rows SQLite writes update, by SQL name. */
-    #searched: ReadonlyMap<string, Table> = new Map();
+    /** The tables with a full-text index, whose rows SQLite commits update, by SQL name. */
+    #fullText: ReadonlyMap<string, Table> = new Map();
     /** The declared names of the tables and their columns, by SQL name. */
     #declared: NameTable = new Map();
     /** The SQL names of the tables without change triggers: unlogged ones and the log's tables. */
@@ -946,9 +946,9 @@ export class ConnectionState {
         return this.#dependent;
     }
 
-    /** The searched tables whose full-text rows SQLite writes update, by SQL name. */
-    get searched(): ReadonlyMap<string, Table> {
-        return this.#searched;
+    /** The tables with a full-text index, whose rows SQLite commits update, by SQL name. */
+    get fullText(): ReadonlyMap<string, Table> {
+        return this.#fullText;
     }
 
     /** The declared names of the tables and their columns, by SQL name. */
@@ -1014,7 +1014,7 @@ export class ConnectionState {
                 .filter((table) => table[TABLE].dependents.length > 0)
                 .map((table) => table[TABLE].sqlName),
         );
-        this.#searched = new Map(
+        this.#fullText = new Map(
             declared
                 .filter((table) => table[TABLE].fullText !== undefined)
                 .map((table) => [table[TABLE].sqlName, table]),

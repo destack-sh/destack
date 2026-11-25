@@ -140,11 +140,11 @@ export class TransactionIdentity {
             return undefined;
         }
 
-        // update the full-text rows of the searched tables written, then clear the marker
-        const searched = new Map(
-            [...this.#connection.searched].filter(([name]) => written.has(name)),
+        // update the full-text rows of the written tables with a full-text index, then clear the marker
+        const indexed = new Map(
+            [...this.#connection.fullText].filter(([name]) => written.has(name)),
         );
-        await FullTextIndex.update(this.#session, searched, this.#connection.namespace);
+        await FullTextIndex.update(this.#session, indexed, this.#connection.namespace);
         const { namespace } = this.#connection;
         const marker = quote(relation(LOG_TRANSACTION, namespace));
         const log = quote(relation(LOG, namespace));
