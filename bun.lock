@@ -531,9 +531,7 @@
         "@destack/package": "workspace:*",
         "@destack/registry": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/setting": "workspace:*",
         "@destack/vault": "workspace:*",
-        "@destack/workflow": "workspace:*",
       },
       "devDependencies": {
         "@destack/check": "workspace:*",

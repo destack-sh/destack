@@ -545,7 +545,7 @@
                 {
                     "directory": "@platform/stack",
                     "name": "@platform/stack",
-                    "description": "Declare the platform Destack operates: its organization, its residencies, and the stacks its spaces follow."
+                    "description": "Declare the platform Destack operates: its organization, its regions, and the stacks its spaces follow."
                 },
                 {
                     "directory": "@destack/build/tests/fixture/library/source",

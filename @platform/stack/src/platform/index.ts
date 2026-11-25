@@ -1,2 +1,2 @@
 export * from "./platform.ts";
-export * from "./residency.ts";
+export * from "./region.ts";

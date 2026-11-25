@@ -1,13 +1,10 @@
 import type { PlatformDefinition } from "@destack/account/server";
 
-/** The client ID of production's GitHub App, github.com/apps/destack-app. */
-export const GITHUB_APP = "Iv23li2jZs0kDg8Bc3sg";
-
 /** The organization operating the platform, as the universe's definition declares it. */
 export const PLATFORM = {
     name: "Destack",
     handle: "destack",
-    residencyId: "eu",
+    regionId: "eu",
     publishers: ["platform"],
     // publish the platform's releases from the release workflow's production environment
     clients: [
@@ -20,7 +17,7 @@ export const PLATFORM = {
     reserved: [
         // platform nouns
         "universe",
-        "residency",
+        "region",
         "registry",
         "forge",
         "relay",
@@ -141,5 +138,5 @@ export const PLATFORM = {
     transfers: {},
 } as const satisfies Pick<
     PlatformDefinition,
-    "name" | "handle" | "residencyId" | "publishers" | "clients" | "reserved" | "transfers"
+    "name" | "handle" | "regionId" | "publishers" | "clients" | "reserved" | "transfers"
 >;

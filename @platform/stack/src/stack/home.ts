@@ -1,4 +1,7 @@
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
+import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
+import { credentialVault, repositoryStorage } from "@destack/forge/stack";
+import { gitStorage } from "@destack/stack/object";
 import { connectionVault } from "@destack/connection/stack";
 import { HOME_APPLICATION } from "@destack/account/object";
 import { HOME_INPUT, PlatformInput } from "../input/index.ts";
@@ -17,16 +20,22 @@ export const HOME_INSTALLATION = install(
     { name: HOME_APPLICATION, version: { kind: "host" } },
 );
 
-/** Every account's home stack: its start page, inbox, connections, comments and observability. */
-export const HOME_STACK = defineStack({
-    types: [vaultPackage],
-    vaults: { credentials: connectionVault.provision() },
+/** The declarations of every account's home: its start page, forge, inbox and connections. */
+export const HOME_OPTIONS = {
+    types: [vaultPackage, forgePackage, gitStorage],
+    vaults: { connections: connectionVault.provision(), credentials: credentialVault.provision() },
+    gitStorages: { repositories: repositoryStorage.provision() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(
             connectionPackage,
-            { credentials: "credentials" },
+            { credentials: "connections" },
             { isolation: "host", name: CONNECTION_INSTALLATION },
+        ),
+        forge: install(
+            forgePackage,
+            { repositories: "repositories", credentials: "credentials" },
+            { isolation: "host", name: FORGE_INSTALLATION },
         ),
         home: HOME_INSTALLATION,
         message: install(
@@ -46,4 +55,7 @@ export const HOME_STACK = defineStack({
             { isolation: "host", name: "observability" },
         ),
     },
-});
+} as const;
+
+/** Every account's home stack. */
+export const HOME_STACK = defineStack(HOME_OPTIONS);

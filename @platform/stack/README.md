@@ -1,26 +1,26 @@
 # @platform/stack
 
-Declare the platform Destack operates: its organization, its residencies, and the stacks its spaces follow.
+Declare the platform Destack operates: its organization, its regions, and the stacks its spaces follow.
 
 ## Overview
 
-`@platform/stack` is the platform's declarations: the operating organization, the residencies, and the stacks every space follows.
+`@platform/stack` is the platform's declarations: the operating organization, the regions, and the stacks every space follows.
 
 It declares:
 
 - `PLATFORM`: the organization operating the platform, with its publishers and reserved handles.
-- `RESIDENCIES`: the jurisdictions people choose for their data, each with its countries and cloud machine.
-- `RESIDENCY_STACK_EU` and `RESIDENCY_STACK_US`: each residency home's installations, such as the forge, vault and relay.
+- `REGIONS`: the jurisdictions people choose for their data, each with its countries and managed machine.
+- `PLATFORM_STACK`: the platform's home, a home with finance, Stripe and the site.
 - `HOME_STACK`: every account's home, with Home, its inbox and its connections.
 - `SPACE_STACK`: every other space, with social, message, inbox and observability.
 
-Read the residencies and the stack each home follows:
+Read the regions and the managed machine serving each:
 
 ```ts
-import { RESIDENCIES } from "@platform/stack";
+import { REGIONS } from "@platform/stack";
 
-// map each residency's code to its home's stack export
-export const stacks = Object.fromEntries(
-    RESIDENCIES.map((residency) => [residency.code, residency.stack]),
+// map each region's code to the name of its managed machine
+export const machines = Object.fromEntries(
+    REGIONS.map((region) => [region.code, region.machine.name]),
 );
 ```
