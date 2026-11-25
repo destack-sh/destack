@@ -1,5 +1,5 @@
 import type { ObjectClient } from "@destack/object/client";
-import { type Condition, Observation } from "@destack/object";
+import { type Decision, Status } from "@destack/object";
 import type { Address } from "@destack/view/declare";
 import { Link } from "../link/index.ts";
 import {
@@ -20,7 +20,7 @@ const PLACE_DELAY_MILLISECONDS = 500;
 const READY = "Ready";
 
 /** A shown window's ready condition. */
-const SHOWN: Condition = { status: "true", reason: "Shown", message: "" };
+const SHOWN: Decision = { status: "true", reason: "Shown", message: "" };
 
 /** One change a set of window rows asks of the shell and the native device. */
 export type WindowStep =
@@ -173,7 +173,7 @@ export class Window {
             return [{ kind: "focus", row }];
         }
         // observe a shown window's change the shell already shows, such as its place
-        else if (!Observation.isCurrent(row, READY)) {
+        else if (!Status.isCurrent(row, READY)) {
             return [{ kind: "settle", row }];
         }
         // leave a shown window as it is
