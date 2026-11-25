@@ -15,6 +15,7 @@
         "./bun": "./src/bun/index.ts",
         "./computer": "./src/computer/index.ts",
         "./device": "./src/computer/device/index.ts",
+        "./process": "./src/computer/process/index.ts",
         "./test": "./src/test/index.ts",
         "./computer/test": "./src/computer/test/index.ts",
         "./computer/test/setup": "./src/computer/test/setup.ts",
