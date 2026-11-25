@@ -249,6 +249,8 @@ export const ActionDescription = schema.object({
     focus: ActionFocus,
     /** Whether it removes something, a method's own when absent. */
     isDestructive: schema.boolean().exactOptional(),
+    /** Whether a person runs it for several choices in a row, absent for once. */
+    isRepeated: schema.boolean().exactOptional(),
     /** The inputs of an action the open view handles, none when absent. */
     inputs: schema.array(ActionInputDescription).exactOptional(),
     /** The method it calls, absent for an action the open view handles. */

@@ -55,6 +55,8 @@ export interface ActionDefinition<
     readonly focus?: ActionFocus;
     /** Whether it removes something, which menus mark, a method's own by default. */
     readonly isDestructive?: boolean;
+    /** Whether a person runs it for several choices in a row, its list staying open. */
+    readonly isRepeated?: boolean;
     /** The inputs, by name, none by default. */
     readonly input?: Inputs;
     /** The method it calls, reading its inputs, absent for an action the open view handles. */
@@ -83,6 +85,8 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
     readonly focus: ActionFocus;
     /** Whether it removes something, which menus mark. */
     readonly isDestructive: boolean;
+    /** Whether a person runs it for several choices in a row, its list staying open. */
+    readonly isRepeated: boolean;
     /** The inputs people and programs give it. */
     readonly inputs: readonly ActionInput[];
     /** The method it calls, absent for an action the open view handles. */
@@ -108,6 +112,7 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
                 : ActionKeybinding.of(definition.keybinding);
         this.focus = definition.focus ?? "page";
         this.isDestructive = definition.isDestructive ?? call?.isDestructive ?? false;
+        this.isRepeated = definition.isRepeated ?? false;
         this.inputs = inputs;
         this.call = call;
 
@@ -125,6 +130,18 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
     /** The action's identity: its package and name. */
     get reference(): DeclarationReference {
         return { packageId: this.package.id, name: DeclarationName.parse(this.name) };
+    }
+
+    /** The input the place gives with what it acts on, absent for an action on nothing there. */
+    get subject(): ActionInput | undefined {
+        // take what a call is on, else the first input a place gives
+        const { target } = this.call ?? {};
+
+        return this.inputs.find(({ name, value, variable }) =>
+            target === undefined
+                ? variable !== undefined || (value.kind === "object" && value.source !== "picked")
+                : name === target,
+        );
     }
 
     /** The word for the action on its object, as a command line writes it. */
@@ -159,6 +176,7 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
             ...(this.keybinding === undefined ? {} : { keybinding: this.keybinding }),
             focus: this.focus,
             ...(isOwn ? { isDestructive } : {}),
+            ...(this.isRepeated ? { isRepeated: true } : {}),
             ...(isAsking ? { inputs: inputs.map((each) => each.describe()) } : {}),
             ...(call === undefined ? {} : { call: call.describe() }),
         };

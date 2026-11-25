@@ -676,6 +676,30 @@ test("read the person's identifier where a field stores one, refusing to while n
     );
 });
 
+test("read what is selected, and what is created, at some places", () => {
+    // select issues and projects in a list, inside a page of one issue
+    const [one, two] = ["issue-1", "issue-2"].map((id) => issue.reference("device-1", id));
+    const atlas = project.reference("device-1", "project-1");
+    const first = present(one, "an issue");
+    const second = present(two, "an issue");
+    const page = Place.current(first).with(creating(issue), { status: "todo", title: "Plan" });
+    const list = Place.selected([second, atlas]).with(creating(issue), { status: "doing" });
+
+    expect({
+        selection: Place.selection([list, page]),
+        issues: [
+            selected(issue).read([list, page]),
+            selected(issue).read([page]),
+            selected(issue).read([]),
+        ],
+        creating: creating(issue).read([list, page]),
+    }).toEqual({
+        selection: [second, atlas],
+        issues: [[second], [first], []],
+        creating: { status: "doing", title: "Plan" },
+    });
+});
+
 /** Fill an action from places, reading what it still asks as each input's name and kind. */
 function filled(action: Action, places: readonly Place[], given: JsonObject = {}) {
     const { values, initial, asked } = present(action.call, "the action's call").resolve(

@@ -14,6 +14,7 @@ Packages declare object types:
 - Traits, such as `shareable` and `nested`: columns, permissions and methods a type adopts.
 - `method`: a type's methods, standard or its own.
 - `defineAction`: an operation people run from keys, menus, the palette or a notification, calling a method or handled by a view.
+- `Place`: what a part of a page gives to actions, such as its selected objects.
 - `definePackage`: a package's object types, actions, views, mounts and resources.
 
 Servers implement them:
@@ -415,6 +416,7 @@ store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► sto
 | `keybinding`          | the key combinations until a person chooses others, as below           |
 | `focus`               | `"page"` by default, outside form fields, or `"any"`                   |
 | `isDestructive`       | whether it removes, which people confirm where a call removes for good |
+| `isRepeated`          | whether its list stays open for several picks, such as labels          |
 | `input`               | what it takes, each from where the person is or asked                  |
 | `call`                | the method it calls, prepared from its inputs                          |
 
@@ -427,6 +429,7 @@ Menus show the first, and a person's choice replaces them all.
 | ------------------------------------------------- | ----------------------------------------------- |
 | `"mod+shift+g"`                                   | Command on Macs, Control elsewhere              |
 | `["plus", "="]`                                   | either                                          |
+| `"g m"`                                           | G, then M                                       |
 | `{ key: "delete", mac: ["backspace", "delete"] }` | Delete, and on Macs either of their delete keys |
 
 ### Action inputs
@@ -440,8 +443,21 @@ An action's inputs come from the place the person is in, from what is given, els
 | `picked(type, where?)`                                      | an object the person picks                          |
 | `field.…`, `schema.…`                                       | a value the person gives                            |
 | `defineVariable({ name, label, value })`                    | a value a place provides                            |
+| `.optional()`, `.exactOptional()`                           | the same, or nothing, for objects and variables     |
 | `me`, `space`, `now`                                        | the person, the space, and the time                 |
 | `type.prepare(method, input)`, `input.prepare(…)` in `call` | the call of a method on the type, or on the objects |
+
+### Place
+
+A place is what a part of a page gives to the actions in it, and an input reads the nearest.
+
+| Verb                                 | What it does                                               |
+| ------------------------------------ | ---------------------------------------------------------- |
+| `Place.current(reference)`           | gives the object a page or row is about                    |
+| `Place.selected(references)`         | gives the selected objects, each to inputs of its type     |
+| `place.with(variable, value)`        | gives a variable's value                                   |
+| `place.with(creating(type), values)` | gives what a new object there starts with                  |
+| `selected(type).read(places)`        | reads what the nearest place gives, as every variable does |
 
 ### Choices
 
@@ -939,6 +955,34 @@ export function labels(printer: Printer) {
         },
     });
 }
+```
+
+### Declare an action
+
+`setStatus` sets the status of the selected tasks, by its key, menus and the palette.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineAction, defineObject, field, selected, shareable } from "@destack/object";
+
+// declare a task
+const task = defineObject({
+    name: "task",
+    plural: "tasks",
+    title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
+    container: "scope",
+    fields: { status: field.enum(["open", "done"]) },
+    traits: [shareable({})],
+});
+
+// set the status of the selected tasks
+export const setStatus = defineAction({
+    name: "task.setStatus",
+    title: t`Change status`,
+    keybinding: "s",
+    input: { tasks: selected(task), status: field.enum(["open", "done"]) },
+    call: ({ tasks, status }) => tasks.prepare("update", { status }),
+});
 ```
 
 ### Follow a query and write offline

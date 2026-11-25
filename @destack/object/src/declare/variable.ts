@@ -1,12 +1,13 @@
 import type { Now, Select } from "@destack/db";
 import type { Message } from "@destack/locale";
 import { ModuleMetadata, type PackageVersion } from "@destack/package";
-import type { Identifier, JsonObject, schema } from "@destack/schema";
-import type { ObjectReference, ObjectTypeReference } from "@destack/sync";
+import { type Identifier, type JsonObject, JsonValue, schema } from "@destack/schema";
+import { ObjectReference, type ObjectTypeReference } from "@destack/sync";
 import type { Field } from "../field/field.ts";
 import type { CallInput, MethodName } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { ConditionOf } from "../query/index.ts";
+import { Place } from "./place.ts";
 
 /** The name of the variable that reads the person an action runs for. */
 export const ME = "me";
@@ -147,9 +148,33 @@ export class ObjectInput<
         return ObjectInput.keyOf(this.source, this.object.typeReference);
     }
 
+    /** List the nearest objects some places give: those selected, or the current one alone. */
+    read(places: readonly Place[]): readonly ObjectReference[] {
+        // leave one a person picks to them
+        if (this.source === "picked") {
+            return [];
+        }
+
+        // take several where the source does, else a lone one
+        const { typeReference } = this.object;
+        const nearest = Place.nearest(places, [
+            ObjectInput.keyOf("selected", typeReference),
+            ObjectInput.keyOf("current", typeReference),
+        ]);
+        const listed = Array.isArray(nearest) ? nearest : [nearest];
+        const found = nearest === undefined ? [] : schema.array(ObjectReference).parse(listed);
+
+        return this.source === "selected" || found.length === 1 ? found : [];
+    }
+
     /** Key the objects of a type from a source. */
     static keyOf(source: ActionSource, { packageId, type }: ObjectTypeReference): string {
-        return `${source}:${packageId}/${type}`;
+        return `${ObjectInput.prefixOf(source)}${packageId}/${type}`;
+    }
+
+    /** Write what the keys of objects from a source start with. */
+    static prefixOf(source: ActionSource): string {
+        return `${source}:`;
     }
 
     /** Let the action run without one. */
@@ -185,16 +210,44 @@ export function picked<Object extends ObjectType>(
 }
 
 /** What an object of a type created at a place starts with, such as a column's status. */
-export function creating<Object extends ObjectType>(
-    object: Object,
-): PlaceVariable<Readonly<Partial<Select<Object["table"]>>>> {
-    return { key: `creating:${object.package.id}/${object.name}` };
+export class ObjectStart<Object extends ObjectType = ObjectType> implements PlaceVariable<
+    Readonly<Partial<Select<Object["table"]>>>
+> {
+    /** The value places give, as a type only. */
+    declare readonly [VALUE]?: Readonly<Partial<Select<Object["table"]>>>;
+    /** The type of the object. */
+    readonly object: Object;
+
+    /** Create the variable of a type. */
+    constructor(object: Object) {
+        this.object = object;
+    }
+
+    /** The key of what places give. */
+    get key(): string {
+        return `creating:${this.object.package.id}/${this.object.name}`;
+    }
+
+    /** Read what some places give together, the nearest over the rest. */
+    read(places: readonly Place[]): JsonObject {
+        const given = places.toReversed().flatMap((place) => place.get(this.key) ?? []);
+
+        return Object.fromEntries(
+            given.flatMap((value) => Object.entries(JsonValue.object(value))),
+        );
+    }
+}
+
+/** Give what an object of a type created at a place starts with. */
+export function creating<Object extends ObjectType>(object: Object): ObjectStart<Object> {
+    return new ObjectStart(object);
 }
 
 /** A value some places give, such as the dates a calendar shows, which actions take as an input. */
-export class ContextVariable<Type extends schema.Schema = schema.Schema> implements PlaceVariable<
-    schema.Output<Type>
-> {
+export class ContextVariable<
+    Type extends schema.Schema = schema.Schema,
+    Optional extends boolean = boolean,
+> implements PlaceVariable<schema.Output<Type>> {
     /** The value places give, as a type only. */
     declare readonly [VALUE]?: schema.Output<Type>;
     /** The declaring package. */
@@ -205,11 +258,14 @@ export class ContextVariable<Type extends schema.Schema = schema.Schema> impleme
     readonly label: Message | undefined;
     /** The value's schema. */
     readonly value: Type;
+    /** Whether the action runs without it. */
+    readonly isOptional: Optional;
 
     /** Create a variable of a package. */
-    constructor(owner: PackageVersion, definition: VariableDefinition<Type>) {
+    constructor(owner: PackageVersion, definition: VariableDefinition<Type>, isOptional: Optional) {
         // take the package and the definition
         this.package = owner;
+        this.isOptional = isOptional;
         this.name = definition.name;
         this.label = definition.label;
         this.value = definition.value;
@@ -228,6 +284,24 @@ export class ContextVariable<Type extends schema.Schema = schema.Schema> impleme
                 : [];
 
         return Object.assign(new Variable(name), Object.fromEntries<Variable>(fields));
+    }
+
+    /** Read the value the nearest of some places gives, absent where none does. */
+    read(places: readonly Place[]): schema.Output<Type> | undefined {
+        const nearest = Place.nearest(places, [this.key]);
+
+        return nearest === undefined ? undefined : this.value.parse(nearest);
+    }
+
+    /** Let the action run without it, as a schema's property may be absent. */
+    exactOptional(): ContextVariable<Type, true> {
+        const { name, label, value } = this;
+
+        return new ContextVariable(
+            this.package,
+            { name, value, ...(label === undefined ? {} : { label }) },
+            true,
+        );
     }
 
     /** The variable's key: its package and name. */
@@ -250,10 +324,10 @@ export interface VariableDefinition<Type extends schema.Schema = schema.Schema> 
 export function defineVariable<const Type extends schema.Schema>(
     definition: VariableDefinition<Type>,
     module?: ModuleMetadata,
-): ContextVariable<Type> {
+): ContextVariable<Type, false> {
     const owner = ModuleMetadata.require(module, "defineVariable").package;
 
-    return new ContextVariable(owner, definition);
+    return new ContextVariable(owner, definition, false);
 }
 
 /** An input of an action: objects, a variable places give, or a field or schema a person gives. */
@@ -308,8 +382,8 @@ type ValueOf<Definition> =
 type IsOptional<Definition> =
     Definition extends ObjectInput<ObjectType, ActionSource, infer Optional>
         ? Optional
-        : Definition extends ContextVariable
-          ? false
+        : Definition extends ContextVariable<schema.Schema, infer Optional>
+          ? Optional
           : Definition extends Field<infer Configuration>
             ? Configuration extends { readonly required: true; readonly default: false }
                 ? false

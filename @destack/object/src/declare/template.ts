@@ -91,6 +91,15 @@ export class Template {
         return variable === undefined || Template.isReserved(variable) ? undefined : variable;
     }
 
+    /** Read the field that takes an input as it is, or its object's identifier, absent for none. */
+    fieldOf(input: string): string | undefined {
+        return Object.entries(this.value).find(([, value]) => {
+            const variable = PLACEHOLDER.safeParse(value).data?.placeholder;
+
+            return variable === input || variable === `${input}${FIELD_SEPARATOR}id`;
+        })?.[0];
+    }
+
     /** Bind each field, leaving out those no value gives. */
     bind(context: TemplateContext): JsonObject {
         return Object.fromEntries(

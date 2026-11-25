@@ -111,10 +111,16 @@ export class ActionInput {
                 },
             });
         } else if (definition instanceof ContextVariable) {
-            const { label, key: variable } = definition;
+            const { label, key: variable, isOptional } = definition;
             const { presence, value } = ActionInput.of(name, definition.value);
 
-            return new ActionInput({ name, label, presence, value, variable });
+            return new ActionInput({
+                name,
+                label,
+                presence: isOptional ? "default" : presence,
+                value,
+                variable,
+            });
         } else if ("actionInput" in definition) {
             return definition.actionInput(name);
         }
@@ -147,23 +153,18 @@ export class ActionInput {
         const { objects, variable } = this;
         if (objects === undefined) {
             return variable === undefined ? undefined : Place.nearest(places, [variable]);
-        } else if (objects.source === "picked") {
-            return undefined;
         }
 
-        // take the nearest objects: those selected, or the current one alone
+        // take the nearest objects
         const { type, source } = objects;
-        const nearest = Place.nearest(places, [
-            ObjectInput.keyOf("selected", type.typeReference),
-            ObjectInput.keyOf("current", type.typeReference),
-        ]);
-        const found: readonly JsonValue[] =
-            nearest === undefined ? [] : Array.isArray(nearest) ? nearest : [nearest];
-        if (source === "selected") {
-            return found.length === 0 ? undefined : found;
-        }
+        const found = new ObjectInput({
+            object: type,
+            source,
+            where: undefined,
+            isOptional: false,
+        }).read(places);
 
-        return found.length === 1 ? found[0] : undefined;
+        return source === "selected" && found.length > 0 ? found : found[0];
     }
 
     /** List the inputs of some a person still gives: those needed, and those they may give. */

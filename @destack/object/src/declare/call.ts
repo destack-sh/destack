@@ -15,7 +15,6 @@ import {
     Variable,
 } from "./variable.ts";
 import { ActionInput, ActionInputDescription } from "./input.ts";
-import type { Place } from "./place.ts";
 import { type ActionContext, Template } from "./template.ts";
 
 /** The input field of the object a call acts on. */
@@ -173,6 +172,33 @@ export class ActionCall {
         return where === undefined || Condition.matches(where, this.object.table, row, moment);
     }
 
+    /** Read the value a target has for an input, absent for one that sets no field of it. */
+    chosen(input: ActionInput, scope: string, row: JsonObject): JsonValue | undefined {
+        // read the field the input sets
+        const field = this.target === undefined ? undefined : this.template.fieldOf(input.name);
+        const { value } = input;
+        if (field === undefined) {
+            return undefined;
+        } else if (value.kind !== "object") {
+            return row[field];
+        }
+
+        // read an object by its columns, else by its identifier in the target's scope
+        const relation = Object.keys(this.object.fields).find(
+            (name) =>
+                (name === field || Field.columnsOf(name).id === field) &&
+                Field.columnsOf(name).packageId in row,
+        );
+        const id = row[relation === undefined ? field : Field.columnsOf(relation).id];
+        if (typeof id !== "string") {
+            return id;
+        }
+
+        return relation === undefined
+            ? value.type.reference(scope, id)
+            : ObjectReference.at(relation, row);
+    }
+
     /** Query the targets the call applies to: every one, or those among some objects. */
     query(ids?: readonly string[]): ActionQuery<ObjectType> {
         // match the condition, and the given objects alone when some are given
@@ -192,7 +218,9 @@ export class ActionCall {
     /** Resolve the inputs from what is given and the places around, the nearest first. */
     resolve({ places }: Pick<ActionContext, "places">, given: ActionValues): ActionResolution {
         // give what a created object starts with to the inputs setting it, and the rest to the object
-        const starting = Object.entries(this.target === undefined ? this.#initial(places) : {});
+        const starting = Object.entries(
+            this.target === undefined ? creating(this.object).read(places) : {},
+        );
         const initial = starting.filter(([field]) => !(field in this.template.value));
         const started = starting.flatMap(([field, value]): [string, JsonValue | undefined][] => {
             const input = this.template.inputAt(field);
@@ -352,18 +380,6 @@ export class ActionCall {
     /** Read the condition an input's objects meet, none for another input. */
     #where(name: string | undefined) {
         return this.inputs.find((each) => each.name === name)?.objects?.where;
-    }
-
-    /** Read the values a creation starts with: those of its places, the nearest over the rest. */
-    #initial(places: readonly Place[]): JsonObject {
-        const { key } = creating(this.object);
-        const values = places.toReversed().flatMap((place) => {
-            const value = place.get(key);
-
-            return value === undefined ? [] : Object.entries(JsonValue.object(value));
-        });
-
-        return Object.fromEntries(values);
     }
 
     /** List the references of objects given: one, or several. */
