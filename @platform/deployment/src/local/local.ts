@@ -37,7 +37,13 @@ import type { UniverseDefinition } from "@destack/universe";
 import { BunUniverse } from "@destack/universe/bun";
 import { LATEST_TAG } from "@destack/registry/object";
 import { Profile } from "@destack/update/release";
-import { CHECKOUT, PlatformBuild, printStatus, readCommit } from "@platform/distribution";
+import {
+    CHECKOUT,
+    PlatformBuild,
+    printStatus,
+    readCommit,
+    releaseVersion,
+} from "@platform/distribution";
 import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import {
     type SuppliedModules,
@@ -295,7 +301,10 @@ export class LocalUniverse {
         const custody = await this.custody();
         await using stack = new AsyncDisposableStack();
         const build = stack.use(
-            await PlatformBuild.build(CHECKOUT, environment, { isUnreleased: true }),
+            await PlatformBuild.build(CHECKOUT, environment, {
+                version: releaseVersion(environment),
+                isUnreleased: true,
+            }),
         );
 
         // issue the local release client's assertions, as the release workflow's issuer does

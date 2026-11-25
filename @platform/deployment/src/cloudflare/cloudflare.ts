@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { CHECKOUT, PlatformBuild } from "@platform/distribution";
+import { CHECKOUT, PlatformBuild, releaseVersion } from "@platform/distribution";
 import { type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { present } from "@destack/schema";
 import { Custody, type CustodyEnvelopes } from "../deployment/custody.ts";
@@ -48,7 +48,9 @@ export class Cloudflare {
         );
 
         // declare the universe over the record with the checkout's releases
-        await using build = await PlatformBuild.build(CHECKOUT, environment);
+        await using build = await PlatformBuild.build(CHECKOUT, environment, {
+            version: releaseVersion(environment),
+        });
         const definition = deployment.definition(operator, custody, build);
 
         // write the releases the Workers ship as their static assets

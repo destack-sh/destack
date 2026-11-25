@@ -2,7 +2,13 @@ import type { Environment, HostCapability } from "@destack/environment";
 import { IssuerCredential, Session } from "@destack/account/client";
 import { Bookmark } from "@destack/object/client";
 import { LATEST_TAG } from "@destack/registry/object";
-import { CHECKOUT, PlatformBuild, printStatus, readReleaseCommit } from "@platform/distribution";
+import {
+    CHECKOUT,
+    PlatformBuild,
+    printStatus,
+    readReleaseCommit,
+    releaseVersion,
+} from "@platform/distribution";
 import { Cloudflare } from "../cloudflare/cloudflare.ts";
 import { ActionsToken } from "../github/oidc.ts";
 import { Deployment } from "./deployment.ts";
@@ -91,7 +97,9 @@ export async function publishPlatform(
 
     // publish the checkout's releases of its commit under the universe's tag, pointing latest, which installs follow
     const commit = await readReleaseCommit(CHECKOUT, environment);
-    await using build = await PlatformBuild.build(CHECKOUT, environment);
+    await using build = await PlatformBuild.build(CHECKOUT, environment, {
+        version: releaseVersion(environment),
+    });
     await build.publish(session, deployment.universe.origin, deployment.tag, {
         commit,
         tags: [LATEST_TAG],
@@ -104,7 +112,9 @@ export async function buildPlatform(
     arguments_: readonly string[],
 ): Promise<void> {
     none("platform build", arguments_);
-    await using _build = await PlatformBuild.build(CHECKOUT, environment);
+    await using _build = await PlatformBuild.build(CHECKOUT, environment, {
+        version: releaseVersion(environment),
+    });
 }
 
 /** Seal the keys a deployed universe's custody record lacks, as the operator does once per key. */

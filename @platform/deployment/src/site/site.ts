@@ -10,7 +10,7 @@ import { type Digest, found } from "@destack/schema";
 import { PlatformBuild } from "@platform/distribution";
 import { ACCOUNT_ID, CloudflareCredentials } from "../cloudflare/credential.ts";
 import { ROOT, Root, WRANGLER_VARIABLES } from "../deployment/root.ts";
-import { CHECKOUT } from "@platform/distribution";
+import { CHECKOUT, releaseVersion } from "@platform/distribution";
 
 /** The site's package, by its directory below the checkout's root. */
 const SITE = "@platform/site";
@@ -35,7 +35,9 @@ export async function deploySite(
     }
 
     // build the platform's releases, and the site's image in the same store
-    await using platform = await PlatformBuild.build(CHECKOUT, environment);
+    await using platform = await PlatformBuild.build(CHECKOUT, environment, {
+        version: releaseVersion(environment),
+    });
     const { store } = platform;
     const image = await siteImage(platform);
 
