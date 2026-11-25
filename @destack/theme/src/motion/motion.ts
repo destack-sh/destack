@@ -67,6 +67,9 @@ const DRAWER_FADE = `max(${motion.durationLong}, ${REDUCED_FADE})`;
 /** An overlay the keyboard opened or closed, which people do too often to wait for. */
 const INSTANT = ":is([data-instant])";
 
+/** A dialog that is open, over the page or beside it. */
+const OPEN = ":is([open])";
+
 /** The fade and scale of overlays entering and leaving the top layer, after Emil Kowalski. */
 export const transition = style.create({
     /** A popover over the page, growing from the side it is anchored to. */
@@ -103,28 +106,28 @@ export const transition = style.create({
     },
     /** A dialog, growing from the middle of the screen. */
     dialog: {
-        opacity: { default: 0, ":modal": { default: 1, "@starting-style": 0 } },
+        opacity: { default: 0, [OPEN]: { default: 1, "@starting-style": 0 } },
         transform: {
             default: HIDDEN_SCALE,
-            ":modal": { default: "none", "@starting-style": HIDDEN_SCALE },
+            [OPEN]: { default: "none", "@starting-style": HIDDEN_SCALE },
         },
         transitionProperty: PROPERTIES,
         transitionDuration: {
             default: DIALOG_EXIT,
             [INSTANT]: "0s",
-            ":modal": { default: DIALOG, [INSTANT]: "0s" },
+            [OPEN]: { default: DIALOG, [INSTANT]: "0s" },
         },
         transitionTimingFunction: motion.easingEmphasised,
         transitionBehavior: "allow-discrete",
     },
     /** A sheet, fading as it slides in from the edge its side sets. */
     sheet: {
-        opacity: { default: 0, ":modal": { default: 1, "@starting-style": 0 } },
+        opacity: { default: 0, [OPEN]: { default: 1, "@starting-style": 0 } },
         transitionProperty: PROPERTIES,
         transitionDuration: {
             default: MEDIUM_EXIT,
             [INSTANT]: "0s",
-            ":modal": { default: MEDIUM, [INSTANT]: "0s" },
+            [OPEN]: { default: MEDIUM, [INSTANT]: "0s" },
         },
         transitionTimingFunction: motion.easingEmphasised,
         transitionBehavior: "allow-discrete",
