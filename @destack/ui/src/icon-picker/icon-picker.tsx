@@ -1,3 +1,4 @@
+import { Search } from "@destack/db";
 import type { IconName } from "@destack/icon";
 import { LazyIcon } from "@destack/ui/icon";
 import { type Localization, t } from "@destack/locale";
@@ -286,9 +287,7 @@ function layOutIcons(
     locale: Localization,
 ): CollectionSection<IconName>[] {
     // find the icons whose name or words match the search
-    const found = all.filter(
-        (icon) => search === "" || [icon.name, ...icon.tags].some((word) => word.includes(search)),
-    );
+    const found = Search.of(search).rank(all, (icon) => [icon.name, ...icon.tags]);
 
     // group them by their first category
     return CATEGORIES.map((category) => ({

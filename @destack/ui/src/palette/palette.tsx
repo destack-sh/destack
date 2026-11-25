@@ -1,9 +1,9 @@
-import type { IconBodies } from "@destack/icon";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { Shortcut, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, swatch, width } from "@destack/theme/tokens.stylex";
 import {
+    createEffect,
     createMemo,
     For,
     type JSX,
@@ -32,10 +32,12 @@ import {
     useCommand,
 } from "../command/index.ts";
 import { Badge } from "../badge/index.ts";
+import { Highlight } from "../highlight/index.ts";
 import { Icon } from "../icon/index.ts";
 import { OpenContext } from "../layer/index.ts";
 import { useListBox } from "../list-box/index.ts";
 import {
+    type PaletteIcon,
     type PaletteItem,
     PaletteControl,
     type PalettePage,
@@ -81,6 +83,8 @@ export interface CommandPaletteProperties {
     readonly open: boolean;
     /** Handle it opening or closing. */
     readonly onOpenChange: (open: boolean) => void;
+    /** Handle a person typing, as an owner that searches itself does. */
+    readonly onSearchChange?: (text: string) => void;
 }
 
 /** Render a command palette its caller opens: search, pages, recents, details and actions. */
@@ -96,6 +100,7 @@ export function CommandPalette(properties: CommandPaletteProperties): JSX.Elemen
                 id={properties.id}
                 root={properties.root}
                 close={() => properties.onOpenChange(false)}
+                onSearchChange={(text) => properties.onSearchChange?.(text)}
             />
         </CommandDialog>
     );
@@ -109,6 +114,8 @@ function PaletteContent(properties: {
     readonly root: PalettePage;
     /** Close the palette. */
     readonly close: () => void;
+    /** Handle a person typing. */
+    readonly onSearchChange: (text: string) => void;
 }): JSX.Element {
     // fill the command's search and pages with the palette's entries
     const locale = useLocale();
@@ -122,6 +129,7 @@ function PaletteContent(properties: {
         close: properties.close,
     });
     onSettled(() => control.restore());
+    createEffect(command.search.value, (text) => properties.onSearchChange(text));
 
     // rank the shown page's entries while open, and leave the last ones as it closes
     const isOpen = useContext(OpenContext);
@@ -180,7 +188,11 @@ function PaletteContent(properties: {
             />
             <CommandBody>
                 <CommandList>
-                    <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
+                    <CommandEmpty>
+                        {control.isPending()
+                            ? locale.render(t`Searching…`)
+                            : locale.render(t`No results.`)}
+                    </CommandEmpty>
                     <Show when={results().recent.length > 0}>
                         <CommandGroup heading={locale.render(t`Recent`)}>
                             <For each={results().recent} keyed={(item) => item.id}>
@@ -265,9 +277,13 @@ function PaletteEntry(properties: {
                 }
             }}
         >
-            {properties.item.title}
+            <Highlight text={properties.item.title} />
             <Show when={properties.item.subtitle}>
-                {(subtitle) => <CommandItemDescription>{subtitle()}</CommandItemDescription>}
+                {(subtitle) => (
+                    <CommandItemDescription>
+                        <Highlight text={subtitle()} />
+                    </CommandItemDescription>
+                )}
             </Show>
             <CommandItemMeta>
                 <For each={properties.item.accessories ?? []}>
@@ -289,8 +305,12 @@ function PaletteEntry(properties: {
 }
 
 /** Draw an entry's icon, nothing for an entry without one. */
-function iconOf(icon: IconBodies | undefined): JSX.Element {
-    return icon === undefined ? undefined : <Icon icon={icon} />;
+function iconOf(icon: PaletteIcon | undefined): JSX.Element {
+    if (icon === undefined) {
+        return undefined;
+    }
+
+    return typeof icon === "function" ? icon() : <Icon icon={icon} />;
 }
 
 /** Render an entry's actions in a panel over the palette's corner. */

@@ -58,6 +58,7 @@
         "./focus": "./src/focus/index.ts",
         "./glyph": "./src/glyph/index.ts",
         "./grid-list": "./src/grid-list/index.ts",
+        "./highlight": "./src/highlight/index.ts",
         "./hover-card": "./src/hover-card/index.ts",
         "./icon-picker": "./src/icon-picker/index.ts",
         "./input": "./src/input/index.ts",

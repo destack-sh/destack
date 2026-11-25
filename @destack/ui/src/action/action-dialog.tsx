@@ -20,6 +20,7 @@ import {
     useActions,
     useContext,
     useLocale,
+    useSearch,
 } from "@destack/view";
 import {
     AlertDialog,
@@ -44,6 +45,7 @@ import {
     CommandItemMeta,
     CommandList,
     CommandShortcut,
+    useCommand,
 } from "../command/index.ts";
 import {
     Dialog,
@@ -53,6 +55,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from "../dialog/index.ts";
+import { Highlight } from "../highlight/index.ts";
 import { Icon } from "../icon/index.ts";
 import { Field, FieldGroup, FieldLabel } from "../field/index.ts";
 import { OpenContext } from "../layer/index.ts";
@@ -61,6 +64,9 @@ import { ValueField } from "../value-field/index.ts";
 
 /** The kinds of input a person picks from a list, however short. */
 const PICKED_KINDS: ReadonlySet<string> = new Set(["object", "choice", "person"]);
+
+/** The most objects a picker finds, as many as a person reads. */
+const FOUND = 50;
 
 /** The most choices digits pick from. */
 const NUMBERED = 9;
@@ -253,7 +259,23 @@ function ActionChoices(properties: {
     const locale = useLocale();
     const actions = useActions();
     const { question, answer } = properties.asking;
-    const choices = () => properties.asking.choices.get(properties.input.name) ?? [];
+    const command = useCommand();
+    const input = untrack(() => properties.input);
+    const listed = untrack(() => properties.asking.choices.get(input.name) ?? []);
+    const { value } = input;
+    const isSearched = value.kind === "object" && value.type.search !== undefined;
+
+    // search the objects an input takes as a person types, and list any other once
+    const found = useSearch(
+        () => (isSearched && !command.search.search().isEmpty ? command.search.value() : undefined),
+        {
+            types: isSearched ? [value.type] : [],
+            limit: FOUND,
+            ...(isSearched && value.where !== undefined ? { where: value.where } : {}),
+            scope: actions.scopeOf(question.action, input, question.element),
+        },
+    );
+    const choices = () => found.choices() ?? listed;
     const pick = (choice: Choice) => {
         // run it for this choice and stay open, or answer with it
         const values = { [properties.input.name]: choice.value };
@@ -283,17 +305,22 @@ function ActionChoices(properties: {
         <>
             <CommandInput placeholder={locale.render(question.action.title)} onKeyDown={digit} />
             <CommandList>
-                <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
+                <CommandEmpty>
+                    {found.isPending()
+                        ? locale.render(t`Searching…`)
+                        : locale.render(t`No results.`)}
+                </CommandEmpty>
                 <CommandGroup>
                     <For each={choices()}>
                         {(choice, index) => (
                             <CommandItem
                                 value={JSON.stringify(choice.value)}
                                 keywords={[choice.title]}
+                                forceMount={found.choices() !== undefined}
                                 icon={<ChoiceIcon choice={choice} />}
                                 onSelect={() => pick(choice)}
                             >
-                                {choice.title}
+                                <Highlight text={choice.title} />
                                 <CommandItemMeta>
                                     <Show
                                         when={properties.chosen.includes(

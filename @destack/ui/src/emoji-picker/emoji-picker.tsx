@@ -1,3 +1,4 @@
+import { Search } from "@destack/db";
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
 import { Locale, type LocaleTag, type Localization, t } from "@destack/locale";
@@ -526,11 +527,7 @@ function layOutEmoji(
     locale: Localization,
 ): CollectionSection<EmojiEntry>[] {
     // find the emoji whose name or words match the search
-    const found = all.filter(
-        (entry) =>
-            search === "" ||
-            [entry.label, ...(entry.tags ?? [])].some((word) => word.includes(search)),
-    );
+    const found = Search.of(search).rank(all, (entry) => [entry.label, ...(entry.tags ?? [])]);
 
     // group them by category, taking the tone's variant where an emoji has one
     return CATEGORIES.map((category) => ({

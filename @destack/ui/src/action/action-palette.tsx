@@ -1,5 +1,6 @@
 import { t } from "@destack/locale";
-import type { Action } from "@destack/object";
+import type { Action, ObjectType } from "@destack/object";
+import { ObjectReference } from "@destack/sync";
 import {
     createEffect,
     createSignal,
@@ -9,6 +10,7 @@ import {
     untrack,
     useActions,
     useLocale,
+    useSearch,
 } from "@destack/view";
 import {
     clearSelection,
@@ -21,9 +23,13 @@ import {
     selectAll,
     toggleSelection,
 } from "./action.ts";
+import { ChoiceIcon } from "./choice-icon.tsx";
 import { useCommandPlatform } from "../kbd/index.ts";
 import type { PaletteGroup, PaletteItem } from "../palette/index.ts";
 import { CommandPalette } from "../palette/index.ts";
+
+/** The most objects it finds, as many as a person reads. */
+const FOUND = 20;
 
 /** The actions that step through a list, which people run by their keys. */
 const STEPS: ReadonlySet<Action> = new Set<Action>([
@@ -44,6 +50,13 @@ export interface ActionPaletteProperties {
     readonly id: string;
     /** The title of the root page, such as the app's name. */
     readonly title: string;
+    /** The objects it finds, live and as the person may see them, none by default. */
+    readonly objects?: {
+        /** Their types. */
+        readonly types: readonly ObjectType[];
+        /** Open one a person picks. */
+        readonly onOpen: (reference: ObjectReference) => void;
+    };
     /** The groups after the actions, such as what a person opens. */
     readonly groups?: readonly PaletteGroup[];
 }
@@ -94,16 +107,53 @@ export function ActionPalette(properties: ActionPaletteProperties): JSX.Element 
             .toSorted((one, two) => Number(STEPS.has(one)) - Number(STEPS.has(two)))
             .map((action) => itemOf(action));
 
+    // find the objects while a person types, each opened where it is picked
+    const [text, setText] = createSignal("", { ownedWrite: true });
+    const found = useSearch(
+        () =>
+            isOpen() && properties.objects !== undefined && text().trim() !== ""
+                ? text()
+                : undefined,
+        {
+            get types() {
+                return properties.objects?.types ?? [];
+            },
+            limit: FOUND,
+        },
+    );
+    const objects = (): readonly PaletteItem[] =>
+        (found.choices() ?? []).map((choice) => ({
+            id: JSON.stringify(choice.value),
+            title: choice.title,
+            ...(choice.excerpt === undefined ? {} : { subtitle: choice.excerpt }),
+            icon: () => <ChoiceIcon choice={choice} />,
+            actions: [
+                {
+                    id: "open",
+                    title: locale.render(t`Open`),
+                    run: () => properties.objects?.onOpen(ObjectReference.parse(choice.value)),
+                },
+            ],
+        }));
+
     return (
         <CommandPalette
             id={properties.id}
             open={isOpen()}
             onOpenChange={(next) => void setOpen(next)}
+            onSearchChange={(typed) => void setText(typed)}
             root={{
                 id: "root",
                 title: properties.title,
                 groups: [
                     { id: "actions", title: locale.render(t`Actions`), items },
+                    {
+                        id: "objects",
+                        title: locale.render(t`Results`),
+                        items: objects,
+                        ranking: "owner",
+                        isPending: found.isPending,
+                    },
                     ...(properties.groups ?? []),
                 ],
             }}

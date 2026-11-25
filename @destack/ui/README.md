@@ -58,7 +58,7 @@ Each entry is `@destack/ui/<entry>`.
 | Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-picker`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `date-time-field`, `cropper`, `dropzone`, `editable`, `emoji-picker`, `field`, `form`, `icon-picker`, `input`, `input-group`, `label`, `number-field`, `otp-field`, `password-field`, `radio-group`, `search-field`, `select`, `slider`, `switch`, `tag-field`, `textarea`, `time-field`, `toggle`, `toggle-group`, `value-field` |
 | Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `floating-panel`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                                                                                                                                             |
 | Navigation             | `breadcrumb`, `command`, `navigation-menu`, `overflow`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                                                                      |
-| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `filter`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `sort`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                                                                              |
+| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `filter`, `gallery`, `grid-list`, `highlight`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `sort`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                                                                 |
 | Conversations          | `activity`, `bubble`, `composer`, `marker`, `message`, `message-scroller`, `quote`, `reaction`                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `meter`, `pane`, `progress`, `prose`, `relative-time`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                                             |
@@ -82,7 +82,7 @@ Collections give their rows to actions by `reference(key)`.
 | `ActionButton`, `ActionSelect`   | one action, or the value it sets                                 |
 | `ActionMenu`                     | the actions on what a right click, long press or Shift+F10 is on |
 | `ActionBar`                      | the actions on the selected rows                                 |
-| `ActionPalette`                  | the actions where the person is                                  |
+| `ActionPalette`                  | the actions where the person is, and the objects they search     |
 | `ActionDialog`                   | what an action asks for                                          |
 | `ShortcutDialog`, `ShortcutHint` | the keys there, and what can follow a typed one                  |
 
@@ -802,6 +802,51 @@ export function Actions() {
             <ShortcutDialog />
         </>
     );
+}
+```
+
+### Search a page's objects
+
+`ActionPalette` finds the objects of some types on the device at once, and at the store as a person pauses.
+
+```tsx
+import type { ObjectType } from "@destack/object";
+import type { ObjectReference } from "@destack/sync";
+import { ActionPalette } from "@destack/ui/action";
+
+/** Render the palette of a page's actions and its objects. */
+export function Palette(properties: {
+    /** The types of the objects. */
+    readonly types: readonly ObjectType[];
+    /** Open an object. */
+    readonly onOpen: (reference: ObjectReference) => void;
+}) {
+    return (
+        <ActionPalette
+            id="tasks"
+            title="Tasks"
+            objects={{ types: properties.types, onOpen: properties.onOpen }}
+        />
+    );
+}
+```
+
+### Mark what a search matches
+
+`Highlight` marks a search in a text, the search of the list around it by default.
+
+```tsx
+import { Search } from "@destack/db";
+import { Highlight } from "@destack/ui/highlight";
+
+/** Render a note's title with a search marked. */
+export function Title(properties: {
+    /** The title. */
+    readonly title: string;
+    /** What a person typed. */
+    readonly text: string;
+}) {
+    return <Highlight text={properties.title} search={Search.of(properties.text)} />;
 }
 ```
 

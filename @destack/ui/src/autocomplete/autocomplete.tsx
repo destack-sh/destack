@@ -1,7 +1,9 @@
+import { Search } from "@destack/db";
 import type { Direction } from "@destack/locale";
 import {
     type Accessor,
     createContext,
+    createMemo,
     createSignal,
     type JSX,
     omit,
@@ -87,6 +89,8 @@ export interface AutocompleteInputAttributes {
 export class AutocompleteControl {
     /** The typed text, controlled or the autocomplete's own. */
     readonly value: Accessor<string>;
+    /** The words of the typed text. */
+    readonly search: Accessor<Search>;
     /** The collection the search field drives, undefined until one mounts. */
     readonly target: Accessor<AutocompleteTarget | undefined>;
     /** The properties the autocomplete follows. */
@@ -109,6 +113,7 @@ export class AutocompleteControl {
         const value = (): string =>
             source().value ?? typed() ?? source().defaultValue ?? initial ?? "";
         this.value = value;
+        this.search = createMemo(() => Search.of(value()), { lazy: true });
         this.target = () => this.#targets.items().at(-1);
         this.#properties = properties;
         this.#setValue = (next) => {
@@ -139,19 +144,17 @@ export class AutocompleteControl {
     /** Report whether an item matches the search. */
     matches(value: string, keywords: readonly string[]): boolean {
         // show every item without a search or filtering
-        const search = this.value().trim();
         const filter = this.#properties.filter;
-        if (filter === null || search === "") {
+        if (filter === null || this.search().isEmpty) {
             return true;
         }
 
         // match by the owner's filter, else by the item's words
         if (filter !== undefined) {
-            return filter(value, search, keywords);
+            return filter(value, this.value().trim(), keywords);
         }
-        const lowered = search.toLowerCase();
 
-        return [value, ...keywords].some((word) => word.toLowerCase().includes(lowered));
+        return this.search().score([value, ...keywords]) !== undefined;
     }
 
     /** Move the collection's focus on the keys its layout takes. */

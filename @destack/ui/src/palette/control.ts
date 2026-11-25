@@ -1,3 +1,4 @@
+import type { Search } from "@destack/db";
 import type { Hue } from "@destack/color";
 import type { IconBodies } from "@destack/icon";
 import { schema } from "@destack/schema";
@@ -13,14 +14,14 @@ import {
 import { StoredItem } from "@destack/view/primitives/storage";
 import type { CommandControl } from "../command/index.ts";
 
-/** How strongly a query matching a title from its start, a word's start or inside it ranks. */
-const MATCHES = { start: 3, word: 2, inside: 1 } as const;
-
 /** The recent entries the root page lists while the search is empty. */
 const RECENT_SHOWN = 5;
 
-/** The best entries of a group a palette lists, as many as a person reads before they search. */
+/** The entries of a group a palette lists, as many as a person reads before they search. */
 const GROUP_SHOWN = 50;
+
+/** The best entries of a group a search lists, about two screens, as typing on narrows it. */
+const SEARCH_SHOWN = 20;
 
 /** The uses a palette remembers, the least frecent dropping out past it. */
 const RECENT_KEPT = 50;
@@ -46,14 +47,17 @@ const SavedUses = schema.array(
 /** The remembered uses of a palette's entries. */
 type Uses = schema.Infer<typeof SavedUses>;
 
+/** An icon, or a function that draws any other. */
+export type PaletteIcon = IconBodies | (() => JSX.Element);
+
 /** Something an entry does: the first opens it, the rest in a panel. */
 export interface PaletteAction {
     /** The action's id, unique among its entry's. */
     readonly id: string;
     /** The title. */
     readonly title: string;
-    /** The icon beside the title. */
-    readonly icon?: IconBodies;
+    /** The icon beside the title, drawn by a function for any other. */
+    readonly icon?: PaletteIcon;
     /** The key combination that runs it. */
     readonly shortcut?: string;
     /** Whether it removes something, which the palette marks. */
@@ -83,7 +87,7 @@ export interface PaletteItem {
     /** The line after the title, such as its kind. */
     readonly subtitle?: string;
     /** The icon before the title. */
-    readonly icon?: IconBodies;
+    readonly icon?: PaletteIcon;
     /** Further words a search matches. */
     readonly keywords?: readonly string[];
     /** The key combination that runs the entry from anywhere, shown at its end. */
@@ -106,6 +110,10 @@ export interface PaletteGroup {
     readonly title: string;
     /** The entries, in their order before a search ranks them. */
     readonly items: Accessor<readonly PaletteItem[]>;
+    /** Who ranks the entries a search finds: the palette by default, or the owner that searched. */
+    readonly ranking?: "palette" | "owner";
+    /** Whether the owner still searches, which an empty palette says. */
+    readonly isPending?: Accessor<boolean>;
 }
 
 /** A page of a palette: its groups of entries and its search's placeholder. */
@@ -258,30 +266,43 @@ export class PaletteControl {
     /** Rank the shown page's entries for the search: the recent first on an empty root search. */
     results(): PaletteResults {
         // rank each group's matching entries, lifting the frecent ones
-        const query = this.command.search.value().trim().toLowerCase();
+        const search = this.command.search.search();
         const ranked = this.#listed().map(({ group, items }) => ({
             group,
-            items: items
-                .flatMap((item) => {
-                    const match = matchOf(item, query);
-
-                    return match === 0 ? [] : [{ item, score: match + this.#frecency(item.id) }];
-                })
-                .toSorted((left, right) => (query === "" ? 0 : right.score - left.score))
-                .map(({ item }) => item),
+            items: group.ranking === "owner" ? items : this.#rank(items, search),
         }));
 
         // put the recent entries first on the root while the search is empty
-        const recent = query === "" && this.command.pages().length === 0 ? this.#recent() : [];
+        const recent = search.isEmpty && this.command.pages().length === 0 ? this.#recent() : [];
         const shown = new Set(recent.map((item) => item.id));
+        const limit = search.isEmpty ? GROUP_SHOWN : SEARCH_SHOWN;
         const groups = ranked
             .map((result) => ({
                 group: result.group,
-                items: result.items.filter((item) => !shown.has(item.id)).slice(0, GROUP_SHOWN),
+                items: result.items.filter((item) => !shown.has(item.id)).slice(0, limit),
             }))
             .filter((result) => result.items.length > 0);
 
         return { recent, groups };
+    }
+
+    /** Report whether an owner of a shown group still searches. */
+    isPending(): boolean {
+        return this.page().groups.some((group) => group.isPending?.() === true);
+    }
+
+    /** List the entries a search matches, the best first, lifting the frecent ones. */
+    #rank(items: readonly PaletteItem[], search: Search): PaletteItem[] {
+        return items
+            .flatMap((item) => {
+                const score = search.score(textsOf(item));
+
+                return score === undefined
+                    ? []
+                    : [{ item, score: score + this.#frecency(item.id) }];
+            })
+            .toSorted((left, right) => (search.isEmpty ? 0 : right.score - left.score))
+            .map(({ item }) => item);
     }
 
     /** List the page's most frecent entries. */
@@ -333,24 +354,11 @@ export class PaletteControl {
     }
 }
 
-/** Score how an entry's title or keywords match a search, 0 for no match. */
-function matchOf(item: PaletteItem, query: string): number {
-    // match every entry for an empty search
-    if (query === "") {
-        return MATCHES.inside;
-    }
-
-    // prefer a title starting with the search, then a word of it, then any text
-    const title = item.title.toLowerCase();
-    const words = [title, ...(item.keywords ?? []).map((word) => word.toLowerCase())];
-    if (title.startsWith(query)) {
-        return MATCHES.start;
-    } else if (words.some((text) => text.split(/\s+/u).some((word) => word.startsWith(query)))) {
-        return MATCHES.word;
-    }
-
-    return words.some((text) => text.includes(query)) ||
-        item.subtitle?.toLowerCase().includes(query) === true
-        ? MATCHES.inside
-        : 0;
+/** List what a search finds an entry by: its title, its other words, and its subtitle. */
+function textsOf(item: PaletteItem): string[] {
+    return [
+        item.title,
+        ...(item.keywords ?? []),
+        ...(item.subtitle === undefined ? [] : [item.subtitle]),
+    ];
 }

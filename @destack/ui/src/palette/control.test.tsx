@@ -120,7 +120,7 @@ test("open an entry's page over the root and go back, refusing an entry without 
     );
 });
 
-test("list the best fifty of a long group", () => {
+test("list fifty of a long group, and the best twenty a search finds", () => {
     // search two hundred tasks by a word the last starts with
     const ran: string[] = [];
     const tasks = Array.from({ length: 200 }, (_task, i) =>
@@ -148,7 +148,7 @@ test("list the best fifty of a long group", () => {
 
     expect([all.map((ids) => ids.length), found.map((ids) => ids.length), found[1]?.[0]]).toEqual([
         [0, 50],
-        [0, 50],
+        [0, 20],
         "task 199",
     ]);
 });
