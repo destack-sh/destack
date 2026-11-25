@@ -37,10 +37,22 @@ export const devCommand: CommandBody = {
         const target = await checkout.target(context);
         const { id, name } = await target.install(undefined, undefined, context);
         const { terminal } = context;
+
+        // print where the installation answers, as a development server prints its address
+        const launcher = await context.launcher();
+        const url = await launcher.origin(
+            await launcher.address(await context.requireSpace()),
+            name,
+        );
         await terminal.print(
             json
-                ? JSON.stringify({ id, name, ...target.output })
-                : terminal.event("Developing", "running", `installation '${name}'`, target.detail),
+                ? JSON.stringify({ id, name, url, ...target.output })
+                : terminal.event(
+                      "Developing",
+                      "running",
+                      `installation '${name}' ${url}`,
+                      target.detail,
+                  ),
         );
 
         // show the installation at each change, failures included, while pushing each change, until interrupted
