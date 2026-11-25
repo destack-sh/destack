@@ -43,7 +43,7 @@ export const claim = defineObject(
     (method) => ({
         ...claimMethods,
 
-        /** Find the account holding a handle or a lookalike, none for a free or reserved handle. */
+        /** Find the account holding a handle or a lookalike, and the account paying for it. */
         holder: method.query({
             title: t`Read holder`,
             permission: "resolve",
@@ -52,7 +52,14 @@ export const claim = defineObject(
                 /** The handle. */
                 handle: AccountHandle,
             }),
-            output: schema.identifier("account").nullable(),
+            output: schema
+                .object({
+                    /** The account holding it, the reserving organization's for a reserved one. */
+                    account: schema.identifier("account"),
+                    /** The account paying for it, which sells its packages. */
+                    payer: schema.identifier("account"),
+                })
+                .nullable(),
         }),
     }),
 );

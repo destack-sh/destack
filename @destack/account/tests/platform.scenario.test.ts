@@ -161,21 +161,22 @@ test("answer a person the platform's reserved and taken handles as taken", async
     ]);
 });
 
-test("answer a handle's holder: its account for it and its lookalikes, none for a reserved or free one", async () => {
+test("answer a handle's holder and its payer, the reserving organization's for a reserved one", async () => {
     // apply the platform, whose account takes destack and whose organization reserves admin
     await using fixture = await TestAccount.open();
     await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
     const person = await fixture.signIn("person@example.com");
     const holder = (handle: string) => person.client(accountPackage).claim.holder({ handle });
 
-    // answer the platform's account for its handle and a lookalike, and none for the others
+    // answer the platform's account for its handle, a lookalike and the handle its organization reserves
     const platform = Account.ofHome(await fixture.platformHome());
+    const held = { account: platform, payer: platform };
     expect([
         await holder("destack"),
         await holder("de-stack"),
         await holder("admin"),
         await holder("unclaimed"),
-    ]).toEqual([platform, platform, null, null]);
+    ]).toEqual([held, held, held, null]);
 });
 
 test("transfer a reserved handle to the account it renames, once, keeping its lookalikes taken", async () => {
