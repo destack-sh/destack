@@ -44,9 +44,9 @@ const styles = style.create({
 const sides = style.create({
     top: {
         top: 0,
-        right: 0,
+        insetInlineEnd: 0,
         bottom: "auto",
-        left: 0,
+        insetInlineStart: 0,
         width: "100%",
         height: "auto",
         borderBottomWidth: stroke.border,
@@ -55,20 +55,20 @@ const sides = style.create({
     },
     right: {
         top: 0,
-        right: 0,
+        insetInlineEnd: 0,
         bottom: 0,
-        left: "auto",
+        insetInlineStart: "auto",
         width: `min(75%, ${SHEET_WIDTH})`,
         height: "100%",
-        borderLeftWidth: stroke.border,
-        borderLeftStyle: "solid",
-        borderLeftColor: color.border,
+        borderInlineStartWidth: stroke.border,
+        borderInlineStartStyle: "solid",
+        borderInlineStartColor: color.border,
     },
     bottom: {
         top: "auto",
-        right: 0,
+        insetInlineEnd: 0,
         bottom: 0,
-        left: 0,
+        insetInlineStart: 0,
         width: "100%",
         height: "auto",
         borderTopWidth: stroke.border,
@@ -77,36 +77,46 @@ const sides = style.create({
     },
     left: {
         top: 0,
-        right: "auto",
+        insetInlineEnd: "auto",
         bottom: 0,
-        left: 0,
+        insetInlineStart: 0,
         width: `min(75%, ${SHEET_WIDTH})`,
         height: "100%",
-        borderRightWidth: stroke.border,
-        borderRightStyle: "solid",
-        borderRightColor: color.border,
+        borderInlineEndWidth: stroke.border,
+        borderInlineEndStyle: "solid",
+        borderInlineEndColor: color.border,
     },
 });
 
 /** The slide of a sheet entering from each side. */
 const enters = style.create({
     top: { transform: { default: "none", "@starting-style": "translateY(-100%)" } },
-    right: { transform: { default: "none", "@starting-style": "translateX(100%)" } },
+    right: {
+        transform: {
+            default: "none",
+            "@starting-style": { default: "translateX(100%)", ":dir(rtl)": "translateX(-100%)" },
+        },
+    },
     bottom: { transform: { default: "none", "@starting-style": "translateY(100%)" } },
-    left: { transform: { default: "none", "@starting-style": "translateX(-100%)" } },
+    left: {
+        transform: {
+            default: "none",
+            "@starting-style": { default: "translateX(-100%)", ":dir(rtl)": "translateX(100%)" },
+        },
+    },
 });
 
 /** The slide of a sheet leaving to each side. */
 const exits = style.create({
     top: { transform: "translateY(-100%)" },
-    right: { transform: "translateX(100%)" },
+    right: { transform: { default: "translateX(100%)", ":dir(rtl)": "translateX(-100%)" } },
     bottom: { transform: "translateY(100%)" },
-    left: { transform: "translateX(-100%)" },
+    left: { transform: { default: "translateX(-100%)", ":dir(rtl)": "translateX(100%)" } },
 });
 
 /** The properties of a sheet's content. */
 export interface SheetContentProperties extends DialogContentProperties {
-    /** The edge it slides in from, right by default. */
+    /** The edge it slides in from, right by default, mirrored right to left. */
     readonly side?: Side;
 }
 

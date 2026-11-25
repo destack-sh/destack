@@ -115,15 +115,15 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
     },
     left: {
-        borderRightStyle: "solid",
-        borderRightWidth: stroke.border,
-        borderRightColor: color.border,
+        borderInlineEndStyle: "solid",
+        borderInlineEndWidth: stroke.border,
+        borderInlineEndColor: color.border,
     },
     right: {
         order: 1,
-        borderLeftStyle: "solid",
-        borderLeftWidth: stroke.border,
-        borderLeftColor: color.border,
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: stroke.border,
+        borderInlineStartColor: color.border,
     },
     floating: {
         height: `calc(${VIEWPORT_HEIGHT} - 2 * ${space[2]})`,
@@ -150,8 +150,8 @@ const styles = style.create({
         bottom: 0,
         zIndex: 1,
         width: space[4],
-        right: { default: 0, [style.when.ancestor('[data-side="right"]')]: "auto" },
-        left: { default: "auto", [style.when.ancestor('[data-side="right"]')]: 0 },
+        insetInlineEnd: { default: 0, [style.when.ancestor('[data-side="right"]')]: "auto" },
+        insetInlineStart: { default: "auto", [style.when.ancestor('[data-side="right"]')]: 0 },
         cursor: "ew-resize",
         borderStyle: "solid",
         borderColor: {
@@ -159,8 +159,14 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.border },
         },
         borderWidth: 0,
-        borderRightWidth: { default: stroke.ring, [style.when.ancestor('[data-side="right"]')]: 0 },
-        borderLeftWidth: { default: 0, [style.when.ancestor('[data-side="right"]')]: stroke.ring },
+        borderInlineEndWidth: {
+            default: stroke.ring,
+            [style.when.ancestor('[data-side="right"]')]: 0,
+        },
+        borderInlineStartWidth: {
+            default: 0,
+            [style.when.ancestor('[data-side="right"]')]: stroke.ring,
+        },
     },
     inset: {
         display: "flex",
@@ -670,7 +676,7 @@ export function SidebarRail(
     const control = useSidebar();
     const locale = useLocale();
 
-    // resize the sidebar by the pointer's travel from the width it had, mirrored on the right
+    // resize the sidebar by the pointer's travel from the width it had, mirrored at the end
     let start = 0;
     let sign = 1;
     let isDragged = false;
@@ -683,7 +689,9 @@ export function SidebarRail(
                     throw new TypeError("sidebar rail is invalid: it renders outside a sidebar");
                 }
                 start = sidebar.getBoundingClientRect().width;
-                sign = sidebar.dataset["side"] === "right" ? -1 : 1;
+                const isRight =
+                    (sidebar.dataset["side"] === "right") !== (locale.direction === "rtl");
+                sign = isRight ? -1 : 1;
                 isDragged = true;
                 control.setResizing(true);
             },
