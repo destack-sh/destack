@@ -2,7 +2,7 @@ import { installation } from "./installation.ts";
 import { principal } from "@destack/access";
 import { type Select, type Condition, type RowImage } from "@destack/db";
 import { SERVER_RUNTIMES } from "@destack/package/runtime";
-import { type ObjectOf, ConditionMap, defineObject, field } from "@destack/object";
+import { type ObjectOf, defineObject, field, Status } from "@destack/object";
 import { DirectoryGrant, PackageId } from "@destack/package";
 import { WorkloadDescription } from "@destack/package/manifest";
 import { schema, Version } from "@destack/schema";
@@ -58,7 +58,7 @@ export const deployment = defineObject(
             /** The desired deployment availability. */
             status: field.enum(["active", "draining", "stopping", "retired"]).default("active"),
             /** Controller observations, including readiness and deployment failures. */
-            conditions: field.json(ConditionMap).default({}),
+            conditions: field.json(Status.conditions).default({}),
             /** Activation time in UTC epoch milliseconds, as every deployment starts active. */
             activatedAt: field.time(),
             /** Retirement time in UTC epoch milliseconds, absent until retired. */

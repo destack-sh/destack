@@ -16,7 +16,7 @@ import { and, eq, inArray, isNotNull, isNull, type Select, type SQL } from "@des
 import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
     changeRequest,
-    type Condition,
+    type Decision,
     controlled,
     defineObject,
     field,
@@ -25,9 +25,9 @@ import {
     ObjectDescription,
     ObjectController,
     Observation,
-    type ObservationReport,
+    Status,
     SYNCED,
-    SYNCED_CONDITION,
+    SYNCED_DECISION,
     type ObjectType,
     PackageDescription,
     PackageDirectory,
@@ -464,12 +464,12 @@ export const Installation = {
     },
 
     /** Describe an installation's condition waiting for a reason. */
-    waiting(reason: WaitingReason, message: string): Condition {
+    waiting(reason: WaitingReason, message: string): Decision {
         return { status: "false", reason, message };
     },
 
     /** Describe an installation's condition waiting for an image's builds this machine lacks. */
-    waitingForBuild(image: Digest): Condition {
+    waitingForBuild(image: Digest): Decision {
         const message = `waiting for build ${image}, which this machine does not have yet`;
 
         return Installation.waiting("WaitingForBuild", message);
@@ -706,7 +706,7 @@ export const Installation = {
                     ...(refusal === undefined
                         ? {}
                         : { [SYNCED]: ObjectController.failedCondition(Failure.of(refusal)) }),
-                    ...(isCleared ? { [SYNCED]: SYNCED_CONDITION } : {}),
+                    ...(isCleared ? { [SYNCED]: SYNCED_DECISION } : {}),
                 },
             };
             const isRecorded =
@@ -809,11 +809,11 @@ export const Installation = {
     },
 
     /** Read an installation's current Serving failure, absent while served or waiting for types. */
-    servingFailure(installed: Installation): Condition | undefined {
+    servingFailure(installed: Installation): Decision | undefined {
         const serving = installed.conditions["Serving"];
         const isFailed =
             serving !== undefined &&
-            Observation.isCurrent(installed, "Serving") &&
+            Status.isCurrent(installed, "Serving") &&
             serving.status === "false" &&
             serving.reason !== "WaitingForTypes";
 
@@ -821,8 +821,8 @@ export const Installation = {
     },
 
     /** Describe a serving outcome as an installation's Serving condition. */
-    serving(outcome: Serving): ObservationReport {
-        const condition: Condition =
+    serving(outcome: Serving): Observation {
+        const decision: Decision =
             "revisionId" in outcome
                 ? {
                       status: "true",
@@ -831,7 +831,7 @@ export const Installation = {
                   }
                 : { status: "false", reason: outcome.reason, message: outcome.message };
 
-        return { conditions: { Serving: condition } };
+        return { conditions: { Serving: decision } };
     },
 
     /** Read who consents to an installation's requests: its submitter, else its installer. */
@@ -1020,7 +1020,7 @@ async function isStackPending(
         .read(installation.table)
         .findFirst({ where: { scope: spaceId, name: STACK_INSTALLATION } });
 
-    return stack === undefined || Observation.progress(stack) === "waiting";
+    return stack === undefined || Status.progress(stack) === "waiting";
 }
 
 /** Select the installations a machine launches meeting some conditions in a state, oldest first. */

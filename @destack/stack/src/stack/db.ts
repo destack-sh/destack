@@ -9,7 +9,6 @@ import {
     key,
     machine,
     placement,
-    residency,
     space,
     user,
 } from "@destack/account/object";
@@ -29,7 +28,6 @@ export const spaceReplicated: readonly Table[] = [
     space.table,
     placement.table,
     assignment.table,
-    residency.table,
 ];
 
 /** List a space database's tables: object, stack, settings and its host's own. */

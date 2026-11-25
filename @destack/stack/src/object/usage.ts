@@ -53,14 +53,15 @@ export const usage = defineObject(
         },
         access: {
             permissions: {
-                // let the payer's readers and its residency's servers read every use, a space's readers its own
+                // let the payer's readers and servers read every use, a space's readers and servers its own
                 read: union(
                     through("scope", "read"),
                     through("scope", "serve"),
                     through("space", "read"),
+                    through("space", "serve"),
                 ),
-                // let the paying account's servers append what they measured: its residency's machines and its own
-                append: through("scope", "serve"),
+                // let whoever serves what a use measures append it: the space's machine, else the payer's
+                append: union(through("space", "serve"), through("scope", "serve")),
             },
         },
     },
