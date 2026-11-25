@@ -1,6 +1,23 @@
+import fileIcon from "@destack/icon/phosphor/file";
 import { defineExample, type PropertiesOf } from "@destack/package/declare";
-import type { JSX } from "@destack/view";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs.tsx";
+import { createSignal, For, type JSX } from "@destack/view";
+import { Icon } from "../icon/index.ts";
+import { Overflow, OverflowMenu } from "../overflow/index.ts";
+import { Sortable, SortableContainer, SortableItem, SortableMove } from "../sortable/index.ts";
+import {
+    Tabs,
+    TabsClose,
+    TabsContent,
+    TabsIndicator,
+    TabsItem,
+    TabsList,
+    TabsTrigger,
+} from "./tabs.tsx";
+
+/** The months of a year. */
+const MONTHS = Array.from({ length: 12 }, (_, month) =>
+    new Date(Date.UTC(2026, month, 1)).toLocaleString("en-US", { month: "long", timeZone: "UTC" }),
+);
 
 /** A note's editor and preview as tabs. */
 export const tabsEditorPreview = defineExample({
@@ -103,3 +120,108 @@ function renderHistoryTabs(properties: PropertiesOf<typeof Tabs>): JSX.Element {
         </Tabs>
     );
 }
+
+/** The files an editor has open, which close, reorder and end in a menu. */
+export const tabsFiles = defineExample({
+    of: Tabs,
+    name: "files",
+    description: "the files an editor has open, which close, reorder and end in a menu",
+    properties: {},
+    render: () => <Files />,
+});
+
+/** Render the open files. */
+function Files(): JSX.Element {
+    // keep the files in their order
+    const [files, setFiles] = createSignal<readonly string[]>([
+        "plan.md",
+        "timeline.tsx",
+        "overflow.tsx",
+        "tabs.tsx",
+        "README.md",
+        "package.json",
+    ]);
+
+    return (
+        <Tabs
+            defaultValue="timeline.tsx"
+            onClose={(closed) => setFiles((all) => all.filter((file) => file !== closed))}
+        >
+            <Sortable
+                indicator="gap"
+                onMove={(move) =>
+                    setFiles(
+                        (all) =>
+                            SortableMove.apply({ files: all }, move, (file) => file)["files"] ??
+                            all,
+                    )
+                }
+            >
+                <Overflow>
+                    <SortableContainer
+                        id="files"
+                        orientation="horizontal"
+                        render={(part) => <TabsList aria-label="Files" {...part} />}
+                    >
+                        <For each={files()}>
+                            {(file) => (
+                                <SortableItem
+                                    id={file}
+                                    activator="item"
+                                    sensors={["pointer"]}
+                                    render={(part) => <TabsItem value={file} {...part} />}
+                                >
+                                    <TabsTrigger>
+                                        <Icon icon={fileIcon} /> {file}
+                                    </TabsTrigger>
+                                    {file === "plan.md" ? undefined : <TabsClose />}
+                                </SortableItem>
+                            )}
+                        </For>
+                    </SortableContainer>
+                    <OverflowMenu />
+                </Overflow>
+            </Sortable>
+            <For each={files()}>{(file) => <TabsContent value={file}>{file}</TabsContent>}</For>
+        </Tabs>
+    );
+}
+
+/** Tabs whose mark slides to the selected one. */
+export const tabsIndicator = defineExample({
+    of: Tabs,
+    name: "indicator",
+    description: "tabs whose mark slides to the selected one",
+    properties: { defaultValue: "week" },
+    render: (properties) => (
+        <Tabs {...properties}>
+            <TabsList aria-label="Range">
+                <TabsTrigger value="day">Day</TabsTrigger>
+                <TabsTrigger value="week">Week</TabsTrigger>
+                <TabsTrigger value="quarter">Quarter</TabsTrigger>
+                <TabsIndicator />
+            </TabsList>
+            <TabsContent value="day">Today</TabsContent>
+            <TabsContent value="week">This week</TabsContent>
+            <TabsContent value="quarter">This quarter</TabsContent>
+        </Tabs>
+    ),
+});
+
+/** More tabs than fit, which scroll. */
+export const tabsScrolling = defineExample({
+    of: Tabs,
+    name: "scrolling",
+    description: "more tabs than fit, which scroll with the sides that have more faded",
+    properties: { defaultValue: "March" },
+    render: (properties) => (
+        <Tabs {...properties}>
+            <TabsList aria-label="Month">
+                <For each={MONTHS}>
+                    {(month) => <TabsTrigger value={month}>{month}</TabsTrigger>}
+                </For>
+            </TabsList>
+            <For each={MONTHS}>{(month) => <TabsContent value={month}>{month}</TabsContent>}</For>
+        </Tabs>
+    ),
+});

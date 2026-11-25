@@ -1,0 +1,80 @@
+import { t } from "@destack/locale";
+import { defineAction } from "@destack/object";
+import { schema } from "@destack/schema";
+
+/** Close a tab. */
+export const closeTab = defineAction({
+    name: "tab.close",
+    title: t`Close`,
+    category: t`Tabs`,
+    keybinding: "mod+w",
+});
+
+/** Close every tab but one. */
+export const closeOtherTabs = defineAction({
+    name: "tab.closeOthers",
+    title: t`Close others`,
+    category: t`Tabs`,
+});
+
+/** Close every tab after one. */
+export const closeTabsAfter = defineAction({
+    name: "tab.closeAfter",
+    title: t`Close those after`,
+    category: t`Tabs`,
+});
+
+/** Close every tab. */
+export const closeAllTabs = defineAction({
+    name: "tab.closeAll",
+    title: t`Close all`,
+    category: t`Tabs`,
+});
+
+/** Open the tab closed last again. */
+export const reopenTab = defineAction({
+    name: "tab.reopen",
+    title: t`Reopen closed tab`,
+    category: t`Tabs`,
+    keybinding: "mod+shift+t",
+});
+
+/** Select the next tab. */
+export const nextTab = defineAction({
+    name: "tab.next",
+    title: t`Next tab`,
+    category: t`Tabs`,
+    keybinding: "mod+alt+right",
+});
+
+/** Select the previous tab. */
+export const previousTab = defineAction({
+    name: "tab.previous",
+    title: t`Previous tab`,
+    category: t`Tabs`,
+    keybinding: "mod+alt+left",
+});
+
+/** Select a tab by its place. */
+export const goToTab = defineAction({
+    name: "tab.goTo",
+    title: t`Go to tab…`,
+    category: t`Tabs`,
+    input: { tab: schema.string() },
+});
+
+/** Move a tab one place left. */
+export const moveTabLeft = defineAction({
+    name: "tab.moveLeft",
+    title: t`Move left`,
+    category: t`Tabs`,
+    keybinding: "shift+alt+left",
+});
+
+/** Move a tab one place right. */
+export const moveTabRight = defineAction({
+    name: "tab.moveRight",
+    title: t`Move right`,
+    category: t`Tabs`,
+    keybinding: "shift+alt+right",
+});
