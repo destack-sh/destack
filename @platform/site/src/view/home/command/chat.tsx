@@ -1140,6 +1140,7 @@ const styles = style.create({
         animationDuration: { default: "1s", [media.motionReduce]: "0ms" },
         animationIterationCount: "infinite",
         animationName: blink,
+        animationTimingFunction: "linear",
         backgroundColor: "currentColor",
         display: "inline-block",
         height: "1.1em",

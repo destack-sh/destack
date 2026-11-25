@@ -40,6 +40,7 @@ const styles = style.create({
         fontWeight: { default: null, ":is([aria-current=location])": weight.semibold },
         transitionProperty: "color",
         transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
     },
 });
 
