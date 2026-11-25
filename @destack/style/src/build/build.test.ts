@@ -120,7 +120,6 @@ test("write every rule into the build's own stylesheet beside the entry's, leavi
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     expect(await stylesheets(environment, "/fixture/entry")).toEqual({
-        "entry.css": "",
         "page.css": ".page { margin: 0 }\n",
         "stylex.css":
             "@layer base;\n\n@layer priority1 {\n  .xjjgwud {\n    color: plum;\n  }\n\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
@@ -134,7 +133,6 @@ test("write every rule into one stylesheet for a chunk several entries share", a
     const sheets = await stylesheets(environment, ["/fixture/one", "/fixture/two"]);
 
     expect(Object.values(sheets).toSorted()).toEqual([
-        "",
         ".page { margin: 0 }\n",
         "@layer base;\n\n@layer priority1 {\n  .xjjgwud {\n    color: plum;\n  }\n\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
     ]);
@@ -204,7 +202,6 @@ test("add the rules each dependency's build keeps to the stylesheet, ordered wit
     });
 
     expect(sheets).toEqual({
-        "solo.css": "",
         "stylex.css":
             "@layer base;\n\n@layer priority1 {\n  .xjjgwud {\n    color: plum;\n  }\n\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
     });
@@ -218,7 +215,6 @@ test("keep only a build's own rules after an earlier build in the same process",
     const sheets = await stylesheets(environment, "/fixture/solo");
 
     expect(sheets).toEqual({
-        "solo.css": "",
         "stylex.css": "@layer base;\n\n@layer priority1 {\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
     });
 });
