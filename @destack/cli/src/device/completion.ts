@@ -166,11 +166,12 @@ function flags(command: Command, isRoot: boolean): Candidate[] {
     // list the shown options of the command that runs
     const own = Object.entries(command.options ?? {})
         .filter(([, option]) => option.isHidden !== true)
-        .map(([name, option]): Candidate => ({
-            kind: "word",
-            text: `--${name}`,
-            description: option.description,
-        }));
+        .flatMap(([name, option]): Candidate[] => [
+            { kind: "word", text: `--${name}`, description: option.description },
+            ...(option.isNegatable === true
+                ? [{ kind: "word" as const, text: `--no-${name}`, description: option.description }]
+                : []),
+        ]);
 
     // add help and JSON output or the root's version
     const { help, json, version } = GLOBAL_OPTIONS;

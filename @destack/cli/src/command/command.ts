@@ -23,6 +23,9 @@ export const FILE_PREFIX = "@";
 /** The separator after which every word is a positional argument, as POSIX's utility syntax. */
 export const SEPARATOR = "--";
 
+/** The prefix negating an option that declares itself negatable, as in `--no-parent`. */
+const NEGATION = "no-";
+
 /** The word help lists a group's subcommands of no journey under: the space's own nouns. */
 const OTHER_JOURNEY = "objects";
 
@@ -130,6 +133,8 @@ export interface CommandOption {
     readonly isHidden?: boolean;
     /** The values completion offers. */
     readonly choices?: readonly string[];
+    /** Whether `--no-<name>` sets the option to false, as git and commander negate options. */
+    readonly isNegatable?: boolean;
 }
 
 /** A command's run: its arguments, its options and whether it prints JSON. */
@@ -311,9 +316,11 @@ export class CommandTree {
         // parse the options the command declares, passing on positional arguments
         const declaredOptions: Record<string, { readonly type: CommandOption["type"] }> =
             Object.fromEntries(
-                Object.entries(command.options ?? {}).map(([name, option]) => [
-                    name,
-                    { type: option.type },
+                Object.entries(command.options ?? {}).flatMap(([name, option]) => [
+                    [name, { type: option.type }],
+                    ...(option.isNegatable === true
+                        ? [[`${NEGATION}${name}`, { type: "boolean" as const }] as const]
+                        : []),
                 ]),
             );
         CommandTree.requireOptions(declaredOptions, words, path);
@@ -359,8 +366,29 @@ export class CommandTree {
         return {
             arguments: values,
             rest: parsed.positionals.slice(declared.length),
-            options: parsed.values,
+            options: CommandTree.#negated(command, parsed.values),
         };
+    }
+
+    /** Read each negated option as false, refusing one also given a value. */
+    static #negated(command: Command, values: CommandCall["options"]): CommandCall["options"] {
+        const read: Record<string, string | boolean | undefined> = { ...values };
+        for (const [name, option] of Object.entries(command.options ?? {})) {
+            // take `--no-<name>` as the option's false, once the option has no value besides
+            const negated = `${NEGATION}${name}`;
+            if (option.isNegatable === true && read[negated] === true) {
+                if (read[name] !== undefined) {
+                    throw CliError.of(
+                        "USAGE_INVALID",
+                        `option '--${negated}' is invalid: '--${name}' gives the option a value`,
+                    );
+                }
+                read[name] = false;
+            }
+            delete read[negated];
+        }
+
+        return read;
     }
 
     /** Refuse an option the command lacks, and a string option whose value starts with a dash. */
@@ -470,8 +498,9 @@ export class CommandTree {
             .filter(([, option]) => option.isHidden !== true)
             .map(([name, option]): [string, string] => {
                 const value = option.type === "string" ? ` <${option.argument ?? "value"}>` : "";
+                const negation = option.isNegatable === true ? "[no-]" : "";
 
-                return [`    --${name}${value}`, option.description];
+                return [`    --${negation}${name}${value}`, option.description];
             });
         const { help, json } = GLOBAL_OPTIONS;
         const globals: GlobalOption[] = [help, ...(command.isJson === true ? [json] : [])];

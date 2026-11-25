@@ -3,6 +3,7 @@ import { expect, test } from "@destack/test";
 import { CommandFailure } from "./failure.ts";
 import { TerminalFixture } from "../test/terminal.ts";
 import { CliError } from "../error/index.ts";
+import { type Command, CommandTree } from "./command.ts";
 import { Terminal } from "../terminal/index.ts";
 import { testHost } from "@destack/test/host";
 
@@ -146,6 +147,42 @@ test("leave hidden commands and options out of help, showing their own help", as
             "  -h, --help              Show help",
         ],
     });
+});
+
+test("read a negatable option as its value, false when negated, and refuse both together", () => {
+    // declare a command whose parent option negates
+    const command: Command = {
+        description: "Place an installation",
+        options: {
+            parent: {
+                type: "string",
+                description: "The parent",
+                argument: "name",
+                isNegatable: true,
+            },
+        },
+        run: async () => {},
+    };
+    const parse = (words: readonly string[]) => {
+        try {
+            return CommandTree.parse(command, words, ["place"]).options;
+        } catch (error) {
+            return error instanceof Error ? error.message : String(error);
+        }
+    };
+
+    // expect a value, false for its negation, absent without either, and a refusal for both
+    expect([
+        parse(["--parent", "work"]),
+        parse(["--no-parent"]),
+        parse([]),
+        parse(["--parent", "work", "--no-parent"]),
+    ]).toEqual([
+        { parent: "work" },
+        { parent: false },
+        {},
+        "option '--no-parent' is invalid: '--parent' gives the option a value",
+    ]);
 });
 
 test("report a failure without a service code as internal, exiting with 1", async () => {
