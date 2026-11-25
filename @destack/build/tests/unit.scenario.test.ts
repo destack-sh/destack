@@ -454,6 +454,53 @@ test("trace each unit's build: a compile on a miss, the cache on a hit", async (
     });
 });
 
+test("reuse an application's tree across edits, and place it again once the store removed a root", async () => {
+    // build an application on its workspace library, counting the trees its compilers install
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const { application, workspace } = await layOut(environment);
+    await using store = await LocalBuildStore.temporary(environment);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const count = (name: string) =>
+        simulation.telemetry.spans.filter((span) => span.name === name).length;
+    const counts = () => [count("destack.compiler.build"), count("destack.dependency.install")];
+    const build = async (edit: string) => {
+        await files.writeTextFile(
+            join(application, "src", "edit.ts"),
+            `export const edit = "${edit}";\n`,
+        );
+        const opened = await (await Workspace.open(application, compilers)).package();
+        await opened.build({ outputs: OUTPUTS });
+
+        return counts();
+    };
+    const first = await build("first");
+
+    // edit the application, then remove the store's roots and edit it again
+    const edited = await build("second");
+    for (const entry of await files.readDirectory(store.trees)) {
+        await files.remove(join(store.trees, entry.name), { recursive: true });
+    }
+    const removed = await build("third");
+
+    // change the workspace's lockfile, as an install does, and edit it once more
+    const lockfile = join(workspace, "bun.lock");
+    await files.writeTextFile(lockfile, `${await files.readTextFile(lockfile)}\n`);
+    const relocked = await build("fourth");
+
+    // expect each build compiled, the edit reusing the tree, and the removed roots and changed lockfile installing it again
+    expect([
+        edited.map((each, index) => each - (first[index] ?? 0)),
+        removed.map((each, index) => each - (edited[index] ?? 0)),
+        relocked.map((each, index) => each - (removed[index] ?? 0)),
+    ]).toEqual([
+        [1, 0],
+        [1, 1],
+        [1, 1],
+    ]);
+});
+
 test("materialize a library's tree once per checkout, linking that checkout's npm packages", async () => {
     // lay out two checkouts of one workspace, each installing the library's npm package
     await using simulation = testSimulation();
