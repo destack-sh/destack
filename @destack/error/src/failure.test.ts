@@ -113,6 +113,28 @@ test("read a response's failure from its body, one without a reason as HTTP's, e
     ]);
 });
 
+test("read a suppressed failure as the original, naming the later one, and list its causes", () => {
+    // suppress a declared and an undeclared failure with a failed disposal
+    const closing = new Error("sandbox gone");
+    const later = new Error("compilers did not close", { cause: closing });
+    const declared = new SuppressedError(later, new NoteError("note-1 not found"));
+    const cause = new Error("exited");
+    const internal = new SuppressedError(later, new Error("compiler failed", { cause }));
+
+    // keep a declared original as callers read it, name the later failure on an internal one, and list both chains
+    expect([Failure.of(declared), Failure.of(internal), Failure.causes(internal)]).toEqual([
+        {
+            code: "NOT_FOUND",
+            reason: "NOTE_NOT_FOUND",
+            domain: "@destack/note",
+            message: "note-1 not found",
+            data: { note: "note-1" },
+        },
+        Failure.http("INTERNAL_SERVER_ERROR", "compiler failed, then 'compilers did not close'"),
+        [internal, internal.suppressed, cause, later, closing],
+    ]);
+});
+
 test("read each status's HTTP reason code, else its class's", () => {
     expect([401, 402, 403, 409, 410, 507].map((status) => CallErrorCode.of(status))).toEqual([
         "UNAUTHORIZED",
