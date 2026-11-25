@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import { UniverseHome } from "@destack/machine/computer";
+import { UniverseHome } from "@destack/machine/process";
 import { PackageName } from "@destack/package";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
