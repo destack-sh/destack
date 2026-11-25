@@ -476,6 +476,7 @@ Fix the model, not the symptom:
 - **RF02** Issues of any kind MUST be treated as challenges to the model, answered by the model's long term shape rather than by standalone fixes.
 - **RF03** Fixes SHOULD NOT be additive or applied en masse; checking invariants is fine, making bad states impossible is better, and simplifying / compressing the model or avoiding the problem alltogether is best.
 - **RF04** Failures SHOULD act as a searchlight: study the model they expose, find its gaps, and correct the model in the most general, compressed, subtractive way.
+- **RF05** Failures SHOULD NOT be debugged using bissections or anything that is, in effect, a bissection-like approach because that is way too slow.
 
 ## Check (C)
 
