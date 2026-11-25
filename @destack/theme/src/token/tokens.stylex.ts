@@ -350,6 +350,14 @@ export const width = defineConsts({
     row: "var(--destack-width-row)",
     /** A board column's width. */
     column: "var(--destack-width-column)",
+    /** A dialog's width. */
+    dialog: "var(--destack-width-dialog)",
+    /** The width of a sheet at the side of the screen. */
+    sheet: "var(--destack-width-sheet)",
+    /** The widest a tooltip runs. */
+    tooltip: "var(--destack-width-tooltip)",
+    /** A command palette's width. */
+    palette: "var(--destack-width-palette)",
 });
 
 /** Corner radii, scaled by the scaling and the theme's radius. */

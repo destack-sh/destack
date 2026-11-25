@@ -62,6 +62,10 @@ const WIDTH = {
     "sidebar-icon": 48,
     tile: 120,
     toast: 356,
+    dialog: 512,
+    sheet: 384,
+    tooltip: 320,
+    palette: 720,
 };
 
 /** The text sizes and letter spacings at the largest text size. */
@@ -632,6 +636,10 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-weight-medium": "500",
         "--destack-weight-semibold": "600",
         "--destack-width-column": "272px",
+        "--destack-width-dialog": "512px",
+        "--destack-width-sheet": "384px",
+        "--destack-width-tooltip": "320px",
+        "--destack-width-palette": "720px",
         "--destack-width-hover-card": "256px",
         "--destack-width-popover": "288px",
         "--destack-width-prose": "384px",
