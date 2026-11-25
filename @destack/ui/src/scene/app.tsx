@@ -38,8 +38,6 @@ interface Place {
     readonly name: string;
     /** The icon that stands for it. */
     readonly icon: JSX.Element;
-    /** How many things wait there, when any do. */
-    readonly count?: number;
 }
 
 /** A group of places under one label in an app's sidebar. */
@@ -63,7 +61,6 @@ interface Person {
 /** The people of the studio. */
 export const PEOPLE = {
     ada: { name: "Ada Lovelace", initials: "AL", picture: PICTURES.ada },
-    grace: { name: "Grace Hopper", initials: "GH", picture: PICTURES.grace },
     jonas: { name: "Jonas Abiola", initials: "JA" },
 } as const satisfies Record<string, Person>;
 
@@ -177,13 +174,6 @@ export function App(properties: {
                                                     {place.icon}
                                                     {place.name}
                                                 </SidebarMenuButton>
-                                                <Show when={place.count}>
-                                                    {(count) => (
-                                                        <SidebarMenuBadge>
-                                                            {count()}
-                                                        </SidebarMenuBadge>
-                                                    )}
-                                                </Show>
                                             </SidebarMenuItem>
                                         )}
                                     </For>
