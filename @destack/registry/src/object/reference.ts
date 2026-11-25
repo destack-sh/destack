@@ -15,7 +15,7 @@ export const reference = defineObject(
         title: t`${plural(argument("count"), { one: "Reference", other: "References" })}`,
         scope: space,
         fields: {
-            /** The complete name, such as refs/heads/main or refs/checkouts/<checkout>. */
+            /** The complete name, such as refs/heads/main or refs/checkouts/<machine>/<checkout>. */
             name: field.string(schema.string().min(1)),
             /** The object the reference points at directly. */
             object: field.string(),
