@@ -529,12 +529,11 @@ test("fail the installation of a branch whose commit does not build, with the bu
     });
 });
 
-test("refuse a checkout reference naming a cloud machine, building nothing", async () => {
-    // push the site's main to a checkout reference naming the universe's runner, and install it following that
+test("refuse a checkout reference naming no machine, building nothing", async () => {
+    // push the site's main to a checkout reference without its machine, and install it following that
     const site = await pushHome();
     const commit = await site.push(2);
-    const runner = site.home.machine.id;
-    const name = `refs/checkouts/${runner}/checkout-1`;
+    const name = "refs/checkouts/checkout-1";
     const remote = present(site.repository.remote, "the remote");
     await git(site.worktree, "push", "--quiet", remote, `HEAD:${name}`);
     await site.list();
@@ -572,7 +571,7 @@ test("refuse a checkout reference naming a cloud machine, building nothing", asy
         ),
     ).toBe(true);
 
-    // refuse the cloud machine before any build of the commit exists
+    // refuse the reference before any build of the commit exists
     const message = `cannot build reference '${name}': it must name a personal machine, as refs/checkouts/<machine>/<checkout>`;
     const builds = await served.select().from(build.table);
     const refused = site.home.takeRefusals().map((each) => each.join(" | "));

@@ -3138,7 +3138,7 @@ export class Space {
         return machineId;
     }
 
-    /** List the machines checkout references name, leaving malformed ones and cloud machines. */
+    /** List the machines checkout references name, leaving malformed ones and other runners. */
     async #checkoutMachines(names: readonly string[]): Promise<Identifier<"machine">[]> {
         // read the named machines
         const named = names.flatMap((name) => {
@@ -3147,14 +3147,17 @@ export class Space {
             return machine === undefined ? [] : [schema.identifier("machine").parse(machine)];
         });
 
-        // leave the cloud machines, which build any commit, as a personal one builds only its own checkouts
+        // read the named cloud machines, which build any commit, as a personal one builds only its own checkouts
         // NOTE #Security: nothing binds refs/checkouts/<machine>/ to the machine pushing it, so a writer may name another account's personal machine, which then refuses the build
         const clouds = await this.database
             .snapshot()
             .read(accountObject.machine.table)
             .findMany({ where: { id: { in: named }, kind: "cloud" } });
 
-        return named.filter((machine) => !clouds.some((row) => row.id === machine));
+        // keep the named machines no other space's runner is, this space's own runner among them
+        const foreign = new Set(clouds.map((row) => row.id).filter((id) => id !== this.machine.id));
+
+        return named.filter((machine) => !foreign.has(machine));
     }
 
     /** Identify the machine running the space's work, refusing a space without a runner. */
