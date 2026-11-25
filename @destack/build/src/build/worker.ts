@@ -766,7 +766,32 @@ export class CompilerWorker {
                 const declarations = await compiler.evaluate(request.options);
                 await compiler.build(request.options, declarations, request.destination, cache);
 
-                return { kind: "result", result: { kind: "build" }, traces: traces() };
+                return {
+                    kind: "result",
+                    result: { kind: "build", declarations },
+                    traces: traces(),
+                };
+            }
+            // evaluate the package's declarations alone
+            else if (request.kind === "evaluate") {
+                const declarations = await compiler.evaluate(request.options);
+
+                return {
+                    kind: "result",
+                    result: { kind: "evaluate", declarations },
+                    traces: traces(),
+                };
+            }
+            // build the package on declarations evaluated before
+            else if (request.kind === "compile") {
+                const { options, declarations, destination } = request;
+                await compiler.build(options, declarations, destination, cache);
+
+                return {
+                    kind: "result",
+                    result: { kind: "build", declarations },
+                    traces: traces(),
+                };
             }
             // index the package's code
             else if (request.kind === "index") {

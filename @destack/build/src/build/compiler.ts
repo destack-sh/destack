@@ -7,12 +7,11 @@ import { Toolchain } from "@destack/check/toolchain";
 import { Distribution } from "@destack/update";
 import { Release } from "@destack/update/release";
 import { FamilyError } from "@destack/error";
+import type { EvaluatedDeclaration } from "../declaration/index.ts";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
 import { present } from "@destack/schema";
-import { PackageFile } from "@destack/package/file";
 import type { LocalBuildStore } from "../store/local.ts";
-import { BuildObject } from "../store/store.ts";
 import type { PackageBuildOptions } from "./build.ts";
 import { BuildTree } from "../dependency/tree.ts";
 import {
@@ -31,9 +30,6 @@ import type { SourceOptions } from "../source/index.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import { OtlpExport } from "@destack/telemetry/otlp";
-
-/** The build store's directory of the files transforms derive. */
-const TRANSFORM_DIRECTORY = "transforms";
 
 /** The most diagnostics a compiler retains, 1 MiB. */
 const MAX_DIAGNOSTICS = 1_048_576;
@@ -118,6 +114,14 @@ export interface CompilerOptions {
     readonly toolchain: () => Promise<Toolchain>;
     /** The store whose cache its builds reuse and fill. */
     readonly store: LocalBuildStore;
+}
+
+/** A stored build with the declarations it compiled on. */
+export interface CompiledBuild {
+    /** The stored build. */
+    readonly build: BuildReader;
+    /** The declarations it compiled on. */
+    readonly declarations: readonly EvaluatedDeclaration[];
 }
 
 /** A sandboxed compiler retained across builds of a workspace's packages. */
@@ -386,24 +390,13 @@ export class Compiler implements AsyncDisposable {
         input: WritableStreamDefaultWriter<Uint8Array>,
         request: CacheRequest,
     ): Promise<void> {
-        // read the file a key caches, a miss without an entry
-        const { store } = this;
+        // read the file a key caches, a miss without an entry, else store the file under its key
+        const { cache } = this.store;
         let bytes: Uint8Array<ArrayBuffer> | null = null;
         if (request.kind === "read") {
-            const entry = await store.cache.get(request.key);
-            bytes = entry?.kind === "file" ? await store.file(entry.file) : null;
-        }
-        // return the file under its key once stored
-        else {
-            const path = `${TRANSFORM_DIRECTORY}/${request.key}`;
-            const file = await PackageFile.describe(
-                path,
-                "application/octet-stream",
-                request.bytes,
-                store.environment.crypto,
-            );
-            await store.write(BuildObject.files([{ digest: file.digest, bytes: request.bytes }]));
-            await store.cache.set(request.key, { kind: "file", file });
+            bytes = (await cache.read(request.key)) ?? null;
+        } else {
+            await cache.write(request.key, request.bytes);
         }
 
         // answer the request
@@ -411,44 +404,92 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Build a package's current source in one request: evaluate its declarations, compile it. */
-    build(options: PackageBuildOptions): Promise<BuildReader> {
+    async build(options: PackageBuildOptions): Promise<BuildReader> {
+        return (await this.compile(options, undefined)).build;
+    }
+
+    /** Compile current source on declarations given, else evaluated here, storing the build. */
+    compile(
+        options: PackageBuildOptions,
+        declarations: readonly EvaluatedDeclaration[] | undefined,
+    ): Promise<CompiledBuild> {
         return this.#scope.span(
             "destack.compiler.build",
             { "destack.package.directory": relative(this.workspace, options.directory) },
-            () => this.#storeBuild(options),
+            () => this.#storeBuild(options, declarations),
+        );
+    }
+
+    /** Evaluate current source's declarations in the isolated compiler, as a build does. */
+    evaluate(options: PackageBuildOptions): Promise<readonly EvaluatedDeclaration[]> {
+        return this.#scope.span("destack.compiler.evaluate", {}, () =>
+            this.#serially(async () => {
+                // send the request at the real directory, the dependencies installed
+                const request = {
+                    kind: "evaluate",
+                    options: await this.#requested(options),
+                } as const;
+                const response = await this.#request(request, options.signal, options.timeout);
+                if (response.kind !== "evaluate") {
+                    throw Compiler.mismatched(request.kind, response.kind);
+                }
+
+                return response.declarations;
+            }),
         );
     }
 
     /** Compile after the requests before it, then move the written build into the store. */
-    async #storeBuild(options: PackageBuildOptions): Promise<BuildReader> {
+    async #storeBuild(
+        options: PackageBuildOptions,
+        declarations: readonly EvaluatedDeclaration[] | undefined,
+    ): Promise<CompiledBuild> {
         // build after the requests before it
         const { files } = this.store.environment;
-        const destination = await this.#serially(() => this.#build(options));
+        const built = await this.#serially(() => this.#build(options, declarations));
+        const { destination } = built;
         try {
-            return await this.store.contents(await this.store.move(destination, options.signal));
+            const build = await this.store.contents(
+                await this.store.move(destination, options.signal),
+            );
+
+            return { build, declarations: built.declarations };
         } catch (error) {
             await files.remove(destination, { recursive: true, force: true });
             throw error;
         }
     }
 
-    /** Compile a package's current source using retained compiler state. */
-    async #build(options: PackageBuildOptions): Promise<string> {
-        // build the package at its real directory
+    /** Read a build's request at its real directory, its dependencies installed. */
+    async #requested(options: PackageBuildOptions): Promise<RequestedBuild> {
+        // resolve the directory and install the dependencies
         const { files } = this.store.environment;
-        const { signal, timeout, links: _links, ...given } = options;
-        const requested = { ...given, directory: await files.realPath(resolve(given.directory)) };
-
-        // install the dependencies, then build into temporary files moved into place once complete
+        const { signal: _signal, timeout: _timeout, links: _links, ...given } = options;
+        const directory = await files.realPath(resolve(given.directory));
         const tree = await this.#install(options);
-        const request = { ...requested, tree: tree.directories };
+
+        return { ...given, directory, tree: tree.directories };
+    }
+
+    /** Compile a package's current source with retained compiler state, evaluating unless given. */
+    async #build(
+        options: PackageBuildOptions,
+        declarations: readonly EvaluatedDeclaration[] | undefined,
+    ): Promise<{
+        readonly destination: string;
+        readonly declarations: readonly EvaluatedDeclaration[];
+    }> {
+        // build into temporary files moved into place once complete
+        const { files } = this.store.environment;
+        const { signal, timeout } = options;
+        const request = await this.#requested(options);
         const written = join(this.#temporary, "builds", String(this.#builds++));
         const destination = await this.store.makeTemporaryDirectory("build-");
         try {
-            await this.#compile(request, written, signal, timeout);
+            const compiled = await this.#compile(request, declarations, written, signal, timeout);
             await files.rename(written, destination);
 
-            return destination;
+            return { destination, declarations: compiled };
         } catch (error) {
             if (this.#stopping) {
                 await this.#closed;
@@ -459,20 +500,26 @@ export class Compiler implements AsyncDisposable {
         }
     }
 
-    /** Compile current source into a directory. */
+    /** Compile current source into a directory, answering the declarations it compiled on. */
     async #compile(
         options: RequestedBuild,
+        declarations: readonly EvaluatedDeclaration[] | undefined,
         destination: string,
         signal: AbortSignal | undefined,
         timeout: number | undefined,
-    ): Promise<void> {
+    ): Promise<readonly EvaluatedDeclaration[]> {
         // compile into the directory
         await this.store.environment.files.mkdir(destination, { recursive: true });
-        const request = { kind: "build", destination, options } as const;
+        const request: BuildRequest =
+            declarations === undefined
+                ? { kind: "build", destination, options }
+                : { kind: "compile", destination, options, declarations: [...declarations] };
         const response = await this.#request(request, signal, timeout);
         if (response.kind !== "build") {
             throw Compiler.mismatched(request.kind, response.kind);
         }
+
+        return response.declarations;
     }
 
     /** Evaluate a package's declarations from source in the isolated compiler. */
