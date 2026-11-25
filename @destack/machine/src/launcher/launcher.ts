@@ -256,6 +256,13 @@ export class Launcher {
         return SpaceAddress.parse(address);
     }
 
+    /** Write the origin an installation of a space answers at, where the space serves. */
+    async origin(space: SpaceAddress, installation: string): Promise<string> {
+        const place = await this.machine.locate(space);
+
+        return this.#origin(space, installation, place.url);
+    }
+
     /** Read the address of the home of the person's own account. */
     async home(): Promise<SpaceAddress> {
         return this.address(Account.home(await this.account()));
