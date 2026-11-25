@@ -13,6 +13,11 @@ export class Once<Value> {
         return this.#read;
     }
 
+    /** Read the current read without starting one, absent before the first use and after a take. */
+    current(): Promise<Value> | undefined {
+        return this.#read;
+    }
+
     /** Forget the current read, returning it, so the next use reads again. */
     take(): Promise<Value> | undefined {
         const read = this.#read;
