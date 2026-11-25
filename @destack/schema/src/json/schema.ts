@@ -1,5 +1,5 @@
 import { RE2JS } from "re2js";
-import { z } from "zod";
+import * as z from "zod";
 import { HASH_ALGORITHMS, HASH_ENCODINGS, requireDeclarable } from "../validate/declarable.ts";
 import { canonicalize, type JsonValue } from "./json.ts";
 import { present } from "../presence/presence.ts";

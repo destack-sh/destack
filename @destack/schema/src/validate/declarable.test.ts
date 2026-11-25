@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { expect, test } from "@destack/test";
 import { requireDeclarable } from "./declarable.ts";
 

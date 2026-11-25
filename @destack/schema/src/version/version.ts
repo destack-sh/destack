@@ -1,5 +1,5 @@
 import { satisfies } from "semver";
-import { z } from "zod";
+import * as z from "zod";
 
 /** A version: dev, or a release's calendar version such as 2026.9.0. */
 const VERSION = /^(?:dev|(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*))$/u;

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { canonicalize } from "../json/json.ts";
 
 /** The edition of a schema no conversion has changed yet. */

@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { z } from "zod";
+import * as z from "zod";
 import { brand } from "./brand.ts";
 
 test("brand a validator in types alone, accepting and refusing as it did", () => {

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { JsonValue, type JsonObject } from "../json/json.ts";
 
 /** How a value is sensitive: a secret, or personal data. */

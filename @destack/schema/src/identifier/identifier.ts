@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { brand } from "./brand.ts";
 import type { DigestCrypto } from "../digest/digest.ts";
 import { Uuid, type UuidEnvironment } from "./uuid.ts";

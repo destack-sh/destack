@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 import { isJsonCheck, json } from "./json.ts";
 import { canonicalize } from "../json/json.ts";
 
