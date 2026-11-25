@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { MACHINE_ENTRY, Application } from "@destack/desktop/workload";
-import { Autostart, MachineProcess, UniverseHome } from "@destack/machine/computer";
+import { Autostart } from "@destack/machine/computer";
+import { MachineProcess, UniverseHome } from "@destack/machine/process";
 import { Release } from "@destack/update/release";
 import { RequestId } from "@destack/sync";
 import { present } from "@destack/schema";
