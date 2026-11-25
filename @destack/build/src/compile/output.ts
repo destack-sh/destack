@@ -133,6 +133,8 @@ interface CompileInput {
     readonly destinationRoot: string;
     /** The absolute source modules the output compiles. */
     readonly entries: readonly string[];
+    /** The recorder of what the bundle's builds reference. */
+    readonly recorder: BundleRecorder;
 }
 
 /** One module output a build compiles with the extensions of the package's dependency closure. */
@@ -279,7 +281,9 @@ export class ModuleOutput implements Compilation {
         // bundle the entries with the extensions' plugins, which emit this bundle's entries anew
         const facades = new Map<string, string>();
         const plugins = this.#collectPlugins();
-        const input = { dependencies, sources: files, destinationRoot: files.directory, entries };
+        const recorder = new BundleRecorder(this.directory, this.project.environment.files);
+        const destinationRoot = files.directory;
+        const input = { dependencies, sources: files, destinationRoot, entries, recorder };
         const generated =
             this.runtime === "browser"
                 ? await runVite(this.#configuration(compiled, facades, plugins, input))
@@ -417,13 +421,20 @@ export class ModuleOutput implements Compilation {
 
         // collect the plugins, which emit this bundle's entries anew
         const plugins = [rebuilding, ...this.#collectPlugins()];
-        const input = { dependencies, sources: retaining, destinationRoot: directory, entries };
+        const recorder = new BundleRecorder(this.directory, files);
+        const input = {
+            dependencies,
+            sources: retaining,
+            destinationRoot: directory,
+            entries,
+            recorder,
+        };
 
         // start a server output's bundle on its options, its first output from the bundle
         if (this.runtime !== "browser") {
             const options = await this.#serverOptions(state, facades, plugins, input);
             const { output, ...rest } = options;
-            const bundle = await Bundle.start(rest, output, this.directory, files, undefined);
+            const bundle = await Bundle.start(rest, output, this.directory, files, recorder);
 
             return {
                 bundle,
@@ -456,8 +467,7 @@ export class ModuleOutput implements Compilation {
                 captured.modules = [...this.getModuleIds()];
             },
         };
-        const recorder = new BundleRecorder(this.directory, files);
-        const recording = [...plugins, capturing, recorder.plugin()];
+        const recording = [...plugins, capturing, recorder.vitePlugin()];
         const configuration = this.#configuration(state, facades, recording, input);
         const generated = await runVite(configuration);
         const { input: options, output, modules } = captured;
@@ -688,7 +698,7 @@ export class ModuleOutput implements Compilation {
         const flattened = [
             serverStylePlugin(),
             rawPlugin(project.environment.files),
-            assetPlugin(project.environment.files),
+            assetPlugin(project.environment.files, input.recorder),
             ...this.#packagePlugins(compiled, facades, input, locations),
             ...(await flattenPlugins(plugins)),
             modulePlugin(this.#transformer),
@@ -730,7 +740,14 @@ export class ModuleOutput implements Compilation {
         const assets = new Map<string, Uint8Array<ArrayBuffer>>();
 
         return [
-            directoryPlugin(project.directory, compiled.files, assets, project.environment),
+            directoryPlugin(
+                project.directory,
+                compiled.files,
+                assets,
+                project.environment,
+                input.recorder,
+            ),
+            input.recorder.plugin(),
             sourcePlugin(
                 project.directory,
                 project.packageJson.package.name,

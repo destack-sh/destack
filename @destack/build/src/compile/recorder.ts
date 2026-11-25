@@ -17,14 +17,28 @@ const TEST_MODULE = /\.test\.[cm]?[jt]sx?$/u;
 /** The stylesheets each chunk of a build imports, by the chunk's file name. */
 export type ChunkStylesheets = ReadonlyMap<string, readonly string[]>;
 
-/** A recorder of a warm Vite bundle's stylesheets and of the files Vite reads outside its graph. */
+/** A build's manifest: the stylesheets of each chunk, and every asset the chunks reference. */
+export interface BundleManifest {
+    /** The stylesheets each chunk imports, by the chunk's file name. */
+    readonly stylesheets: ChunkStylesheets;
+    /** The file names of every stylesheet and other asset the chunks reference. */
+    readonly assets: ReadonlySet<string>;
+}
+
+/** A recorder of what a warm bundle's builds reference: Vite's records and the plugins' assets. */
 export class BundleRecorder {
     /** The package's directory. */
     readonly #directory: string;
     /** The files the bundle reads. */
     readonly #files: FileSystem;
     /** The builds started and not yet taken, oldest first, each filled once rendered. */
-    readonly #builds: RecordedBuild[];
+    readonly #builds: Render[];
+    /** The references each module emitted in the build running now, by the module. */
+    readonly #emitted: Map<string, string[]>;
+    /** The file names of the assets each module's newest load or transform emitted, by module. */
+    readonly #assets: Map<string, readonly string[]>;
+    /** The file names any build resolved a file URL to, which Vite's records keep across builds. */
+    readonly #fileUrls: Set<string>;
     /** The modules each parsed module imports, as its newest parse found them, by the module. */
     readonly #imports: Map<string, readonly string[]>;
     /** The modules the newest rendered build reaches. */
@@ -32,7 +46,7 @@ export class BundleRecorder {
     /** The package's source files as the newest scan before the first take found them. */
     #scanned: ReadonlyMap<string, string>;
     /** The first taken build and the source files at its render, absent before the first take. */
-    #first: { build: RecordedBuild; files: ReadonlyMap<string, string> } | undefined;
+    #first: { build: Render; files: ReadonlyMap<string, string> } | undefined;
     /** Whether a build after the first changed a file only a new bundle renders right. */
     #isStale: boolean;
 
@@ -42,6 +56,9 @@ export class BundleRecorder {
         this.#directory = directory;
         this.#files = files;
         this.#builds = [];
+        this.#emitted = new Map();
+        this.#assets = new Map();
+        this.#fileUrls = new Set();
         this.#imports = new Map();
         this.#modules = new Set();
         this.#scanned = new Map();
@@ -49,20 +66,72 @@ export class BundleRecorder {
         this.#isStale = false;
     }
 
-    /** Create the Vite plugin recording each build, which reads chunks' metadata inside Vite. */
+    /** Record an asset a module emits in the build running now, as the package's plugins do. */
+    emit(module: string, reference: string): void {
+        const references = this.#emitted.get(module) ?? [];
+        references.push(reference);
+        this.#emitted.set(module, references);
+    }
+
+    /** Create the plugin starting each build and naming the assets its modules emitted. */
     plugin(): Plugin {
-        // start, mark and fill the recorded builds from the plugin's hooks
+        // start each build, and reset each module a load or transform reads anew
         const start = () => {
-            this.#builds.push(new RecordedBuild());
+            this.#builds.push(new Render());
         };
+        const reset = (id: string) => {
+            this.#emitted.set(id, this.#emitted.get(id) ?? []);
+        };
+        const name = (chunks: readonly OutputChunk[], fileName: (reference: string) => string) =>
+            this.#name(chunks, fileName);
+
+        return {
+            name: "@destack/build/record",
+            buildStart: start,
+            load: {
+                order: "pre",
+                handler(id) {
+                    reset(id);
+                },
+            },
+            transform: {
+                order: "pre",
+                handler(_code, id) {
+                    reset(id);
+                },
+            },
+            generateBundle(_options, bundle) {
+                const chunks = Object.values(bundle).filter(
+                    (entry): entry is OutputChunk => entry.type === "chunk",
+                );
+                name(chunks, (reference) => this.getFileName(reference));
+            },
+        };
+    }
+
+    /** Create the Vite plugin filling each build with what Vite records of its chunks. */
+    vitePlugin(): Plugin {
+        // mark and fill the started build from Vite's hooks
         const transform = () => this.#started().transform();
+        const resolve = (fileName: string) => {
+            this.#fileUrls.add(fileName);
+            this.#started().resolve(fileName);
+        };
         const parse = (id: string, imports: readonly string[]) => this.#imports.set(id, imports);
         const render = (bundle: OutputBundle) => this.#render(bundle);
 
         return {
-            name: "@destack/build/record",
+            name: "@destack/build/record-vite",
             enforce: "post",
-            buildStart: start,
+            // record each file URL before Vite resolves it, leaving the resolution to Vite
+            resolveFileUrl: {
+                order: "pre",
+                handler({ fileName }) {
+                    resolve(fileName);
+
+                    return null;
+                },
+            },
             transform: {
                 filter: { id: STYLESHEET },
                 handler() {
@@ -85,8 +154,8 @@ export class BundleRecorder {
         this.#builds.length = 0;
     }
 
-    /** Take the oldest build's stylesheets for its output, marking the bundle stale by it. */
-    take(): ChunkStylesheets {
+    /** Take the oldest build's imports for its output, marking the bundle stale by it. */
+    take(): BundleManifest {
         // take the oldest build, unrendered when it failed
         const taken = present(this.#builds.shift(), "a started build for the output");
         const first = this.#first;
@@ -101,7 +170,7 @@ export class BundleRecorder {
             this.#isStale ||= taken.isTransformed;
         }
 
-        return taken.imported;
+        return { stylesheets: taken.imported, assets: taken.assets };
     }
 
     /** Report whether a build changed a stylesheet, or a file outside the graph changed since. */
@@ -121,8 +190,21 @@ export class BundleRecorder {
         return !isSameMap(new Map(before), new Map(after));
     }
 
+    /** Name the assets each module read anew emitted, adding the chunks' modules' to the build. */
+    #name(chunks: readonly OutputChunk[], fileName: (reference: string) => string): void {
+        // name what each module read anew emitted, replacing its earlier assets
+        for (const [module, references] of this.#emitted) {
+            this.#assets.set(module, references.map(fileName));
+        }
+        this.#emitted.clear();
+
+        // add the assets of the modules each chunk renders to the started build
+        const modules = chunks.flatMap((chunk) => chunk.moduleIds);
+        this.#started().include(modules.flatMap((module) => this.#assets.get(module) ?? []));
+    }
+
     /** Return the build the newest start began. */
-    #started(): RecordedBuild {
+    #started(): Render {
         return present(this.#builds.at(-1), "a started build");
     }
 
@@ -142,8 +224,19 @@ export class BundleRecorder {
                 );
             }
 
-            return [chunk.fileName, [...metadata.importedCss]] as const;
+            return [chunk.fileName, metadata] as const;
         });
+        const stylesheets = imported.map(
+            ([file, metadata]) => [file, [...metadata.importedCss]] as const,
+        );
+
+        // read each imported asset, leaving the file URLs of earlier builds Vite's records keep
+        const resolved = build.fileUrls;
+        const isEarlier = (file: string) => this.#fileUrls.has(file) && !resolved.has(file);
+        const assets = imported.flatMap(([, metadata]) => [
+            ...metadata.importedCss,
+            ...[...metadata.importedAssets].filter((file) => !isEarlier(file)),
+        ]);
 
         // reach the modules from the chunks', as the engine's graph lists the modules a rebuild dropped
         const reached = new Set(chunks.flatMap((chunk) => chunk.moduleIds));
@@ -153,7 +246,8 @@ export class BundleRecorder {
             }
         }
         this.#modules = reached;
-        build.render(new Map(imported), reached);
+        build.render(new Map(stylesheets), reached);
+        build.include(assets);
 
         // scan the source files before the first take, whose build later scans compare with
         if (this.#first === undefined) {
@@ -196,12 +290,16 @@ export class BundleRecorder {
     }
 }
 
-/** A build the recorder saw start, filled once Vite renders it. */
-class RecordedBuild {
+/** One render of the bundle, started with its build and filled once Vite renders it. */
+class Render {
     /** Whether it transformed a stylesheet. */
     isTransformed: boolean;
     /** The stylesheets each chunk imports, empty until rendered. */
     imported: ChunkStylesheets;
+    /** The file names of the assets the chunks reference. */
+    readonly assets: Set<string>;
+    /** The file names its chunks resolved file URLs to. */
+    readonly fileUrls: Set<string>;
     /** The modules it reaches, absent until rendered. */
     modules: ReadonlySet<string> | undefined;
 
@@ -210,12 +308,26 @@ class RecordedBuild {
         // start with nothing rendered
         this.isTransformed = false;
         this.imported = new Map();
+        this.assets = new Set();
+        this.fileUrls = new Set();
         this.modules = undefined;
     }
 
     /** Read the stylesheet modules it reaches. */
     stylesheets(): Set<string> {
         return new Set([...(this.modules ?? [])].filter((id) => STYLESHEET.test(id)));
+    }
+
+    /** Add assets the build's chunks reference. */
+    include(assets: readonly string[]): void {
+        for (const asset of assets) {
+            this.assets.add(asset);
+        }
+    }
+
+    /** Record a file URL a chunk of the build resolved. */
+    resolve(fileName: string): void {
+        this.fileUrls.add(fileName);
     }
 
     /** Mark that the build transformed a stylesheet module. */

@@ -36,6 +36,7 @@ import { HOST_RUNTIME, WORKERD_SCHEME } from "@destack/package/runtime";
 import { selectExport } from "../source/source.ts";
 import { loadExtensions, transformPlugins } from "../compile/extension.ts";
 import { assetPlugin } from "../compile/asset.ts";
+import { BundleRecorder } from "../compile/recorder.ts";
 import { Bundle } from "../compile/bundle.ts";
 
 /** An installed JavaScript module, imported as the host loads it, without a query such as ?url. */
@@ -582,7 +583,10 @@ async function entryOptions(
         treeshake: { moduleSideEffects: true },
         plugins: [
             entryPlugin(source),
-            assetPlugin(project.environment.files),
+            assetPlugin(
+                project.environment.files,
+                new BundleRecorder(project.directory, project.environment.files),
+            ),
             treePlugin(project, project.program),
             modulePlugin(transformer),
             ...transforms,

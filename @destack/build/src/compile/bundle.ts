@@ -10,16 +10,10 @@ import type {
 import { dev, type DevEngine } from "rolldown/experimental";
 import { BuildError, bundleFailureOf } from "../error/index.ts";
 import { present } from "@destack/schema";
-import type { BundleRecorder, ChunkStylesheets } from "./recorder.ts";
+import type { BundleManifest, BundleRecorder, ChunkStylesheets } from "./recorder.ts";
 
 /** Vite's plugins that report on a whole build, which assume a full bundle a rebuild lacks. */
 const BUILD_REPORT = /^(?:vite:license|vite:ssr-manifest|native:manifest|native:reporter)/u;
-
-/** The assets whose text can reference other assets: scripts, stylesheets, pages, data. */
-const TEXT_ASSET = /\.(?:[cm]?js|css|html|json|svg)$/u;
-
-/** The decoder of text assets. */
-const DECODER = new TextDecoder();
 
 /** A bundle's output with the modules of the graph it was built from. */
 export interface BundleOutput {
@@ -37,8 +31,8 @@ interface EngineOutput {
     readonly result: RolldownOutput | Error;
     /** The modules of the graph. */
     readonly modules: readonly string[];
-    /** The stylesheets each chunk imports, by the chunk's file name. */
-    readonly stylesheets: ChunkStylesheets;
+    /** What the chunks import, absent for a bundle without Vite. */
+    readonly imports: BundleManifest | undefined;
 }
 
 /** A warm bundle that rebuilds the modules its watcher sees change. */
@@ -130,14 +124,17 @@ export class Bundle implements AsyncDisposable {
         await this.#settle();
 
         // fail with a broken bundle's failure, else the newest build's failure
-        const { result, modules, stylesheets } = present(this.#output, "the output");
+        const { result, modules, imports } = present(this.#output, "the output");
         if (BuildError.is(result, "BUNDLE_BROKEN")) {
             throw result;
         } else if (result instanceof Error) {
             throw bundleFailureOf(result);
         }
 
-        return { generated: this.#complete(result.output, stylesheets), modules, stylesheets };
+        // complete the output with the assets its chunks import
+        const stylesheets = imports?.stylesheets ?? new Map<string, readonly string[]>();
+
+        return { generated: this.#complete(result.output, imports), modules, stylesheets };
     }
 
     /** Stop the engine and its watcher. */
@@ -188,13 +185,13 @@ export class Bundle implements AsyncDisposable {
         this.#builds += 1;
         const modules = this.#engine.moduleGraph.getModuleIds();
         try {
-            const stylesheets = this.#recorder?.take() ?? new Map<string, readonly string[]>();
-            this.#output = { result, modules, stylesheets };
+            const imports = this.#recorder?.take();
+            this.#output = { result, modules, imports };
         } catch (cause) {
             const broken = BuildError.of("BUNDLE_BROKEN", "bundle is broken: its recorder failed", {
                 cause,
             });
-            this.#output = { result: broken, modules, stylesheets: new Map() };
+            this.#output = { result: broken, modules, imports: undefined };
         }
 
         // wake the waits for it
@@ -202,42 +199,25 @@ export class Bundle implements AsyncDisposable {
         this.#next = Promise.withResolvers<void>();
     }
 
-    /** Add the assets an output references that its rebuild left out, and forget the rest. */
+    /** Add the assets an output's chunks import that its rebuild left out, and forget the rest. */
     #complete(
         generated: readonly (OutputChunk | OutputAsset)[],
-        stylesheets: ChunkStylesheets,
+        imports: BundleManifest | undefined,
     ): (OutputChunk | OutputAsset)[] {
-        // index the recorded assets by the file name a link writes, matching any of them in one pass
-        const named = new Map<string, string[]>();
-        for (const name of this.#assets.keys()) {
-            const base = name.slice(name.lastIndexOf("/") + 1);
-            named.set(base, [...(named.get(base) ?? []), name]);
-        }
-        const bases = [...named.keys()].map((base) => RegExp.escape(base));
-        const linked = new RegExp(bases.length === 0 ? "(?!)" : bases.join("|"), "gu");
-
-        // reference the chunks' stylesheets and each asset a referenced text links, from the chunks on
-        const referenced = new Set([...stylesheets.values()].flat());
-        const texts = generated.flatMap((entry) => (entry.type === "chunk" ? [entry.code] : []));
-        texts.push(...[...referenced].flatMap((name) => assetText(this.#restored(name))));
-        for (let text = texts.pop(); text !== undefined; text = texts.pop()) {
-            for (const [base] of text.matchAll(linked)) {
-                for (const name of named.get(base) ?? []) {
-                    if (!referenced.has(name)) {
-                        referenced.add(name);
-                        texts.push(...assetText(this.#restored(name)));
-                    }
-                }
-            }
+        // take a bundle without Vite's records as it generated
+        if (imports === undefined) {
+            return [...generated];
         }
 
-        // add the referenced assets the rebuild left out, then forget the rest
+        // add each imported asset the rebuild left out
         const emitted = new Set(generated.map((entry) => entry.fileName));
-        const restored = [...referenced]
+        const restored = [...imports.assets]
             .filter((name) => !emitted.has(name))
             .map((name) => this.#restored(name));
+
+        // forget the assets no chunk imports any more
         for (const name of this.#assets.keys()) {
-            if (!referenced.has(name) && !emitted.has(name)) {
+            if (!imports.assets.has(name) && !emitted.has(name)) {
                 this.#assets.delete(name);
             }
         }
@@ -283,14 +263,4 @@ function isBuildReport(plugin: unknown): boolean {
         typeof plugin === "object" && plugin !== null ? Reflect.get(plugin, "name") : undefined;
 
     return typeof name === "string" && BUILD_REPORT.test(name);
-}
-
-/** Read an asset's text when it can reference other assets. */
-function assetText(asset: OutputAsset): string[] {
-    const { source } = asset;
-    if (!TEXT_ASSET.test(asset.fileName)) {
-        return [];
-    }
-
-    return [typeof source === "string" ? source : DECODER.decode(source)];
 }

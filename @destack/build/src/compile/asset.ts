@@ -6,6 +6,7 @@ import { parseAst } from "rolldown/parseAst";
 import { type ESTree, Visitor } from "rolldown/utils";
 import { type Plugin, type Manifest } from "vite";
 import type { EmittedAsset } from "rolldown";
+import type { BundleRecorder } from "./recorder.ts";
 import { readDirectory } from "../build/directory.ts";
 import { BuildError } from "../error/index.ts";
 import { modulePackage, relativePath } from "../source/dependency.ts";
@@ -18,7 +19,7 @@ export const ASSET =
     /(?:\?url$|\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp3|mp4|webm|wav)$)/u;
 
 /** Emit each imported file as an asset whose URL the module exports by default, as Vite does. */
-export function assetPlugin(files: FileSystem): Plugin {
+export function assetPlugin(files: FileSystem, recorder: Pick<BundleRecorder, "emit">): Plugin {
     return {
         name: "@destack/build/asset",
         load: {
@@ -28,6 +29,7 @@ export function assetPlugin(files: FileSystem): Plugin {
                 const [path = id] = id.split("?");
                 const source = await files.readFile(path);
                 const reference = this.emitFile({ type: "asset", name: basename(path), source });
+                recorder.emit(id, reference);
 
                 return `export default import.meta.ROLLUP_FILE_URL_${reference};\n`;
             },
@@ -81,6 +83,7 @@ export function directoryPlugin(
     files: Map<string, Uint8Array<ArrayBuffer>>,
     sources: Map<string, Uint8Array<ArrayBuffer>>,
     environment: Environment<"files">,
+    recorder: Pick<BundleRecorder, "emit">,
 ): Plugin {
     const emitted = new Set<string>();
 
@@ -123,14 +126,19 @@ export function directoryPlugin(
                             { cause },
                         );
                     });
+                    const own = new Set<string>();
                     const url = await emitDirectory(
                         this,
                         reference.path,
                         source,
                         entries,
-                        emitted,
+                        own,
                         environment.crypto,
                     );
+                    for (const asset of own) {
+                        emitted.add(asset);
+                        recorder.emit(id, asset);
+                    }
                     const path = owner.directory === directory ? local : undefined;
                     retainEntries(entries, source, path, files, sources);
                     rewritten.overwrite(reference.start, reference.end, url);

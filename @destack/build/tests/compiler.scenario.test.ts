@@ -36,10 +36,10 @@ test("rebuild edited source and restore distributed output", async () => {
             store,
             toolchain: async () => Toolchain.workspace(),
         });
-        const build = await builder.build(library);
+        const { build } = await builder.build(library);
 
         // rebuild unchanged, edited, and restored source with the same compiler
-        const unchanged = await builder.build(library);
+        const { build: unchanged } = await builder.build(library);
         expect(unchanged.manifest).toEqual(build.manifest);
         await expectFiles(unchanged, build);
         const notePath = join(source, "src/note.ts");
@@ -50,7 +50,7 @@ test("rebuild edited source and restore distributed output", async () => {
                 .replace("complete: boolean", "complete: true")
                 .replace("complete: false", "complete: true"),
         );
-        const edited = await builder.build(library);
+        const { build: edited } = await builder.build(library);
         const editDirectory = join(directory, "edited");
         await edited.writeDirectory(editDirectory, files);
         const editedModule = await importNotes(
@@ -59,7 +59,7 @@ test("rebuild edited source and restore distributed output", async () => {
         );
         expect(editedModule.createNote("Edited")).toEqual({ title: "Edited", complete: true });
         await files.writeTextFile(notePath, note);
-        const restoredSource = await builder.build(library);
+        const { build: restoredSource } = await builder.build(library);
         expect(restoredSource.manifest).toEqual(build.manifest);
         await expectFiles(restoredSource, build);
 
@@ -148,7 +148,7 @@ test("rebuild edited source on warm bundles in development, each edit built righ
 
     try {
         // build, then edit a module and build at once, before any watcher could settle
-        const first = await builder.build(developing);
+        const { build: first } = await builder.build(developing);
         const notePath = join(source, "src/note.ts");
         const note = await files.readTextFile(notePath);
         await files.writeTextFile(
@@ -157,7 +157,7 @@ test("rebuild edited source on warm bundles in development, each edit built righ
                 .replace("complete: boolean", "complete: true")
                 .replace("complete: false", "complete: true"),
         );
-        const edited = await builder.build(developing);
+        const { build: edited } = await builder.build(developing);
         const editDirectory = join(directory, "edited");
         await edited.writeDirectory(editDirectory, files);
         const editedModule = await importNotes(
@@ -167,12 +167,75 @@ test("rebuild edited source on warm bundles in development, each edit built righ
 
         // restore the module and build at once, back to the first build's output
         await files.writeTextFile(notePath, note);
-        const restored = await builder.build(developing);
+        const { build: restored } = await builder.build(developing);
         expect([editedModule.createNote("Edited"), restored.manifest]).toEqual([
             { title: "Edited", complete: true },
             first.manifest,
         ]);
         await expectFiles(restored, first);
+    } finally {
+        await files.remove(directory, { recursive: true });
+    }
+});
+
+test("write a server's imported assets across warm rebuilds, dropping one its import leaves", async () => {
+    // compile the library for bun in development, importing an image
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("build-develop-server-assets-");
+    const source = join(directory, "source");
+    await files.copy(fileURLToPath(new URL("./fixture/library/source/", import.meta.url)), source);
+    const name = "@destack/build-library-fixture";
+    const developing = {
+        directory: source,
+        dependencies: {},
+        links: {},
+        outputs: request.outputs,
+        versions: { [name]: Version.development },
+    } as const;
+    await using store = await LocalBuildStore.temporary(environment);
+    await using builder = await Compiler.start(source, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
+
+    // build, reading each output asset by its path without its hash and its size
+    const build = async () => {
+        const { build: built } = await builder.build(developing);
+        const assets = (await built.files()).filter((file) =>
+            /^output\/library\/assets?\/[^/]*(?<!\.map)$/u.test(file.path),
+        );
+        const read = await Promise.all(
+            assets.map(async (file) => {
+                const bytes = await built.load(file.path);
+
+                return [
+                    unhashed(file.path.slice("output/library/".length)),
+                    bytes.byteLength,
+                ] as const;
+            }),
+        );
+
+        return Object.fromEntries(read);
+    };
+
+    try {
+        // import the image, edit the script beside it, then drop the import
+        const note = await files.readTextFile(join(source, "src/note.ts"));
+        const write = (path: string, text: string) => files.writeTextFile(join(source, path), text);
+        await files.writeFile(join(source, "src/logo.png"), new Uint8Array(3000).fill(9));
+        const imported = `import logo from "./logo.png";\nexport const image = logo;\n${note}`;
+        await write("src/note.ts", imported);
+        const first = await build();
+        await write("src/note.ts", `${imported}\n// edited\n`);
+        const edited = await build();
+        await write("src/note.ts", note);
+        const dropped = await build();
+
+        // expect the image in both builds that import it, and in none after
+        const logo = { "asset/logo-*.png": 3000 };
+        expect([first, edited, dropped]).toEqual([logo, logo, {}]);
     } finally {
         await files.remove(directory, { recursive: true });
     }
@@ -203,7 +266,7 @@ test("write each warm rebuild's current stylesheets, fonts and workers in develo
     // build, reading each output asset by its path without its hash: a text's content, else its size
     const decoder = new TextDecoder();
     const build = async () => {
-        const built = await builder.build(developing);
+        const { build: built } = await builder.build(developing);
         const assets = (await built.files()).filter((file) =>
             /^output\/library\/assets?\/[^/]*(?<!\.map)$/u.test(file.path),
         );
@@ -299,7 +362,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    const first = await builder.build(library);
+    const { build: first } = await builder.build(library);
     expect(
         await refusal(
             builder.build({ directory: source, dependencies: {}, links: {}, outputs: {} }),
@@ -325,7 +388,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     ]);
 
     // build the same package again with the same compiler after rejected requests
-    const build = await builder.build(library);
+    const { build } = await builder.build(library);
     expect(build.manifest).toEqual(first.manifest);
 });
 
@@ -356,7 +419,7 @@ test("terminate compilation on cancellation and deadline, and build again with t
         "COMPILER_UNREACHABLE",
         "could not finish the build within 1 ms",
     ]);
-    const rebuilt = await builder.build(library);
+    const { build: rebuilt } = await builder.build(library);
     expect(rebuilt.manifest.package.name).toBe("@destack/build-library-fixture");
 });
 
@@ -461,7 +524,7 @@ test("compile a package with the build extension it declares", async () => {
             toolchain: async () => Toolchain.workspace(),
         });
         const outputs = { library: { kind: "module", runtime: "bun" } } as const;
-        const built = await builder.build({
+        const { build: built } = await builder.build({
             directory: directory,
             dependencies: {},
             links: {},
@@ -550,7 +613,12 @@ test("bundle a dependency's file imported with a query through the extension tha
             toolchain: async () => Toolchain.workspace(),
         });
         const outputs = { library: { kind: "module", runtime: "bun" } } as const;
-        const built = await builder.build({ directory, dependencies: {}, links: {}, outputs });
+        const { build: built } = await builder.build({
+            directory,
+            dependencies: {},
+            links: {},
+            outputs,
+        });
         await built.writeDirectory(join(directory, "build"), files);
         const module = await importBuilt(
             join(directory, "build"),
@@ -605,7 +673,7 @@ test("compile each command the package installs into its Bun output, keeping its
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    const built = await builder.build({
+    const { build: built } = await builder.build({
         directory,
         dependencies: {},
         links: {},
@@ -660,7 +728,7 @@ test("keep the declaration file a package exports for another runtime in a Bun b
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    const built = await builder.build({
+    const { build: built } = await builder.build({
         directory,
         dependencies: {},
         links: {},
@@ -729,7 +797,7 @@ test("keep the files a package imports only for types in its build", async () =>
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    const built = await builder.build({
+    const { build: built } = await builder.build({
         directory,
         dependencies: {},
         links: {},
@@ -812,7 +880,7 @@ test("bundle a module a page starts as a worker, and refuse one it references as
             notePath,
             `${note}\n/** Start the echo worker. */\nexport const echo = () =>\n    new Worker(new URL("./echo.worker.ts", import.meta.url), { type: "module" });\n`,
         );
-        const started = await builder.build(browser);
+        const { build: started } = await builder.build(browser);
         const workers = (await started.files()).filter((file) =>
             /echo\.worker[^/]*\.js$/u.test(file.path),
         );
@@ -868,7 +936,7 @@ test("run the browser baseline first in a worker, leaving a library's entries al
             store,
             toolchain: async () => Toolchain.workspace(),
         });
-        const built = await builder.build(browser);
+        const { build: built } = await builder.build(browser);
 
         // read each emitted entry's code with the code of the modules it imports first
         const scripts = (await built.files()).filter((file) => file.path.endsWith(".js"));
