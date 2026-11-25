@@ -186,6 +186,18 @@ export async function readReadme(location: PackageLocation): Promise<string> {
 
 ## Conventions
 
+### Roles
+
+A package's role says how it ships.
+
+| Role      | What it is              |
+| --------- | ----------------------- |
+| `builtin` | runtime-linked it, Destack platform only |
+| `library` | import-bundled |
+| `app`     | installed |
+
+Builtins and libraries import only builtins and other libraries; apps also get to import other apps' `object`, `declare`, `client`, `setting` and `view`.
+
 ### README
 
 A package's README teaches a caller to use the package in a nicely standardised form
