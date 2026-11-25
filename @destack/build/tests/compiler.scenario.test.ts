@@ -178,6 +178,116 @@ test("rebuild edited source on warm bundles in development, each edit built righ
     }
 });
 
+test("write each warm rebuild's current stylesheets, fonts and workers in development", async () => {
+    // compile the library for the browser in development
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("build-develop-assets-");
+    const source = join(directory, "source");
+    await files.copy(fileURLToPath(new URL("./fixture/library/source/", import.meta.url)), source);
+    const name = "@destack/build-library-fixture";
+    const developing = {
+        directory: source,
+        dependencies: {},
+        links: {},
+        outputs: { library: { ...request.outputs.library, runtime: "browser" } },
+        versions: { [name]: Version.development },
+    } as const;
+    await using store = await LocalBuildStore.temporary(environment);
+    await using builder = await Compiler.start(source, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
+
+    // build, reading each output asset by its path without its hash: a text's content, else its size
+    const decoder = new TextDecoder();
+    const build = async () => {
+        const built = await builder.build(developing);
+        const assets = (await built.files()).filter((file) =>
+            /^output\/library\/assets?\/[^/]*(?<!\.map)$/u.test(file.path),
+        );
+        const read = await Promise.all(
+            assets.map(async (file) => {
+                const bytes = await built.load(file.path);
+                const path = unhashed(file.path.slice("output/library/".length));
+                const isText = /\.(?:css|js)$/u.test(path);
+                const text = isText ? unhashed(decoder.decode(bytes).trim()) : bytes.byteLength;
+
+                return [path, text] as const;
+            }),
+        );
+
+        return Object.fromEntries(read);
+    };
+
+    try {
+        // style the notes with an imported partial and a font, then edit the script and the partial
+        const note = await files.readTextFile(join(source, "src/note.ts"));
+        const write = (path: string, text: string) => files.writeTextFile(join(source, path), text);
+        await files.writeFile(join(source, "src/font.woff2"), new Uint8Array(5000).fill(7));
+        await write("src/base.css", ".base { margin: 0; }\n");
+        await write(
+            "src/note.css",
+            '@import "./base.css";\n.note { background: url(./font.woff2); }\n',
+        );
+        await write("src/note.ts", `import "./note.css";\n${note}`);
+        const styled = await build();
+        await write("src/note.ts", `import "./note.css";\n${note}\n// edited\n`);
+        const scripted = await build();
+        await write("src/base.css", ".base { margin: 1px; }\n");
+        const restyled = await build();
+
+        // edit the partial and the script at once, as a save of two files does
+        await write("src/base.css", ".base { margin: 2px; }\n");
+        await write("src/note.ts", `import "./note.css";\n${note}\n// edited again\n`);
+        const both = await build();
+
+        // drop the import, then import another stylesheet
+        await write("src/note.ts", note);
+        const unstyled = await build();
+        await write("src/card.css", ".card { color: green; }\n");
+        await write("src/note.ts", `import "./card.css";\n${note}`);
+        const carded = await build();
+
+        // start a worker, edit the script beside it, edit the worker, then drop it
+        const worker = `export const echo = () =>\n    new Worker(new URL("./echo.worker.ts", import.meta.url), { type: "module" });\n`;
+        await write("src/echo.worker.ts", "self.postMessage(1);\n");
+        await write("src/note.ts", `${note}\n${worker}`);
+        const started = await build();
+        await write("src/note.ts", `${note}\n${worker}// edited\n`);
+        const kept = await build();
+        await write("src/echo.worker.ts", "self.postMessage(2);\n");
+        const reworked = await build();
+        await write("src/note.ts", note);
+        const stopped = await build();
+
+        // expect each build to write exactly its sources' stylesheets and fonts
+        const font = { "asset/font-*.woff2": 5000 };
+        const zero = '.base {\n  margin: 0;\n}\n\n.note {\n  background: url("./font-*.woff2");\n}';
+        expect([styled, scripted, restyled, both, unstyled, carded]).toEqual([
+            { ...font, "asset/note-*.css": zero },
+            { ...font, "asset/note-*.css": zero },
+            { ...font, "asset/note-*.css": zero.replace("0;", "1px;") },
+            { ...font, "asset/note-*.css": zero.replace("0;", "2px;") },
+            {},
+            { "asset/note-*.css": ".card {\n  color: green;\n}" },
+        ]);
+
+        // expect one worker kept across an edit beside it, replaced by its edit and dropped with its import
+        const path = "assets/echo.worker-*.js";
+        const echo = String(started[path]);
+        expect([started, kept, reworked, stopped]).toEqual([
+            { [path]: echo },
+            { [path]: echo },
+            { [path]: echo.replace("postMessage(1)", "postMessage(2)") },
+            {},
+        ]);
+    } finally {
+        await files.remove(directory, { recursive: true });
+    }
+});
+
 test("reject invalid outputs and recover the retained compiler", async () => {
     // build once before any rejected request
     await using simulation = testSimulation();
@@ -640,6 +750,11 @@ test("keep the files a package imports only for types in its build", async () =>
         "src/star.ts",
     ]);
 });
+
+/** Replace the content hash in each file name of a text, as output names hash their bytes. */
+function unhashed(text: string): string {
+    return text.replaceAll(/-[\w-]{8}\./gu, "-*.");
+}
 
 /** Read the file an output exports at its root, failing when the manifest lacks it. */
 function rootExport(manifest: PackageManifest, output: string): string {

@@ -539,7 +539,7 @@ async function bundleWarm(
     if (bundle === undefined) {
         const input = await entryOptions(source, project, transformer);
         const { files } = project.environment;
-        bundle = await Bundle.start(input, ENTRY_OUTPUT, project.directory, files);
+        bundle = await Bundle.start(input, ENTRY_OUTPUT, project.directory, files, undefined);
         bundles.set(source, bundle);
     }
 
