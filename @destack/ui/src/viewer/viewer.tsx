@@ -52,7 +52,7 @@ import { Icon } from "../icon/index.ts";
 import { Move, Zoom } from "../interaction/index.ts";
 import { OpenChange } from "../layer/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
-import { GLIDE } from "../position/index.ts";
+import { LayoutAnimation } from "../motion/index.ts";
 import { useViewer, ViewerContext, type ViewerControl, type ViewerState } from "./control.ts";
 import { FIT, type Frame, type Place, type Point } from "./scale.ts";
 
@@ -1041,6 +1041,10 @@ function morph(
             },
             { transform: "none", clipPath: "inset(0px 0px)" },
         ],
-        { ...GLIDE, direction, fill: direction === "reverse" ? "forwards" : "none" },
+        {
+            ...new LayoutAnimation(element).timing("short"),
+            direction,
+            fill: direction === "reverse" ? "forwards" : "none",
+        },
     );
 }

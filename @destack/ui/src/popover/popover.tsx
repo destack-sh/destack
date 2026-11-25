@@ -277,7 +277,7 @@ export class PopoverControl<Payload = unknown> {
         this.#replace(content, anchor);
 
         // glide there, its content sliding the same way
-        Position.glide(content, from);
+        Position.animate(content, from);
         if (beside !== undefined) {
             this.#viewport?.slide(beside, anchor.getBoundingClientRect());
         }

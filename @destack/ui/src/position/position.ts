@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { isMotionReduced } from "@destack/view/motion";
+import { LayoutAnimation } from "../motion/index.ts";
 import { transition } from "@destack/theme/motion";
 import { space } from "@destack/theme/tokens.stylex";
 
@@ -158,9 +158,6 @@ const areas = style.create({
     },
 });
 
-/** How an overlay moves between triggers, as long as a short one enters, in milliseconds. */
-export const GLIDE = { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" };
-
 /** The attribute that names an anchor, which a rule turns into its anchor name. */
 const ANCHOR_ATTRIBUTE = "data-anchor-name";
 
@@ -316,10 +313,10 @@ export const Position = {
         return styles.box(left ?? "", top ?? "", across ?? "", down ?? "");
     },
 
-    /** Glide a shown overlay to where it now is from where it was. */
-    glide(content: HTMLElement, from: DOMRect): void {
+    /** Animate a shown overlay to where it now is from where it was. */
+    animate(content: HTMLElement, from: DOMRect): void {
         // move at once where the person wants less motion, or the page has no animations
-        if (isMotionReduced(content) || typeof content.animate !== "function") {
+        if (!new LayoutAnimation(content).isEnabled()) {
             return;
         }
 
@@ -339,7 +336,7 @@ export const Position = {
                     height: `${String(to.height)}px`,
                 },
             ],
-            GLIDE,
+            new LayoutAnimation(content).timing("short"),
         );
     },
 

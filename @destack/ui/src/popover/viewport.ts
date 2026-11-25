@@ -1,5 +1,5 @@
 import { isMotionReduced } from "@destack/view/motion";
-import { GLIDE } from "../position/index.ts";
+import { LayoutAnimation } from "../motion/index.ts";
 
 /** How far content slides as another takes its place, in pixels, as much as a row is tall. */
 const SLIDE = 32;
@@ -75,19 +75,20 @@ export class Viewport {
                 ? `${String(sign * Math.sign(x) * SLIDE)}px 0px`
                 : `0px ${String(sign * Math.sign(y) * SLIDE)}px`;
         this.#element.append(leaving);
+        const timing = new LayoutAnimation(this.#element).timing("short");
         current.animate(
             [
                 { translate: way(1), opacity: 0 },
                 { translate: "0px 0px", opacity: 1 },
             ],
-            GLIDE,
+            timing,
         );
         const out = leaving.animate(
             [
                 { translate: "0px 0px", opacity: 1 },
                 { translate: way(-1), opacity: 0 },
             ],
-            GLIDE,
+            timing,
         );
         out.addEventListener("finish", () => leaving.remove());
         out.addEventListener("cancel", () => leaving.remove());
