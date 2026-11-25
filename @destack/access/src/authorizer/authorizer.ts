@@ -2100,7 +2100,9 @@ export class Authorizer {
         );
         throw (
             refused ??
-            AccessError.of("PERMISSION_DENIED", PermissionReference.forbidden(permission))
+            AccessError.of("PERMISSION_DENIED", PermissionReference.forbidden(permission), {
+                data: PermissionReference.denial(permission, target, access.context.subject),
+            })
         );
     }
 

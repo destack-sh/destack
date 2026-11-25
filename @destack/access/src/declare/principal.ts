@@ -87,8 +87,9 @@ export const SIGNED_IN_TYPES = SIGNING.map((kind) => kind.all());
 export const universe = new Policy(SYNC_PACKAGE, {
     name: "universe",
     relations: {
-        // every machine, and every signed-in caller, through their wildcards
+        // every machine, every space and every signed-in caller, through their wildcards
         machine: { subjects: [principal.machine.all()] },
+        space: { subjects: [principal.space.all()] },
         "signed-in": { subjects: SIGNED_IN_TYPES },
     },
     permissions: { grant: none() },

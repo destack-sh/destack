@@ -13,7 +13,7 @@ import {
     type ConditionExpression,
 } from "./expression.ts";
 import { type RelationDescription, SubjectType } from "./subject.ts";
-import { AccessError } from "../error/index.ts";
+import { AccessError, type Denial } from "../error/index.ts";
 import { PolicyDescription } from "./description.ts";
 import type { Elevation } from "../context/elevation.ts";
 
@@ -336,6 +336,20 @@ export const PermissionReference = Object.assign(permissionReference, {
     /** Write the refusal of a caller without a permission. */
     forbidden(permission: Pick<PermissionReference, "name">): string {
         return `permission '${permission.name}' is forbidden: it is not granted`;
+    },
+
+    /** Describe a refusal for its data: the permission, the object and the caller refused. */
+    denial(
+        permission: Pick<PermissionReference, "type" | "name">,
+        object: Pick<ObjectReference, "type" | "scope" | "id">,
+        caller: Pick<Subject, "type" | "scope" | "id"> | undefined,
+    ): Denial {
+        return {
+            permission: `${permission.type}.${permission.name}`,
+            object: `${object.type} ${object.scope}/${object.id}`,
+            caller:
+                caller === undefined ? "anonymous" : `${caller.type} ${caller.scope}/${caller.id}`,
+        };
     },
 
     /** Key a permission without collisions. */

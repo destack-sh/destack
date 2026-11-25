@@ -200,7 +200,11 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             "authentication required: authentication assurance is too low",
             { assurance: 2, maxAge: 15 * 60 * 1000 },
         ],
-        ["PERMISSION_DENIED", "permission 'edit' is forbidden: it is not granted", undefined],
+        [
+            "PERMISSION_DENIED",
+            "permission 'edit' is forbidden: it is not granted",
+            { permission: "entity.edit", object: "entity personal/a", caller: "user universe/bob" },
+        ],
     ]);
 });
 

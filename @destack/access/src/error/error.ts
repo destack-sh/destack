@@ -1,6 +1,19 @@
 import { defineErrorFamily, type ReasonOf } from "@destack/error";
+import { schema } from "@destack/schema";
 import { StepUp } from "../context/elevation.ts";
 import type {} from "@destack/package/import-meta";
+
+/** A refusal's data: the permission, the object and the caller it refused, as readable keys. */
+export const Denial = schema.object({
+    /** The refused permission, as `type.name`. */
+    permission: schema.string(),
+    /** The object it was refused on, as `type scope/id`. */
+    object: schema.string(),
+    /** The caller refused, as `type scope/id`, or anonymous. */
+    caller: schema.string(),
+});
+/** A refusal's data. */
+export type Denial = schema.Infer<typeof Denial>;
 
 /** The access package's failures, each reason with the call error code it answers. */
 export const AccessError = defineErrorFamily({
@@ -73,7 +86,7 @@ export const AccessError = defineErrorFamily({
         LINK_SECRET_DENIED: {},
         MANAGER_DENIED: {},
         OWNER_DENIED: {},
-        PERMISSION_DENIED: {},
+        PERMISSION_DENIED: { data: Denial },
         ROLE_SUBJECT_DENIED: {},
         SCOPE_DENIED: {},
         SUBJECT_OUTSIDE_CHAIN_DENIED: {},
