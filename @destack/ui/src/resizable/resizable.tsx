@@ -44,6 +44,12 @@ const DEFAULTS: Required<Pick<ResizablePanelGroupProperties, "direction">> = {
 /** The panel group of the nearest group, null outside one. */
 const ResizableContext = createContext<ResizableControl | null>(null);
 
+/** How far past its line a handle takes the pointer, more for a finger. */
+const REACH = {
+    default: `calc(-1 * ${space[1]})`,
+    [media.pointerCoarse]: `calc(-1 * ${space[4]})`,
+};
+
 /** The styles of a panel group, its panels and handles. */
 const styles = style.create({
     group: {
@@ -65,6 +71,8 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
+        zIndex: 1,
+        "::before": { content: "''", position: "absolute" },
         backgroundColor: { default: color.border, [media.forcedColors]: "CanvasText" },
     },
     grip: {
@@ -84,8 +92,16 @@ const directions = style.create({
 
 /** The thin side and the cursor of a handle in each direction. */
 const handles = style.create({
-    horizontal: { width: stroke.border, cursor: "col-resize" },
-    vertical: { height: stroke.border, cursor: "row-resize" },
+    horizontal: {
+        width: stroke.border,
+        cursor: "col-resize",
+        "::before": { insetBlock: 0, insetInline: REACH },
+    },
+    vertical: {
+        height: stroke.border,
+        cursor: "row-resize",
+        "::before": { insetBlock: REACH, insetInline: 0 },
+    },
 });
 
 /** The shape of a handle's grip in each direction. */
@@ -235,18 +251,21 @@ export class ResizableControl {
         this.panels().forEach((panel, index) => panel.resize(layout[index]));
     }
 
-    /** Move the boundary after a handle's panel by a share, within both neighbours' limits. */
-    move(handle: number, delta: number): void {
-        // read the neighbours of the handle
-        const before = this.panels()[handle];
-        const after = this.panels()[handle + 1];
-        if (before === undefined || after === undefined) {
+    /** Move the boundary after a handle's panel within its neighbours' limits, from a layout. */
+    move(handle: number, delta: number, from: readonly number[] = this.layout()): void {
+        // read the neighbours of the handle and their shares
+        const [before, after] = this.panels().slice(handle, handle + 2);
+        const [sizeBefore, sizeAfter] = from.slice(handle, handle + 2);
+        if (
+            before === undefined ||
+            after === undefined ||
+            sizeBefore === undefined ||
+            sizeAfter === undefined
+        ) {
             return;
         }
 
         // clamp both shares to their limits and their sum
-        const sizeBefore = this.sizeOf(before);
-        const sizeAfter = this.sizeOf(after);
         const limits = (panel: ResizablePanelState) => ({
             minimum: this.share(panel.minimum),
             maximum: this.share(panel.maximum),
@@ -259,19 +278,11 @@ export class ResizableControl {
             collapseStep(before.collapsible, first, sizeBefore, delta) ??
             collapseStep(after.collapsible, second, sizeAfter, -delta, -1) ??
             Math.min(Math.max(delta, lowest), highest);
+
+        // resize both and report the layout the move makes
         before.resize(sizeBefore + step);
         after.resize(sizeAfter - step);
-
-        // report the layout the move makes
-        this.report(
-            this.panels().map((panel) =>
-                panel === before
-                    ? sizeBefore + step
-                    : panel === after
-                      ? sizeAfter - step
-                      : this.sizeOf(panel),
-            ),
-        );
+        this.report(from.toSpliced(handle, 2, sizeBefore + step, sizeAfter - step));
     }
 
     /** Collapse a collapsible panel, or restore it to its smallest share. */
@@ -474,10 +485,10 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
                 start = { extent: extent ?? 0, layout: control.layout() };
             },
             onMove: (event) => {
-                // step by an arrow key along the group's axis
+                // step by an arrow key along the group's axis, mirrored right to left
                 const isHorizontal = control.direction() === "horizontal";
+                const mirror = isHorizontal && locale.direction === "rtl" ? -1 : 1;
                 if (event.pointerType === "keyboard") {
-                    const mirror = isHorizontal && locale.direction === "rtl" ? -1 : 1;
                     const steps = isHorizontal ? event.deltaX * mirror : event.deltaY;
                     control.move(handle(), steps * KEYBOARD_STEP);
 
@@ -485,10 +496,9 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
                 }
 
                 // follow a pointer by its share of the group since it pressed
-                const offset = isHorizontal ? event.offsetX : event.offsetY;
+                const offset = isHorizontal ? event.offsetX * mirror : event.offsetY;
                 if (start.extent > 0) {
-                    control.apply(start.layout);
-                    control.move(handle(), (offset / start.extent) * 100);
+                    control.move(handle(), (offset / start.extent) * 100, start.layout);
                 }
             },
         },
