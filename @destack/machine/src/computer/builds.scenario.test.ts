@@ -381,6 +381,84 @@ test("build and deploy each commit a push moves main to", async () => {
     ]);
 });
 
+test("finish a build its computer restarts during, compiling and deploying each commit once", async () => {
+    // deploy the site's first version following main
+    const site = await pushHome();
+    const { space } = site;
+    const first = await site.push(1);
+    const installed = await site.install();
+
+    // wait until the installation follows a commit's build on a computer's space
+    const wait = async (computer: TestComputer, commit: string) => {
+        const served = (await computer.machine.space(space)).database;
+        const isDeployed = await computer.world.simulation.wait(
+            served.log.waitUntil(async () => {
+                const current = await followedBuild(served, installed.id);
+                if (current === undefined) {
+                    return false;
+                }
+                const [built] = await served
+                    .select({ source: build.table.source })
+                    .from(build.table)
+                    .where(eq(build.table.id, current));
+
+                return built?.source.kind === "commit" && built.source.commit === commit;
+            }, computer.clock.timeout(DEPLOY_MILLISECONDS)),
+        );
+        if (!isDeployed) {
+            const builds = await served.select().from(build.table);
+            throw new Error(`commit '${commit}' was not deployed: ${JSON.stringify(builds)}`);
+        }
+
+        return served;
+    };
+    await wait(site.home, first);
+
+    // push the second version and restart the computer once its build runs
+    await site.list();
+    const second = await site.push(2);
+    const before = (await site.home.machine.space(space)).database;
+    const isRunning = await site.home.world.simulation.wait(
+        before.log.waitUntil(async () => {
+            const rows = await before.select().from(build.table);
+
+            return rows.some(
+                (row) =>
+                    row.source.kind === "commit" &&
+                    row.source.commit === second &&
+                    row.state === "running",
+            );
+        }, site.home.clock.timeout(DEPLOY_MILLISECONDS)),
+    );
+    const restarted = await site.home.restart();
+    const served = await wait(restarted, second);
+
+    // expect each commit built, compiled once and deployed, with nothing refused across the restart
+    const stored = await served
+        .select()
+        .from(build.table)
+        .where(eq(build.table.scope, space))
+        .orderBy(build.table.createdAt);
+    const builds = stored.filter((row) => row.source.kind === "commit");
+    const runs = await served.select().from(stackObject.compile.run.table);
+    expect([
+        isRunning,
+        builds.map((row) => [row.source.kind === "commit" && row.source.commit, row.state]),
+        builds.map((row) => runs.filter((run) => run.key === row.id).length),
+        await followedBuild(served, installed.id),
+        restarted.takeRefusals(),
+    ]).toEqual([
+        true,
+        [
+            [Commit.parse(first), "succeeded"],
+            [Commit.parse(second), "succeeded"],
+        ],
+        [1, 1],
+        builds[1]?.id,
+        [],
+    ]);
+});
+
 test("deploy each push of a checkout's working tree to the installation following it", async () => {
     // commit the site's first version, and register its working tree on the owner's desktop
     const site = await pushHome();
