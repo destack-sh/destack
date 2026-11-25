@@ -88,6 +88,7 @@
         "destack/prevent-abbreviations": "error",
         "destack/require-block-comment": "error",
         "destack/require-jsdoc": "error",
+        "destack/require-render-part": "error",
         "destack/style-attribute": "error",
         "destack/style-focus": "error",
         "destack/style-hover": "error",
