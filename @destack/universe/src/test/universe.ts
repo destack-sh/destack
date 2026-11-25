@@ -12,9 +12,10 @@ import {
     TestMail,
     OPERATOR_EMAIL,
     PersonSignIn,
-    RESIDENCY_STACK,
+    REGION_STACK,
     STACKS,
     TestPerson,
+    PLATFORM_HANDLE,
 } from "@destack/account/test";
 import { MemoryBucket } from "@destack/bucket/test";
 import { TestDatabase } from "@destack/db/test";
@@ -29,11 +30,9 @@ import {
     entitlement,
     account,
     type EntitlementResource,
-    type ResidencyCode,
+    type RegionCode,
     machine,
-    RESIDENCY_RELAY,
-    Residency,
-    residency,
+    REGION_MERCHANT,
     space,
     type StackRelease,
 } from "@destack/account/object";
@@ -43,13 +42,12 @@ import objectPackage from "@destack/object/package";
 import type { Example } from "@destack/package/declare";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
+import { Platform } from "@destack/account/server";
 import type { UniverseDefinition } from "../universe/definition.ts";
 import { BuildLayer } from "@destack/package/manifest";
 import { Universe, type UniverseOptions, UNIVERSE_PACKAGES } from "../universe/universe.ts";
 import { TestMachine } from "./machine.ts";
 
-/** The installation a residency's space provides entitlements as in tests, as finance does. */
-const BILLING_INSTALLATION = "billing";
 /** The origin a test universe answers at, which no request leaves the process for. */
 const TEST_ORIGIN = "https://universe.test";
 
@@ -69,8 +67,8 @@ export const UNIVERSE_NODE = "universe";
 /** The node people's clients and browsers send from in the simulated network. */
 const CLIENT_NODE = "client";
 
-/** The residency a test universe's people live in by default. */
-const TEST_RESIDENCY = "eu";
+/** The region a test universe's people live in by default. */
+const TEST_REGION = "eu";
 
 /** The loopback redirect a stepped-up native client returns to, which the step-up stops at. */
 const STEP_UP_REDIRECT = "http://127.0.0.1:53682/callback";
@@ -78,32 +76,32 @@ const STEP_UP_REDIRECT = "http://127.0.0.1:53682/callback";
 /** The language the universe's browsers ask for. */
 const BROWSER_LANGUAGE = "en";
 
-/** The kind and hardware of the personal machines a test universe enrolls. */
-const PERSONAL_MACHINE = {
-    kind: "personal",
+/** The kind and hardware of the self-hosted machines a test universe enrolls. */
+const SELF_MACHINE = {
+    kind: "self",
     platform: "macOS",
     architecture: "arm64",
     model: "Mac14,2",
 } as const;
 
-/** What a machine declares of itself as it enrolls: personal, or a cloud machine of a residency. */
+/** What a machine declares as it enrolls: self-hosted, or a managed machine of a region. */
 export type MachineDeclaration = Parameters<MachineKey["enroll"]>[1] extends infer Enrolled
     ? Enrolled extends unknown
-        ? Omit<Enrolled, "scope" | "requestId" | "name">
+        ? Omit<Enrolled, "accountId" | "requestId" | "name">
         : never
     : never;
 
-/** Where an account's dedicated cloud machine runs: its residency, provider and location. */
+/** Where an account's managed machine runs: its region, provider and location. */
 export interface CloudDeclaration {
-    /** The residency the machine serves. */
-    readonly residencyId: ResidencyCode;
+    /** The region the machine serves. */
+    readonly regionId: RegionCode;
     /** The provider running it. */
     readonly providerCode: string;
     /** The provider location. */
     readonly location: string;
 }
 
-/** How long a personal machine's tunnel stands before its token lapses: an hour, past any test. */
+/** How long a self-hosted machine's tunnel stands before its token lapses: an hour. */
 const TUNNEL_MILLISECONDS = 3_600_000;
 
 /** The cloud provider and location a test universe's machines declare. */
@@ -111,8 +109,8 @@ const TEST_LOCATION = { providerCode: "test", location: "test-1" } as const;
 
 /** What a test universe declares and runs at. */
 export interface TestUniverseOptions {
-    /** The universe's residencies, Europe alone by default, each served by one cloud machine. */
-    readonly residencies?: Readonly<UniverseDefinition["residencies"]>;
+    /** The universe's regions, Europe alone by default, each served by one managed machine. */
+    readonly regions?: Readonly<UniverseDefinition["regions"]>;
     /** The handles the platform publishes first-party packages under, none by default. */
     readonly publishers?: UniverseDefinition["platform"]["publishers"];
     /** The simulation it answers on at its origin, a world of its own by default. */
@@ -123,7 +121,7 @@ export interface TestUniverseOptions {
     readonly layer?: UniverseOptions["layer"];
     /** The stacks its spaces are born with, the account test fixture's by default. */
     readonly stacks?: UniverseDefinition["platform"]["stacks"];
-    /** The stack every residency's home runs, the account test fixture's stand-in by default. */
+    /** The stack the platform's home runs in each region, the account fixture's by default. */
     readonly home?: StackRelease;
     /** The migrated database it starts over, which the caller closes, a new one by default. */
     readonly storage?: TestDatabase;
@@ -135,7 +133,7 @@ export interface TestUniverseOptions {
 export const UniverseWorld = schema.object({
     /** The universe keyring's secret. */
     keyring: schema.string(),
-    /** Each residency's declared cloud machine and its keychain's secrets, by residency. */
+    /** Each region's declared managed machine and its keychain's secrets, by region. */
     machines: schema.record(
         schema.string(),
         schema.object({
@@ -155,7 +153,7 @@ export const UniverseWorld = schema.object({
 /** A test universe's state beside its database: its keys and its people's sign-ins. */
 export type UniverseWorld = schema.Infer<typeof UniverseWorld>;
 
-/** A residency's declared cloud machine, with the keychain keeping its key. */
+/** A region's declared managed machine, with the keychain keeping its key. */
 interface DeclaredMachine {
     /** The machine. */
     readonly id: Identifier<"machine">;
@@ -181,8 +179,8 @@ export class TestUniverse implements AsyncDisposable {
     readonly origin = TEST_ORIGIN;
     /** The simulation the universe answers on. */
     readonly simulation: Simulation;
-    /** The cloud machine of each residency, with the keychain keeping its key. */
-    readonly #machines: ReadonlyMap<ResidencyCode, DeclaredMachine>;
+    /** The managed machine of each region, with the keychain keeping its key. */
+    readonly #machines: ReadonlyMap<RegionCode, DeclaredMachine>;
     /** The machines opened as spaces' hosts, which disposal stops first. */
     readonly #opened = new AsyncDisposableStack();
     /** The universe and its database, which disposal stops and closes after the machines. */
@@ -197,8 +195,6 @@ export class TestUniverse implements AsyncDisposable {
     readonly #keyring: string;
     /** Each person signed in, by email. */
     readonly #people: Map<string, TestPerson>;
-    /** The billing installation of each residency's space, related once, by residency. */
-    readonly #entitlers = new Map<ResidencyCode, Promise<Subject>>();
     /** The operator's joining of the platform organization, once started. */
     #joining: Promise<void> | undefined;
     /** The object types the universe serves by name, each with its package. */
@@ -216,7 +212,7 @@ export class TestUniverse implements AsyncDisposable {
         storage: TestDatabase,
         mail: TestMail,
         environment: Environment,
-        machines: ReadonlyMap<ResidencyCode, DeclaredMachine>,
+        machines: ReadonlyMap<RegionCode, DeclaredMachine>,
         disposables: AsyncDisposableStack,
         world: Pick<UniverseWorld, "keyring" | "people" | "authenticators">,
         simulation: Simulation,
@@ -287,33 +283,33 @@ export class TestUniverse implements AsyncDisposable {
         const key = CallKey.of(keyring, environment.crypto);
         const mail = new TestMail();
 
-        // declare one cloud machine per residency, keeping its keychain to serve as it, the world's keys when restored
-        const residencies = options.residencies ?? [
+        // declare one managed machine per region, keeping its keychain to serve as it, the world's keys when restored
+        const regions = options.regions ?? [
             {
-                code: TEST_RESIDENCY,
+                code: TEST_REGION,
                 name: "Europe",
-                relay: `https://relay-${TEST_RESIDENCY}.machine.test`,
+                relay: `https://relay-${TEST_REGION}.machine.test`,
                 countries: ["DE"],
             },
         ];
-        const machines = new Map<ResidencyCode, DeclaredMachine>();
+        const machines = new Map<RegionCode, DeclaredMachine>();
         const declared = await Promise.all(
-            residencies.map(async (declaredResidency) => {
+            regions.map(async (declaredRegion) => {
                 // generate the machine's key, or restore the one the world kept
-                const restored = options.world?.machines[declaredResidency.code];
+                const restored = options.world?.machines[declaredRegion.code];
                 const id = restored?.id ?? Identifier.create("machine", environment);
                 const keychain = new MemoryKeychain(restored?.secrets);
                 const publicKey =
                     restored?.key ??
                     (await new MachineKey(id, keychain, environment).generate()).publicKey;
-                const origin = `https://${declaredResidency.code}.machine.test/`;
-                machines.set(declaredResidency.code, { id, keychain, key: publicKey, origin });
+                const origin = `https://${declaredRegion.code}.machine.test/`;
+                machines.set(declaredRegion.code, { id, keychain, key: publicKey, origin });
 
                 return {
                     ...TEST_LOCATION,
                     id,
-                    name: `${declaredResidency.code}-cloud`,
-                    residencyId: declaredResidency.code,
+                    name: `${declaredRegion.code}-cloud`,
+                    regionId: declaredRegion.code,
                     key: publicKey,
                     origin,
                     rates: {},
@@ -321,21 +317,21 @@ export class TestUniverse implements AsyncDisposable {
             }),
         );
         const definition: UniverseDefinition = {
-            residencies: [...residencies],
+            regions: [...regions],
             platform: {
                 name: "Destack",
-                residencyId: TEST_RESIDENCY,
+                regionId: TEST_REGION,
                 operator: OPERATOR_EMAIL,
                 transfers: {},
                 reserved: [],
                 publishers: options.publishers ?? [],
                 clients: [],
-                handle: "destack",
+                handle: PLATFORM_HANDLE,
                 domains: [],
                 homes: Object.fromEntries(
-                    residencies.map(({ code }) => [code, options.home ?? RESIDENCY_STACK]),
+                    regions.map(({ code }) => [code, options.home ?? REGION_STACK]),
                 ),
-                hostnames: Object.fromEntries(residencies.map(({ code }) => [code, []])),
+                hostnames: Object.fromEntries(regions.map(({ code }) => [code, []])),
                 stacks: options.stacks ?? STACKS,
                 machines: declared,
             },
@@ -485,7 +481,7 @@ export class TestUniverse implements AsyncDisposable {
         };
     }
 
-    /** Describe where people sign in as native clients do: issuer, mail and residency. */
+    /** Describe where people sign in as native clients do: issuer, mail and region. */
     #signIn() {
         return {
             issuer: this.#issuer,
@@ -493,7 +489,7 @@ export class TestUniverse implements AsyncDisposable {
             origin: TEST_ORIGIN,
             fetch: (request: Request) => this.simulation.network.of(CLIENT_NODE).fetch(request),
             environment: this.environment,
-            residencyId: TEST_RESIDENCY,
+            regionId: TEST_REGION,
         };
     }
 
@@ -529,40 +525,27 @@ export class TestUniverse implements AsyncDisposable {
         });
     }
 
-    /** Read the billing installation of a residency's space, related to it by its operator once. */
-    #entitler(residencyId: ResidencyCode): Promise<Subject> {
-        // relate each residency's installation once, whichever entitlement asks first
-        const known = this.#entitlers.get(residencyId);
-        if (known !== undefined) {
-            return known;
-        }
-        const relating = (async () => {
-            // derive the installation the residency's space declares for billing
-            const snapshot = this.storage.database.snapshot();
-            const served = await Residency.require(snapshot, residencyId);
-            const home = await Scope.object(snapshot, Residency.requireSpace(served));
-            const crypto = this.universe.store.environment.crypto;
-            const id = await InstallationId.of(home, BILLING_INSTALLATION, crypto);
-            const installed = principal.installation.reference(home.id, id);
+    /** Read the home of the platform's account in a region. */
+    async platformHome(code: RegionCode): Promise<Identifier<"space">> {
+        // read the platform's account in the region by its handle
+        const handle = Platform.handle({ handle: PLATFORM_HANDLE, regionId: TEST_REGION }, code);
+        const platform = await Account.byHandle(this.storage.database.snapshot(), handle);
 
-            // relate it to the residency as the universe's operator, an owner of the platform organization
-            const operator = await this.operator();
-            await operator.client(objectPackage).relationship.create({
-                scope: Scope.universe.id,
-                requestId: RequestId.create(this.universe.store.environment),
-                object: residency.reference(Scope.universe.id, served.id),
-                relation: "installation",
-                subject: installed,
-            });
-
-            return installed;
-        })();
-        this.#entitlers.set(residencyId, relating);
-
-        return relating;
+        return Account.home(present(platform, `the platform's account in ${code}`).id);
     }
 
-    /** Entitle an account to a resource or feature as finance does from its residency's space. */
+    /** Read the platform's merchant, the finance installation its home declares. */
+    async #merchant(): Promise<Subject> {
+        // derive the installation the platform home's stack declares under the merchant's name
+        const snapshot = this.storage.database.snapshot();
+        const home = await Scope.object(snapshot, await this.platformHome(TEST_REGION));
+        const crypto = this.universe.store.environment.crypto;
+        const id = await InstallationId.of(home, REGION_MERCHANT, crypto);
+
+        return principal.installation.reference(home.id, id);
+    }
+
+    /** Entitle an account to a resource or feature as the platform's merchant does. */
     async entitle(
         accountId: Identifier<"account">,
         granted: EntitlementResource | { readonly feature: FeatureReference },
@@ -574,11 +557,11 @@ export class TestUniverse implements AsyncDisposable {
                 ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
                 : { ...granted.feature, resource: null };
 
-        // act as the billing installation of the account's residency space, as finance does
+        // act as the platform's merchant, as finance does
         const { store } = this.universe;
         const snapshot = this.storage.database.snapshot();
         const owner = await Account.of(snapshot, accountId);
-        const provider = await this.#entitler(owner.residencyId);
+        const provider = await this.#merchant();
         const now = this.clock.now();
 
         // replace the one the account has for the feature with one of the terms, keeping the others
@@ -712,13 +695,13 @@ export class TestUniverse implements AsyncDisposable {
         }
     }
 
-    /** Open a residency's cloud machine following the directory, from a world when restored. */
+    /** Open a region's managed machine following the directory, from a world when restored. */
     async machine(
-        code: ResidencyCode = TEST_RESIDENCY,
+        code: RegionCode = TEST_REGION,
         restored: Pick<Parameters<typeof TestMachine.open>[0], "storage" | "world"> = {},
     ): Promise<TestMachine> {
-        // prove the residency's declared machine, calling the universe in process
-        const declared = present(this.#machines.get(code), `a cloud machine of ${code}`);
+        // prove the region's declared machine, calling the universe in process
+        const declared = present(this.#machines.get(code), `a managed machine of ${code}`);
         const opened = await TestMachine.open({
             ...restored,
             id: declared.id,
@@ -732,17 +715,17 @@ export class TestUniverse implements AsyncDisposable {
         return opened;
     }
 
-    /** Read the URL a residency's declared cloud machine answers at. */
-    machineOrigin(code: ResidencyCode = TEST_RESIDENCY): string {
-        return present(this.#machines.get(code), `a cloud machine of ${code}`).origin;
+    /** Read the URL a region's declared managed machine answers at. */
+    machineOrigin(code: RegionCode = TEST_REGION): string {
+        return present(this.#machines.get(code), `a managed machine of ${code}`).origin;
     }
 
-    /** Enroll a machine of an account as a person, personal by default, relayed at an origin. */
+    /** Enroll a machine of an account as a person, self-hosted by default, relayed at an origin. */
     async enroll(
         person: TestPerson,
         accountId: Identifier<"account">,
         origin: string,
-        declared: MachineDeclaration = PERSONAL_MACHINE,
+        declared: MachineDeclaration = SELF_MACHINE,
     ): Promise<TestMachine> {
         // enroll the machine with a new key as the person
         const id = Identifier.create("machine", this.environment);
@@ -750,7 +733,7 @@ export class TestUniverse implements AsyncDisposable {
         const identity = new MachineKey(id, keychain, this.environment);
         await identity.enroll(person.client(accountPackage), {
             ...declared,
-            scope: accountId,
+            accountId,
             requestId: RequestId.create(this.environment),
             name: TestMachine.nameOf(id),
         });
@@ -758,11 +741,11 @@ export class TestUniverse implements AsyncDisposable {
         return await this.#published(id, keychain, accountId, { kind: "relayed", relay: origin });
     }
 
-    /** Declare an account's dedicated cloud machine at its origin, as the platform does. */
+    /** Declare an account's managed machine at its origin, as the platform does. */
     async declare(
         accountId: Identifier<"account">,
         origin: string,
-        declared: CloudDeclaration = { residencyId: TEST_RESIDENCY, ...TEST_LOCATION },
+        declared: CloudDeclaration = { regionId: TEST_REGION, ...TEST_LOCATION },
     ): Promise<TestMachine> {
         // declare the machine with a new key at the universe, as the universe trusting the platform
         const id = Identifier.create("machine", this.environment);
@@ -776,7 +759,7 @@ export class TestUniverse implements AsyncDisposable {
                 machine.call("declare", {
                     ...machine.target({ scope: accountId, id }),
                     name: TestMachine.nameOf(id),
-                    kind: "cloud",
+                    kind: "managed",
                     ...declared,
                     publicKey,
                     origin,
@@ -806,19 +789,15 @@ export class TestUniverse implements AsyncDisposable {
         });
         this.#opened.use(opened);
 
-        // follow a cloud machine's declared endpoint into the machine's directory
+        // follow a managed machine's declared endpoint into the machine's directory
         const now = this.clock.now();
         if (published.kind === "declared") {
             await opened.simulation.idle();
         }
-        // record a personal machine's tunnel as its account's residency's relay accepting it
+        // record a self-hosted machine's tunnel as the machine, once its relay accepted it
         else {
-            const owning = await this.storage.database
-                .snapshot()
-                .read(account.table)
-                .findFirst({ where: { id: accountId } });
-            const relay = await this.relay(present(owning, `account ${accountId}`).residencyId);
-            await this.universe.store.mutate(AccessContext.of(Caller.of(relay), now), {
+            const self = principal.machine.reference(Scope.universe.id, id);
+            await this.universe.store.mutate(AccessContext.of(Caller.of(self), now), {
                 id: RequestId.create(this.universe.store.environment),
                 calls: [
                     machine.call("relay", {
@@ -833,12 +812,12 @@ export class TestUniverse implements AsyncDisposable {
         return opened;
     }
 
-    /** Read the relay a residency's home declares, which the universe relates to the residency. */
-    async relay(code: ResidencyCode = TEST_RESIDENCY): Promise<Subject> {
-        // derive the installation the home's stack declares under the relay's name
+    /** Read the relay a region's home declares, which the universe relates to the region. */
+    async relay(code: RegionCode = TEST_REGION): Promise<Subject> {
+        // derive the installation the platform home's stack declares under the relay's name
         const snapshot = this.storage.database.snapshot();
-        const home = await Scope.object(snapshot, await Residency.space(snapshot, code));
-        const id = await InstallationId.of(home, RESIDENCY_RELAY, this.environment.crypto);
+        const home = await Scope.object(snapshot, await this.platformHome(code));
+        const id = await InstallationId.of(home, "relay", this.environment.crypto);
 
         return principal.installation.reference(home.id, id);
     }

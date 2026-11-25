@@ -8,7 +8,7 @@ import { TestUniverse, type TestUniverseOptions, UNIVERSE_NODE } from "../src/te
 import { apply, Universe } from "../src/universe/index.ts";
 
 test("start a universe over its definition, serving its issuer at the issuer's path and nothing at its root or elsewhere", async () => {
-    // start the universe with a cloud machine serving its residency
+    // start the universe with a cloud machine serving its region
     await using started = await TestUniverse.open();
     const { universe, origin } = started;
 
@@ -44,7 +44,7 @@ test("apply a definition once across starts, again once the operator's invitatio
         runs: (await storage.database.snapshot().read(apply.run.table).findMany()).length,
         invitations: (await storage.database.snapshot().read(accessInvitation).findMany()).length,
     });
-    const start = async (options: Pick<TestUniverseOptions, "residencies"> = {}) =>
+    const start = async (options: Pick<TestUniverseOptions, "regions"> = {}) =>
         (await TestUniverse.open({ simulation, storage, world, ...options }))[
             Symbol.asyncDispose
         ]();
@@ -59,7 +59,7 @@ test("apply a definition once across starts, again once the operator's invitatio
     await start();
     const later = await counts();
     await start({
-        residencies: [
+        regions: [
             {
                 code: "eu",
                 name: "Europe",

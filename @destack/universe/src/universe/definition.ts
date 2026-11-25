@@ -1,19 +1,12 @@
-import { CountryCode, ResidencyCode } from "@destack/account/object";
+import { RegionDefinition } from "@destack/account/object";
 import { PlatformDefinition } from "@destack/account/server";
 import { schema } from "@destack/schema";
 
-/** What a universe declares: its residencies and its platform. */
+/** What a universe declares: its regions and its platform. */
 export const UniverseDefinition = schema.object({
-    /** The residencies people choose from. */
-    residencies: schema.array(
-        schema.object({
-            code: ResidencyCode,
-            name: schema.string().min(1),
-            relay: schema.url(),
-            countries: schema.array(CountryCode),
-        }),
-    ),
-    /** The platform's organization, its homes, its spaces' stacks and its cloud machines. */
+    /** The regions people choose from. */
+    regions: schema.array(RegionDefinition),
+    /** The platform's organization, its homes, its spaces' stacks and its managed machines. */
     platform: PlatformDefinition,
 });
 /** What a universe declares. */

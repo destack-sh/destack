@@ -12,20 +12,15 @@ import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { OAuthError } from "@destack/account/authentication";
 import { Bookmark } from "@destack/object/client";
-import { Account, claim, Residency } from "@destack/account/object";
+import { Account, claim, Region } from "@destack/account/object";
 import registryPackage from "@destack/registry/package";
 import { packageObject } from "@destack/registry/object";
 import { RegistryError } from "@destack/registry/error";
 import { RemoteBuildStore } from "@destack/build/store";
-import type { BuildLayer } from "@destack/package/manifest";
+import type { BuildLayer, BuildReader } from "@destack/package/manifest";
 import accountPackage from "@destack/account/package";
 import { ACCESS_TOKEN_TYPE } from "@destack/account/oauth";
-import {
-    accountServer,
-    DnsOverHttps,
-    Platform,
-    type ReleaseRegistry,
-} from "@destack/account/server";
+import { accountServer, DnsOverHttps, Platform } from "@destack/account/server";
 import type { Bucket } from "@destack/bucket";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event/store";
 import type { Keyring } from "@destack/identity";
@@ -93,6 +88,14 @@ export interface UniverseOptions {
     readonly layer: BuildLayer;
 }
 
+/** A registry of package releases, opened by version, and the releases it ships. */
+export interface ReleaseRegistry {
+    /** Open a package's release. */
+    readonly open: (packageId: PackageId, release: string) => Promise<BuildReader>;
+    /** The releases the distribution ships, which a scope runs of a package it installs none of. */
+    readonly distribution: readonly PackageRelease[];
+}
+
 /** The packages of the universe itself, which its store serves acting as the universe. */
 export const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage, universePackage];
 
@@ -124,7 +127,7 @@ export class Universe implements AsyncDisposable {
     readonly #stopping: AbortController;
     /** The store's running loop. */
     readonly #running: Promise<void>;
-    /** Closes the publishers of the residencies' homes the store follows. */
+    /** Closes the publishers of the homes the store follows. */
     readonly #publishers: DisposableStack;
     /** The universe's issuer as a client, exchanging callers' tokens for their packages'. */
     readonly #exchanger: Issuer;
@@ -186,14 +189,14 @@ export class Universe implements AsyncDisposable {
         const connected = Promise.withResolvers<Session>();
         const serving = Promise.withResolvers<Universe>();
 
-        // call residency homes as the universe once its identity exists
+        // call publishers' homes as the universe once its identity exists
         const connect =
             (audience: PackageId): Fetch =>
             async (request) =>
                 (await connected.promise).fetch(audience)(request);
         const directory = new Directory(database.snapshot());
 
-        // follow each residency home over one publisher, closed with the universe
+        // follow each home over one publisher, closed with the universe
         const publishers = new Map<string, Publisher>();
         const following = new DisposableStack();
         const releases: ReleaseRegistry = {
@@ -217,7 +220,7 @@ export class Universe implements AsyncDisposable {
                         `owning account for '${packageId}' not found`,
                     );
                 }
-                const home = await Account.locate(directory.snapshot, owner);
+                const home = Account.home(owner);
                 const fetch = connect(registryPackage.id);
 
                 // resolve the release there as the universe, then open its root build
@@ -245,13 +248,13 @@ export class Universe implements AsyncDisposable {
             distribution: options.distribution,
         };
 
-        // apply the residencies, then each step of the platform's definition, once per run
+        // apply the regions, then each step of the platform's definition, once per run
         const applied = apply.implement({
             run: async (step) => {
                 const steps = [
                     {
-                        name: "residencies",
-                        apply: () => Residency.apply(store, definition.residencies),
+                        name: "regions",
+                        apply: () => Region.apply(store, definition.regions),
                     },
                     ...platform.steps(),
                 ];
@@ -273,7 +276,6 @@ export class Universe implements AsyncDisposable {
                 resolver: new DnsOverHttps((request) => network.fetch(request)),
                 stacks: definition.platform.stacks,
                 signIn: signIn.promise,
-                releases,
             }),
             settingServer({ after: [] }),
             implementPackage(universePackage, { objects: applied.objects }),
@@ -298,7 +300,7 @@ export class Universe implements AsyncDisposable {
             callKey,
             events,
             origin: { package: PackageVersion.of(accountPackage) },
-            // follow the residencies' homes where their machines answer
+            // follow the homes where their machines answer
             publisher: (scope) => {
                 // follow each home over one publisher, closed with the universe
                 const known = publishers.get(scope);
@@ -504,7 +506,7 @@ export class Universe implements AsyncDisposable {
         });
     }
 
-    /** Forward a request below a package's mount in the owner's residency home, as its caller. */
+    /** Forward a request below a package's mount in the owner's home, as its caller. */
     async #forward(
         request: Request,
         owner: Account,
@@ -513,7 +515,7 @@ export class Universe implements AsyncDisposable {
         target: { readonly mount: string; readonly path: string },
     ): Promise<Response> {
         // locate the package in the owner's home, on its machine now
-        const home = await Account.locate(snapshot, owner.id);
+        const home = Account.home(owner.id);
         const now = this.store.environment.clock.now();
         const endpoint = await new Directory(snapshot).package(home, packageId, now);
         const { search } = new URL(request.url);

@@ -8,7 +8,7 @@ export const ApplyInput = schema.object({
     digest: Digest,
 });
 
-/** Apply the universe's declared state step by step: residencies, machines and the platform. */
+/** Apply the universe's declared state step by step: regions, machines and the platform. */
 export const apply = defineWorkflow({
     name: "apply",
     title: t`Apply`,

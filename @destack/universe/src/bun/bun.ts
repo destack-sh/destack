@@ -1,6 +1,7 @@
 import type { Environment } from "@destack/environment";
 import { join } from "node:path";
 import { LocalBlobStorage, LocalBucket } from "@destack/bucket/bun";
+import type { DatabaseConnection } from "@destack/db/database";
 import { connectPostgres } from "@destack/db/postgres";
 import { LocalKeyring } from "@destack/identity";
 import type { MailTransport } from "@destack/mail/transport";
@@ -42,12 +43,19 @@ export interface BunUniverseOptions {
 export class BunUniverse implements AsyncDisposable {
     /** The universe's requests and the sockets it keeps, which the machine's listener hands it. */
     readonly listening: HostListening;
+    /** The universe's database, whose directory names the accounts. */
+    readonly database: DatabaseConnection;
     /** Close what the universe opened, last opened first. */
     readonly #stack: AsyncDisposableStack;
 
     /** Create a started universe with what closes it. */
-    private constructor(listening: HostListening, stack: AsyncDisposableStack) {
+    private constructor(
+        listening: HostListening,
+        database: DatabaseConnection,
+        stack: AsyncDisposableStack,
+    ) {
         this.listening = listening;
+        this.database = database;
         this.#stack = stack;
     }
 
@@ -95,7 +103,7 @@ export class BunUniverse implements AsyncDisposable {
         await Promise.all([...universe.servers.values()].map((server) => server.ready()));
         const listening = universe.connections.listen((request) => universe.fetch(request));
 
-        return new BunUniverse(listening, stack.move());
+        return new BunUniverse(listening, database, stack.move());
     }
 
     /** Drain the packages and close the database and the call events. */

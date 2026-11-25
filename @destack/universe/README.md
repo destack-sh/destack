@@ -10,7 +10,7 @@ A host runs a universe:
 
 - `Universe`: one running universe.
 - `UniverseOptions`: its database, keys, mail, buckets and environment.
-- `UniverseDefinition`: its residencies and platform organization.
+- `UniverseDefinition`: its regions and platform organization.
 - `apply`: the workflow applying a definition.
 - `UniverseError`: the reasons a universe refuses, checked with `UniverseError.is`.
 
@@ -64,50 +64,49 @@ export async function answer(options: UniverseOptions, request: Request): Promis
 
 ### UniverseDefinition
 
-A universe declares its `residencies` and its `platform`.
+A universe declares its `regions` and its `platform`.
 
-| Field                                          | What it is                                                                            |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `residencies`                                  | each residency's `code`, `name`, `relay` URL and `countries`                          |
-| `platform.name`, `handle`                      | the organization's display name and the handle of its account                         |
-| `platform.residencyId`                         | the residency the organization stores its data in                                     |
-| `platform.operator`                            | the email of the operator, invited as the organization's owner                        |
-| `platform.reserved`, `transfers`, `publishers` | the handles it reserves, transfers to accounts, and publishes under                   |
-| `platform.trustedPublishers`                   | the CI workflows publishing its releases, by OIDC issuer and subject                  |
-| `platform.domains`                             | the domains the organization holds                                                    |
-| `platform.homes`, `stacks`                     | the stack of each residency's home, and the stacks new homes and spaces are born with |
-| `platform.hostnames`                           | the hostnames the organization's account serves its homes' routes on                  |
-| `platform.machines`                            | the cloud machines serving the residencies                                            |
+| Field                                          | What it is                                                                                         |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `regions`                                      | each region's `code`, `name`, `relay` URL and `countries`                                          |
+| `platform.name`, `handle`                      | the organization's display name and the handle of its account                                      |
+| `platform.regionId`                            | the region the organization stores its data in                                                     |
+| `platform.operator`                            | the email of the operator, invited as the organization's owner                                     |
+| `platform.reserved`, `transfers`, `publishers` | the handles it reserves, transfers to accounts, and publishes under                                |
+| `platform.clients`                             | the CI workflows publishing its releases, by OIDC issuer and subject                               |
+| `platform.domains`                             | the domains the organization holds                                                                 |
+| `platform.homes`, `stacks`                     | the stack of the platform's home in each region, and the stacks new homes and spaces are born with |
+| `platform.hostnames`                           | the hostnames the organization's account serves its homes' routes on                               |
+| `platform.machines`                            | the managed machines serving the regions                                                           |
 
 ### TestUniverse
 
 `TestUniverse.open(options)` starts a universe with mail and storage in memory.
 
-| Verb                       | What it does                                                                 |
-| -------------------------- | ---------------------------------------------------------------------------- |
-| `signIn(email)`            | signs a person up or in with a mailed code, on a new client                  |
-| `operator()`               | signs the operator in as an owner of the platform organization               |
-| `elevate(person)`          | steps a person up with their authenticator, as RFC 9470 does                 |
-| `approve(url, person)`     | approves a sign-in at the issuer as a stepped-up person                      |
-| `machine(code)`            | opens a residency's cloud machine, following the directory                   |
-| `enroll(…)`, `declare(…)`  | enrolls a person's machine, or declares an account's dedicated cloud machine |
-| `entitle(…)`, `upgrade(…)` | entitles an account as finance does, or moves a space to another stack       |
-| `given(example, person)`   | makes an example's calls in the person's account                             |
-| `world()`                  | reads the universe's keys and sign-ins, to restore it later                  |
+| Verb                       | What it does                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------ |
+| `signIn(email)`            | signs a person up or in with a mailed code, on a new client                    |
+| `operator()`               | signs the operator in as an owner of the platform organization                 |
+| `elevate(person)`          | steps a person up with their authenticator, as RFC 9470 does                   |
+| `machine(code)`            | opens a region's managed machine, following the directory                      |
+| `enroll(…)`, `declare(…)`  | enrolls a person's machine, or declares an account's dedicated managed machine |
+| `entitle(…)`, `upgrade(…)` | entitles an account as finance does, or moves a space to another stack         |
+| `given(example, person)`   | makes an example's calls in the person's account                               |
+| `world()`                  | reads the universe's keys and sign-ins, to restore it later                    |
 
 ## Examples
 
 ### Declare a universe
 
-Each residency has a relay and countries.
+Each region has a relay and countries.
 
 ```ts
 import type { UniverseDefinition } from "@destack/universe";
 
-/** Declare a universe with one European residency. */
+/** Declare a universe with one European region. */
 export function europeOnly(platform: UniverseDefinition["platform"]): UniverseDefinition {
     return {
-        residencies: [
+        regions: [
             {
                 code: "eu",
                 name: "Europe",

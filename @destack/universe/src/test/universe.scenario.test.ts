@@ -34,8 +34,8 @@ test("sign a person up through the mailed code a native client redeems, make an 
     ).rejects.toThrow(new TypeError("the test universe serves no object type ledger"));
 });
 
-test("place a person's home on their residency's cloud machine, as the machine's directory replica reads it", async () => {
-    // sign ada up and follow the directory as the residency's machine
+test("place a person's home on their region's managed machine, as the machine's directory replica reads it", async () => {
+    // sign ada up and follow the directory as the region's machine
     await using started = await TestUniverse.open();
     const ada = await started.signIn("ada@example.test");
     const machine = await started.machine();
@@ -48,12 +48,12 @@ test("place a person's home on their residency's cloud machine, as the machine's
 });
 
 test("forward Git for a repository link to its account's registry as the caller, challenging a refusal for Basic credentials", async () => {
-    // sign ada up, place the residency's home, and answer as its machine, recording what arrives
+    // sign ada up, place her home, and answer as its machine, recording what arrives
     await using started = await TestUniverse.open();
     const ada = await started.signIn("ada@example.test");
     const machine = await started.machine();
     await started.simulation.idle();
-    const home = await Account.locate(started.universe.store.database.snapshot(), ada.account);
+    const home = Account.home(ada.account);
     const url = new URL(await machine.directory.answering(machine.id, started.clock.now()));
     const received: { readonly url: string; readonly authorization: string | null }[] = [];
     const listener = started.simulation.network.server("registry-machine").http({
@@ -140,11 +140,11 @@ test("forward Git for a repository link to its account's registry as the caller,
     });
 });
 
-test("enroll a person's machine of their account, published at its name through its residency's relay, as the directory reads it", async () => {
+test("enroll a person's machine of their account, published at its name through its region's relay, as the directory reads it", async () => {
     // enroll ada's machine in her personal account behind a relay, and follow the directory as it
     await using started = await TestUniverse.open();
     const ada = await started.signIn("ada@example.test");
-    const machine = await started.enroll(ada, ada.account, "https://eu.relay.test");
+    const machine = await started.enroll(ada, ada.account, "https://relay-eu.machine.test");
     await started.simulation.idle();
 
     // locate the machine at its name below her handle

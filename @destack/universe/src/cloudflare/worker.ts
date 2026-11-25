@@ -33,7 +33,7 @@ export interface UniverseBindings {
     readonly DATABASE: { readonly connectionString: string };
     /** The releases the Worker version ships, a build layer in its static assets. */
     readonly RELEASES: AssetBinding;
-    /** The universe's bucket, an S3 location in its residency, as `S3Location` JSON. */
+    /** The universe's bucket, an S3 location in its region, as `S3Location` JSON. */
     readonly DESTACK_BUCKET: string;
     /** The universe's address, as `UniverseOrigin` JSON. */
     readonly DESTACK_UNIVERSE: string;

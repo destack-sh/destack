@@ -29,7 +29,7 @@ export const MachineWorld = schema.object({
 /** A test machine's state beside its database: the keyring secrets of the spaces' keys. */
 export type MachineWorld = schema.Infer<typeof MachineWorld>;
 
-/** A cloud machine of a test universe with its directory replica, which spaces are hosted on. */
+/** A managed machine of a test universe with its directory replica, which spaces are hosted on. */
 export class TestMachine implements AsyncDisposable {
     /** The machine. */
     readonly id: Identifier<"machine">;
@@ -120,7 +120,7 @@ export class TestMachine implements AsyncDisposable {
         return this.#storage.database;
     }
 
-    /** Start a declared cloud machine of a universe, following the directory as the machine. */
+    /** Start a declared managed machine of a universe, following the directory as the machine. */
     static async open(options: {
         /** The machine. */
         readonly id: Identifier<"machine">;
