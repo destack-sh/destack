@@ -151,7 +151,8 @@ export class InstallationOriginServer {
     }
 
     /** Serve an installation's origin, or its views below a route, to a person or a visitor. */
-    async serve(given: Request, found: Installation, mount?: ViewMount): Promise<Response> {
+    async serve(given: Request, found: Installation, at: ServedAt): Promise<Response> {
+        const mount = at.kind === "mount" ? at.mount : undefined;
         try {
             // serve the request below a route's base as at the origin's root
             const request = InstallationOriginServer.#below(given, mount);
@@ -208,6 +209,15 @@ export class InstallationOriginServer {
                 return await this.#open(url);
             }
 
+            // send a path naming a child to the child's origin, the installation's own views first
+            const child =
+                at.kind === "origin"
+                    ? await this.#child(request, url, at.origin, found, page)
+                    : undefined;
+            if (child !== undefined) {
+                return child;
+            }
+
             // serve a file of the installation's build, else the document of the view its path names
             return await this.#view(request, url, page);
         } catch (error) {
@@ -249,6 +259,38 @@ export class InstallationOriginServer {
         return new Response(null, {
             status: 303,
             headers: { location: ViewAddress.url(view, origin), "cache-control": "no-store" },
+        });
+    }
+
+    /** Send a request whose first segment names a child, not a view, to the child's origin. */
+    async #child(
+        request: Request,
+        url: URL,
+        origin: InstallationOrigin,
+        found: Installation,
+        page: Page,
+    ): Promise<Response | undefined> {
+        // read the first segment, leaving the installation's views and other methods alone
+        const [, segment = ""] = url.pathname.split("/");
+        const views = ViewDescription.list(page.reader.manifest);
+        if (request.method !== "GET" || segment === "" || Object.hasOwn(views, segment)) {
+            return undefined;
+        }
+
+        // find the child the segment names
+        const named = await Installation.child(this.#space.database.snapshot(), found, segment);
+        if (named === undefined) {
+            return undefined;
+        }
+
+        // send the rest of the path to the child at its own origin on this machine
+        const child = { space: origin.space, handle: origin.handle, name: named.name };
+        const located = this.#space.universe.installation(child, this.#space.machine.origin);
+        const rest = url.pathname.slice(segment.length + 1) || "/";
+
+        return new Response(null, {
+            status: 303,
+            headers: { location: `${located}${rest}${url.search}`, "cache-control": "no-store" },
         });
     }
 
@@ -1726,6 +1768,11 @@ interface Page {
     /** Where the page's pages sit, and the view and object a route fixes. */
     readonly mount: ViewMount;
 }
+
+/** Where a request reaches an installation: at its own origin, or below a route's mount. */
+export type ServedAt =
+    | { readonly kind: "origin"; readonly origin: InstallationOrigin }
+    | { readonly kind: "mount"; readonly mount: ViewMount };
 
 /** Where an origin's pages sit: below a base, for a view and an object a route fixes. */
 export interface ViewMount {

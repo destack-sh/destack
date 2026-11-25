@@ -212,6 +212,7 @@ export type GatewaySpace = Pick<
         | "locate"
         | "authenticate"
         | "domain"
+        | "origin"
         | "directory"
         | "scope"
         | "traffic"
@@ -380,11 +381,10 @@ export class Gateway {
             );
 
             return routed.respond(
-                await this.#originServer.serve(
-                    RouteRequest.strip(routed.request),
-                    found,
-                    routed.mount,
-                ),
+                await this.#originServer.serve(RouteRequest.strip(routed.request), found, {
+                    kind: "mount",
+                    mount: routed.mount,
+                }),
             );
         }
         // hand the mount its request
@@ -427,7 +427,7 @@ export class Gateway {
         }
         // serve any other path at the origin: its platform paths, build files and views
         else {
-            return this.#originServer.serve(request, found);
+            return this.#originServer.serve(request, found, { kind: "origin", origin });
         }
     }
 

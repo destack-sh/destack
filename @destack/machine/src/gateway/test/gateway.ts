@@ -116,6 +116,7 @@ export function openGateway(
                 id: space.machine.id,
                 clock: space.machine.clock,
                 domain: "localhost",
+                origin: space.machine.origin,
                 serve: refuse("serve the machine's own spaces"),
                 locate: refuse("locate spaces"),
                 environment: space.machine.environment,

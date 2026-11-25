@@ -957,6 +957,41 @@ test("sign a page load with a foreign session in again, and open a view at its o
     });
 });
 
+test("send a path naming a child to the child's own origin, the parent's views first", async () => {
+    // install notes, and tasks placed below it as its child
+    const opened = await openHome();
+    const { computer } = opened;
+    const listener = computer.computer;
+    const parent = await install(opened, await notesBuild(computer.environment.crypto), "notes");
+    const child = await installTasks(opened);
+    const database = (await computer.machine.space(opened.spaceId)).database;
+    await database.transaction(async (transaction) => {
+        await transaction
+            .update(stackObject.installation.table)
+            .set({ parentId: parent.id })
+            .where(eq(stackObject.installation.table.id, child.id));
+    });
+
+    // ask notes' origin for the child's path, for notes' own view, and for a segment naming neither
+    const port = new URL(await computer.device.origin()).port;
+    const origin = `http://notes--${opened.address}.space.localhost:${port}`;
+    const ask = (path: string) => listener.fetch(new Request(`${origin}${path}`));
+    const sent = await ask("/tasks/today?done=1");
+    const [view, unknown] = await Promise.all([ask("/home"), ask("/nothing")]);
+
+    // expect the child's path sent to its origin with the rest, and the others served by notes
+    expect([
+        [sent.status, header(sent, "location")],
+        view.headers.get("location")?.includes("tasks--") ?? false,
+        unknown.headers.get("location")?.includes("tasks--") ?? false,
+    ]).toEqual([
+        // at the origin of the machine's public endpoint, as opening another installation's view sends it
+        [303, `https://tasks--${opened.address}.destack.space/today?done=1`],
+        false,
+        false,
+    ]);
+});
+
 test("serve a link-shared article to holders of its secret", async () => {
     // open the articles reader as the owner and create a article
     const home = await openHome();
@@ -1290,7 +1325,7 @@ test("keep a page's session cookie across its computer's restart", async () => {
     const home = await openHome();
     const page = await openPage(home, {
         space: home.address,
-        installation: "start",
+        installation: "home",
         view: "start",
         path: "/",
     });
@@ -1323,7 +1358,7 @@ test("keep a page's session cookie across its computer's restart", async () => {
     const login = await restarted.device.launcher(home.login);
     const launched = await login.launch({
         space: home.address,
-        installation: "start",
+        installation: "home",
         view: "start",
         path: "/",
     });
@@ -1341,12 +1376,12 @@ test("keep a page's session cookie across its computer's restart", async () => {
         document: 200,
         installations: [
             "connection",
+            "home",
             "inbox",
             "message",
             "observability",
             "social",
             "stack",
-            "start",
             "vault",
         ],
     });
@@ -1358,7 +1393,7 @@ test("call a scope's home path within the start page's grant only", async () => 
     const { owner } = home.computer.world;
     const page = await openPage(home, {
         space: home.address,
-        installation: "start",
+        installation: "home",
         view: "start",
         path: "/",
     });
@@ -1419,12 +1454,12 @@ test("call a scope's home path within the start page's grant only", async () => 
         sent: [true, PART_BYTES],
         installations: [
             "connection",
+            "home",
             "inbox",
             "message",
             "observability",
             "social",
             "stack",
-            "start",
             "vault",
         ],
         applied: installations.items.map((row) => row.id).toSorted(),
@@ -1450,7 +1485,7 @@ test("register a browser client and bind pages to it by proof", async () => {
     await installTasks(home);
     const page = await openPage(home, {
         space: home.address,
-        installation: "start",
+        installation: "home",
         view: "start",
         path: "/",
     });

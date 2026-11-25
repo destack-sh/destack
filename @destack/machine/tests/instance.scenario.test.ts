@@ -497,9 +497,9 @@ async function revisionOf(database: DatabaseConnection, id: Identifier<"installa
     return present(revision, `revision ${id}`);
 }
 
-/** Read the space's live applications by name, with whether someone chose each. */
-async function applications(database: DatabaseConnection): Promise<(readonly [string, boolean])[]> {
-    return (await applicationRows(database)).map((row) => [row.name, row.isRoot] as const);
+/** Read the space's live applications by name, with why each is there. */
+async function applications(database: DatabaseConnection): Promise<(readonly [string, string])[]> {
+    return (await applicationRows(database)).map((row) => [row.name, row.kind] as const);
 }
 
 /** Read the space's live applications, its stacks left out, ordered by name. */
@@ -1991,8 +1991,8 @@ test("deploy an application on its space's own package, and install a published 
     }).toEqual({
         own: ["current", "1 workloads deployed"],
         installed: [
-            ["notes", true],
-            ["vault", false],
+            ["notes", "requested"],
+            ["vault", "dependency"],
         ],
         deployed: ["current", "1 workloads deployed"],
     });
@@ -2034,8 +2034,8 @@ test("refuse deploying an application whose range excludes the release its space
             "@destack/stack DEPENDENCY_BLOCKED: cannot deploy installation 'notes': it needs '@example/vault' at '>=2026.10.0', but the space runs '2026.9.0'",
         ],
         installed: [
-            ["notes", true],
-            ["vault", false],
+            ["notes", "requested"],
+            ["vault", "dependency"],
         ],
     });
 });
@@ -2110,10 +2110,10 @@ test("install the package an allowed capability requires once it is allowed", as
 
     // install the vault only once the capability requires it
     expect({ without, allowed: await applications(database) }).toEqual({
-        without: [["notes", true]],
+        without: [["notes", "requested"]],
         allowed: [
-            ["notes", true],
-            ["vault", false],
+            ["notes", "requested"],
+            ["vault", "dependency"],
         ],
     });
 });

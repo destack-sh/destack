@@ -1088,7 +1088,7 @@ export class ApplicationInstallation {
                     packageId: requirement.package.id,
                     name: name.slice(name.lastIndexOf("/") + 1),
                     ...ObjectReference.columns("version", version),
-                    isRoot: false,
+                    kind: "dependency",
                 });
             }),
         );
