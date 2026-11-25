@@ -54,6 +54,7 @@ import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts
 import { ASSET, assetPlugin, directoryPlugin, moduleScriptPlugin, rawPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
 import { Bundle, type BundleOutput } from "./bundle.ts";
+import { BundleRecorder } from "./recorder.ts";
 
 /** The directory of the chunks entries share, below an output's directory. */
 const CHUNK_DIRECTORY = "chunk";
@@ -116,6 +117,8 @@ interface Session {
     readonly assets: Map<string, string>;
     /** The directory the bundle names as its output, which it never writes. */
     readonly directory: string;
+    /** The recorder of a browser bundle's stylesheets, absent for a server bundle. */
+    readonly recorder: BundleRecorder | undefined;
     /** The output of the build that started the session, taken by the first rebuild. */
     first: BundleOutput | undefined;
 }
@@ -282,7 +285,7 @@ export class ModuleOutput implements Compilation {
                 ? await runVite(this.#configuration(compiled, facades, plugins, input))
                 : await runRolldown(await this.#serverOptions(compiled, facades, plugins, input));
 
-        return this.#finish(generated, compiled, facades);
+        return this.#finish(generated, compiled, facades, importedStylesheets(generated));
     }
 
     /** Take the newest output of the warm bundle, started once, into a build directory. */
@@ -292,28 +295,11 @@ export class ModuleOutput implements Compilation {
         compiled: OutputBuild,
         entries: readonly string[],
     ): Promise<OutputBuild> {
-        // take the newest output of the warm bundle, started once
-        this.#session ??= await this.#scope.span("destack.bundle.start", {}, () =>
-            this.#startSession(dependencies, entries),
+        // take the newest output of the warm bundle
+        const [session, { generated, modules, stylesheets }] = await this.#latest(
+            dependencies,
+            entries,
         );
-        const session = this.#session;
-        const { generated, modules } = await this.#scope
-            .span("destack.bundle.latest", {}, async (span) => {
-                // take the output, recording how many builds it took
-                const before = session.bundle.builds;
-                const output = session.first ?? (await session.bundle.latest());
-                span.setAttribute("destack.bundle.builds", session.bundle.builds - before);
-
-                return output;
-            })
-            .catch(async (error: unknown) => {
-                // stop a bundle whose engine broke, so the next compile starts it again
-                if (BuildError.is(error, "BUNDLE_BROKEN")) {
-                    await this[Symbol.asyncDispose]();
-                }
-                throw error;
-            });
-        session.first = undefined;
 
         // keep the files of the modules still in the graph, the sources retained and the assets copied
         const { state, sources } = session;
@@ -338,7 +324,57 @@ export class ModuleOutput implements Compilation {
         compiled.destack = new Set(state.destack);
         compiled.npm = new Set(state.npm);
 
-        return this.#finish(generated, compiled, session.facades);
+        return this.#finish(generated, compiled, session.facades, stylesheets);
+    }
+
+    /** Take the warm bundle's newest output, starting a bundle when none runs or one restyled. */
+    async #latest(
+        dependencies: Readonly<Record<string, DependencyRelease>>,
+        entries: readonly string[],
+    ): Promise<[Session, BundleOutput]> {
+        // take the running bundle's output, started once
+        const start = () =>
+            this.#scope.span("destack.bundle.start", {}, () =>
+                this.#startSession(dependencies, entries),
+            );
+        this.#session ??= await start();
+        const running = this.#session;
+        const isFirst = running.first !== undefined;
+        const taken = await this.#output(running);
+
+        // start a new bundle when a rebuild left the running one stale, taking its full first build
+        if (!isFirst && (await running.recorder?.isStale()) === true) {
+            await this[Symbol.asyncDispose]();
+            this.#session = await start();
+            const started = this.#session;
+
+            return [started, await this.#output(started)];
+        }
+
+        return [running, taken];
+    }
+
+    /** Take a session's first output, else its bundle's newest, stopping a broken bundle. */
+    async #output(session: Session): Promise<BundleOutput> {
+        try {
+            const output = await this.#scope.span("destack.bundle.latest", {}, async (span) => {
+                // take the output, recording how many builds it took
+                const before = session.bundle.builds;
+                const taken = session.first ?? (await session.bundle.latest());
+                span.setAttribute("destack.bundle.builds", session.bundle.builds - before);
+
+                return taken;
+            });
+            session.first = undefined;
+
+            return output;
+        } catch (error) {
+            // stop a broken bundle, so the next compile starts it again
+            if (BuildError.is(error, "BUNDLE_BROKEN")) {
+                await this[Symbol.asyncDispose]();
+            }
+            throw error;
+        }
     }
 
     /** Stop the output's warm bundle and remove its output directory. */
@@ -387,9 +423,18 @@ export class ModuleOutput implements Compilation {
         if (this.runtime !== "browser") {
             const options = await this.#serverOptions(state, facades, plugins, input);
             const { output, ...rest } = options;
-            const bundle = await Bundle.start(rest, output, this.directory, files);
+            const bundle = await Bundle.start(rest, output, this.directory, files, undefined);
 
-            return { bundle, state, facades, sources, assets, directory, first: undefined };
+            return {
+                bundle,
+                state,
+                facades,
+                sources,
+                assets,
+                directory,
+                recorder: undefined,
+                first: undefined,
+            };
         }
 
         // build a browser output with Vite once, capturing its final options for the bundle
@@ -411,16 +456,19 @@ export class ModuleOutput implements Compilation {
                 captured.modules = [...this.getModuleIds()];
             },
         };
-        const configuration = this.#configuration(state, facades, [...plugins, capturing], input);
+        const recorder = new BundleRecorder(this.directory, files);
+        const recording = [...plugins, capturing, recorder.plugin()];
+        const configuration = this.#configuration(state, facades, recording, input);
         const generated = await runVite(configuration);
         const { input: options, output, modules } = captured;
         if (options === undefined || output === undefined || modules === undefined) {
             throw BuildError.of("INVARIANT_BROKEN", "vite built without its bundler options");
         }
-        const bundle = await Bundle.start(options, output, this.directory, files);
-        const first = { generated, modules };
+        recorder.clear();
+        const bundle = await Bundle.start(options, output, this.directory, files, recorder);
+        const first = { generated, modules, stylesheets: importedStylesheets(generated) };
 
-        return { bundle, state, facades, sources, assets, directory, first };
+        return { bundle, state, facades, sources, assets, directory, recorder, first };
     }
 
     /** Read the output's stylesheets and pages, returning its module entries if it has any. */
@@ -460,13 +508,14 @@ export class ModuleOutput implements Compilation {
         generated: readonly (OutputChunk | OutputAsset)[],
         compiled: OutputBuild,
         facades: Map<string, string>,
+        stylesheets: ReadonlyMap<string, readonly string[]>,
     ): OutputBuild {
         // map authored and emitted entries to generated files
         this.#collect(generated, compiled, facades);
         this.#exportEntries(generated, compiled.exported, facades);
 
         // let each extension describe the compiled output's workloads and views, then record the exports' imports
-        this.#describeOutput(generated, compiled, facades);
+        this.#describeOutput(generated, compiled, facades, stylesheets);
         this.#recordExports(compiled, facades);
 
         return compiled;
@@ -501,12 +550,14 @@ export class ModuleOutput implements Compilation {
         generated: readonly (OutputChunk | OutputAsset)[],
         compiled: OutputBuild,
         facades: ReadonlyMap<string, string>,
+        stylesheets: ReadonlyMap<string, readonly string[]>,
     ): void {
         // expose the exports, and the declarations and stylesheets of each entrypoint
         const described: CompiledOutput = {
             exports: compiled.exported,
             declarations: (entrypoint) => this.#declarationsOf(entrypoint, compiled, facades),
-            stylesheets: (entrypoint) => this.#stylesheetsOf(entrypoint, generated, compiled),
+            stylesheets: (entrypoint) =>
+                this.#stylesheetsOf(entrypoint, generated, compiled, stylesheets),
         };
 
         // merge each extension's description into the output
@@ -604,6 +655,7 @@ export class ModuleOutput implements Compilation {
                 modulePlugin(this.#transformer),
             ],
             // give worker bundles their modules' metadata and the browser baseline too
+            // NOTE #Incomplete: a warm rebuild leaves a worker stale when a module it shares with the page changes
             worker: { plugins: () => [modulePlugin(this.#transformer), baselinePlugin()] },
             build: {
                 emitAssets: true,
@@ -994,6 +1046,7 @@ export class ModuleOutput implements Compilation {
         entrypoint: string,
         generated: readonly (OutputChunk | OutputAsset)[],
         compiled: OutputBuild,
+        imported: ReadonlyMap<string, readonly string[]>,
     ): string[] {
         // start from the entry's chunk
         const directory = `${compiled.output.directory}/`;
@@ -1013,7 +1066,7 @@ export class ModuleOutput implements Compilation {
             const chunk = chunks.get(file);
             if (chunk !== undefined && !visited.has(file)) {
                 visited.add(file);
-                for (const stylesheet of chunk.viteMetadata?.importedCss ?? []) {
+                for (const stylesheet of imported.get(file) ?? []) {
                     stylesheets.add(`${directory}${stylesheet}`);
                 }
                 pending.push(...chunk.imports, ...chunk.dynamicImports);
@@ -1306,4 +1359,17 @@ function mergeSection<Entry>(
         }
         target[name] = description;
     }
+}
+
+/** Read the stylesheets each chunk of a full build imports, as Vite's CSS plugin records them. */
+function importedStylesheets(
+    generated: readonly (OutputChunk | OutputAsset)[],
+): ReadonlyMap<string, readonly string[]> {
+    return new Map(
+        generated.flatMap((entry) =>
+            entry.type === "chunk" && entry.viteMetadata !== undefined
+                ? [[entry.fileName, [...entry.viteMetadata.importedCss]] as const]
+                : [],
+        ),
+    );
 }
