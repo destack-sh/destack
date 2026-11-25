@@ -538,7 +538,7 @@ export class Desktop implements AsyncDisposable {
         // show the sign-in running until the person's sign-in enrolled the machine in their account
         else if (
             record === undefined ||
-            enrollment?.hosting !== "self" ||
+            enrollment?.kind !== "self" ||
             enrollment.status !== "enrolled"
         ) {
             await this.menu.set("account", Desktop.accountEntries({ status: "signingIn" }, this));
