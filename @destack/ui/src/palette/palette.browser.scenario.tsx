@@ -73,3 +73,24 @@ export const commandPaletteNavigate = defineScenario({
         },
     ],
 });
+
+/** Run an entry's second action by the command key and Enter. */
+export const commandPaletteSecond = defineScenario({
+    of: CommandPalette,
+    interaction: viewInteraction,
+    name: "second",
+    description: "run an entry's second action by the command key and Enter",
+    given: { examples: [commandPaletteLaunch] },
+    parameters: {},
+    when: [
+        { step: { action: "click", target: { role: "button", name: "Open palette" } } },
+        { step: { action: "fill", target: search, value: "record" } },
+        {
+            step: { action: "press", key: "ControlOrMeta+Enter", target: search },
+            then: [
+                { observe: { kind: "visible", target: dialog }, is: false },
+                { observe: { kind: "visible", target: { text: "Copied LAU-14" } }, is: true },
+            ],
+        },
+    ],
+});
