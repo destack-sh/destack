@@ -355,9 +355,16 @@ export class TestDatabase<
             value = await Promise.race([building, stopped]);
             end = simulation.clock.now();
         } catch (error) {
-            // close what a failed build opened
+            // close what a failed build opened, keeping the build's failure as the original
             const failed = [...opened.values(), ...openedVolumes.values()];
-            await Promise.all(failed.map((entry) => entry.storage.close()));
+            const closed = await Promise.allSettled(failed.map((entry) => entry.storage.close()));
+            const refused = closed.flatMap((each): unknown[] =>
+                each.status === "rejected" ? [each.reason] : [],
+            );
+            if (refused.length > 0) {
+                const closing = new AggregateError(refused, "closing the build's databases failed");
+                throw new SuppressedError(closing, error);
+            }
             throw error;
         }
 

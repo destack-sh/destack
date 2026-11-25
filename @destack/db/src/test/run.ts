@@ -310,7 +310,14 @@ class ImageCache {
             return await ImageCache.#build(template, run, file);
         } catch (error) {
             // record why with the failure's causes
-            const messages = Failure.causes(error).map((each) => each.message);
+            const messages = Failure.causes(error).flatMap((each) => {
+                // keep each cause's message, with the data a refusal carries
+                const data: unknown = "data" in each ? each.data : undefined;
+                const described =
+                    data === undefined ? each.message : `${each.message} ${JSON.stringify(data)}`;
+
+                return described === "" ? [] : [described];
+            });
             const failed = { openedAt: run.openedAt, message: messages.join(": ") };
             await HOST.files.writeTextFile(failure, JSON.stringify(failed));
             throw error;

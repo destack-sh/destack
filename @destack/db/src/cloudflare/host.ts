@@ -556,7 +556,7 @@ export interface DurableObjectStub {
     readonly fetch: (request: Request) => Promise<Response>;
 }
 
-/** Where a residency's objects and storage stay: a Cloudflare jurisdiction, or none in workerd. */
+/** Where a region's objects and storage stay: a Cloudflare jurisdiction, or none in workerd. */
 export type Jurisdiction = "eu" | "us" | "none";
 
 /** The jurisdictions a namespace narrows to. */

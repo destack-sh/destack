@@ -112,3 +112,18 @@ export const stackedTemplate = new TestTemplate({
         return null;
     },
 });
+
+/** A template whose build fails, and whose database then fails to close. */
+export const failingTemplate = new TestTemplate({
+    name: "db.failing",
+    databases: { tally: [tally] },
+    value: schema.null(),
+    world: { seed: SEED, start: WRITTEN_AT },
+    build: async ({ databases }) => {
+        // fail the database's close, then the build
+        databases.tally.close = async () => {
+            throw new Error("connection is closing");
+        };
+        throw new Error("the build failed");
+    },
+});
