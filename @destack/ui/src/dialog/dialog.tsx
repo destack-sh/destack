@@ -2,7 +2,16 @@ import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { transition } from "@destack/theme/motion";
-import { color, motion, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import {
+    color,
+    motion,
+    radius,
+    shadow,
+    space,
+    stroke,
+    weight,
+    width,
+} from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -35,7 +44,7 @@ import { CollectionBuilder } from "../collection/index.ts";
 import { scrim } from "./scrim.stylex.ts";
 
 /** The widest a dialog grows. */
-const DIALOG_WIDTH = "32rem";
+const DIALOG_WIDTH = width.dialog;
 
 /** The opacity of a backdrop over another dialog, half as the page is dimmed already. */
 const NESTED_SCRIM = "0.5";

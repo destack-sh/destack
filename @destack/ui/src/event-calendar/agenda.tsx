@@ -10,7 +10,7 @@ import { CalendarEvent } from "./event.ts";
 import { EventCalendarEvent } from "./chip.tsx";
 
 /** The width of an agenda day's date, room for a date such as "Wed, 18 Nov". */
-const DATE_WIDTH = "8rem";
+const DATE_WIDTH = `calc(32 * ${space[1]})`;
 
 /** The views the part shows. */
 const AGENDA_VIEWS: readonly EventCalendarView[] = ["agenda"];

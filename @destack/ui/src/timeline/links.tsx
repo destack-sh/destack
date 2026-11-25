@@ -107,9 +107,9 @@ export function TimelineLinkLayer(properties: {
         const short = isMilestone ? (MILESTONE_PIXELS / 2) * Math.SQRT2 : 0;
         const startX = xOf(from.key, from.edge);
         const endX = xOf(to.key, to.edge) + sign() * (to.edge === "start" ? -short : short);
-        const targetTop = control.rowTop(toIndex) + target.lane * control.rowHeight;
-        const startY = control.rowTop(fromIndex) + (source.lane + 0.5) * control.rowHeight;
-        const endY = targetTop + control.rowHeight / 2;
+        const targetTop = control.rowTop(toIndex) + target.lane * control.rowHeight();
+        const startY = control.rowTop(fromIndex) + (source.lane + 0.5) * control.rowHeight();
+        const endY = targetTop + control.rowHeight() / 2;
 
         // run out of the source edge and into the target's edge from outside
         const out = startX + sign() * (from.edge === "end" ? LINK_BEND : -LINK_BEND);
@@ -118,7 +118,7 @@ export function TimelineLinkLayer(properties: {
 
         // turn along the target lane's near edge when the way in lies behind the way out
         if (isBehind) {
-            const edgeY = startY < endY ? targetTop : targetTop + control.rowHeight;
+            const edgeY = startY < endY ? targetTop : targetTop + control.rowHeight();
 
             return `M ${String(startX)} ${String(startY)} H ${String(out)} V ${String(edgeY)} H ${String(into)} V ${String(endY)} H ${String(endX)}`;
         }

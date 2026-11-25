@@ -1,3 +1,4 @@
+import { size } from "@destack/theme/tokens.stylex";
 import type { Direction } from "@destack/locale";
 import {
     nth,
@@ -23,7 +24,7 @@ import type { DragManager } from "../drag/index.ts";
 import { Focus } from "../focus/index.ts";
 import type { InteractionEvent } from "../interaction/index.ts";
 import { type MultipleSelection, Selection } from "../selection/index.ts";
-import { Virtualizer } from "../virtualizer/index.ts";
+import { Length, Virtualizer } from "../virtualizer/index.ts";
 import { TimelineDrag } from "./drag.ts";
 import {
     RowsDelegate,
@@ -35,7 +36,7 @@ import {
 import { type TimelineAxisMode, TimelineWindow } from "./window.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
-/** The height of a row in pixels by default, about Jaeger's. */
+/** The height of a row in pixels until it is measured, about Jaeger's. */
 const ROW_HEIGHT = 32;
 
 /** The width of the labels' column by default. */
@@ -87,7 +88,7 @@ export interface TimelineOptions {
     readonly workWeek?: WorkWeek;
     /** The IANA time zone the axis marks local times in, the environment's by default. */
     readonly timeZone?: string;
-    /** The height of a row in pixels, 32 by default, fixed once the timeline mounts. */
+    /** The height of a row in pixels, a control's by default. */
     readonly rowHeight?: number;
     /** The width of the labels' column at first, 16rem by default, which the person can drag. */
     readonly labelWidth?: string;
@@ -116,7 +117,9 @@ export class TimelineControl {
     /** Set the highlighted link, or none. */
     readonly setHighlight: (link: ScheduleLink | undefined) => void;
     /** The height of a row in pixels. */
-    readonly rowHeight: number;
+    readonly rowHeight: Accessor<number>;
+    /** The length that measures a row's height, as tall as a control. */
+    readonly rowLength: Length;
     /** The width of the labels' column. */
     readonly labelWidth: Accessor<string>;
     /** Set the element that scrolls the rows. */
@@ -149,7 +152,8 @@ export class TimelineControl {
             untrack(() => environment.clock.now()),
         );
         this.window = new TimelineWindow(options, this.tree, locale, environment, ticking);
-        this.rowHeight = untrack(() => options.rowHeight ?? ROW_HEIGHT);
+        this.rowLength = new Length(() => size[2]);
+        this.rowHeight = () => options.rowHeight ?? this.rowLength.pixels() ?? ROW_HEIGHT;
         const [labelWidth, setLabelWidth] = createSignal(
             untrack(() => options.labelWidth ?? LABEL_WIDTH),
         );
@@ -165,7 +169,7 @@ export class TimelineControl {
             const tops = [0];
             for (const row of this.tree.rows()) {
                 const lanes = this.tree.laneCount(row.item.key);
-                tops.push(nth(tops, -1) + lanes * this.rowHeight);
+                tops.push(nth(tops, -1) + lanes * this.rowHeight());
             }
 
             return tops;
@@ -265,7 +269,7 @@ export class TimelineControl {
             return undefined;
         }
 
-        return { index, lane: Math.floor((offset - nth(tops, index)) / this.rowHeight) };
+        return { index, lane: Math.floor((offset - nth(tops, index)) / this.rowHeight()) };
     }
 
     /** Read the gap between rows nearest an offset from the rows' top. */

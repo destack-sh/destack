@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 import { transition } from "@destack/theme/motion";
-import { color, stroke } from "@destack/theme/tokens.stylex";
+import { color, stroke, width } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 import type { Side } from "../position/index.ts";
 import {
@@ -21,7 +21,7 @@ import {
 } from "../dialog/index.ts";
 
 /** The widest a left or right sheet grows. */
-const SHEET_WIDTH = "24rem";
+const SHEET_WIDTH = width.sheet;
 
 /** The side of a sheet that sets none. */
 const DEFAULTS: Required<Pick<SheetContentProperties, "side">> = { side: "right" };

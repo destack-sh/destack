@@ -7,8 +7,8 @@ import { Glyph } from "../glyph/index.ts";
 /** The styles of a choice's icon and of its color. */
 const styles = style.create({
     glyph: {
-        width: "1rem",
-        height: "1rem",
+        width: space[4],
+        height: space[4],
         fontSize: "1em",
     },
     hue: (fill: string) => ({

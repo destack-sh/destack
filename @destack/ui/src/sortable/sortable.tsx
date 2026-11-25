@@ -71,7 +71,7 @@ const styles = style.create({
         "::after": {
             content: '""',
             position: "absolute",
-            borderRadius: LINE,
+            borderRadius: radius.full,
             backgroundColor: swatch.accentMark,
             pointerEvents: "none",
         },
@@ -96,7 +96,7 @@ const styles = style.create({
             content: '""',
             display: "block",
             flexShrink: 0,
-            borderRadius: LINE,
+            borderRadius: radius.full,
             backgroundColor: swatch.accentMark,
             pointerEvents: "none",
         },

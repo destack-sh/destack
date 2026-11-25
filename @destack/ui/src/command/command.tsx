@@ -3,7 +3,7 @@ import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { state } from "@destack/theme/state";
 import { media } from "@destack/style/media.stylex";
-import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, stroke, width } from "@destack/theme/tokens.stylex";
 import { transition } from "@destack/theme/motion";
 import { text } from "@destack/theme/text";
 import {
@@ -59,16 +59,16 @@ const DIALOG_OFFSET = "12vh";
 const DIALOG_INPUT_SIZE = "var(--destack-text-base-font-size)";
 
 /** The widest a command dialog grows, 720px. */
-const DIALOG_WIDTH = "45rem";
+const DIALOG_WIDTH = width.palette;
 
 /** The width of the column a command dialog's icons share, 20px. */
-const DIALOG_ICON = "1.25rem";
+const DIALOG_ICON = `calc(5 * ${space[1]})`;
 
 /** The widest a small command dialog grows, 480px. */
-const DIALOG_SMALL_WIDTH = "30rem";
+const DIALOG_SMALL_WIDTH = `calc(2 / 3 * ${width.palette})`;
 
 /** The widest a command dialog grows beside a detail, 960px. */
-const DIALOG_DETAIL_WIDTH = "60rem";
+const DIALOG_DETAIL_WIDTH = `calc(4 / 3 * ${width.palette})`;
 
 /** The viewport height a command dialog's search, footer and offsets take. */
 const DIALOG_CHROME = `(2 * ${DIALOG_OFFSET} + 2 * ${size[4]})`;

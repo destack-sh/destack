@@ -67,7 +67,7 @@ const styles = style.create({
         width: { default: space[5], [media.pointerCoarse]: size[2] },
         height: { default: space[3], [media.pointerCoarse]: size[1] },
         padding: 0,
-        fontSize: { default: "0.625rem", [media.pointerCoarse]: "1rem" },
+        fontSize: { default: `calc(10 / 4 * ${space[1]})`, [media.pointerCoarse]: space[4] },
     },
     decrement: {
         order: { default: null, [media.pointerCoarse]: -1 },

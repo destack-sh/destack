@@ -93,13 +93,13 @@ const SHADE = "color-mix(in oklab, black 50%, transparent)";
 const SHADE_HOVER = "color-mix(in oklab, black 70%, transparent)";
 
 /** The height of a thumbnail in a strip. */
-const THUMBNAIL_HEIGHT = "3rem";
+const THUMBNAIL_HEIGHT = `calc(12 * ${space[1]})`;
 
 /** The width of a thumbnail in a strip: narrow, so many are there. */
-const THUMBNAIL_WIDTH = "2rem";
+const THUMBNAIL_WIDTH = size[2];
 
 /** The width of the thumbnail of the item shown. */
-const CURRENT_WIDTH = "4.5rem";
+const CURRENT_WIDTH = `calc(18 * ${space[1]})`;
 
 /** What takes the pointer and the keys itself, such as a video's controls. */
 const OWN =
@@ -176,7 +176,7 @@ const styles = style.create({
     },
     action: {
         borderRadius: radius.full,
-        fontSize: "1.25rem",
+        fontSize: `calc(5 * ${space[1]})`,
     },
     chrome: {
         transitionProperty: "opacity",
@@ -246,7 +246,7 @@ const styles = style.create({
         },
         backdropFilter: "blur(16px)",
         color: color.foreground,
-        fontSize: "1.375rem",
+        fontSize: `calc(5.5 * ${space[1]})`,
         // reach past its circle, as the edge is where a person aims
         "::before": {
             content: '""',

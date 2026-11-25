@@ -639,7 +639,7 @@ function BarTrack(
             ref={(created) => (lane = created)}
             {...style.attrs(
                 styles.lane,
-                places.row(properties.lane * control.rowHeight, control.rowHeight),
+                places.row(properties.lane * control.rowHeight(), control.rowHeight()),
             )}
         >
             {/* The bar, or a milestone's diamond */}

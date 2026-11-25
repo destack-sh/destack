@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
-import { color, radius, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -322,7 +322,9 @@ function containerOf(
     // stand as tall as the lowest box, in a plain grid until measured
     const height = (boxes ?? []).reduce((low, box) => Math.max(low, box.y + box.height), 0);
 
-    return boxes === undefined ? styles.grid("10rem", gap) : styles.placed(`${String(height)}px`);
+    return boxes === undefined
+        ? styles.grid(`calc(40 * ${space[1]})`, gap)
+        : styles.placed(`${String(height)}px`);
 }
 
 /** Return the styles that place an item. */

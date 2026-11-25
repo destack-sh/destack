@@ -1,7 +1,7 @@
 import type { Clock } from "@destack/environment";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, radius, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, radius, space, stroke, width } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -40,7 +40,7 @@ const CLOSE_DELAY = 100;
 const TIMEOUT = 300;
 
 /** The widest a tooltip grows before its text wraps, 320px. */
-const WIDTH = "20rem";
+const WIDTH = width.tooltip;
 
 /** The side and alignment of a tooltip that sets neither. */
 const DEFAULTS: Required<Pick<TooltipContentProperties, "side" | "align">> = {

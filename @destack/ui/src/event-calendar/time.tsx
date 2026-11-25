@@ -35,8 +35,10 @@ import {
     useContext,
     useEnvironment,
     useLocale,
+    createEffect,
 } from "@destack/view";
-import { createResizeObserver } from "@destack/view/primitives/resize-observer";
+import { createElementSize, createResizeObserver } from "@destack/view/primitives/resize-observer";
+import { Length } from "../virtualizer/index.ts";
 import { Draggable, type DragStep, type DragTarget, Droppable } from "../drag/index.ts";
 import { Sweep } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
@@ -59,7 +61,7 @@ import { OfferedView } from "./view.tsx";
 import { CalendarEvent, type TimedCalendarEvent } from "./event.ts";
 
 /** The height of an hour in the time grid, about twelve in view. */
-const HOUR_HEIGHT = "3rem";
+const HOUR_HEIGHT = `calc(12 * ${space[1]})`;
 
 /** The property with the width of the hour labels beside the day columns, in root text sizes. */
 const GUTTER = "--destack-event-calendar-gutter";
@@ -68,7 +70,7 @@ const GUTTER = "--destack-event-calendar-gutter";
 const COLUMN_WIDTH = 5;
 
 /** The least height of an event a finger is sure to hit, as WCAG's target size asks for. */
-const TOUCH_HEIGHT = "1.5rem";
+const TOUCH_HEIGHT = size[1];
 
 /** The share of an hour shown above the opening hour, so its label is whole. */
 const OPENING_LEAD = 0.25;
@@ -77,7 +79,7 @@ const OPENING_LEAD = 0.25;
 const DAY_HOURS = 24;
 
 /** The least height of a row of all-day events, a line of extra-small text and its padding. */
-const ALL_DAY_ROW = "1.5rem";
+const ALL_DAY_ROW = size[1];
 
 /** The milliseconds of a minute, which the pointer's time rounds to. */
 const MINUTE = 60_000;
@@ -199,7 +201,7 @@ const styles = style.create({
     hour: {
         position: "absolute",
         insetInlineEnd: { default: space[2], [NARROW_QUERY]: space[1] },
-        fontSize: { default: null, [NARROW_QUERY]: "0.6875rem" },
+        fontSize: { default: null, [NARROW_QUERY]: `calc(11 / 4 * ${space[1]})` },
         transform: "translateY(-50%)",
         color: color.mutedForeground,
         fontVariantNumeric: "tabular-nums",
@@ -272,10 +274,10 @@ const styles = style.create({
     },
     nowLabel: {
         outlineStyle: { default: null, [media.forcedColors]: "solid" },
-        outlineWidth: { default: null, [media.forcedColors]: "1px" },
+        outlineWidth: { default: null, [media.forcedColors]: stroke.border },
         marginInlineEnd: `calc(-1 * ${space[1]})`,
         paddingInline: { default: space[1], [NARROW_QUERY]: stroke.ring },
-        fontSize: { default: null, [NARROW_QUERY]: "0.625rem" },
+        fontSize: { default: null, [NARROW_QUERY]: `calc(10 / 4 * ${space[1]})` },
         letterSpacing: { default: null, [NARROW_QUERY]: "-0.02em" },
         borderRadius: radius[1],
         backgroundColor: swatch.destructiveSolid,
@@ -333,7 +335,7 @@ const styles = style.create({
 const places = style.create({
     hours: (hourHeight: string) => ({ height: `calc(${hourHeight} * ${String(DAY_HOURS)})` }),
     columns: (days: number, zones: number) => ({
-        gridTemplateColumns: `calc(var(${GUTTER}) * 1rem * ${String(zones)}) repeat(${String(days)}, minmax(0, 1fr))`,
+        gridTemplateColumns: `calc(var(${GUTTER}) * ${space[4]} * ${String(zones)}) repeat(${String(days)}, minmax(0, 1fr))`,
     }),
     column: (column: number) => ({ gridColumn: String(column) }),
     span: (column: number, span: number, row: number) => ({
@@ -445,17 +447,22 @@ function TimeView(properties: EventCalendarPartProperties): JSX.Element {
     const locale = useLocale();
     const paging = new Paging(control, () => locale.direction === "rtl");
     const [grid, setGrid] = createSignal<HTMLElement>();
-    createResizeObserver(grid, ({ width }, element) => {
-        // measure in root text sizes, so larger text shows fewer days
-        const root = element.ownerDocument.documentElement;
-        const rem = Number.parseFloat(getComputedStyle(root).fontSize);
-        const hours = Number.parseFloat(getComputedStyle(element).getPropertyValue(GUTTER));
-        const gutter = hours * control.zones().length;
-        const columns = Math.floor((width / rem - gutter) / COLUMN_WIDTH);
-        if (width > 0 && Number.isFinite(columns)) {
-            control.setRoom(columns);
-        }
-    });
+    const gridSize = createElementSize(grid);
+    const unit = new Length(() => space[4]);
+    createEffect(
+        () => [grid(), gridSize.width, unit.pixels(), control.zones().length] as const,
+        ([element, gridWidth, pixels, zones]) => {
+            // measure in the theme's space, so larger text shows fewer days
+            if (element === undefined || gridWidth === null || pixels === undefined) {
+                return;
+            }
+            const hours = Number.parseFloat(getComputedStyle(element).getPropertyValue(GUTTER));
+            const columns = Math.floor((gridWidth / pixels - hours * zones) / COLUMN_WIDTH);
+            if (gridWidth > 0 && Number.isFinite(columns)) {
+                control.setRoom(columns);
+            }
+        },
+    );
 
     return (
         <div
@@ -474,6 +481,7 @@ function TimeView(properties: EventCalendarPartProperties): JSX.Element {
                     <EventCalendarTimeGrid />
                 </>
             )}
+            {unit.render()}
         </div>
     );
 }

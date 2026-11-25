@@ -21,7 +21,7 @@ const YEAR_VIEWS: readonly EventCalendarView[] = ["year"];
 const MONTHS = 12;
 
 /** The narrowest a month of the year takes, room for seven day numbers. */
-const MONTH_WIDTH = "13rem";
+const MONTH_WIDTH = `calc(52 * ${space[1]})`;
 
 /** The events past which a day's mark shows at its strongest. */
 const BUSY_DAY = 4;

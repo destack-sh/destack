@@ -33,7 +33,7 @@ import { useEventCalendar } from "./control.ts";
 import { CalendarEvent, type TimedCalendarEvent } from "./event.ts";
 
 /** The width of a list row's time, room for a range such as "10:30 – 11:45 AM". */
-const LIST_TIME_WIDTH = "9rem";
+const LIST_TIME_WIDTH = `calc(36 * ${space[1]})`;
 
 /** The heights of a placed event too short for a second line: two lines of extra-small text. */
 const SHORT_QUERY = "@container (max-height: 2.5rem)";
@@ -117,7 +117,7 @@ const styles = style.create({
         outlineOffset: stroke.ring,
     },
     event: {
-        borderWidth: { default: null, [media.forcedColors]: "1px" },
+        borderWidth: { default: null, [media.forcedColors]: stroke.border },
         borderStyle: { default: null, [media.forcedColors]: "solid" },
         display: "flex",
         gap: space[1],

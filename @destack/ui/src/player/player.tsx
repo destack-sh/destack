@@ -163,7 +163,7 @@ const styles = style.create({
         },
         backdropFilter: "blur(16px)",
         color: color.foreground,
-        fontSize: "1.75rem",
+        fontSize: `calc(7 * ${space[1]})`,
         pointerEvents: "auto",
     },
     captions: {
@@ -186,7 +186,7 @@ const styles = style.create({
         paddingInline: space[2],
         borderRadius: radius[1],
         backgroundColor: { default: CAPTION_SHADE, [media.forcedColors]: "Canvas" },
-        fontSize: "clamp(0.875rem, 3cqw, 1.75rem)",
+        fontSize: `clamp(${space[3]}, 3cqw, calc(7 * ${space[1]}))`,
         lineHeight: 1.35,
         whiteSpace: "pre-line",
     },
@@ -225,7 +225,7 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.hover },
             [media.forcedColors]: "ButtonFace",
         },
-        fontSize: "1.125rem",
+        fontSize: `calc(4.5 * ${space[1]})`,
     },
     seek: {
         position: "relative",

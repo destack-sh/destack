@@ -156,7 +156,7 @@ const styles = style.create({
         borderRadius: radius[2],
         backgroundColor: color.muted,
         color: color.mutedForeground,
-        fontSize: "1.25rem",
+        fontSize: `calc(5 * ${space[1]})`,
     },
     content: {
         display: "flex",

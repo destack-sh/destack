@@ -36,7 +36,7 @@ import { OfferedView } from "./view.tsx";
 import { CalendarEvent } from "./event.ts";
 
 /** The least height of a week of a month, room for a date and three events. */
-const WEEK_HEIGHT = "5.5rem";
+const WEEK_HEIGHT = `calc(22 * ${space[1]})`;
 
 /** The droppable of a month's days. */
 const MONTH = "event-calendar-month";

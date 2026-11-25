@@ -100,7 +100,7 @@ const styles = style.create({
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-        maxWidth: "14rem",
+        maxWidth: `calc(56 * ${space[1]})`,
     },
     menu: {
         padding: 0,
@@ -143,7 +143,7 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         flexShrink: 0,
-        minWidth: "3.5rem",
+        minWidth: `calc(14 * ${space[1]})`,
         height: size[1],
         paddingInline: space[2],
         color: color.mutedForeground,

@@ -37,7 +37,7 @@ const DATE_TIME_JOINER = / at |, /u;
 /** Render a timeline with every part, as an app lays one out. */
 function Plan(properties: TimelineProperties): JSX.Element {
     return (
-        <Timeline {...properties}>
+        <Timeline rowHeight={32} {...properties}>
             <TimelineHeader />
             <TimelineBody>
                 <TimelineGrid />
@@ -769,7 +769,7 @@ test("resize the window by the minimap lens's grips, and pan it by the lens betw
     // zoom in twice, drag the lens's start grip a hundred pixels back, then the lens forty forward
     measureElements();
     const { container } = render(() => (
-        <Timeline items={PLAN} timeZone="UTC">
+        <Timeline items={PLAN} timeZone="UTC" rowHeight={32}>
             <TimelineBody>
                 <TimelineGrid />
                 <TimelineNow />
@@ -849,7 +849,7 @@ test("leave the toolbar's keys to it, leave a pressed preset pressed, and lift n
     measureElements();
     const actions: string[] = [];
     const { container } = render(() => (
-        <Timeline items={PLAN} timeZone="UTC" onAction={(key) => actions.push(key)}>
+        <Timeline items={PLAN} timeZone="UTC" rowHeight={32} onAction={(key) => actions.push(key)}>
             <TimelineToolbar>
                 <TimelineToday />
                 <TimelineZoom />
@@ -1104,7 +1104,7 @@ test("zoom to a week, a month or a quarter per column, bring today to the middle
         { key: "sprint", label: "Sprint", start: monday, end: monday + 7 * DAY_MS },
     ];
     const { container } = render(() => (
-        <Timeline items={week} timeZone="UTC">
+        <Timeline items={week} timeZone="UTC" rowHeight={32}>
             <TimelineToday />
             <TimelineZoom />
             <TimelineHeader>
@@ -1162,7 +1162,7 @@ test("shade a range down the track, mark a bar late past its deadline, and draw 
         { key: "copy", label: "Copy", start: 0, end: 2 * DAY_MS, deadline: 5 * DAY_MS },
     ];
     const { container } = render(() => (
-        <Timeline items={items} timeZone="UTC">
+        <Timeline items={items} timeZone="UTC" rowHeight={32}>
             <TimelineBody>
                 <TimelineRange start={DAY_MS} end={4 * DAY_MS} color="purple">
                     Cycle 12
@@ -1209,7 +1209,7 @@ test("lay a column out beside the labels in the header and every row, the track 
     // a lead column six rem wide, with a marker on the track
     measureElements();
     const { container } = render(() => (
-        <Timeline items={PLAN} timeZone="UTC">
+        <Timeline items={PLAN} timeZone="UTC" rowHeight={32}>
             <TimelineHeader corner="Task">
                 <TimelineColumn width="6rem">Lead</TimelineColumn>
                 <TimelineAxis />
@@ -1582,7 +1582,7 @@ test("fold every parent and unfold them again, by the tree's verbs and the aster
     ];
     let control: TimelineControl | undefined;
     const { container } = render(() => (
-        <Timeline items={items} timeZone="UTC">
+        <Timeline items={items} timeZone="UTC" rowHeight={32}>
             <TimelineBody>
                 <TimelineRowList />
             </TimelineBody>

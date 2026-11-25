@@ -245,6 +245,7 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
                 {...style.attributes([styles.timeline, properties.xstyle], properties.style)}
             >
                 {properties.children}
+                {control.rowLength.render()}
             </div>
             <Show when={!drags.isShared}>
                 <DragAnnouncer manager={control.drag.manager} />
