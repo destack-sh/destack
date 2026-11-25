@@ -20,7 +20,12 @@ import { type SourceMapReference } from "@destack/package/source";
 import { MANIFEST_LISTS } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import type { Toolchain } from "@destack/check/toolchain";
-import { ConstructorCatalog, Evaluation, type EvaluatedDeclaration } from "../declaration/index.ts";
+import {
+    ConstructorCatalog,
+    Evaluation,
+    type EvaluatedDeclaration,
+    PackageReadings,
+} from "../declaration/index.ts";
 import { DeclarationGraph } from "../graph/declaration.ts";
 import {
     exportedDeclarations,
@@ -117,6 +122,8 @@ export class CompilerWorker {
     readonly #outputs = new Map<string, { readonly key: string; readonly output: ModuleOutput }>();
     /** The warm bundles of the package's evaluated entries in development, by generated source. */
     readonly #evaluations = new Map<string, Bundle>();
+    /** The readings of packages below stored tree roots, which never change. */
+    readonly #stored = new PackageReadings();
 
     /** Compile with a toolchain on an environment, sharing the linked modules. */
     constructor(
@@ -250,7 +257,7 @@ export class CompilerWorker {
     ): Promise<DeclarationDescription[]> {
         // open the package's source and evaluate its export entries
         const project = await Project.open(options, this.environment, this.#program);
-        const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
+        const catalog = await this.#catalog(options.versions ?? {}, options.tree);
         const transformer = this.#transformer(options, project.packageJson);
         const evaluation = await Evaluation.evaluate([project], catalog, { transformer });
 
@@ -279,7 +286,7 @@ export class CompilerWorker {
         });
 
         // evaluate each export entry in the first project with it, on warm bundles in development
-        const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
+        const catalog = await this.#catalog(options.versions ?? {}, options.tree);
         const evaluated = new Set([opened.primary, ...opened.projects.values()]);
         const mode = await this.#mode(options, packageJson);
         const { declarations } = await Evaluation.evaluate([...evaluated.values()], catalog, {
@@ -288,6 +295,23 @@ export class CompilerWorker {
         });
 
         return [...declarations];
+    }
+
+    /** Open a build's catalog, sharing its tree's stored roots' readings across builds. */
+    async #catalog(
+        versions: Readonly<Record<string, Version>>,
+        tree: Readonly<Record<string, string>>,
+    ): Promise<ConstructorCatalog> {
+        // match each root as the tree places it and as it really lies, as lookups read real paths
+        const { files } = this.environment;
+        const placed = Object.values(tree);
+        const real = await Promise.all(placed.map((root) => files.realPath(root)));
+        const roots = new Set([...placed, ...real]);
+
+        // take the tree's roots, forgetting the readings of roots it no longer places
+        this.#stored.retain(roots);
+
+        return new ConstructorCatalog(versions, files, this.#stored);
     }
 
     /** Compile a package into a directory. */
