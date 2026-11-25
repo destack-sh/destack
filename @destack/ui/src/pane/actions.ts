@@ -26,6 +26,27 @@ export const moveTabTo = defineAction({
     input: { place: schema.string() },
 });
 
+/** Float the selected tab over the panes. */
+export const floatTab = defineAction({
+    name: "pane.floatTab",
+    title: t`Float`,
+    category: t`Panes`,
+});
+
+/** Move the selected tab to a window of its own. */
+export const openWindow = defineAction({
+    name: "pane.openWindow",
+    title: t`Move to a new window`,
+    category: t`Panes`,
+});
+
+/** Put a floating pane beside the others. */
+export const dockPane = defineAction({
+    name: "pane.dockPane",
+    title: t`Dock`,
+    category: t`Panes`,
+});
+
 /** Go to the pane on the left. */
 export const focusPaneLeft = defineAction({
     name: "pane.focusLeft",

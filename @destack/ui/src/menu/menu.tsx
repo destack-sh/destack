@@ -93,6 +93,9 @@ const MenuContext = createContext<MenuControl | null>(null);
 /** The selected value of the nearest radio group of a menu, null outside one. */
 const MenuRadioContext = createContext<MenuRadioControl | null>(null);
 
+/** A shortcut whose item has a check, which pushes both to the end. */
+const BEFORE_CHECK = ":is(:has(~ [data-slot=menu-indicator]))";
+
 /** A mark after an item's shortcut, which the shortcut pushes to the end. */
 const AFTER_SHORTCUT = ":is([data-slot=menu-shortcut] ~ *)";
 
@@ -159,10 +162,7 @@ const styles = style.create({
     },
     indicator: {
         display: "inline-flex",
-        marginInlineStart: {
-            default: "auto",
-            [AFTER_SHORTCUT]: 0,
-        },
+        marginInlineStart: "auto",
         color: color.mutedForeground,
     },
     label: {
@@ -179,7 +179,9 @@ const styles = style.create({
         borderTopColor: color.border,
     },
     shortcut: {
-        marginInlineStart: "auto",
+        // show after a check, so that the keys of every item line up
+        order: 1,
+        marginInlineStart: { default: "auto", [BEFORE_CHECK]: 0 },
         color: color.mutedForeground,
         letterSpacing: "0.1em",
     },
@@ -826,7 +828,7 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
             )}
         >
             {properties.children}
-            <span {...style.attrs(styles.indicator)}>
+            <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
                 <Show when={properties.checked}>
                     <Icon name="check" />
                 </Show>
@@ -908,7 +910,7 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
             )}
         >
             {properties.children}
-            <span {...style.attrs(styles.indicator)}>
+            <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
                 <Show when={isChecked()}>
                     <Icon name="circle" weight="fill" size="0.5em" />
                 </Show>

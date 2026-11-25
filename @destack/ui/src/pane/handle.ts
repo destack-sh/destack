@@ -3,22 +3,40 @@ import type { Action } from "@destack/object";
 import { handle, untrack } from "@destack/view";
 import {
     closePane,
+    dockPane,
     evenPanes,
+    floatTab,
     focusPaneDown,
     focusPaneLeft,
     focusPaneRight,
     focusPaneUp,
     maximizePane,
     moveTabTo,
+    openWindow,
     splitDown,
     splitRight,
 } from "./actions.ts";
-import { type PaneGroupControl } from "./control.ts";
-import { TAB_TYPE } from "./drag.ts";
-import { type PaneItem, PaneLayout, type PanePlace, type PaneSide } from "./layout.ts";
+import type { PaneGroupControl, PaneWindow } from "./control.ts";
+import { PANE_TYPE, TAB_TYPE } from "./drag.ts";
+import {
+    type PaneBox,
+    type PaneItem,
+    PaneLayout,
+    type PanePlace,
+    type PaneSide,
+} from "./layout.ts";
 
 /** The sides a tab moves to in a pane of its own, as a choice writes them. */
 const SIDES: readonly PaneSide[] = ["start", "end", "top", "bottom"];
+
+/** Where the first float goes, about the middle and half the size of the group. */
+const FLOAT_BOUNDS: PaneBox = { start: 0.25, top: 0.15, width: 0.5, height: 0.6 };
+
+/** The step from a float to the next. */
+const FLOAT_STEP = 0.04;
+
+/** The floats before one goes where the first one did, as the steps then reach the sides. */
+const FLOAT_COUNT = 6;
 
 /** List what handles the actions on panes, for their group's `ref`. */
 export function handlePanes(
@@ -50,26 +68,27 @@ export function handlePanes(
 
     // read the tab an element is on, or the selected one of its pane
     const itemAt = (element: Element | null): PaneItem | undefined => {
-        // take the one the element is in
+        // take the one the element is in, which another pane may have open
         const pane = PaneLayout.pane(group.layout(), group.paneAt(element) ?? "");
         const id = element?.closest("[data-tab]")?.getAttribute("data-tab");
-        const on = pane?.items.find((item) => item.id === id);
+        const on = group.item(id ?? "");
 
         return on ?? (pane === undefined ? undefined : PaneLayout.selected(pane));
     };
 
-    // open a copy of a tab beside its pane
-    const split = (side: PaneSide) => (pane: string, element: Element | null) => {
+    // move the tab an element is on, or a copy of it
+    const moveTab = (
+        element: Element | null,
+        place: PanePlace | PaneWindow,
+        isCopied = false,
+    ): void => {
         const item = itemAt(element);
         if (item !== undefined) {
-            group.move({
-                id: item.id,
-                type: TAB_TYPE,
-                place: { kind: "side", pane, side },
-                isCopied: true,
-            });
+            group.move({ id: item.id, type: TAB_TYPE, place, isCopied, items: [] });
         }
     };
+    const split = (side: PaneSide) => (pane: string, element: Element | null) =>
+        moveTab(element, { kind: "side", pane, side }, true);
     const right = (): PaneSide => (direction() === "rtl" ? "start" : "end");
     const left = (): PaneSide => (direction() === "rtl" ? "end" : "start");
     const hasItem = (pane: string): boolean =>
@@ -120,19 +139,50 @@ export function handlePanes(
             choices: (_input, element) => untrack(() => places(element)),
             run: ({ element, values }) => {
                 // move the tab to the pane, or to one of its own
-                const item = untrack(() => itemAt(element));
                 const pane = untrack(() => group.paneAt(element));
                 const side = SIDES.find((each) => values.place === `side:${each}`);
-                if (item === undefined || pane === undefined) {
-                    return;
-                }
-                const place: PanePlace =
-                    side === undefined
-                        ? { kind: "item", pane: values.place }
-                        : { kind: "side", pane, side };
-                group.move({ id: item.id, type: TAB_TYPE, place, isCopied: false });
+                untrack(() =>
+                    moveTab(
+                        element,
+                        side === undefined || pane === undefined
+                            ? { kind: "item", pane: values.place }
+                            : { kind: "side", pane, side },
+                    ),
+                );
             },
         }),
+        onPane(
+            floatTab,
+            (pane) =>
+                hasItem(pane) &&
+                (PaneLayout.floatOf(group.layout(), pane) === undefined ||
+                    (PaneLayout.pane(group.layout(), pane)?.items.length ?? 0) > 1),
+            // float it a step from the last one
+            (_pane, element) =>
+                moveTab(element, { kind: "float", bounds: freeBounds(group.layout()) }),
+        ),
+        onPane(
+            dockPane,
+            (pane) => PaneLayout.floatOf(group.layout(), pane) !== undefined,
+            (pane) =>
+                group.move({
+                    id: pane,
+                    type: PANE_TYPE,
+                    place: { kind: "side", side: "end" },
+                    isCopied: false,
+                    items: [],
+                }),
+        ),
+        onPane(
+            openWindow,
+            (pane) => {
+                const current = PaneLayout.pane(group.layout(), pane);
+                const item = current === undefined ? undefined : PaneLayout.selected(current);
+
+                return item !== undefined && group.canOpen(item.id);
+            },
+            (_pane, element) => moveTab(element, { kind: "window" }),
+        ),
         go(focusPaneLeft, left),
         go(focusPaneRight, right),
         go(focusPaneUp, () => "top"),
@@ -148,4 +198,11 @@ export function handlePanes(
             group.change((layout) => PaneLayout.distribute(layout)),
         ),
     ];
+}
+
+/** Read where the next float goes, a step from the last. */
+function freeBounds(layout: PaneLayout): PaneBox {
+    const step = (layout.floats.length % FLOAT_COUNT) * FLOAT_STEP;
+
+    return { ...FLOAT_BOUNDS, start: FLOAT_BOUNDS.start + step, top: FLOAT_BOUNDS.top + step };
 }

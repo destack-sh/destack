@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { createSignal, Errored, flush, type JSX } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import {
@@ -247,6 +247,115 @@ test("open a closed pane's tabs again", () => {
     flush();
 
     expect(openIn(layout())).toEqual(["a c b"]);
+});
+
+test("open a tab in a window of its own, and keep it where the browser refuses", () => {
+    stubPopovers();
+    const opened: unknown[] = [];
+    let isRefused = true;
+    let control: PaneGroupControl | undefined;
+    const [layout, setLayout] = createSignal(PaneLayout.of(["a", "b"]));
+    const Probe = (): JSX.Element => {
+        control = usePaneGroup();
+
+        return null;
+    };
+    const { container } = render(() => (
+        <PaneGroup
+            layout={layout()}
+            onLayoutChange={setLayout}
+            href={(item) => `/files/${item.value}`}
+        >
+            {() => (
+                <Pane>
+                    <Probe />
+                    <PaneTabs />
+                </Pane>
+            )}
+        </PaneGroup>
+    ));
+    const view = container.ownerDocument.defaultView;
+    if (view !== null) {
+        view.open = (href, target) => {
+            opened.push([href, target]);
+
+            return isRefused ? null : view;
+        };
+    }
+    const move = { id: "b", type: "tab", isCopied: false, items: [] };
+    const states = [openIn(layout())];
+    for (const refused of [true, false]) {
+        isRefused = refused;
+        control?.move({ ...move, place: { kind: "window" } });
+        flush();
+        states.push(openIn(layout()));
+    }
+
+    expect({
+        opened,
+        states,
+        links: [...container.querySelectorAll("[role=tab]")].map((tab) => tab.getAttribute("href")),
+    }).toEqual({
+        opened: [
+            ["/files/b", "_blank"],
+            ["/files/b", "_blank"],
+        ],
+        states: [["a b"], ["a b"], ["a"]],
+        links: ["/files/a"],
+    });
+});
+
+/** Lay every element out as wide as a phone, or as a desktop, until the test ends. */
+function layOut(width: number): void {
+    const page = Object.getOwnPropertyDescriptors(HTMLElement.prototype);
+    for (const [name, value] of [
+        ["clientWidth", width],
+        ["clientHeight", 700],
+    ] as const) {
+        Object.defineProperty(HTMLElement.prototype, name, {
+            configurable: true,
+            get: () => value,
+        });
+    }
+    onTestFinished(() => {
+        // give it back what it had of its own
+        for (const name of ["clientWidth", "clientHeight"] as const) {
+            const own = page[name];
+            if (own === undefined) {
+                Reflect.deleteProperty(HTMLElement.prototype, name);
+            } else {
+                Object.defineProperty(HTMLElement.prototype, name, own);
+            }
+        }
+    });
+}
+
+test("show one pane with every tab where two do not fit, and go to the pane of the tab", () => {
+    layOut(360);
+    const { container, layout } = renderGroup(PaneLayout.of(["a"], ["b", "c"]));
+    const shown = () =>
+        [...container.querySelectorAll("[data-slot=pane]:not([hidden])")].map((pane) =>
+            [...pane.querySelectorAll("[role=tab]")].map((tab) => tab.textContent).join(" "),
+        );
+    const states = [shown()];
+    [...container.querySelectorAll<HTMLElement>("[role=tab]")]
+        .find((each) => each.textContent === "c")
+        ?.click();
+    flush();
+    states.push(shown());
+
+    expect({
+        states,
+        selected: PaneLayout.panes(layout()).map((pane) => PaneLayout.selected(pane)?.id),
+        active: layout().active,
+    }).toEqual({ states: [["a b c"], ["a b c"]], selected: ["a", "c"], active: "pane-2" });
+});
+
+test("keep many panes side by side where two fit", () => {
+    layOut(1000);
+    const { container } = renderGroup(PaneLayout.of(["a"], ["b"], ["c"], ["d"], ["e"], ["f"]));
+
+    expect(container.querySelectorAll("[data-slot=pane]:not([hidden])").length).toBe(6);
 });
 
 test("lock a layout nothing handles a change of", () => {

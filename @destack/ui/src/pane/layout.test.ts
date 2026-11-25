@@ -149,6 +149,53 @@ test("find the pane on each side", () => {
     ]);
 });
 
+/** Write what each pane has open, where it is and how high. */
+function where(layout: PaneLayout): readonly string[] {
+    return PaneLayout.placements(layout).map(({ pane, box, height }) =>
+        [
+            pane.items.map(({ id }) => id).join(" "),
+            `@${[box.start, box.top, box.width, box.height].map((each) => each.toFixed(2)).join(",")}`,
+            height,
+        ].join(" "),
+    );
+}
+
+/** Where the floats of these tests are. */
+const BOUNDS = { start: 0.1, top: 0.2, width: 0.5, height: 0.4 };
+
+test("float a tab, split it there, raise it, move it and dock it again", () => {
+    const start = PaneLayout.of(["a", "b", "c"]);
+    const floated = PaneLayout.move(start, "b", { kind: "float", bounds: BOUNDS });
+    const own = PaneLayout.paneOf(floated, "b")?.id ?? "";
+    const split = PaneLayout.move(floated, "c", { kind: "side", pane: own, side: "end" });
+    const second = PaneLayout.open(split, "d", { kind: "float", bounds: BOUNDS });
+    const raised = PaneLayout.select(second, "b");
+    const moved = PaneLayout.place(raised, "float-1", { ...BOUNDS, start: 0.3 });
+    const docked = PaneLayout.dock(moved, own, { kind: "side", side: "end" });
+
+    expect([split, raised, moved, docked].map(where)).toEqual([
+        ["a @0.00,0.00,1.00,1.00 0", "b @0.10,0.20,0.25,0.40 1", "c @0.35,0.20,0.25,0.40 1"],
+        [
+            "a @0.00,0.00,1.00,1.00 0",
+            "d @0.10,0.20,0.50,0.40 1",
+            "b @0.10,0.20,0.25,0.40 2",
+            "c @0.35,0.20,0.25,0.40 2",
+        ],
+        [
+            "a @0.00,0.00,1.00,1.00 0",
+            "d @0.10,0.20,0.50,0.40 1",
+            "b @0.30,0.20,0.25,0.40 2",
+            "c @0.55,0.20,0.25,0.40 2",
+        ],
+        [
+            "a @0.00,0.00,0.50,1.00 0",
+            "b @0.50,0.00,0.50,1.00 0",
+            "d @0.10,0.20,0.50,0.40 1",
+            "c @0.30,0.20,0.50,0.40 2",
+        ],
+    ]);
+});
+
 /** List the panes that show. */
 function shown(layout: PaneLayout): readonly string[] {
     return PaneLayout.placements(layout).map(({ pane }) => pane.id);
@@ -189,13 +236,15 @@ test("hold every rule through any sequence of changes", () => {
             const item = items[next(items.length)] ?? "none";
             const side = sides[next(4)] ?? "end";
             const place: PanePlace =
-                next(3) === 0
-                    ? { kind: "item", pane, index: next(3) }
-                    : next(4) === 0
-                      ? { kind: "side", side }
-                      : { kind: "side", pane, side };
+                next(6) === 0
+                    ? { kind: "float", bounds: BOUNDS }
+                    : next(3) === 0
+                      ? { kind: "item", pane, index: next(3) }
+                      : next(4) === 0
+                        ? { kind: "side", side }
+                        : { kind: "side", pane, side };
             const expected = new Set(items);
-            switch (next(8)) {
+            switch (next(9)) {
                 case 0: {
                     opened += 1;
                     expected.add(`n${String(opened)}`);
@@ -224,6 +273,13 @@ test("hold every rule through any sequence of changes", () => {
                         layout.maximized === undefined
                             ? PaneLayout.maximize(layout, pane)
                             : PaneLayout.restore(layout);
+                    break;
+                }
+                case 6: {
+                    layout = PaneLayout.place(layout, layout.floats[0]?.id ?? "gone", {
+                        ...BOUNDS,
+                        start: next(5) / 10,
+                    });
                     break;
                 }
                 default: {
@@ -265,13 +321,24 @@ function problemsOf(layout: PaneLayout, expected: ReadonlySet<string>): readonly
         problems.push("active");
     }
 
-    // fill the group without gaps, and alternate the axes
-    const area = PaneLayout.placements({ ...layout, maximized: undefined }).reduce(
-        (sum, { box }) => sum + box.width * box.height,
-        0,
-    );
-    if (panes.length > 0 && Math.abs(area - 1) > 1e-6) {
-        problems.push(`area ${String(area)}`);
+    // fill the group and each float without gaps, and alternate the axes
+    const areas = new Map<number, number>();
+    for (const { box, height } of PaneLayout.placements(PaneLayout.restore(layout))) {
+        areas.set(height, (areas.get(height) ?? 0) + box.width * box.height);
+    }
+    const whole = [
+        ...(layout.root === undefined ? [] : [[0, 1] as const]),
+        ...layout.floats.map(
+            ({ bounds }, index) => [index + 1, bounds.width * bounds.height] as const,
+        ),
+    ];
+    for (const [height, area] of whole) {
+        if (Math.abs((areas.get(height) ?? 0) - area) > 1e-6) {
+            problems.push(`area ${String(areas.get(height))} at ${String(height)}`);
+        }
+    }
+    if (areas.size !== whole.length) {
+        problems.push(`trees ${String(areas.size)}`);
     }
     const check = (node: PaneNode): void => {
         if (node.kind === "split") {
@@ -288,6 +355,7 @@ function problemsOf(layout: PaneLayout, expected: ReadonlySet<string>): readonly
     if (layout.root !== undefined) {
         check(layout.root);
     }
+    layout.floats.forEach(({ root }) => check(root));
 
     return problems;
 }

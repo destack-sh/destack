@@ -8,7 +8,7 @@ import {
     ContextMenuTrigger,
 } from "../context-menu/index.ts";
 import { Menu, MenuControl } from "../menu/index.ts";
-import type { PartAttributes } from "../part/index.ts";
+import { mergeProperties, type PartAttributes } from "../part/index.ts";
 import { Overflow, OverflowMenu } from "../overflow/index.ts";
 import { SortableContainer, SortableItem } from "../sortable/index.ts";
 import {
@@ -26,7 +26,7 @@ import {
     type TabsVariant,
 } from "../tabs/index.ts";
 import { usePane } from "./control.ts";
-import { TAB_TYPE } from "./drag.ts";
+import { PANE_TYPE, TAB_TYPE } from "./drag.ts";
 import { type PaneItem, PaneLayout } from "./layout.ts";
 import { PaneMenuItems } from "./menu.tsx";
 import { PaneBar } from "./pane.tsx";
@@ -37,9 +37,9 @@ const styles = style.create({
         flexShrink: 0,
         gap: 0,
     },
-    // step back in the panes the person is not in
+    // step back as the selected tab of a pane the person is not in
     quiet: {
-        color: { default: color.mutedForeground, [media.forcedColors]: null },
+        color: { default: color.mutedForeground, [media.forcedColors]: "HighlightText" },
     },
 });
 
@@ -67,6 +67,23 @@ export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
     const rest = omit(properties, "children", "end", "menu", "variant", "sizing");
     const variant = (): TabsVariant => properties.variant ?? "card";
 
+    // take what the pane takes among its tabs, besides panes
+    const types = (): readonly string[] =>
+        [TAB_TYPE, ...(group.entry(pane().id)?.accepts() ?? [])].filter(
+            (type, index, all) => type !== PANE_TYPE && all.indexOf(type) === index,
+        );
+
+    // list the tabs of every pane where only the active one shows
+    const items = (): readonly PaneItem[] => {
+        if (!group.isSingle()) {
+            return pane().items;
+        }
+
+        return group.layout().active === pane().id
+            ? PaneLayout.panes(group.layout()).flatMap((each) => each.items)
+            : [];
+    };
+
     // share one menu among the tabs
     const hasMenu = untrack(() => !("menu" in properties) || properties.menu !== null);
     const menu = new MenuControl(null);
@@ -77,7 +94,7 @@ export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
             {...rest}
             idPrefix={group.prefix}
             value={PaneLayout.selected(pane())?.id ?? ""}
-            onValueChange={(item) => group.change((layout) => PaneLayout.select(layout, item))}
+            onValueChange={(item) => group.select(item)}
             onClose={(item) => group.close(item)}
             onMove={(item, index) =>
                 group.move({
@@ -85,6 +102,7 @@ export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
                     type: TAB_TYPE,
                     place: { kind: "item", pane: untrack(pane).id, index },
                     isCopied: false,
+                    items: [],
                 })
             }
             onReopen={group.closed().length === 0 ? undefined : () => group.reopen()}
@@ -97,7 +115,8 @@ export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
                             <SortableContainer
                                 id={untrack(() => pane().id)}
                                 orientation="horizontal"
-                                accepts={[TAB_TYPE]}
+                                accepts={types()}
+                                height={group.placement(pane().id)?.height ?? 0}
                                 render={(list) => (
                                     <TabsList
                                         {...list}
@@ -106,7 +125,7 @@ export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
                                     />
                                 )}
                             >
-                                <For each={pane().items} keyed={(item) => item.id}>
+                                <For each={items()} keyed={(item) => item.id}>
                                     {(item) =>
                                         properties.children === undefined ? (
                                             <PaneTab item={item()} />
@@ -164,9 +183,11 @@ export function PaneTab(properties: PaneTabProperties): JSX.Element {
     const menu = useContext(PaneMenuContext);
     const id = untrack(() => properties.item.id);
 
-    // step back while another pane is active, and open the pane's menu
+    // step back as the selected tab while another pane is active, and open the pane's menu
     const isQuiet = (): boolean =>
-        group.layout().active !== pane().id && PaneLayout.panes(group.layout()).length > 1;
+        group.layout().active !== pane().id &&
+        PaneLayout.panes(group.layout()).length > 1 &&
+        PaneLayout.selected(pane())?.id === id;
     const item = (part: PartAttributes): JSX.Element => (
         <TabsItem
             {...part}
@@ -195,12 +216,53 @@ export function PaneTab(properties: PaneTabProperties): JSX.Element {
                 properties.children
             ) : (
                 <>
-                    <TabsTrigger>
+                    <PaneLink item={properties.item}>
                         {group.options.label?.(properties.item) ?? properties.item.value}
-                    </TabsTrigger>
+                    </PaneLink>
                     <TabsClose />
                 </>
             )}
         </SortableItem>
+    );
+}
+
+/** Render the words of a tab, a link where its item has an address. */
+function PaneLink(properties: {
+    /** The item. */
+    readonly item: PaneItem;
+    /** The words. */
+    readonly children: JSX.Element;
+}): JSX.Element {
+    // leave a press with a modifier to the browser, which opens the address elsewhere
+    const { group } = usePane();
+    const hasAddress = untrack(() => group.options.href !== undefined);
+    const link = (part: PartAttributes): JSX.Element => (
+        <a
+            {...mergeProperties(part, {
+                get href() {
+                    return group.options.href?.(properties.item);
+                },
+                type: undefined,
+                draggable: "false" as const,
+                onKeyDown: (event: KeyboardEvent & { readonly currentTarget: HTMLElement }) => {
+                    if (event.key === " ") {
+                        event.preventDefault();
+                        event.currentTarget.click();
+                    }
+                },
+            })}
+            onClick={(event) => {
+                if (!event.metaKey && !event.ctrlKey && !event.shiftKey) {
+                    event.preventDefault();
+                    group.select(properties.item.id);
+                }
+            }}
+        />
+    );
+
+    return hasAddress ? (
+        <TabsTrigger render={link}>{properties.children}</TabsTrigger>
+    ) : (
+        <TabsTrigger>{properties.children}</TabsTrigger>
     );
 }

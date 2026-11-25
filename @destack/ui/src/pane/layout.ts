@@ -40,14 +40,38 @@ export interface PaneSplit {
 /** A pane, or a split of them. */
 export type PaneNode = PaneLeaf | PaneSplit;
 
+/** Panes that float over the others. */
+export interface PaneFloat {
+    /** The id, unique in the layout. */
+    readonly id: string;
+    /** The panes. */
+    readonly root: PaneNode;
+    /** Where it is, as shares of the group's size. */
+    readonly bounds: PaneBox;
+}
+
 /** Where each pane is, and what it has open. */
 export interface PaneLayout {
-    /** The panes, undefined without any. */
+    /** The panes side by side, undefined without any. */
     readonly root: PaneNode | undefined;
+    /** The panes that float over them, the one on top last. */
+    readonly floats: readonly PaneFloat[];
     /** The id of the pane the person is in, undefined without panes. */
     readonly active: string | undefined;
     /** The id of the pane that covers the others, undefined while none does. */
     readonly maximized: string | undefined;
+}
+
+/** A tree of panes: those side by side, or a float's. */
+export interface PaneTree {
+    /** The panes. */
+    readonly root: PaneNode;
+    /** The id of the float, undefined side by side. */
+    readonly float: string | undefined;
+    /** Where it is. */
+    readonly bounds: PaneBox;
+    /** How high it floats, zero side by side. */
+    readonly height: number;
 }
 
 /** Where an item or a pane goes. */
@@ -67,6 +91,12 @@ export type PanePlace =
           readonly pane?: string;
           /** The side. */
           readonly side: PaneSide;
+      }
+    | {
+          /** In a pane that floats over the others. */
+          readonly kind: "float";
+          /** Where it floats. */
+          readonly bounds: PaneBox;
       };
 
 /** A box as shares of the group's size. */
@@ -87,10 +117,20 @@ export interface PanePlacement {
     readonly pane: PaneLeaf;
     /** Its box. */
     readonly box: PaneBox;
+    /** How high it floats, zero for one side by side with the others. */
+    readonly height: number;
+}
+
+/** Where a split is in a layout. */
+export interface PanePath {
+    /** The id of the float it is in, undefined side by side. */
+    readonly float: string | undefined;
+    /** The places of the splits down to it, from the root. */
+    readonly path: readonly number[];
 }
 
 /** The line between two parts of a split. */
-export interface PaneEdge {
+export interface PaneEdge extends PanePath {
     /** The places of the splits down to its own, from the root. */
     readonly path: readonly number[];
     /** The place of the part before it. */
@@ -137,14 +177,30 @@ export const PaneLayout = {
 
         return {
             root: leaves.length > 1 ? row : only,
+            floats: [],
             active: only?.id,
             maximized: undefined,
         };
     },
 
+    /** List the trees of panes, the one on top last. */
+    trees(layout: PaneLayout): readonly PaneTree[] {
+        // put those side by side under the floats
+        const floats = layout.floats.map(({ id, root, bounds }, index) => ({
+            root,
+            float: id,
+            bounds,
+            height: index + 1,
+        }));
+
+        return layout.root === undefined
+            ? floats
+            : [{ root: layout.root, float: undefined, bounds: WHOLE, height: 0 }, ...floats];
+    },
+
     /** List the panes in the order they are read. */
     panes(layout: PaneLayout): readonly PaneLeaf[] {
-        return layout.root === undefined ? [] : panesOf(layout.root);
+        return PaneLayout.trees(layout).flatMap(({ root }) => panesOf(root));
     },
 
     /** Read a pane by its id. */
@@ -201,7 +257,7 @@ export const PaneLayout = {
         }
 
         // add it in a pane of its own
-        return beside(layout, opened, target);
+        return apart(layout, opened, target);
     },
 
     /** Select an item, in its pane and its pane among the others. */
@@ -216,15 +272,20 @@ export const PaneLayout = {
         return PaneLayout.activate(replace(layout, pane.id, { ...pane, recent }), pane.id);
     },
 
-    /** Activate a pane, which then covers the others where one did. */
+    /** Activate a pane, which then covers the others where one did, its float on top. */
     activate(layout: PaneLayout, pane: string): PaneLayout {
         // leave a layout without it
         if (PaneLayout.pane(layout, pane) === undefined) {
             return layout;
         }
         const maximized = layout.maximized === undefined ? undefined : pane;
+        const over = PaneLayout.floatOf(layout, pane);
+        const floats =
+            over === undefined || over === layout.floats.at(-1)
+                ? layout.floats
+                : [...layout.floats.filter((each) => each !== over), over];
 
-        return { ...layout, active: pane, maximized };
+        return { ...layout, floats, active: pane, maximized };
     },
 
     /** Move an item and select it where it lands. */
@@ -245,7 +306,7 @@ export const PaneLayout = {
         // take it out, its pane standing until it landed
         const without = replace(layout, from.id, withoutItem(from, item));
         const landed =
-            place.kind === "item" ? insert(without, place, moved) : beside(without, moved, place);
+            place.kind === "item" ? insert(without, place, moved) : apart(without, moved, place);
 
         return settle(landed);
     },
@@ -296,12 +357,14 @@ export const PaneLayout = {
             return PaneLayout.merge(layout, pane, place.pane);
         }
         // leave one beside itself, or beside one that is gone
-        else if (from === undefined || place.pane === pane || !isThere(layout, place)) {
+        else if (from === undefined || !isThere(layout, place)) {
+            return layout;
+        } else if (place.kind === "side" && place.pane === pane) {
             return layout;
         }
         const without = settle(replace(layout, pane, undefined));
 
-        return PaneLayout.activate(splitAt(without, from, place), pane);
+        return PaneLayout.activate(put(without, from, place), pane);
     },
 
     /** Exchange the places of two panes. */
@@ -309,14 +372,13 @@ export const PaneLayout = {
         // leave panes that are not there
         const first = PaneLayout.pane(layout, one);
         const second = PaneLayout.pane(layout, other);
-        if (first === undefined || second === undefined || layout.root === undefined) {
+        if (first === undefined || second === undefined) {
             return layout;
         }
-        const root = mapPanes(layout.root, (pane) =>
-            pane.id === one ? second : pane.id === other ? first : pane,
-        );
 
-        return { ...layout, root };
+        return mapTrees(layout, (root) =>
+            mapPanes(root, (pane) => (pane.id === one ? second : pane.id === other ? first : pane)),
+        );
     },
 
     /** Cover the others with a pane. */
@@ -332,46 +394,67 @@ export const PaneLayout = {
         return { ...layout, maximized: undefined };
     },
 
+    /** Set where a float is. */
+    place(layout: PaneLayout, float: string, bounds: PaneBox): PaneLayout {
+        return {
+            ...layout,
+            floats: layout.floats.map((each) => (each.id === float ? { ...each, bounds } : each)),
+        };
+    },
+
     /** Set the shares of the parts of a split. */
-    resize(layout: PaneLayout, path: readonly number[], sizes: readonly number[]): PaneLayout {
-        return layout.root === undefined
-            ? layout
-            : { ...layout, root: resizeAt(layout.root, path, sizes) };
+    resize(layout: PaneLayout, at: PanePath, sizes: readonly number[]): PaneLayout {
+        return mapTrees(layout, (root, float) =>
+            float === at.float ? resizeAt(root, at.path, sizes) : root,
+        );
     },
 
     /** Give the parts of a split even shares, of every split by default. */
-    distribute(layout: PaneLayout, path?: readonly number[]): PaneLayout {
+    distribute(layout: PaneLayout, at?: PanePath): PaneLayout {
         // even out the parts of each split
-        if (layout.root === undefined) {
-            return layout;
-        } else if (path === undefined) {
-            return { ...layout, root: evenOut(layout.root) };
+        if (at === undefined) {
+            return mapTrees(layout, evenOut);
         }
-        const split = nodeAt(layout.root, path);
+        const split = PaneLayout.node(layout, at);
 
         return split?.kind === "split"
-            ? PaneLayout.resize(layout, path, evenSizes(split.children.length))
+            ? PaneLayout.resize(layout, at, evenSizes(split.children.length))
             : layout;
+    },
+
+    /** Read the node at a path. */
+    node(layout: PaneLayout, at: PanePath): PaneNode | undefined {
+        const tree = PaneLayout.trees(layout).find(({ float }) => float === at.float);
+
+        return tree === undefined ? undefined : nodeAt(tree.root, at.path);
+    },
+
+    /** Read the float a pane is in, undefined side by side. */
+    floatOf(layout: PaneLayout, pane: string): PaneFloat | undefined {
+        return layout.floats.find(({ root }) => panesOf(root).some(({ id }) => id === pane));
     },
 
     /** Read where each pane is, only the one that covers the others. */
     placements(layout: PaneLayout): readonly PanePlacement[] {
         // cover the others
-        const { root } = layout;
         const maximized =
             layout.maximized === undefined ? undefined : PaneLayout.pane(layout, layout.maximized);
         if (maximized !== undefined) {
-            return [{ pane: maximized, box: WHOLE }];
+            return [{ pane: maximized, box: WHOLE, height: layout.floats.length }];
         }
 
-        return root === undefined ? [] : placementsOf(root, WHOLE);
+        return PaneLayout.trees(layout).flatMap(({ root, bounds, height }) =>
+            placementsOf(root, bounds).map((each) => ({ ...each, height })),
+        );
     },
 
     /** Read the lines between the parts of every split. */
     edges(layout: PaneLayout): readonly PaneEdge[] {
-        return layout.root === undefined || layout.maximized !== undefined
-            ? []
-            : edgesOf(layout.root, WHOLE, []);
+        return layout.maximized === undefined
+            ? PaneLayout.trees(layout).flatMap(({ root, bounds, float }) =>
+                  edgesOf(root, bounds, { float, path: [] }),
+              )
+            : [];
     },
 
     /** Read the share a pane takes beside all the others. */
@@ -386,7 +469,9 @@ export const PaneLayout = {
     /** Read the pane on a side of another, the nearest its middle. */
     neighbor(layout: PaneLayout, pane: string, side: PaneSide): PaneLeaf | undefined {
         // look across the side it shares with others
-        const placements = layout.root === undefined ? [] : placementsOf(layout.root, WHOLE);
+        const own = PaneLayout.floatOf(layout, pane)?.id;
+        const tree = PaneLayout.trees(layout).find(({ float }) => float === own);
+        const placements = tree === undefined ? [] : placementsOf(tree.root, tree.bounds);
         const from = placements.find((each) => each.pane.id === pane)?.box;
         if (from === undefined) {
             return undefined;
@@ -466,21 +551,44 @@ function placeIn(layout: PaneLayout): PanePlace | undefined {
     return pane === undefined ? undefined : { kind: "item", pane: pane.id };
 }
 
-/** Report whether the pane of a place is there. */
-function isThere(layout: PaneLayout, place: PanePlace): boolean {
-    return place.pane === undefined || PaneLayout.pane(layout, place.pane) !== undefined;
+/** Replace every tree, leaving out one without panes. */
+function mapTrees(
+    layout: PaneLayout,
+    change: (root: PaneNode, float: string | undefined) => PaneNode | undefined,
+): PaneLayout {
+    return {
+        ...layout,
+        root: layout.root === undefined ? undefined : change(layout.root, undefined),
+        floats: layout.floats.flatMap((float) => {
+            const root = change(float.root, float.id);
+
+            return root === undefined ? [] : [{ ...float, root }];
+        }),
+    };
 }
 
-/** Read an id no pane has. */
-function freeId(layout: PaneLayout): string {
+/** Report whether the pane of a place is there. */
+function isThere(layout: PaneLayout, place: PanePlace): boolean {
+    return (
+        place.kind === "float" ||
+        place.pane === undefined ||
+        PaneLayout.pane(layout, place.pane) !== undefined
+    );
+}
+
+/** Read an id neither a pane nor a float has. */
+function freeId(layout: PaneLayout, prefix: "pane" | "float"): string {
     // take the first number that is free
-    const taken = new Set(PaneLayout.panes(layout).map(({ id }) => id));
+    const taken = new Set([
+        ...PaneLayout.panes(layout).map(({ id }) => id),
+        ...layout.floats.map(({ id }) => id),
+    ]);
     let number = 1;
-    while (taken.has(`pane-${String(number)}`)) {
+    while (taken.has(`${prefix}-${String(number)}`)) {
         number += 1;
     }
 
-    return `pane-${String(number)}`;
+    return `${prefix}-${String(number)}`;
 }
 
 /** Insert an item among a pane's and select it. */
@@ -499,15 +607,15 @@ function insert(
     return PaneLayout.select(replace(layout, pane.id, { ...pane, items }), item.id);
 }
 
-/** Open an item in a pane of its own, beside another or all. */
-function beside(
+/** Open an item in a pane of its own, beside another or all, or afloat. */
+function apart(
     layout: PaneLayout,
     item: string | PaneItem,
-    place?: Extract<PanePlace, { kind: "side" }>,
+    place?: Exclude<PanePlace, { kind: "item" }>,
 ): PaneLayout {
     // open at the end without a place
     const opened = itemOf(item);
-    const id = freeId(layout);
+    const id = freeId(layout, "pane");
     const pane: PaneLeaf = {
         kind: "leaf",
         id,
@@ -515,9 +623,25 @@ function beside(
         recent: [opened.id],
         isKept: false,
     };
-    const split = splitAt(layout, pane, place ?? { kind: "side", side: "end" });
+    const next = put(layout, pane, place ?? { kind: "side", side: "end" });
 
-    return PaneLayout.activate(split, id);
+    return PaneLayout.activate(next, id);
+}
+
+/** Put a pane beside another or all, or afloat. */
+function put(
+    layout: PaneLayout,
+    pane: PaneLeaf,
+    place: Exclude<PanePlace, { kind: "item" }>,
+): PaneLayout {
+    // float it on top
+    if (place.kind === "float") {
+        const float = { id: freeId(layout, "float"), root: pane, bounds: place.bounds };
+
+        return { ...layout, floats: [...layout.floats, float], maximized: undefined };
+    }
+
+    return splitAt(layout, pane, place);
 }
 
 /** Put a pane beside another, taking half of its room, or beside all, taking an even part. */
@@ -526,15 +650,14 @@ function splitAt(
     pane: PaneLeaf,
     place: Extract<PanePlace, { kind: "side" }>,
 ): PaneLayout {
-    // take the whole without others
-    const { root } = layout;
-    if (root === undefined) {
-        return { ...layout, root: pane };
-    }
-
     // go beside all of them
+    const { root } = layout;
     const direction = axisOf(place.side);
     if (place.pane === undefined) {
+        // take the whole without others, else an even part
+        if (root === undefined) {
+            return { ...layout, root: pane };
+        }
         const parts =
             root.kind === "split" && root.direction === direction ? root.children : [root];
         const sizes = root.kind === "split" && root.direction === direction ? root.sizes : [1];
@@ -561,10 +684,9 @@ function splitAt(
         sizes: [0.5, 0.5],
     });
 
-    return {
-        ...layout,
-        root: simplify(mapPanes(root, (each) => (each.id === target ? pair(each) : each))),
-    };
+    return mapTrees(layout, (tree) =>
+        simplify(mapPanes(tree, (each) => (each.id === target ? pair(each) : each))),
+    );
 }
 
 /** Replace every pane of a node. */
@@ -577,13 +699,9 @@ function mapPanes(node: PaneNode, change: (pane: PaneLeaf) => PaneNode): PaneNod
 /** Replace one pane, or leave it out. */
 function replace(layout: PaneLayout, id: string, next: PaneLeaf | undefined): PaneLayout {
     // leave it out of its split, the others taking its room
-    if (layout.root === undefined) {
-        return layout;
-    } else if (next === undefined) {
-        return { ...layout, root: filterPanes(layout.root, (pane) => pane.id !== id) };
-    }
-
-    return { ...layout, root: mapPanes(layout.root, (pane) => (pane.id === id ? next : pane)) };
+    return next === undefined
+        ? mapTrees(layout, (root) => filterPanes(root, (pane) => pane.id !== id))
+        : mapTrees(layout, (root) => mapPanes(root, (pane) => (pane.id === id ? next : pane)));
 }
 
 /** Leave out panes, and splits without parts, the rest taking their room in proportion. */
@@ -643,15 +761,14 @@ function simplify(node: PaneNode): PaneNode {
 /** Leave out panes without items, and activate one that is there. */
 function settle(layout: PaneLayout): PaneLayout {
     // keep what has items, or stays without
-    const root =
-        layout.root === undefined
-            ? undefined
-            : filterPanes(layout.root, (pane) => pane.items.length > 0 || pane.isKept);
-    const panes = root === undefined ? [] : panesOf(root);
+    const kept = mapTrees(layout, (root) =>
+        filterPanes(root, (pane) => pane.items.length > 0 || pane.isKept),
+    );
+    const panes = PaneLayout.panes(kept);
     const has = (id: string | undefined): boolean => panes.some((pane) => pane.id === id);
 
     return {
-        root,
+        ...kept,
         active: has(layout.active) ? layout.active : panes[0]?.id,
         maximized: has(layout.maximized) ? layout.maximized : undefined,
     };
@@ -710,7 +827,7 @@ function boxesOf(split: PaneSplit, box: PaneBox): readonly PaneBox[] {
 }
 
 /** List where the panes of a node are. */
-function placementsOf(node: PaneNode, box: PaneBox): readonly PanePlacement[] {
+function placementsOf(node: PaneNode, box: PaneBox): readonly Omit<PanePlacement, "height">[] {
     // take the box, or share it out
     if (node.kind === "leaf") {
         return [{ pane: node, box }];
@@ -721,7 +838,7 @@ function placementsOf(node: PaneNode, box: PaneBox): readonly PanePlacement[] {
 }
 
 /** List the lines between the parts of a node's splits. */
-function edgesOf(node: PaneNode, box: PaneBox, path: readonly number[]): readonly PaneEdge[] {
+function edgesOf(node: PaneNode, box: PaneBox, at: PanePath): readonly PaneEdge[] {
     // leave a pane
     if (node.kind === "leaf") {
         return [];
@@ -736,7 +853,7 @@ function edgesOf(node: PaneNode, box: PaneBox, path: readonly number[]): readonl
                 : { ...first, height: first.height + second.height };
 
         return {
-            path,
+            ...at,
             index,
             direction,
             box: both,
@@ -744,7 +861,7 @@ function edgesOf(node: PaneNode, box: PaneBox, path: readonly number[]): readonl
         };
     });
     const inner = children.flatMap((child, index) =>
-        edgesOf(child, boxes[index] ?? box, [...path, index]),
+        edgesOf(child, boxes[index] ?? box, { ...at, path: [...at.path, index] }),
     );
 
     return [...own, ...inner];

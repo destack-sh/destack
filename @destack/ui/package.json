@@ -54,6 +54,7 @@
         "./empty": "./src/empty/index.ts",
         "./file-item": "./src/file-item/index.ts",
         "./field": "./src/field/index.ts",
+        "./floating-panel": "./src/floating-panel/index.ts",
         "./focus": "./src/focus/index.ts",
         "./glyph": "./src/glyph/index.ts",
         "./grid-list": "./src/grid-list/index.ts",

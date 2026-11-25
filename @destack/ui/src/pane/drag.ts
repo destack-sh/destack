@@ -1,7 +1,7 @@
 import { t } from "@destack/locale";
 import { untrack, useLocale } from "@destack/view";
 import { Draggable, type DragOperation, type DragTarget, Droppable } from "../drag/index.ts";
-import type { PaneEntry, PaneGroupControl } from "./control.ts";
+import type { PaneEntry, PaneGroupControl, PaneWindow } from "./control.ts";
 import { PaneLayout, type PanePlace, type PaneSide } from "./layout.ts";
 
 /** The type of a tab as it is dragged. */
@@ -53,6 +53,43 @@ export class PaneDrag {
             },
             group.manager,
         );
+
+        // open what is dropped outside the page in a window of its own
+        const outside = `${this.group.prefix}-outside`;
+        void new Droppable(
+            {
+                id: outside,
+                group: this.group.prefix,
+                axis: "both",
+                area: "outside",
+                element: () => this.group.element(),
+                accepts: ({ type, item }) =>
+                    type === TAB_TYPE && !this.group.isLocked() && this.group.canOpen(item),
+                measure: () => undefined,
+                targetAt: () => ({ kind: "outside", droppable: outside }),
+                step: () => undefined,
+                enter: () => ({ kind: "outside", droppable: outside }),
+                describe: () => ({ kind: "label", label: locale.render(t`A new window`) }),
+                drop: (operation) => this.#drop(operation, this.#window()),
+            },
+            group.manager,
+        );
+    }
+
+    /** Read where a window dropped outside the page goes on the screen. */
+    #window(): PaneWindow {
+        // count the browser's own bars, which are over the page
+        const view = this.group.element()?.ownerDocument.defaultView;
+        const pointer = this.group.manager.pointer();
+        if (view === undefined || view === null || pointer === undefined) {
+            return { kind: "window" };
+        }
+
+        return {
+            kind: "window",
+            left: view.screenX + pointer.x,
+            top: view.screenY + view.outerHeight - view.innerHeight + pointer.y,
+        };
     }
 
     /** Take what a person drags over a pane, on its sides and its middle. */
@@ -68,8 +105,9 @@ export class PaneDrag {
                 group: this.group.prefix,
                 axis: "both",
                 element: entry.element,
-                accepts: (draggable) =>
-                    !this.group.isLocked() && (entry.accepts() ?? TYPES).includes(draggable.type),
+                height: () => this.group.placement(entry.id)?.height ?? 0,
+                accepts: ({ type }) =>
+                    !this.group.isLocked() && (entry.accepts() ?? TYPES).includes(type),
                 measure: () => undefined,
                 targetAt: (x, y, operation) => this.#targetAt(entry, droppable, x, y, operation),
                 step: () => undefined,
@@ -107,9 +145,10 @@ export class PaneDrag {
                     side: "middle",
                 }),
                 isDisabled: () => this.group.isLocked(),
-                // leave presses on its tabs to them
+                // leave presses on its tabs to them, and a float's to its moves
                 canLift: ({ target }) =>
-                    !(target instanceof Element) || target.closest("[role=tab]") === null,
+                    PaneLayout.floatOf(this.group.layout(), pane) === undefined &&
+                    (!(target instanceof Element) || target.closest("[role=tab]") === null),
             },
             this.group.manager,
         );
@@ -149,7 +188,9 @@ export class PaneDrag {
                   : "start";
         const layout = untrack(() => this.group.options.layout);
         const group = this.group.element()?.getBoundingClientRect();
-        if (group !== undefined && layout.root?.kind === "split") {
+        const isFloating = PaneLayout.floatOf(layout, entry.id) !== undefined;
+        const isBeside = !isFloating && !untrack(this.group.isSingle);
+        if (group !== undefined && layout.root?.kind === "split" && isBeside) {
             const [outer, distance] = nearestSide(group, x, y, (length) => length);
             if (distance <= GROUP_REACH) {
                 return { kind: "side", droppable: this.group.prefix, side: side(outer) };
@@ -162,7 +203,8 @@ export class PaneDrag {
             return undefined;
         }
         const [near, share] = nearestSide(bounds, x, y, (length, whole) => length / whole);
-        const found = share <= SIDE_SHARE ? side(near) : "middle";
+        const isSplit = share <= SIDE_SHARE && !untrack(this.group.isSingle);
+        const found = isSplit ? side(near) : "middle";
         const pane = PaneLayout.pane(layout, entry.id);
         const isOwn =
             operation.type === PANE_TYPE
@@ -176,12 +218,13 @@ export class PaneDrag {
     }
 
     /** Make the move of a drop. */
-    #drop(operation: DragOperation, place: PanePlace): void {
+    #drop(operation: DragOperation, place: PanePlace | PaneWindow): void {
         this.group.move({
             id: operation.item,
             type: operation.type,
             place,
-            isCopied: operation.effect === "copy",
+            isCopied: operation.effect === "copy" && operation.items.length === 0,
+            items: operation.items,
         });
     }
 }

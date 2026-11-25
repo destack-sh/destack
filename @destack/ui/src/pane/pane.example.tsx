@@ -9,7 +9,19 @@ import { Button } from "../button/index.ts";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../empty/index.ts";
 import { Icon } from "../icon/index.ts";
 import { TabsClose, TabsTrigger } from "../tabs/index.ts";
-import { PaneBar, PaneContent, PaneGroup, PaneLayout, PaneTab, PaneTabs, Pane } from "./index.ts";
+import { FILES_TYPE } from "../drag/index.ts";
+import {
+    PANE_TYPE,
+    PaneBar,
+    PaneContent,
+    PaneGroup,
+    PaneLayout,
+    PaneMove,
+    PaneTab,
+    PaneTabs,
+    Pane,
+    TAB_TYPE,
+} from "./index.ts";
 
 /** The styles of the examples' windows. */
 const styles = style.create({
@@ -60,6 +72,7 @@ function Editor(): JSX.Element {
         <PaneGroup
             layout={layout()}
             onLayoutChange={setLayout}
+            href={(item) => `?file=${item.value}`}
             xstyle={styles.window}
             content={(item) => (
                 <textarea
@@ -76,6 +89,60 @@ function Editor(): JSX.Element {
                 </Empty>
             }
         />
+    );
+}
+
+/** Files in panes, which take more from the desktop. */
+export const paneFiles = defineExample({
+    of: PaneGroup,
+    name: "files",
+    description: "files in panes, which open and split with files from the desktop",
+    render: () => <Files />,
+});
+
+/** Render files in panes, and read those dropped there. */
+function Files(): JSX.Element {
+    // remember what each file says
+    const [layout, setLayout] = createSignal(PaneLayout.of(["plan.md"]));
+    const texts = new Map([["plan.md", "Drop a text file beside this one."]]);
+    const open = async (move: PaneMove): Promise<void> => {
+        // read each file, then open the first where it landed and the others beside it
+        const files = move.items.flatMap((item) => (item.kind === "file" ? [item.file] : []));
+        for (const [index, file] of files.entries()) {
+            texts.set(file.name, await file.text());
+            setLayout((all) =>
+                PaneLayout.open(
+                    all,
+                    file.name,
+                    index === 0 && move.place.kind !== "window" ? move.place : undefined,
+                ),
+            );
+        }
+    };
+
+    return (
+        <PaneGroup
+            layout={layout()}
+            onLayoutChange={setLayout}
+            onMove={(move) =>
+                move.items.length === 0
+                    ? setLayout((all) => PaneMove.apply(all, move))
+                    : void open(move)
+            }
+            xstyle={styles.window}
+            content={(item) => (
+                <textarea aria-label={item().value} {...style.attributes([text.sm, styles.editor])}>
+                    {texts.get(item().value) ?? ""}
+                </textarea>
+            )}
+        >
+            {() => (
+                <Pane accepts={[TAB_TYPE, PANE_TYPE, FILES_TYPE]}>
+                    <PaneTabs />
+                    <PaneContent />
+                </Pane>
+            )}
+        </PaneGroup>
     );
 }
 

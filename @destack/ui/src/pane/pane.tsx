@@ -21,7 +21,7 @@ import { type ElementPartProperties, mergeProperties, renderPart } from "../part
 import { Sortable } from "../sortable/index.ts";
 import { TabsControl } from "../tabs/index.ts";
 import {
-    LEAST_LENGTH,
+    LEAST,
     PaneContext,
     type PaneControl,
     type PaneEntry,
@@ -32,7 +32,15 @@ import {
     usePane,
     usePaneGroup,
 } from "./control.ts";
-import { type PaneBox, type PaneEdge, type PaneItem, PaneLayout, type PaneLeaf } from "./layout.ts";
+import {
+    type PaneBox,
+    type PaneEdge,
+    type PaneItem,
+    PaneLayout,
+    type PaneLeaf,
+    type PanePlacement,
+} from "./layout.ts";
+import { frameOf, LAYERS, PaneFrame } from "./float.tsx";
 import { PaneTabs } from "./tabs.tsx";
 
 /** The pixels a key moves a line between panes by. */
@@ -43,6 +51,9 @@ const REACH = {
     default: `calc(-1 * ${space[1]})`,
     [media.pointerCoarse]: `calc(-1 * ${space[3]})`,
 };
+
+/** The share by which sums of shares round. */
+const EPSILON = 1e-6;
 
 /** The pixels around a crossing of two lines that take both. */
 const CROSSING = 8;
@@ -56,6 +67,7 @@ const styles = style.create({
         minWidth: 0,
         minHeight: 0,
         overflow: "hidden",
+        isolation: "isolate",
     },
     sortable: {
         display: "contents",
@@ -74,6 +86,13 @@ const styles = style.create({
         width,
         height,
     }),
+    layer: (layer: number) => ({ zIndex: layer }),
+    round: (start: string, end: string, below: string, beyond: string) => ({
+        borderStartStartRadius: start,
+        borderStartEndRadius: end,
+        borderEndStartRadius: below,
+        borderEndEndRadius: beyond,
+    }),
     body: {
         flexGrow: 1,
         minHeight: 0,
@@ -82,12 +101,15 @@ const styles = style.create({
         position: "absolute",
         overflow: "auto",
     },
+    shield: {
+        position: "absolute",
+        inset: 0,
+    },
     still: {
         cursor: "default",
     },
     handle: {
         position: "absolute",
-        zIndex: 1,
         display: "flex",
         touchAction: "none",
         outlineStyle: "none",
@@ -106,7 +128,6 @@ const styles = style.create({
     },
     aim: {
         position: "absolute",
-        zIndex: 2,
         pointerEvents: "none",
         borderRadius: radius[2],
         borderWidth: { default: 0, [media.forcedColors]: stroke.ring },
@@ -159,6 +180,7 @@ export function PaneGroup(properties: PaneGroupProperties): JSX.Element {
         "onMove",
         "content",
         "label",
+        "href",
         "children",
         "fallback",
     );
@@ -191,6 +213,22 @@ export function PaneGroup(properties: PaneGroupProperties): JSX.Element {
                                         )
                                     }
                                 </For>
+                                <For
+                                    each={
+                                        properties.layout.maximized === undefined &&
+                                        !control.isSingle()
+                                            ? properties.layout.floats
+                                            : []
+                                    }
+                                    keyed={(float) => float.id}
+                                >
+                                    {(float) => (
+                                        <PaneFrame
+                                            float={float()}
+                                            height={heightOf(properties.layout, float().id)}
+                                        />
+                                    )}
+                                </For>
                                 <For each={control.drawn()}>
                                     {(item) => (
                                         <PaneHost item={item}>
@@ -200,7 +238,9 @@ export function PaneGroup(properties: PaneGroupProperties): JSX.Element {
                                 </For>
                                 <For
                                     each={control.edges()}
-                                    keyed={(edge) => [...edge.path, edge.index].join(".")}
+                                    keyed={(edge) =>
+                                        [edge.float ?? "", ...edge.path, edge.index].join(".")
+                                    }
                                 >
                                     {(edge) => <PaneHandle edge={edge()} />}
                                 </For>
@@ -268,7 +308,7 @@ export function Pane(properties: PaneProperties): JSX.Element {
         id,
         element: () => element,
         body: control.body,
-        least: () => properties.minSize ?? LEAST_LENGTH,
+        least: (axis) => properties.minSize ?? LEAST[axis],
         accepts: () => properties.accepts,
         tabs: control.tabs,
     };
@@ -282,9 +322,16 @@ export function Pane(properties: PaneProperties): JSX.Element {
         "pane",
         rest,
         () => {
-            const box = placement()?.box;
+            const at = placement();
 
-            return [styles.pane, box !== undefined && placeOf(box)];
+            return [
+                styles.pane,
+                at !== undefined && [
+                    placeOf(at.box),
+                    styles.layer(at.height * LAYERS + 1),
+                    cornersOf(group.layout(), at),
+                ],
+            ];
         },
         mergeProperties(
             {
@@ -399,12 +446,29 @@ export function PaneBar(properties: PaneBarProperties): JSX.Element {
     let element: HTMLElement | undefined;
     const draggable = group.drag.draggable(id, () => element);
 
+    // move its float by it, and by the arrow keys while it has the focus
+    const locale = useLocale();
+    const float = () => PaneLayout.floatOf(group.layout(), id);
+    const move = frameOf(group, float).move();
+
     return renderPart(
         "div",
         "pane-bar",
         properties,
         null,
-        mergeProperties(draggable.pointerAttributes(), {
+        mergeProperties(mergeProperties(draggable.pointerAttributes(), move.attributes()), {
+            get tabindex() {
+                return float() === undefined || group.isLocked() ? undefined : 0;
+            },
+            get role() {
+                return float() === undefined ? undefined : ("group" as const);
+            },
+            get "aria-label"() {
+                return float() === undefined ? undefined : locale.render(t`Move`);
+            },
+            get "data-floating"() {
+                return float() === undefined ? undefined : "";
+            },
             ref: (created: HTMLElement) => {
                 element = created;
             },
@@ -438,15 +502,23 @@ function PaneHost(properties: {
             : group.placement(current.id);
     });
     const place = (): style.Styles => {
-        const box = placement()?.box;
-        const inset = placement() === undefined ? undefined : group.insets().get(pane()?.id ?? "");
+        const at = placement();
+        const inset = at === undefined ? undefined : group.insets().get(pane()?.id ?? "");
 
-        return box === undefined || inset === undefined ? null : placeOf(box, inset);
+        return at === undefined || inset === undefined
+            ? null
+            : [
+                  placeOf(at.box, inset),
+                  styles.layer(at.height * LAYERS + 2),
+                  cornersOf(group.layout(), at, inset),
+              ];
     };
     const isShown = (): boolean =>
         placement() !== undefined && group.insets().has(pane()?.id ?? "");
     const tabs = (): TabsControl | undefined => group.entry(pane()?.id ?? "")?.tabs();
     const hasTabs = (): boolean => tabs() !== undefined;
+    let element: HTMLElement | undefined;
+    const isEmbedding = (): boolean => element?.querySelector("iframe") != null;
     const activate = (): void => {
         const current = untrack(pane);
         if (current !== undefined && untrack(group.layout.bind(group)).active !== current.id) {
@@ -456,7 +528,10 @@ function PaneHost(properties: {
 
     return renderPart("div", "pane-host", {}, () => [styles.content, place()], {
         id: group.contentId(id),
-        ref: TabsControl.handlers(tabs, () => locale.direction),
+        ref: [
+            (created: HTMLElement) => (element = created),
+            ...TabsControl.handlers(tabs, () => locale.direction),
+        ],
         get "data-pane"() {
             return pane()?.id;
         },
@@ -472,7 +547,15 @@ function PaneHost(properties: {
         onFocusIn: activate,
         onPointerDown: activate,
         get children() {
-            return properties.children(last);
+            return (
+                <>
+                    {properties.children(last)}
+                    {/* Cover an embedded page, which hears a drag in place of this one */}
+                    <Show when={group.manager.item() !== undefined && isEmbedding()}>
+                        <div data-slot="pane-shield" {...style.attrs(styles.shield)} />
+                    </Show>
+                </>
+            );
         },
     });
 }
@@ -540,6 +623,7 @@ function PaneHandle(properties: {
             return [
                 handles[direction],
                 styles.handle,
+                styles.layer(heightOf(group.layout(), properties.edge.float) * LAYERS + 3),
                 group.isLocked() && styles.still,
                 isInline
                     ? styles.place(
@@ -582,8 +666,8 @@ function PaneHandle(properties: {
             },
             onDblClick: () => {
                 // even out the parts of the split
-                const { path } = untrack(() => properties.edge);
-                group.change((layout) => PaneLayout.distribute(layout, path));
+                const edge = untrack(() => properties.edge);
+                group.change((layout) => PaneLayout.distribute(layout, edge));
                 element?.focus();
             },
         }),
@@ -616,10 +700,53 @@ function PaneAim(): JSX.Element {
                 <div
                     data-slot="pane-aim"
                     aria-hidden="true"
-                    {...style.attributes([styles.aim, placeOf(shown())])}
+                    {...style.attributes([
+                        styles.aim,
+                        styles.layer((group.layout().floats.length + 1) * LAYERS),
+                        placeOf(shown()),
+                    ])}
                 />
             )}
         </Show>
+    );
+}
+
+/** Read how high a float is, zero side by side. */
+function heightOf(layout: PaneLayout, float: string | undefined): number {
+    return float === undefined ? 0 : layout.floats.findIndex(({ id }) => id === float) + 1;
+}
+
+/** Report whether two shares are the same but for rounding. */
+function isSame(one: number, other: number): boolean {
+    return Math.abs(one - other) < EPSILON;
+}
+
+/** Write the radius of a corner. */
+function round(isRound: boolean): string {
+    return isRound ? radius[3] : "0px";
+}
+
+/** Round the corners a pane, or what is within an inset of it, has in common with its float. */
+function cornersOf(
+    layout: PaneLayout,
+    { pane, box }: PanePlacement,
+    inset: PaneInset = { start: 0, end: 0, top: 0, bottom: 0 },
+): style.Styles {
+    // leave those side by side square
+    const bounds = PaneLayout.floatOf(layout, pane.id)?.bounds;
+    if (bounds === undefined || box.width === 1) {
+        return null;
+    }
+    const isStart = isSame(box.start, bounds.start) && inset.start === 0;
+    const isTop = isSame(box.top, bounds.top) && inset.top === 0;
+    const isEnd = isSame(box.start + box.width, bounds.start + bounds.width) && inset.end === 0;
+    const isBottom = isSame(box.top + box.height, bounds.top + bounds.height) && inset.bottom === 0;
+
+    return styles.round(
+        round(isTop && isStart),
+        round(isTop && isEnd),
+        round(isBottom && isStart),
+        round(isBottom && isEnd),
     );
 }
 
@@ -761,7 +888,11 @@ function moveFocus(
             ...(content === null ? [] : tabbablesIn(content)),
         ];
     });
-    const lines = [...root.querySelectorAll<HTMLElement>("[data-slot=pane-handle][tabindex='0']")];
+    const lines = [
+        ...root.querySelectorAll<HTMLElement>(
+            "[data-slot=pane-handle][tabindex='0'], [data-slot=frame-side][tabindex='0']",
+        ),
+    ];
     const all = [...order, ...lines];
     const at = all.findIndex((element) => element === root.ownerDocument.activeElement);
     const next = at === -1 ? undefined : all[at + (event.shiftKey ? -1 : 1)];

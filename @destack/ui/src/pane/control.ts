@@ -2,6 +2,7 @@ import type { Localization } from "@destack/locale";
 import {
     type Accessor,
     createContext,
+    createEffect,
     createMemo,
     createSignal,
     createUniqueId,
@@ -10,7 +11,8 @@ import {
     untrack,
     useContext,
 } from "@destack/view";
-import type { DragManager } from "../drag/index.ts";
+import type { DragItem, DragManager } from "../drag/index.ts";
+import type { Axis } from "../position/index.ts";
 import { tabbablesIn } from "../focus/index.ts";
 import type { SortableMove } from "../sortable/index.ts";
 import type { TabsControl } from "../tabs/index.ts";
@@ -26,8 +28,29 @@ import {
     type PanePlacement,
 } from "./layout.ts";
 
-/** The least length of a pane along either axis, in pixels, which fits a tab. */
-export const LEAST_LENGTH = 120;
+/** The size of a window of an item whose pane has none, about a small laptop's page. */
+const WINDOW = { width: 1024, height: 720 };
+
+/** The least lengths of a pane along each axis, in pixels: two fit no phone side by side. */
+export const LEAST: Readonly<Record<Axis, number>> = { horizontal: 200, vertical: 120 };
+
+/** The size of a group, in pixels. */
+interface PaneSize {
+    /** The width. */
+    readonly width: number;
+    /** The height. */
+    readonly height: number;
+}
+
+/** A window of its own. */
+export interface PaneWindow {
+    /** A window. */
+    readonly kind: "window";
+    /** The distance from the screen's left, where the browser places it without. */
+    readonly left?: number;
+    /** The distance from the screen's top, where the browser places it without. */
+    readonly top?: number;
+}
 
 /** What a person moves: something open, or a whole pane. */
 export interface PaneMove {
@@ -36,17 +59,27 @@ export interface PaneMove {
     /** The type of what moves, such as `tab`, `pane`, or another part's type. */
     readonly type: string;
     /** Where it goes. */
-    readonly place: PanePlace;
+    readonly place: PanePlace | PaneWindow;
     /** Whether it stays where it was, too. */
     readonly isCopied: boolean;
+    /** What it brings from outside the page, such as files, nothing of a tab or a pane. */
+    readonly items: readonly DragItem[];
 }
 
 /** The verbs of moves. */
 export const PaneMove = {
-    /** Make a move in a layout, opening what comes from elsewhere by its id. */
+    /** Make a move in a layout: open what comes from another part, close what goes to a window. */
     apply(layout: PaneLayout, move: PaneMove): PaneLayout {
-        // move a pane
-        if (move.type === PANE_TYPE) {
+        // refuse what only the owner opens, and move a pane
+        if (move.items.length > 0) {
+            throw new RangeError(`pane move of ${move.type} is invalid: its owner opens it`);
+        } else if (move.place.kind === "window") {
+            return move.isCopied
+                ? layout
+                : move.type === PANE_TYPE
+                  ? PaneLayout.remove(layout, move.id)
+                  : PaneLayout.close(layout, move.id);
+        } else if (move.type === PANE_TYPE) {
             return PaneLayout.dock(layout, move.id, move.place);
         }
         const pane = PaneLayout.paneOf(layout, move.id);
@@ -93,6 +126,8 @@ export interface PaneGroupOptions {
     readonly onLayoutChange?: (layout: PaneLayout) => void;
     /** What an item is called, its value by default. */
     readonly label?: (item: PaneItem) => JSX.Element;
+    /** Read the address an item opens at in a window of its own, none without one. */
+    readonly href?: (item: PaneItem) => string;
     /** Handle a move in place of making it, such as to refuse it. */
     readonly onMove?: (move: PaneMove) => void;
 }
@@ -105,8 +140,8 @@ export interface PaneEntry {
     readonly element: () => HTMLElement | undefined;
     /** Read the element its contents cover, none for a pane without. */
     readonly body: () => HTMLElement | undefined;
-    /** Read its least lengths in pixels along both axes. */
-    readonly least: () => number;
+    /** Read its least length along an axis, in pixels. */
+    readonly least: (axis: Axis) => number;
     /** Read the types it takes. */
     readonly accepts: () => readonly string[] | undefined;
     /** Read its tabs, none for a pane without. */
@@ -127,6 +162,8 @@ export class PaneGroupControl {
     readonly edges: Accessor<readonly PaneEdge[]>;
     /** Read the items whose contents are drawn, in an order that never changes. */
     readonly drawn: Accessor<readonly string[]>;
+    /** Read whether only the active pane shows, as they do not fit beside each other. */
+    readonly isSingle: Accessor<boolean>;
     /** The room around each pane's body. */
     readonly insets: Accessor<ReadonlyMap<string, PaneInset>>;
     /** What it is given. */
@@ -152,8 +189,62 @@ export class PaneGroupControl {
         this.options = options;
         this.manager = manager;
         this.prefix = createUniqueId();
-        this.placements = createMemo(() => PaneLayout.placements(options.layout));
-        this.edges = createMemo(() => PaneLayout.edges(options.layout));
+        // show one pane where they do not fit, none before they are laid out
+        const [size, setSize] = createSignal<PaneSize | undefined>(undefined, {
+            ownedWrite: true,
+            equals: (one, other) => one?.width === other?.width && one?.height === other?.height,
+        });
+        this.isSingle = createMemo(() => {
+            // fit them all before they are laid out, and where two panes fit side by side
+            const width = size()?.width;
+            const { root, floats } = options.layout;
+            const panes = PaneLayout.panes(options.layout);
+            const least = Math.max(...panes.map((pane) => this.leastOf(pane, "horizontal")));
+            if (width === undefined || panes.length < 2 || width >= 2 * least) {
+                return false;
+            }
+
+            return (
+                floats.length > 0 ||
+                (root !== undefined && this.leastOf(root, "horizontal") > width)
+            );
+        });
+        createEffect(
+            () => undefined,
+            () => {
+                // follow the size of the group
+                const element = this.#element;
+                if (element === undefined) {
+                    return undefined;
+                }
+                const measure = (): void => {
+                    const { clientWidth: width, clientHeight: height } = element;
+                    setSize(width > 0 && height > 0 ? { width, height } : undefined);
+                };
+                measure();
+
+                // measure on the next frame, as a change of what shows moves other sizes
+                let isWaiting = false;
+                const resizes = new ResizeObserver(() => {
+                    if (!isWaiting) {
+                        isWaiting = true;
+                        void manager.environment.display.frame().then(() => {
+                            isWaiting = false;
+                            measure();
+                        });
+                    }
+                });
+                resizes.observe(element);
+
+                return () => resizes.disconnect();
+            },
+        );
+        const shown = (): PaneLayout =>
+            this.isSingle() && options.layout.active !== undefined
+                ? PaneLayout.maximize(options.layout, options.layout.active)
+                : options.layout;
+        this.placements = createMemo(() => PaneLayout.placements(shown()));
+        this.edges = createMemo(() => PaneLayout.edges(shown()));
         this.drawn = createMemo<readonly string[]>((before) => {
             const open = new Set(PaneLayout.panes(options.layout).flatMap(({ recent }) => recent));
             const standing = (before ?? []).filter((id) => open.has(id));
@@ -198,11 +289,26 @@ export class PaneGroupControl {
         }
     }
 
+    /** Select an item, the focus going with it where its pane takes another's place. */
+    select(item: string): void {
+        // follow a tab that another list draws from now on
+        const pane = untrack(() => PaneLayout.paneOf(this.options.layout, item))?.id;
+        const isTaken = untrack(() => this.isSingle() && this.options.layout.active !== pane);
+        this.change((layout) => PaneLayout.select(layout, item));
+        if (isTaken && pane !== undefined) {
+            this.focus(pane);
+        }
+    }
+
     /** Make a move, or hand it on. */
     move(move: PaneMove): void {
-        // make it, unless the owner does
+        // make it, unless the owner does, once its window opened
         const before = this.#latest;
-        if (this.options.onMove === undefined) {
+        if (this.options.onMove === undefined && move.place.kind === "window") {
+            if (this.#open(move.id, move.place)) {
+                this.change((layout) => PaneMove.apply(layout, move));
+            }
+        } else if (this.options.onMove === undefined) {
             this.change((layout) => PaneMove.apply(layout, move));
         } else {
             this.options.onMove(move);
@@ -213,6 +319,35 @@ export class PaneGroupControl {
         if (landed !== undefined && move.type !== PANE_TYPE) {
             void this.manager.environment.display.frame().then(() => this.focus(landed));
         }
+    }
+
+    /** Report whether an item opens in a window of its own. */
+    canOpen(item: string): boolean {
+        return this.options.href !== undefined && this.item(item) !== undefined;
+    }
+
+    /** Open an item in a window of its own, and report whether the browser did. */
+    #open(id: string, place: PaneWindow): boolean {
+        // open it where it was dropped, the size of its pane
+        const item = untrack(() => this.item(id));
+        const view = this.#element?.ownerDocument.defaultView;
+        const href = item === undefined ? undefined : this.options.href?.(item);
+        if (href === undefined || view === undefined || view === null) {
+            return false;
+        }
+        const pane = untrack(() => PaneLayout.paneOf(this.options.layout, id));
+        const box = this.#entries
+            .get(pane?.id ?? "")
+            ?.element()
+            ?.getBoundingClientRect();
+        const features = [
+            `width=${String(Math.round(box?.width ?? WINDOW.width))}`,
+            `height=${String(Math.round(box?.height ?? WINDOW.height))}`,
+            ...(place.left === undefined ? [] : [`left=${String(Math.round(place.left))}`]),
+            ...(place.top === undefined ? [] : [`top=${String(Math.round(place.top))}`]),
+        ];
+
+        return view.open(href, "_blank", features.join(",")) !== null;
     }
 
     /** Make a move of a list of tabs. */
@@ -229,7 +364,8 @@ export class PaneGroupControl {
                 pane: move.container,
                 index: at === -1 ? others.length : at,
             },
-            isCopied: this.manager.current()?.effect === "copy",
+            isCopied: this.manager.current()?.effect === "copy" && move.items.length === 0,
+            items: move.items,
         });
     }
 
@@ -393,7 +529,7 @@ export class PaneGroupControl {
     resize(edge: PaneEdge, share: number): void {
         this.change((layout) => {
             // read the split and the room both parts have
-            const split = nodeAt(layout.root, edge.path);
+            const split = PaneLayout.node(layout, edge);
             const bounds = this.#element?.getBoundingClientRect();
             if (split?.kind !== "split" || bounds === undefined) {
                 return layout;
@@ -406,26 +542,26 @@ export class PaneGroupControl {
             }
 
             // keep both at their least lengths
-            const least = this.#leastOf(before, edge.direction) / room;
-            const most = 1 - this.#leastOf(after, edge.direction) / room;
+            const least = this.leastOf(before, edge.direction) / room;
+            const most = 1 - this.leastOf(after, edge.direction) / room;
             const kept = least > most ? edge.share : Math.min(Math.max(share, least), most);
             const both = (split.sizes[edge.index] ?? 0) + (split.sizes[edge.index + 1] ?? 0);
 
             return PaneLayout.resize(
                 layout,
-                edge.path,
+                edge,
                 split.sizes.toSpliced(edge.index, 2, both * kept, both * (1 - kept)),
             );
         });
     }
 
     /** Read the least length of a node along an axis, in pixels. */
-    #leastOf(node: PaneNode, direction: PaneEdge["direction"]): number {
+    leastOf(node: PaneNode, direction: PaneEdge["direction"]): number {
         // read a pane's own, or its parts' together
         if (node.kind === "leaf") {
-            return this.#entries.get(node.id)?.least() ?? LEAST_LENGTH;
+            return this.#entries.get(node.id)?.least(direction) ?? LEAST[direction];
         }
-        const parts = node.children.map((child) => this.#leastOf(child, direction));
+        const parts = node.children.map((child) => this.leastOf(child, direction));
 
         return node.direction === direction
             ? parts.reduce((sum, part) => sum + part, 0)
@@ -473,12 +609,4 @@ export function usePane(): PaneControl {
     }
 
     return control;
-}
-
-/** Read the node at a path. */
-function nodeAt(node: PaneNode | undefined, path: readonly number[]): PaneNode | undefined {
-    return path.reduce<PaneNode | undefined>(
-        (each, index) => (each?.kind === "split" ? each.children[index] : undefined),
-        node,
-    );
 }
