@@ -62,12 +62,12 @@ export const listInstallations = defineScenario({
                     observe: { read: "output", field: "name" },
                     is: [
                         "connection",
+                        "home",
                         "inbox",
                         "message",
                         "observability",
                         "social",
                         "stack",
-                        "start",
                         "vault",
                     ],
                 },

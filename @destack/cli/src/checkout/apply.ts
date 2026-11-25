@@ -59,7 +59,7 @@ async function applyStack(
     // push the checkout, and install the space's stack following it, or switch the stack to it
     const target = await (await LocalCheckout.open(directory, context)).target(context);
     const stack = { export: exported, parameters };
-    const { id } = await target.install(STACK_INSTALLATION, stack, context);
+    const { id } = await target.install(STACK_INSTALLATION, stack, { kind: "none" }, context);
 
     return id;
 }

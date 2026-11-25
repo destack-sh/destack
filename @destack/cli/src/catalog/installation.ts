@@ -9,7 +9,8 @@ import type { Lease } from "@destack/resource";
 import { type Identifier, type JsonObject, present, schema, Version } from "@destack/schema";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { CommandOption, type CommandBody } from "../command/command.ts";
+import { type CommandBody, type CommandCall, CommandOption } from "../command/command.ts";
+import { HOME_APPLICATION } from "@destack/account/object";
 import type { CommandContext, CommandEnvironment } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 import { InstallationStatus } from "./status.ts";
@@ -117,6 +118,37 @@ export const PackageSpecifier = {
     },
 };
 
+/** The option placing an installation below a parent, home by default, else at the top. */
+export const INSTALLATION_PARENT_OPTIONS = {
+    parent: {
+        type: "string",
+        description:
+            "The installation it is placed below, home by default; --no-parent places it at the top",
+        argument: "name",
+        isNegatable: true,
+    },
+} as const;
+
+/** The parent a command asks for: home for a new installation by default, none, or a named one. */
+export type InstallationParentOption =
+    | { readonly kind: "default" }
+    | { readonly kind: "none" }
+    | { readonly kind: "named"; readonly name: string };
+
+/** Parent options read from a command's options. */
+export const InstallationParentOption = {
+    /** Read the parent the options ask for: a name, none, or the default. */
+    read(options: CommandCall["options"]): InstallationParentOption {
+        const parent = options["parent"];
+
+        return parent === false
+            ? { kind: "none" }
+            : typeof parent === "string"
+              ? { kind: "named", name: parent }
+              : { kind: "default" };
+    },
+};
+
 /** Install a package or change its version, and follow it until its space serves it. */
 export const installCommand: CommandBody = {
     arguments: [
@@ -131,6 +163,7 @@ export const installCommand: CommandBody = {
             description: "The installation's name in the space, the package's name by default",
             argument: "name",
         },
+        ...INSTALLATION_PARENT_OPTIONS,
         yes: { type: "boolean", description: "Approve each plan the installation waits on" },
     },
     isJson: true,
@@ -154,7 +187,12 @@ export const installCommand: CommandBody = {
         }
 
         // install it, and follow it until its space serves it
-        const { id, name } = await target.install(named, undefined, context);
+        const { id, name } = await target.install(
+            named,
+            undefined,
+            InstallationParentOption.read(options),
+            context,
+        );
         await InstallationStatus.drive(id, options["yes"] === true, json, context);
 
         // report what it runs and its version
@@ -456,6 +494,7 @@ export class InstallationTarget {
     async install(
         asked: string | undefined,
         stack: InstallationStack | undefined,
+        parent: InstallationParentOption,
         context: CommandContext,
     ): Promise<{ readonly id: Identifier<"installation">; readonly name: string }> {
         // read the package's installation, of which a space has one, and the one of that name
@@ -467,6 +506,27 @@ export class InstallationTarget {
         const { packageId, version, directory } = this;
         const installed = await find({ packageId });
         const name = asked ?? installed?.name ?? this.fallback;
+
+        // find the parent asked for, the space's home for a new installation by default
+        const parentName =
+            parent.kind === "named"
+                ? parent.name
+                : parent.kind === "default" && installed === undefined
+                  ? HOME_APPLICATION
+                  : undefined;
+        const found = parentName === undefined ? undefined : await find({ name: parentName });
+        if (parentName !== undefined && found === undefined) {
+            throw CliError.of(
+                "INSTALLATION_NOT_FOUND",
+                `installation '${parentName}' not found: place '${name}' below an installation of the space`,
+            );
+        }
+        const placed =
+            found !== undefined
+                ? { parentId: found.id }
+                : parent.kind === "none"
+                  ? { parentId: null }
+                  : {};
 
         // create it, refusing a name another package's installation has
         if (installed === undefined) {
@@ -483,6 +543,7 @@ export class InstallationTarget {
                 ...ObjectReference.columns("version", version),
                 ...(directory === null ? {} : { directory }),
                 ...stack,
+                ...(found === undefined ? {} : { parentId: found.id }),
                 name,
             });
 
@@ -505,6 +566,8 @@ export class InstallationTarget {
                 ...ObjectReference.columns("version", version),
                 directory,
                 ...stack,
+                ...placed,
+                kind: "requested",
             });
 
             return { id: installed.id, name };

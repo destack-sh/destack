@@ -13,6 +13,7 @@ import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
 import { Interrupt } from "../command/failure.ts";
+import { INSTALLATION_PARENT_OPTIONS, InstallationParentOption } from "../catalog/installation.ts";
 
 /** The option selecting the outputs a build builds. */
 const OUTPUTS_OPTION = {
@@ -27,15 +28,17 @@ const OUTPUTS_OPTION = {
 /** Install a checkout's package in the space and push its working tree on each change. */
 export const devCommand: CommandBody = {
     arguments: [{ name: "package", default: ".", isDirectory: true }],
+    options: INSTALLATION_PARENT_OPTIONS,
     isJson: true,
-    async run({ arguments: { package: directory }, isJson: json }, context) {
+    async run({ arguments: { package: directory }, options, isJson: json }, context) {
         // install the checkout's package, or switch its installation to the checkout
         const checkout = await LocalCheckout.open(
             present(directory, "the package argument"),
             context,
         );
         const target = await checkout.target(context);
-        const { id, name } = await target.install(undefined, undefined, context);
+        const parent = InstallationParentOption.read(options);
+        const { id, name } = await target.install(undefined, undefined, parent, context);
         const { terminal } = context;
 
         // print where the installation answers, as a development server prints its address

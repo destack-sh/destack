@@ -140,6 +140,60 @@ test("keep a package's one installation on a second install, and refuse another 
     });
 });
 
+test("place an installation below home by default, below a parent asked for, or at the top", async () => {
+    // install example's notebooks in the owner's home, then place them each way
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], EXAMPLE);
+    const run = (words: readonly string[]) => terminal.printed(["--space", "home", ...words]);
+    const placement = async () => {
+        const listed = schema
+            .array(
+                schema.looseObject({
+                    id: schema.string(),
+                    name: schema.string(),
+                    kind: schema.string(),
+                    parentId: schema.string().nullable(),
+                }),
+            )
+            .parse(JSON.parse((await run(["installations", "--json"])).output));
+        const notebooks = listed.find(({ name }) => name === "notebooks");
+        const parent = listed.find(({ id }) => id === notebooks?.parentId);
+
+        return [notebooks?.kind, parent?.name ?? null];
+    };
+    await run(["install", "@example/notebooks", "--json"]);
+    const created = await placement();
+    const kept = await (async () => (
+        await run(["install", "@example/notebooks", "--json"]),
+        await placement()
+    ))();
+    await run(["install", "@example/notebooks", "--no-parent", "--json"]);
+    const top = await placement();
+    await run(["install", "@example/notebooks", "--parent", "home", "--json"]);
+    const below = await placement();
+    const missing = await run(["install", "@example/notebooks", "--parent", "journal"]);
+    const both = await run(["install", "@example/notebooks", "--parent", "home", "--no-parent"]);
+
+    // expect home by default once created, the placement kept on a plain install, and refusals
+    expect({
+        created,
+        kept,
+        top,
+        below,
+        missing: [missing.code, missing.error],
+        both: [both.code, both.error],
+    }).toEqual({
+        created: ["requested", "home"],
+        kept: ["requested", "home"],
+        top: ["requested", null],
+        below: ["requested", "home"],
+        missing: [
+            1,
+            "error  installation 'journal' not found: place 'notebooks' below an installation of the space\n",
+        ],
+        both: [2, "error  option '--no-parent' is invalid: '--parent' gives the option a value\n"],
+    });
+});
+
 test("uninstall a package's installation once confirmed, and refuse one the space lacks", async () => {
     // install the example notebooks in the owner's home
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], EXAMPLE);
