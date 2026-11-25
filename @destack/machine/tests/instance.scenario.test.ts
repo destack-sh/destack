@@ -1611,8 +1611,8 @@ test("convert narrowed values after stopping the draining release", async () => 
             "AwaitingApproval",
             [
                 ["delete", "backward-incompatible"],
-                ["replace", "fallible"],
                 ["convert", "fallible"],
+                ["replace", "fallible"],
             ],
         ],
         approved: {
