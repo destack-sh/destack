@@ -485,7 +485,7 @@ async function steppedUp(served: Served) {
 
 /** Serve a source space and a caller space on two of the owner's computers through a relay. */
 async function openComputers() {
-    // serve the owner's home and example organization on the residency's cloud computer
+    // serve the owner's home and example organization on the region's cloud computer
     const { home } = await TestComputer.home({ organizations: [PUBLISHER] });
     const { world } = home;
 
@@ -758,7 +758,7 @@ test("authorize a move by step-up and its fence by a bound token", async () => {
     const bound = await grant({ partition: space });
     const elsewhere = await grant({ partition: other });
 
-    // fence the moving space with the bound token alone and refuse it once the peer's key is revoked
+    // fence the moving space with the bound token alone, and refuse it once the peer's key is revoked
     const peerKeys = async () =>
         await computer.machine.database
             .select({ revokedAt: accountObject.key.table.revokedAt })
@@ -808,7 +808,7 @@ test("authorize a move by step-up and its fence by a bound token", async () => {
                 "PARTITION_TOKEN_DENIED",
                 "partition is forbidden: the universe token is bound to another partition",
             ],
-            ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${other}' not found`],
+            ["NOT_FOUND", "NOT_FOUND", `transfer '${moving.id}' not found`],
             "done",
         ],
         revoked: [
@@ -820,7 +820,7 @@ test("authorize a move by step-up and its fence by a bound token", async () => {
 });
 
 test("publish a renamed machine's relay name without a restart", async () => {
-    // serve a computer routing its names through the residency's relay
+    // serve a computer routing its names through the region's relay
     const world = await TestComputer.world();
     const relay = await TestComputer.relay(world);
     const { computer } = await openComputer(world, world.owner.account, "work", {
@@ -838,7 +838,7 @@ test("publish a renamed machine's relay name without a restart", async () => {
         device.environment,
     );
     await accounts.machine.rename({
-        scope: world.owner.account,
+        accountId: world.owner.account,
         id: machine.id,
         requestId: RequestId.create(computer.environment),
         name: "renamed",

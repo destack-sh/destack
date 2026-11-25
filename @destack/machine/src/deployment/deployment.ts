@@ -18,7 +18,7 @@ import {
     InstallationName,
     type ObjectReconciliation,
     type ObjectWatch,
-    type StatusCondition,
+    type Status,
     InstallationBindingState,
     InstallationKind,
 } from "@destack/object";
@@ -102,7 +102,7 @@ interface BoundResource {
     /** The desired state's generation. */
     readonly generation: number;
     /** The conditions the controller reports. */
-    readonly conditions: Readonly<Record<string, StatusCondition>>;
+    readonly conditions: Status["conditions"];
 }
 
 /** Implement deployments: roll each out on this machine's runtimes. */

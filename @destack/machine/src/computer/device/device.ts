@@ -5,7 +5,7 @@ import { MemoryBlobStorage } from "@destack/resource";
 import { pathToFileURL } from "node:url";
 import { AccessContext, Caller, principal, Authorization } from "@destack/access";
 import { SpaceAddress, UniverseOrigin } from "@destack/account/address";
-import { type PlacementEndpoint, Platform, type Residency } from "@destack/account/object";
+import { type PlacementEndpoint, Platform, type Region } from "@destack/account/object";
 import { Issuer, Session } from "@destack/account/client";
 import {
     CLIENT_KEYS,
@@ -516,9 +516,9 @@ export class Device<
         await this.credential.forget(row);
     }
 
-    /** List the residencies a new person's account may store data in. */
-    residencies(): Promise<Pick<Residency, "code" | "name">[]> {
-        return this.issuer.residencies();
+    /** List the regions a new person's account may store data in. */
+    regions(): Promise<Pick<Region, "code" | "name">[]> {
+        return this.issuer.regions();
     }
 
     /** Read the person this computer acts as. */
@@ -811,10 +811,10 @@ export class Device<
     /** Read the account this computer's machine is enrolled in, refusing an unenrolled one. */
     async account(): Promise<Identifier<"account">> {
         const { enrollment } = await this.loopback.computer();
-        if (enrollment?.status !== "enrolled" || enrollment.kind !== "personal") {
+        if (enrollment?.status !== "enrolled" || enrollment.kind !== "self") {
             throw MachineError.of(
                 "ENROLLMENT_BLOCKED",
-                "cannot use this machine: it is not enrolled in a personal account, so sign in to enroll it",
+                "cannot use this machine: it is not enrolled as a self-hosted machine, so sign in to enroll it",
             );
         }
 

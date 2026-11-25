@@ -18,7 +18,7 @@ import { AccountError } from "@destack/account/error";
 import { Bookmark, createClient, type ClientOf, ObjectConnection } from "@destack/object/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
-import { Identity, Key, placement } from "@destack/account/object";
+import { Account, Identity, Key, placement } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { eq, or, type Select, type Table } from "@destack/db";
 import type {
@@ -87,7 +87,7 @@ import type { Runtime } from "../runtime/runtime.ts";
 import { Handoff } from "../transfer/handoff.ts";
 import { computer, MachineEnrollment } from "../computer/device/object/index.ts";
 import { Space, type SpaceStorage, SpaceRequest } from "../space/index.ts";
-import { callRegistry, findPublisherHome, locateHome } from "./registry.ts";
+import { callRegistry, findPublisherHome } from "./registry.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import { MachineError } from "../error/index.ts";
 
@@ -104,7 +104,7 @@ const MACHINE_CALL_MILLISECONDS = 60_000;
 const SPACE_ROOT_PREFIX = "space:";
 
 /** The path npm clients ask for a handle's packages, which lie at the handle's forge. */
-const NPM_PATH = /^\/npm(\/@([^/%]+)(?:\/|%2[fF]).+)$/u;
+const NPM_PATH = /^\/\.npm(\/@([^/%]+)(?:\/|%2[fF]).+)$/u;
 
 /** The oldest Destack version whose releases a machine runs. */
 export const OLDEST_DESTACK = "2026.11.0";
@@ -149,7 +149,7 @@ export type MachineOptions = Pick<
     readonly destack: VersionRange;
     /** The relay a personal machine tunnels through while enrolled, absent for none. */
     readonly tunnel?: {
-        /** The relay's tunnel URL, its account residency's relay's when absent. */
+        /** The relay's tunnel URL, its account region's relay's when absent. */
         readonly url?: string;
         /** Answer a request for one of the machine's names. */
         readonly fetch: (request: Request) => Promise<Response>;
@@ -160,8 +160,8 @@ export type MachineOptions = Pick<
     };
 };
 
-/** The enrollment of a person's machine, as the approving person submits it. */
-type PersonalEnrollment = Extract<Enrollment, { readonly kind: "personal" }>;
+/** The enrollment of a self-hosted machine, as the approving person submits it. */
+type SelfEnrollment = Extract<Enrollment, { readonly kind: "self" }>;
 
 /** A machine: its standing at the universe, the storage of its spaces, and the spaces it serves. */
 export class Machine {
@@ -201,8 +201,6 @@ export class Machine {
     readonly builds: BuildStore;
     /** The runtimes the machine pulls builds' closures for. */
     readonly targets: readonly packageRuntime.Runtime[];
-    /** The residency home of each account located so far, by account, as homes never move. */
-    readonly homes = new Map<Identifier<"account">, Promise<Identifier<"space">>>();
     /** The pulls in flight, by root and runtimes, which a pull of the same joins. */
     readonly #pulling = new Map<string, Promise<void>>();
     /** Each release version's image resolved so far, as the forge never moves a version's image. */
@@ -459,12 +457,12 @@ export class Machine {
             "destack.machine.push",
             { "destack.account.id": account },
             async () => {
-                // push the image's objects below its root's handle at the account's residency home's forge
+                // push the image's objects below its root's handle at the forge in the account's home
                 const read = await store.image(image);
                 const { handle } = PackageName.split(
                     PackageManifest.package(await store.get(read.root)).name,
                 );
-                const home = await locateHome(this, account);
+                const home = Account.home(account);
                 const url = `${await this.#registryUrl(home)}${registryPackage.mounts.builds.path}/${handle}/`;
                 const uploads = new RemoteBuildStore(
                     url,
@@ -701,19 +699,11 @@ export class Machine {
         return this.environment.network.fetch(request, options);
     }
 
-    /** Read the home of this machine's owner: its account's, or a cloud machine's residency's. */
+    /** Read the home of this machine's account. */
     async home(): Promise<Identifier<"space">> {
-        // take a personal machine's account home, else the residency's home
         const enrollment = await this.enrolled("reading its owner");
-        if (enrollment.kind === "personal") {
-            return accountObject.Account.home(enrollment.accountId);
-        }
-        const accounts = await this.accounts();
-        const { space: home } = await accounts.residency.get({ id: enrollment.residencyId });
 
-        return schema
-            .identifier("space")
-            .parse(present(home, `the home of ${enrollment.residencyId}`));
+        return accountObject.Account.home(enrollment.accountId);
     }
 
     /** Announce what this machine runs to its account: its version, runtimes and host. */
@@ -722,7 +712,7 @@ export class Machine {
         await (
             await this.accounts()
         ).machine.report({
-            scope: MachineEnrollment.scope(enrollment),
+            accountId: enrollment.accountId,
             id: this.id,
             requestId: RequestId.create(this.environment),
             version: this.destack.newest,
@@ -733,22 +723,20 @@ export class Machine {
         });
     }
 
-    /** Enroll this machine under an account as a personal machine with a new key. */
+    /** Enroll this machine under an account as a self-hosted machine with a new key. */
     enroll(
         accounts: ClientOf<typeof accountPackage>,
         universe: UniverseOrigin,
-        input: Omit<PersonalEnrollment, "scope" | "requestId" | "kind"> & {
-            readonly accountId: Identifier<"account">;
-        },
+        input: Omit<SelfEnrollment, "requestId" | "kind">,
     ): Promise<MachineEnrollment> {
         // enroll the machine in its span
         return this.scope.span("destack.machine.enroll", {}, async () => {
             // skip enrollment for a standing key
             const { accountId, ...enrollment } = input;
             const enrolled: MachineEnrollment = {
-                kind: "personal",
+                kind: "self",
                 universe: universe.toJSON(),
-                accountId,
+                accountId: schema.identifier("account").parse(accountId),
                 status: "enrolled",
             };
             if (await this.identity.isStanding(universe.issuer, (request) => this.send(request))) {
@@ -758,9 +746,9 @@ export class Machine {
             // enroll through the approving person's client with a new key
             await this.identity.enroll(accounts, {
                 ...enrollment,
-                scope: accountId,
+                accountId,
                 requestId: RequestId.create(this.environment),
-                kind: "personal",
+                kind: "self",
             });
 
             return enrolled;
@@ -790,7 +778,7 @@ export class Machine {
             this.environment,
         );
         await accounts.machine.delete({
-            scope: MachineEnrollment.scope(enrollment),
+            accountId: enrollment.accountId,
             id: this.id,
             requestId: RequestId.create(this.environment),
         });
@@ -825,7 +813,7 @@ export class Machine {
         // require the key the chain's follow proves the machine with
         await this.identity.key();
 
-        return { kind: "home", parent: MachineEnrollment.scope(enrollment) };
+        return { kind: "home", parent: enrollment.accountId };
     }
 
     /** Stream a followed scope's replicas: the universe's, this machine's own, or a space's. */
@@ -1143,8 +1131,8 @@ export class Machine {
             return new Response(null, { status: 404 });
         }
 
-        // send it to the npm mount of the registry in the account's residency home
-        const home = await locateHome(this, account);
+        // send it to the npm mount of the registry in the account's home
+        const home = Account.home(account);
         const mount = await this.#registryUrl(home);
 
         return Response.redirect(
@@ -1526,22 +1514,17 @@ export class Machine {
         // open none for a cloud machine, which answers at its declared origin, nor for a personal one without a relay
         const enrollment = await this.enrolled("opening its tunnel");
         const relayed = this.#tunnel;
-        if (enrollment.kind === "cloud" || relayed === undefined) {
+        if (enrollment.kind === "managed" || relayed === undefined) {
             return { [Symbol.asyncDispose]: async () => {} };
         }
 
-        // dial the configured relay, else the account residency's with a token bound to the residency's home
+        // dial the configured relay, else the account region's
         const universe = UniverseOrigin.of(enrollment.universe);
         const { issuer } = universe;
-        const residency = (await this.accounts()).residency;
         const account = enrollment.accountId;
-        const url = relayed.url ?? `${await residency.relay({ account })}${TUNNEL_PATH}`;
-        const binding = {
-            lifetime: TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
-            ...(relayed.url === undefined
-                ? { partition: await residency.locate({ account }) }
-                : {}),
-        };
+        const relay = relayed.url ?? (await (await this.accounts()).region.relay({ account })).url;
+        const url = relayed.url ?? `${relay}${TUNNEL_PATH}`;
+        const binding = { lifetime: TUNNEL_TOKEN_LIFETIME_MILLISECONDS };
         const tunnel = TunnelClient.open({
             url,
             machineId: this.id,
@@ -1555,13 +1538,30 @@ export class Machine {
             environment: this.environment,
             token: (audience) =>
                 this.identity.at(issuer, (request) => this.send(request)).token(audience, binding),
-            renewed: ({ name }) => {
+            renewed: ({ name, lapsesAt }) => {
+                // answer at the relayed name, and publish the tunnel until it lapses
                 this.#origin = universe.url(name);
+                this.#publish(enrollment, new URL(relay).origin, lapsesAt).catch((error: unknown) =>
+                    this.scope.captureException(error),
+                );
             },
             changed: relayed.changed,
         });
 
         return { [Symbol.asyncDispose]: () => tunnel.close() };
+    }
+
+    /** Publish the machine's tunnel at its relay until it lapses. */
+    async #publish(enrollment: MachineEnrollment, relay: string, lapsesAt: number): Promise<void> {
+        await (
+            await this.accounts()
+        ).machine.relay({
+            accountId: enrollment.accountId,
+            id: this.id,
+            requestId: RequestId.create(this.environment),
+            url: relay,
+            lapsesAt,
+        });
     }
 
     /** Wrap the machine's network to call a package as the machine. */

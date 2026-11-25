@@ -23,19 +23,18 @@ import {
     ObjectTypePool,
     Observation,
     SYNCED,
-    SYNCED_CONDITION,
+    SYNCED_DECISION,
     InstallationBindingSpec,
     InstallationKind,
     type MethodContext,
     type MethodContextOf,
-    type ObjectReconciliation,
     PackageDescription,
+    Status,
 } from "@destack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import { Setting } from "@destack/setting";
 import { setting, SettingValue } from "@destack/setting/object";
 import { DeclarationReference } from "@destack/package/declare";
-import { AccessContext, Caller, principal } from "@destack/access";
 import { DatabaseKind } from "@destack/db";
 import type { BlobStore, DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
@@ -69,7 +68,7 @@ import {
     Version,
     type VersionRange,
 } from "@destack/schema";
-import { ObjectReference, RequestId, Scope } from "@destack/sync";
+import { ObjectReference } from "@destack/sync";
 import type { FamilyError } from "@destack/error";
 import { StackError, type StackReason } from "@destack/stack/error";
 import { ResourceError, UnreachablePlan } from "@destack/resource/error";
@@ -388,52 +387,6 @@ export class ApplicationInstallation {
         );
     }
 
-    /** Relate the installation at the universe as its space, through the uplink. */
-    async relate(reconciliation: ObjectReconciliation): Promise<void> {
-        // read the installation as it stands, and the build of the revision it applied
-        const target = this.#target;
-        const snapshot = reconciliation.database.snapshot();
-        const deployed = await snapshot
-            .read(installation.table)
-            .findFirst({ where: { id: target.id } });
-        const { trusted } = this.#options;
-        const built =
-            deployed?.appliedRevisionId === null || deployed === undefined
-                ? undefined
-                : await InstallationRevision.build(snapshot, deployed.appliedRevisionId);
-
-        // keep the relations of a superseded host installation until its stack revises it
-        if (built !== undefined && Installation.isSuperseded(target, built.image, trusted)) {
-            return;
-        }
-        const { packageId } = target;
-        const build =
-            built === undefined
-                ? undefined
-                : await this.#options.space.root(packageId, built.image);
-        const description = build === undefined ? undefined : await PackageDescription.of(build);
-        const set = Installation.permissions(deployed ?? target, description, "space");
-
-        // relate it as its space, once its relations moved
-        const version =
-            build === undefined ? undefined : PackageManifest.package(build.manifest).version;
-        const calls = await InstallationAccess.relate(
-            snapshot,
-            target,
-            deployed ?? target,
-            set,
-            version,
-        );
-        if (calls.length > 0) {
-            const delegator = principal.space.reference(Scope.universe.id, target.scope);
-            const lending = Caller.onBehalfOf(delegator, reconciliation.caller.subject);
-            await reconciliation.store.mutate(AccessContext.of(lending, reconciliation.now), {
-                id: RequestId.create(reconciliation.store.environment),
-                calls,
-            });
-        }
-    }
-
     /** Revise the installation: a build at its bindings, retaining each revision once. */
     async revise(
         call: MethodContext,
@@ -733,7 +686,7 @@ export class ApplicationInstallation {
         ) {
             // leave a revision the installation observed deployed
             const ready = target.conditions["Ready"];
-            if (Observation.isCurrent(target, "Ready") && ready?.reason === "Deployed") {
+            if (Status.isCurrent(target, "Ready") && ready?.reason === "Deployed") {
                 return;
             }
 
@@ -793,9 +746,8 @@ export class ApplicationInstallation {
         }
 
         // wait for the resources its revision binds
-        const bindings = revision.bindings;
         const unready = await this.#span("ready", () =>
-            this.#options.binder.ready(call, target, bindings, requirements),
+            this.#options.binder.ready(call, target, revision, requirements),
         );
         if (unready !== undefined) {
             const message = `waiting for ${unready.object.name} ${unready.id} to be ready`;
@@ -874,14 +826,11 @@ export class ApplicationInstallation {
         call: MethodContextOf<typeof installation, "reconcile">,
         workloads: number,
     ): Promise<void> {
-        // record it synced once it runs its version, unless its residency relates it later or its space refuses it
+        // record it synced once it runs its version, unless its space refuses it
         const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
-        const homed = await InstallationAccess.home(reader, this.#target);
         const isRefused = Installation.servingFailure(this.#target) !== undefined;
         const isSynced =
-            homed === undefined &&
-            !isRefused &&
-            (await InstallationTarget.isCurrent(reader, this.#target, this.#options));
+            !isRefused && (await InstallationTarget.isCurrent(reader, this.#target, this.#options));
 
         // observe it deployed, bound, and waiting for nothing
         await call.observe(installation, this.#target, {
@@ -892,7 +841,7 @@ export class ApplicationInstallation {
                     reason: "Deployed",
                     message: `${workloads} workloads deployed`,
                 },
-                ...(isSynced ? { [SYNCED]: SYNCED_CONDITION } : {}),
+                ...(isSynced ? { [SYNCED]: SYNCED_DECISION } : {}),
             },
             fields: { plan: null, approvedPlan: null, ...InstallationWait.none },
         });
@@ -1024,8 +973,9 @@ export class ApplicationInstallation {
         );
         const accountId = account.identifier(placed.scope);
         for (const { name, feature } of needed) {
-            const database = this.#options.database;
-            const condition = await Entitlement.check(database, accountId, { feature });
+            const condition = await Entitlement.check(this.#options.database, accountId, {
+                feature,
+            });
             if (condition.status !== "true") {
                 return StackError.of(
                     "CAPABILITY_BLOCKED",

@@ -1,4 +1,4 @@
-import { space, type SpaceResource } from "@destack/account/object";
+import { space, SPACE_RESOURCES, type SpaceResource } from "@destack/account/object";
 import { eq } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
@@ -19,12 +19,12 @@ async function open() {
 
         return Object.fromEntries(
             Object.entries(row?.conditions ?? {})
-                .filter(([name]) => name !== "placement")
+                .filter(([name]) => SPACE_RESOURCES.some((resource) => resource === name))
                 .map(([name, condition]) => [name, [condition.status, condition.reason]]),
         );
     };
 
-    // set the account within its plan until a test changes an entitlement, as its residency's home does
+    // set the account within its plan until a test changes an entitlement, as its region's home does
     const entitlement = (resource: SpaceResource, state: "within" | "blocked") =>
         fixture.universe.entitle(ids.account, resource, { kind: "metered", limit: 1000, state });
     for (const resource of ["database", "bucket", "compute", "network"] as const) {

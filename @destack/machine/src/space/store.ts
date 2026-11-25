@@ -13,9 +13,6 @@ import {
     machine,
     placement,
     profileShape,
-    residency,
-    residentsShape,
-    residencyShape,
     spaceShape,
     user,
     Entitlement,
@@ -380,14 +377,6 @@ function spaceFollows(space: Space, start: SpaceStart): readonly Follow[] {
 
     return [
         ...follows,
-        // follow the residencies and its residency's residents as the space, a resident itself, so it decides on them
-        residencyShape.at({ key: { scope: Scope.universe.id } }),
-        residentsShape.per(residency, {
-            key: async (row) =>
-                row.space === served
-                    ? { key: { scope: Scope.universe.id, residency: row.code } }
-                    : undefined,
-        }),
         // follow the profiles of the people related to the space once it is placed here
         profileShape.per(relationship, {
             where: { subjectPackageId: user.typeReference.packageId, subjectType: user.name },

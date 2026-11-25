@@ -49,19 +49,19 @@ import { TestTemplate, TestDatabase, TestRun, type TemplateStorage } from "@dest
 import { onTestFinished, single, expect } from "@destack/test";
 import { Failure } from "@destack/error";
 import { AccessContext, type Authentication, Caller, principal } from "@destack/access";
-import { Account, Residency, type ResidencyCode, type StackRelease } from "@destack/account/object";
-import { OPERATOR_EMAIL, RESIDENCY_STACK, STACKS, type TestPerson } from "@destack/account/test";
+import { Account, type StackRelease } from "@destack/account/object";
+import { OPERATOR_EMAIL, PLATFORM_STACK, STACKS, type TestPerson } from "@destack/account/test";
 import accountPackage from "@destack/account/package";
 import {
     AWAITING_APPROVAL,
     type Follow,
     ObjectType,
     type Package,
-    Observation,
     PackageMount,
     SpaceMount,
     SYNCED,
     type Fetch,
+    Status,
 } from "@destack/object";
 import { ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
@@ -151,14 +151,11 @@ export interface StackReleases {
     readonly object: BuildReader;
     /** The digest of the object package's release's image. */
     readonly objectImage: Digest;
-    /** The empty stack every residency's home runs, which machines ship. */
-    readonly residency: BuildReader;
-    /** The digest of the residency stack's release's image. */
-    readonly residencyImage: Digest;
+    /** The empty platform stack the homes run, which machines ship. */
+    readonly platform: BuildReader;
+    /** The digest of the platform stack's release's image. */
+    readonly platformImage: Digest;
 }
-
-/** The residency a test universe declares, whose home a residency fixture hosts. */
-const RESIDENCY: ResidencyCode = "eu";
 
 /** The options a template's world leaves unset: those making another space or universe. */
 const WORLD_OPTIONS = [
@@ -189,7 +186,7 @@ function spaceWorldOf<World extends JsonValue>(world: schema.Schema<World>) {
                 id: schema.identifier("space"),
                 /** The account the space belongs to. */
                 account: schema.identifier("account"),
-                /** The email of the space's owner, the operator for a residency's home. */
+                /** The email of the space's owner, the operator for the platform's home. */
                 owner: schema.string(),
                 /** The stack the space declares, as the write last applied it. */
                 stack: schema.jsonObject(),
@@ -212,11 +209,11 @@ export const BORN_SPACE: SpaceWorldWrite<null> = {
     write: async () => null,
 };
 
-/** The world of a residency's home hosted on its cloud machine, its fixture writing nothing. */
-export const RESIDENCY_HOME: SpaceWorldWrite<null> = {
-    name: "residency",
+/** The world of the platform's home hosted on its managed machine, its fixture writing nothing. */
+export const PLATFORM_HOME: SpaceWorldWrite<null> = {
+    name: "platform",
     value: schema.null(),
-    spaces: [{ residency: RESIDENCY }],
+    spaces: [{ platform: true }],
     write: async () => null,
 };
 
@@ -239,11 +236,11 @@ export interface SpaceWorldWrite<World extends JsonValue> {
 /** A space an owner creates in an account: its identifier, the account and its name. */
 export type AccountSpace = Required<Pick<TestSpaceOptions, "id" | "account" | "name">>;
 
-/** A space a world hosts: an owner's space, a person's home by email, or a residency's home. */
+/** A space a world hosts: an owner's space, a person's home by email, or the platform's home. */
 export type WorldSpace = (
     | AccountSpace
     | { readonly home: string }
-    | { readonly residency: ResidencyCode }
+    | { readonly platform: true }
 ) & {
     /** The packages the space serves, the world's when absent. */
     readonly packages?: TestSpaceOptions["packages"];
@@ -300,7 +297,7 @@ export const ids = {
     run: schema.identifier("run").parse("run-01996ab0-0000-7000-8000-000000000006"),
     machine: schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-000000000007"),
     checkout: schema.identifier("checkout").parse("checkout-01996ab0-0000-7000-8000-000000000008"),
-    residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009"),
+    forge: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009"),
     repository: schema
         .identifier("repository")
         .parse("repository-01996ab0-0000-7000-8000-00000000000b"),
@@ -309,8 +306,8 @@ export const ids = {
         .parse("reference-01996ab0-0000-7000-8000-00000000000c"),
 };
 
-/** The fixture repository's main branch at the residency's forge, which installations follow. */
-export const FIXTURE_BRANCH = reference.reference(ids.residencyHome, ids.reference);
+/** The fixture repository's main branch at its home's forge, which installations follow. */
+export const FIXTURE_BRANCH = reference.reference(ids.forge, ids.reference);
 
 /** The fixture's account, which its spaces belong to. */
 const FIXTURE_ACCOUNT = { id: ids.account, handle: "example" } as const;
@@ -331,7 +328,7 @@ export function fixtureSource(directory = ".") {
 /** The fixture's space, which a world hosts alone unless it lists others. */
 const FIXTURE_SPACE: WorldSpace = { id: ids.space, account: ids.account, name: "space" };
 
-/** A space of a test universe, hosted on its residency's cloud machine over a test database. */
+/** A space of a test universe, hosted on a managed machine over a test database. */
 export class TestSpace implements AsyncDisposable, TestScope {
     /** The hosted space. */
     readonly id: Identifier<"space">;
@@ -347,8 +344,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
     readonly #test: TestMachine;
     /** The world the universe, the machine and the space run in, which tests move through. */
     readonly simulation: Simulation;
-    /** Open each residency's home the world serves with its forge, once, by residency. */
-    readonly homes: Map<ResidencyCode, () => Promise<TestSpace>>;
+    /** The opener of the fixtures' home with its forge, which the world's first space sets. */
+    readonly fixtures: { opener: (() => Promise<TestSpace>) | undefined };
     /** The world's machines answering at their origins, this space's machine among them. */
     readonly gateway: TestGateway;
     /** The world's running machines, by machine. */
@@ -394,7 +391,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         readonly machine: Identifier<"machine">;
         readonly test: TestMachine;
         readonly simulation: Simulation;
-        readonly homes: Map<ResidencyCode, () => Promise<TestSpace>>;
+        readonly fixtures: { opener: (() => Promise<TestSpace>) | undefined };
         readonly gateway: TestGateway;
         readonly machines: Map<Identifier<"machine">, Machine>;
         readonly starts: Map<
@@ -420,7 +417,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         this.#machineId = fields.machine;
         this.#test = fields.test;
         this.simulation = fields.simulation;
-        this.homes = fields.homes;
+        this.fixtures = fields.fixtures;
         this.gateway = fields.gateway;
         this.machines = fields.machines;
         this.starts = fields.starts;
@@ -489,13 +486,13 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return await TestSpace.#create(options, { defer, simulation });
     }
 
-    /** Host the residency's home on its cloud machine as the operator. */
-    static async residency(options: Omit<TestSpaceOptions, "owner"> = {}): Promise<TestSpace> {
+    /** Host the platform's home on its managed machine as the operator. */
+    static async platform(options: Omit<TestSpaceOptions, "owner"> = {}): Promise<TestSpace> {
         // copy the run's written home when the test brings no world of its own
         const given: TestSpaceOptions = options;
         const isWorld = WORLD_OPTIONS.every((name) => given[name] === undefined);
         if (isWorld) {
-            const template = TestSpace.template(options, RESIDENCY_HOME);
+            const template = TestSpace.template(options, PLATFORM_HOME);
             const copy = await TestSpace.copy(template, options);
 
             return copy.space;
@@ -505,13 +502,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const simulation = TestSpace.#simulation(options);
         const defer = TestSpace.#afterTest();
 
-        return await TestSpace.#residency(options, RESIDENCY, { defer, simulation });
+        return await TestSpace.#platform(options, { defer, simulation });
     }
 
-    /** Host a residency's home on its cloud machine as the operator, born as at its first start. */
-    static async #residency(
+    /** Host the platform's home as the operator, born as at its first start. */
+    static async #platform(
         options: Omit<TestSpaceOptions, "owner">,
-        code: ResidencyCode,
         lifetime: {
             /** Run a cleanup once the test or the template's write ends. */
             readonly defer: Defer;
@@ -527,14 +523,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const { defer, simulation } = lifetime;
         const world = await TestSpace.#universe(options, defer, simulation);
         const { universe } = world;
-        const snapshot = universe.storage.database.snapshot();
-        const home = await Residency.space(snapshot, code);
-        const row = await snapshot
-            .read(accountObject.space.table)
-            .findFirst({ where: { id: home } });
-        const address = { id: home, account: present(row, `the home of ${code}`).scope };
+        const home = await universe.platformHome();
+        const address = { id: home, account: accountObject.Account.ofHome(home) };
 
-        // host it as the operator once the residency's machine follows its placement
+        // host it as the operator once its machine follows its placement
         const owner = await universe.operator();
         const given = { ...options, world, owner };
         const machine = options.machine ?? (await universe.machine());
@@ -626,9 +618,9 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 machine,
             };
 
-            // host a residency's home as the operator
-            if ("residency" in listed) {
-                const fixture = await TestSpace.#residency(given, listed.residency, hosting);
+            // host the platform's home as the operator
+            if ("platform" in listed) {
+                const fixture = await TestSpace.#platform(given, hosting);
                 spaces.set(fixture.id, fixture);
                 states.push({ ...fixture.#state(), owner: OPERATOR_EMAIL });
             }
@@ -655,6 +647,11 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 }
                 const address = { id: listed.id, account: listed.account, name: listed.name };
                 const fixture = await TestSpace.#create({ ...given, owner, ...address }, hosting);
+
+                // serve an account's home with its forge
+                if (listed.id === Account.home(listed.account)) {
+                    await TestSpace.#serveHome(fixture);
+                }
                 spaces.set(fixture.id, fixture);
                 states.push({ ...fixture.#state(), owner: OWNER_EMAIL });
             }
@@ -748,7 +745,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         };
         const fixture = await TestSpace.#host(world, owner, { id, account }, options, hosting);
 
-        // publish the releases the space's birth resolves at the residency's forge
+        // publish the releases the space's birth resolves at the fixtures' forge
         const home = await TestSpace.#home(world, options, hosting);
         for (const release of options.releases ?? []) {
             await TestSpace.#publish(home, release, [], LATEST_TAG);
@@ -862,7 +859,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         owner: TestPerson,
         created: { readonly id: Identifier<"account">; readonly handle: string } = FIXTURE_ACCOUNT,
     ): Promise<ClientOf<typeof accountPackage>> {
-        // create the account once, as the residency's forge creates the fixture's first
+        // create the account once, as the fixtures' forge creates the fixture's first
         const accounts = owner.client(accountPackage);
         const [existing] = await universe.storage.database
             .select({ id: accountObject.account.table.id })
@@ -877,7 +874,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             requestId: RequestId.create(universe.environment),
             handle: created.handle,
             name: created.handle,
-            residencyId: "eu",
+            regionId: "eu",
             kind: "shared",
         });
 
@@ -988,14 +985,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
             }),
         });
 
-        // build the empty platform stack every residency's and account's home runs, which machines ship
-        const residency = await MemoryBuild.of(
+        // build the empty platform stack every home runs, which machines ship
+        const platform = await MemoryBuild.of(
             PackageVersion.parse({
-                id: RESIDENCY_STACK.packageId,
+                id: PLATFORM_STACK.packageId,
                 name: "@platform/stack",
                 version: STACK_VERSION,
             }),
-            [RESIDENCY_STACK.export, HOME_EXPORT].map((name) => ({
+            [PLATFORM_STACK.export, HOME_EXPORT].map((name) => ({
                 kind: "stack",
                 kindPackageId: stackPackage.id,
                 name,
@@ -1018,8 +1015,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
             image: await imageOf(stack, crypto),
             object: objectRelease,
             objectImage: await imageOf(objectRelease, crypto),
-            residency,
-            residencyImage: await imageOf(residency, crypto),
+            platform,
+            platformImage: await imageOf(platform, crypto),
         };
     }
 
@@ -1040,20 +1037,20 @@ export class TestSpace implements AsyncDisposable, TestScope {
             return options.world;
         }
 
-        // open the universe, its spaces born with the stack the residency's forge publishes, its residencies' homes with the shipped one
+        // open the universe, its spaces born with the stack the fixtures' forge publishes, the platform's home with the shipped one
         const { storage, world } = stored;
         const environment = simulation.environment(UNIVERSE_NODE);
         const { source } = await TestSpace.releases(environment.crypto);
-        const homes = new Map<ResidencyCode, () => Promise<TestSpace>>();
+        const fixtures = { opener: undefined };
         const universe = await TestUniverse.open({
             stacks: {
-                home: { ...RESIDENCY_STACK, export: HOME_EXPORT },
+                home: { ...PLATFORM_STACK, export: HOME_EXPORT },
                 space:
                     (options.isPublishingFixtures ?? true)
                         ? source
-                        : { ...RESIDENCY_STACK, export: HOME_EXPORT },
+                        : { ...PLATFORM_STACK, export: HOME_EXPORT },
             },
-            home: RESIDENCY_STACK,
+            home: PLATFORM_STACK,
             // ship the forge's and the space's linked builds, as a deploy ships its distribution
             ...(await TestSpace.#distribution(
                 TestSpace.#withForge(options).linked ?? [],
@@ -1061,7 +1058,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             )),
             ...(storage === undefined ? {} : { storage }),
             ...(world === undefined ? {} : { world }),
-            ...(options.residencies === undefined ? {} : { residencies: options.residencies }),
+            ...(options.regions === undefined ? {} : { regions: options.regions }),
             ...(options.publishers === undefined ? {} : { publishers: options.publishers }),
             simulation,
         });
@@ -1074,7 +1071,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return {
             simulation,
             universe,
-            homes,
+            fixtures,
             gateway,
             machines: new Map(),
             starts: new Map(),
@@ -1143,11 +1140,11 @@ export class TestSpace implements AsyncDisposable, TestScope {
             environment,
             credentials: async () => BUCKET_CREDENTIALS,
         });
-        const builds = await TestBuildStore.open(
-            join(directory, "builds"),
-            environment,
-            options.layer ?? BuildLayer.empty(),
-        );
+        // ship the system releases and the servers' linked builds in the machine's layer, as a deploy does
+        const stack = await TestSpace.releases(environment.crypto);
+        const shipping = [stack.platform, stack.stack, stack.object, ...(withForge.linked ?? [])];
+        const layer = options.layer ?? (await TestSpace.#distribution(shipping, environment)).layer;
+        const builds = await TestBuildStore.open(join(directory, "builds"), environment, layer);
         defer(async () => {
             await buckets[Symbol.asyncDispose]();
             await builds[Symbol.asyncDispose]();
@@ -1201,11 +1198,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
             connectors: [...(withForge.connectors ?? []), ...(local?.connectors ?? [])],
         });
 
-        // build the machine as the residency's cloud machine
-        const stack = await TestSpace.releases(environment.crypto);
-
-        // store the system releases the machine ships and links: the residency's stack, the stack and object packages, and the servers' builds
-        for (const build of [stack.residency, stack.stack, stack.object]) {
+        // store the system releases the machine ships and links: the platform stack, the stack and object packages, and the servers' builds
+        for (const build of [stack.platform, stack.stack, stack.object]) {
             await imageBuild(builds, build, []);
         }
         const shipped: PackageRelease[] = [];
@@ -1255,28 +1249,21 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 keyring: test.keyring,
                 database: test.database,
                 enrollment: async () => {
-                    // read how the universe enrolled the machine: under an account, or as the residency's
-                    const row = await enrolledAs();
-                    const enrolled = {
+                    // read how the universe enrolled the machine, under its account
+                    const row = present(await enrolledAs(), `the machine ${test.id}`);
+
+                    return {
+                        kind: row.kind,
+                        accountId: row.scope,
                         universe: TEST_UNIVERSE.toJSON(),
                         status: "enrolled",
-                    } as const;
-
-                    return row?.kind === "personal"
-                        ? {
-                              kind: "personal",
-                              accountId: accountObject.account.identifier(row.scope),
-                              ...enrolled,
-                          }
-                        : { kind: "cloud", residencyId: RESIDENCY, ...enrolled };
+                    };
                 },
                 describe: async () => {
-                    // report a personal machine's hardware, as it enrolled with it
+                    // report a self-hosted machine's hardware, as it enrolled with it
                     const row = await enrolledAs();
                     const host =
-                        row?.kind === "personal" &&
-                        row.platform !== null &&
-                        row.architecture !== null
+                        row?.kind === "self" && row.platform !== null && row.architecture !== null
                             ? { platform: row.platform, architecture: row.architecture }
                             : null;
 
@@ -1304,8 +1291,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 linked: world.machines.get(test.id)?.linked ?? linked,
                 shipped: [
                     {
-                        package: PackageManifest.package(stack.residency.manifest),
-                        image: stack.residencyImage,
+                        package: PackageManifest.package(stack.platform.manifest),
+                        image: stack.platformImage,
                     },
                     ...shipped,
                 ],
@@ -1362,7 +1349,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return stop;
     }
 
-    /** Verify a caller as a cloud machine does, a test caller by its bearer's subject. */
+    /** Verify a caller as a managed machine does, a test caller by its bearer's subject. */
     static async #authenticate(
         machine: Machine,
         request: Request,
@@ -1465,7 +1452,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             machine: machine.id,
             test,
             simulation,
-            homes: world.homes,
+            fixtures: world.fixtures,
             gateway,
             machines: world.machines,
             starts: world.starts,
@@ -1477,16 +1464,16 @@ export class TestSpace implements AsyncDisposable, TestScope {
         });
         defer(() => fixture[Symbol.asyncDispose]());
 
-        // let the world open its residency's forge through the first space it hosts
-        if (!world.homes.has(RESIDENCY)) {
+        // let the world open the fixtures' home through the first space it hosts
+        if (world.fixtures.opener === undefined) {
             const hosting = { machine: fixture.#test, defer: fixture.#defer };
-            world.homes.set(RESIDENCY, TestSpace.#homeOpener(world, options, hosting, fixture));
+            world.fixtures.opener = TestSpace.#homeOpener(world, options, hosting, fixture);
         }
 
         return fixture;
     }
 
-    /** Publish a build with the builds it runs with to the residency's forge as its owner. */
+    /** Publish a build with the builds it runs with to the region's forge as its owner. */
     async publish(
         build: BuildReader,
         builds: readonly BuildReader[] = [],
@@ -1495,7 +1482,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return await TestSpace.#publish(await this.#openedHome(), build, builds, tag);
     }
 
-    /** Report whether the residency's forge stores an object below the fixtures' handle. */
+    /** Report whether the region's forge stores an object below the fixtures' handle. */
     async isPushed(digest: Digest): Promise<boolean> {
         // ask the uploads below the account's handle
         const home = await this.#openedHome();
@@ -1509,12 +1496,19 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return isStored === true;
     }
 
-    /** Open the world's residency home with its forge, which the fixtures publish to. */
+    /** Host an account's home in the space's world on its machine as its owner, with its forge. */
+    async home(accountId: Identifier<"account">, owner: TestPerson): Promise<TestSpace> {
+        const hosting = { machine: this.#test, defer: this.#defer };
+
+        return await TestSpace.#hostHome(this, owner, accountId, {}, hosting);
+    }
+
+    /** Open the fixtures' account's home with its forge, which the fixtures publish to. */
     #openedHome(): Promise<TestSpace> {
         return TestSpace.#home(this, {}, { machine: this.#test, defer: this.#defer }, this);
     }
 
-    /** Serve a world's residency home with its forge once, with the fixtures' releases. */
+    /** Serve the fixtures' account's home with its forge once, with the fixtures' releases. */
     static #home(
         world: TestSpaceWorld,
         options: TestSpaceOptions,
@@ -1522,16 +1516,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
         caller?: TestSpace,
     ): Promise<TestSpace> {
         // open it once per world, through the opener set first
-        let open = world.homes.get(RESIDENCY);
-        if (open === undefined) {
-            open = TestSpace.#homeOpener(world, options, hosting, caller);
-            world.homes.set(RESIDENCY, open);
-        }
+        world.fixtures.opener ??= TestSpace.#homeOpener(world, options, hosting, caller);
 
-        return open();
+        return world.fixtures.opener();
     }
 
-    /** Make an opener of a world's residency home that opens it once. */
+    /** Make an opener of the fixtures' account's home that opens it once. */
     static #homeOpener(
         world: TestSpaceWorld,
         options: TestSpaceOptions,
@@ -1543,62 +1533,46 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return () => (opening ??= TestSpace.#openHome(world, options, hosting, caller));
     }
 
-    /** Serve the residency's home with its forge, its fixtures' account and releases, each once. */
+    /** Serve the fixtures' account's home with its forge and releases, each once. */
     static async #openHome(
         world: TestSpaceWorld,
         options: TestSpaceOptions,
         hosting: TestHosting,
         caller?: TestSpace,
     ): Promise<TestSpace> {
-        // host the residency's home as the operator, applying its forge's stack once
+        // create the fixtures' account as its owner, who publishes them from its home's forge
         const { universe } = world;
-        const snapshot = universe.storage.database.snapshot();
-        const home = await Residency.space(snapshot, RESIDENCY);
-        const row = await snapshot
-            .read(accountObject.space.table)
-            .findFirst({ where: { id: home } });
-        const address = { id: home, account: present(row, `the home of ${RESIDENCY}`).scope };
-        const operator = await universe.operator();
-        const residency =
-            caller?.id === home
-                ? caller
-                : await TestSpace.#host(
-                      world,
-                      operator,
-                      address,
-                      { ...options, world, owner: operator },
-                      hosting,
-                  );
-        await residency.serve();
-        const installed = await residency.database
-            .snapshot()
-            .read(installation.table)
-            .findFirst({ where: { name: FORGE_INSTALLATION } });
-        const isApplied = installed !== undefined;
-        if (!isApplied) {
-            await residency.apply([...FORGE_HOME_TYPES], FORGE_HOME_STACK);
-        }
+        const owner = await universe.signIn(OWNER_EMAIL);
+        await TestSpace.account(universe, owner);
+        await universe.simulation.idle();
+
+        // host its home as the owner with its forge
+        const home = accountObject.Account.home(FIXTURE_ACCOUNT.id);
+        const fixtures = await TestSpace.#hostHome(
+            world,
+            owner,
+            FIXTURE_ACCOUNT.id,
+            options,
+            hosting,
+            caller,
+        );
 
         // publish nothing in a world holding no fixtures
         if (!(options.isPublishingFixtures ?? true)) {
-            return residency;
+            return fixtures;
         }
-
-        // create the fixtures' account as its owner, who publishes them
-        const owner = await universe.signIn(OWNER_EMAIL);
-        await TestSpace.account(universe, owner);
 
         // publish the space stack and the fixture package's versions, each once
         const { crypto } = universe.environment;
         const { space } = await TestSpace.releases(crypto);
-        await TestSpace.#publish(residency, space, [], LATEST_TAG);
+        await TestSpace.#publish(fixtures, space, [], LATEST_TAG);
         for (const version of FIXTURE_VERSIONS) {
             const build = await fixtureBuild(ids.package, version, crypto);
-            await TestSpace.#publish(residency, build, [], LATEST_TAG);
+            await TestSpace.#publish(fixtures, build, [], LATEST_TAG);
         }
 
         // point the fixture package's tags
-        const registry = callRegistry(residency.machine, home, TestSpace.#fetchAs(residency));
+        const registry = callRegistry(fixtures.machine, home, TestSpace.#fetchAs(fixtures));
         for (const [name, version] of Object.entries(TAGS)) {
             await registry.package.point({
                 spaceId: home,
@@ -1609,7 +1583,48 @@ export class TestSpace implements AsyncDisposable, TestScope {
             });
         }
 
-        return residency;
+        return fixtures;
+    }
+
+    /** Host an account's home in a world as its owner, serving it with its forge's stack once. */
+    static async #hostHome(
+        world: TestSpaceWorld,
+        owner: TestPerson,
+        accountId: Identifier<"account">,
+        options: TestSpaceOptions,
+        hosting: TestHosting,
+        caller?: TestSpace,
+    ): Promise<TestSpace> {
+        // host the home, or take the caller already at it
+        const address = { id: accountObject.Account.home(accountId), account: accountId };
+        const home =
+            caller?.id === address.id
+                ? caller
+                : await TestSpace.#host(
+                      world,
+                      owner,
+                      address,
+                      { ...options, world, owner },
+                      hosting,
+                  );
+
+        // serve it with its forge
+        await TestSpace.#serveHome(home);
+
+        return home;
+    }
+
+    /** Serve an account's home, applying its forge's stack once. */
+    static async #serveHome(home: TestSpace): Promise<void> {
+        // serve it, then apply the stack unless the forge is installed
+        await home.serve();
+        const installed = await home.database
+            .snapshot()
+            .read(installation.table)
+            .findFirst({ where: { name: FORGE_INSTALLATION } });
+        if (installed === undefined) {
+            await home.apply([...FORGE_HOME_TYPES], FORGE_HOME_STACK);
+        }
     }
 
     /** Publish a build in an image hoisted with its builds under a tag, once per image. */
@@ -1676,14 +1691,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return { distribution, layer };
     }
 
-    /** Locate the forge in the residency's home: the URL its package's mounts lie below. */
+    /** Locate the forge in the platform's home: the URL its package's mounts lie below. */
     static #forgeUrl(home: TestSpace): Promise<string> {
         const { machine, id } = home;
 
         return machine.directory.package(id, registryPackage.id, machine.clock.now());
     }
 
-    /** Send requests to the residency's forge as the fixtures' owner, with a token each. */
+    /** Send requests to the region's forge as the fixtures' owner, with a token each. */
     static #fetchAs(home: TestSpace): Fetch {
         return async (request) => {
             // exchange the fixtures' owner's token for the home, and send it as the bearer
@@ -1698,7 +1713,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         };
     }
 
-    /** Take a world's options with the residency's forge every world serves beside them. */
+    /** Take a world's options with the region's forge every world serves beside them. */
     static #withForge(options: TestSpaceOptions): TestSpaceOptions {
         // add the forge's packages, servers, builds, resources and follows once
         const forge = FORGE_HOME_OPTIONS;
@@ -2283,7 +2298,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     ): Promise<void> {
         // submit it and read how far the stack came
         const { applied, failures } = await this.#submit(types, collections);
-        const progress = Observation.progress(applied);
+        const progress = Status.progress(applied);
 
         // fail with the store's reported failures
         if (failures.length > 0) {
@@ -2291,7 +2306,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         }
         // fail with the generation each condition was observed at unless the stack applied it
         else if (progress !== "current") {
-            const message = Observation.message(applied);
+            const message = Status.message(applied);
             const observed = Object.entries(applied.conditions)
                 .map(([name, condition]) => `${name} at ${condition.observedGeneration}`)
                 .join(", ");
@@ -2330,13 +2345,13 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const stack = single(listed.items.filter((entry) => entry.export !== null));
 
         // record a build of the space's own stack package declaring the definition at its export
-        const { space, residency } = this.releases;
-        const isResidency = stack.packageId === PackageManifest.package(residency.manifest).id;
+        const { space, platform } = this.releases;
+        const isPlatform = stack.packageId === PackageManifest.package(platform.manifest).id;
         const exported = present(stack.export, "the stack's export");
         const recorded = await this.recordStack(
             exported,
             this.#stack,
-            isResidency ? residency : space,
+            isPlatform ? platform : space,
         );
 
         // follow the build declaring the definition, which the space evaluates and applies
@@ -2392,7 +2407,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             readonly isolation?: schema.Input<typeof InstallationDefinition>["isolation"];
         } = {},
     ): Promise<Identifier<"installation">> {
-        // follow the host's release in process or of a system package the machine links, else publish the build at the residency's forge
+        // follow the host's release in process or of a system package the machine links, else publish the build at the region's forge
         const released = PackageManifest.package(build.manifest);
         const isHost = options.isolation === "host" || this.machine.linked.has(released.id);
         if (!isHost) {
@@ -2472,7 +2487,7 @@ export type TestSpaceWorld = Pick<
     TestSpace,
     | "simulation"
     | "universe"
-    | "homes"
+    | "fixtures"
     | "gateway"
     | "machines"
     | "starts"
@@ -2504,21 +2519,21 @@ export interface TestSpaceOptions {
     readonly tables?: readonly Table[];
     /** The world the space joins: its simulation, universe and registry, a new one by default. */
     readonly world?: TestSpaceWorld;
-    /** The residencies a new universe declares, Europe alone by default. */
-    readonly residencies?: TestUniverseOptions["residencies"];
+    /** The regions a new universe declares, Europe alone by default. */
+    readonly regions?: TestUniverseOptions["regions"];
     /** The handles a new universe's platform publishes under, none by default. */
     readonly publishers?: TestUniverseOptions["publishers"];
     /** The owner of the space, a new sign-up by default, such as a move's source's owner. */
     readonly owner?: TestPerson;
     /** The origin the test serves the hosting machine at, its published one by default. */
     readonly origin?: string;
-    /** The machine hosting the space, the residency's cloud machine by default. */
+    /** The machine hosting the space, the managed machine by default. */
     readonly machine?: TestMachine;
     /** The servers the store runs, whose packages' installations run in its process. */
     readonly servers?: readonly PackageImplementation[];
     /** The builds the machine links of its servers' packages, fixed before the space serves. */
     readonly linked?: readonly BuildReader[];
-    /** The builds the machine ships, read in place, none by default. */
+    /** The builds the machine ships, read in place, its system and linked releases by default. */
     readonly layer?: BuildLayer;
     /** The providers the machine's volumes offer beside its database host. */
     readonly providers?: readonly (SpaceProvider | StoreProvider)[];
@@ -2546,7 +2561,7 @@ export interface TestSpaceOptions {
     readonly stack?: StackRelease;
     /** The builds the registry publishes before the space's birth, such as its stack's. */
     readonly releases?: readonly BuildReader[];
-    /** Whether the residency's forge holds the fixtures' account and releases, true by default. */
+    /** Whether the region's forge holds the fixtures' account and releases, true by default. */
     readonly isPublishingFixtures?: boolean;
 }
 

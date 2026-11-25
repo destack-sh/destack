@@ -28,7 +28,7 @@ interface DirectoryConfiguration {
     readonly start: (space: Identifier<"space">) => Promise<void>;
 }
 
-/** The prefix of a cloud machine's directory blobs in the residency's bucket. */
+/** The prefix of a cloud machine's directory blobs in the region's bucket. */
 export const DIRECTORY_PREFIX = "directory/";
 
 /** The configuration a cloud machine's object binds. */

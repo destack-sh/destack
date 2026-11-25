@@ -111,7 +111,6 @@ export function openGateway(
             machine: {
                 directory,
                 accounts: () => space.machine.accounts(),
-                homes: new Map([[ids.account, Promise.resolve(ids.residencyHome)]]),
                 traffic: options.traffic ?? new Traffic(),
                 id: space.machine.id,
                 clock: space.machine.clock,

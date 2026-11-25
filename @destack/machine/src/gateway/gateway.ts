@@ -36,13 +36,13 @@ import {
     InstallationBindingSpec,
     InstallationKind,
     InstallationMount,
-    Observation,
     type Package,
     PackageMount,
     refusal,
     RequestBody,
     SpaceMount,
     VERSION_HEADER,
+    Status,
 } from "@destack/object";
 import { PeerCall } from "./peer.ts";
 import type { IdentityKeystore } from "@destack/account/identity";
@@ -218,7 +218,6 @@ export type GatewaySpace = Pick<
         | "traffic"
         | "verifier"
         | "accounts"
-        | "homes"
     >;
 };
 
@@ -850,7 +849,7 @@ export class Gateway {
             .snapshot()
             .read(installation.table)
             .findFirst({ where: { id: installationId } });
-        if (installed !== undefined && Observation.progress(installed) === "waiting") {
+        if (installed !== undefined && Status.progress(installed) === "waiting") {
             throw MachineError.of(
                 "DEPLOYMENT_UNAVAILABLE",
                 `deployment of installation '${installationId}' is unavailable: it is starting`,

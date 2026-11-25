@@ -380,7 +380,7 @@ test("serve spaces only while the machine is enrolled", async () => {
     }).toEqual({
         isEnrolled: [false, true, false],
         enrolled: {
-            kind: "personal",
+            kind: "self",
             universe: TEST_UNIVERSE.toJSON(),
             accountId: owner.account,
             status: "enrolled",
@@ -408,7 +408,7 @@ test("pause serving while the account drains the machine", async () => {
     const accounts = (await device.launcher(signedIn.id)).session.accounts();
     const change = (name: "drain" | "enable") =>
         accounts.machine[name]({
-            scope: owner.account,
+            accountId: owner.account,
             id: machine.id,
             requestId: RequestId.create(opened.environment),
         });

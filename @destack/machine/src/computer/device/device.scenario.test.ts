@@ -77,7 +77,7 @@ test("refuse to read the account of a machine nobody enrolled", async () => {
     expect(await refusal(device.account())).toEqual([
         "PRECONDITION_FAILED",
         "ENROLLMENT_BLOCKED",
-        "cannot use this machine: it is not enrolled in a personal account, so sign in to enroll it",
+        "cannot use this machine: it is not enrolled as a self-hosted machine, so sign in to enroll it",
     ]);
 });
 
@@ -98,7 +98,7 @@ test("describe the types a space's store serves over a connection to the stack p
         "build",
         "space",
         "account",
-        "residency",
+        "region",
         "organization",
         "user",
     ]);
@@ -158,13 +158,12 @@ test("forward the owner's calls as a signed-in person to a space's package, refu
     });
 });
 
-test("resolve the owner's spaces by address, identifier, home and residency, refusing an unknown name", async () => {
-    // resolve the owner's home three ways, their residency's space, and a space they have none of
+test("resolve the owner's home by address, identifier and name, refusing an unknown name", async () => {
+    // resolve the owner's home three ways, and a space they have none of
     const { home, login } = await TestComputer.home();
     const { device, world } = home;
     const session = await device.launcher(login);
     const address = await session.address(world.owner.home);
-    const residency = await session.residency(await session.account());
 
     // expect each name of the home to resolve to its space, and the other refused
     expect({
@@ -172,11 +171,10 @@ test("resolve the owner's spaces by address, identifier, home and residency, ref
             await session.resolve(address, {}),
             await session.resolve(world.owner.home, {}),
             await session.resolve("home", {}),
-            await session.resolve("residency", {}),
         ],
         nowhere: await refusal(session.resolve("nowhere", {})),
     }).toEqual({
-        resolved: [world.owner.home, world.owner.home, world.owner.home, residency],
+        resolved: [world.owner.home, world.owner.home, world.owner.home],
         nowhere: ["NOT_FOUND", "SPACE_NOT_FOUND", "space 'nowhere' of yours not found"],
     });
 });
@@ -189,7 +187,7 @@ test("sign a person up through a sign-in the machine carries out, answering the 
     const local = await device.objects({ signIn });
     stack.defer(() => local.close());
     const email = "lin@example.test";
-    const signUp = { name: "Lin", handle: "lin", residencyId: "eu", timeZone: "UTC", locale: "en" };
+    const signUp = { name: "Lin", handle: "lin", regionId: "eu", timeZone: "UTC", locale: "en" };
     const { id } = await local.mutate(signIn).start({ method: { kind: "signUp", email, signUp } })
         .predicted;
     const read = async () =>

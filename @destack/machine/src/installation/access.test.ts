@@ -1,15 +1,7 @@
 import { testIdentity } from "@destack/object/test";
-import { schema, nth } from "@destack/schema";
-import {
-    AccessContext,
-    Caller,
-    Permission,
-    principal,
-    accessRelationship,
-    Relationship,
-} from "@destack/access";
-import { account, residency, space, user } from "@destack/account/object";
-import { Table } from "@destack/db";
+import { nth } from "@destack/schema";
+import { AccessContext, Caller, Permission, principal } from "@destack/access";
+import { account, space, user } from "@destack/account/object";
 import { grant, role, type PackageDescription } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
@@ -108,90 +100,5 @@ test("bind an installation's requests on other packages' types on its consenter'
             { caller: delegator, calls: [lent] },
         ],
         removed: [{ caller: consenter, calls: [binding([])] }],
-    });
-});
-
-test("relate and unrelate a residency home's installation as its requests change", async () => {
-    // declare notes in the space, which homes a residency
-    const { database, now } = await installNotes();
-    const lab = schema
-        .identifier("residency")
-        .parse("residency-01996ab0-0000-7000-8000-00000000000e");
-    await database.transaction(
-        async (transaction) =>
-            await transaction.insert(residency.table).values(
-                Table.complete(residency.table, {
-                    id: lab,
-                    scope: Scope.universe.id,
-                    code: "lab",
-                    name: "Lab",
-                    relay: "https://relay-lab.machine.test",
-                    space: ids.space,
-                    createdAt: now,
-                    updatedAt: now,
-                }),
-            ),
-    );
-    const snapshot = database.snapshot();
-    const rows = await snapshot.read(installation.table).findMany({ where: { id: ids.notes } });
-    const read = nth(rows, 0);
-    const stack = schema
-        .identifier("installation")
-        .parse("installation-01996ab0-0000-7000-8000-00000000000d");
-    const target = { ...read, managerInstallationId: stack };
-
-    // relate an unrelated installation asking the universe, and leave one asking nothing
-    const set = { universe: [user.permission("recipient")] };
-    const at = residency.target({ scope: Scope.universe.id, id: lab });
-    const unrelated = {
-        asking: await InstallationAccess.relate(snapshot, target, target, set, "2026.9.0"),
-        silent: await InstallationAccess.relate(snapshot, target, target, {}, "2026.9.0"),
-    };
-
-    // relate it at the residency, then leave it while it asks, and unrelate it once it stops
-    const related = Relationship.encode({
-        id: "relationship-01996ab0-0000-7000-8000-00000000000f",
-        object: residency.reference(Scope.universe.id, lab),
-        relation: "installation",
-        subject: principal.installation.reference(ids.space, ids.notes),
-        createdAt: now,
-        expiresAt: null,
-    });
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .insert(accessRelationship)
-                .values(Table.complete(accessRelationship, related)),
-    );
-    const settled = {
-        asking: await InstallationAccess.relate(snapshot, target, target, set, "2026.9.0"),
-        silent: await InstallationAccess.relate(snapshot, target, target, {}, "2026.9.0"),
-    };
-
-    // relate it again once a deploy applies another revision
-    const applied = schema
-        .identifier("installation-revision")
-        .parse("installation-revision-01996ab0-0000-7000-8000-000000000010");
-    const upgraded = await InstallationAccess.relate(
-        snapshot,
-        target,
-        { ...target, appliedRevisionId: applied },
-        set,
-        "2026.9.0",
-    );
-    const touch = residency.call("touch", {
-        ...at,
-        installation: ids.notes,
-        name: "notes",
-        packageId: ids.package,
-        release: "2026.9.0",
-    });
-    expect({ unrelated, settled, upgraded }).toEqual({
-        unrelated: { asking: [touch], silent: [] },
-        settled: {
-            asking: [],
-            silent: [residency.call("revoke", { ...at, installation: ids.notes, name: "notes" })],
-        },
-        upgraded: [touch],
     });
 });

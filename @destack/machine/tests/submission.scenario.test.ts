@@ -1,3 +1,4 @@
+import { Account } from "@destack/account/object";
 import {
     installation,
     build,
@@ -14,7 +15,6 @@ import { Commit, schema, present, Digest, Identifier, type JsonObject } from "@d
 import { tag } from "@destack/registry/object";
 import { CallError } from "@destack/object";
 import { and, eq } from "@destack/db";
-import { Residency } from "@destack/account/object";
 import { PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { defineSetting } from "@destack/setting/declare";
@@ -528,7 +528,7 @@ test("wait for a release no one has published under the selected tag, reporting 
         packageId: ids.package,
         ...following({
             version: tag.reference(
-                await Residency.space(fixture.universe.storage.database.snapshot(), "eu"),
+                Account.home(ids.account),
                 Identifier.create("tag", fixture.machine.environment),
             ),
         }),

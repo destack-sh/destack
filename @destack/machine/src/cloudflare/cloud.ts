@@ -47,11 +47,11 @@ export const CONNECTING_IP_HEADER = "cf-connecting-ip";
 
 /** The bindings of a cloud machine's spaces' storage. */
 export interface CloudflareStorageBindings {
-    /** The residency's R2 bucket, by owner: `spaces/<space>/` and `directory/`. */
+    /** The region's R2 bucket, by owner: `spaces/<space>/` and `directory/`. */
     readonly BUCKET: Cloudflare.R2Bucket;
-    /** The name of the residency's R2 bucket. */
+    /** The name of the region's R2 bucket. */
     readonly DESTACK_BUCKET: string;
-    /** The residency's Artifacts namespace of the spaces' Git storages. */
+    /** The region's Artifacts namespace of the spaces' Git storages. */
     readonly ARTIFACTS: ArtifactsNamespace;
     /** The releases the Worker version ships, a build layer in its static assets. */
     readonly RELEASES: AssetBinding;
@@ -255,13 +255,13 @@ export class CloudMachine {
         const row = await view
             .read(accountObject.machine.table)
             .findFirst({ where: { id: this.id } });
-        if (row?.residencyId === undefined || row.residencyId === null) {
+        if (row === undefined) {
             return undefined;
         }
 
         return {
-            kind: "cloud",
-            residencyId: row.residencyId,
+            kind: "managed",
+            accountId: row.scope,
             universe: CloudMachine.universe(this.bindings).toJSON(),
             status: "enrolled",
         };

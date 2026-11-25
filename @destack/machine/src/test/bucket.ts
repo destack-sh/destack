@@ -15,7 +15,7 @@ import {
     Authorization,
     Relationship,
 } from "@destack/access";
-import { STACKS, TestAccountStore, TestDirectory } from "@destack/account/test";
+import { STACKS, TestAccount, TestDirectory } from "@destack/account/test";
 import {
     approval,
     CallEvent,
@@ -414,7 +414,7 @@ export class TestBucket implements AsyncDisposable {
         // open the bucket's directory, and the universe's database with its name claims
         const directory = await environment.files.makeTemporaryDirectory("destack-bucket-files-");
         const files = await LocalBucket.open(directory, "space-test", environment);
-        const universe = await TestDatabase.create(TestAccountStore.database, {
+        const universe = await TestDatabase.create(TestAccount.database, {
             environment,
             isMigrated: true,
         });

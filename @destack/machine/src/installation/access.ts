@@ -6,17 +6,11 @@ import {
     type GrantPermission,
     PermissionSet,
     principal,
-    Relationship,
-    Manager,
 } from "@destack/access";
-import type { Select } from "@destack/db";
 import { Snapshot } from "@destack/db/database";
-import { InstallationTarget } from "./target.ts";
 import { grant, type MethodContext, PackageDescription, role } from "@destack/object";
 import { canonicalize, present } from "@destack/schema";
 import { type Call, Scope, type Subject } from "@destack/sync";
-import { residency } from "@destack/account/object";
-import { StackError } from "@destack/stack/error";
 
 /** The name under which an installation manages its permissions binding and space grant. */
 const GRANT_NAME = "permissions";
@@ -29,7 +23,7 @@ export interface AccessChange {
     readonly calls: readonly Call[];
 }
 
-/** The roles and grant an installation gets in its space, and its residency home's relation. */
+/** The roles and grant an installation gets in its space, and its region home's relation. */
 export const InstallationAccess = {
     /** Upsert an installation's roles in its space and its space's grant, each as its caller. */
     async upsert(
@@ -127,86 +121,6 @@ export const InstallationAccess = {
                 ? []
                 : [{ caller: AccessContext.of(lending, now), calls: granting }]),
         ];
-    },
-
-    /** Read the residency whose home a stack-managed installation runs in, which relates it. */
-    async home(
-        reader: Pick<Snapshot, "read">,
-        target: Installation,
-    ): Promise<Select<typeof residency.table> | undefined> {
-        // leave an installation no stack manages
-        if (!Manager.isManaged(target)) {
-            return undefined;
-        }
-        const [homed] = await reader
-            .read(residency.table)
-            .findMany({ where: { space: Installation.space(target) }, limit: 1 });
-
-        return homed;
-    },
-
-    /** Build the calls relating a residency home's installation at its deployed release. */
-    async relate(
-        reader: Pick<Snapshot, "read">,
-        previous: Pick<Installation, "appliedRevisionId">,
-        target: Installation,
-        set: PermissionSet,
-        version: string | undefined,
-    ): Promise<Call[]> {
-        // relate only the installations its stack manages, and only those of a residency's home
-        const homed = await InstallationAccess.home(reader, target);
-        if (homed === undefined) {
-            return [];
-        }
-
-        // read whether the residency relates the installation now
-        const at = residency.target({ scope: Scope.universe.id, id: homed.id });
-        const { id: installed } = target;
-        const { name, packageId } = target;
-        const kind = InstallationTarget.kind(target);
-        const [related] = await Relationship.read(
-            reader,
-            residency.reference(Scope.universe.id, homed.id),
-            {
-                relation: "installation",
-                subject: principal.installation.reference(target.scope, installed),
-            },
-        );
-        const isAsking = (set.universe ?? []).length > 0;
-        const isRelated = related !== undefined;
-        const isUpgraded = target.appliedRevisionId !== previous.appliedRevisionId;
-
-        // leave a settled relationship: related at the applied release while asking, else unrelated
-        if (isAsking ? isRelated && !isUpgraded : !isRelated) {
-            return [];
-        }
-        // unrelate one asking for nothing there
-        else if (!isAsking) {
-            return [residency.call("revoke", { ...at, installation: installed, name })];
-        }
-        // refuse one following no release, which every installation a residency's home declares follows
-        else if (kind !== "release" && kind !== "host") {
-            throw StackError.of(
-                "RELEASE_BLOCKED",
-                `cannot grant residency: home installation '${name}' follows no release`,
-            );
-        }
-        // relate one once a release of it is deployed
-        else if (version === undefined) {
-            return [];
-        }
-        // relate one following a release for what its universe-scoped requests ask, again after an upgrade
-        else {
-            return [
-                residency.call("touch", {
-                    ...at,
-                    installation: installed,
-                    name,
-                    packageId,
-                    release: version,
-                }),
-            ];
-        }
     },
 
     /** Build the calls giving an installation its space's one grant of exactly some permissions. */

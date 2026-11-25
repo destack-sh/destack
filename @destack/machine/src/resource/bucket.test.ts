@@ -426,6 +426,11 @@ test("refuse callers without the bucket permission", async () => {
                         reason: "PERMISSION_DENIED",
                         domain: "@destack/access",
                         message: "permission 'write' is forbidden: it is not granted",
+                        data: {
+                            permission: "bucket.write",
+                            object: `bucket ${fixture.spaceId}/${bucket.id}`,
+                            caller: `user universe/${member.id}`,
+                        },
                     },
                 },
                 target: { type: "procedure", id: "bucket.open" },

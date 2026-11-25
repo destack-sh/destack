@@ -105,7 +105,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
     /** The settings of the worlds: SQLite in WAL with synchronous NORMAL, as in production. */
     static readonly configuration = { durability: "normal" };
 
-    /** The residency's cloud computer serving the owner's home, a new one after each restart. */
+    /** The managed computer serving the owner's home, a new one after each restart. */
     home: TestComputer;
     /** The owner's login on the home computer's device. */
     readonly login: Identifier<"login">;
@@ -146,7 +146,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         return this.home.clock;
     }
 
-    /** Start the owner's home on its cloud computer, given no examples. */
+    /** Start the owner's home on its managed computer, given no examples. */
     static async start(_given: Given): Promise<MachineDriver> {
         const { home, login: signedIn } = await TestComputer.home({ node: HOME });
 

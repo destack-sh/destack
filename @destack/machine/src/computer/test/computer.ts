@@ -3,10 +3,10 @@ import { NpmMirror } from "./npm.ts";
 import { installation, Installation } from "@destack/stack/object";
 import {
     type InstanceOf,
-    Observation,
     type ObjectType,
     type Package,
     PackageMount,
+    Status,
 } from "@destack/object";
 import {
     type Environment,
@@ -17,7 +17,7 @@ import {
 import { type CapturedRecord, TestTelemetry } from "@destack/telemetry/test";
 import { Refusal } from "../../test/refusal.ts";
 import { basename, dirname, join } from "node:path";
-import { Account, type ResidencyCode } from "@destack/account/object";
+import { Account, type RegionCode } from "@destack/account/object";
 import type { StepUp } from "@destack/access";
 import type { Login } from "@destack/account/native";
 import { freshHandle, type TestPerson } from "@destack/account/test";
@@ -65,14 +65,14 @@ export const FILES_NODE = "files";
 /** The port HTTPS origins answer at, which the universe's origin leaves implicit. */
 const HTTPS_PORT = 443;
 
-/** The node the residency's relay runs as in the simulated network. */
+/** The node the region's relay runs as in the simulated network. */
 export const RELAY_NODE = "relay";
 
-/** The host name the residency's relay answers at, where computers open their tunnels. */
-const RELAY_HOSTNAME = "eu.relay.test";
+/** The host name the region's relay answers at, where computers open their tunnels. */
+const RELAY_HOSTNAME = "relay-eu.machine.test";
 
-/** The residency the owner and the cloud machine live in. */
-const RESIDENCY: ResidencyCode = "eu";
+/** The region the owner and the cloud machine live in. */
+const REGION: RegionCode = "eu";
 
 /** The characters of a machine identifier a test name uses: its UUID's last group. */
 const NAME_SUFFIX_LENGTH = 12;
@@ -127,7 +127,7 @@ export const PUBLISHER: TestOrganization = { handle: "example", name: "Example" 
 /** What the owner's home starts with beside the cloud computer's options. */
 export interface TestHomeOptions extends Omit<
     TestComputerOptions,
-    "residency" | "directory" | "keychains"
+    "region" | "directory" | "keychains"
 > {
     /** The organizations the owner created, each serving its home, none by default. */
     readonly organizations?: readonly TestOrganization[];
@@ -163,8 +163,8 @@ export interface TestWorld {
 export interface TestComputerOptions {
     /** The node the computer runs as on the simulated network, a new one by default. */
     readonly node?: string;
-    /** The residency whose cloud machine the computer runs, a personal machine by default. */
-    readonly residency?: ResidencyCode;
+    /** The region whose cloud machine the computer runs, a personal machine by default. */
+    readonly region?: RegionCode;
     /** The relay the computer tunnels through once enrolled, none by default. */
     readonly relay?: string;
     /** Run the machine's instances through an egress, as Bun processes by default. */
@@ -364,11 +364,11 @@ export class TestComputer implements AsyncDisposable {
         });
     }
 
-    /** Start the residency's relay on a node of its own, waiting until it follows the universe. */
+    /** Start the region's relay on a node of its own, waiting until it follows the universe. */
     static async relay(world: TestWorld, defer: Defer = onTestFinished): Promise<TestRelay> {
-        // host the relay as the residency's cloud machine does, the names DNS sends it answered on its node
+        // host the relay as the region's cloud machine does, the names DNS sends it answered on its node
         const { simulation, universe } = world;
-        const host = await universe.machine(RESIDENCY);
+        const host = await universe.machine(REGION);
         const relay = await TestRelay.open({
             universe,
             host,
@@ -415,9 +415,9 @@ export class TestComputer implements AsyncDisposable {
             ),
         );
         const cloud =
-            options.residency === undefined
+            options.region === undefined
                 ? undefined
-                : (await universe.world()).machines[options.residency];
+                : (await universe.world()).machines[options.region];
         if (cloud !== undefined) {
             keychains.set(MACHINE_KEYS, TestComputer.#keychain(cloud.secrets));
         }
@@ -504,11 +504,11 @@ export class TestComputer implements AsyncDisposable {
 
         // start the computer, which captures the failures no caller sees in the world's telemetry
         const enrollment: MachineEnrollment | undefined =
-            options.residency === undefined
+            options.region === undefined
                 ? undefined
                 : {
-                      kind: "cloud",
-                      residencyId: options.residency,
+                      kind: "managed",
+                      accountId: Account.ofHome(await world.universe.platformHome()),
                       universe: TEST_UNIVERSE.toJSON(),
                       status: "enrolled",
                   };
@@ -573,7 +573,7 @@ export class TestComputer implements AsyncDisposable {
         return started;
     }
 
-    /** Start the residency's cloud computer serving the owner's home, from the run's template. */
+    /** Start the region's cloud computer serving the owner's home, from the run's template. */
     static async home(
         options: TestHomeOptions = {},
         defer: Defer = onTestFinished,
@@ -604,7 +604,7 @@ export class TestComputer implements AsyncDisposable {
             {
                 ...started,
                 world,
-                residency: RESIDENCY,
+                region: REGION,
                 directory,
                 keychains: value.keychains,
             },
@@ -663,17 +663,15 @@ export class TestComputer implements AsyncDisposable {
                 const state = join(directory, "home");
                 await simulation.environment(FILES_NODE).files.mkdir(state);
                 const home = await TestComputer.open(
-                    { world, residency: RESIDENCY, directory: state },
+                    { world, region: REGION, directory: state },
                     defer,
                 );
                 const login = await home.signIn(OWNER_EMAIL);
                 await home.ready(world.owner.home);
 
-                // serve the residency's home and each organization's, their stacks applied
+                // serve the region's home and each organization's, their stacks applied
                 const { owner } = world;
-                const accounts = await home.machine.accounts();
-                const located = await accounts.residency.locate({ account: owner.account });
-                await home.ready(schema.identifier("space").parse(located));
+                await home.ready(Account.home(owner.account));
                 const created: Record<string, Identifier<"account">> = {};
                 for (const { handle, name } of organizations) {
                     const accountId = await owner.organize(handle, name);
@@ -750,11 +748,11 @@ export class TestComputer implements AsyncDisposable {
 
     /** Sign a person in on the computer's device with the code the universe mails them. */
     async signIn(email: string): Promise<Login["row"]> {
-        // mail the code, signing a new person up in the residency
+        // mail the code, signing a new person up in the region
         const started = await this.device.credential.startEmail(email, {
             name: email,
             handle: freshHandle(this.environment),
-            residencyId: RESIDENCY,
+            regionId: REGION,
             timeZone: "UTC",
             locale: "en",
         });
@@ -932,7 +930,7 @@ export class TestComputer implements AsyncDisposable {
 
             return (
                 row !== undefined &&
-                (Installation.isServed(row) || Observation.progress(row) === "failed")
+                (Installation.isServed(row) || Status.progress(row) === "failed")
             );
         };
         await this.waitUntil(database, settled, INSTALL_MILLISECONDS).catch(
@@ -944,8 +942,8 @@ export class TestComputer implements AsyncDisposable {
 
         // refuse an installation whose rollout failed for good, with its conditions
         const row = await read();
-        if (row !== undefined && Observation.progress(row) === "failed") {
-            throw new TypeError(`'${name}' did not apply: '${Observation.message(row)}'`);
+        if (row !== undefined && Status.progress(row) === "failed") {
+            throw new TypeError(`'${name}' did not apply: '${Status.message(row)}'`);
         }
     }
 

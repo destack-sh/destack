@@ -1,51 +1,28 @@
 import { contained, principal } from "@destack/access";
 import { AccountHandle, SpaceAddress, UniverseOrigin } from "@destack/account/address";
 import { PlacementEndpoint } from "@destack/account/object";
-import { MachineName, ResidencyCode } from "@destack/account/object";
+import { MachineName } from "@destack/account/object";
 import { defineObject, device, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Scope } from "@destack/sync";
 import { TUNNEL_STATUSES } from "@destack/tunnel";
 import { argument, plural, t } from "@destack/locale";
 
 /** Whether the machine's relay tunnel runs: none without a relay, else the tunnel's status. */
 export const COMPUTER_TUNNELS = ["none", ...TUNNEL_STATUSES] as const;
 
-/** The fields of every enrollment: its universe and its validity. */
-const ENROLLMENT_FIELDS = {
+/** An enrollment the universe verified. */
+export const MachineEnrollment = schema.object({
+    /** Whether its account enrolled the machine or a provider runs it for the platform. */
+    kind: schema.enum(["self", "managed"]),
+    /** The account the machine belongs to. */
+    accountId: schema.identifier("account"),
     /** The universe the machine enrolled at, whose issuer signs its credentials. */
     universe: UniverseOrigin.schema,
     /** Whether the enrollment is valid, or was revoked. */
     status: schema.enum(["enrolled", "revoked"]),
-};
-
-/** An enrollment the universe verified. */
-const machineEnrollment = schema.discriminatedUnion("kind", [
-    schema.object({
-        /** A person's machine, enrolled by them. */
-        kind: schema.literal("personal"),
-        /** The account the machine enrolled under. */
-        accountId: schema.identifier("account"),
-        ...ENROLLMENT_FIELDS,
-    }),
-    schema.object({
-        /** A cloud machine of the universe, enrolled by its declaration. */
-        kind: schema.literal("cloud"),
-        /** The residency the machine serves. */
-        residencyId: ResidencyCode,
-        ...ENROLLMENT_FIELDS,
-    }),
-]);
-
-/** An enrollment the universe verified, and the scope it places its machine in. */
-export const MachineEnrollment = Object.assign(machineEnrollment, {
-    /** Read the scope an enrollment places a machine in: its account, or the universe. */
-    scope(enrollment: MachineEnrollment): string {
-        return enrollment.kind === "personal" ? enrollment.accountId : Scope.universe.id;
-    },
 });
 /** An enrollment the universe verified. */
-export type MachineEnrollment = schema.Infer<typeof machineEnrollment>;
+export type MachineEnrollment = schema.Infer<typeof MachineEnrollment>;
 
 /** This computer as its machine process runs it, stored in its device by the machine's id. */
 export const computer = defineObject(

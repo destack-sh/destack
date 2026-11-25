@@ -139,8 +139,8 @@ export interface ComputerOptions {
               readonly url: string;
           }
         | {
-              /** At the relay of the residency its account stores data in. */
-              readonly kind: "residency";
+              /** At the relay of the region its account stores data in. */
+              readonly kind: "region";
           };
     /** The local object types the device stores beside its logins, settings and visits, by key. */
     readonly localObjects: Readonly<Record<string, ObjectType>>;
@@ -392,8 +392,8 @@ export class Computer implements AsyncDisposable {
                     targets: COMPUTER_RUNTIMES,
                     isRunner: true,
                     isEnforcingEntitlements: false,
-                    // serve accounts' hostnames on a cloud machine, which their DNS points at
-                    isServingHostnames: options.enrollment?.kind === "cloud",
+                    // serve accounts' hostnames on a managed machine, which their DNS points at
+                    isServingHostnames: options.enrollment?.kind === "managed",
                     domain: LOOPBACK_DOMAIN,
                     runtimes: [runtime, new ProcessRuntime()],
                     instances: async (instanceId, path, request) => {
@@ -643,7 +643,7 @@ export class Computer implements AsyncDisposable {
             startedAt: options.process.startedAt,
             update,
             host:
-                enrollment?.kind === "cloud"
+                enrollment?.kind === "managed"
                     ? null
                     : {
                           platform: ComputerServer.platform(host.os),
@@ -1052,13 +1052,13 @@ export class Computer implements AsyncDisposable {
             );
         }
 
-        // open a tunnel to the relay at a URL, else to the account residency's
+        // open a tunnel to the relay at a URL, else to the account region's
         const url = environment["DESTACK_RELAY"];
         if (url !== undefined && !URL.canParse(url)) {
             throw MachineError.of("CONFIGURATION_BROKEN", `DESTACK_RELAY is not a URL: '${url}'`);
         }
         const relay: ComputerOptions["relay"] =
-            url === undefined ? { kind: "residency" } : { kind: "url", url };
+            url === undefined ? { kind: "region" } : { kind: "url", url };
 
         // ship the distribution the environment names, else the one in a release's resources
         const { executable, runtime } = host.process;

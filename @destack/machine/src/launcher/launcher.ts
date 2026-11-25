@@ -8,12 +8,7 @@ import {
     principal,
     StepUp,
 } from "@destack/access";
-import {
-    Account,
-    HOME_SPACE,
-    RESIDENCY_SPACE,
-    type PlacementEndpoint,
-} from "@destack/account/object";
+import { Account, HOME_SPACE, type PlacementEndpoint } from "@destack/account/object";
 import { SpaceAddress } from "@destack/account/address";
 import { AccountError } from "@destack/account/error";
 import {
@@ -175,11 +170,6 @@ export class Launcher {
             url: UNRESOLVED_ORIGIN,
             fetch: (request) => this.send(request, packageId, at, consent),
         };
-    }
-
-    /** Read the home of the residency an account stores its data in. */
-    residency(accountId: Identifier<"account">): Promise<Identifier<"space">> {
-        return this.session.accounts().residency.locate({ account: accountId });
     }
 
     /** Connect as the person to a scope's store: a space's at its machine, else the universe's. */
@@ -522,11 +512,9 @@ export class Launcher {
             return (await this.machine.locate(alias)).placement.space;
         }
 
-        // take the person's home and their residency's space
+        // take the person's home
         if (name === HOME_SPACE) {
             return Account.home(await this.account());
-        } else if (name === RESIDENCY_SPACE) {
-            return this.residency(await this.account());
         }
 
         // find the person's one space of that name among every account's

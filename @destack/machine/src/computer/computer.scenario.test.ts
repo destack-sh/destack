@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { CLIENT_KEYS, SESSIONS } from "@destack/account/native";
-import { account, endpoint } from "@destack/account/object";
+import { account, Account, endpoint } from "@destack/account/object";
 import { present } from "@destack/schema";
 import registryPackage from "@destack/registry/package";
 import { RequestId } from "@destack/sync";
@@ -53,7 +53,7 @@ test("erase a stopped machine's keys, its logins' sessions and client keys and i
 });
 
 test("answer a relay-less computer's spaces at its loopback endpoint, and a relayed one's at the name its relay publishes", async () => {
-    // serve a space on a computer without a relay, and on one through the residency's relay
+    // serve a space on a computer without a relay, and on one through the region's relay
     const world = await TestComputer.world();
     const relay = await TestComputer.relay(world);
     const [local, relayed] = [
@@ -87,7 +87,7 @@ test("answer a relay-less computer's spaces at its loopback endpoint, and a rela
 });
 
 test("list a relayed computer's checkouts as its account's owner on another computer, by a token bound to its partition", async () => {
-    // enroll a computer tunnelled through the residency's relay, and register a checkout as its local owner
+    // enroll a computer tunnelled through the region's relay, and register a checkout as its local owner
     const world = await TestComputer.world();
     const relay = await TestComputer.relay(world);
     const relayed = await TestComputer.open({ world, relay: relay.url });
@@ -135,22 +135,18 @@ test("send an npm client at the universe's origin to the forge of the handle it 
 
     // ask for a package below the owner's handle, its tarball, and one below a handle nobody holds, at the universe's origin
     const ask = async (path: string, origin = world.universe.origin) => {
-        const answered = await computer.machine.serve(new Request(`${origin}/npm/${path}`));
+        const answered = await computer.machine.serve(new Request(`${origin}/.npm/${path}`));
 
         return [answered.status, answered.headers.get("location")];
     };
     const named = async (path: string) => {
-        const request = new Request(`https://universe.test/npm/${path}`);
+        const request = new Request(`https://universe.test/.npm/${path}`);
         const answered = await computer.machine.serveName(request);
 
         return [answered.status, answered.headers.get("location")];
     };
     const { machine } = computer;
-    const home = await (
-        await machine.accounts()
-    ).residency.locate({
-        account: world.owner.account,
-    });
+    const home = Account.home(world.owner.account);
     const mount = await machine.directory.package(home, registryPackage.id, machine.clock.now());
     const forge = `${mount}${registryPackage.mounts.npm.path}`;
     expect([

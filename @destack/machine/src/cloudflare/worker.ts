@@ -541,7 +541,7 @@ export class MachineWorker {
         return new Response(null, upgrade);
     }
 
-    /** Serve a request in the object of its space in the residency's jurisdiction. */
+    /** Serve a request in the object of its space in the region's jurisdiction. */
     async #serve(given: Request, bindings: MachineBindings): Promise<Response> {
         // take a public request's client from Cloudflare, and the head a service binding hands on as it is
         const client = given.headers.get(CONNECTING_IP_HEADER);

@@ -146,7 +146,7 @@ test("follow a wildcard installation's redirects without credentials, refusing r
 /** The tables the notes installation asks main for. */
 const STATE = { tables: { sqlite: [], postgresql: [] } };
 
-test("serve an installation only once it is bound and main applied its tables", async () => {
+test("serve an installation only once it is bound", async () => {
     // install notes at a revision declaring a note type, bound to main, on a stopped machine so no job reads beside
     const fixture = await TestSpace.open();
     const { database: connection } = fixture;
@@ -255,7 +255,7 @@ test("serve an installation only once it is bound and main applied its tables", 
     );
     const unbound = await served();
 
-    // serve nothing while main has not applied the notes' tables, their targets bound
+    // serve notes once they are bound, which their resources holding their states decides
     const isBound = {
         status: "true" as const,
         reason: "Bound",
@@ -269,25 +269,6 @@ test("serve an installation only once it is bound and main applied its tables", 
                 .update(installation.table)
                 .set({ conditions: { Bound: isBound } })
                 .where(eq(installation.table.id, ids.notes)),
-    );
-    await connection.transaction(
-        async (transaction) =>
-            await transaction
-                .update(database.table)
-                .set({ appliedStates: [] })
-                .where(eq(database.table.id, main.id)),
-    );
-    const unapplied = await served();
-
-    // serve notes once main applied them
-    await connection.transaction(
-        async (transaction) =>
-            await transaction
-                .update(database.table)
-                .set({
-                    appliedStates: [await Digest.json(STATE, connection.state.environment.crypto)],
-                })
-                .where(eq(database.table.id, main.id)),
     );
     const applied = await served();
 
@@ -314,11 +295,10 @@ test("serve an installation only once it is bound and main applied its tables", 
     );
     const unborn = await served();
 
-    // serve the space's stack throughout, its document's vault unbound, and notes once bound and applied
+    // serve the space's stack throughout, its document's vault unbound, and notes once bound
     const stacked = [stack.id, [STACKS.space.export]];
-    expect({ unbound, unapplied, applied, waiting, withVault, unborn }).toEqual({
+    expect({ unbound, applied, waiting, withVault, unborn }).toEqual({
         unbound: [stacked],
-        unapplied: [stacked],
         applied: [[ids.notes, ["note"]], stacked],
         waiting: [[ids.notes, ["note"]], stacked],
         withVault: [

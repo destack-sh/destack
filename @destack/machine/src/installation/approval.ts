@@ -8,7 +8,7 @@ import {
     type ChangeRequest,
     MethodContext,
     type ObjectReconciliation,
-    type ObservationReport,
+    type Observation,
     type ResourceType,
     type Resource,
 } from "@destack/object";
@@ -292,7 +292,7 @@ export class Approval {
         target: Installation,
         plan: Plan,
         crypto: Pick<Crypto, "digest">,
-    ): Promise<ObservationReport | undefined> {
+    ): Promise<Observation | undefined> {
         // pass a plan below the space's threshold, approved as it stands, or resuming the approved plan it is part of
         const scoped = present(
             await snapshot

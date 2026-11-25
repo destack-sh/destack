@@ -1,9 +1,10 @@
 import { fixtureGraph } from "@destack/build/test";
-import { locateHome } from "../../machine/registry.ts";
+import { Account } from "@destack/account/object";
 import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import type { StackRelease } from "@destack/account/object";
-import type { PlatformDefinition, ReleaseRegistry } from "@destack/account/server";
+import type { PlatformDefinition } from "@destack/account/server";
+import type { ReleaseRegistry } from "@destack/universe";
 import { type LocalBuildStore, Workspace } from "@destack/build";
 import { BuildStore, RemoteBuildStore } from "@destack/build/store";
 import { createClient } from "@destack/object/client";
@@ -78,7 +79,7 @@ const DIRECTORY_MILLISECONDS = 30_000;
 /** The commit a test publish releases at, the all-zero SHA-1. */
 const TEST_COMMIT = "0".repeat(40);
 
-/** How long a residency home may take to serve its forge: 30 s, as a fresh home deploys it. */
+/** How long a region home may take to serve its forge: 30 s, as a fresh home deploys it. */
 const FORGE_MILLISECONDS = 30_000;
 
 /** The publisher of a scope's packages: a person managing or publishing for its account. */
@@ -88,7 +89,7 @@ export type TestPublisher = Pick<Machine, "fetch">;
 export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     /** The stacks spaces are born with by kind. */
     readonly stacks: PlatformDefinition["stacks"];
-    /** The stack each residency's home runs. */
+    /** The stack each region's home runs. */
     readonly home: StackRelease;
     /** The root builds of the shipped releases: the platform's units, stacks and given builds. */
     readonly builds: readonly BuildReader[];
@@ -114,7 +115,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         layer: BuildLayer,
         store: LocalBuildStore,
     ) {
-        // set the stacks, the residency homes', the builds, the shipped releases, their layer and their store
+        // set the stacks, the region homes', the builds, the shipped releases, their layer and their store
         this.stacks = stacks;
         this.home = home;
         this.builds = builds;
@@ -143,7 +144,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             home: TestDistribution.released(stack, "HOME_STACK"),
             space: TestDistribution.released(stack, "SPACE_STACK"),
         };
-        const residencyHome = TestDistribution.released(stack, "RESIDENCY_STACK");
+        const regionHome = stacks.home;
 
         // ship the computers' own release, the stacks, the packages they install, and the builds the test adds
         const extra = await Promise.all(
@@ -172,7 +173,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
 
         return new TestDistribution(
             stacks,
-            residencyHome,
+            regionHome,
             builds,
             { releases, isLayered: true },
             target,
@@ -306,9 +307,9 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const listing = environment.clock.timeout(DIRECTORY_MILLISECONDS);
         await machine.database.log.waitUntil(isListed, listing);
 
-        // find the account and the home of its residency
+        // find the account and the home of its region
         const accountId = present(await directory.account(parsed.handle), `@${parsed.handle}`);
-        const located = await locateHome(machine, accountId);
+        const located = Account.home(accountId);
         const home = schema.identifier("space").parse(located);
 
         // wait until the home serves its forge

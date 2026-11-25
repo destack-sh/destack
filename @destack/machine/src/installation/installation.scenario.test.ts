@@ -12,9 +12,8 @@ import { expect, refusal, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { argument, plural, t } from "@destack/locale";
 import { Identifier, present, Digest, nth, schema } from "@destack/schema";
-import { InstallationId, principal, accessRelationship, Relationship } from "@destack/access";
-import { account, residency, space } from "@destack/account/object";
-import { UNIVERSE_NODE } from "@destack/universe/test";
+import { InstallationId, principal, accessRelationship } from "@destack/access";
+import { space } from "@destack/account/object";
 import {
     defineObject,
     definePackage,
@@ -42,9 +41,6 @@ import {
     TestSpace,
 } from "../test/index.ts";
 import stackPackage from "@destack/stack/package";
-
-/** How long a failed pass gets to retry: 30 s, inside the minute before its failures report. */
-const RETRY_MILLISECONDS = 30_000;
 
 /** The board package, linked into the machine, whose cards other linked packages refer to. */
 const BOARD = PackageVersion.parse({
@@ -377,94 +373,22 @@ test("roll an installation back by following an earlier revision's build, each t
     });
 });
 
-test("name a residency home's declared installation by its derived identifier", async () => {
-    // install notes in the eu residency's home through its stack, then serve it again
-    const home = await TestSpace.residency();
+test("name a home's declared installation by its derived identifier", async () => {
+    // install notes in the platform's eu home through its stack
+    const home = await TestSpace.platform();
     await home.serve();
     const reader = await fixtureBuild(ids.package, "2026.9.0", home.environment.crypto);
     const installed = await home.install(reader);
     await home.simulation.idle();
 
-    // read the residency's installation relationships at the universe
-    const related = await Relationship.read(
-        home.universe.storage.database.snapshot(),
-        residency.reference(Scope.universe.id, "eu"),
-        { relation: "installation" },
-    );
+    // derive the identifier its stack declares it by
     const { name } = PackageManifest.package(reader.manifest);
     const declared = await InstallationId.of(
         { id: home.id },
         name.slice(name.lastIndexOf("/") + 1),
         home.environment.crypto,
     );
-    expect({ installed, related: related.map((row) => row.subjectId) }).toEqual({
-        installed: declared,
-        related: [],
-    });
-});
-
-test("relate a residency home's installation at the universe once a partition heals", async () => {
-    // declare a package whose installations ask for what a residency's installation has
-    const released = PackageVersion.parse({
-        id: "package-01996ab0-0000-7000-8000-0000000000e2",
-        name: "@example/registry",
-        version: "2026.9.0",
-    });
-    const registry = Package.of(released, {
-        objects: [],
-        access: {
-            permissions: {
-                space: {
-                    universe: [
-                        account.permission("entitle"),
-                        account.permission("serve"),
-                        residency.permission("locate"),
-                    ],
-                },
-            },
-        },
-    });
-    const reader = await MemoryBuild.of(
-        PackageVersion.of(registry),
-        [
-            {
-                ...PACKAGE_KIND.identity,
-                name: PACKAGE_EXPORT,
-                description: describePackage({ ...registry, ...testIdentity }),
-            },
-        ],
-        testHost().crypto,
-    );
-
-    // install it in the eu residency's home while its machine cannot call the universe
-    const home = await TestSpace.residency();
-    await home.serve();
-    await home.publish(reader);
-    await home.simulation.idle();
-    await home.machine.resolve(released.id, released.version);
-    const { network } = home.simulation;
-    network.partition(home.machine.id, UNIVERSE_NODE);
-    const installed = await home.install(reader);
-    const snapshot = home.universe.storage.database.snapshot();
-    const eu = present(
-        await snapshot.read(residency.table).findFirst({ where: { code: "eu" } }),
-        "the eu residency",
-    );
-    const related = async () =>
-        (
-            await Relationship.read(snapshot, residency.reference(Scope.universe.id, eu.id), {
-                relation: "installation",
-            })
-        ).map((row) => row.subjectId);
-    const partitioned = await related();
-
-    // heal the partition, and let the failed pass retry and relate it
-    network.heal(home.machine.id, UNIVERSE_NODE);
-    await home.simulation.run(home.environment.clock.now() + RETRY_MILLISECONDS);
-    expect({ partitioned, healed: await related() }).toEqual({
-        partitioned: [],
-        healed: [installed],
-    });
+    expect(installed).toEqual(declared);
 });
 
 test("relate an in-process installation to its bound bucket until uninstalled", async () => {

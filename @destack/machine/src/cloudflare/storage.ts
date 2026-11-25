@@ -46,7 +46,7 @@ import { Traffic } from "../gateway/index.ts";
 import { CACHE_NAMESPACE, DurableObjectSpaceDatabaseHost, SPACE_NAMESPACE } from "./database.ts";
 import type { DurableObjectNamespace } from "./runtime/index.ts";
 
-/** The prefix of the spaces' keys in the residency's bucket, each space's below its identifier. */
+/** The prefix of the spaces' keys in the region's bucket, each space's below its identifier. */
 const SPACES_PREFIX = "spaces/";
 /** The namespace of the space's live sockets, stored only while the object runs. */
 const SOCKETS_NAMESPACE = "sockets";
@@ -60,13 +60,13 @@ export interface DurableObjectSpaceStorageOptions {
     readonly space: Identifier<"space">;
     /** The object's storage, with a namespace per database it stores. */
     readonly storage: DurableObjectStorage;
-    /** The residency's R2 bucket, the space's keys below `spaces/<space>/`. */
+    /** The region's R2 bucket, the space's keys below `spaces/<space>/`. */
     readonly bucket: Cloudflare.R2Bucket;
-    /** The name of the residency's R2 bucket. */
+    /** The name of the region's R2 bucket. */
     readonly bucketName: string;
     /** The domain of the installation origins, which each space's S3 origin answers below. */
     readonly domain: string;
-    /** The residency's Artifacts namespace of the spaces' Git storages. */
+    /** The region's Artifacts namespace of the spaces' Git storages. */
     readonly artifacts: ArtifactsNamespace;
     /** The facet of an installation in the space's object, which stores its databases. */
     readonly facet: (installation: string) => {
@@ -104,7 +104,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
     readonly database: DatabaseConnection;
     /** The installations' databases, each in its partition's object. */
     readonly databases: DurableObjectSpaceDatabaseHost;
-    /** The residency's bucket, the space's keys below its prefix. */
+    /** The region's bucket, the space's keys below its prefix. */
     readonly #bucket: R2Bucket;
 
     /** Take a space over its object's migrated database. */
@@ -180,7 +180,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
                 `space '${space}' in the object of '${this.#options.space}' not found`,
             );
         }
-        // delete the space's keys in the residency's bucket, then its object's storage
+        // delete the space's keys in the region's bucket, then its object's storage
         await new BucketBlobStorage(
             this.#bucket,
             DurableObjectSpaceStorage.prefix(space),
@@ -189,7 +189,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         await this.#options.storage.deleteAll();
     }
 
-    /** Write a space's key prefix in the residency's bucket. */
+    /** Write a space's key prefix in the region's bucket. */
     static prefix(space: Identifier<"space">): string {
         return `${SPACES_PREFIX}${space}/`;
     }
@@ -249,9 +249,9 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
 export class DurableObjectVolume implements Volume {
     /** The space's database. */
     readonly database: DatabaseConnection;
-    /** The space's events, their segments in the residency's files. */
+    /** The space's events, their segments in the region's files. */
     readonly events: EventStore;
-    /** The space's blobs, below its prefix of the residency's files. */
+    /** The space's blobs, below its prefix of the region's files. */
     readonly blobs: BucketBlobStorage;
     /** The registry of the space's sockets and presence in the object's storage. */
     readonly sockets: SocketRegistry;
@@ -265,7 +265,7 @@ export class DurableObjectVolume implements Volume {
     readonly #host: DurableObjectDatabaseHost;
     /** The installations' databases, each in its partition's object. */
     readonly #databases: DurableObjectSpaceDatabaseHost;
-    /** The residency's bucket, the space's keys below its prefix. */
+    /** The region's bucket, the space's keys below its prefix. */
     readonly #bucket: R2Bucket;
     /** The space's buckets, once served. */
     #buckets: R2BucketHost | undefined;
@@ -291,7 +291,7 @@ export class DurableObjectVolume implements Volume {
         this.database = database;
         this.sockets = fields.sockets;
 
-        // store the space's events and blobs below its prefix of the residency's bucket
+        // store the space's events and blobs below its prefix of the region's bucket
         const { environment, space } = options;
         const prefix = DurableObjectSpaceStorage.prefix(space);
         this.events = new EventStore({
@@ -324,7 +324,7 @@ export class DurableObjectVolume implements Volume {
         ];
     }
 
-    /** Open the space's buckets once in the residency's bucket, catalogued in its object. */
+    /** Open the space's buckets once in the region's bucket, catalogued in its object. */
     buckets(credentials: (scope: string) => Promise<S3Credentials | undefined>): R2BucketHost {
         // answer S3 at the space's own host name
         const endpoint = new URL(

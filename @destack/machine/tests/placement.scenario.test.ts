@@ -62,7 +62,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
         routes: {},
     });
 
-    // create a space carrying each stack at the universe, home on the residency's machine
+    // create a space carrying each stack at the universe, home on the region's machine
     const home = await TestSpace.open({ stack: carrying("home"), releases: [stackBuild] });
     const refused = await TestSpace.refusals(
         TestSpace.open({

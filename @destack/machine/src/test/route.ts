@@ -234,7 +234,7 @@ export class TestRoute implements AsyncDisposable {
 
     /** Claim a domain for an account as its owner and verify it by its published TXT record. */
     async #verify(dns: TestDns, accountId: Identifier<"account">, name: string): Promise<void> {
-        // let the account's plan allow custom domains, as its residency's home entitles it
+        // let the account's plan allow custom domains, as the platform's merchant entitles it
         const space = found(this.#spaces, this.spaceIds[0]);
         await space.universe.entitle(accountId, "domain", { kind: "static", value: true });
 

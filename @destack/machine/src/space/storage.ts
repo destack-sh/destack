@@ -106,15 +106,14 @@ export const SpaceStorage = {
             readonly tables?: readonly Table[];
         } = {},
     ): ReturnType<typeof defineDatabase> {
-        // replicate the rows the kernel reads
+        // replicate the rows the kernel reads, beside the space's own rows of their types
         const derived = spaceTables(additions);
-        const followed = KERNEL_REPLICATED;
+        const replicated = new Set<Table>(KERNEL_REPLICATED);
 
         // own the tables of the packages the space serves and of the protocols they implement
         const served = (additions.packages ?? []).flatMap((each) => [each, ...each.protocols]);
         const owned = new Set(tablesOf({ packages: served, follows: [], tables: [] }).tables);
         const installed = new Set(SpaceStorage.replicas(additions));
-        const replicated = new Set<Table>(followed.filter((table) => !owned.has(table)));
 
         // store the stack's and the additions' other tables, the space's identity keys and the calls
         const tables = [...derived.tables, ...owned, identityKey, ...call.tables].filter(

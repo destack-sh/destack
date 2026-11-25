@@ -1,4 +1,5 @@
 import { GitAuthor } from "@destack/git";
+import { Account } from "@destack/account/object";
 import { installation, build, edit, installationRevision } from "@destack/stack/object";
 import { ENDED_STATES } from "@destack/workflow";
 import { Failure } from "@destack/error";
@@ -47,7 +48,7 @@ const GIT_ENVIRONMENT = {
     GIT_COMMITTER_EMAIL: "ada@example.test",
 };
 
-/** Serve the owner's home and the residency's forge, with some fixtures published. */
+/** Serve the owner's home and the region's forge, with some fixtures published. */
 async function pushHome(published: readonly string[] = []) {
     // serve the owner's home on the cloud computer with some fixtures published, and a fresh working directory
     const { home, login } = await TestComputer.home({ published });
@@ -56,12 +57,12 @@ async function pushHome(published: readonly string[] = []) {
     const directory = await files.makeTemporaryDirectory("destack-push-");
     onTestFinished(() => files.remove(directory, { recursive: true, force: true }));
 
-    // create a platform repository as the owner on the residency's forge
+    // create a platform repository as the owner on the forge in their home
     const person = await device.launcher(login);
-    const residency = await person.residency(world.owner.account);
-    const owner = await servedForge(home, residency, person);
+    const forgeHome = Account.home(world.owner.account);
+    const owner = await servedForge(home, forgeHome, person);
     const created = await owner.repository.create({
-        spaceId: residency,
+        spaceId: forgeHome,
         accountId: world.owner.account,
         requestId: RequestId.create(home.environment),
         name: "site",
@@ -75,7 +76,7 @@ async function pushHome(published: readonly string[] = []) {
     // list the repository's references again
     const list = () =>
         owner.repository.refresh({
-            spaceId: residency,
+            spaceId: forgeHome,
             id: created.id,
             requestId: RequestId.create(home.environment),
         });
@@ -104,13 +105,13 @@ async function pushHome(published: readonly string[] = []) {
     // follow the main branch as the person
     const follow = async () => {
         const { items } = await owner.reference.list({
-            spaceId: residency,
+            spaceId: forgeHome,
             where: { parentId: created.id, name: MAIN },
             limit: 1,
         });
         const [found] = items;
 
-        return reference.reference(residency, present(found, "the main branch").id);
+        return reference.reference(forgeHome, present(found, "the main branch").id);
     };
     const install = async () =>
         service.installation.create({
@@ -124,7 +125,7 @@ async function pushHome(published: readonly string[] = []) {
 
     return {
         home,
-        residency,
+        forgeHome,
         owner,
         service,
         space: world.owner.home,
@@ -139,17 +140,17 @@ async function pushHome(published: readonly string[] = []) {
     };
 }
 
-/** Wait until the residency's home serves its forge in its store, answering it as the owner. */
-async function servedForge(home: TestComputer, residency: Identifier<"space">, person: Launcher) {
-    // wait until the residency's home deployed the forge's revision
+/** Wait until the region's home serves its forge in its store, answering it as the owner. */
+async function servedForge(home: TestComputer, region: Identifier<"space">, person: Launcher) {
+    // wait until the region's home deployed the forge's revision
     const { machine, device } = home;
-    const database = (await machine.space(residency)).database;
+    const database = (await machine.space(region)).database;
     const deployed = async () =>
         (
             await (
-                await machine.space(residency)
+                await machine.space(region)
             ).installations(async (_packageId, image) =>
-                (await machine.space(residency)).builds.root(image),
+                (await machine.space(region)).builds.root(image),
             )
         ).find(
             (entry) =>
@@ -167,7 +168,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
         const [installed] = await database
             .snapshot()
             .read(installation.table)
-            .findMany({ where: { scope: residency, packageId: forgePackage.id } });
+            .findMany({ where: { scope: region, packageId: forgePackage.id } });
         const row =
             installed === undefined
                 ? undefined
@@ -177,7 +178,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
                       .findFirst({ where: { id: installed.id } });
         const ready = row?.conditions["Ready"];
         throw new TypeError(
-            `the forge of '${residency}' did not deploy: '${ready?.reason ?? "no condition"}' ${ready?.message ?? ""}`,
+            `the forge of '${region}' did not deploy: '${ready?.reason ?? "no condition"}' ${ready?.message ?? ""}`,
         );
     }
     const found = present(await deployed(), "the forge");
@@ -185,13 +186,13 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
     // call its package below the installation on the cloud machine serving the home, as the owner
     const owner = createClient(
         registryPackage,
-        await person.installation(residency, found.name, registryPackage.id),
+        await person.installation(region, found.name, registryPackage.id),
         device.environment,
     );
 
     // wait until the home's store serves it, which the gateway answers unavailable before
     const isServed = async () => {
-        const answered = await refusal(owner.repository.list({ spaceId: residency }));
+        const answered = await refusal(owner.repository.list({ spaceId: region }));
 
         return answered === "done" || answered[0] !== "SERVICE_UNAVAILABLE";
     };
@@ -200,7 +201,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
             database.log.waitUntil(isServed, home.clock.timeout(DEPLOY_MILLISECONDS)),
         ))
     ) {
-        throw new TypeError(`the store of '${residency}' serves no forge`);
+        throw new TypeError(`the store of '${region}' serves no forge`);
     }
 
     return owner;
@@ -238,8 +239,8 @@ async function writeSite(directory: string, files: FileSystem, universe: string)
         join(worktree, "bunfig.toml"),
         [
             "[install.scopes]",
-            `"@destack" = { url = "${universe}/npm/" }`,
-            `"@example" = { url = "${universe}/npm/" }`,
+            `"@destack" = { url = "${universe}/.npm/" }`,
+            `"@example" = { url = "${universe}/.npm/" }`,
             "",
         ].join("\n"),
     );
@@ -485,7 +486,7 @@ test("deploy each push of a checkout's working tree to the installation followin
             `/** The site's version. */\nexport const version = ${version};\n`,
         );
         const lease = await site.owner.repository.push({
-            spaceId: site.residency,
+            spaceId: site.forgeHome,
             id: site.repository.id,
         });
         const pushed = await client.checkout.push({
@@ -504,7 +505,7 @@ test("deploy each push of a checkout's working tree to the installation followin
     // install the site following the checkout's reference
     const first = await push(2);
     const { items } = await site.owner.reference.list({
-        spaceId: site.residency,
+        spaceId: site.forgeHome,
         where: { parentId: site.repository.id, name: first.reference },
         limit: 1,
     });
@@ -513,7 +514,7 @@ test("deploy each push of a checkout's working tree to the installation followin
         scope: site.space,
         requestId: RequestId.create(environment),
         packageId: SITE,
-        ...ObjectReference.columns("version", reference.reference(site.residency, followed.id)),
+        ...ObjectReference.columns("version", reference.reference(site.forgeHome, followed.id)),
         directory: ".",
         name: "site",
     });
@@ -623,7 +624,7 @@ test("refuse a checkout reference naming no machine, building nothing", async ()
     await git(site.worktree, "push", "--quiet", remote, `HEAD:${name}`);
     await site.list();
     const { items } = await site.owner.reference.list({
-        spaceId: site.residency,
+        spaceId: site.forgeHome,
         where: { parentId: site.repository.id, name },
         limit: 1,
     });
@@ -632,7 +633,7 @@ test("refuse a checkout reference naming no machine, building nothing", async ()
         scope: site.space,
         requestId: RequestId.create(site.home.environment),
         packageId: SITE,
-        ...ObjectReference.columns("version", reference.reference(site.residency, followed.id)),
+        ...ObjectReference.columns("version", reference.reference(site.forgeHome, followed.id)),
         directory: ".",
         name: "site",
     });
@@ -682,7 +683,7 @@ test("replicate the branch an installation follows into its space", async () => 
 
     // wait until the space's replica of main applied its first snapshot
     const main = await site.followed();
-    const key = { scope: site.residency, id: schema.identifier("reference").parse(main.id) };
+    const key = { scope: site.forgeHome, id: schema.identifier("reference").parse(main.id) };
     await site.home.world.simulation.wait(
         served.log.waitUntil(
             () => referenceShape.isSynced(served, key),
@@ -703,7 +704,7 @@ async function dependOn(site: Awaited<ReturnType<typeof pushHome>>, name: string
     const installed = await site.install();
     const served = (await site.home.machine.space(site.space)).database;
     const main = await site.followed();
-    const key = { scope: site.residency, id: schema.identifier("reference").parse(main.id) };
+    const key = { scope: site.forgeHome, id: schema.identifier("reference").parse(main.id) };
     await site.home.world.simulation.wait(
         served.log.waitUntil(
             () => referenceShape.isSynced(served, key),
@@ -771,7 +772,7 @@ test("fail an edit whose dependency does not resolve, leaving its branch at the 
                 [
                     "dependencies of '@example/site' are invalid: bun install exited with status 1: Resolving dependencies",
                     "Resolved, downloaded and extracted [1]",
-                    "error: GET https://eu.machine.test/spaces/space-***/package-***/npm/@example%2fother - 404",
+                    "error: GET https://eu.machine.test/spaces/space-***/package-***/.npm/@example%2fother - 404",
                     "error: @example/other@latest failed to resolve",
                 ].join("\n"),
             ),
@@ -821,9 +822,9 @@ test("depend on a published app in one checked commit on main, its lock pinning 
 
 test("send npm clients to the forge at the universe's origin alone, leaving a machine's own paths to it", async () => {
     // ask for a published package at the universe's origin and at the cloud machine's own host
-    const { home, login, organizations } = await TestComputer.home({ published: ["journal"] });
+    const { home, organizations } = await TestComputer.home({ published: ["journal"] });
     const { universe } = await home.machine.enrolled("asking for a package");
-    const path = "/npm/@example%2fjournal";
+    const path = "/.npm/@example%2fjournal";
     const atUniverse = await home.browse(
         new Request(`${universe.origin}${path}`, { redirect: "manual" }),
     );
@@ -831,9 +832,9 @@ test("send npm clients to the forge at the universe's origin alone, leaving a ma
         new Request(`https://eu.machine.test${path}`, { redirect: "manual" }),
     );
 
-    // find the publisher's residency home, whose forge serves its packages
+    // find the publisher's home, whose forge serves its packages
     const publisher = present(organizations.get("example"), "the publisher");
-    const residency = await (await home.device.launcher(login)).residency(publisher);
+    const region = Account.home(publisher);
     const location = atUniverse.headers.get("location");
 
     // redirect the one at the universe to the publisher's forge, and answer the other as the machine's
@@ -841,7 +842,7 @@ test("send npm clients to the forge at the universe's origin alone, leaving a ma
         [atUniverse.status, location === null ? null : new URL(location).pathname],
         [atMachine.status, atMachine.headers.get("location")],
     ]).toEqual([
-        [307, `/spaces/${residency}/${registryPackage.id}${path}`],
+        [307, `/spaces/${region}/${registryPackage.id}${path}`],
         [404, null],
     ]);
 });

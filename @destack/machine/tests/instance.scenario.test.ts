@@ -12,8 +12,8 @@ import {
     type ObjectDefinition,
     ObjectDescription,
     InstallationBindingSpec,
-    Observation,
     shareable,
+    Status,
 } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { BucketKind } from "@destack/bucket/declare";
@@ -523,7 +523,7 @@ async function readiness(database: DatabaseConnection, id: Identifier<"installat
         .where(eq(installation.table.id, id));
     const installed = present(row, "the installation");
 
-    return [Observation.progress(installed), Observation.message(installed)];
+    return [Status.progress(installed), Status.message(installed)];
 }
 
 /** Approve the plan an installation waits on as it stands. */
@@ -1812,7 +1812,7 @@ test("fail a held plan once a manager rejects it", async () => {
     // fail the installation with the rejection, still running the revision applied before
     expect({
         refused,
-        progress: [Observation.progress(held), Observation.message(held)],
+        progress: [Status.progress(held), Status.message(held)],
         upgraded: held.appliedRevisionId === held.targetRevisionId,
     }).toEqual({
         refused: [

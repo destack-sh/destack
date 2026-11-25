@@ -305,7 +305,7 @@ test("refuse a transfer without step-up or to a foreign machine", async () => {
                 id: foreign,
                 scope: other,
                 name: "foreign",
-                kind: "personal",
+                kind: "self",
                 platform: "macOS",
                 architecture: "arm64",
                 model: "Mac14,2",
@@ -339,12 +339,12 @@ test("refuse a transfer without step-up or to a foreign machine", async () => {
         [
             "BAD_REQUEST",
             "MACHINE_INVALID",
-            `machine '${UNKNOWN_MACHINE}' is invalid: it is not a standing machine of the space's account or residency`,
+            `machine '${UNKNOWN_MACHINE}' is invalid: it is not a standing machine of the space's account or one hosting it`,
         ],
         [
             "BAD_REQUEST",
             "MACHINE_INVALID",
-            `machine '${foreign}' is invalid: it is not a standing machine of the space's account or residency`,
+            `machine '${foreign}' is invalid: it is not a standing machine of the space's account or one hosting it`,
         ],
     ]);
 });
@@ -382,7 +382,6 @@ test("move every table with a space's rows and the tables main applied, leaving 
             "destack__account__machine",
             "destack__account__organization",
             "destack__account__placement",
-            "destack__account__residency",
             "destack__account__space",
             "destack__account__user",
             "destack__connection__connection",
@@ -736,7 +735,7 @@ test("collect stray and expired snapshot blobs after a grace", async () => {
     });
 });
 
-/** Open the space on its residency's machine and an empty target machine its owner enrolls. */
+/** Open the space on its region's machine and an empty target machine its owner enrolls. */
 async function openMove() {
     // enroll the target as the owner, and host an empty database there next to the space's source
     const source = await TestSpace.open();

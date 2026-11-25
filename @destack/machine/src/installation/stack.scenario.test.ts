@@ -15,14 +15,7 @@ import {
     defineStack,
 } from "@destack/stack/declare";
 import objectPackage from "@destack/object/package";
-import {
-    BindingTarget,
-    role,
-    PACKAGE_KIND,
-    Package,
-    SERVER_EXPORT,
-    Observation,
-} from "@destack/object";
+import { BindingTarget, role, PACKAGE_KIND, Package, SERVER_EXPORT, Status } from "@destack/object";
 import { STACKS } from "@destack/account/test";
 import { space } from "@destack/account/object";
 import { expect, refusal, test } from "@destack/test";
@@ -1102,5 +1095,5 @@ test("refuse a declaration in the enclosing account from a space that is not the
 
 /** Read how far a stack is, with what it reports. */
 function progressOf(submitted: Installation) {
-    return [Observation.progress(submitted), Observation.message(submitted)];
+    return [Status.progress(submitted), Status.message(submitted)];
 }

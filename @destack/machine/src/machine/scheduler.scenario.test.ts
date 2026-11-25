@@ -17,7 +17,7 @@ async function open(classes: readonly Tenancy[]) {
     const fixture = await TestSpace.open();
     await fixture.universe.entitle(ids.account, "tenancy", { kind: "static", value: [...classes] });
 
-    // serve the space on its residency's cloud machine next to the owner's laptop, placing it as each change settles
+    // serve the space on its region's cloud machine next to the owner's laptop, placing it as each change settles
     const laptop = await fixture.universe.enroll(fixture.owner, ids.account, LAPTOP_ENDPOINT);
     await fixture.serve();
     await fixture.simulation.idle();
@@ -66,13 +66,13 @@ function spaceItself() {
 }
 
 test("keep a space where the universe decides it stays, and move it as the space once the universe decides a move", async () => {
-    const { fixture, laptop } = await open(["shared", "local"]);
+    const { fixture, laptop } = await open(["shared", "self"]);
 
     // keep the space on its machine while no tenancy is set
     const placed = await placement(fixture);
 
     // move it to the laptop once a person sets its tenancy to local
-    await choose(fixture, "local");
+    await choose(fixture, "self");
     await fixture.simulation.idle();
     const moving = await placement(fixture);
 
@@ -97,8 +97,8 @@ test("keep a space where the universe decides it stays, and move it as the space
 
 test("cancel a running move once the universe decides the space stays, and keep it on its machine", async () => {
     // start moving the space to the laptop, which never takes it over here
-    const { fixture, laptop } = await open(["shared", "local"]);
-    await choose(fixture, "local");
+    const { fixture, laptop } = await open(["shared", "self"]);
+    await choose(fixture, "self");
     await fixture.simulation.idle();
 
     // unset its tenancy, which keeps it on its machine and cancels the move

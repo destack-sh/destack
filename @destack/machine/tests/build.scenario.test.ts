@@ -81,7 +81,7 @@ test("compile a commit's build on the space's runner and read its image back fro
     const target = { spaceId: ids.space, id: created.id };
     const step = await fixture.compileStep(created.id);
 
-    // push every file, the manifest, the image and the graph into the space's empty builds, then complete
+    // push the build's files, manifest, image and graph into the space's builds, then complete
     const reader = await writeBuild();
     const root = await Digest.of(PackageManifest.serialize(reader.manifest), testHost().crypto);
     const expected = BuildImage.of(root);
@@ -91,9 +91,15 @@ test("compile a commit's build on the space's runner and read its image back fro
             async (module) => (await graph.Module.file(module, testHost().crypto)).digest,
         ),
     );
-    const lacking = [
+    const objects = [
         ...new Set([...(await digests(reader)), root, imageDigest, ...graphs]),
     ].toSorted();
+
+    // expect the push to upload the objects the space lacks, leaving out those its machine ships
+    const isShipped = await (
+        await fixture.builds()
+    ).has(objects.map((digest) => Digest.parse(digest)));
+    const lacking = objects.filter((_digest, index) => isShipped[index] !== true);
     const uploaded = await fixture.storeBuild(machine, target, reader);
     const finished = await fixture.finished(created.id);
     const image = present(finished.image, "the stored image");

@@ -154,7 +154,7 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
 });
 
 test("refuse a route on a machine the account's hostname requests do not reach", async () => {
-    // serve the spaces on a machine the account's hostnames do not reach, as a cloud machine before the edge provisions them
+    // serve the spaces on a machine the account's hostnames do not reach, as a managed machine before the edge provisions them
     await using fixture = await TestRoute.open({ isServingHostnames: false });
     const [first] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId);

@@ -23,7 +23,7 @@ import { TelemetryScope } from "@destack/telemetry";
 import { reference, repository } from "@destack/registry/object";
 import { GitReference } from "@destack/git";
 import { referenceFollow, tagFollow } from "../installation/follow.ts";
-import { callRegistry, locateHome } from "../machine/registry.ts";
+import { callRegistry } from "../machine/registry.ts";
 import type * as packageRuntime from "@destack/package/runtime";
 import {
     type defineDatabase,
@@ -60,13 +60,13 @@ import {
     InstallationBinding,
     InstallationMount,
     ObjectDescription,
-    Observation,
     type Package,
     PackageDescription,
     PackageMount,
     type ProcedureRouter,
     Provisioned,
     SpaceMount,
+    Status,
 } from "@destack/object";
 import {
     AccessContext,
@@ -174,6 +174,7 @@ import { Reading, SpaceMeter } from "../meter/index.ts";
 import { MachineError } from "../error/index.ts";
 import type { GrantRequest } from "@destack/account/authentication";
 import * as accountObject from "@destack/account/object";
+import { Account } from "@destack/account/object";
 import * as stackObject from "@destack/stack/object";
 
 /** The release a space's declared stack runs, resolved at its forge, with the stack's digest. */
@@ -522,9 +523,10 @@ export class Space {
                     buckets,
                     s3: serveS3(buckets, this.database, machine.environment),
                     remote,
+                    // claim the names of the space's objects as the space, for whom its machine acts
                     claims: {
                         object: accountObject.claim,
-                        home: RemoteStore.of(remote, Scope.universe.id),
+                        home: RemoteStore.of(remote, Scope.universe.id, Caller.of(this.principal)),
                     },
                     external: volume.graphs(this.builds),
                     follows: machine.isRunner ? [referenceFollow, tagFollow] : [],
@@ -1436,7 +1438,6 @@ export class Space {
                                 image,
                                 recorded,
                                 declarations: await reader.declarations(),
-                                objects: await ObjectDescription.read(reader),
                             },
                         ] as const,
                     ];
@@ -1444,29 +1445,16 @@ export class Space {
             ).then((entries) => entries.flat()),
         );
 
-        // serve each installation at its revision once its targets are bound and main applied its tables, else at the revision it deployed last
-        const applied = new Set(main.appliedStates);
+        // serve each installation at its revision once it is bound, its resources holding its states, else at the revision it deployed last
         const served = await Promise.all(
             installations.map(async (entry) => {
-                // serve a bound revision declaring no object types at once, and one declaring some once main applied them
-                const latest =
-                    entry.targetRevisionId === null
-                        ? undefined
-                        : declared.get(entry.targetRevisionId);
-                const tables =
-                    entry.targetRevisionId === null
-                        ? undefined
-                        : revisions.find((each) => each.id === entry.targetRevisionId)?.states[
-                              MAIN_DATABASE
-                          ];
+                // serve a bound revision whose build is open
                 const isBound =
-                    Observation.isCurrent(entry, "Bound") &&
+                    entry.targetRevisionId !== null &&
+                    declared.has(entry.targetRevisionId) &&
+                    Status.isCurrent(entry, "Bound") &&
                     entry.conditions["Bound"]?.status === "true";
-                const isApplied =
-                    latest !== undefined &&
-                    isBound &&
-                    (latest.objects.length === 0 || (tables !== undefined && applied.has(tables)));
-                const revisionId = isApplied ? entry.targetRevisionId : entry.appliedRevisionId;
+                const revisionId = isBound ? entry.targetRevisionId : entry.appliedRevisionId;
 
                 return revisionId === null ? [] : [{ installation: entry, revisionId }];
             }),
@@ -2878,7 +2866,8 @@ export class Space {
         resolve: () => Promise<Installation>,
         signal: AbortSignal,
     ): Promise<Installation> {
-        // answer at once, holding only an installation not served yet
+        // answer at once, holding only an installation not served yet, from the generation it read
+        const generation = this.database.state.commits.generation;
         const first = await Space.#attempt(resolve);
         if ("served" in first) {
             return first.served;
@@ -2895,14 +2884,18 @@ export class Space {
             this.machine.environment.clock.timeout(DEPLOYING_WAIT_MILLISECONDS),
         ]);
         let served: Installation | undefined;
-        const isServed = await this.database.log.waitUntil(async (changed) => {
-            const attempt = [...changed].some((name) => tables.has(name))
-                ? await Space.#attempt(resolve)
-                : undefined;
-            served = attempt !== undefined && "served" in attempt ? attempt.served : undefined;
+        const isServed = await this.database.log.waitUntil(
+            async (changed) => {
+                const attempt = [...changed].some((name) => tables.has(name))
+                    ? await Space.#attempt(resolve)
+                    : undefined;
+                served = attempt !== undefined && "served" in attempt ? attempt.served : undefined;
 
-            return served !== undefined;
-        }, deadline);
+                return served !== undefined;
+            },
+            deadline,
+            generation,
+        );
 
         // refuse as not served yet once the wait ends
         if (!isServed || served === undefined) {
@@ -2946,7 +2939,7 @@ export class Space {
 
             return (
                 installed !== undefined &&
-                Observation.progress(installed) === "current" &&
+                Status.progress(installed) === "current" &&
                 Installation.isServed(installed)
             );
         }, signal);
@@ -3045,7 +3038,7 @@ export class Space {
     ): Promise<readonly PackageRelease[]> {
         // push the image and publish the account's packages in it, for the caller under the grant the space asks
         const { environment } = this.machine;
-        const home = await locateHome(this.machine, account);
+        const home = Account.home(account);
         const fetch = this.session(this.onBehalfOf(caller, requested)).fetch(registryPackage.id);
         await this.machine.push(store, image, account, fetch);
         const published = await callRegistry(this.machine, home, fetch).package.publish({
@@ -3062,15 +3055,15 @@ export class Space {
 
     /** Lease a repository of the space's account to read as the space. */
     async lease(repositoryId: Identifier<"repository">): Promise<Lease> {
-        const home = await locateHome(this.machine, await this.account());
+        const home = Account.home(await this.account());
 
         return this.#registry(home).repository.pull({ spaceId: home, id: repositoryId });
     }
 
     /** Exchange the space's token for a caller's under a grant, refused without consent. */
     async exchange(caller: Caller, requested: GrantRequest): Promise<string> {
-        // exchange at the account's residency home, as the actor for the caller's subject (RFC 8693)
-        const home = await locateHome(this.machine, await this.account());
+        // exchange at the account's home, as the actor for the caller's subject (RFC 8693)
+        const home = Account.home(await this.account());
         const subject = this.#subject(caller);
         const space = principal.space.reference(Scope.universe.id, this.id);
 
@@ -3147,11 +3140,11 @@ export class Space {
             return machine === undefined ? [] : [schema.identifier("machine").parse(machine)];
         });
 
-        // read the named cloud machines, which build any commit, as a personal one builds only its own checkouts' commits
+        // read the named managed machines, which build any commit, as a self-hosted one builds only its own checkouts' commits
         const clouds = await this.database
             .snapshot()
             .read(accountObject.machine.table)
-            .findMany({ where: { id: { in: named }, kind: "cloud" } });
+            .findMany({ where: { id: { in: named }, kind: "managed" } });
 
         // keep the named machines no other space's runner is, this space's own runner among them
         const foreign = new Set(clouds.map((row) => row.id).filter((id) => id !== this.machine.id));
@@ -3282,12 +3275,12 @@ export class Space {
     async append(page: CursorPage): Promise<void> {
         const { directory, environment } = this.machine;
         for (const use of await Reading.uses(page, environment.crypto)) {
-            // bill the payer of the space this machine serves, at the stack in the home of the payer's residency
+            // record the usage at the payer's home, whose seller reads it under the payer's grant
             const payer = await this.accounts().placement.payer({
                 accountId: use.accountId,
                 id: this.id,
             });
-            const home = await locateHome(this.machine, payer);
+            const home = Account.home(payer);
             const fetch = this.machine.fetch(stackPackage.id);
             const stack = directory.client(stackPackage, home, fetch, environment);
             await stack.usage.append({ ...use, accountId: payer });

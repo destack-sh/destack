@@ -351,7 +351,7 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
 interface Served {
     /** The computer serving the space. */
     readonly computer: TestComputer;
-    /** The residency's cloud computer, which serves the forge of its home. */
+    /** The region's cloud computer, which serves the forge of its home. */
     readonly cloud: TestComputer;
     /** The owner's login on the computer's device. */
     readonly login: Identifier<"login">;
@@ -359,8 +359,6 @@ interface Served {
     readonly spaceId: Identifier<"space">;
     /** The space's address: its name and its account's handle. */
     readonly address: string;
-    /** The home of the space's account's residency, which its views read. */
-    readonly residencyHome: Identifier<"space">;
 }
 
 /** Serve the owner's home on its cloud computer, with the organization publishing the packages. */
@@ -368,12 +366,8 @@ async function openHome(): Promise<Served> {
     const { home, login } = await TestComputer.home({ organizations: [PUBLISHER] });
     const { owner } = home.world;
     const address = `home--${owner.handle}`;
-    const accounts = await home.machine.accounts();
-    const residencyHome = schema
-        .identifier("space")
-        .parse(await accounts.residency.locate({ account: owner.account }));
 
-    return { computer: home, cloud: home, login, spaceId: owner.home, address, residencyHome };
+    return { computer: home, cloud: home, login, spaceId: owner.home, address };
 }
 
 /** Serve a work space of the owner's account on their own computer in the home's world. */
@@ -394,7 +388,6 @@ async function openWork(home: Served): Promise<Served> {
         login: signedIn.id,
         spaceId,
         address,
-        residencyHome: home.residencyHome,
     };
 }
 
@@ -700,7 +693,6 @@ test("launch a view onto a session cookie serving its document", async () => {
             installation: installation.id,
             space: spaceId,
             account: owner.account,
-            residencyHome: opened.residencyHome,
             home: owner.home,
             view: "home",
             build: image,
@@ -763,7 +755,6 @@ test("serve anonymous visitors and refuse forged credentials", async () => {
                 installation: installation.id,
                 space: spaceId,
                 account: computer.world.owner.account,
-                residencyHome: opened.residencyHome,
                 view: "home",
                 build: image,
                 base: "",
@@ -1068,8 +1059,8 @@ test("serve a link-shared article to holders of its secret", async () => {
             "@destack/access",
         ),
         withLink: "Roadmap",
-        without: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${home.spaceId}' not found`],
-        revoked: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${home.spaceId}' not found`],
+        without: ["NOT_FOUND", "NOT_FOUND", `article '${created.id}' not found`],
+        revoked: ["NOT_FOUND", "NOT_FOUND", `article '${created.id}' not found`],
     });
 });
 
@@ -1153,7 +1144,7 @@ test("call a page's package and its space's packages under its grant only", asyn
         `/installations/${installation.id}?scope=${home.spaceId}`,
     );
 
-    // refuse a call from another site, and an anonymous visitor without the page's cookie the unshared space
+    // refuse a call from another site, and show an anonymous visitor without the page's cookie no tasks
     const listener = home.computer.computer;
     const foreign = await listener.fetch(
         new Request(
@@ -1171,7 +1162,7 @@ test("call a page's package and its space's packages under its grant only", asyn
             return listener.fetch(new Request(request, { headers }));
         },
     });
-    const unshared = await refusal(visitor.list(task));
+    const unshared = (await visitor.list(task)).map((row) => row["title"]);
 
     expect({
         listed: listed.map((row) => [row["title"], row["status"]]),
@@ -1202,7 +1193,7 @@ test("call a page's package and its space's packages under its grant only", asyn
             403,
             "page origin is forbidden: it can only be called from the page itself",
         ),
-        unshared: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${home.spaceId}' not found`],
+        unshared: [],
     });
 });
 
@@ -1376,6 +1367,7 @@ test("keep a page's session cookie across its computer's restart", async () => {
         document: 200,
         installations: [
             "connection",
+            "forge",
             "home",
             "inbox",
             "message",
@@ -1454,6 +1446,7 @@ test("call a scope's home path within the start page's grant only", async () => 
         sent: [true, PART_BYTES],
         installations: [
             "connection",
+            "forge",
             "home",
             "inbox",
             "message",
@@ -1905,7 +1898,7 @@ async function createRoute(
 }
 
 test("serve a site at a verified hostname's route", async () => {
-    // serve a space of the owner's account on the residency's cloud machine, which its hostnames reach
+    // serve a space of the owner's account on the region's cloud machine, which its hostnames reach
     const home = await openHome();
     const { computer } = home;
     const { owner } = computer.world;

@@ -3,6 +3,7 @@ import {
     ObjectBindingKind,
     SPACE_PROVIDER,
     Binding,
+    Database,
     database,
     Deployment,
     deployment,
@@ -672,14 +673,15 @@ export class Binder {
         return this.#resources.get(type)?.object ?? plan.object(type);
     }
 
-    /** Ready the bound targets of an installation's requirements, answering the first not ready. */
+    /** Ready the resources a revision requires at its states, answering the first not ready. */
     async ready(
         context: MethodContext,
         target: Installation,
-        bindings: readonly Binding[],
+        revision: Pick<InstallationRevision, "bindings" | "states">,
         requirements: readonly ResourceRequirement[],
     ): Promise<BoundTarget | undefined> {
         // ready each bound requirement whose target is in the space and whose kind prepares its targets
+        const { bindings, states } = revision;
         let unready: BoundTarget | undefined;
         for (const requirement of requirements) {
             const bound = bindings.find(
@@ -705,18 +707,40 @@ export class Binder {
                     requirement,
                 );
             }
-            // ready a resource once its provider provisioned it
+            // ready a resource once its provider provisioned it and, for a stateful kind, it applied the revision's state
             else {
                 const kind = Binder.#kind(bound.target, this.#resources.values());
                 const id = kind.object.identifier(bound.target);
                 const row = await context.read(kind.object.table).findFirst({ where: { id } });
-                if (row === undefined || row.reference === null) {
+                const provisioned = present(
+                    kind.object.provisioned,
+                    `the kind of ${kind.object.name}`,
+                );
+                const state = provisioned.kind.isStateful() ? states[requirement.name] : undefined;
+                if (row === undefined || row.reference === null || !Binder.#holds(row, state)) {
                     unready ??= { object: kind.object, id };
                 }
             }
         }
 
+        // ready the space's own main database for a revision binding main nowhere else, once it applied its tables
+        const tables = states[MAIN_DATABASE];
+        const isMainBound = bindings.some(
+            (entry) => entry.name === MAIN_DATABASE && entry.targetSpaceId === null,
+        );
+        if (tables !== undefined && !isMainBound) {
+            const main = await Database.main(context, Installation.space(target));
+            if (!Binder.#holds(main, tables)) {
+                unready ??= { object: database, id: main.id };
+            }
+        }
+
         return unready;
+    }
+
+    /** Read whether a resource applied a state, true when none is required. */
+    static #holds(row: Pick<Resource, "appliedStates">, state: Digest | undefined): boolean {
+        return state === undefined || row.appliedStates.includes(state);
     }
 
     /** Ready an object target, preparing it once its parent is provisioned. */
@@ -898,7 +922,13 @@ export class Binder {
                     fields: Object.keys(object.table[TABLE].logged),
                     isObserving: true,
                 },
-                // take the space's resources once a deployment runs or stops running a revision
+                // take the space's resources once an installation targets another revision
+                {
+                    table: installation.table,
+                    fields: ["targetRevisionId", "deletedAt"],
+                    on: { scope: "scope" },
+                },
+                // take them once a deployment runs or stops running a revision
                 {
                     table: deployment.table,
                     fields: ["status", "revisionId"],

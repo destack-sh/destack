@@ -24,7 +24,7 @@ import { TestAccess } from "@destack/access/test";
 import { IdentityKeystore } from "@destack/account/identity";
 import { LocalKeyring } from "@destack/identity";
 import { account, Placement } from "@destack/account/object";
-import { TestAccountStore, TestDirectory, TestIdentityRegistry } from "@destack/account/test";
+import { TestAccount, TestDirectory } from "@destack/account/test";
 import { spaceDatabase } from "../test/index.ts";
 import type { EventStore } from "@destack/event/store";
 import { journal, defineObject, field, shareable } from "@destack/object";
@@ -102,7 +102,7 @@ test("hand a space's database to another machine and send its clients there", as
     const [source, target, universe] = await Promise.all([
         TestDatabase.create(tables, { environment: world, isMigrated: true }),
         TestDatabase.create(tables, { environment: world, isMigrated: true }),
-        TestDatabase.create(TestAccountStore.database, { environment: world, isMigrated: true }),
+        TestDatabase.create(TestAccount.database, { environment: world, isMigrated: true }),
     ]);
     onTestFinished(async () => {
         await Promise.all([source.close(), target.close(), universe.close()]);
@@ -112,7 +112,12 @@ test("hand a space's database to another machine and send its clients there", as
         account.reference(Scope.universe.id, accountId),
         account.policy,
     );
-    const { registry } = await TestIdentityRegistry.open(universe.database, world, ids.machineA);
+    const registry = await TestDirectory.registry(
+        universe.database,
+        world,
+        ids.machineA,
+        accountId,
+    );
     const placement = { space: spaceId, scope: accountId, machine: ids.machineA, epoch: 1 };
     for (const machine of [ids.machineA, ids.machineB]) {
         await TestDirectory.publish(universe.database, machine, accountId, null, clock);

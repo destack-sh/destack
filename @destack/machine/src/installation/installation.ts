@@ -401,13 +401,9 @@ async function resume(
         },
     );
 
-    // relate an application at the universe, as its space
+    // leave a removed installation
     if (current === undefined) {
         return;
-    } else if (current.export === null) {
-        await telemetry.span("destack.installation.relate", attributes, () =>
-            new ApplicationInstallation(current, options).relate(reconciliation),
-        );
     }
 
     // then build the commit its reference points at

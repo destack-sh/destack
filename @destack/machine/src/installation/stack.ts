@@ -13,13 +13,13 @@ import { type DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
     ObjectController,
     ObjectDescription,
-    type ObservationReport,
+    Observation,
     ObjectType,
     ObjectTypePool,
     SYNCED,
-    SYNCED_CONDITION,
+    SYNCED_DECISION,
     type MethodContextOf,
-    Observation,
+    Status,
 } from "@destack/object";
 import { Failure } from "@destack/error";
 import { Stack, StackPlan, ObjectStore } from "@destack/object/server";
@@ -247,7 +247,7 @@ export class StackInstallation {
         }
         // observe an applied revision at the installation's latest generation
         else if (stack.appliedRevisionId === revision.id) {
-            if (!Observation.isCurrent(stack, "Ready")) {
+            if (!Status.isCurrent(stack, "Ready")) {
                 const isFollowed = await InstallationTarget.isCurrent(reader, stack, this.#options);
                 await call.observe(installation, stack, readyApplied(isFollowed, {}));
             }
@@ -352,10 +352,10 @@ export class StackInstallation {
 /** A plan waiting for its approval, with what its installation reports. */
 class ApprovalWait extends Error {
     /** What the installation reports while it waits. */
-    readonly report: ObservationReport;
+    readonly report: Observation;
 
     /** Wait with a report. */
-    constructor(report: ObservationReport) {
+    constructor(report: Observation) {
         super("the plan waits for its approval");
         this.report = report;
     }
@@ -516,7 +516,7 @@ function declaredTypes(types: readonly ObjectType[]): readonly ObjectType[] {
 /** Describe an applied stack, synced once it runs its version. */
 function readyApplied(isFollowed: boolean, fields: Readonly<Record<string, unknown>>) {
     const described = ready("Applied", "every declaration applied", fields);
-    const synced = isFollowed ? { [SYNCED]: SYNCED_CONDITION } : {};
+    const synced = isFollowed ? { [SYNCED]: SYNCED_DECISION } : {};
 
     return { ...described, conditions: { ...described.conditions, ...synced } };
 }

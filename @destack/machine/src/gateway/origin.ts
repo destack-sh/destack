@@ -1,5 +1,4 @@
 import { Catalog } from "@destack/locale";
-import { locateHome } from "../machine/registry.ts";
 import * as accountObject from "@destack/account/object";
 import { AccountError } from "@destack/account/error";
 import { Failure, HTTP_DOMAIN } from "@destack/error";
@@ -1398,10 +1397,6 @@ export class InstallationOriginServer {
                 installation: found.id,
                 space: this.#space.id,
                 account: space.scope,
-                residencyHome: await locateHome(
-                    this.#space.machine,
-                    schema.identifier("account").parse(space.scope),
-                ),
                 view: name,
                 build: page.image,
                 base,

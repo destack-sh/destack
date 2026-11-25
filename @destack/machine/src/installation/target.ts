@@ -22,7 +22,7 @@ import {
     MAIN_DATABASE,
     StackDefinition,
 } from "@destack/stack/declare";
-import { TABLE, DatabaseState, Table, TableState } from "@destack/db";
+import { TABLE, DatabaseState, replicatedState, Table, TableState } from "@destack/db";
 import type { BlobStore, DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
     InstallationBindingSpec,
@@ -911,11 +911,17 @@ async function mainState(
         packages: [...new Set(followed.map((type) => type.package.id))],
     }).tables;
 
-    // list them beside its own, none for a build without tables
+    // list them beside its own, those the space replicates as it stores them, none for a build without tables
+    const stored = (state: TableState, dialect: keyof typeof own) =>
+        isReplicated(state) ? replicatedState(state, dialect) : state;
     const state = {
-        sqlite: [...own.sqlite, ...described.sqlite.filter(isReplicated), ...replicas.sqlite],
+        sqlite: [
+            ...own.sqlite.map((each) => stored(each, "sqlite")),
+            ...described.sqlite.filter(isReplicated),
+            ...replicas.sqlite,
+        ],
         postgresql: [
-            ...own.postgresql,
+            ...own.postgresql.map((each) => stored(each, "postgresql")),
             ...described.postgresql.filter(isReplicated),
             ...replicas.postgresql,
         ],

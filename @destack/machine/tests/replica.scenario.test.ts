@@ -20,11 +20,13 @@ test("relay the access deciding a space's objects to each of its installations a
     // serve the space below its account with an installation, next to another space of the account
     const { snapshot, notes, other } = await serveInstallation();
 
-    // relay the space's row, its own types going by their policies
+    // relay the space's row, its own types going by their policies, and its own, its machine's and its home's access
     expect(described(await snapshot(notes, ids.space))).toEqual([
         ["destack__sync__scope", ids.space],
     ]);
     expect(located(await snapshot(notes, ids.account))).toEqual([
+        ["destack__access__relationship", ids.account],
+        ["destack__access__relationship", ids.account],
         ["destack__access__relationship", ids.account],
         ["destack__sync__replica_position", ids.account],
         ["destack__sync__scope", ids.account],

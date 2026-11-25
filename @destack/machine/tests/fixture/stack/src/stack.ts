@@ -1,7 +1,7 @@
 import startPackage from "@destack/machine-start-fixture/package";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
-import forgePackage from "@destack/forge/package";
+import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
 import { credentialVault, repositoryStorage } from "@destack/forge/stack";
 import { gitStorage } from "@destack/stack/object";
 import { HOME_APPLICATION } from "@destack/account/object";
@@ -11,22 +11,24 @@ import observabilityPackage from "@destack/observability/package";
 import socialPackage from "@destack/social/package";
 import { defineStack } from "@destack/stack";
 import { install } from "@destack/stack/declare";
-import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
 
-/** The vault of a residency's home, whose secrets the forge binds. */
-export const platformVault = defineVault({ name: "platform", spec: {} });
-
-/** The stack of every account's home: a start page, inbox, connections and observability. */
+/** The stack of every account's home: a start page, forge, inbox, connections and observability. */
 export const HOME_STACK = defineStack({
-    types: [vaultPackage],
-    vaults: { credentials: connectionVault.provision() },
+    types: [vaultPackage, forgePackage, gitStorage],
+    vaults: { connections: connectionVault.provision(), credentials: credentialVault.provision() },
+    gitStorages: { repositories: repositoryStorage.provision() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(
             connectionPackage,
-            { credentials: "credentials" },
+            { credentials: "connections" },
             { isolation: "host", name: CONNECTION_INSTALLATION },
+        ),
+        forge: install(
+            forgePackage,
+            { repositories: "repositories", credentials: "credentials" },
+            { isolation: "host", name: FORGE_INSTALLATION },
         ),
         home: install(startPackage, {}, { name: HOME_APPLICATION }),
         message: install(
@@ -60,40 +62,6 @@ export const SPACE_STACK = defineStack({
             observabilityPackage,
             {},
             { isolation: "host", name: "observability" },
-        ),
-    },
-});
-
-/** The stack of a residency's home that runs the forge. */
-export const RESIDENCY_STACK = defineStack({
-    types: [vaultPackage, forgePackage, gitStorage],
-    vaults: {
-        platform: platformVault.provision(),
-        credentials: credentialVault.provision(),
-        connections: connectionVault.provision(),
-    },
-    gitStorages: { repositories: repositoryStorage.provision() },
-    issuers: { github: {} },
-    secrets: {
-        "github-webhook": { parent: "platform", name: "github-webhook" },
-        "github-private-key": { parent: "platform", name: "github-private-key" },
-    },
-    installations: {
-        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
-        connection: install(
-            connectionPackage,
-            { credentials: "connections" },
-            { isolation: "host", name: CONNECTION_INSTALLATION },
-        ),
-        forge: install(
-            forgePackage,
-            {
-                repositories: "repositories",
-                credentials: "credentials",
-                "github-webhook": "github-webhook",
-                "github-private-key": "github-private-key",
-            },
-            { isolation: "host", name: "forge" },
         ),
     },
 });
