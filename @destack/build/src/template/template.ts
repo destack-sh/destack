@@ -2,18 +2,28 @@ import type { FileSystem } from "@destack/environment";
 import { formatSource } from "@destack/check";
 import type { Toolchain } from "@destack/check/toolchain";
 import { dirname, join, resolve } from "node:path";
-import { DependencyName, PackageJson, PackageVersion, PackageDefinition } from "@destack/package";
+import {
+    DependencyName,
+    PackageDefinition,
+    PackageJson,
+    PackageName,
+    PackageVersion,
+} from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { TemplateInput } from "@destack/package/template";
 import { PackageError } from "@destack/package/error";
 import { type ESTree, parseSync, Visitor } from "rolldown/utils";
-import { schema, Text, Version } from "@destack/schema";
+import { present, schema, Text, Version } from "@destack/schema";
 
 /** The fields of a template's package.json that an instance reads and rewrites. */
 const TemplateManifest = schema.looseObject({
     name: schema.string(),
     dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    exports: schema.record(schema.string(), schema.unknown()).exactOptional(),
 });
+
+/** The export of an app's package module, whose definition carries the package's title. */
+const PACKAGE_EXPORT = "./package";
 /** The fields of a template's package.json that an instance reads and rewrites. */
 type TemplateManifest = schema.Infer<typeof TemplateManifest>;
 
@@ -114,6 +124,16 @@ export class Template {
 
         // copy declared bytes and edit only parsed module specifiers
         const files = copyFiles(source, template.files, imports);
+
+        // title the package after its name, as the template's title names the template
+        const module = packageModule(manifest);
+        const decoder = new TextDecoder();
+        const copied = present(files.get(module), `the template's package module '${module}'`);
+        const title = titleOf(parameters.name);
+        files.set(
+            module,
+            new TextEncoder().encode(replaceTitle(module, decoder.decode(copied), title)),
+        );
 
         // generate an ordinary source package: no template classification, no release's version, released ranges
         const encoder = new TextEncoder();
@@ -344,6 +364,72 @@ function requiredFile(files: ReadonlyMap<string, Uint8Array>, path: string): Uin
     }
 
     return bytes;
+}
+
+/** Read the path of a template's package module, the file its manifest exports as ./package. */
+function packageModule(manifest: TemplateManifest): string {
+    const exported = manifest.exports?.[PACKAGE_EXPORT];
+    if (typeof exported !== "string") {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `template '${manifest.name}' is invalid: it exports no ${PACKAGE_EXPORT} module`,
+        );
+    }
+
+    return exported.replace(/^\.\//u, "");
+}
+
+/** Write a package's title from its name: its local name in sentence case, split at hyphens. */
+function titleOf(name: string): string {
+    const words = PackageName.split(name).local.replaceAll("-", " ");
+
+    return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
+/** Replace the one literal title of a module's definePackage call. */
+export function replaceTitle(path: string, source: string, title: string): string {
+    // find the title of each definePackage call
+    const parsed = parseSync(path, source);
+    const titles: ESTree.TemplateLiteral[] = [];
+    const visitor = new Visitor({
+        CallExpression: (node) => {
+            // read the literal titles of a definePackage call's definition
+            const [argument] = node.arguments;
+            const isDefinition =
+                node.callee.type === "Identifier" && node.callee.name === "definePackage";
+            if (!isDefinition || argument?.type !== "ObjectExpression") {
+                return;
+            }
+            for (const property of argument.properties) {
+                const isTitle =
+                    property.type === "Property" &&
+                    property.key.type === "Identifier" &&
+                    property.key.name === "title";
+                const value = isTitle ? property.value : undefined;
+                if (
+                    value?.type === "TaggedTemplateExpression" &&
+                    value.quasi.expressions.length === 0
+                ) {
+                    titles.push(value.quasi);
+                }
+            }
+        },
+    });
+    visitor.visit(parsed.program);
+
+    // refuse a module without exactly one literal title
+    const [element] = titles;
+    if (parsed.errors.length > 0 || titles.length !== 1 || element === undefined) {
+        throw PackageError.of(
+            "FILE_INVALID",
+            `template source '${path}' is invalid: it must define its package with one literal title`,
+        );
+    }
+
+    // write the title in place of the template's, escaped as template literal text
+    const escaped = title.replaceAll("\\", "\\\\").replaceAll("`", "\\`").replaceAll("${", "\\${");
+
+    return `${source.slice(0, element.start)}\`${escaped}\`${source.slice(element.end)}`;
 }
 
 /** Rewrite module references while preserving surrounding source text. */
