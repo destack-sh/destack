@@ -318,14 +318,25 @@ export class Compiler implements AsyncDisposable {
     /** Retain the current compiler's diagnostics, failing it once and stopping past the bound. */
     async #diagnose(sandbox: Sandbox, fail: (error: Error) => void): Promise<void> {
         const decoder = new TextDecoder();
+        let partial = "";
         for await (const chunk of sandbox.stderr) {
             // stop once a restarted compiler replaced this one
             if (this.#sandbox !== sandbox) {
                 return;
             }
 
+            // log each whole line as it arrives, as a panic it prints may never end the process
+            const text = decoder.decode(chunk, { stream: true });
+            const lines = `${partial}${text}`.split("\n");
+            partial = lines.pop() ?? "";
+            for (const line of lines.filter((each) => each.trim() !== "")) {
+                this.#scope.log.debug("destack.compiler.stderr", {
+                    "destack.compiler.stderr": line,
+                });
+            }
+
             // retain the text, failing the compiler once it passes the bound
-            this.#stderr += decoder.decode(chunk, { stream: true });
+            this.#stderr += text;
             if (this.#stderr.length > MAX_DIAGNOSTICS) {
                 const head = this.#stderr.slice(0, DIAGNOSTICS_HEAD);
                 fail(

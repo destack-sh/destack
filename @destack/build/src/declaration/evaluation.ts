@@ -850,9 +850,15 @@ function entryPlugin(source: string): Plugin {
                     throw BuildError.of("INSPECTION_INVALID", JSON.stringify(result.errors));
                 }
 
+                // hand the map on with each unknown source as null, as source map version 3 writes it
+                const { map } = result;
+                const sources = map?.sources.map((path) => path ?? null);
+
                 return {
                     code: result.code,
-                    ...(result.map === undefined ? {} : { map: result.map }),
+                    ...(map === undefined || sources === undefined
+                        ? {}
+                        : { map: { ...map, sources } }),
                 };
             },
         },

@@ -35,7 +35,7 @@
         "@destack/update": "workspace:*",
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
-        "rolldown": "1.2.19",
+        "rolldown": "1.3.3",
         "vite": "8.3.8"
     },
     "peerDependenciesMeta": {
@@ -104,7 +104,7 @@
         "@types/bun": "1.4.4",
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
-        "rolldown": "1.2.19",
+        "rolldown": "1.3.3",
         "vite": "8.3.8"
     },
     "scripts": {
