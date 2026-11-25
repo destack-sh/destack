@@ -293,7 +293,7 @@ test("point a checkout's reference at a commit through a write lease, again at a
     await worktree.push(lease.url, "main");
 
     // point the checkout's reference at the second commit, then back at the first one
-    const reference = GitReference.checkout("checkout-1");
+    const reference = GitReference.checkout("machine-1", "checkout-1");
     const signal = new AbortController().signal;
     await GitLease.set(lease, worktree.directory, reference, second, host, signal);
     await GitLease.set(lease, worktree.directory, reference, first, host, signal);
@@ -302,10 +302,20 @@ test("point a checkout's reference at a commit through a write lease, again at a
     expect(await storage.references("repository-checkout")).toEqual({
         defaultReference: "refs/heads/main",
         references: [
-            { name: "refs/checkouts/checkout-1", object: first, commit: first },
+            { name: "refs/checkouts/machine-1/checkout-1", object: first, commit: first },
             { name: "refs/heads/main", object: second, commit: second },
         ],
     });
+});
+
+test("read the machine of a checkout's reference, and none of a malformed one, a branch's or a tag's", () => {
+    expect([
+        GitReference.machine(GitReference.checkout("machine-1", "checkout-1")),
+        GitReference.machine("refs/checkouts/checkout-1"),
+        GitReference.machine("refs/checkouts/machine-1/checkout-1/more"),
+        GitReference.machine("refs/heads/main"),
+        GitReference.machine("refs/tags/v1"),
+    ]).toEqual(["machine-1", undefined, undefined, undefined, undefined]);
 });
 
 /** Refuse a request, as these tests' storages create, list and delete without reaching Git. */

@@ -20,7 +20,7 @@ const LISTED = new RegExp(`^(?:${Object.values(NAMESPACES).join("|")}).`, "u");
 
 /** A branch, tag or checkout's working tree as its origin lists it. */
 const reference = schema.object({
-    /** The complete name, such as refs/heads/main, refs/tags/v1 or refs/checkouts/<checkout>. */
+    /** The complete name, such as refs/heads/main or refs/checkouts/<machine>/<checkout>. */
     name: schema.string().regex(LISTED),
     /** The object the reference points at directly: a commit, or an annotated tag's object. */
     object: ObjectName,
@@ -54,9 +54,24 @@ export const GitReference = Object.assign(reference, {
         return name.startsWith(NAMESPACES.branch);
     },
 
-    /** Write the name of the reference a checkout pushes its working tree to. */
-    checkout(checkout: string): string {
-        return `${NAMESPACES.checkout}${checkout}`;
+    /** Write the name of the reference a machine's checkout pushes its working tree to. */
+    checkout(machine: string, checkout: string): string {
+        return `${NAMESPACES.checkout}${machine}/${checkout}`;
+    },
+
+    /** Report whether a reference is a checkout's. */
+    isCheckout(name: string): boolean {
+        return name.startsWith(NAMESPACES.checkout);
+    },
+
+    /** Read the machine a checkout's reference names, absent for another or a malformed one. */
+    machine(name: string): string | undefined {
+        // take the machine of refs/checkouts/<machine>/<checkout> alone
+        const [machine, checkout, ...rest] = GitReference.isCheckout(name)
+            ? name.slice(NAMESPACES.checkout.length).split("/")
+            : [];
+
+        return checkout !== undefined && rest.length === 0 ? machine : undefined;
     },
 });
 /** A branch, tag or checkout's working tree as its origin lists it. */
