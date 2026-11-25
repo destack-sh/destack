@@ -401,7 +401,11 @@ test("refuse placements and writes a setting does not permit", async () => {
             "VALUE_INVALID",
             "setting value is invalid: its edition '2' must be up to the declaration's edition '1'",
         ],
-        ["BAD_REQUEST", "VALUE_INVALID", "setting value is invalid: it must match its declaration"],
+        [
+            "BAD_REQUEST",
+            "VALUE_INVALID",
+            `setting 'editor.mode' value is invalid: 'invalid option: expected one of "standard"|"vim"'`,
+        ],
         "done",
     ]);
 });
