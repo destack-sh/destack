@@ -3,7 +3,7 @@ import { DatabaseError } from "../error/error.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { ColumnKind, ColumnValue } from "../table/column.ts";
 import type { Namespace } from "../query/namespace.ts";
-import { type JsonObject, JsonValue, Edition, schema } from "@destack/schema";
+import { type JsonObject, JsonValue, Edition, mapValues, schema } from "@destack/schema";
 import { Condition, Scalar, type JsonCondition } from "../query/condition.ts";
 
 /** The most terms one expression has, bounding compiled SQL; computed fields use under ten. */
@@ -320,6 +320,47 @@ export const Expression = {
         });
 
         return names;
+    },
+
+    /** Rename the columns an expression reads, leaving its other terms as they are. */
+    rename(expression: Expression, name: (column: string) => string): Expression {
+        const renamed = (each: Expression) => Expression.rename(each, name);
+        switch (expression.kind) {
+            case "column":
+                return { ...expression, name: name(expression.name) };
+            case "add":
+            case "subtract":
+            case "multiply":
+            case "divide":
+                return {
+                    ...expression,
+                    left: renamed(expression.left),
+                    right: renamed(expression.right),
+                };
+            case "coalesce":
+                return { ...expression, values: expression.values.map(renamed) };
+            case "path":
+            case "scalar":
+            case "before":
+                return { ...expression, of: renamed(expression.of) };
+            case "object":
+                return { ...expression, fields: mapValues(expression.fields, renamed) };
+            case "case":
+                return {
+                    ...expression,
+                    of: renamed(expression.of),
+                    cases: expression.cases.map((entry) => ({
+                        ...entry,
+                        then: renamed(entry.then),
+                    })),
+                    otherwise: renamed(expression.otherwise),
+                };
+            case "json":
+            case "literal":
+            case "lookup":
+            case "rollup":
+                return expression;
+        }
     },
 
     /** Upgrade a partial record of an earlier edition through later editions' assignments. */

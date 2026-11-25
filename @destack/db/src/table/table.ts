@@ -12,6 +12,7 @@ import {
     text,
     type ColumnBuilder,
     type ColumnDefinition,
+    type ColumnKind,
     type ColumnValue,
     type ValueOf,
     ElementKey,
@@ -57,6 +58,18 @@ const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => Colu
     numeric,
 };
 
+/** The column builder of each kind, which a described table builds its columns by. */
+const DESCRIBED_COLUMNS: Readonly<Record<ColumnKind, (name: string) => ColumnBuilder>> = {
+    text,
+    integer,
+    real,
+    boolean,
+    json: (name) => json(name, schema.json()),
+    binary,
+    bigint,
+    numeric,
+};
+
 /** One logical SQL table: its columns as properties, and its definition under {@link TABLE}. */
 export class Table<
     Name extends string = string,
@@ -91,6 +104,35 @@ export class Table<
             declaration,
             options,
         );
+    }
+
+    /** Build the table a description describes, each column under its SQL name. */
+    static from(description: TableDescription, owner: PackageVersion): Table {
+        // build each described column by its kind, under its SQL name
+        const builders = Object.fromEntries(
+            description.columns.map((column) => [
+                column.name,
+                DESCRIBED_COLUMNS[column.kind](column.name),
+            ]),
+        );
+        const columns = attachColumns(description.name, builders);
+        const identity = { package: owner, name: description.name, sqlName: description.name };
+        const table = new Table(identity, columns, {
+            constraints: () => [],
+            retention: "none",
+            expiry: undefined,
+            isAppendOnly: false,
+            generation: undefined,
+            moved: {},
+            convert: {},
+            aggregates: [],
+            dependents: [],
+            predefined: [],
+            fullText: undefined,
+            globalIndexes: () => [],
+        });
+
+        return Object.assign(table, columns);
     }
 
     /** Add to tables those their aggregates write and their dependents cascade into. */
