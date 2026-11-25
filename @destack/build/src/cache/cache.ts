@@ -1,7 +1,9 @@
 import { asc, eq, inArray, lte, Now } from "@destack/db";
 import type { Controller } from "@destack/db/database";
 import type { Digest } from "@destack/schema";
-import { BuildStore } from "../store/store.ts";
+import type { TransformCache } from "@destack/package/build";
+import { PackageFile } from "@destack/package/file";
+import { BuildObject, BuildStore } from "../store/store.ts";
 import { buildCache, buildRoot } from "../store/table.ts";
 import { BuildCacheEntry } from "./entry.ts";
 
@@ -14,6 +16,9 @@ export const USE_MILLISECONDS = 24 * 60 * 60_000;
 /** The prefix of the root a cache entry retains its blobs by, followed by its key. */
 export const CACHE_ROOT_PREFIX = "cache:";
 
+/** The directory of the files a cache keeps under their keys. */
+const FILE_DIRECTORY = "transforms";
+
 /** A cache key's build, and how the cache answered: stored, built now, or joined. */
 export interface BuildCacheOutcome {
     /** The build's manifest digest. */
@@ -23,7 +28,7 @@ export interface BuildCacheOutcome {
 }
 
 /** A build store's cache: entries by key, each retaining what it references until unused a week. */
-export class BuildCache {
+export class BuildCache implements TransformCache {
     /** The store whose blobs the entries reference. */
     readonly #store: BuildStore;
     /** The builds of cache keys in flight, so callers asking at once build each key once. */
@@ -71,6 +76,23 @@ export class BuildCache {
                 new Set(BuildCacheEntry.digests(entry)),
             );
         });
+    }
+
+    /** Read the file a key caches, absent on a miss. */
+    async read(key: Digest): Promise<Uint8Array<ArrayBuffer> | undefined> {
+        const entry = await this.get(key);
+
+        return entry?.kind === "file" ? await this.#store.file(entry.file) : undefined;
+    }
+
+    /** Store a file under a key for later builds. */
+    async write(key: Digest, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+        // store the file's bytes, then the entry referencing them
+        const { crypto } = this.#store.environment;
+        const path = `${FILE_DIRECTORY}/${key}`;
+        const file = await PackageFile.describe(path, "application/octet-stream", bytes, crypto);
+        await this.#store.write(BuildObject.files([{ digest: file.digest, bytes }]));
+        await this.set(key, { kind: "file", file });
     }
 
     /** Take the build a key caches, else build and cache it once for all callers at once. */

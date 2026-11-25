@@ -1,4 +1,5 @@
 import type { IndexedDeclarations } from "../build/message.ts";
+import { EvaluatedDeclaration } from "../declaration/evaluation.ts";
 import { dirname, join, resolve } from "node:path";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import type { BunLockfile } from "@destack/check/bun";
@@ -505,6 +506,9 @@ export class Workspace {
         return dirname(await files.realPath(join(lockfile.directory, "bun.lock")));
     }
 }
+
+/** The declarations a unit's evaluation keeps in the cache. */
+const EVALUATED = schema.array(EvaluatedDeclaration);
 
 /** A package of a workspace with the units it requires, each built on its dependencies' builds. */
 export class WorkspacePackage {
@@ -1030,34 +1034,68 @@ export class WorkspacePackage {
         options: PackageBuildOptions,
         isUnreleased: boolean,
     ): Promise<BuildCacheOutcome> {
-        // key the unit by its sources as they read now
+        // read the unit's sources as they read now, stamping unreleased source at dev
         const sources = await this.workspace.checkout.identify(unit.directory, UNREAD_FILES);
-        const key = await this.#key(unit, options, sources, isUnreleased);
+        const given = WorkspacePackage.#versionsOf(options);
+        const versions = isUnreleased ? { ...given, [unit.name]: Version.development } : given;
+        const stamped = { ...options, versions };
 
-        // build it once when missing
-        return await this.#store.cache.build(key, async () => {
-            // stamp unreleased source at dev
-            const given = WorkspacePackage.#versionsOf(options);
-            const versions = isUnreleased ? { ...given, [unit.name]: Version.development } : given;
-            const stamped = { ...options, versions };
+        // read the declarations its sources and dependency builds evaluated to, as evaluating runs their code
+        const { cache } = this.#store;
+        const evaluation = await this.#evaluationKey(unit, options, sources, isUnreleased);
+        const known = await cache.read(evaluation);
 
-            // evaluate its declarations and compile it on them, in one request
-            const build = await this.#use(unit, (compiler) => compiler.build(stamped));
-            const built = await BuildStore.digest(build.manifest, this.#store.environment.crypto);
-            const listed = await Checkout.list(
-                unit.directory,
-                this.#store.environment,
-                "directory",
+        // take the build of declarations evaluated before, compiling it once when missing
+        if (known !== undefined) {
+            const declarations = EVALUATED.parse(JSON.parse(new TextDecoder().decode(known)));
+            const key = await this.#key(unit, options, sources, isUnreleased, declarations);
+
+            return await cache.build(key, async () => {
+                const compiled = await this.#compile(unit, stamped, sources, declarations);
+
+                return compiled.manifest;
+            });
+        }
+        // else evaluate and compile it in one request, keeping its declarations and its build
+        else {
+            const compiled = await this.#compile(unit, stamped, sources, undefined);
+            const json = JSON.stringify(compiled.declarations);
+            await cache.write(evaluation, new TextEncoder().encode(json));
+            const { declarations, manifest } = compiled;
+            const key = await this.#key(unit, options, sources, isUnreleased, declarations);
+            await cache.set(key, { kind: "build", manifest });
+
+            return { manifest, cache: "miss" };
+        }
+    }
+
+    /** Compile a unit on declarations given, else evaluated with it, refusing changed source. */
+    async #compile(
+        unit: WorkspaceUnit,
+        options: PackageBuildOptions,
+        sources: Digest,
+        declarations: readonly EvaluatedDeclaration[] | undefined,
+    ): Promise<{
+        readonly manifest: Digest;
+        readonly declarations: readonly EvaluatedDeclaration[];
+    }> {
+        // compile it with the unit's compiler
+        const compiled = await this.#use(unit, (compiler) =>
+            compiler.compile(options, declarations),
+        );
+        const { crypto } = this.#store.environment;
+        const manifest = await BuildStore.digest(compiled.build.manifest, crypto);
+
+        // refuse a build of sources that changed while it built
+        const listed = await Checkout.list(unit.directory, this.#store.environment, "directory");
+        if ((await listed.identify(unit.directory, UNREAD_FILES)) !== sources) {
+            throw BuildError.of(
+                "SOURCE_CONFLICT",
+                `cannot build '${unit.name}': it changed while it built`,
             );
-            if ((await listed.identify(unit.directory, UNREAD_FILES)) !== sources) {
-                throw BuildError.of(
-                    "SOURCE_CONFLICT",
-                    `cannot build '${unit.name}': it changed while it built`,
-                );
-            }
+        }
 
-            return built;
-        });
+        return { manifest, declarations: compiled.declarations };
     }
 
     /** List the units a unit requires, and theirs, each once. */
@@ -1170,6 +1208,7 @@ export class WorkspacePackage {
         options: Omit<PackageBuildOptions, "signal" | "timeout">,
         checkout: Digest,
         isUnreleased: boolean,
+        declarations: readonly EvaluatedDeclaration[],
     ): Promise<Digest> {
         // read each dependency's interface
         const interfaces = await Promise.all(
@@ -1185,6 +1224,31 @@ export class WorkspacePackage {
                 ...(await this.#sources(unit, options, checkout)),
                 isUnreleased,
                 interfaces: Object.fromEntries(interfaces),
+                declarations: await Digest.json(declarations, this.#store.environment.crypto),
+            },
+            this.#store.environment.crypto,
+        );
+    }
+
+    /** Key a unit's evaluation by its sources, its directory and its dependencies' whole builds. */
+    async #evaluationKey(
+        unit: WorkspaceUnit,
+        options: Omit<PackageBuildOptions, "signal" | "timeout">,
+        checkout: Digest,
+        isUnreleased: boolean,
+    ): Promise<Digest> {
+        // key it by every dependency's build, as evaluating runs each one's code
+        const dependencies = Object.entries(options.dependencies).map(
+            ([name, dependency]) => [name, dependency.manifest] as const,
+        );
+
+        return await Digest.json(
+            {
+                kind: "evaluation",
+                ...(await this.#sources(unit, options, checkout)),
+                directory: unit.directory,
+                isUnreleased,
+                dependencies: Object.fromEntries(dependencies),
             },
             this.#store.environment.crypto,
         );

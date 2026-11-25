@@ -428,6 +428,7 @@ test("trace each unit's build: a compile on a miss, the cache on a hit", async (
     expect({ spans, counts }).toEqual({
         spans: {
             "destack.build.move": 2,
+            "destack.build.write": 2,
             "destack.compiler.build": 2,
             "destack.compiler.compile": 2,
             "destack.compiler.evaluate": 2,
@@ -440,6 +441,7 @@ test("trace each unit's build: a compile on a miss, the cache on a hit", async (
         },
         counts: {
             "destack.build.move.duration.count": 2,
+            "destack.build.write.duration.count": 2,
             "destack.compiler.build.duration.count": 2,
             "destack.compiler.compile.duration.count": 2,
             "destack.compiler.count": 2,

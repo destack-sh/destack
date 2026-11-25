@@ -6,16 +6,24 @@ import { Digest, schema, Version } from "@destack/schema";
 import { Failure } from "@destack/error";
 import { BuildError } from "../error/index.ts";
 import { ModuleOptions } from "./build.ts";
+import { EvaluatedDeclaration } from "../declaration/evaluation.ts";
 
 /** Completed compiler work. */
 export const BuildResult = schema.discriminatedUnion("kind", [
     schema.object({
         kind: schema.literal("build"),
+        /** The declarations the build compiled on. */
+        declarations: schema.array(EvaluatedDeclaration),
     }),
     schema.object({
         kind: schema.literal("declarations"),
         /** The declarations the package's export entries evaluate to. */
         declarations: schema.array(DeclarationDescription),
+    }),
+    schema.object({
+        kind: schema.literal("evaluate"),
+        /** The declarations the export entries evaluate to, with the modules exporting them. */
+        declarations: schema.array(EvaluatedDeclaration),
     }),
     schema.object({
         kind: schema.literal("index"),
@@ -109,6 +117,20 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
         destination: schema.string(),
         /** The build's options. */
         options: RequestedBuild,
+    }),
+    schema.object({
+        kind: schema.literal("evaluate"),
+        /** The build's options, whose export entries evaluate. */
+        options: RequestedBuild,
+    }),
+    schema.object({
+        kind: schema.literal("compile"),
+        /** The directory the build writes into. */
+        destination: schema.string(),
+        /** The build's options. */
+        options: RequestedBuild,
+        /** The declarations the build compiles on, evaluated before. */
+        declarations: schema.array(EvaluatedDeclaration),
     }),
     schema.object({
         kind: schema.literal("declarations"),
