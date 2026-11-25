@@ -1,8 +1,8 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { HUES, type Hue } from "@destack/color";
+import { Color, DEFAULT_HUES, HUES, type Hue } from "@destack/color";
 import { color, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
-import { For, type JSX, omit, Show } from "@destack/view";
+import { For, type JSX, omit, Show, useContext, useLocale } from "@destack/view";
 import {
     ListBox,
     type ListBoxElementProperties,
@@ -10,6 +10,8 @@ import {
     type ListBoxItemProperties,
     useListBox,
 } from "../list-box/index.ts";
+import { ColorPickerContext } from "../color-picker/control.ts";
+import { HUE_NAMES, nameOf } from "../color-picker/name.ts";
 import { useFieldValue, readChoice } from "../field/control.ts";
 
 /** The swatches in each row of a swatch picker by default. */
@@ -19,14 +21,14 @@ const COLUMNS = 5;
 export interface ColorSwatchPickerProperties extends ListBoxElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "onFocusOut">
 > {
-    /** The chosen swatch, which makes the choice controlled, undefined for none. */
-    readonly value?: Hue | undefined;
+    /** The chosen hue or CSS color, which makes the choice controlled, undefined for none. */
+    readonly value?: string | undefined;
     /** The swatch chosen at first while uncontrolled. */
-    readonly defaultValue?: Hue;
+    readonly defaultValue?: string;
     /** Handle the person choosing a swatch. */
-    readonly onValueChange?: (value: Hue) => void;
-    /** The swatches offered when the picker has no items of its own. */
-    readonly hues?: readonly Hue[];
+    readonly onValueChange?: (value: string) => void;
+    /** The hues and CSS colors offered without items of its own, every hue by default. */
+    readonly colors?: readonly string[];
     /** The swatches in each row, which the up and down arrow keys move across, five by default. */
     readonly columns?: number;
     /** The form field name the chosen swatch submits under, which renders a hidden input. */
@@ -37,8 +39,8 @@ export interface ColorSwatchPickerProperties extends ListBoxElementProperties<
 
 /** The properties of a swatch, the option's included. */
 export interface ColorSwatchPickerItemProperties extends Omit<ListBoxItemProperties, "value"> {
-    /** The hue the swatch shows and stands for. */
-    readonly value: Hue;
+    /** The theme's hue or the CSS color the swatch shows and stands for. */
+    readonly value: string;
 }
 
 /** The styles of a swatch picker and its swatches. */
@@ -73,9 +75,20 @@ const fills = style.create({
     fill: (fill: string) => ({ backgroundColor: fill }),
 });
 
-/** Render the theme's swatches as a list box in a grid layout. */
+/** Report whether a swatch stands for a hue of the theme. */
+function isHue(value: string): value is Hue {
+    return HUES.some((hue) => hue === value);
+}
+
+/** Read the color a swatch stands for. */
+function colorOf(value: string): Color {
+    return Color.parse(isHue(value) ? DEFAULT_HUES[value] : value);
+}
+
+/** Render swatches as a list box in a grid layout, which set the color of a picker around them. */
 export function ColorSwatchPicker(given: ColorSwatchPickerProperties): JSX.Element {
-    // edit the value of the field's form
+    // set the color of the picker around it, or edit the value of the field's form
+    const picker = useContext(ColorPickerContext);
     const properties = useFieldValue(given, {
         value: "value",
         change: "onValueChange",
@@ -83,25 +96,26 @@ export function ColorSwatchPicker(given: ColorSwatchPickerProperties): JSX.Eleme
         settles: true,
     });
 
-    // offer the given hues in their order unless the caller lays out its own swatches
+    // offer the given colors in their order unless the caller lays out its own swatches
     const rest = omit(
         properties,
         "value",
         "defaultValue",
         "onValueChange",
-        "hues",
+        "colors",
         "columns",
         "name",
         "form",
         "children",
         "xstyle",
     );
-    const hues = () => properties.hues ?? HUES;
+    const colors = (): readonly string[] => properties.colors ?? HUES;
     const onValueChange = (value: string | undefined): void => {
-        // report a chosen hue
-        const chosen = HUES.find((hue) => hue === value);
-        if (chosen !== undefined) {
-            properties.onValueChange?.(chosen);
+        // set the picker's color and report a chosen one
+        if (value !== undefined) {
+            picker?.set(Color.parse(value));
+            picker?.commit();
+            properties.onValueChange?.(value);
         }
     };
 
@@ -113,10 +127,10 @@ export function ColorSwatchPicker(given: ColorSwatchPickerProperties): JSX.Eleme
             columns={properties.columns ?? COLUMNS}
             selectionBehavior="replace"
             selection={
-                "value" in properties
+                picker !== null || "value" in properties
                     ? {
                           get value() {
-                              return properties.value;
+                              return picker === null ? properties.value : picker.value();
                           },
                           onValueChange,
                       }
@@ -131,7 +145,7 @@ export function ColorSwatchPicker(given: ColorSwatchPickerProperties): JSX.Eleme
             xstyle={[styles.picker, properties.xstyle]}
         >
             {properties.children ?? (
-                <For each={hues()}>{(hue) => <ColorSwatchPickerItem value={hue} />}</For>
+                <For each={colors()}>{(value) => <ColorSwatchPickerItem value={value} />}</For>
             )}
             <Show when={properties.name !== undefined || properties.form !== undefined}>
                 <ColorSwatchPickerInput name={properties.name} form={properties.form} />
@@ -142,19 +156,28 @@ export function ColorSwatchPicker(given: ColorSwatchPickerProperties): JSX.Eleme
 
 /** Render one swatch of the nearest swatch picker. */
 export function ColorSwatchPickerItem(properties: ColorSwatchPickerItemProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "children");
+    // stand for the color as the picker around it writes it
+    const picker = useContext(ColorPickerContext);
+    const locale = useLocale();
+    const rest = omit(properties, "value", "xstyle", "children");
+    const value = (): string =>
+        picker === null ? properties.value : colorOf(properties.value).toString(picker.format());
+    const fill = (): string =>
+        picker === null && isHue(properties.value) ? swatch[`${properties.value}Solid`] : value();
+    const label = (): string =>
+        isHue(properties.value)
+            ? locale.render(HUE_NAMES[properties.value])
+            : nameOf(colorOf(properties.value), locale);
 
     return (
         <ListBoxItem
-            aria-label={properties.value}
+            aria-label={label()}
             data-slot="color-swatch-picker-item"
             data-swatch={properties.value}
+            value={value()}
+            disabled={picker?.isDisabled() === true}
             {...rest}
-            xstyle={[
-                styles.swatch,
-                fills.fill(swatch[`${properties.value}Solid`]),
-                properties.xstyle,
-            ]}
+            xstyle={[styles.swatch, fills.fill(fill()), properties.xstyle]}
         >
             {properties.children ?? false}
         </ListBoxItem>

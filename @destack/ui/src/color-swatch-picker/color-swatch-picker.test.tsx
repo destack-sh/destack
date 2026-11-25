@@ -1,7 +1,6 @@
 import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
-import type { Hue } from "@destack/color";
 import { ColorSwatchPicker } from "./index.ts";
 
 /** List the hue of each chosen swatch of a container. */
@@ -12,10 +11,10 @@ function checked(container: Element): string[] {
 }
 
 test("offer the given swatches as options, following a controlled choice and reporting a person's", () => {
-    const chosen: Hue[] = [];
+    const chosen: string[] = [];
     const { container } = render(() => (
         <ColorSwatchPicker
-            hues={["cyan", "orange", "purple"]}
+            colors={["cyan", "orange", "purple"]}
             value="orange"
             onValueChange={(value) => chosen.push(value)}
         />
@@ -34,7 +33,7 @@ test("offer the given swatches as options, following a controlled choice and rep
 test("submit the chosen swatch through a hidden input of its name, none while none is chosen", () => {
     const { container } = render(() => (
         <form>
-            <ColorSwatchPicker name="color" hues={["cyan", "purple"]} aria-label="Color" />
+            <ColorSwatchPicker name="color" colors={["cyan", "purple"]} aria-label="Color" />
         </form>
     ));
     const submitted = () =>
