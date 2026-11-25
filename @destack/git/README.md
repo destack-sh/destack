@@ -131,7 +131,7 @@ export async function checkOutSite(
 
 ### Push a working tree to its checkout's reference
 
-`GitLease.set` points a leased repository's reference, such as `GitReference.checkout(id)`, at a local commit.
+`GitLease.set` points a leased repository's reference, such as `GitReference.checkout(machine, checkout)`, at a local commit.
 
 ```ts
 import { GitReference } from "@destack/git";
@@ -145,7 +145,7 @@ export async function pushCheckout(
     environment: LocalGitEnvironment,
     signal: AbortSignal,
 ) {
-    await GitLease.set(lease, root, GitReference.checkout("checkout-1"), commit, environment, signal); // refs/checkouts/checkout-1
+    await GitLease.set(lease, root, GitReference.checkout("machine-1", "checkout-1"), commit, environment, signal); // refs/checkouts/machine-1/checkout-1
 }
 ```
 
