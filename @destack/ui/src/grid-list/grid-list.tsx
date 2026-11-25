@@ -1,33 +1,74 @@
 import { state } from "@destack/theme/state";
 import type { Direction } from "@destack/locale";
+import type { Action, ActionInputs } from "@destack/object";
+import { present } from "@destack/schema";
+import type { ObjectReference } from "@destack/sync";
 import * as style from "@destack/style";
-import { color, radius, size, space, swatch } from "@destack/theme/tokens.stylex";
+import { color, radius, shadow, size, space, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
+    type ActionRegistry,
     createComponent,
     createContext,
+    createEffect,
+    createMemo,
     createSignal,
     createUniqueId,
+    flush,
     For,
+    handle,
+    isTextField,
     type JSX,
     merge,
     omit,
     onSettled,
     untrack,
     Show,
+    useActions,
     useContext,
     useLocale,
 } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Hover, type InteractionEvent, Press } from "../interaction/index.ts";
+import { provideItems } from "../action/place.ts";
+import {
+    clearSelection,
+    moveItemsDown,
+    moveItemsUp,
+    nextItem,
+    openItem,
+    previousItem,
+    selectAll,
+    toggleSelection,
+} from "../action/action.ts";
 import type { AutocompleteControl } from "../autocomplete/index.ts";
-import { Collection, type CollectionOptions, type CollectionState } from "../collection/index.ts";
+import {
+    Collection,
+    CollectionBuilder,
+    type CollectionOptions,
+    type CollectionState,
+} from "../collection/index.ts";
 import { Focus, GridDelegate, type GridLine, type GridRow } from "../focus/index.ts";
 import type { RowLayout } from "../gallery/layout.ts";
+import { useCommandPlatform } from "../kbd/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
-import { Virtualizer } from "../virtualizer/index.ts";
-import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import {
+    dropStyle,
+    Sortable,
+    SortableContainer,
+    SortableItem,
+    type SortableMove,
+    useSortable,
+} from "../sortable/index.ts";
+import { type VirtualHost, VirtualHostContext } from "../virtual-list/index.ts";
+import { type VirtualRange, Virtualizer } from "../virtualizer/index.ts";
+import {
+    contentOr,
+    type ElementPartProperties,
+    mergeProperties,
+    renderPart,
+} from "../part/index.ts";
 
 /** The height a row is estimated at before it is measured, in pixels. */
 const ROW_HEIGHT = 36;
@@ -38,8 +79,11 @@ const UNMEASURED_ROWS = 24;
 /** The grid list of the nearest grid list as its parts read it, null outside one. */
 const GridListContext = createContext<Pick<
     GridListControl<never>,
-    "focus" | "observe" | "state" | "isEmpty" | "isFitted"
+    "focus" | "observe" | "state" | "isEmpty" | "isFitted" | "isFocusedOnHover"
 > | null>(null);
+
+/** The overlays that keep the focus while they are open. */
+const OVERLAY = ":popover-open, dialog[open]";
 
 /** The styles of a grid list's parts. */
 const styles = style.create({
@@ -56,6 +100,15 @@ const styles = style.create({
         display: "flex",
         height: size[2],
     },
+    // raise the copy of a row a drag lifts
+    lifted: {
+        borderRadius: radius[2],
+        backgroundColor: { default: null, ":is([data-slot=drag-preview] > *)": color.popover },
+        boxShadow: { default: null, ":is([data-slot=drag-preview] > *)": shadow.overlay },
+    },
+    pointed: {
+        backgroundColor: color.hover,
+    },
     header: {
         display: "flex",
         alignItems: "flex-end",
@@ -68,6 +121,7 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         borderRadius: radius[2],
+        backgroundColor: { default: null, ":is([data-menu-open])": color.hover },
         cursor: "pointer",
     },
     square: {
@@ -83,7 +137,19 @@ const styles = style.create({
     note: {
         color: color.mutedForeground,
     },
+    // keep a heading over the rows of its section as they scroll under it
+    sticky: {
+        position: "sticky",
+        insetBlockStart: 0,
+        zIndex: 1,
+    },
+    // cover the rows that scroll under a heading that sticks
+    covering: {
+        backgroundColor: color.background,
+    },
     spacer: (height: string) => ({ height }),
+    // leave the room of the rows out of view before it, where an element would move among rows
+    after: (height: string) => ({ marginBlockStart: height }),
     sized: (columns: string, height: string, gap: number) => ({
         display: "grid",
         gridTemplateColumns: columns,
@@ -131,6 +197,12 @@ export class GridListControl<Item> {
     readonly #setElement: (element: HTMLElement | undefined) => void;
     /** The rows in or near the viewport, each measured as it renders. */
     readonly #virtualizer: Virtualizer;
+    /** The rows' keys, places and sections, read once per change to the rows. */
+    readonly #rows: Accessor<GridListRowIndex>;
+    /** The lists a drag moves the rows in, one at most. */
+    readonly #hosts = new CollectionBuilder<VirtualHost>();
+    /** The grid list's element. */
+    #root: HTMLElement | undefined;
 
     /** Lay the sections of items out in rows of a column count. */
     constructor(options: GridListOptions<Item>) {
@@ -169,25 +241,9 @@ export class GridListControl<Item> {
             this.collection,
             this.columns,
             layout === undefined ? undefined : (keys) => this.#break(keys, layout, width()),
+            options.hasEmptySections,
         );
-        const rowHeight = options.rowHeight ?? ROW_HEIGHT;
-        this.#virtualizer = new Virtualizer({
-            count: () => this.delegate.rows().length,
-            estimateSize: () => {
-                // take the height of a row of cells with a size, else the estimate
-                const rows = this.delegate.rows();
-
-                return (index) => {
-                    const row = rows[index];
-
-                    return row?.kind === "cells" && row.size !== undefined
-                        ? row.size.height + gap
-                        : rowHeight;
-                };
-            },
-            scrollElement: viewport,
-            initialRect: { width: 0, height: UNMEASURED_ROWS * rowHeight },
-        });
+        this.#rows = createMemo(() => this.#index());
 
         // select nothing, one item or several
         this.selection =
@@ -204,6 +260,45 @@ export class GridListControl<Item> {
             focus: this.focus,
             isVertical: false,
             act: (key) => this.act(key),
+        });
+
+        // render the rows in view, the focused one, and those a list around asks for
+        const rowHeight = options.rowHeight ?? ROW_HEIGHT;
+        const persisted = createMemo(
+            () => {
+                // mount the focused item and those a drag holds
+                const { places } = this.#rows();
+                const focused = this.focus.isFocused() ? this.focus.active() : undefined;
+                const keys = [focused, ...(this.#hosts.items()[0]?.persisted() ?? [])];
+
+                return keys.flatMap((key) => (key === undefined ? [] : (places.get(key) ?? [])));
+            },
+            { equals: (previous, next) => previous.join() === next.join() },
+        );
+        this.#virtualizer = new Virtualizer({
+            count: () => this.delegate.rows().length,
+            estimateSize: () => {
+                // take the height of a row of cells with a size, else the estimate
+                const rows = this.delegate.rows();
+
+                return (index) => {
+                    const row = rows[index];
+
+                    return row?.kind === "cells" && row.size !== undefined
+                        ? row.size.height + gap
+                        : rowHeight;
+                };
+            },
+            itemKey: () => {
+                const { keys } = this.#rows();
+
+                return (index) => keys[index] ?? index;
+            },
+            persisted,
+            rangeExtractor: (range) => this.#extract(range),
+            scrollPaddingStart: options.hasStickyHeadings === true ? rowHeight : 0,
+            scrollElement: viewport,
+            initialRect: { width: 0, height: UNMEASURED_ROWS * rowHeight },
         });
     }
 
@@ -245,50 +340,281 @@ export class GridListControl<Item> {
         }
     }
 
-    /** Take a key: move the focus, open with Enter, toggle with Space, select all, or clear. */
-    keyDown(event: KeyboardEvent, direction: Direction): void {
-        // leave keys an item already took
+    /** Take a key: run an action on the items, toggle with Space, open with Enter, or move. */
+    keyDown(
+        event: KeyboardEvent,
+        direction: Direction,
+        actions: ActionRegistry,
+        isCommand: boolean,
+    ): void {
+        // leave keys an item or a field in it took, and keys bound to actions on the items
         const focused = this.focus.current();
-        const selection = this.focus.mode === "roving" ? this.selection : undefined;
-        if (event.defaultPrevented) {
+        const isRoving = this.focus.mode === "roving";
+        const selection = isRoving ? this.selection : undefined;
+        const isTaken = event.defaultPrevented || (isRoving && isTextField(event.target));
+        const isOnItem =
+            event.target instanceof Element && event.target === this.#elementOf(focused);
+        if (isTaken || (isRoving && actions.press(event, isCommand, this.#root))) {
+            return;
+        }
+        // leave Space to an action something around the grid list binds it to
+        else if (isRoving && event.key === " " && actions.press(event, isCommand)) {
             return;
         }
         // toggle the focused item's selection with Space
-        else if (selection !== undefined && event.key === " " && focused !== undefined) {
+        else if (
+            selection !== undefined &&
+            event.key === " " &&
+            isOnItem &&
+            focused !== undefined
+        ) {
             event.preventDefault();
             selection.toggle(focused);
-        }
-        // select every item with command or control and A, or clear the selection with Escape
-        else if (
-            selection?.isMultiple() === true &&
-            event.key === "a" &&
-            (event.metaKey || event.ctrlKey)
-        ) {
-            event.preventDefault();
-            selection.selectAll(this.collection);
-        } else if (
-            selection !== undefined &&
-            event.key === "Escape" &&
-            selection.values().length > 0
-        ) {
-            event.preventDefault();
-            selection.clear();
         }
         // move the focus through the rows, extending the selection with shift, or open with Enter
         else {
             const target = this.focus.move(event, direction);
-            if (
-                target !== undefined &&
-                focused !== undefined &&
-                event.shiftKey &&
-                selection?.isMultiple() === true
-            ) {
+            const isExtending = event.shiftKey && selection?.isMultiple() === true;
+            if (target !== undefined && focused !== undefined && isExtending) {
                 selection.extendFrom(focused, target, this.collection);
-            } else if (target === undefined && event.key === "Enter" && focused !== undefined) {
+            } else if (
+                target === undefined &&
+                event.key === "Enter" &&
+                focused !== undefined &&
+                (isOnItem || !isRoving)
+            ) {
                 event.preventDefault();
                 this.act(focused);
             }
         }
+    }
+
+    /** List what handles the actions on the items, for the grid list's `ref`. */
+    handlers(): ((element: Element) => void)[] {
+        // handle no keys a search field takes
+        if (this.focus.mode === "virtual") {
+            return [];
+        }
+
+        // handle an action where an item is
+        const { selection } = this;
+        const onItem = <Inputs extends ActionInputs>(
+            action: Action<Inputs>,
+            isEnabled: (key: string) => boolean,
+            run: (key: string) => void,
+        ) =>
+            handle(action, {
+                isEnabled: (element) => {
+                    const key = this.keyAt(element);
+
+                    return key !== undefined && this.collection.has(key) && isEnabled(key);
+                },
+                run: ({ element }) => run(present(this.keyAt(element), "the item it runs on")),
+            });
+        const canStep = () => this.#options.onMove !== undefined;
+
+        return [
+            // give the items to the actions on them
+            provideItems({
+                targets: (element) => this.targets(element),
+                reference: (key) => this.#options.reference?.(key),
+            }),
+
+            // open the item, and move through the items
+            onItem(
+                openItem,
+                (key) => this.#options.onAction !== undefined && !this.collection.isDisabled(key),
+                (key) => this.act(key),
+            ),
+            onItem(
+                nextItem,
+                () => this.#isRows(),
+                (key) => this.#focusBeside(key, 1),
+            ),
+            onItem(
+                previousItem,
+                () => this.#isRows(),
+                (key) => this.#focusBeside(key, -1),
+            ),
+
+            // select the item, every item, or none
+            onItem(
+                toggleSelection,
+                () => selection !== undefined,
+                (key) => selection?.toggle(key),
+            ),
+            handle(selectAll, {
+                isEnabled: () => selection?.isMultiple() === true,
+                run: () => selection?.selectAll(this.collection),
+            }),
+            handle(clearSelection, {
+                isEnabled: () => (selection?.values().length ?? 0) > 0,
+                run: () => selection?.clear(),
+            }),
+
+            // move the item with the selection it is in
+            onItem(moveItemsUp, canStep, (key) => this.step(key, -1)),
+            onItem(moveItemsDown, canStep, (key) => this.step(key, 1)),
+        ];
+    }
+
+    /** Read the key of the item around an element, undefined outside one. */
+    keyAt(element: Element | null): string | undefined {
+        const cell = element?.closest<HTMLElement>("[role=gridcell][data-item]") ?? null;
+
+        return cell?.dataset["item"];
+    }
+
+    /** List the items a person is on at an element: an item's selection, else the selection. */
+    targets(element: Element | null): readonly string[] {
+        const key = this.keyAt(element);
+        if (key === undefined || !this.collection.has(key)) {
+            return this.selection?.values().filter((each) => this.collection.has(each)) ?? [];
+        }
+
+        return this.selection?.targets(key, this.collection) ?? [key];
+    }
+
+    /** Report whether a drag or a key moves the items. */
+    isMoving(): boolean {
+        return this.#options.onMove !== undefined;
+    }
+
+    /** Report whether a row's heading stays in view over the rows of its section. */
+    isSticky(): boolean {
+        return this.#options.hasStickyHeadings === true;
+    }
+
+    /** Report whether an item takes the focus as the pointer moves onto it. */
+    isFocusedOnHover(): boolean {
+        return this.#options.shouldFocusOnHover === true;
+    }
+
+    /** Read the key of a row, which a drag knows it by: its heading's, else its first item's. */
+    rowKey(row: GridRow): string {
+        return row.kind === "heading" ? `${this.id} ${row.key}` : (row.keys[0] ?? row.key);
+    }
+
+    /** Report whether a row scrolled past the start of the viewport, where a heading sticks. */
+    isPast(index: number): boolean {
+        const offset = this.#virtualizer.scrollOffset() ?? 0;
+
+        return offset > (this.#virtualizer.offsetOf(index, "start") ?? 0) + this.#pinned();
+    }
+
+    /** Hand a list around the rows' window until the rows unmount. */
+    join(host: VirtualHost): void {
+        this.#hosts.add(host);
+        host.add({
+            keys: () => this.#rows().keys,
+            positions: () => this.#rows().places,
+            reveal: (key) => {
+                const index = this.#rows().places.get(key);
+                if (index === undefined) {
+                    throw new RangeError(`grid list reveal of a missing row '${key}'`);
+                }
+                this.#virtualizer.scrollToIndex(index);
+            },
+            scroller: this.#viewport,
+        });
+    }
+
+    /** Hand on a drop: each item moved, with the selection it is in. */
+    drop(move: SortableMove): void {
+        // find the section it lands in: the row before's, else the first
+        const { sections, order } = this.#rows();
+        const section =
+            move.previous === undefined ? order[0] : (sections.get(move.previous) ?? order[0]);
+        if (section === undefined) {
+            throw new TypeError("grid list drop into a grid list without sections");
+        }
+
+        // place it between the items of that section it lands between
+        const keys = this.#itemsIn(section);
+        const previous = keys.includes(move.previous ?? "") ? move.previous : undefined;
+        this.place(
+            this.selection?.targets(move.id, this.collection) ?? [move.id],
+            section,
+            previous,
+        );
+    }
+
+    /** Move items into a section after one of its items, to its start without one. */
+    place(keys: readonly string[], section: string, after?: string): void {
+        // leave sorted items of the section alone, their owner placing them by its order
+        const moving = new Set(keys);
+        const { sections } = this.#rows();
+        const isSorted = this.#options.order === "sorted";
+        if (isSorted && keys.every((key) => sections.get(key) === section)) {
+            return;
+        }
+
+        // place the first after the nearest item before that stays, and each after the one before
+        const items = this.#itemsIn(section);
+        const at = after === undefined ? -1 : items.indexOf(after);
+        const next = items.slice(at + 1).find((key) => !moving.has(key));
+        let previous = items.slice(0, at + 1).findLast((key) => !moving.has(key));
+        for (const key of keys) {
+            this.#options.onMove?.({ id: key, section, previous, next });
+            previous = key;
+        }
+    }
+
+    /** Move an item and the selection it is in past the next item, or into the next section. */
+    step(key: string, step: 1 | -1): void {
+        // read where the items stand
+        const { sections, order } = this.#rows();
+        const keys = this.selection?.targets(key, this.collection) ?? [key];
+        const moving = new Set(keys);
+        const section = present(sections.get(key), "the section of a grid list's item");
+        const items = this.#itemsIn(section);
+        const edge = step === 1 ? items.findLastIndex((each) => moving.has(each)) : -1;
+        const ahead =
+            step === 1
+                ? items.slice(edge + 1)
+                : items.slice(
+                      0,
+                      items.findIndex((each) => moving.has(each)),
+                  );
+        const beside = step === 1 ? ahead[0] : ahead.at(-1);
+        const next = order[order.indexOf(section) + step];
+
+        // step past the item beside, where a person orders them
+        if (beside !== undefined && this.#options.order !== "sorted") {
+            const before = ahead.at(-2);
+            this.place(keys, section, step === 1 ? beside : before);
+        }
+        // else step into the next section, at its near end
+        else if (next !== undefined) {
+            this.place(keys, next, step === 1 ? undefined : this.#itemsIn(next).at(-1));
+        }
+        this.refocus(key);
+    }
+
+    /** Read the keys of the rows in order, which a change moves. */
+    order(): readonly string[] {
+        return this.#rows().keys;
+    }
+
+    /** Give the focused item the focus back where moving its row in the document dropped it. */
+    keepFocus(): void {
+        const key = this.focus.current();
+        const isDropped = document.activeElement === document.body;
+        if (this.focus.mode === "roving" && this.focus.isFocused() && isDropped) {
+            this.#elementOf(key)?.focus({ preventScroll: true });
+        }
+    }
+
+    /** Focus an item once its owner's change has rendered. */
+    refocus(key: string): void {
+        queueMicrotask(() => {
+            flush();
+            if (this.collection.has(key)) {
+                this.focus.enter(key);
+                this.focus.reveal(key);
+                this.#elementOf(key)?.focus({ preventScroll: true });
+            }
+        });
     }
 
     /** Count the cells of the longest row. */
@@ -305,22 +631,26 @@ export class GridListControl<Item> {
 
     /** Follow the grid element, which a grid list without a viewport measures. */
     attach(element: HTMLElement | undefined): void {
+        this.#root = element;
         this.#setElement(element);
     }
 
-    /** The rows the viewport shows with some to spare, every row without a viewport. */
-    window(): GridListWindow {
-        // read the first and last rows the virtualizer has in view
-        const items = this.#virtualizer.items();
-        const [first, last] = [items[0], items.at(-1)];
-
+    /** The rows the viewport shows with some to spare by their places, every row without one. */
+    shown(): readonly number[] {
         // show the rows in view, a first few until a viewport that will come is measured
+        const items = this.#virtualizer.items();
         const count = this.delegate.rows().length;
-        if (this.#viewport() !== undefined && first !== undefined && last !== undefined) {
-            return { first: first.index, end: last.index + 1 };
+        if (this.#viewport() !== undefined && items.length > 0) {
+            return items.map((item) => item.index).filter((index) => index < count);
         }
+        const length = this.#isObserved ? Math.min(count, UNMEASURED_ROWS) : count;
 
-        return { first: 0, end: this.#isObserved ? Math.min(count, UNMEASURED_ROWS) : count };
+        return Array.from({ length }, (_row, index) => index);
+    }
+
+    /** The first of the rows in view, after the persisted ones before them. */
+    start(): number {
+        return this.#viewport() === undefined ? 0 : this.#virtualizer.runStart();
     }
 
     /** The height in pixels of the rows before and after the window, which spacers stand in for. */
@@ -380,6 +710,109 @@ export class GridListControl<Item> {
             this.#virtualizer.scrollToIndex(place.row);
         }
     }
+
+    /** Focus the item beside one, where a key steps through the items. */
+    #focusBeside(key: string, step: 1 | -1): void {
+        const index = this.collection.index(key);
+        const target = index === undefined ? undefined : this.collection.at(index + step);
+        if (target !== undefined) {
+            this.focus.enter(target);
+            this.focus.reveal(target);
+        }
+    }
+
+    /** Report whether each item has a row of its own. */
+    #isRows(): boolean {
+        return this.columns() === 1;
+    }
+
+    /** Find the mounted element of an item, undefined for one not mounted. */
+    #elementOf(key: string | undefined): HTMLElement | undefined {
+        const found =
+            key === undefined
+                ? undefined
+                : this.#root?.querySelector<HTMLElement>(`[data-item="${CSS.escape(key)}"]`);
+
+        return found ?? undefined;
+    }
+
+    /** List the items of a section in order. */
+    #itemsIn(section: string): readonly string[] {
+        const found = this.collection.sections().find((each) => each.key === section);
+
+        return (found?.items ?? []).map((item) => this.collection.keyOf(item));
+    }
+
+    /** Read the height a sticking heading takes from the rows, in pixels. */
+    #pinned(): number {
+        return this.isSticky() ? (this.#options.rowHeight ?? ROW_HEIGHT) : 0;
+    }
+
+    /** Index the rows by key: their places, and the section each stands in. */
+    #index(): GridListRowIndex {
+        // key and place each row
+        const rows = this.delegate.rows();
+        const keys = rows.map((row) => this.rowKey(row));
+        const places = new Map(keys.map((key, index) => [key, index] as const));
+
+        // find the section of each heading and item
+        const sections = new Map<string, string>();
+        const order = this.collection.sections().map((section) => section.key);
+        for (const section of this.collection.sections()) {
+            sections.set(`${this.id} ${section.key}`, section.key);
+            for (const item of section.items) {
+                sections.set(this.collection.keyOf(item), section.key);
+            }
+        }
+
+        return { keys, places, sections, order };
+    }
+
+    /** List the rows to render for a visible range, with the heading that sticks over it. */
+    #extract({ startIndex, endIndex, overscan, count }: VirtualRange): number[] {
+        // take the rows in view with some to spare
+        const start = Math.max(0, startIndex - overscan);
+        const end = Math.min(count - 1, endIndex + overscan);
+        const shown = Array.from({ length: Math.max(0, end - start + 1) }, (_row, i) => start + i);
+        if (!this.isSticky()) {
+            return shown;
+        }
+
+        // add the heading of the first one in view
+        const rows = untrack(() => this.delegate.rows());
+        const heading = rows.findLastIndex(
+            (row, index) => index <= startIndex && row.kind === "heading",
+        );
+
+        return heading === -1 || heading >= start ? shown : [heading, ...shown];
+    }
+}
+
+/** The rows of a grid list by key. */
+interface GridListRowIndex {
+    /** The rows' keys in order. */
+    readonly keys: readonly string[];
+    /** Each row's place among them, by key. */
+    readonly places: ReadonlyMap<string, number>;
+    /** The key of the section each heading and item stands in, by the heading's or item's key. */
+    readonly sections: ReadonlyMap<string, string>;
+    /** The sections' keys in order. */
+    readonly order: readonly string[];
+}
+
+/** How a grid list orders the items of a section: by hand, or by an order its owner applies. */
+export type GridListOrder = "manual" | "sorted";
+
+/** A move a person made: the item, the section it lands in and the items it lands between. */
+export interface GridListMove {
+    /** The key of the moved item. */
+    readonly id: string;
+    /** The key of the section it lands in. */
+    readonly section: string;
+    /** The key of the item before it in the section, undefined at its start. */
+    readonly previous: string | undefined;
+    /** The key of the item after it in the section, undefined at its end. */
+    readonly next: string | undefined;
 }
 
 /** The items, layout and action of a grid list. */
@@ -402,16 +835,20 @@ export interface GridListOptions<Item> extends CollectionOptions<Item> {
     readonly autocomplete?: AutocompleteControl | undefined;
     /** The selection, absent on a grid list that selects nothing. */
     readonly selection?: SelectionProperties | undefined;
+    /** Read the object an item stands for, which actions on its type take, absent for none. */
+    readonly reference?: ((key: string) => ObjectReference | undefined) | undefined;
     /** Handle an item being opened with a press or Enter. */
     readonly onAction?: ((item: Item) => void) | undefined;
-}
-
-/** The rows of a grid list a viewport shows, the first and the one after the last. */
-export interface GridListWindow {
-    /** The first row rendered. */
-    readonly first: number;
-    /** The row after the last one rendered. */
-    readonly end: number;
+    /** Handle each item a drag or keys move, absent to leave the items in place. */
+    readonly onMove?: ((move: GridListMove) => void) | undefined;
+    /** How the sections order their items, by hand by default. */
+    readonly order?: GridListOrder | undefined;
+    /** Whether sections without items show their headings, as collapsed ones do. */
+    readonly hasEmptySections?: boolean;
+    /** Whether a heading stays in view while the rows of its section scroll under it. */
+    readonly hasStickyHeadings?: boolean;
+    /** Whether an item takes the focus as the pointer moves onto it, so keys act on it. */
+    readonly shouldFocusOnHover?: boolean;
 }
 
 /** The properties of an element of a grid list, the native element's attributes included. */
@@ -424,6 +861,10 @@ export interface GridListSectionHeaderProperties extends GridListElementProperti
 > {
     /** The section's name. */
     readonly label: string;
+    /** The section's key. */
+    readonly section: string;
+    /** Whether it stays in view while the rows of its section scroll under it. */
+    readonly isSticky: boolean;
 }
 
 /** The properties of a row of a grid list, the native element's attributes included. */
@@ -465,6 +906,12 @@ interface GridListHeadingAttributes extends Pick<JSX.HTMLAttributes<HTMLDivEleme
     readonly [data: `data-${string}`]: string | number | undefined;
     /** The section's name. */
     readonly label: string;
+    /** The section's key. */
+    readonly section: string;
+    /** Whether it stays in view while the rows of its section scroll under it. */
+    readonly isSticky: boolean;
+    /** The styles of the heading's place: where it sticks, and where a drag lands beside it. */
+    readonly xstyle: style.Styles;
     /** The row role. */
     readonly role: "row";
     /** The row's place among every row, from 1. */
@@ -476,7 +923,7 @@ interface GridListHeadingAttributes extends Pick<JSX.HTMLAttributes<HTMLDivEleme
 /** Read the grid list of the nearest grid list, refusing parts outside one. */
 export function useGridList(): Pick<
     GridListControl<never>,
-    "focus" | "observe" | "state" | "isEmpty" | "isFitted"
+    "focus" | "observe" | "state" | "isEmpty" | "isFitted" | "isFocusedOnHover"
 > {
     const control = useContext(GridListContext);
     if (control === null) {
@@ -499,10 +946,11 @@ export function GridList<Item>(properties: GridListProperties<Item>): JSX.Elemen
     // read the grid list and the parts to render with
     const control = properties.control;
     const locale = useLocale();
+    const actions = useActions();
+    const isCommand = useCommandPlatform();
     const isVirtual = control.focus.mode === "virtual";
     const rest = omit(properties, "control", "label", "sectionHeader", "children");
-
-    return renderPart("div", "grid-list", rest, styles.list, {
+    const attributes = {
         id: control.id,
         role: "grid" as const,
         get tabindex() {
@@ -518,11 +966,41 @@ export function GridList<Item>(properties: GridListProperties<Item>): JSX.Elemen
             return isVirtual ? control.focus.descendant() : undefined;
         },
         get "aria-multiselectable"() {
-            return control.selection?.isMultiple() === true ? "true" : undefined;
+            return control.selection?.isMultiple() === true ? ("true" as const) : undefined;
         },
-        ref: (element) => control.attach(element),
-        onKeyDown: (event) => control.keyDown(event, locale.direction),
-        onFocusOut: (event) => control.focus.focusOut(event),
+        ref: [(element: HTMLElement) => control.attach(element), ...control.handlers()],
+        onKeyDown: (event: KeyboardEvent) =>
+            control.keyDown(event, locale.direction, actions, isCommand()),
+        onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>
+            control.focus.focusOut(event),
+    };
+
+    // keep the focus on a row a change moves
+    createEffect(
+        () => control.order(),
+        () => untrack(() => control.keepFocus()),
+    );
+
+    // render the rows in a list a drag moves them in, or as they stand
+    if (control.isMoving()) {
+        return (
+            <GridListContext value={control}>
+                <Sortable
+                    data-slot="grid-list"
+                    onMove={(move) => control.drop(move)}
+                    {...mergeProperties(attributes, rest)}
+                    xstyle={[styles.list, rest.xstyle]}
+                >
+                    <SortableContainer id={control.id} accepts={[control.id]}>
+                        <GridListRows {...properties} />
+                    </SortableContainer>
+                </Sortable>
+            </GridListContext>
+        );
+    }
+
+    // render the rows as they stand
+    const rows = {
         get children() {
             return (
                 <GridListContext value={control}>
@@ -530,7 +1008,9 @@ export function GridList<Item>(properties: GridListProperties<Item>): JSX.Elemen
                 </GridListContext>
             );
         },
-    });
+    };
+
+    return renderPart("div", "grid-list", rest, styles.list, merge(attributes, rows));
 }
 
 /** Render the element that scrolls the nearest grid list. */
@@ -549,11 +1029,16 @@ export function GridListViewport(
 
 /** Render a section's heading in a grid list. */
 export function GridListSectionHeader(properties: GridListSectionHeaderProperties): JSX.Element {
-    const rest = omit(properties, "label", "children");
+    const rest = omit(properties, "label", "section", "isSticky", "children");
+    const look = (): style.Styles => [
+        text.xs,
+        styles.header,
+        properties.isSticky && styles.covering,
+    ];
 
-    return renderPart("div", "grid-list-section-header", rest, [text.xs, styles.header], {
+    return renderPart("div", "grid-list-section-header", rest, look, {
         get children() {
-            return <span role="columnheader">{properties.label}</span>;
+            return contentOr(properties, () => <span role="columnheader">{properties.label}</span>);
         },
     });
 }
@@ -566,7 +1051,8 @@ export function GridListRow(properties: GridListRowProperties): JSX.Element {
 /** Render a cell's element of a grid list, marked while focused. */
 export function GridListCell(properties: GridListCellFrameProperties): JSX.Element {
     // fill the active cell unless its focus ring shows it
-    const { isFitted, focus } = useGridList();
+    const control = useGridList();
+    const { isFitted, focus } = control;
     const isFilled = !isFitted || focus.mode === "virtual";
     const rest = omit(properties, "isActive", "isSelected");
 
@@ -576,7 +1062,11 @@ export function GridListCell(properties: GridListCellFrameProperties): JSX.Eleme
         rest,
         () => [
             styles.cell,
-            isFitted ? [state.focus, styles.fitted] : styles.square,
+            isFitted ? [state.focusInset, styles.fitted] : styles.square,
+            control.isFocusedOnHover() &&
+                focus.isFocused() &&
+                properties.isActive &&
+                styles.pointed,
             properties.isActive && isFilled && state.selected,
             properties.isSelected && state.selected,
             properties.isSelected && styles.selected,
@@ -622,94 +1112,194 @@ export function GridListEmpty(
     );
 }
 
-/** Render the rows of a grid list in view between spacers that stand in for the rest. */
+/** Render the rows of a grid list in view, with room for those out of view around them. */
 function GridListRows<Item>(properties: GridListProperties<Item>): JSX.Element {
-    // render the rows in the window
+    // hand the rows to the list a drag moves them in
     const control = properties.control;
-    const shown = (): readonly GridRow[] => {
-        const { first, end } = control.window();
+    const host = useContext(VirtualHostContext);
+    if (host !== null && control.isMoving()) {
+        control.join(host);
+    }
 
-        return control.delegate.rows().slice(first, end);
+    // key the rows to render, each at the place it has now
+    const shown = () => {
+        const rows = control.delegate.rows();
+
+        return control.shown().flatMap((index) => {
+            const row = rows[index];
+
+            return row === undefined ? [] : [{ key: control.rowKey(row), index }];
+        });
     };
 
     return (
         <>
-            <div
-                aria-hidden="true"
-                {...style.attrs(styles.spacer(`${String(control.spacers().before)}px`))}
-            />
-            <For each={shown()}>
-                {(row, offset) =>
-                    renderRow(properties, row, () => control.window().first + offset())
-                }
+            <For each={shown()} keyed={(entry) => entry.key}>
+                {(entry) => <GridListRowView properties={properties} index={() => entry().index} />}
             </For>
-            <div
-                aria-hidden="true"
-                {...style.attrs(styles.spacer(`${String(control.spacers().after)}px`))}
-            />
+            <Show when={control.spacers().after > 0}>
+                <div
+                    aria-hidden="true"
+                    {...style.attrs(styles.spacer(`${String(control.spacers().after)}px`))}
+                />
+            </Show>
         </>
     );
 }
 
 /** Render a row of a grid list at its place among every row, the ones out of view included. */
-function renderRow<Item>(
-    properties: GridListProperties<Item>,
-    row: GridRow,
-    place: () => number,
-): JSX.Element {
-    // number the row from 1 for assistive technology and from 0 for its measuring
+function GridListRowView<Item>(view: {
+    /** The grid list's properties. */
+    readonly properties: GridListProperties<Item>;
+    /** The row's place among every row. */
+    readonly index: Accessor<number>;
+}): JSX.Element {
+    // read the row, the last one it had while it leaves
+    const { properties, index } = view;
     const control = properties.control;
-    const attributes = {
-        role: "row" as const,
-        get "aria-rowindex"() {
-            return String(place() + 1);
-        },
-        get "data-index"() {
-            return String(place());
-        },
-        get xstyle() {
-            // size each cell of a row a layout broke, else share the row
-            if (row.kind === "cells" && row.size !== undefined) {
-                const columns = row.size.widths.map((each) => `${String(each)}px`).join(" ");
+    const row = createMemo<GridRow>(
+        (before) => control.delegate.rows()[index()] ?? present(before, "a grid list's row"),
+    );
 
-                return styles.sized(columns, `${String(row.size.height)}px`, control.gap);
-            }
+    // size each cell of a row a layout broke, else share the row
+    const attributes = rowAttributes(control, index);
+    const look = (): style.Styles => [fit(), roomBefore(control, index())];
+    const fit = (): style.Styles => {
+        const current = row();
+        if (current.kind === "cells" && current.size !== undefined) {
+            const columns = current.size.widths.map((each) => `${String(each)}px`).join(" ");
 
-            return control.isFitted ? styles.fit(control.columns(), control.gap) : undefined;
-        },
-        ref: (element: Element) => control.measure(element, untrack(place)),
+            return styles.sized(columns, `${String(current.size.height)}px`, control.gap);
+        }
+
+        return control.isFitted && styles.fit(control.columns(), control.gap);
     };
 
-    // render a heading, else a row of cells
-    if (row.kind === "heading") {
-        const heading: GridListHeadingAttributes = merge(attributes, { label: row.label });
-
-        return createComponent(properties.sectionHeader ?? GridListSectionHeader, heading);
-    } else {
-        return createComponent(
-            GridListRow,
-            merge(attributes, {
-                get children() {
-                    return row.keys.map((key, column) => renderCell(properties, key, column));
-                },
-            }),
-        );
+    // render a heading
+    const first = untrack(row);
+    if (first.kind === "heading") {
+        return <GridListHeading properties={properties} row={row} index={index} />;
     }
+
+    // else a row of cells, which a drag lifts
+    const keys = (): readonly string[] => {
+        const current = row();
+
+        return current.kind === "cells" ? current.keys : [];
+    };
+    const cells = (): JSX.Element => (
+        <For each={keys()}>{(key, column) => renderCell(properties, key, column)}</For>
+    );
+
+    return (
+        <Show
+            when={control.isMoving()}
+            fallback={
+                <GridListRow {...attributes} xstyle={look()}>
+                    {cells()}
+                </GridListRow>
+            }
+        >
+            <SortableItem
+                id={control.rowKey(first)}
+                type={control.id}
+                activator="item"
+                sensors={["pointer"]}
+                data-slot="grid-list-row"
+                {...attributes}
+                xstyle={[styles.row, styles.lifted, look()]}
+            >
+                {cells()}
+            </SortableItem>
+        </Show>
+    );
+}
+
+/** Leave the room of the rows out of view before the first in view. */
+function roomBefore<Item>(control: GridListControl<Item>, index: number): style.Styles {
+    const { before } = control.spacers();
+
+    return index === control.start() && before > 0 && styles.after(`${String(before)}px`);
+}
+
+/** Number a row from 1 for assistive technology and from 0 for its measuring. */
+function rowAttributes<Item>(control: GridListControl<Item>, index: Accessor<number>) {
+    return {
+        role: "row" as const,
+        get "aria-rowindex"() {
+            return String(index() + 1);
+        },
+        get "data-index"() {
+            return String(index());
+        },
+        ref: (element: Element) => control.measure(element, untrack(index)),
+    };
+}
+
+/** Render a section's heading, which a drag lands beside and which may stay in view. */
+function GridListHeading<Item>(view: {
+    /** The grid list's properties. */
+    readonly properties: GridListProperties<Item>;
+    /** The row. */
+    readonly row: Accessor<GridRow>;
+    /** The row's place among every row. */
+    readonly index: Accessor<number>;
+}): JSX.Element {
+    // let a drag land beside it, apart from where it sticks over other rows
+    const { properties, row, index } = view;
+    const control = properties.control;
+    const shared = rowAttributes(control, index);
+    const sortable = control.isMoving() ? useSortable() : undefined;
+    const key = control.rowKey(untrack(row));
+    let element: HTMLElement | undefined;
+    sortable?.addItem({
+        id: key,
+        container: control.id,
+        element: () =>
+            control.isSticky() && untrack(() => control.isPast(index())) ? undefined : element,
+    });
+    const heading: GridListHeadingAttributes = merge(shared, {
+        get label() {
+            const current = row();
+
+            return current.kind === "heading" ? current.label : "";
+        },
+        get section() {
+            return row().key;
+        },
+        isSticky: control.isSticky(),
+        get xstyle(): style.Styles {
+            return [
+                control.isSticky() && styles.sticky,
+                dropStyle(sortable?.dropOf(key), true),
+                roomBefore(control, index()),
+            ];
+        },
+        ref: (created: HTMLElement) => {
+            element = created;
+            shared.ref(created);
+        },
+    });
+
+    return createComponent(properties.sectionHeader ?? GridListSectionHeader, heading);
 }
 
 /** Render a cell of a grid list with its id, place and focus, and its pointer handlers. */
 function renderCell<Item>(
     properties: GridListProperties<Item>,
     key: string,
-    column: number,
+    column: Accessor<number>,
 ): JSX.Element {
-    // read the cell's item, refusing a key the collection lost
+    // read the cell's item, the last one it had while it leaves, refusing a key of none
     const control = properties.control;
-    const item = control.collection.item(key);
-    if (item === undefined) {
-        throw new TypeError(`a grid list has no item '${key}'`);
-    }
-    const label = properties.label(item);
+    const item = createMemo<Item>((before) => {
+        const found = control.collection.item(key) ?? before;
+        if (found === undefined) {
+            throw new TypeError(`a grid list has no item '${key}'`);
+        }
+
+        return found;
+    });
     const isVirtual = control.focus.mode === "virtual";
     const isSelected = () =>
         control.selection === undefined
@@ -718,7 +1308,10 @@ function renderCell<Item>(
     const shared = {
         id: control.focus.id(key),
         role: "gridcell" as const,
-        "aria-colindex": String(column + 1),
+        "data-item": key,
+        get "aria-colindex"() {
+            return String(column() + 1);
+        },
         get "aria-selected"() {
             // say nothing about selection on a grid list that selects nothing
             if (control.selection === undefined && !isVirtual) {
@@ -727,7 +1320,9 @@ function renderCell<Item>(
 
             return isSelected() ? ("true" as const) : ("false" as const);
         },
-        "aria-label": label,
+        get "aria-label"() {
+            return properties.label(item());
+        },
         get "aria-disabled"() {
             return control.collection.isDisabled(key) ? ("true" as const) : undefined;
         },
@@ -751,7 +1346,7 @@ function renderCell<Item>(
             onClick: () => control.act(key),
         };
 
-        return renderItem(properties, merge(shared, pointed), item, label);
+        return renderItem(properties, merge(shared, pointed), item);
     }
 
     // give a cell without a search field a tab stop, and open or select it on a press
@@ -761,15 +1356,34 @@ function renderCell<Item>(
         () => element,
     );
     const press = new Press({
+        onPressStart: (event) => {
+            // let a drag lift the row around the cell
+            if (control.isMoving()) {
+                event.continuePropagation();
+            }
+        },
         onPress: (event) => control.press(key, event),
         keys: ["Enter"],
         isDisabled: () => control.collection.isDisabled(key),
+        shouldCancelOnMove: control.isMoving(),
     });
     const focused = {
         get tabindex() {
             return control.focus.isActive(key) ? 0 : -1;
         },
         onFocus: () => control.focus.focusIn(key),
+        onPointerMove: (event: PointerEvent & { readonly currentTarget: Element }) => {
+            // take the focus as a mouse moves onto it, but from a field or an overlay it is not in
+            const held = document.activeElement;
+            const overlay = held?.closest(OVERLAY) ?? null;
+            const isOwn = element?.contains(held) === true;
+            const isCovered = overlay !== null && !overlay.contains(event.currentTarget);
+            const isFree = !isTextField(held) && !isCovered;
+            const isHovering = event.pointerType === "mouse" && event.buttons === 0;
+            if (control.isFocusedOnHover() && isHovering && isFree && !isOwn) {
+                element?.focus({ preventScroll: true });
+            }
+        },
         ref: (created: HTMLElement) => (element = created),
     };
 
@@ -777,7 +1391,6 @@ function renderCell<Item>(
         properties,
         merge(shared, mergeProperties(focused, press.attributes())),
         item,
-        label,
     );
 }
 
@@ -785,13 +1398,19 @@ function renderCell<Item>(
 function renderItem<Item>(
     properties: GridListProperties<Item>,
     attributes: GridListCellFrameProperties,
-    item: Item,
-    label: string,
+    item: Accessor<Item>,
 ): JSX.Element {
     const cell = properties.children;
     if (cell === undefined) {
-        return <GridListCell {...attributes}>{label}</GridListCell>;
+        return <GridListCell {...attributes}>{properties.label(item())}</GridListCell>;
     }
 
-    return createComponent(cell, merge(attributes, { item }));
+    return createComponent(
+        cell,
+        merge(attributes, {
+            get item() {
+                return item();
+            },
+        }),
+    );
 }

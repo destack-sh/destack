@@ -73,7 +73,12 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
     readonly #layout: Accessor<GridLayout>;
 
     /** Lay a collection's sections out in rows of a column count, or as they are broken. */
-    constructor(collection: Collection<Item>, columns: Accessor<number>, breaks?: GridBreaks) {
+    constructor(
+        collection: Collection<Item>,
+        columns: Accessor<number>,
+        breaks?: GridBreaks,
+        hasEmptySections = false,
+    ) {
         // break the keys of each section into rows
         this.collection = collection;
         this.#layout = createMemo(() =>
@@ -81,6 +86,7 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
                 collection.sections(),
                 collection,
                 breaks ?? ((keys) => linesOf(keys, Math.max(1, columns()))),
+                hasEmptySections,
             ),
         );
     }
@@ -242,14 +248,15 @@ function layOut<Item>(
     sections: readonly CollectionSection<Item>[],
     collection: Collection<Item>,
     breaks: GridBreaks,
+    hasEmptySections: boolean,
 ): GridLayout {
     // lay out every section, placing each key in its row and column
     const rows: GridRow[] = [];
     const places = new Map<string, GridPlace>();
     for (const section of sections) {
-        // head a section that has items with its name
+        // head a section that has items with its name, and one without where empty ones show
         const keys = section.items.map((item) => collection.keyOf(item));
-        if (section.label !== undefined && keys.length > 0) {
+        if (section.label !== undefined && (keys.length > 0 || hasEmptySections)) {
             rows.push({ kind: "heading", key: section.key, label: section.label });
         }
 

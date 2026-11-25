@@ -222,6 +222,14 @@ export class Virtualizer {
         };
     }
 
+    /** Read the first index of the run of items in view, after the persisted ones before it. */
+    runStart(): number {
+        const range = this.range();
+        const items = range === undefined ? this.items() : runOf(this.items(), range.startIndex);
+
+        return items[0]?.index ?? 0;
+    }
+
     /** Read the first and last index in view, none before the first measurement. */
     range(): { readonly startIndex: number; readonly endIndex: number } | undefined {
         this.#read();

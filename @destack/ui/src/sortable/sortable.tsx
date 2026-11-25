@@ -1248,7 +1248,7 @@ export function useSortable(): SortableControl {
 }
 
 /** Return the styles that mark where a dragged item lands beside an item. */
-function dropStyle(drop: SortableDrop | undefined, isVertical: boolean): style.Styles {
+export function dropStyle(drop: SortableDrop | undefined, isVertical: boolean): style.Styles {
     if (drop === "inside") {
         return [styles.marked, styles.inside];
     } else if (drop === "before") {

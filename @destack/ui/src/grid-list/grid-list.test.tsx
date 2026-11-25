@@ -1,5 +1,7 @@
+import { t } from "@destack/locale";
+import { defineAction } from "@destack/object";
 import { expect, test } from "@destack/test";
-import { Errored, flush, omit } from "@destack/view";
+import { createSignal, Errored, flush, handle, omit } from "@destack/view";
 import { markup, render } from "@destack/view/test";
 import {
     AutocompleteContext,
@@ -7,7 +9,13 @@ import {
     AutocompleteInput,
 } from "../autocomplete/index.ts";
 import { type CollectionSection, Load } from "../collection/index.ts";
-import { GridList, GridListControl, GridListLoading, GridListProvider } from "./index.ts";
+import {
+    GridList,
+    GridListControl,
+    GridListLoading,
+    type GridListMove,
+    GridListProvider,
+} from "./index.ts";
 
 /** The digits of a test grid list, four of them. */
 const DIGITS: readonly CollectionSection<string>[] = [
@@ -42,7 +50,11 @@ test("render every row without a viewport: headings, and cells numbered, tabbed 
             <GridList
                 control={grid}
                 label={(digit) => `digit ${digit}`}
-                sectionHeader={(heading) => <div {...omit(heading, "label")}>{heading.label}</div>}
+                sectionHeader={(heading) => (
+                    <div {...omit(heading, "label", "section", "isSticky", "xstyle")}>
+                        {heading.label}
+                    </div>
+                )}
             >
                 {(cell) => <div {...omit(cell, "item", "isActive", "isSelected")}>{cell.item}</div>}
             </GridList>
@@ -54,15 +66,13 @@ test("render every row without a viewport: headings, and cells numbered, tabbed 
     expect({ markup: markup(container), picked }).toEqual({
         markup:
             '<div data-slot="grid-list" id="id-1" role="grid" aria-rowcount="3" aria-colcount="3">' +
-            '<div aria-hidden="true" style="--x-height: 0px;"></div>' +
             '<div data-index="0" role="row" aria-rowindex="1">Digits</div>' +
             '<div data-index="1" data-slot="grid-list-row" role="row" aria-rowindex="2">' +
-            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-1" role="gridcell" aria-colindex="1" aria-label="digit 1" tabindex="0">1</div>' +
-            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-2" role="gridcell" aria-colindex="2" aria-label="digit 2" tabindex="-1">2</div>' +
-            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-3" role="gridcell" aria-colindex="3" aria-label="digit 3" tabindex="-1">3</div></div>' +
+            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-1" role="gridcell" data-item="1" aria-colindex="1" aria-label="digit 1" tabindex="0">1</div>' +
+            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-2" role="gridcell" data-item="2" aria-colindex="2" aria-label="digit 2" tabindex="-1">2</div>' +
+            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-3" role="gridcell" data-item="3" aria-colindex="3" aria-label="digit 3" tabindex="-1">3</div></div>' +
             '<div data-index="2" data-slot="grid-list-row" role="row" aria-rowindex="3">' +
-            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-4" role="gridcell" aria-colindex="1" aria-label="digit 4" tabindex="-1">4</div></div>' +
-            '<div aria-hidden="true" style="--x-height: 0px;"></div></div>',
+            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-4" role="gridcell" data-item="4" aria-colindex="1" aria-label="digit 4" tabindex="-1">4</div></div></div>',
         picked: ["2"],
     });
 });
@@ -353,4 +363,171 @@ test("select a card on a press with a modifier, and open it on a plain press", (
         opened,
         columns: container.querySelector("[role=grid]")?.getAttribute("aria-colcount"),
     }).toEqual({ selected: ["false", "true", "false"], opened: ["c"], columns: "1" });
+});
+
+/** Draw letters in sections whose rows move, and record what happens to them. */
+function drawLetters(order: "manual" | "sorted" = "manual") {
+    const moves: GridListMove[] = [];
+    const peeked: string[] = [];
+    const [isEmpty, setEmpty] = createSignal(false);
+    const peek = defineAction({ name: "peek", title: t`Peek`, keybinding: "space" });
+    const { container } = render(() => {
+        const grid = new GridListControl<string>({
+            sections: () => [
+                { key: "first", label: "First", items: isEmpty() ? [] : ["a", "b", "c"] },
+                { key: "none", label: "None", items: [] },
+                { key: "last", label: "Last", items: ["d", "e"] },
+            ],
+            key: (letter) => letter,
+            text: (letter) => letter,
+            selection: { multiple: true, behavior: "replace" },
+            hasEmptySections: true,
+            order,
+            onMove: (move) => void moves.push(move),
+        });
+
+        return (
+            <div
+                ref={handle(peek, {
+                    isEnabled: (element) => grid.keyAt(element) !== undefined,
+                    run: ({ element }) => void peeked.push(grid.keyAt(element) ?? "none"),
+                })}
+            >
+                <GridList control={grid} label={(letter) => letter} />
+            </div>
+        );
+    });
+    flush();
+    const focus = (letter: string) => {
+        container.querySelector<HTMLElement>(`[data-item="${letter}"]`)?.focus();
+        flush();
+    };
+
+    return { container, moves, peeked, setEmpty, focus };
+}
+
+test("head sections without items where empty ones show", () => {
+    const { container, setEmpty } = drawLetters();
+    const rows = () =>
+        [...container.querySelectorAll("[role=row]")].map((each) => each.textContent);
+    const full = rows();
+    setEmpty(true);
+    flush();
+
+    expect([full, rows()]).toEqual([
+        ["First", "a", "b", "c", "None", "Last", "d", "e"],
+        ["First", "None", "Last", "d", "e"],
+    ]);
+});
+
+test("step through the rows by j and k, and select one by x", () => {
+    const { container, focus } = drawLetters();
+    focus("c");
+    pressKey("j");
+    const next = document.activeElement?.textContent;
+    pressKey("k");
+    pressKey("k");
+    pressKey("x");
+
+    expect([
+        next,
+        document.activeElement?.textContent,
+        [...container.querySelectorAll("[aria-selected=true]")].map((each) => each.textContent),
+    ]).toEqual(["d", "b", ["b"]]);
+});
+
+test("move a row past the next one, and into the next section at its near end", () => {
+    const { moves, focus } = drawLetters();
+    const keys = { altKey: true, shiftKey: true };
+    for (const [letter, key] of [
+        ["a", "ArrowDown"],
+        ["c", "ArrowDown"],
+        ["c", "ArrowUp"],
+        ["d", "ArrowUp"],
+        ["a", "ArrowUp"],
+    ] as const) {
+        focus(letter);
+        pressKey(key, keys);
+    }
+
+    expect(moves).toEqual([
+        { id: "a", section: "first", previous: "b", next: "c" },
+        { id: "c", section: "none", previous: undefined, next: undefined },
+        { id: "c", section: "first", previous: "a", next: "b" },
+        { id: "d", section: "none", previous: undefined, next: undefined },
+    ]);
+});
+
+test("move the selected rows together, in their order", () => {
+    const { moves, focus } = drawLetters();
+    focus("a");
+    pressKey("x");
+    pressKey("ArrowDown", { shiftKey: true });
+    pressKey("ArrowDown", { altKey: true, shiftKey: true });
+
+    expect(moves).toEqual([
+        { id: "a", section: "first", previous: "c", next: undefined },
+        { id: "b", section: "first", previous: "a", next: undefined },
+    ]);
+});
+
+test("move sorted rows between sections alone", () => {
+    const { moves, focus } = drawLetters("sorted");
+    focus("a");
+    pressKey("ArrowDown", { altKey: true, shiftKey: true });
+
+    expect(moves).toEqual([{ id: "a", section: "none", previous: undefined, next: undefined }]);
+});
+
+test("leave Space to an action bound to it around the rows", () => {
+    const { container, peeked, focus } = drawLetters();
+    focus("b");
+    pressKey(" ");
+
+    expect([peeked, container.querySelectorAll("[aria-selected=true]").length]).toEqual([["b"], 0]);
+});
+
+test("take the focus under the pointer from a button, but not from a field or an open overlay", () => {
+    // move a mouse over the first item from each
+    const { container } = render(() => {
+        const grid = new GridListControl({
+            sections: () => DIGITS,
+            key: (digit) => digit,
+            text: (digit) => digit,
+            selection: { multiple: true },
+            shouldFocusOnHover: true,
+        });
+
+        return (
+            <>
+                <button>Display</button>
+                <input />
+                <dialog open>
+                    <button>Inside</button>
+                </dialog>
+                <GridListProvider control={grid}>
+                    <GridList control={grid} aria-label="Digits" label={(digit) => digit} />
+                </GridListProvider>
+            </>
+        );
+    });
+    flush();
+    const focusAfter = (held: string): string | undefined => {
+        container.querySelector<HTMLElement>(held)?.focus();
+        container
+            .querySelector("[data-item='1']")
+            ?.dispatchEvent(
+                new PointerEvent("pointermove", { bubbles: true, pointerType: "mouse" }),
+            );
+        flush();
+        const focused = document.activeElement;
+
+        return focused?.tagName === "INPUT" ? "field" : (focused?.textContent ?? undefined);
+    };
+
+    expect({
+        button: focusAfter("button"),
+        field: focusAfter("input"),
+        overlay: focusAfter("dialog button"),
+    }).toEqual({ button: "1", field: "field", overlay: "Inside" });
 });

@@ -17,6 +17,7 @@ import {
     GridListControl,
     GridListEmpty,
     GridListProvider,
+    GridListSectionHeader,
     GridListViewport,
 } from "./grid-list.tsx";
 
@@ -292,6 +293,112 @@ export const gridListPeople = defineExample({
                     <output>{picked()}</output>
                 </Stack>
             </AutocompleteContext>
+        );
+    },
+});
+
+/** The sections of a reading list, each with the books in it. */
+const SHELVES = { next: "Read next", reading: "Reading", done: "Done" } as const;
+
+/** A book of a reading list. */
+interface Book {
+    /** The title. */
+    readonly title: string;
+    /** The section it is in. */
+    readonly shelf: string;
+}
+
+/** The books of a reading list. */
+const BOOKS: readonly Book[] = [
+    { title: "The Soul of a New Machine", shelf: "next" },
+    { title: "A Pattern Language", shelf: "next" },
+    { title: "Finding the Sweet Spot", shelf: "reading" },
+    { title: "The Mythical Man-Month", shelf: "reading" },
+    { title: "Thinking Forth", shelf: "done" },
+];
+
+/** The styles of a reading list. */
+const reading = style.create({
+    list: {
+        width: "100%",
+        maxWidth: "28rem",
+        maxHeight: "20rem",
+        marginInline: "auto",
+    },
+    heading: {
+        alignItems: "center",
+        color: color.foreground,
+        fontWeight: weight.medium,
+    },
+    row: {
+        justifyContent: "flex-start",
+        width: "100%",
+        paddingInline: space[2],
+        paddingBlock: space[2],
+    },
+});
+
+/** Books in sections that stay in view, moved between them by a drag or Alt, Shift and arrows. */
+export const gridListReading = defineExample({
+    of: GridList,
+    name: "reading",
+    layout: "padded",
+    description:
+        "books in sections whose headings stay in view, moved between them by a drag or by keys",
+    render: () => {
+        // keep the books in the order and sections a person moves them to
+        const [books, setBooks] = createSignal<readonly Book[]>(BOOKS);
+        const [opened, setOpened] = createSignal("");
+        const grid = new GridListControl<Book>({
+            sections: () =>
+                Object.entries(SHELVES).map(([key, label]) => ({
+                    key,
+                    label,
+                    items: books().filter(({ shelf }) => shelf === key),
+                })),
+            key: ({ title }) => title,
+            text: ({ title }) => title,
+            selection: { multiple: true, behavior: "replace" },
+            hasEmptySections: true,
+            hasStickyHeadings: true,
+            shouldFocusOnHover: true,
+            onAction: ({ title }) => setOpened(title),
+            onMove: ({ id, section, next }) =>
+                setBooks((all) => {
+                    // take the book out, then put it before its neighbour
+                    const others = all.filter(({ title }) => title !== id);
+                    const at = others.findIndex(({ title }) => title === next);
+
+                    return others.toSpliced(at === -1 ? others.length : at, 0, {
+                        title: id,
+                        shelf: section,
+                    });
+                }),
+        });
+
+        return (
+            <GridListProvider control={grid}>
+                <GridListViewport xstyle={reading.list}>
+                    <GridList
+                        control={grid}
+                        aria-label="Reading list"
+                        label={({ title }) => title}
+                        sectionHeader={(heading) => (
+                            <GridListSectionHeader
+                                {...heading}
+                                xstyle={[text.sm, reading.heading, heading.xstyle]}
+                            />
+                        )}
+                    >
+                        {(cell) => (
+                            <GridListCell {...omit(cell, "item")} xstyle={[text.sm, reading.row]}>
+                                {cell.item.title}
+                            </GridListCell>
+                        )}
+                    </GridList>
+                </GridListViewport>
+                <output>{opened()}</output>
+            </GridListProvider>
         );
     },
 });
