@@ -5,7 +5,7 @@ import {
     type JsonCondition,
     type Namespace,
     Predicate,
-    SearchText,
+    Search,
     TABLE,
 } from "@destack/db";
 import { type JsonValue, schema } from "@destack/schema";
@@ -232,7 +232,7 @@ export const EventFilter = {
         return Condition.conjuncts(filter.where).flatMap((condition) => {
             const searched = condition["SEARCH"];
 
-            return typeof searched === "string" ? SearchText.query(searched) : [];
+            return typeof searched === "string" ? [...Search.parse(searched).words] : [];
         });
     },
 

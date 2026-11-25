@@ -11,8 +11,8 @@ import {
     lte,
     listed,
     sql,
-    SearchText,
     TABLE,
+    Tokenizer,
 } from "@destack/db";
 import type { DatabaseConnection } from "@destack/db/database";
 import { present, Digest } from "@destack/schema";
@@ -29,6 +29,12 @@ import { EventCursor, EventFilter, type EventOrder } from "../query/filter.ts";
 import { SegmentFile } from "./segment.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
+
+/** The characters of a gram, three as trigram indexes take them. */
+const GRAM_LENGTH = 3;
+
+/** The segmenter splitting a word into the characters people read. */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /** The events one pruning statement deletes, far below every dialect's bound on parameters. */
 const PRUNE_BATCH = 500;
@@ -277,9 +283,7 @@ export class EventArchive {
 
         // choose by identifier and gram filters when the read selects one event or searches words
         const id = EventFilter.identity(filter);
-        const grams = [
-            ...new Set(EventFilter.search(filter).flatMap((word) => SearchText.grams(word))),
-        ];
+        const grams = [...new Set(EventFilter.search(filter).flatMap((word) => gramsOf(word)))];
         if ((id === undefined && grams.length === 0) || held.length === 0) {
             return held;
         }
@@ -493,9 +497,20 @@ function searchedGrams(kind: EventKind, events: readonly Event[]): string[] {
         searched.flatMap((key) => {
             const value: unknown = event.keys[key];
 
-            return typeof value === "string" ? SearchText.words(value) : [];
+            return typeof value === "string" ? Tokenizer.words(value) : [];
         }),
     );
 
-    return [...new Set(words.flatMap((word) => SearchText.grams(word)))];
+    return [...new Set(words.flatMap((word) => gramsOf(word)))];
+}
+
+/** List a word's runs of three characters, which a segment's gram filter matches. */
+function gramsOf(word: string): string[] {
+    const characters = Array.from(GRAPHEMES.segment(word), (piece) => piece.segment);
+
+    return characters.length < GRAM_LENGTH
+        ? []
+        : characters
+              .slice(0, characters.length - GRAM_LENGTH + 1)
+              .map((_, start) => characters.slice(start, start + GRAM_LENGTH).join(""));
 }
