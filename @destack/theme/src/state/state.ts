@@ -77,10 +77,11 @@ export const state = style.create({
         borderColor: swatch.destructiveMark,
         outlineColor: `color-mix(in oklab, ${swatch.destructiveMark} 20%, transparent)`,
     },
-    /** An element that is clear at rest and takes the hover layer under a mouse or pen. */
+    /** An element clear at rest that takes the hover layer under a pointer or an open menu. */
     hover: {
         backgroundColor: {
             default: "transparent",
+            ":is([data-menu-open])": color.hover,
             ":hover": { default: null, [media.hover]: color.hover },
         },
     },
@@ -105,8 +106,8 @@ export const state = style.create({
     },
     /** A toggle that is on, such as a chosen view or a bold button. */
     on: {
-        backgroundColor: { default: swatch.accentTint, [media.forcedColors]: "Highlight" },
-        color: { default: swatch.accentTintText, [media.forcedColors]: "HighlightText" },
+        backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
+        color: { default: color.foreground, [media.forcedColors]: "HighlightText" },
         forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
     },
     /** A place a dragged item would land on. */
