@@ -1,6 +1,7 @@
 import { expect, test } from "@destack/test";
 import { nth } from "@destack/schema";
 import {
+    CHUNK_CHARACTERS,
     RICH_TEXT,
     TextRope,
     TextSchema,
@@ -188,4 +189,37 @@ test("refuse an edit naming an element no chunk holds", () => {
     expect(() => rope.apply({ delete: [{ run: "b.1", start: 0, text: 1 }] })).toThrow(
         new RangeError("element 'b.1' at offset 0 is invalid: no chunk has it"),
     );
+});
+
+test("end chunks between words, whatever pieces they were typed in", () => {
+    // type sentences with spaces and without in pieces of seven characters, and lay them out
+    const laidOut = ["The margins of the order form. ", "東京都庁、手紙を買う。"].map(
+        (sentence) => {
+            const text = sentence.repeat(60);
+            let sequence = new TextSequence();
+            for (let start = 0; start < text.length; start += 7) {
+                const after = start === 0 ? {} : { after: { run: `run.${start - 7}`, offset: 6 } };
+                sequence = sequence.apply({
+                    insert: text.slice(start, start + 7),
+                    run: `run.${start}`,
+                    start: 0,
+                    ...after,
+                });
+            }
+            const chunks = TextRope.layout(sequence, [])
+                .flat()
+                .map((chunk) => chunk.text());
+
+            return {
+                isSame: chunks.join("") === text,
+                isBounded: chunks.every((chunk) => chunk.length <= CHUNK_CHARACTERS),
+                ends: [...new Set(chunks.map((chunk) => chunk.at(-1)))],
+            };
+        },
+    );
+
+    expect(laidOut).toEqual([
+        { isSame: true, isBounded: true, ends: [" "] },
+        { isSame: true, isBounded: true, ends: ["。"] },
+    ]);
 });

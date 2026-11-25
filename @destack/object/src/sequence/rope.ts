@@ -11,6 +11,9 @@ export const CHUNK_CHARACTERS = 512;
 /** The last whitespace of a text, where a chunk may end between words. */
 const LAST_SPACE = /\s(?=\S*$)/u;
 
+/** The last character of a text in no word, where a chunk of a script without spaces may end. */
+const LAST_GAP = /[^\p{L}\p{N}\p{M}](?=[\p{L}\p{N}\p{M}]*$)/u;
+
 /** The characters left in each chunk after a split: three quarters, with room to type. */
 const FILL_CHARACTERS = (CHUNK_CHARACTERS * 3) / 4;
 
@@ -240,21 +243,28 @@ export class TextRope {
         const count = total <= CHUNK_CHARACTERS ? 1 : Math.ceil(total / FILL_CHARACTERS);
         const capacity = Math.ceil(total / count);
 
-        // fill each group, splitting a piece at a group's end
+        // split the pieces at each group's end
+        const ends = TextRope.#ends(runs, capacity);
         let group: TextRun[] = [];
         const groups: [TextRun[], ...TextRun[][]] = [group];
         let filled = 0;
+        let next = 0;
         for (let piece of runs) {
-            while (TextRope.#characters(piece) > capacity - filled) {
-                const room = TextRope.#wordEnd(piece, capacity - filled);
-                if (room > 0) {
-                    const [head, tail] = TextSequence.split(piece, room);
+            for (
+                let end = ends[next];
+                end !== undefined && filled + TextRope.#characters(piece) > end;
+                end = ends[next]
+            ) {
+                // keep the piece's head in the group, and start the next one with its tail
+                if (end > filled) {
+                    const [head, tail] = TextSequence.split(piece, end - filled);
                     group.push(head);
                     piece = present(tail, "the tail of a piece split before its end");
                 }
                 group = [];
                 groups.push(group);
-                filled = 0;
+                filled = end;
+                next += 1;
             }
             group.push(piece);
             filled += TextRope.#characters(piece);
@@ -263,13 +273,36 @@ export class TextRope {
         return groups;
     }
 
-    /** Find where a group ends in a piece's room, after a space in its second half. */
-    static #wordEnd(piece: TextRun, room: number): number {
-        const text =
-            "text" in piece && typeof piece.text === "string" ? piece.text.slice(0, room) : "";
-        const space = text.search(LAST_SPACE);
+    /** List where groups end among the characters of pieces, between words where they can. */
+    static #ends(runs: readonly TextRun[], capacity: number): number[] {
+        // read the characters, and where nodes are among them
+        let text = "";
+        const nodes: number[] = [];
+        for (const piece of runs) {
+            if ("node" in piece) {
+                nodes.push(text.length);
+            } else if (typeof piece.text === "string") {
+                text += piece.text;
+            }
+        }
 
-        return space >= room / 2 ? space + 1 : room;
+        // end each group after a space of its second half, else between words, else where it is full
+        const ends: number[] = [];
+        let start = 0;
+        while (text.length - start > capacity) {
+            const half = start + Math.ceil(capacity / 2);
+            const full = start + capacity;
+            const second = text.slice(half, full);
+            const space = second.search(LAST_SPACE);
+            const gap = second.search(LAST_GAP);
+            const node = nodes.findLast((place) => place > half && place <= full) ?? -1;
+            const between =
+                space === -1 ? Math.max(gap === -1 ? -1 : half + gap + 1, node) : half + space + 1;
+            start = between === -1 ? full : between;
+            ends.push(start);
+        }
+
+        return ends;
     }
 
     /** Count the characters a piece stores. */
