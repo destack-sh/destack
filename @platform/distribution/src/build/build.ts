@@ -4,7 +4,7 @@ import { Account, account, type StackRelease } from "@destack/account/object";
 import type { Session } from "@destack/account/client";
 import type { PlatformDefinition } from "@destack/account/server";
 import * as stacks from "@platform/stack";
-import { PLATFORM_INPUTS, REGIONS } from "@platform/stack";
+import { PLATFORM_INPUTS } from "@platform/stack";
 import { Claim, PackageMount, RetryAfter, SERVER_EXPORT, SpaceMount } from "@destack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
 import {
@@ -40,7 +40,7 @@ const ASSETS_STAGING = ".staging";
 /** The file mapping each platform input to a local checkout, as Nix's `--override-input`. */
 const INPUTS_FILE = "inputs.json";
 
-/** The package declaring the homes' stacks, by its directory below the checkout's root. */
+/** The package declaring the platform's stacks, by its directory below the checkout's root. */
 const STACK = "@platform/stack";
 
 /** The export declaring the stack of each kind of space people create. */
@@ -49,10 +49,8 @@ const EXPORTS = {
     space: "SPACE_STACK",
 } as const satisfies Record<keyof PlatformDefinition["stacks"], keyof typeof stacks>;
 
-/** The exports declaring each region home's stack, the same on every universe. */
-const STACK_EXPORTS = REGIONS.map(
-    (region) => region.stack,
-) satisfies readonly (keyof typeof stacks)[];
+/** The export declaring the platform home's stack, the same on every universe. */
+const STACK_EXPORTS = ["PLATFORM_STACK"] as const satisfies readonly (keyof typeof stacks)[];
 
 /** A stack definition's installations, by name. */
 const INSTALLATIONS = schema.record(schema.string(), InstallationDefinition);
