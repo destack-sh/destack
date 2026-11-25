@@ -1,5 +1,6 @@
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
+import { useOverflowEntry } from "../overflow/index.ts";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -187,10 +188,11 @@ export function MenubarTrigger(
     const bar = useMenubar();
     const menu = useMenu();
     let element: HTMLElement | undefined;
+    const entry = useOverflowEntry({ kind: "item", element: () => element });
     bar.list.add({
         key: menu.id,
         text: () => menu.id,
-        isDisabled: () => false,
+        isDisabled: () => entry?.isHidden() === true,
         element: () => element,
     });
 

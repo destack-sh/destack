@@ -7,8 +7,9 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, size, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, merge, omit, Show, useLocale } from "@destack/view";
-import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
+import { type JSX, omit, Show, useContext, useLocale } from "@destack/view";
+import { OverflowContext, OverflowEntryContext, useOverflowEntry } from "../overflow/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a breadcrumb and its elements. */
@@ -20,6 +21,11 @@ const styles = style.create({
         gap: space[2],
         color: color.mutedForeground,
         overflowWrap: "break-word",
+    },
+    // stand on one line where what does not fit hides
+    line: {
+        flexWrap: "nowrap",
+        flexShrink: 0,
     },
     item: {
         display: "inline-flex",
@@ -67,14 +73,34 @@ export function Breadcrumb(
 export function BreadcrumbList(
     properties: BreadcrumbElementProperties<JSX.OlHTMLAttributes<HTMLOListElement>>,
 ): JSX.Element {
-    return renderPart("ol", "breadcrumb-list", properties, [text.sm, styles.list]);
+    // stand on one line in an overflow
+    const isLine = useContext(OverflowContext) !== null;
+
+    return renderPart("ol", "breadcrumb-list", properties, [
+        text.sm,
+        styles.list,
+        isLine && styles.line,
+    ]);
 }
 
 /** Render one step of the trail. */
 export function BreadcrumbItem(
     properties: BreadcrumbElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
-    return renderPart("li", "breadcrumb-item", properties, styles.item);
+    // hide in an overflow where it does not fit
+    let element: HTMLElement | undefined;
+    const entry = useOverflowEntry({ kind: "item", element: () => element });
+    const around = useContext(OverflowEntryContext);
+
+    return (
+        <OverflowEntryContext value={entry ?? around}>
+            {renderPart("li", "breadcrumb-item", properties, styles.item, {
+                ref: (created) => {
+                    element = created;
+                },
+            })}
+        </OverflowEntryContext>
+    );
 }
 
 /** The properties of the link to a page of a trail, the native anchor's attributes included. */
@@ -87,17 +113,7 @@ export type BreadcrumbLinkProperties = BreadcrumbElementProperties<
 
 /** Render the link to a page of the trail. */
 export function BreadcrumbLink(properties: BreadcrumbLinkProperties): JSX.Element {
-    const rest = omit(properties, "xstyle", "style", "render");
-    const part: PartAttributes = merge({ "data-slot": "breadcrumb-link" }, () =>
-        style.attributes([state.focus, styles.link, properties.xstyle], properties.style),
-    );
-
-    return useRender({
-        render: properties.render,
-        defaultTagName: "a",
-        part: part,
-        properties: rest,
-    });
+    return renderPart("a", "breadcrumb-link", properties, [state.focus, styles.link]);
 }
 
 /** Render the current page at the end of the trail. */
@@ -113,8 +129,13 @@ export function BreadcrumbPage(
 export function BreadcrumbSeparator(
     properties: BreadcrumbElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
+    // point along the text
     const locale = useLocale();
     const rest = omit(properties, "xstyle", "style", "children");
+
+    // show only between two that show
+    let element: HTMLElement | undefined;
+    useOverflowEntry({ kind: "separator", element: () => element });
 
     return (
         <li
@@ -122,6 +143,7 @@ export function BreadcrumbSeparator(
             aria-hidden="true"
             data-slot="breadcrumb-separator"
             {...rest}
+            ref={[rest.ref, (created: HTMLElement) => (element = created)]}
             {...style.attributes([styles.item, properties.xstyle], properties.style)}
         >
             <Show

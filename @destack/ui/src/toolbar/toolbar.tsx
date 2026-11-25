@@ -3,6 +3,7 @@ import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit, onCleanup, useLocale } from "@destack/view";
+import { useOverflowEntry } from "../overflow/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
@@ -217,11 +218,17 @@ export function ToolbarGroup(properties: ToolbarElementProperties): JSX.Element 
 
 /** Render a line between controls of a toolbar, across the way it runs. */
 export function ToolbarSeparator(properties: SeparatorProperties): JSX.Element {
+    // stand across a horizontal toolbar
     const separator = merge({ orientation: "vertical" as const }, properties);
+
+    // show only between two that show
+    let element: HTMLElement | undefined;
+    useOverflowEntry({ kind: "separator", element: () => element });
 
     return (
         <Separator
             {...separator}
+            ref={[separator.ref, (created: HTMLElement) => (element = created)]}
             data-slot="toolbar-separator"
             xstyle={[
                 styles.separator,
@@ -234,7 +241,12 @@ export function ToolbarSeparator(properties: SeparatorProperties): JSX.Element {
 
 /** Render a button of a toolbar, which stays in reach of the keys while it is disabled. */
 export function ToolbarButton(properties: ButtonProperties): JSX.Element {
+    // stay in reach of the keys while disabled
     const rest = omit(properties, "disabled", "onClick");
+
+    // hide in an overflow where it does not fit
+    let element: HTMLElement | undefined;
+    useOverflowEntry({ kind: "item", element: () => element });
 
     return (
         <Button
@@ -242,6 +254,7 @@ export function ToolbarButton(properties: ButtonProperties): JSX.Element {
             variant="ghost"
             size="icon"
             {...rest}
+            ref={[rest.ref, (created: HTMLElement) => (element = created)]}
             aria-disabled={properties.disabled === true ? "true" : undefined}
             onClick={(event) => {
                 if (properties.disabled !== true && typeof properties.onClick === "function") {
