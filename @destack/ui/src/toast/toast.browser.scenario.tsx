@@ -4,7 +4,7 @@ import { toasterArchiveUndo, toasterMembersDialog } from "./toast.example.tsx";
 import { Toaster } from "./toast.tsx";
 
 /** The one toast shown. */
-const toast = { css: "[data-slot=toast]:not([data-leaving])" };
+const toast = { css: "[data-slot=toast]:not([data-leaving], [data-limited])" };
 
 /** Swipe a toast away with a finger. */
 export const toasterSwipeAway = defineScenario({

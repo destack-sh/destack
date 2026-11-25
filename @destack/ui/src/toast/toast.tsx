@@ -70,6 +70,9 @@ const GAP = 14;
 /** The share of its size each older toast loses behind a newer one, as in Sonner. */
 const SHRINK = 0.05;
 
+/** The toasts that stay, which the focus goes to. */
+const STAYING = "[data-slot=toast]:not([data-leaving], [data-limited])";
+
 /** The position and limits of a toaster that sets none. */
 const DEFAULTS: Required<Pick<ToasterProperties, "position" | "duration" | "visibleToasts">> = {
     position: "bottom-right",
@@ -150,6 +153,11 @@ const styles = style.create({
     behind: {
         opacity: 0,
     },
+    // fade out behind the others, and in again once newer ones leave
+    limited: {
+        opacity: 0,
+        pointerEvents: "none",
+    },
     icon: {
         display: "inline-flex",
         alignItems: "center",
@@ -162,7 +170,7 @@ const styles = style.create({
     body: {
         flexGrow: 1,
         flexShrink: 1,
-        flexBasis: "9rem",
+        flexBasis: `calc(36 * ${space[1]})`,
         minWidth: 0,
         paddingBlock: space[1],
         overflowWrap: "anywhere",
@@ -264,8 +272,10 @@ interface ToastPlace {
 class ToastStack {
     /** Whether the stack is open, its toasts apart, while a pointer or the focus is on it. */
     readonly isOpen: Accessor<boolean>;
-    /** The ids of the shown toasts, newest first, without those sliding out. */
+    /** The ids of the toasts in view, newest first, without those sliding out. */
     readonly #ids: Accessor<readonly string[]>;
+    /** The ids of every toast that is rendered. */
+    readonly #rendered: Accessor<readonly string[]>;
     /** The height of each toast's content in pixels, by id. */
     readonly #heights: Accessor<ReadonlyMap<string, number>>;
     /** Replace the heights. */
@@ -278,7 +288,7 @@ class ToastStack {
     readonly setFocused: (isFocused: boolean) => void;
 
     /** Stand some toasts, closed at first. */
-    constructor(ids: Accessor<readonly string[]>) {
+    constructor(ids: Accessor<readonly string[]>, rendered: Accessor<readonly string[]>) {
         // start closed, without heights
         const [heights, setHeights] = createSignal<ReadonlyMap<string, number>>(new Map(), {
             ownedWrite: true,
@@ -287,6 +297,7 @@ class ToastStack {
         const [isFocused, setFocused] = createSignal(false, { ownedWrite: true });
         this.isOpen = createMemo(() => isHovered() || isFocused());
         this.#ids = ids;
+        this.#rendered = rendered;
         this.#heights = heights;
         this.#setHeights = setHeights;
         this.setHovered = setHovered;
@@ -295,26 +306,28 @@ class ToastStack {
 
     /** Record a toast's height, forgetting the heights of toasts gone since. */
     measure(id: string, height: number): void {
-        const ids = new Set([...this.#ids(), id]);
+        const ids = new Set([...this.#rendered(), id]);
         this.#setHeights(
             (heights) =>
                 new Map([...new Map(heights).set(id, height)].filter(([each]) => ids.has(each))),
         );
     }
 
-    /** Read where a shown toast stands: its index, offset and height. */
+    /** Report whether a toast is past the most in view, pushed out by newer ones. */
+    isLimited(id: string): boolean {
+        return !this.#ids().includes(id);
+    }
+
+    /** Read where a toast stands: its index, offset and height, past the last one if limited. */
     place(id: string): ToastPlace {
-        return {
-            index: this.#ids().indexOf(id),
-            offset: this.#offset(id),
-            height: this.#drawn(id),
-        };
+        const index = this.isLimited(id) ? this.#ids().length : this.#ids().indexOf(id);
+
+        return { index, offset: this.#offset(index), height: this.#drawn(id) };
     }
 
     /** Read how far a toast stands from the newest one's edge, in pixels. */
-    #offset(id: string): number {
+    #offset(index: number): number {
         // peek out of a closed stack, else stand past every newer toast
-        const index = this.#ids().indexOf(id);
         if (!this.isOpen()) {
             return index * PEEK;
         }
@@ -371,11 +384,22 @@ export function Toaster(properties: ToasterProperties): JSX.Element {
     let stack: HTMLElement | undefined;
 
     // stand the newest toasts, the ones sliding out beside them
-    const shown = createMemo(() => manager.toasts().slice(0, toaster.visibleToasts));
-    const standing = new ToastStack(() =>
-        shown()
-            .map((entry) => entry.id)
-            .filter((id) => !manager.leaving().has(id)),
+    const staying = createMemo(() =>
+        manager.toasts().filter((entry) => !manager.leaving().has(entry.id)),
+    );
+    const inView = createMemo(() => staying().slice(0, toaster.visibleToasts));
+
+    // render as many past them, which fade out and come back as newer ones leave
+    const shown = createMemo(() => {
+        const rendered = new Set(staying().slice(0, 2 * toaster.visibleToasts));
+
+        return manager
+            .toasts()
+            .filter((entry) => rendered.has(entry) || manager.leaving().has(entry.id));
+    });
+    const standing = new ToastStack(
+        () => inView().map((entry) => entry.id),
+        () => shown().map((entry) => entry.id),
     );
     const hover = new Hover({
         onHoverStart: () => standing.setHovered(true),
@@ -524,7 +548,7 @@ class ToasterFocus {
     #press(event: KeyboardEvent): void {
         // leave F6 to the page while no toast is shown
         const region = this.#region();
-        const toast = region?.querySelector("[data-slot=toast]:not([data-leaving])");
+        const toast = region?.querySelector(STAYING);
         const isPressed = event.key === "F6" && !event.defaultPrevented;
         if (!isPressed || region === undefined || toast === null || toast === undefined) {
             return;
@@ -548,7 +572,7 @@ class ToasterFocus {
         if (element === undefined || !element.contains(document.activeElement)) {
             return;
         }
-        const others = region?.querySelectorAll("[data-slot=toast]:not([data-leaving])").length;
+        const others = region?.querySelectorAll(STAYING).length;
         if (others !== undefined && others > 1) {
             region?.focus();
         } else {
@@ -626,10 +650,12 @@ function ToastItem(properties: {
         manager.dismiss(entry.id);
     };
 
-    // count down its time while the stack is closed and the page is visible
+    // count down its time while the stack is closed, the page is visible and it is in view
     const duration = durationOf(entry, properties.duration);
     const isVisible = usePageVisibility();
-    followTime(duration, () => stack.isOpen() || !isVisible(), dismiss);
+    const isLeaving = () => manager.leaving().has(entry.id);
+    const isLimited = () => !isLeaving() && stack.isLimited(entry.id);
+    followTime(duration, () => stack.isOpen() || !isVisible() || isLimited(), dismiss);
 
     // dismiss on a far swipe or a flick
     const swipe = new Swipe(
@@ -653,7 +679,6 @@ function ToastItem(properties: {
     );
 
     // stand it behind the newer ones, and leave from where it stood last
-    const isLeaving = () => manager.leaving().has(entry.id);
     const place = createMemo<ToastPlace>((last) =>
         isLeaving() && last !== undefined ? last : stack.place(entry.id),
     );
@@ -679,6 +704,8 @@ function ToastItem(properties: {
             data-slot="toast"
             data-type={entry.type}
             data-leaving={isLeaving() ? "" : undefined}
+            data-limited={isLimited() ? "" : undefined}
+            inert={isLimited()}
             onKeyDown={(event) => {
                 if (event.key === "Escape") {
                     event.preventDefault();
@@ -695,6 +722,7 @@ function ToastItem(properties: {
                 styles.layer(String(-place().index)),
                 styles.height(height()),
                 isLeaving() && transition.noticeLeaving,
+                isLimited() && styles.limited,
                 swipe.style(),
             )}
         >

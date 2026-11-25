@@ -47,7 +47,9 @@ function press(target: Element, key: string): void {
 
 /** Read each shown toast as its kind and title, newest first. */
 function shown(container: Element): string[] {
-    return [...container.querySelectorAll("[data-slot=toast]:not([data-leaving])")].map(
+    return [
+        ...container.querySelectorAll("[data-slot=toast]:not([data-leaving], [data-limited])"),
+    ].map(
         (entry) =>
             `${entry.getAttribute("data-type")}: ${entry.querySelector("[data-slot=toast-title]")?.textContent}`,
     );
@@ -213,7 +215,7 @@ test("move the focus to the toasts and back with F6, opening the stack, and off 
     press(document.body, "F6");
     for (let count = 0; count < 2; count += 1) {
         const close = container.querySelector<HTMLElement>(
-            "[data-slot=toast]:not([data-leaving]) [data-slot=toast-close]",
+            "[data-slot=toast]:not([data-leaving], [data-limited]) [data-slot=toast-close]",
         );
         close?.focus();
         press(present(close, "a close button"), "Escape");
@@ -265,4 +267,25 @@ test("dismiss a toast swiped off the toaster's side, leaving one swiped a little
     const remaining = shown(container);
     swipeRight(300);
     expect([remaining, shown(container)]).toEqual([["default: Note saved"], []]);
+});
+
+test("keep a toast pushed out by newer ones to fade, and bring it back as they leave", () => {
+    const { container, toast } = drawToaster(1000);
+    const ids = Array.from({ length: 9 }, (_, index) => toast.show(`Note ${String(index)}`));
+    flush();
+    const read = (state: string): string[] =>
+        [...container.querySelectorAll(`[data-slot=toast]${state}`)].map(
+            (entry) => entry.querySelector("[data-slot=toast-title]")?.textContent ?? "no title",
+        );
+    const limited = read("[data-limited][inert]");
+    const inView = shown(container);
+    toast.dismiss(ids.at(-1));
+    flush();
+
+    expect({ inView, limited, after: shown(container), left: read("[data-limited]") }).toEqual({
+        inView: ["default: Note 8", "default: Note 7", "default: Note 6"],
+        limited: ["Note 5", "Note 4", "Note 3"],
+        after: ["default: Note 7", "default: Note 6", "default: Note 5"],
+        left: ["Note 4", "Note 3", "Note 2"],
+    });
 });
