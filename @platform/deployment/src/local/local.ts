@@ -1,7 +1,7 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { IssuerCredential, MachineKey, Session } from "@destack/account/client";
+import { Directory, IssuerCredential, MachineKey, Session } from "@destack/account/client";
 import { LocalBucket } from "@destack/bucket/bun";
 import { S3Server } from "@destack/bucket/s3";
 import { Toolchain } from "@destack/check/toolchain";
@@ -32,7 +32,7 @@ import type { HostListening } from "@destack/object/workload";
 import { DISTRIBUTION_LAYER, DistributionManifest, DistributionPlatform } from "@destack/package";
 import { BunDistribution } from "@destack/package/bun";
 import { BuildLayer } from "@destack/package/manifest";
-import { present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import type { UniverseDefinition } from "@destack/universe";
 import { BunUniverse } from "@destack/universe/bun";
 import { LATEST_TAG } from "@destack/registry/object";
@@ -44,7 +44,7 @@ import {
     readCommit,
     releaseVersion,
 } from "@platform/distribution";
-import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
+import { PLATFORM, type PlatformRegion, REGIONS } from "@platform/stack";
 import {
     type SuppliedModules,
     WorkerScript,
@@ -55,7 +55,7 @@ import { Deployment, LocalPorts, LOOPBACK } from "../deployment/deployment.ts";
 import {
     Root,
     ROOT,
-    type ResidencyOutputs,
+    type RegionOutputs,
     type UniverseOutputs,
     type WorkerOutputs,
     WRANGLER_VARIABLES,
@@ -92,13 +92,13 @@ const OPERATOR = "operator@destack.test";
 const UNIVERSE_ROOT_KEY =
     '{"active":1,"keys":{"1":"DHDaqs60kZjIDOmpchcC6lggMf8L+sHPgayD5fqCuN0="}}';
 
-/** The root keys of the local cloud machines, which only this computer uses, by residency code. */
+/** The root keys of the local managed machines, which only this computer uses, by region code. */
 const MACHINE_ROOT_KEYS: ReadonlyMap<string, string> = new Map([
     ["eu", '{"active":1,"keys":{"1":"TO1o+AlghKysP7TyW2QfPhOJOOBa/NRh7/a02fsCgQs="}}'],
     ["us", '{"active":1,"keys":{"1":"w20+AFE9NraWIlc9hkKZfGfhO062wFMYkoG5HJo8K2o="}}'],
 ]);
 
-/** The runtimes of a local universe's cloud machines: Bun, or workerd as production. */
+/** The runtimes of a local universe's managed machines: Bun, or workerd as production. */
 const LOCAL_RUNTIMES = ["bun", "workerd"] as const;
 
 /** The usage of a local universe's flags. */
@@ -114,7 +114,7 @@ const MACHINE_START_MILLISECONDS = 30_000;
 /** How long to wait between asks whether the local universe's machine answers, in milliseconds. */
 const MACHINE_POLL_MILLISECONDS = 100;
 
-/** How long a started cloud machine may take to replicate its enabled status, in milliseconds. */
+/** How long a started managed machine may take to replicate its enabled status, in milliseconds. */
 const MACHINE_SERVE_MILLISECONDS = 5_000;
 
 /** The variables of this process the local universe's machine runs with. */
@@ -159,16 +159,16 @@ const PLACEHOLDER_KEY = { accessKeyId: "local", secretAccessKey: "local" };
 /** What a local run's roots provision for a Worker, whose local custody envelopes nothing. */
 const PLACEHOLDER_WORKER: WorkerOutputs = { envelope: { kind: "local" }, access: PLACEHOLDER_KEY };
 
-/** Where a local universe's cloud machines run. */
+/** Where a local universe's managed machines run. */
 export type LocalRuntime = (typeof LOCAL_RUNTIMES)[number];
 
 /** A universe on this computer: its state, its loopback ports and its device. */
 export class LocalUniverse {
     /** The universe's name as `--universe` gives it. */
     readonly name: string;
-    /** Where the cloud machines run. */
+    /** Where the managed machines run. */
     readonly runtime: LocalRuntime;
-    /** The directory keeping the universe's history and the cloud machines' state. */
+    /** The directory keeping the universe's history and the managed machines' state. */
     readonly directory: string;
     /** The database keeping the account service's tables. */
     readonly database: string;
@@ -284,7 +284,7 @@ export class LocalUniverse {
         printStatus(name, line, this.environment);
     }
 
-    /** Serve the universe, its cloud machines and this computer's machine until a signal aborts. */
+    /** Serve the universe, its managed machines and this computer's machine until aborted. */
     async serve(signal: AbortSignal): Promise<void> {
         // create the database once
         const { deployment, environment } = this;
@@ -329,7 +329,7 @@ export class LocalUniverse {
         );
         this.scope.log.info("platform.distribution.written", { "file.path": this.distribution });
 
-        // start the universe and its cloud machines, the platform residency's at the universe's port, until a signal
+        // start the universe and its managed machines, the platform region's at the universe's port, until a signal
         const mail = new PrintedMail();
         const started = async () =>
             stack.use(
@@ -378,7 +378,7 @@ export class LocalUniverse {
         return LocalPublisher.open(`http://${LOOPBACK}:${this.ports.publisher}`, this.environment);
     }
 
-    /** Drop the universe's database, universe and cloud machines, and erase its machine. */
+    /** Drop the universe's database, universe and managed machines, and erase its machine. */
     async reset(): Promise<void> {
         // refuse while the universe runs
         const { environment } = this;
@@ -421,14 +421,14 @@ export class LocalUniverse {
         this.print("ready", "Ctrl-C stops everything");
     }
 
-    /** Keep the fixed local root keys in the clear with each cloud machine's key they derive. */
+    /** Keep the fixed local root keys in the clear with each managed machine's key they derive. */
     async custody(): Promise<Custody> {
         const { environment } = this;
         const machines = await Promise.all(
-            RESIDENCIES.map(async (residency) => {
+            REGIONS.map(async (region) => {
                 // derive the machine's key from its fixed root keys
-                const { id } = residency.machine;
-                const rootKey = LocalUniverse.#rootKey(residency);
+                const { id } = region.machine;
+                const rootKey = LocalUniverse.#rootKey(region);
                 const keychain = new MemoryKeychain();
                 await MachineKey.save(id, await LocalKeyring.read(rootKey, environment), keychain);
                 const key = present(await keychain.load(id), `the key of ${id}`);
@@ -444,14 +444,14 @@ export class LocalUniverse {
         });
     }
 
-    /** Start the universe and the cloud machines on Bun in this process. */
+    /** Start the universe and the managed machines on Bun in this process. */
     async #startBun(
         build: PlatformBuild,
         definition: UniverseDefinition,
         custody: Custody,
         mail: PrintedMail,
     ): Promise<AsyncDisposableStack> {
-        // read the distribution the universe and its cloud machines ship
+        // read the distribution the universe and its managed machines ship
         const { deployment, environment } = this;
         await using stack = new AsyncDisposableStack();
         const target = DistributionPlatform.of(environment.host);
@@ -461,7 +461,7 @@ export class LocalUniverse {
             environment,
         );
 
-        // start the universe, which the platform residency's machine serves at its origin
+        // start the universe, which the platform region's machine serves at its origin
         const universe = stack.use(
             await BunUniverse.start({
                 environment,
@@ -486,25 +486,35 @@ export class LocalUniverse {
             "url.full": deployment.universe.origin,
         });
 
-        // start each cloud machine on the distribution, and wait until it serves
+        // start each managed machine of the platform's account on the distribution, and wait until it serves
         const distribution = { shipped, layer };
-        for (const residency of RESIDENCIES) {
-            const served = residency.code === PLATFORM.residencyId ? universe.listening : undefined;
-            const machine = await this.#startCloud(residency, distribution, custody, served, stack);
+        const owner = await new Directory(universe.database.snapshot()).account(PLATFORM.handle);
+        const accountId = present(owner, "the platform's account");
+        for (const region of REGIONS) {
+            const served = region.code === PLATFORM.regionId ? universe.listening : undefined;
+            const machine = await this.#startCloud(
+                region,
+                accountId,
+                distribution,
+                custody,
+                served,
+                stack,
+            );
             const window = environment.clock.timeout(MACHINE_SERVE_MILLISECONDS);
             await machine.machine.health.waitUp(window);
             this.scope.log.info("platform.machine.started", {
-                "platform.machine.name": residency.machine.name,
-                "url.full": deployment.machineOrigin(residency),
+                "platform.machine.name": region.machine.name,
+                "url.full": deployment.machineOrigin(region),
             });
         }
 
         return stack.move();
     }
 
-    /** Start a residency's cloud machine on Bun, serving the universe when given. */
+    /** Start a region's managed machine on Bun, serving the universe when given. */
     async #startCloud(
-        residency: PlatformResidency,
+        region: PlatformRegion,
+        accountId: Identifier<"account">,
         distribution: Pick<ComputerOptions, "shipped" | "layer">,
         custody: Custody,
         universe: HostListening | undefined,
@@ -512,7 +522,7 @@ export class LocalUniverse {
     ): Promise<Computer> {
         // keep the machine's root keys and its key in memory, one keychain per service
         const { deployment, environment } = this;
-        const { id, name } = residency.machine;
+        const { id, name } = region.machine;
         const keys = custody.machine(id);
         const keychains = new Map<string, MemoryKeychain>();
         const keychain = (service: string): Keychain => {
@@ -526,7 +536,7 @@ export class LocalUniverse {
 
         // listen first, unavailable until it starts
         let started: Computer | undefined;
-        const origin = new URL(deployment.machineOrigin(residency));
+        const origin = new URL(deployment.machineOrigin(region));
         const listener = environment.server.http({
             hostname: origin.hostname,
             port: Number(origin.port),
@@ -535,13 +545,13 @@ export class LocalUniverse {
         });
         stack.defer(async () => listener.stop(true));
 
-        // start it enrolled as the residency's cloud machine
+        // start it enrolled as a managed machine of the platform's account in the region
         const directory = join(this.directory, "machines", name);
         await new MachineProcess(directory, environment).createDirectory();
         const enrollment: MachineEnrollment = {
-            kind: "cloud",
+            kind: "managed",
+            accountId,
             universe: deployment.universe.toJSON(),
-            residencyId: residency.code,
             status: "enrolled",
         };
         started = stack.use(
@@ -572,7 +582,7 @@ export class LocalUniverse {
         return started;
     }
 
-    /** Start the universe and cloud machines as Workers under workerd, as production does. */
+    /** Start the universe and managed machines as Workers under workerd, as production does. */
     async #startWorkerd(
         build: PlatformBuild,
         definition: UniverseDefinition,
@@ -609,19 +619,18 @@ export class LocalUniverse {
             files: { endpoint: listener.url, bucket, region: PLACEHOLDER_REGION },
             ...PLACEHOLDER_WORKER,
         };
-        const residency = (served: PlatformResidency): ResidencyOutputs => ({
+        const region = (served: PlatformRegion): RegionOutputs => ({
             account: PLACEHOLDER_IDENTIFIER,
             bucket: `destack-${deployment.name}-${served.code}`,
             host: new URL(deployment.machineOrigin(served)).host,
-            hyperdrive: PLACEHOLDER_IDENTIFIER,
             ...PLACEHOLDER_WORKER,
         });
-        const scripts = WorkerScript.all(deployment, universe, residency, releases).filter(
+        const scripts = WorkerScript.all(deployment, universe, region, releases).filter(
             ([script]) => script.target.kind !== "tail",
         );
         const modules = WorkerScript.modules(build, definition);
 
-        // start every script at once, the universe reached through the platform residency's machine
+        // start every script at once, the universe reached through the platform region's machine
         await Promise.all(
             scripts.map(([script, configuration]) =>
                 this.#startWorker(script, configuration, modules, custody, mail, stack),
@@ -845,9 +854,9 @@ export class LocalUniverse {
         };
     }
 
-    /** Read the root keys of a residency's local cloud machine. */
-    static #rootKey(residency: PlatformResidency): string {
-        return present(MACHINE_ROOT_KEYS.get(residency.code), `the root keys of ${residency.code}`);
+    /** Read the root keys of a region's local managed machine. */
+    static #rootKey(region: PlatformRegion): string {
+        return present(MACHINE_ROOT_KEYS.get(region.code), `the root keys of ${region.code}`);
     }
 
     /** Read the universe port a local universe took at its first open, else take its block. */

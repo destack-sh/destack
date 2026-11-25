@@ -1,4 +1,4 @@
-# answer every name the platform residency's machine routes: installations, machines and the universe
+# answer every name the platform region's machine routes: installations, machines and the universe
 locals {
   edge = {
     "*.destack.computer" = "destack.computer"

@@ -14,6 +14,6 @@ data "aws_iam_policy_document" "worker" {
 
 module "worker" {
   source = "../../modules/worker"
-  name   = "destack-${var.environment}-machine-${var.residency}"
+  name   = "destack-${var.environment}-machine-${var.region}"
   policy = data.aws_iam_policy_document.worker.json
 }

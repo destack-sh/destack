@@ -1,6 +1,6 @@
 # @platform/deployment
 
-Deploy the platform Destack operates: its universe and cloud machines on Cloudflare, or the local universe on this computer.
+Deploy the platform Destack operates: its universe and managed machines on Cloudflare, or the local universe on this computer.
 
 ## Overview
 
@@ -10,8 +10,8 @@ A deployment declares and runs:
 
 - `Deployment`: the platform for one universe, from `Deployment.cloudflare` or `Deployment.local`.
 - `Cloudflare`: applies a Cloudflare deployment's roots, and releases its Workers.
-- `LocalUniverse`: serves a local universe at `destack.localhost`, its cloud machines and this computer's machine, on Bun or workerd.
-- `Root`: one OpenTofu root with encrypted remote state: `access`, `global`, `universe` or `residency`.
+- `LocalUniverse`: serves a local universe at `destack.localhost`, its managed machines and this computer's machine, on Bun or workerd.
+- `Root`: one OpenTofu root with encrypted remote state: `access`, `global`, `universe` or `region`.
 - `Custody`: each Worker's root keys, encrypted under an AWS KMS key, in `custody/<universe>.json`.
 
 Review, deploy and publish production, or serve a local universe:

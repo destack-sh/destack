@@ -7,19 +7,19 @@ variable "environment" {
   }
 }
 variable "account_id" {
-  description = "Cloudflare account containing residency infrastructure."
+  description = "Cloudflare account containing region infrastructure."
   type        = string
 }
-variable "residency" {
-  description = "The residency's code, which is also its storage jurisdiction."
+variable "region" {
+  description = "The region's code, which is also its storage jurisdiction."
   type        = string
   validation {
-    condition     = contains(["eu", "us"], var.residency)
+    condition     = contains(["eu", "us"], var.region)
     error_message = "Choose eu or us."
   }
 }
 variable "machine" {
-  description = "The name of the residency's cloud machine, one label of the platform account's machines."
+  description = "The name of the region's managed machine, one label of the platform account's machines."
   type        = string
   validation {
     condition     = can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$", var.machine)) && !strcontains(var.machine, "--")
@@ -27,7 +27,7 @@ variable "machine" {
   }
 }
 variable "machine_id" {
-  description = "The identifier of the residency's cloud machine, the owner its sealed keys decrypt for."
+  description = "The identifier of the region's managed machine, the owner its sealed keys decrypt for."
   type        = string
   validation {
     condition     = can(regex("^machine-[0-9a-f-]{36}$", var.machine_id))
@@ -37,15 +37,6 @@ variable "machine_id" {
 variable "kms_operators" {
   description = "The roles that create, repolicy, grant and replicate the root key, as ARN patterns."
   type        = list(string)
-}
-
-variable "database" {
-  description = "The residency's PostgreSQL instance, keeping its home's main database."
-  type = object({
-    instance_class = string
-    multi_az       = bool
-    major_version  = string
-  })
 }
 
 variable "mail_region" {

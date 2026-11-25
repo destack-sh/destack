@@ -1,7 +1,7 @@
-# answer the cloud machine at its one-label name, and the residency's relay at its own
+# answer the managed machine at its one-label name, and the region's relay at its own
 locals {
   host  = "${var.machine}--platform.destack.computer"
-  relay = "relay-${var.residency}.destack.computer"
+  relay = "relay-${var.region}.destack.computer"
 }
 
 data "cloudflare_zone" "computer" {

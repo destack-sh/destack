@@ -21,7 +21,7 @@ const VIEW = "site";
 /** The Worker serving the site's files at destack.sh. */
 const WORKER = "destack-site";
 
-/** The runtime whose linked builtins the pages import, as cloud machines link them. */
+/** The runtime whose linked builtins the pages import, as managed machines link them. */
 const PLATFORM = "workerd";
 
 /** Build the site with the platform's releases, export its static view and deploy its Worker. */
@@ -41,7 +41,7 @@ export async function deploySite(
     const { store } = platform;
     const image = await siteImage(platform);
 
-    // read the builtins a cloud machine links, at their images, by package name as a machine links them
+    // read the builtins a managed machine links, at their images, by package name as a machine links them
     const builtins = DistributionManifest.builtins(platform.distribution(PLATFORM), PLATFORM);
     const linked = new Map<string, BuildImage>();
     for (const release of builtins.values()) {

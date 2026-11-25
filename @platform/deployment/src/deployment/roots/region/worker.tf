@@ -6,7 +6,7 @@ locals {
 # create the machine's and its tail's Workers, whose code each deploy ships, so every binding between them resolves
 resource "cloudflare_worker" "machine" {
   account_id = var.account_id
-  name       = "destack-${var.environment}-machine-${var.residency}"
+  name       = "destack-${var.environment}-machine-${var.region}"
 
   # keep the Worker, whose deletion deletes its objects, and the settings each deploy writes
   lifecycle {
@@ -17,7 +17,7 @@ resource "cloudflare_worker" "machine" {
 
 resource "cloudflare_worker" "tail" {
   account_id = var.account_id
-  name       = "destack-${var.environment}-tail-${var.residency}"
+  name       = "destack-${var.environment}-tail-${var.region}"
 
   # keep the settings each deploy writes
   lifecycle {

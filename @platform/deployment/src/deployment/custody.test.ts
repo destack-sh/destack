@@ -20,7 +20,7 @@ const SEAL: EnvelopeConfiguration = {
     keyId: TEST_KMS_KEY_ID,
 };
 
-/** The same key under another ARN, as a replaced residency key would be. */
+/** The same key under another ARN, as a replaced region key would be. */
 const MOVED: EnvelopeConfiguration = { ...SEAL, keyId: `${TEST_KMS_KEY_ID}-moved` };
 
 test("seal the keys a universe lacks inside KMS once, read them as each deploy does, refuse a moved key and a missing record, and open them as each Worker does", async () => {

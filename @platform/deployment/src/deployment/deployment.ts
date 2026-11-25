@@ -1,7 +1,7 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { DeclarationReference } from "@destack/package/declare";
 import { UNIT_SKUS } from "@platform/pricing";
-import type { ResidencyCode, StackRelease } from "@destack/account/object";
+import type { RegionCode, StackRelease } from "@destack/account/object";
 import { UniverseOrigin } from "@destack/account/address";
 import { ProviderId } from "@destack/account/authentication";
 import type { ProviderClients } from "@destack/account/better-auth";
@@ -10,14 +10,12 @@ import type { Jurisdiction } from "@destack/db/cloudflare";
 import type { Environment, HostCapability } from "@destack/environment";
 import type { LogFormat } from "@destack/environment/line";
 import { provider, tag } from "@destack/finance/declare";
-import { github } from "@destack/forge/stack";
 import type { MailSender } from "@destack/mail/sender";
 import { LATEST_TAG } from "@destack/registry/object";
-import * as relay from "@destack/relay/declare";
 import { type JsonValue, present } from "@destack/schema";
 import type { UniverseDefinition } from "@destack/universe";
 import type { PlatformBuild } from "@platform/distribution";
-import { GITHUB_APP, PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
+import { PLATFORM, type PlatformRegion, REGIONS } from "@platform/stack";
 import type { Custody } from "./custody.ts";
 
 /** The universe the platform deploys to Cloudflare. */
@@ -49,7 +47,7 @@ const LOCAL_DOMAINS = {
     site: "site.localhost",
 };
 
-/** The provider running the cloud machines. */
+/** The provider running the managed machines. */
 const PROVIDER = "cloudflare";
 
 /** The variable holding each sign-in provider's client secret, GitHub's as Actions allows. */
@@ -74,12 +72,12 @@ const MAIL_FROM = "Destack <notices@destack.app>";
 
 /** The loopback port each service of a local universe listens on. */
 export interface LocalPorts {
-    /** The universe's port, which the platform residency's cloud machine serves. */
+    /** The universe's port, which the platform region's managed machine serves. */
     readonly universe: number;
     /** This computer's own machine's port, which the local universe's people use. */
     readonly machine: number;
-    /** Each residency's cloud machine's port, by residency code. */
-    readonly machines: Readonly<Record<ResidencyCode, number>>;
+    /** Each region's managed machine's port, by region code. */
+    readonly machines: Readonly<Record<RegionCode, number>>;
     /** The port wrangler serves the universe's Worker on under workerd. */
     readonly worker: number;
     /** The port the local release client's OIDC issuer answers on. */
@@ -90,21 +88,21 @@ export interface LocalPorts {
 export const LocalPorts = {
     /** Lay a local universe's ports out from its universe port, the other services after it. */
     at(universe: number): LocalPorts {
-        // serve the platform residency at the universe's port, and each other residency after it
-        const others = RESIDENCIES.filter((residency) => residency.code !== PLATFORM.residencyId);
-        const machines: Record<ResidencyCode, number> = Object.fromEntries([
-            [PLATFORM.residencyId, universe] as const,
-            ...others.map((residency, index) => [residency.code, universe + 2 + index] as const),
+        // serve the platform region at the universe's port, and each other region after it
+        const others = REGIONS.filter((region) => region.code !== PLATFORM.regionId);
+        const machines: Record<RegionCode, number> = Object.fromEntries([
+            [PLATFORM.regionId, universe] as const,
+            ...others.map((region, index) => [region.code, universe + 2 + index] as const),
         ]);
 
-        // put the Worker after the residencies, and the release client's issuer after it
+        // put the Worker after the regions, and the release client's issuer after it
         const worker = universe + 2 + others.length;
 
         return { universe, machine: universe + 1, machines, worker, publisher: worker + 1 };
     },
 };
 
-/** The platform deployed at a universe: its origins, its mail and the settings its homes place. */
+/** The platform deployed at a universe: its origins, its mail and the settings its home places. */
 export class Deployment {
     /** The universe's name, which names its roots, scripts, custody record and state. */
     readonly name: string;
@@ -112,15 +110,15 @@ export class Deployment {
     readonly universe: UniverseOrigin;
     /** The distribution tag the first-party releases are published at. */
     readonly tag: string;
-    /** Each residency's cloud machine's origin, by residency code. */
-    readonly machines: Readonly<Record<ResidencyCode, string>>;
-    /** Each residency's relay origin, where machines open their tunnels, by residency code. */
-    readonly relays: Readonly<Record<ResidencyCode, string>>;
-    /** The jurisdiction keeping each residency's objects and files, by residency code. */
-    readonly jurisdictions: Readonly<Record<ResidencyCode, Jurisdiction>>;
+    /** Each region's managed machine's origin, by region code. */
+    readonly machines: Readonly<Record<RegionCode, string>>;
+    /** Each region's relay origin, where machines open their tunnels, by region code. */
+    readonly relays: Readonly<Record<RegionCode, string>>;
+    /** The jurisdiction keeping each region's objects and files, by region code. */
+    readonly jurisdictions: Readonly<Record<RegionCode, Jurisdiction>>;
     /** Where the universe's Workers send mail. */
     readonly mail: MailSender;
-    /** The setting values the residency homes' platform stack places, by setting key. */
+    /** The setting values the platform home's stack places, by setting key. */
     readonly settings: Readonly<Record<string, JsonValue>>;
     /** The format the universe's Workers print in. */
     readonly logFormat: LogFormat;
@@ -169,7 +167,7 @@ export class Deployment {
             throw new Error(`universe '${name}' is not deployed: use '${PRODUCTION}'`);
         }
 
-        // serve at the platform's domains, each residency in its own jurisdiction
+        // serve at the platform's domains, each region in its own jurisdiction
         const universe = new UniverseOrigin(PRODUCTION_ORIGIN, PRODUCTION_DOMAINS);
         const { machine } = universe.domains;
 
@@ -178,19 +176,15 @@ export class Deployment {
                 name,
                 universe,
                 tag: LATEST_TAG,
-                machines: Deployment.#residencies((residency) =>
-                    universe.url(`${residency.machine.name}--platform.${machine}`),
+                machines: Deployment.#regions((region) =>
+                    universe.url(`${region.machine.name}--platform.${machine}`),
                 ),
-                relays: Deployment.#residencies((residency) =>
-                    universe.url(`relay-${residency.code}.${machine}`),
+                relays: Deployment.#regions((region) =>
+                    universe.url(`relay-${region.code}.${machine}`),
                 ),
-                jurisdictions: Deployment.#residencies((residency) => residency.jurisdiction),
+                jurisdictions: Deployment.#regions((region) => region.jurisdiction),
                 mail: { kind: "ses", region: MAIL_REGION, from: MAIL_FROM },
-                settings: Deployment.#settings(
-                    LATEST_TAG,
-                    { kind: "app", appId: GITHUB_APP },
-                    "stripe",
-                ),
+                settings: Deployment.#settings(LATEST_TAG, "stripe"),
                 logFormat: "json",
             },
             environment,
@@ -199,9 +193,9 @@ export class Deployment {
 
     /** Read the deployment of the local universe listening on loopback ports. */
     static local(ports: LocalPorts, environment: Environment<HostCapability>): Deployment {
-        // serve on loopback, each relay at its machine's port, no residency in a jurisdiction
-        const port = (residency: PlatformResidency) =>
-            present(ports.machines[residency.code], `the port of ${residency.code}`);
+        // serve on loopback, each relay at its machine's port, no region in a jurisdiction
+        const port = (region: PlatformRegion) =>
+            present(ports.machines[region.code], `the port of ${region.code}`);
 
         return new Deployment(
             {
@@ -211,68 +205,48 @@ export class Deployment {
                     LOCAL_DOMAINS,
                 ),
                 tag: LOCAL,
-                machines: Deployment.#residencies(
-                    (residency) => `http://${LOOPBACK}:${port(residency)}`,
+                machines: Deployment.#regions((region) => `http://${LOOPBACK}:${port(region)}`),
+                relays: Deployment.#regions(
+                    (region) =>
+                        `http://relay-${region.code}.${LOCAL_DOMAINS.machine}:${port(region)}`,
                 ),
-                relays: Deployment.#residencies(
-                    (residency) =>
-                        `http://relay-${residency.code}.${LOCAL_DOMAINS.machine}:${port(residency)}`,
-                ),
-                jurisdictions: Deployment.#residencies(() => "none"),
+                jurisdictions: Deployment.#regions(() => "none"),
                 mail: { kind: "print" },
-                settings: Deployment.#settings(LOCAL, { kind: "none" }, "none"),
+                settings: Deployment.#settings(LOCAL, "none"),
                 logFormat: "line",
             },
             environment,
         );
     }
 
-    /** The origin the cloud machine serving a residency answers at. */
-    machineOrigin(residency: PlatformResidency): string {
-        return present(this.machines[residency.code], `the machine of ${residency.code}`);
+    /** The origin the managed machine serving a region answers at. */
+    machineOrigin(region: PlatformRegion): string {
+        return present(this.machines[region.code], `the machine of ${region.code}`);
     }
 
-    /** The origin machines open their tunnels at to a residency's relay. */
-    relayOrigin(residency: PlatformResidency): string {
-        return present(this.relays[residency.code], `the relay of ${residency.code}`);
+    /** The origin machines open their tunnels at to a region's relay. */
+    relayOrigin(region: PlatformRegion): string {
+        return present(this.relays[region.code], `the relay of ${region.code}`);
     }
 
-    /** The jurisdiction keeping a residency's objects and files. */
-    jurisdiction(residency: PlatformResidency): Jurisdiction {
-        return present(this.jurisdictions[residency.code], `the jurisdiction of ${residency.code}`);
+    /** The jurisdiction keeping a region's objects and files. */
+    jurisdiction(region: PlatformRegion): Jurisdiction {
+        return present(this.jurisdictions[region.code], `the jurisdiction of ${region.code}`);
     }
 
-    /** Select each residency home's stack with its relay's settings and its hostnames' routes. */
-    homes(build: Pick<PlatformBuild, "released">): Record<string, StackRelease> {
+    /** Select the platform home's stack, with its settings and its domains' routes. */
+    home(build: Pick<PlatformBuild, "released">): StackRelease {
         // serve the universe's pages from Home, and the site at its own domain
         const { domain, domains } = this.universe;
-        const platform = {
-            spaces: Deployment.#relayRoute(`*.${domains.space}`),
-            machines: Deployment.#relayRoute(`*.${domains.machine}`),
-            start: Deployment.#startRoute(domain, "home"),
-            home: Deployment.#originRoute(domain, "home"),
-            site: Deployment.#viewRoute(domains.site, "site", "site"),
-        };
 
-        // place each home's relay settings and its relay's route, the platform's routes in the platform residency's home
-        const homes: Record<string, StackRelease> = {};
-        for (const residency of RESIDENCIES) {
-            const host = new URL(this.relayOrigin(residency)).hostname;
-            homes[residency.code] = build.released(residency.stack, {
-                settings: {
-                    ...this.settings,
-                    [DeclarationReference.key(relay.origin.reference)]: this.relayOrigin(residency),
-                    [DeclarationReference.key(relay.residency.reference)]: residency.code,
-                    [DeclarationReference.key(relay.universe.reference)]: this.universe.toJSON(),
-                },
-                routes: {
-                    [`relay-${residency.code}`]: Deployment.#relayRoute(host),
-                    ...(residency.code === PLATFORM.residencyId ? platform : {}),
-                },
-            });
-        }
-
-        return homes;
+        return build.released("PLATFORM_STACK", {
+            settings: this.settings,
+            routes: {
+                start: Deployment.#startRoute(domain, "home"),
+                home: Deployment.#originRoute(domain, "home"),
+                site: Deployment.#viewRoute(domains.site, "site", "site"),
+            },
+        });
     }
 
     /** Route a hostname's root alone to an installation's start view, before its other paths. */
@@ -308,50 +282,39 @@ export class Deployment {
         };
     }
 
-    /** Route a hostname's every path to the relay's names. */
-    static #relayRoute(hostname: string) {
-        return {
-            hostname,
-            path: "/",
-            match: "prefix",
-            installation: "relay",
-            rules: [{ entry: { kind: "mount", mount: "names" } }],
-        };
-    }
-
-    /** Declare the universe with a build's stacks, its cloud machines under custody. */
+    /** Declare the universe with a build's stacks, its managed machines under custody. */
     definition(
         operator: string,
         custody: Custody,
         build: Pick<PlatformBuild, "released" | "stacks">,
     ): UniverseDefinition {
-        // declare each residency's cloud machine under the key its custody keeps, rating its spaces by the platform's SKUs
+        // declare each region's managed machine under the key its custody keeps, rating its spaces by the platform's SKUs
         const rates = Object.fromEntries(
             UNIT_SKUS.map((sku) => [sku.meterKey, DeclarationReference.key(sku.reference)]),
         );
-        const machines = RESIDENCIES.map((residency) => ({
-            id: residency.machine.id,
-            name: residency.machine.name,
-            residencyId: residency.code,
+        const machines = REGIONS.map((region) => ({
+            id: region.machine.id,
+            name: region.machine.name,
+            regionId: region.code,
             providerCode: PROVIDER,
-            location: residency.location,
-            key: custody.machine(residency.machine.id).publicKey,
-            origin: this.machineOrigin(residency),
+            location: region.location,
+            key: custody.machine(region.machine.id).publicKey,
+            origin: this.machineOrigin(region),
             rates,
         }));
 
         return {
-            residencies: RESIDENCIES.map((residency) => ({
-                code: residency.code,
-                name: residency.name,
-                relay: this.relayOrigin(residency),
-                countries: [...residency.countries],
+            regions: REGIONS.map((region) => ({
+                code: region.code,
+                name: region.name,
+                relay: this.relayOrigin(region),
+                countries: [...region.countries],
             })),
             platform: {
                 ...PLATFORM,
                 operator,
                 ...this.#domains(),
-                homes: this.homes(build),
+                home: this.home(build),
                 stacks: build.stacks(),
                 machines,
             },
@@ -376,44 +339,31 @@ export class Deployment {
         return PROVIDER_SECRETS[id];
     }
 
-    /** Map each residency to a value. */
-    static #residencies<Value>(
-        value: (residency: PlatformResidency) => Value,
-    ): Readonly<Record<ResidencyCode, Value>> {
-        return Object.fromEntries(
-            RESIDENCIES.map((residency) => [residency.code, value(residency)]),
-        );
+    /** Map each region to a value. */
+    static #regions<Value>(
+        value: (region: PlatformRegion) => Value,
+    ): Readonly<Record<RegionCode, Value>> {
+        return Object.fromEntries(REGIONS.map((region) => [region.code, value(region)]));
     }
 
-    /** List the settings the homes' platform stack places: tag, GitHub and payments provider. */
+    /** List the settings the platform home's stack places: tag and payments provider. */
     static #settings(
         following: string,
-        app: JsonValue,
         payments: "stripe" | "none",
     ): Readonly<Record<string, JsonValue>> {
         return {
             [DeclarationReference.key(tag.reference)]: following,
-            [DeclarationReference.key(github.reference)]: app,
             [DeclarationReference.key(provider.reference)]: payments,
         };
     }
 
-    /** Declare the platform's domains and its residency accounts' hostnames. */
+    /** Declare the platform's domains, and the hostnames its home's routes serve on. */
     #domains(): Pick<PlatformDefinition, "domains" | "hostnames"> {
-        // route each relay's host at its residency, and the platform's domains at the platform residency
         const { domain, domains } = this.universe;
-        const platform = [`*.${domains.space}`, `*.${domains.machine}`, domain, domains.site];
-        const hostnames = RESIDENCIES.map((residency): [string, string[]] => [
-            residency.code,
-            [
-                new URL(this.relayOrigin(residency)).hostname,
-                ...(residency.code === PLATFORM.residencyId ? platform : []),
-            ],
-        ]);
 
         return {
             domains: [domains.space, domains.machine, domain, domains.site],
-            hostnames: Object.fromEntries(hostnames),
+            hostnames: [domain, domains.site],
         };
     }
 }

@@ -4,7 +4,7 @@ import { CloudflareCredentials } from "../cloudflare/credential.ts";
 import type { EnvelopeConfiguration } from "@destack/identity/aws";
 import type { S3Location } from "@destack/bucket/s3";
 import { schema } from "@destack/schema";
-import { RESIDENCIES } from "@platform/stack";
+import { REGIONS } from "@platform/stack";
 
 /** The release package's directory. */
 export const ROOT = resolve(import.meta.dirname, "../..");
@@ -26,7 +26,7 @@ export const TOFU_VARIABLES = ["TF_", "AWS_"] as const;
 /** The prefixes of the variables wrangler reads beside the deployment's credentials. */
 export const WRANGLER_VARIABLES = ["WRANGLER_", "CLOUDFLARE_ACCOUNT_ID"] as const;
 
-/** A universe or residency root's outputs for its Worker, as `tofu output -json` prints them. */
+/** A universe or region root's outputs for its Worker, as `tofu output -json` prints them. */
 const WorkerOutputs = schema.object({
     kms_region: output(schema.string().min(1)),
     kms_key_arn: output(schema.string().min(1)),
@@ -42,12 +42,11 @@ const UniverseOutputs = WorkerOutputs.extend({
     files_region: output(schema.string().min(1)),
 });
 
-/** The outputs of a residency root, as `tofu output -json` prints them. */
-const ResidencyOutputs = WorkerOutputs.extend({
+/** The outputs of a region root, as `tofu output -json` prints them. */
+const RegionOutputs = WorkerOutputs.extend({
     account: output(schema.string().min(1)),
     bucket: output(schema.string().min(1)),
     host: output(schema.string().min(1)),
-    hyperdrive: output(schema.string().min(1)),
 });
 
 /** An access key and its secret, as AWS and R2's S3 API sign with them. */
@@ -76,16 +75,14 @@ export interface UniverseOutputs extends WorkerOutputs {
     readonly files: S3Location;
 }
 
-/** What an applied residency root provisions. */
-export interface ResidencyOutputs extends WorkerOutputs {
+/** What an applied region root provisions. */
+export interface RegionOutputs extends WorkerOutputs {
     /** The Cloudflare account running the machine Worker. */
     readonly account: string;
-    /** The residency's bucket, keyed by owner. */
+    /** The region's bucket, keyed by owner. */
     readonly bucket: string;
-    /** The cloud machine's host, which its Worker's routes answer. */
+    /** The managed machine's host, which its Worker's routes answer. */
     readonly host: string;
-    /** The Hyperdrive configuration the machine Worker reaches the residency's database through. */
-    readonly hyperdrive: string;
 }
 
 /** The roots every universe shares: the platform's identities and its global infrastructure. */
@@ -122,19 +119,19 @@ export class Root {
         else if (
             selection.length === 2 &&
             universe === "production" &&
-            (scope === "universe" || RESIDENCIES.some((residency) => residency.code === scope))
+            (scope === "universe" || REGIONS.some((region) => region.code === scope))
         ) {
             this.name = `${universe}/${scope}`;
             this.directory = resolve(
                 ROOT,
                 "src/deployment/roots",
-                scope === "universe" ? "universe" : "residency",
+                scope === "universe" ? "universe" : "region",
             );
             this.state = `${universe}/${scope}.tfstate`;
         }
         // refuse anything else
         else {
-            const scopes = ["universe", ...RESIDENCIES.map((residency) => residency.code)];
+            const scopes = ["universe", ...REGIONS.map((region) => region.code)];
             throw new Error(
                 `select '${SHARED_ROOTS.join(", ")}', or production followed by '${scopes.join("|")}'`,
             );
@@ -151,9 +148,9 @@ export class Root {
         return SHARED_ROOTS.some((shared) => shared === name);
     }
 
-    /** List a universe's roots in dependency order: global, the universe, then each residency. */
+    /** List a universe's roots in dependency order: global, the universe, then each region. */
     static all(universe: string, environment: Environment<HostCapability>): Root[] {
-        const scopes = ["universe", ...RESIDENCIES.map((residency) => residency.code)];
+        const scopes = ["universe", ...REGIONS.map((region) => region.code)];
 
         return [["global"], ...scopes.map((scope) => [universe, scope])].map(
             (selection) => new Root(selection, environment),
@@ -264,15 +261,14 @@ export class Root {
         };
     }
 
-    /** Read an applied residency root's outputs. */
-    async residency(variables: Readonly<Record<string, string>>): Promise<ResidencyOutputs> {
-        const parsed = ResidencyOutputs.parse(await this.#outputs(variables));
+    /** Read an applied region root's outputs. */
+    async region(variables: Readonly<Record<string, string>>): Promise<RegionOutputs> {
+        const parsed = RegionOutputs.parse(await this.#outputs(variables));
 
         return {
             account: parsed.account.value,
             bucket: parsed.bucket.value,
             host: parsed.host.value,
-            hyperdrive: parsed.hyperdrive.value,
             ...workerOf(parsed),
         };
     }

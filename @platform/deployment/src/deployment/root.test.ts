@@ -36,14 +36,14 @@ test("select each tier's root and keep each deployment's remote state key", () =
         },
         {
             name: "production/eu",
-            directory: resolve(ROOT, "src/deployment/roots/residency"),
+            directory: resolve(ROOT, "src/deployment/roots/region"),
             state: "production/eu.tfstate",
             cache: resolve(ROOT, ".terraform/production/eu"),
         },
     ]);
 });
 
-test("refuse a scope outside the universe and the residencies", () => {
+test("refuse a scope outside the universe and the regions", () => {
     const environment = testSimulation().environment("operator");
     expect(() => new Root(["production", "global"], environment)).toThrow(
         new Error("select 'access, global', or production followed by 'universe|eu|us'"),

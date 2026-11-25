@@ -19,19 +19,19 @@ terraform {
 provider "cloudflare" {}
 
 locals {
-  # the residency's primary and replica regions
+  # the region's primary and replica regions
   regions = {
     eu = { primary = "eu-central-1", replica = "eu-west-1" }
     us = { primary = "us-east-1", replica = "us-west-2" }
   }
 }
 
-# keep the machine's database and keys in its residency
+# keep the machine's database and keys in its region
 provider "aws" {
-  region = local.regions[var.residency].primary
+  region = local.regions[var.region].primary
 }
 
 provider "aws" {
   alias  = "replica"
-  region = local.regions[var.residency].replica
+  region = local.regions[var.region].replica
 }

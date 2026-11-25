@@ -1,6 +1,6 @@
 # Deployment runbook
 
-Deploy the platform Destack operates: its universe and cloud machines on Cloudflare over OpenTofu roots, or the local universe on this computer.
+Deploy the platform Destack operates: its universe and managed machines on Cloudflare over OpenTofu roots, or the local universe on this computer.
 
 ## Recipes
 
@@ -26,7 +26,7 @@ bun run src/main.ts local serve                  # local: serve, reset, desktop,
 
 ## Deployments
 
-`Deployment` is the platform deployed for one universe: its address, its tag, each residency's machine and relay origin, and where its mail goes.
+`Deployment` is the platform deployed for one universe: its address, its tag, each region's machine and relay origin, and where its mail goes.
 The address is the universe's origin with the domains of its spaces, machines and site, and each home's stack gets the routes of its hostnames from it.
 `Deployment.cloudflare` reads production, and `Deployment.local` reads a local universe on its loopback ports.
 
@@ -34,7 +34,7 @@ The address is the universe's origin with the domains of its spaces, machines an
 const production = Deployment.cloudflare("production", host); // https://destack.app, tag latest
 const local = Deployment.local(LocalPorts.at(4100), host); // http://destack.localhost:4100, tag local
 local.universe.domains; // { space: "space.localhost", machine: "computer.localhost", site: "site.localhost" }
-production.machineOrigin(RESIDENCIES[0]); // https://eu-central--platform.destack.computer
+production.machineOrigin(REGIONS[0]); // https://eu-central--platform.destack.computer
 ```
 
 `Cloudflare` runs a Cloudflare deployment: `deploy` applies the roots and releases the Workers, `release` deploys the Workers alone, and `seal` seals the keys the custody record lacks.
@@ -42,7 +42,7 @@ production.machineOrigin(RESIDENCIES[0]); // https://eu-central--platform.destac
 
 ## Local universe
 
-`just local` creates `destack_local` on the PostgreSQL of `just postgres up`, starts the universe, a cloud machine per residency and the local universe's machine, and stops them on Ctrl-C.
+`just local` creates `destack_local` on the PostgreSQL of `just postgres up`, starts the universe, a managed machine per region and the local universe's machine, and stops them on Ctrl-C.
 Each local universe keeps its database, its directory under `target/` and its own block of ports, so several run side by side.
 
 ```sh
@@ -57,17 +57,17 @@ just local reset
 just local serve --universe slice
 just local reset --universe slice
 # run the cli or the desktop app on a local universe
-just local cli --universe slice login --email ada@destack.test --handle ada --residency eu
+just local cli --universe slice login --email ada@destack.test --handle ada --region eu
 ```
 
 ## Workers
 
-`WorkerScript` deploys the entries: the universe's `@destack/universe/cloudflare/worker`, and per residency `@destack/machine/cloudflare/worker` with its Tail Worker `@destack/machine/cloudflare/tail`, which posts each space's traced CPU time and Durable Object fetches to the space's object.
+`WorkerScript` deploys the entries: the universe's `@destack/universe/cloudflare/worker`, and per region `@destack/machine/cloudflare/worker` with its Tail Worker `@destack/machine/cloudflare/tail`, which posts each space's traced CPU time and Durable Object fetches to the space's object.
 The universe's Worker and `BunUniverse` are `@destack/universe`'s own hosts; each opens the distribution's releases from its layer, and every other release at its publisher's forge.
-The platform residency's machine serves the universe's domain: it hands the universe's paths to the universe, through its binding on Workers and in process on Bun, and serves the rest from the routes of the platform's home, Home's start among them.
+The platform region's machine serves the universe's domain: it hands the universe's paths to the universe, through its binding on Workers and in process on Bun, and serves the rest from the routes of the platform's home, Home's start among them.
 
 ```sh
-# serve the local universe and cloud machines as Workers, as production runs them
+# serve the local universe and managed machines as Workers, as production runs them
 just local serve --runtime workerd
 # seal the keys custody/production.json lacks under each root's KMS key, once per key, then commit the record
 bun run --cwd @platform/deployment custody seal production
@@ -115,7 +115,7 @@ const machineKey = await Envelope.open(env.DESTACK_MACHINE_KEY);
 
 Who may use, change or reach the root keys.
 
-- **Keys:** the universe root and each residency root declare their key, its replica in a second region of the same jurisdiction, and the Worker's IAM user.
+- **Keys:** the universe root and each region root declare their key, its replica in a second region of the same jurisdiction, and the Worker's IAM user.
 - **At rest:** no root key exists in the clear; the account may generate and encrypt under the keys, never decrypt, so the record is committed.
 - **Decrypt:** only a Worker's IAM user decrypts, under its own `owner` context, and every unwrap lands in CloudTrail.
 - **Network:** the key policy names no source addresses, as Cloudflare publishes none for Workers' outgoing requests.
@@ -132,7 +132,7 @@ Who may use, change or reach the root keys.
 
 ## Roots
 
-The roots `access`, `global`, `universe` and `residency` live under `src/deployment/roots` with the modules `database`, `kms` and `worker`, and `deployment/<universe>.tfvars` configures each per universe.
+The roots `access`, `global`, `universe` and `region` live under `src/deployment/roots` with the modules `database`, `kms` and `worker`, and `deployment/<universe>.tfvars` configures each per universe.
 Each root keeps its own remote state, which the operator plans and applies through the deployment commands.
 
 ```sh
@@ -144,7 +144,7 @@ bun run src/main.ts platform deploy production us     # plan and apply one root
 ### State encryption
 
 Each root's state and plans are encrypted under the KMS key `alias/destack-state` in `eu-central-1` with OpenTofu's `aes_gcm` over `aws_kms`, which only the deploy role and the operator may use.
-The operator applies the universe and residency roots first, which creates their keys, and the deploy role applies them afterwards.
+The operator applies the universe and region roots first, which creates their keys, and the deploy role applies them afterwards.
 Only an operator applies the access root, which holds every platform identity, the workflows' roles and the people's permission sets.
 A state written before encryption moves under the key once: the operator adds the fallback beside `state` in the root's `encryption.tf`, applies, then removes both blocks.
 

@@ -1,51 +1,36 @@
 import { DeclarationReference } from "@destack/package/declare";
-import * as relay from "@destack/relay/declare";
 import { present } from "@destack/schema";
 import { UniverseDefinition } from "@destack/universe";
 import { expect, test } from "@destack/test";
-import { RESIDENCY_STACK, STACKS } from "@destack/account/test";
+import { PLATFORM_STACK, STACKS } from "@destack/account/test";
 import type { StackRelease } from "@destack/account/object";
 
 /** A build answering the account test fixture's stacks, and its stand-in stack for every home. */
-const BUILD = { stacks: () => STACKS, released: () => RESIDENCY_STACK };
+const BUILD = { stacks: () => STACKS, released: () => PLATFORM_STACK };
 
 /** The ports of the default local universe. */
 const PORTS = LocalPorts.at(4100);
 
-/** The local universe's address, as its homes' relays read it. */
-const LOCAL = {
-    origin: "http://destack.localhost:4100",
-    domains: { space: "space.localhost", machine: "computer.localhost", site: "site.localhost" },
-};
-
-/** The production universe's address, as its homes' relays read it. */
-const PRODUCTION = {
-    origin: "https://destack.app",
-    domains: { space: "destack.space", machine: "destack.computer", site: "destack.sh" },
-};
 import { provider } from "@destack/finance/declare";
-import { PLATFORM, RESIDENCIES } from "@platform/stack";
+import { PLATFORM, REGIONS } from "@platform/stack";
 import { ProviderId } from "@destack/account/authentication";
 import { Custody, Deployment, LocalPorts } from "./index.ts";
 import { type ScriptTarget, WorkerScript } from "../cloudflare/script.ts";
 import { testSimulation } from "@destack/test/world";
 
-/** List a universe's domains and each residency's hostnames, the public ones at the platform's. */
+/** List a universe's domains, and the hostnames the platform home's routes serve on. */
 function names(domain: string, space: string, machine: string, site: string) {
     return [
         [space, machine, domain, site],
-        {
-            eu: [`relay-eu.${machine}`, `*.${space}`, `*.${machine}`, domain, site],
-            us: [`relay-us.${machine}`],
-        },
+        [domain, site],
     ];
 }
 
-test("declare each universe's universe with its residencies, the reserved handles and a cloud machine per residency at its origin under the key its custody keeps", async () => {
+test("declare each universe's universe with its regions, the reserved handles and a managed machine per region at its origin under the key its custody keeps", async () => {
     // keep each machine's key in a local custody record
     const host = testSimulation().environment("deployment");
     const custody = await Custody.local(
-        RESIDENCIES.map((residency) => residency.machine.id),
+        REGIONS.map((region) => region.machine.id),
         host,
     );
 
@@ -56,12 +41,12 @@ test("declare each universe's universe with its residencies, the reserved handle
         custody,
         BUILD,
     );
-    const keys = RESIDENCIES.map((residency) => custody.machine(residency.machine.id).publicKey);
+    const keys = REGIONS.map((region) => custody.machine(region.machine.id).publicKey);
 
     // declare a valid universe with the machines at their loopback ports locally and at their one-label names in production
     expect({
         isValid: UniverseDefinition.safeParse(production).success,
-        residencies: production.residencies,
+        regions: production.regions,
         reserved: production.platform.reserved,
         local: local.platform.machines.map(({ name, origin }) => [name, origin]),
         production: production.platform.machines.map(({ name, origin, key }) => [
@@ -75,7 +60,7 @@ test("declare each universe's universe with its residencies, the reserved handle
         },
     }).toEqual({
         isValid: true,
-        residencies: [
+        regions: [
             {
                 code: "eu",
                 name: "European Union",
@@ -143,81 +128,29 @@ test("declare each universe's universe with its residencies, the reserved handle
     });
 });
 
-test("select each residency home's stack release with its relay's origin, residency and universe, and its hostnames' routes", async () => {
-    // select the homes of both universes over a build answering each export with what it places
+test("select the platform home's stack release with the routes of the platform's domains", async () => {
+    // select the home of both universes over a build answering each export with what it places
     const host = testSimulation().environment("deployment");
     const build = {
         released: (exported: string, placed: Pick<StackRelease, "settings" | "routes">) => ({
-            ...RESIDENCY_STACK,
+            ...PLATFORM_STACK,
             export: exported,
             ...placed,
         }),
     };
-    const deployments = {
-        local: Deployment.local(PORTS, host),
-        production: Deployment.cloudflare("production", host),
-    };
-    const read = async (universe: "local" | "production") =>
-        Object.fromEntries(
-            Object.entries(deployments[universe].homes(build)).map(([code, home]) => [
-                code,
-                [
-                    home.export,
-                    home.settings[DeclarationReference.key(relay.origin.reference)],
-                    home.settings[DeclarationReference.key(relay.residency.reference)],
-                    home.settings[DeclarationReference.key(relay.universe.reference)],
-                    Object.values(home.routes).map((route) => route["hostname"]),
-                ],
-            ]),
-        );
+    const read = (deployment: Deployment) => {
+        const home = deployment.home(build);
 
-    expect({ local: await read("local"), production: await read("production") }).toEqual({
-        local: {
-            eu: [
-                "RESIDENCY_STACK_EU",
-                "http://relay-eu.computer.localhost:4100",
-                "eu",
-                LOCAL,
-                [
-                    "relay-eu.computer.localhost",
-                    "*.space.localhost",
-                    "*.computer.localhost",
-                    "destack.localhost",
-                    "destack.localhost",
-                    "site.localhost",
-                ],
-            ],
-            us: [
-                "RESIDENCY_STACK_US",
-                "http://relay-us.computer.localhost:4102",
-                "us",
-                LOCAL,
-                ["relay-us.computer.localhost"],
-            ],
-        },
-        production: {
-            eu: [
-                "RESIDENCY_STACK_EU",
-                "https://relay-eu.destack.computer",
-                "eu",
-                PRODUCTION,
-                [
-                    "relay-eu.destack.computer",
-                    "*.destack.space",
-                    "*.destack.computer",
-                    "destack.app",
-                    "destack.app",
-                    "destack.sh",
-                ],
-            ],
-            us: [
-                "RESIDENCY_STACK_US",
-                "https://relay-us.destack.computer",
-                "us",
-                PRODUCTION,
-                ["relay-us.destack.computer"],
-            ],
-        },
+        return [home.export, Object.values(home.routes).map((route) => route["hostname"])];
+    };
+
+    // route the universe's domain to Home's start and origin, and the site's domain to the site
+    expect({
+        local: read(Deployment.local(PORTS, host)),
+        production: read(Deployment.cloudflare("production", host)),
+    }).toEqual({
+        local: ["PLATFORM_STACK", ["destack.localhost", "destack.localhost", "site.localhost"]],
+        production: ["PLATFORM_STACK", ["destack.app", "destack.app", "destack.sh"]],
     });
 });
 
@@ -245,7 +178,7 @@ test("sign people in through GitHub, Google and Microsoft with each secret a uni
     // read the applications with every secret, and with none
     const host = testSimulation().environment("deployment");
     const custody = await Custody.local(
-        RESIDENCIES.map((residency) => residency.machine.id),
+        REGIONS.map((region) => region.machine.id),
         host,
     );
     const production = Deployment.cloudflare("production", host);
@@ -257,7 +190,7 @@ test("sign people in through GitHub, Google and Microsoft with each secret a uni
         new WorkerScript(production, target).secrets(custody, access, providers)[
             "DESTACK_PROVIDERS"
         ];
-    const residency = present(RESIDENCIES[0], "a residency");
+    const region = present(REGIONS[0], "a region");
 
     expect({
         secrets: ["github", "google", "microsoft"].map((id) =>
@@ -266,7 +199,7 @@ test("sign people in through GitHub, Google and Microsoft with each secret a uni
         none: Deployment.local(PORTS, host).providers(() => undefined),
         every: providers,
         universe: bound({ kind: "universe" }),
-        machine: bound({ kind: "machine", residency }) ?? null,
+        machine: bound({ kind: "machine", region }) ?? null,
     }).toEqual({
         secrets: ["GH_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET"],
         none: {},

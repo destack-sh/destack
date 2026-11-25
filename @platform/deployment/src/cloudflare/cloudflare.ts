@@ -1,10 +1,10 @@
 import { resolve } from "node:path";
 import { CHECKOUT, PlatformBuild, releaseVersion } from "@platform/distribution";
-import { type PlatformResidency, RESIDENCIES } from "@platform/stack";
+import { type PlatformRegion, REGIONS } from "@platform/stack";
 import { present } from "@destack/schema";
 import { Custody, type CustodyEnvelopes } from "../deployment/custody.ts";
 import { Deployment } from "../deployment/deployment.ts";
-import { Root, type ResidencyOutputs, type UniverseOutputs } from "../deployment/root.ts";
+import { Root, type RegionOutputs, type UniverseOutputs } from "../deployment/root.ts";
 import { WorkerScript } from "./script.ts";
 
 /** A deployment on Cloudflare: its roots, the custody record of its keys, and its Workers. */
@@ -34,7 +34,7 @@ export class Cloudflare {
         await this.release();
     }
 
-    /** Deploy the universe's and every cloud machine's Workers onto the applied roots. */
+    /** Deploy the universe's and every managed machine's Workers onto the applied roots. */
     async release(): Promise<void> {
         // read the operator, the roots' outputs and the custody record the operator sealed
         const { deployment } = this;
@@ -68,7 +68,7 @@ export class Cloudflare {
         for (const [script, configuration] of scripts) {
             const { target } = script;
             const access =
-                target.kind === "universe" ? outputs.access : outputsOf(target.residency).access;
+                target.kind === "universe" ? outputs.access : outputsOf(target.region).access;
             const secrets = script.secrets(custody, access, providers);
             await script.deploy(configuration, secrets, modules);
         }
@@ -110,25 +110,25 @@ export class Cloudflare {
         print("custody", `commit ${file} before the next deploy`);
     }
 
-    /** Read the applied universe and residency roots' outputs. */
+    /** Read the applied universe and region roots' outputs. */
     async #outputs(): Promise<{
         readonly outputs: UniverseOutputs;
-        readonly outputsOf: (residency: PlatformResidency) => ResidencyOutputs;
+        readonly outputsOf: (region: PlatformRegion) => RegionOutputs;
     }> {
         // read the universe root's outputs
         const { name, environment } = this.deployment;
         const universe = new Root([name, "universe"], environment);
         const outputs = await universe.universe(await universe.initialize());
 
-        // read each residency root's outputs
-        const residencies = new Map<string, ResidencyOutputs>();
-        for (const residency of RESIDENCIES) {
-            const root = new Root([name, residency.code], environment);
+        // read each region root's outputs
+        const regions = new Map<string, RegionOutputs>();
+        for (const region of REGIONS) {
+            const root = new Root([name, region.code], environment);
             const variables = await root.initialize();
-            residencies.set(residency.code, await root.residency(variables));
+            regions.set(region.code, await root.region(variables));
         }
-        const outputsOf = (residency: PlatformResidency) =>
-            present(residencies.get(residency.code), `the outputs of ${residency.code}`);
+        const outputsOf = (region: PlatformRegion) =>
+            present(regions.get(region.code), `the outputs of ${region.code}`);
 
         return { outputs, outputsOf };
     }
@@ -136,15 +136,12 @@ export class Cloudflare {
     /** List the KMS envelopes the custody record seals under: the universe's and each machine's. */
     static #envelopes(
         outputs: UniverseOutputs,
-        outputsOf: (residency: PlatformResidency) => ResidencyOutputs,
+        outputsOf: (region: PlatformRegion) => RegionOutputs,
     ): CustodyEnvelopes {
         return {
             universe: outputs.envelope,
             machines: new Map(
-                RESIDENCIES.map((residency) => [
-                    residency.machine.id,
-                    outputsOf(residency).envelope,
-                ]),
+                REGIONS.map((region) => [region.machine.id, outputsOf(region).envelope]),
             ),
         };
     }

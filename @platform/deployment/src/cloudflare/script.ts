@@ -11,7 +11,7 @@ import type { Custody } from "../deployment/custody.ts";
 import {
     Root,
     ROOT,
-    type ResidencyOutputs,
+    type RegionOutputs,
     type AccessKey,
     type UniverseOutputs,
     WRANGLER_VARIABLES,
@@ -21,7 +21,7 @@ import type { PlatformBuild } from "@platform/distribution";
 import type { UniverseDefinition } from "@destack/universe";
 import { DISTRIBUTION_MODULE } from "@destack/package";
 import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
-import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
+import { PLATFORM, type PlatformRegion, REGIONS } from "@platform/stack";
 import { CloudflareCredentials } from "./credential.ts";
 import { present, schema } from "@destack/schema";
 import { FileSystemError, HostAddress } from "@destack/environment";
@@ -82,7 +82,7 @@ const SCRIPT_ENTRIES = {
     tail: "@destack/machine/cloudflare/tail",
 } as const;
 
-/** The classes of a cloud machine's objects. */
+/** The classes of a managed machine's objects. */
 const MACHINE_CLASSES = {
     partition: "PartitionObject",
     database: "DurableObjectDatabase",
@@ -121,17 +121,17 @@ export type SuppliedModules = Readonly<Record<string, SuppliedModule>>;
 /** The module the universe's bundle reads its declaration from, supplied by its deploy. */
 export const UNIVERSE_MODULE = "destack:universe";
 
-/** What a Worker script deploys: the universe, or a residency's machine or its tail. */
+/** What a Worker script deploys: the universe, or a region's machine or its tail. */
 export type ScriptTarget =
     | {
           /** The universe's Worker. */
           readonly kind: "universe";
       }
     | {
-          /** A cloud machine's Worker, or the Tail Worker metering its traces. */
+          /** A managed machine's Worker, or the Tail Worker metering its traces. */
           readonly kind: "machine" | "tail";
-          /** The residency the machine serves. */
-          readonly residency: PlatformResidency;
+          /** The region the machine serves. */
+          readonly region: PlatformRegion;
       };
 
 /** One of the Worker scripts a universe deploys. */
@@ -151,19 +151,19 @@ export class WorkerScript {
     static all(
         deployment: Deployment,
         universe: UniverseOutputs,
-        residency: (residency: PlatformResidency) => ResidencyOutputs,
+        region: (region: PlatformRegion) => RegionOutputs,
         releases: string,
     ): (readonly [WorkerScript, WranglerConfiguration])[] {
         // configure the universe binding its declaration
         const script = new WorkerScript(deployment, { kind: "universe" });
         const scripts = [[script, script.universe(universe, releases)] as const];
 
-        // configure each residency's cloud machine before the tail binding its objects
-        for (const served of RESIDENCIES) {
-            const tail = new WorkerScript(deployment, { kind: "tail", residency: served });
-            const machine = new WorkerScript(deployment, { kind: "machine", residency: served });
+        // configure each region's managed machine before the tail binding its objects
+        for (const served of REGIONS) {
+            const tail = new WorkerScript(deployment, { kind: "tail", region: served });
+            const machine = new WorkerScript(deployment, { kind: "machine", region: served });
             scripts.push(
-                [machine, machine.machine(residency(served), served, releases)],
+                [machine, machine.machine(region(served), served, releases)],
                 [tail, tail.tail(served)],
             );
         }
@@ -182,14 +182,14 @@ export class WorkerScript {
 
     /** The service a universe prints the script's lines under: universe, or a machine's name. */
     get service(): string {
-        // name the universe, a residency's machine, or the Tail Worker beside it
+        // name the universe, a region's machine, or the Tail Worker beside it
         const { target } = this;
         if (target.kind === "universe") {
             return "universe";
         } else if (target.kind === "machine") {
-            return target.residency.machine.name;
+            return target.region.machine.name;
         } else {
-            return `${target.residency.machine.name}-tail`;
+            return `${target.region.machine.name}-tail`;
         }
     }
 
@@ -199,7 +199,7 @@ export class WorkerScript {
 
         return target.kind === "universe"
             ? `destack-${this.deployment.name}-universe`
-            : `destack-${this.deployment.name}-${target.kind}-${target.residency.code}`;
+            : `destack-${this.deployment.name}-${target.kind}-${target.region.code}`;
     }
 
     /** The module the script runs, as its engine package ships it. */
@@ -224,15 +224,15 @@ export class WorkerScript {
             return {};
         }
 
-        // bind the sealed keys, a cloud machine's own key among them
+        // bind the sealed keys, a managed machine's own key among them
         const keys =
             target.kind === "universe"
                 ? custody.record.universe
-                : custody.machine(target.residency.machine.id);
+                : custody.machine(target.region.machine.id);
         const machineKey =
             target.kind === "universe"
                 ? {}
-                : { DESTACK_MACHINE_KEY: custody.machine(target.residency.machine.id).key };
+                : { DESTACK_MACHINE_KEY: custody.machine(target.region.machine.id).key };
         const sealed = {
             DESTACK_ENVELOPE: JSON.stringify(keys.envelope),
             DESTACK_ROOT_KEY: keys.rootKey,
@@ -261,7 +261,7 @@ export class WorkerScript {
 
         return target.kind === "universe"
             ? this.deployment.universe.origin
-            : this.deployment.machineOrigin(target.residency);
+            : this.deployment.machineOrigin(target.region);
     }
 
     /** Write the universe's configuration over its outputs, shipping a releases layer. */
@@ -282,22 +282,22 @@ export class WorkerScript {
         };
     }
 
-    /** Write a cloud machine's configuration over its residency's outputs and shipped releases. */
+    /** Write a managed machine's configuration over its region's outputs and shipped releases. */
     machine(
-        outputs: ResidencyOutputs,
-        residency: PlatformResidency,
+        outputs: RegionOutputs,
+        region: PlatformRegion,
         releases: string,
     ): WranglerConfiguration {
-        // keep the objects, the files and the builds in the residency's jurisdiction
-        const kept = this.deployment.jurisdiction(residency);
+        // keep the objects, the files and the builds in the region's jurisdiction
+        const kept = this.deployment.jurisdiction(region);
         const jurisdiction = kept === "none" ? {} : { jurisdiction: kept };
         const universe = new WorkerScript(this.deployment, { kind: "universe" });
-        const tail = new WorkerScript(this.deployment, { kind: "tail", residency });
+        const tail = new WorkerScript(this.deployment, { kind: "tail", region });
 
-        // reach every cloud machine and its relay through a service binding, never their public hosts
-        const peers = RESIDENCIES.map((peer) => ({
+        // reach every managed machine and its relay through a service binding, never their public hosts
+        const peers = REGIONS.map((peer) => ({
             binding: `MACHINE_${peer.code.toUpperCase()}`,
-            script: new WorkerScript(this.deployment, { kind: "machine", residency: peer }),
+            script: new WorkerScript(this.deployment, { kind: "machine", region: peer }),
             hosts: [
                 new URL(this.deployment.machineOrigin(peer)).host,
                 new URL(this.deployment.relayOrigin(peer)).host,
@@ -320,23 +320,23 @@ export class WorkerScript {
             artifacts: [
                 {
                     binding: "ARTIFACTS",
-                    namespace: `destack-${this.deployment.name}-repositories-${residency.code}`,
+                    namespace: `destack-${this.deployment.name}-repositories-${region.code}`,
                 },
             ],
             services: [
                 { binding: "UNIVERSE", service: universe.name },
                 ...peers.map(({ binding, script }) => ({ binding, service: script.name })),
             ],
-            routes: this.#routes(outputs, residency),
+            routes: this.#routes(outputs, region),
             vars: {
                 DESTACK_LOG_FORMAT: this.deployment.logFormat,
                 DESTACK_UNIVERSE: JSON.stringify(this.deployment.universe),
                 DESTACK_JURISDICTION: kept,
                 DESTACK_BUCKET: outputs.bucket,
                 DESTACK_MAIL: JSON.stringify(this.deployment.mail),
-                DESTACK_MACHINE_ID: residency.machine.id,
-                DESTACK_ORIGIN: this.deployment.machineOrigin(residency),
-                DESTACK_SPACE_DOMAIN: this.#spaceDomain(residency),
+                DESTACK_MACHINE_ID: region.machine.id,
+                DESTACK_ORIGIN: this.deployment.machineOrigin(region),
+                DESTACK_SPACE_DOMAIN: this.#spaceDomain(region),
                 DESTACK_PEERS: JSON.stringify(
                     Object.fromEntries(
                         peers.flatMap(({ binding, hosts }) => hosts.map((host) => [host, binding])),
@@ -347,28 +347,28 @@ export class WorkerScript {
     }
 
     /** Read the domain a machine's installation origins answer below: loopback's on loopback. */
-    #spaceDomain(residency: PlatformResidency): string {
-        const { hostname } = new URL(this.deployment.machineOrigin(residency));
+    #spaceDomain(region: PlatformRegion): string {
+        const { hostname } = new URL(this.deployment.machineOrigin(region));
 
         return hostname === LOOPBACK_DOMAIN || HostAddress.isLoopback(hostname)
             ? LOOPBACK_DOMAIN
             : this.deployment.universe.domains.space;
     }
 
-    /** Route a machine's host and relay host, and at the platform residency the domains. */
-    #routes(outputs: ResidencyOutputs, residency: PlatformResidency) {
+    /** Route a machine's host and relay host, and at the platform region the domains. */
+    #routes(outputs: RegionOutputs, region: PlatformRegion) {
         // route the machine's host and its relay's host
         const { domain, domains } = this.deployment.universe;
-        const relay = new URL(this.deployment.relayOrigin(residency)).host;
+        const relay = new URL(this.deployment.relayOrigin(region)).host;
         const own = [outputs.host, relay].map((name) => ({
             pattern: `${name}/*`,
             zone_name: domains.machine,
         }));
-        if (residency.code !== PLATFORM.residencyId) {
+        if (region.code !== PLATFORM.regionId) {
             return own;
         }
 
-        // take every other space and machine name, and the universe's, at the platform residency's machine
+        // take every other space and machine name, and the universe's, at the platform region's machine
         return [
             ...own,
             { pattern: `*.${domains.space}/*`, zone_name: domains.space },
@@ -377,9 +377,9 @@ export class WorkerScript {
         ];
     }
 
-    /** Write a cloud machine's Tail Worker configuration over the machine's objects. */
-    tail(residency: PlatformResidency): WranglerConfiguration {
-        const machine = new WorkerScript(this.deployment, { kind: "machine", residency });
+    /** Write a managed machine's Tail Worker configuration over the machine's objects. */
+    tail(region: PlatformRegion): WranglerConfiguration {
+        const machine = new WorkerScript(this.deployment, { kind: "machine", region });
 
         return {
             ...this.#shared(),
@@ -394,7 +394,7 @@ export class WorkerScript {
             },
             vars: {
                 DESTACK_LOG_FORMAT: this.deployment.logFormat,
-                DESTACK_JURISDICTION: this.deployment.jurisdiction(residency),
+                DESTACK_JURISDICTION: this.deployment.jurisdiction(region),
             },
         };
     }
@@ -559,7 +559,7 @@ export class WorkerScript {
 
     /** Wait until the script answers at its origin without a server failure, in milliseconds. */
     async waitReady(): Promise<number> {
-        // request the issuer's discovery document from the universe, and the origin from a cloud machine
+        // request the issuer's discovery document from the universe, and the origin from a managed machine
         const isUniverse = this.target.kind === "universe";
         const issuer = UniverseOrigin.issuer(this.origin);
         const url = isUniverse

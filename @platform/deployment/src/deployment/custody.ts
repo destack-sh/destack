@@ -21,35 +21,35 @@ const UniverseKeys = schema.object({
     rootKey: schema.string().min(1),
 });
 
-/** A cloud machine's sealed keys: its envelope, its root keyset, and its key and public half. */
+/** A managed machine's sealed keys: its envelope, its root keyset, and its key and public half. */
 const MachineKeys = UniverseKeys.extend({
     /** The public half of the machine's key, as the universe declares it. */
     publicKey: PublicKey,
     /** The machine's private key, as `KeyPair.generate` writes it, sealed as `envelope` says. */
     key: schema.string().min(1),
 });
-/** A cloud machine's sealed keys. */
+/** A managed machine's sealed keys. */
 export type MachineKeys = schema.Infer<typeof MachineKeys>;
 
-/** A universe's custody record: the universe's sealed keys and each cloud machine's, by its id. */
+/** A universe's custody record: its sealed keys and each managed machine's, by its id. */
 const CustodyRecord = schema.object({
     /** The universe's keys. */
     universe: UniverseKeys,
-    /** Each cloud machine's keys, by machine id. */
+    /** Each managed machine's keys, by machine id. */
     machines: schema.record(schema.string(), MachineKeys),
 });
 /** A universe's custody record. */
 type CustodyRecord = schema.Infer<typeof CustodyRecord>;
 
-/** The KMS keys a universe envelopes under: the universe's and each cloud machine's, by id. */
+/** The KMS keys a universe envelopes under: the universe's and each managed machine's, by id. */
 export interface CustodyEnvelopes {
     /** The universe's envelope. */
     readonly universe: EnvelopeConfiguration;
-    /** Each cloud machine's envelope, by machine id. */
+    /** Each managed machine's envelope, by machine id. */
     readonly machines: ReadonlyMap<string, EnvelopeConfiguration>;
 }
 
-/** A universe's key custody: each Worker's sealed root keys and each cloud machine's sealed key. */
+/** A universe's key custody: each Worker's sealed root keys and each machine's sealed key. */
 export class Custody {
     /** The record. */
     readonly record: CustodyRecord;
@@ -155,7 +155,7 @@ export class Custody {
         return new Custody(record);
     }
 
-    /** Read a cloud machine's keys, refusing a machine the record lacks. */
+    /** Read a managed machine's keys, refusing a machine the record lacks. */
     machine(id: string): MachineKeys {
         const keys = this.record.machines[id];
         if (keys === undefined) {
@@ -188,7 +188,7 @@ export class Custody {
         return keys;
     }
 
-    /** Generate a cloud machine's root keyset and key under its envelope, the key sealed for it. */
+    /** Generate a managed machine's root keyset and key under its envelope, its key sealed. */
     static async #machineKeys(
         id: string,
         configuration: EnvelopeConfiguration,
