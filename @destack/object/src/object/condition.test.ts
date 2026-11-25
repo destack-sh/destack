@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { AWAITING_APPROVAL, Observation } from "./condition.ts";
+import { AWAITING_APPROVAL, Status } from "./condition.ts";
 
 /** A condition observed at a generation, its message naming its reason. */
 function condition(status: "true" | "false", reason: string, observedGeneration = 2) {
@@ -10,11 +10,7 @@ function condition(status: "true" | "false", reason: string, observedGeneration 
 function read(conditions: Readonly<Record<string, ReturnType<typeof condition>>>) {
     const record = { generation: 2, conditions };
 
-    return [
-        Observation.progress(record),
-        Observation.message(record),
-        Observation.condition(record)?.reason,
-    ];
+    return [Status.progress(record), Status.message(record), Status.condition(record)?.reason];
 }
 
 test("read a record current once ready after a synced pass, failed on a lasting failure, waiting otherwise, with what it reports", () => {

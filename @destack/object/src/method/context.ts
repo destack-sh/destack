@@ -45,7 +45,7 @@ import { Catalog } from "@destack/locale";
 import * as sync from "@destack/sync";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { ManagedTable } from "../trait/record.ts";
-import { Observation, type ObservationReport, type ObservedRecord } from "../object/condition.ts";
+import { type ControlledRecord, Observation } from "../object/condition.ts";
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import { CallSite } from "./site.ts";
 import type { MethodKind } from "./kind.ts";
@@ -292,8 +292,8 @@ export class MethodContext<
     /** Record an object's conditions and observed fields at its generation as the package, once. */
     async observe(
         object: ObjectType,
-        row: ObservedRecord & Readonly<Record<string, unknown>>,
-        observation: ObservationReport,
+        row: ControlledRecord,
+        observation: Observation,
     ): Promise<unknown> {
         // skip an observation the row has
         if (Observation.isRecorded(row, observation)) {

@@ -10,6 +10,7 @@ import {
 } from "./detail.ts";
 import type {} from "@destack/package/import-meta";
 import { schema } from "@destack/schema";
+import { Denial } from "@destack/access";
 
 /** The object package's failures, each reason with the call error code it answers. */
 export const ObjectError = defineErrorFamily({
@@ -137,7 +138,7 @@ export const ObjectError = defineErrorFamily({
         INSERT_DENIED: {},
         LOOKUP_DENIED: {},
         MACHINE_PROCEDURE_DENIED: {},
-        PERMISSION_DENIED: {},
+        PERMISSION_DENIED: { data: Denial },
         REVEAL_DENIED: {},
         STORE_ONLY_DENIED: {},
         TABLE_DENIED: {},

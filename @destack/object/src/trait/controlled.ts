@@ -6,7 +6,7 @@ import { Recoverable } from "./recoverable.ts";
 import { derivePermissions, type TraitBehavior, callableTrait } from "./trait.ts";
 import { ObjectError } from "../error/error.ts";
 import { MethodBuilder } from "../method/builder.ts";
-import { ConditionMap, Observation, StatusCondition, SYNCED } from "../object/condition.ts";
+import { Condition, Observation, Status, SYNCED } from "../object/condition.ts";
 import type { TraitTable } from "../object/table.ts";
 
 /** The method declarations of controlled objects. */
@@ -85,7 +85,14 @@ export const Controlled = {
 
     /** Record a controller's conditions of its target at the generation it evaluated. */
     observe: controlledMethod
-        .mutation({ title: t`Observe`, permission: "control", input: Observation })
+        .mutation({
+            title: t`Observe`,
+            permission: "control",
+            input: Observation.extend({
+                /** The desired generation the controller evaluated. */
+                observedGeneration: schema.number().int().min(0),
+            }),
+        })
         .handle(async (context) => {
             // refuse an observation of a generation the record has not arrived at
             const { observedGeneration, conditions, fields } = context.input;
@@ -105,7 +112,7 @@ export const Controlled = {
                     )
                     .map(([name, condition]) => [
                         name,
-                        StatusCondition.observe(
+                        Condition.observe(
                             current[name],
                             { ...condition, observedGeneration },
                             context.now,
@@ -168,7 +175,7 @@ function controlledColumns() {
         /** The desired state's generation. */
         generation: integer("generation").notNull().default(1),
         /** The conditions the controllers report, each at the generation it observed. */
-        conditions: json("conditions", ConditionMap).notNull().default({}),
+        conditions: json("conditions", Status.conditions).notNull().default({}),
         /** The latest desired generation a controller synced, zero before its first sync. */
         syncedGeneration: integer("synced_generation").notNull().default(0),
     };

@@ -2,16 +2,16 @@ import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller } from "@destack/access";
 import { and, defineTable, eq, index, integer, now, type Row, TABLE, text } from "@destack/db";
 import type { Controller, Participant, Transaction } from "@destack/db/database";
-import { type UuidEnvironment, present, schema, Uuid } from "@destack/schema";
+import { type UuidEnvironment, present, Uuid } from "@destack/schema";
 
 import { RequestId } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import type { ObjectStore } from "../server/store.ts";
 import { ObjectKey, type ObjectType } from "../object/object.ts";
-import { Condition } from "../object/condition.ts";
+import { type Decision, Status } from "../object/condition.ts";
 import { Claim, Claimant, ClaimRefusal, RESERVATION_MILLISECONDS } from "./claim.ts";
 import type { ClaimType } from "./method.ts";
-import { ObjectRemote } from "../replica/remote.ts";
+import { ObjectRemote, type Signer } from "../replica/remote.ts";
 
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
@@ -38,11 +38,11 @@ export interface RemoteStore {
 
 /** The stores elsewhere a store calls. */
 export const RemoteStore = {
-    /** Call a store elsewhere in one scope through a remote. */
-    of(remote: ObjectRemote, scope: string): RemoteStore {
+    /** Call a store elsewhere in one scope through a remote, as a signer if given. */
+    of(remote: ObjectRemote, scope: string, signer?: Signer): RemoteStore {
         return {
-            mutate: (mutation) => ObjectRemote.mutate(remote, scope, mutation),
-            query: (call) => remote.call(scope, call),
+            mutate: (mutation) => ObjectRemote.mutate(remote, scope, mutation, signer),
+            query: (call) => remote.call(scope, call, signer),
         };
     },
 
@@ -310,12 +310,12 @@ export class Reservation implements Participant {
 
         // observe a taken name, and a name held again after one was taken
         const refused = taken.find((entry) => entry.objectId === reservation.objectId);
-        const conditions = schema.record(schema.string(), Condition).parse(row["conditions"]);
+        const conditions = Status.conditions.parse(row["conditions"]);
         const isTaken = conditions["Ready"]?.reason === NAME_TAKEN;
         if (refused === undefined && !isTaken) {
             return;
         }
-        const ready: Condition =
+        const ready: Decision =
             refused === undefined
                 ? { status: "true", reason: APPLIED, message: "" }
                 : {

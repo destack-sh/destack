@@ -101,6 +101,9 @@ test("find the denial a missing scope conceals, through a family failure, and no
     const denial = ObjectError.of(
         "PERMISSION_DENIED",
         "permission 'read' is forbidden: it is not granted",
+        {
+            data: { permission: "note.read", object: "note space-1/note-1", caller: "anonymous" },
+        },
     );
     const concealed = ObjectError.of("SCOPE_NOT_FOUND", "scope space-1 not found", {
         cause: denial,

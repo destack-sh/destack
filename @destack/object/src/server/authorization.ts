@@ -357,6 +357,7 @@ export class Authorization extends access.Authorization {
         const denial = ObjectError.of(
             "PERMISSION_DENIED",
             access.PermissionReference.forbidden(permission),
+            { data: access.PermissionReference.denial(permission, target, context.caller.subject) },
         );
         if (!isReadable) {
             throw conceal(denial, `${object.name} '${id}' not found`);

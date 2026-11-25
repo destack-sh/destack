@@ -371,7 +371,13 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     // decide the home's page for alice alone, and refuse a space alice does not relate
     expect(await first(as(home))).toEqual([["insert", alice.id]]);
     await expect(first(as(stranger))).rejects.toThrow(
-        AccessError.of("PERMISSION_DENIED", "permission 'follow' is forbidden: it is not granted"),
+        AccessError.of("PERMISSION_DENIED", "permission 'follow' is forbidden: it is not granted", {
+            data: {
+                permission: "user.follow",
+                object: `user universe/${alice.id}`,
+                caller: `space universe/${stranger}`,
+            },
+        }),
     );
 });
 

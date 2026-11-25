@@ -24,12 +24,12 @@ import { PackageName } from "@destack/package";
 import { ObjectKey, type ObjectType } from "./object.ts";
 import type { MethodName } from "../method/procedure.ts";
 import {
-    ConditionMap,
-    SYNCED,
+    type ControlledRecord,
+    type Decision,
     Observation,
-    type ObservationReport,
-    type ObservedRecord,
-    SYNCED_CONDITION,
+    Status,
+    SYNCED,
+    SYNCED_DECISION,
 } from "./condition.ts";
 import type { ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
@@ -45,7 +45,7 @@ const ObservedFields = schema
         /** The desired generation. */
         generation: schema.number().int(),
         /** The conditions by name. */
-        conditions: ConditionMap,
+        conditions: Status.conditions,
     })
     .strip();
 
@@ -141,8 +141,8 @@ export interface ObjectReconciliation<
     /** Record an object's conditions and observed fields at its generation via observe, once. */
     readonly observe: (
         object: ObjectType,
-        row: ObservedRecord & Readonly<Record<string, unknown>>,
-        observation: ObservationReport,
+        row: ControlledRecord,
+        observation: Observation,
     ) => Promise<unknown>;
 }
 
@@ -426,7 +426,7 @@ export const ObjectController = {
         const context = ObjectController.context(store, object, rows, reconciliation);
         const { mutate } = context;
         const isObserved = ObjectController.isObserved(store, object);
-        const observeRead = async (observation: ObservationReport) => {
+        const observeRead = async (observation: Observation) => {
             // observe each row at the generation the pass read, leaving out the ones removed since
             const read = (isObserved ? rows : []).map((row) => ({
                 ...row,
@@ -451,7 +451,7 @@ export const ObjectController = {
             // reconcile, then record each converged object synced at the generation the pass read
             const outcome = await declared.reconcile(context);
             if (outcome !== "waiting") {
-                await observeRead({ conditions: { [SYNCED]: SYNCED_CONDITION } });
+                await observeRead({ conditions: { [SYNCED]: SYNCED_DECISION } });
             }
         } catch (error) {
             // hold a pass a suspension refused midway, until the resume selects it again
@@ -487,7 +487,7 @@ export const ObjectController = {
             object,
             identifiers: (rows) => rows.map((row) => ObjectController.readIdentifier(row)),
         };
-        const record = async (condition: ObservationReport["conditions"][string]) => {
+        const record = async (condition: Decision) => {
             // read the objects again as the pass left them, none the store only replicates
             const rows = ObjectController.isObserved(store, reported.object)
                 ? await ObjectController.reread(
@@ -511,7 +511,7 @@ export const ObjectController = {
         try {
             const outcome = await work.reconcile(context);
             if (outcome !== "waiting") {
-                await record(SYNCED_CONDITION);
+                await record(SYNCED_DECISION);
             }
         } catch (error) {
             // hold a pass a suspension refused midway, until the resume projects it again
@@ -529,7 +529,7 @@ export const ObjectController = {
     },
 
     /** Describe a failed reconcile as Crossplane's ReconcileError, findable by its reason. */
-    failedCondition(failure: Failure): ObservationReport["conditions"][string] {
+    failedCondition(failure: Failure): Decision {
         return {
             status: "false",
             reason: "ReconcileError",
@@ -542,7 +542,7 @@ export const ObjectController = {
         store: ObjectStore,
         object: ObjectType,
         ids: readonly string[],
-    ): Promise<(ObservedRecord & Readonly<Record<string, unknown>>)[]> {
+    ): Promise<ControlledRecord[]> {
         // skip the read for no objects
         if (ids.length === 0) {
             return [];

@@ -1,15 +1,14 @@
 export {
     AWAITING_APPROVAL,
     Condition,
-    ConditionMap,
     ConditionSet,
+    type ControlledRecord,
+    Decision,
     Observation,
-    type ObservationReport,
-    type ObservedRecord,
     type Progress,
-    StatusCondition,
+    Status,
     SYNCED,
-    SYNCED_CONDITION,
+    SYNCED_DECISION,
 } from "./condition.ts";
 export {
     defineObject,

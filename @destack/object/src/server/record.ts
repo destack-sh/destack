@@ -798,6 +798,13 @@ export const RecordExecution = {
         const denial = ObjectError.of(
             "PERMISSION_DENIED",
             PermissionReference.forbidden(permission),
+            {
+                data: PermissionReference.denial(
+                    permission,
+                    context.object.reference(context.scope, schema.string().parse(row["id"])),
+                    context.caller.subject,
+                ),
+            },
         );
         if (!isReadable) {
             throw conceal(denial, `${context.object.name} not found`);

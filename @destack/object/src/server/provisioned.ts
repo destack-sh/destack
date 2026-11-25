@@ -15,11 +15,11 @@ import { nth, Digest, Duration, type Identifier, present, schema, zip } from "@d
 import type { ObjectController, ObjectReconciliation } from "../object/controller.ts";
 import {
     AWAITING_APPROVAL,
-    type Condition,
+    type Decision,
     Observation,
-    type ObservationReport,
+    Status,
     SYNCED,
-    SYNCED_CONDITION,
+    SYNCED_DECISION,
 } from "../object/condition.ts";
 import type { ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
@@ -150,7 +150,7 @@ export class ResourceController {
 
         // record a converged resource synced at the generation the call read, as its controller's pass does
         if (outcome !== "waiting") {
-            await call.observe(object, row, { conditions: { [SYNCED]: SYNCED_CONDITION } });
+            await call.observe(object, row, { conditions: { [SYNCED]: SYNCED_DECISION } });
         }
 
         return outcome;
@@ -226,7 +226,7 @@ export class ResourceController {
             return "waiting";
         }
         // provision a resource whose specification changed and apply its desired states
-        else if (!Observation.isCurrent(row, "Ready") || row.reference === null) {
+        else if (!Status.isCurrent(row, "Ready") || row.reference === null) {
             const provisioned = await ResourceController.#provision(
                 object,
                 row,
@@ -557,8 +557,8 @@ export class ResourceController {
         object: ResourceType<"space">,
         row: Resource,
         reconciliation: ResourcePass,
-        fields: NonNullable<ObservationReport["fields"]>,
-        conditions: Readonly<Record<string, Condition>>,
+        fields: NonNullable<Observation["fields"]>,
+        conditions: Readonly<Record<string, Decision>>,
     ): Promise<Resource> {
         // observe the generation, the conditions and the fields once
         const observed = await reconciliation.observe(object, row, { conditions, fields });
@@ -567,7 +567,7 @@ export class ResourceController {
     }
 
     /** Describe an unmet condition. */
-    static #unready(reason: string, message: string): Condition {
+    static #unready(reason: string, message: string): Decision {
         return { status: "false", reason, message };
     }
 
