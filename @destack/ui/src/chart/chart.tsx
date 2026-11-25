@@ -10,16 +10,24 @@ import {
     onSettled,
     Show,
     untrack,
+    useLocale,
 } from "@destack/view";
 import type { ChartPoint, ChartTheme, ChartValue, DomChartDefinition } from "@tanstack/charts";
 import { createChartRendererAdapter } from "@tanstack/charts/adapter/renderer";
 import { createCanvasChartRenderer } from "@tanstack/charts/canvas";
 import { renderChartSvg } from "@tanstack/charts/svg";
 import { createSvgChartRenderer } from "@tanstack/charts/svg/renderer";
+import { Length } from "../virtualizer/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The height of a chart that sets neither a height nor an aspect ratio. */
 const DEFAULT_HEIGHT = 320;
+
+/** The size of the text the scene grows with. */
+const TEXT_SIZE = "var(--destack-text-xs-font-size)";
+
+/** That size at the default text size, in pixels, which the engine's own sizes suit. */
+const BASE_TEXT = 12;
 
 /** The scene colors every chart takes from the theme's roles. */
 const THEME: ChartTheme = {
@@ -57,6 +65,13 @@ const styles = style.create({
         width: "100%",
         height: "100%",
     },
+    // lay it out smaller, and grow it back with its text and its tooltip
+    grown: (length: string, transform: string, transformOrigin: string) => ({
+        width: length,
+        height: length,
+        transform,
+        transformOrigin,
+    }),
 });
 
 /** A column of a chart's table: the field of each row it shows and its heading. */
@@ -133,6 +148,14 @@ export function Chart<
         untrack(() => properties.renderer) === "canvas"
             ? createCanvasChartRenderer<Datum, XValue, YValue>()
             : createSvgChartRenderer<Datum, XValue, YValue>(renderChartSvg);
+
+    // lay the scene out as at the default text size, and grow it with the text
+    const locale = useLocale();
+    const textLength = new Length(() => TEXT_SIZE);
+    const scale = (): number => (textLength.pixels() ?? BASE_TEXT) / BASE_TEXT;
+    const isProportioned = (): boolean =>
+        properties.height === undefined && properties.aspectRatio !== undefined;
+    const height = (): number => (properties.height ?? DEFAULT_HEIGHT) / scale();
     const options = () => ({
         definition: themed(properties.definition),
         renderer,
@@ -141,7 +164,9 @@ export function Chart<
         ...(properties.description === undefined
             ? {}
             : { ariaDescription: properties.description }),
-        ...(properties.height === undefined ? {} : { height: properties.height }),
+        ...(isProportioned() || (properties.height === undefined && scale() === 1)
+            ? {}
+            : { height: height() }),
         ...(properties.aspectRatio === undefined ? {} : { aspectRatio: properties.aspectRatio }),
         onFocusChange: (point: ChartPoint<Datum, XValue, YValue> | null) =>
             properties.onFocusChange?.(point),
@@ -163,9 +188,23 @@ export function Chart<
 
     // size the host as the upstream host does until it measures itself
     const size = (): style.Styles =>
-        properties.height === undefined && properties.aspectRatio !== undefined
+        isProportioned()
             ? styles.proportioned(String(properties.aspectRatio))
             : styles.tall(`${String(properties.height ?? DEFAULT_HEIGHT)}px`);
+
+    // fill the host once grown
+    const grown = (): style.Styles => {
+        // leave it as the engine lays it out at the default text size
+        const factor = scale();
+
+        return factor === 1
+            ? null
+            : styles.grown(
+                  `${String(100 / factor)}%`,
+                  `scale(${String(factor)})`,
+                  locale.direction === "rtl" ? "100% 0" : "0 0",
+              );
+    };
 
     return (
         <div
@@ -183,8 +222,10 @@ export function Chart<
                     surface = element;
                 }}
                 innerHTML={markup}
-                {...style.attrs(styles.surface)}
+                {...style.attributes([styles.surface, grown()])}
             />
+
+            {textLength.render()}
 
             {/* Values */}
             <Show when={properties.table}>
