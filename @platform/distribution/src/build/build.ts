@@ -60,6 +60,9 @@ const INSTALLATIONS = schema.record(schema.string(), InstallationDefinition);
 /** The desktop package, whose workspace builds the release of the program computers run. */
 const DESKTOP = "@destack/desktop";
 
+/** The template package, which a new package starts from by default. */
+const TEMPLATE = "@destack/blank";
+
 /**
  * How long a home may take to serve its forge, in milliseconds.
  *
@@ -81,6 +84,12 @@ export type PublishOptions = Pick<
     MethodInput<typeof packageObject, "publish">,
     "commit" | "visibility" | "tags"
 >;
+
+/** How a platform build builds: its release version, else the release's, and its stamping. */
+export type PlatformBuildOptions = Pick<WorkspaceUnitOptions, "isUnreleased"> & {
+    /** The version every release has. */
+    readonly version?: string;
+};
 
 /** The first-party releases a universe's homes run and its forge publishes. */
 export class PlatformBuild implements AsyncDisposable {
@@ -111,7 +120,7 @@ export class PlatformBuild implements AsyncDisposable {
     static async build(
         root: string,
         host: Environment<"files" | "process" | "host">,
-        options: Pick<WorkspaceUnitOptions, "isUnreleased"> = {},
+        options: PlatformBuildOptions = {},
     ): Promise<PlatformBuild> {
         // build in a span, which records the build once it succeeds
         return await TelemetryScope.of(import.meta.destack.package, host.telemetry).span(
@@ -126,26 +135,28 @@ export class PlatformBuild implements AsyncDisposable {
     static async #build(
         root: string,
         host: Environment<"files" | "process" | "host">,
-        options: Pick<WorkspaceUnitOptions, "isUnreleased">,
+        options: PlatformBuildOptions,
     ): Promise<PlatformBuild> {
         // open the store and the compilers, closing the store when a build fails
         await using opened = new AsyncDisposableStack();
         const store = opened.use(await LocalBuildStore.open(join(root, RELEASES_DIRECTORY), host));
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
-        // read the workspace once at the release's version, and the packages of the stacks and of the desktop
-        const version = releaseVersion(host);
+        // read the workspace once at the release's version, and the packages of the stacks, the desktop and the template
+        const { version: given, ...unitOptions } = options;
+        const version = given ?? releaseVersion(host);
         const workspace = await Workspace.open(root, compilers, { version });
         const packages = [
             await workspace.package(join(root, STACK)),
             await workspace.package(join(root, DESKTOP)),
+            await workspace.package(join(root, TEMPLATE)),
         ];
 
         // build and make an image of each unit, a unit both packages share once, the image attaching its graph
         const releases = new Map<string, BuildReader>();
         const images = new Map<string, Digest>();
         const imaged = await Promise.all(
-            packages.map((unitPackage) => unitPackage.imageUnits(options)),
+            packages.map((unitPackage) => unitPackage.imageUnits(unitOptions)),
         );
         for (const [name, { build, image }] of imaged.flatMap((units) => [...units])) {
             releases.set(name, await store.contents(build.manifest));
@@ -171,7 +182,7 @@ export class PlatformBuild implements AsyncDisposable {
             }
             const directory = resolve(root, checkout);
             const commit =
-                options.isUnreleased === true
+                unitOptions.isUnreleased === true
                     ? undefined
                     : await readReleaseCommit(directory, host);
             if (commit !== undefined && commit !== input.commit) {
@@ -188,7 +199,7 @@ export class PlatformBuild implements AsyncDisposable {
                 resolver: async (dependency) => found(images, dependency.name),
             });
             const unitPackage = await outside.package(join(directory, input.directory));
-            const { build, image } = found(await unitPackage.imageUnits(options), name);
+            const { build, image } = found(await unitPackage.imageUnits(unitOptions), name);
             releases.set(name, await store.contents(build.manifest));
             images.set(name, image);
         }
@@ -223,40 +234,19 @@ export class PlatformBuild implements AsyncDisposable {
         options: PublishOptions,
     ): Promise<void> {
         // publish in a span, which records the releases once they succeed
-        const { telemetry, clock, network } = this.store.environment;
-        const accounts = session.accounts();
-        await TelemetryScope.of(import.meta.destack.package, telemetry).span(
+        const { environment } = this.store;
+        await TelemetryScope.of(import.meta.destack.package, environment.telemetry).span(
             "platform.release.publish",
             { "platform.release.tag": tag },
             async () => {
                 // publish each handle's images into its account's forge, after the handles they require
                 for (const { handle, names } of PlatformBuild.#runs(this.releases)) {
-                    // find the handle's account and its residency's home, which serves its forge
-                    const claimed = await accounts.claim.owner(
-                        Claim.key(account, "handle", [handle]),
-                    );
-                    if (claimed === null) {
-                        throw new Error(`no account claims '@${handle}'`);
-                    }
-                    const accountId = account.identifier(claimed.objectId);
-                    const home = schema
-                        .identifier("space")
-                        .parse(await accounts.residency.locate({ account: accountId }));
-
-                    // call the forge at the machine serving the home, as the session bound to the home
-                    const send = PlatformBuild.#retry((request) => network.fetch(request), clock);
-                    const mount = await PlatformBuild.#locate(SpaceMount.url(universe, home), send);
-                    const url = `${mount}${PackageMount.path(registryPackage.id)}`;
-                    const fetch = PlatformBuild.#retry(
-                        session.fetch(registryPackage.id, { partition: home }),
-                        clock,
-                    );
-
                     // find the handle's images its forge has yet to release
-                    const registry = createClient(
-                        registryPackage,
-                        { url, fetch },
-                        this.store.environment,
+                    const { registry, home, accountId, url, fetch } = await PlatformBuild.#registry(
+                        session,
+                        universe,
+                        handle,
+                        environment,
                     );
                     const { items } = await registry.release.list({
                         spaceId: home,
@@ -279,7 +269,7 @@ export class PlatformBuild implements AsyncDisposable {
                             layer.map((name) =>
                                 registry.package.publish({
                                     spaceId: home,
-                                    requestId: RequestId.create(this.store.environment),
+                                    requestId: RequestId.create(environment),
                                     accountId,
                                     image: found(this.images, name),
                                     tag,
@@ -313,7 +303,7 @@ export class PlatformBuild implements AsyncDisposable {
                             registry.package.point({
                                 spaceId: home,
                                 id: item.parentId,
-                                requestId: RequestId.create(this.store.environment),
+                                requestId: RequestId.create(environment),
                                 name,
                                 version: item.version,
                             }),
@@ -323,6 +313,55 @@ export class PlatformBuild implements AsyncDisposable {
             },
             { level: "info" },
         );
+    }
+
+    /** Ask the platform's forge for the version the next release takes, as the stack's. */
+    static async next(
+        session: Session,
+        universe: string,
+        environment: Environment,
+    ): Promise<string> {
+        const { registry, home } = await PlatformBuild.#registry(
+            session,
+            universe,
+            PackageName.split(STACK).handle,
+            environment,
+        );
+        const { version } = await registry.package.next({ spaceId: home, name: STACK });
+
+        return version;
+    }
+
+    /** Open the forge of a handle's account at the machine serving its home, as the session. */
+    static async #registry(
+        session: Session,
+        universe: string,
+        handle: string,
+        environment: Environment,
+    ) {
+        // find the handle's account and its residency's home, which serves its forge
+        const accounts = session.accounts();
+        const claimed = await accounts.claim.owner(Claim.key(account, "handle", [handle]));
+        if (claimed === null) {
+            throw new Error(`no account claims '@${handle}'`);
+        }
+        const accountId = account.identifier(claimed.objectId);
+        const home = schema
+            .identifier("space")
+            .parse(await accounts.residency.locate({ account: accountId }));
+
+        // call the forge at the machine serving the home, as the session bound to the home
+        const { clock, network } = environment;
+        const send = PlatformBuild.#retry((request) => network.fetch(request), clock);
+        const mount = await PlatformBuild.#locate(SpaceMount.url(universe, home), send);
+        const url = `${mount}${PackageMount.path(registryPackage.id)}`;
+        const fetch = PlatformBuild.#retry(
+            session.fetch(registryPackage.id, { partition: home }),
+            clock,
+        );
+        const registry = createClient(registryPackage, { url, fetch }, environment);
+
+        return { registry, home, accountId, url, fetch };
     }
 
     /** Locate a space's mount at the machine serving it, following its address's move once. */
