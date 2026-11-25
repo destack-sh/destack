@@ -2,7 +2,7 @@ import { nth, type ScheduleLink, type TickUnit, type TimeScale } from "@destack/
 import { expect, onTestFinished, test } from "@destack/test";
 import { space } from "@destack/theme/tokens.stylex";
 import { Locale, Localization, Shortcut } from "@destack/locale";
-import { createSignal, Errored, flush, type JSX, LocaleContext } from "@destack/view";
+import { createSignal, Errored, flush, type JSX, LocaleContext, Show } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import { layOutElements } from "../virtualizer/test/layout.ts";
 import {
@@ -10,6 +10,9 @@ import {
     TimelineToolbar,
     TimelineAxis,
     TimelineBar,
+    TimelineBarAddon,
+    TimelineBarList,
+    TimelineTrack,
     TimelineBody,
     TimelineCell,
     type TimelineControl,
@@ -25,7 +28,9 @@ import {
     TimelineMinimap,
     type TimelineRowMove,
     TimelineRow,
+    TimelineRowGuide,
     TimelineRowLabel,
+    type TimelineScale,
     TimelineRowList,
     TimelineToday,
     TimelineZoom,
@@ -108,7 +113,7 @@ function press(container: HTMLElement, key: string, modifiers: KeyboardEventInit
 function rowsOf(container: HTMLElement): string[] {
     return [...container.querySelectorAll<HTMLElement>("[data-slot=timeline-row]")].map(
         (row) =>
-            `${row.getAttribute("aria-level") ?? ""} ${row.querySelector("[data-slot=timeline-bar]")?.textContent ?? ""}`,
+            `${row.getAttribute("aria-level") ?? ""} ${row.querySelector("[data-slot=timeline-bar]")?.getAttribute("aria-label") ?? ""}`,
     );
 }
 
@@ -141,12 +146,82 @@ test("draw an uncolored parent's bar as a summary, and a colored parent's in its
     flush();
     const bars = [...container.querySelectorAll<HTMLElement>("[data-slot=timeline-bar]")];
 
-    expect(bars.map((bar) => [bar.textContent, bar.dataset["summary"]])).toEqual([
+    expect(bars.map((bar) => [bar.getAttribute("aria-label"), bar.dataset["summary"]])).toEqual([
         ["GET /launch", ""],
         ["SELECT signups", undefined],
         ["render page", undefined],
         ["render template", undefined],
     ]);
+});
+
+/** List the parts of the row of the trace's template, by their slots. */
+function partsOf(view: () => JSX.Element): string[] {
+    const { container } = render(view);
+    flush();
+    const row = [...container.querySelectorAll("[data-slot=timeline-row]")].at(-1);
+
+    return [...(row?.querySelectorAll("[data-slot]") ?? [])].map(
+        (element) => element.getAttribute("data-slot") ?? "",
+    );
+}
+
+test("draw a timeline without children, and replace a row's parts by the caller's", () => {
+    measureElements();
+    expect({
+        standard: partsOf(() => <Timeline items={TRACE} axis="offset" />),
+        replaced: partsOf(() => (
+            <Timeline items={TRACE} axis="offset">
+                <TimelineBody>
+                    <TimelineRowList>
+                        {(node) => (
+                            <TimelineRow>
+                                <TimelineRowLabel>
+                                    <TimelineRowGuide />
+                                    {node().item.label}
+                                </TimelineRowLabel>
+                                <TimelineTrack>
+                                    <TimelineBarList>
+                                        {(item) => (
+                                            <>
+                                                <TimelineBar variant="line">
+                                                    <TimelineBarAddon align="start">
+                                                        1s
+                                                    </TimelineBarAddon>
+                                                </TimelineBar>
+                                                <TimelineRange
+                                                    start={item().start ?? 0}
+                                                    end={item().end ?? 0}
+                                                />
+                                            </>
+                                        )}
+                                    </TimelineBarList>
+                                </TimelineTrack>
+                            </TimelineRow>
+                        )}
+                    </TimelineRowList>
+                </TimelineBody>
+            </Timeline>
+        )),
+    }).toEqual({
+        standard: [
+            "timeline-row-label",
+            "timeline-row-guide",
+            "timeline-track",
+            "timeline-lane",
+            "timeline-bar",
+            "timeline-bar-words",
+            "timeline-bar-card",
+        ],
+        replaced: [
+            "timeline-row-label",
+            "timeline-row-guide",
+            "timeline-track",
+            "timeline-lane",
+            "timeline-bar",
+            "timeline-bar-addon",
+            "timeline-range",
+        ],
+    });
 });
 
 test("mark a trace's axis in offsets from its start, and fill a bar the caller composes solid", () => {
@@ -160,11 +235,17 @@ test("mark a trace's axis in offsets from its start, and fill a bar the caller c
                     {(node) => (
                         <TimelineRow>
                             <TimelineRowLabel />
-                            <TimelineBar
-                                {...(node().item.key === "template"
-                                    ? { color: "red", variant: "solid" }
-                                    : {})}
-                            />
+                            <TimelineTrack>
+                                <TimelineBarList>
+                                    {() => (
+                                        <TimelineBar
+                                            {...(node().item.key === "template"
+                                                ? { color: "red", variant: "solid" }
+                                                : {})}
+                                        />
+                                    )}
+                                </TimelineBarList>
+                            </TimelineTrack>
                         </TimelineRow>
                     )}
                 </TimelineRowList>
@@ -175,7 +256,7 @@ test("mark a trace's axis in offsets from its start, and fill a bar the caller c
         (mark) => mark.textContent,
     );
     const bars = [...container.querySelectorAll<HTMLElement>("[data-slot=timeline-bar]")].map(
-        (bar) => `${bar.textContent ?? ""} ${bar.dataset["variant"] ?? ""}`,
+        (bar) => `${bar.getAttribute("aria-label") ?? ""} ${bar.dataset["variant"] ?? ""}`,
     );
 
     const parts = [...(container.querySelector("[data-slot=timeline]")?.children ?? [])]
@@ -339,11 +420,13 @@ test("describe a bar in its hover card by its dates and planned dates, a milesto
     });
 });
 
-/** Read the width of a header's labels' column in pixels, 16rem being 256. */
+/** Read the width of a header's labels' column in pixels, a sidebar's being 256. */
 function labelsOf(header: HTMLElement | null): number {
     const columns = header?.style.getPropertyValue("--x-gridTemplateColumns") ?? "";
 
-    return columns.startsWith("16rem") ? 256 : Number.parseFloat(columns);
+    return columns.startsWith("min(var(--destack-width-sidebar), 50%)")
+        ? 256
+        : Number.parseFloat(columns);
 }
 
 test("resize the labels' column from its edge by the pointer and the arrow keys, within its bounds", () => {
@@ -1171,7 +1254,7 @@ test("shade a range down the track, mark a bar late past its deadline, and draw 
                     {() => (
                         <TimelineRow>
                             <TimelineRowLabel />
-                            <TimelineBar before="Started" after="Ada" />
+                            <TimelineTrack />
                         </TimelineRow>
                     )}
                 </TimelineRowList>
@@ -1190,18 +1273,11 @@ test("shade a range down the track, mark a bar late past its deadline, and draw 
         milestones: all("timeline-bar-milestone").map((milestone) =>
             milestone.getAttribute("aria-label"),
         ),
-        beside: [all("timeline-bar-before"), all("timeline-bar-after")].map((each) =>
-            each.map((element) => element.textContent),
-        ),
     }).toEqual({
         range: [["Cycle 12", "purple"]],
         late: [true, false],
         deadlines: 2,
         milestones: ["Beta"],
-        beside: [
-            ["Started", "Started"],
-            ["Ada", "Ada"],
-        ],
     });
 });
 
@@ -1223,7 +1299,7 @@ test("lay a column out beside the labels in the header and every row, the track 
                             <TimelineCell>
                                 {node().item.key === "build" ? "Ada" : "Grace"}
                             </TimelineCell>
-                            <TimelineBar />
+                            <TimelineTrack />
                         </TimelineRow>
                     )}
                 </TimelineRowList>
@@ -1245,10 +1321,10 @@ test("lay a column out beside the labels in the header and every row, the track 
         marker: container
             .querySelector<HTMLElement>("[data-slot=timeline-marker]")
             ?.style.getPropertyValue("--x-insetInlineStart")
-            .startsWith("calc(calc(16rem + 6rem)"),
+            .startsWith("calc(calc(min(var(--destack-width-sidebar), 50%) + 6rem)"),
     }).toEqual({
-        header: "16rem 6rem minmax(0, 1fr)",
-        row: "16rem 6rem minmax(0, 1fr)",
+        header: "min(var(--destack-width-sidebar), 50%) 6rem minmax(0, 1fr)",
+        row: "min(var(--destack-width-sidebar), 50%) 6rem minmax(0, 1fr)",
         column: "Lead",
         cells: ["Grace", "Ada", "Grace"],
         marker: true,
@@ -1274,7 +1350,7 @@ test("draw items on the rows they name, packed into lanes where they overlap, ea
             label: row.querySelector("[data-slot=timeline-row-label]")?.textContent,
             height: row.style.getPropertyValue("--x-height"),
             bars: [...row.querySelectorAll("[data-slot=timeline-lane]")].map((lane) => [
-                lane.querySelector("[data-slot=timeline-bar]")?.textContent,
+                lane.querySelector("[data-slot=timeline-bar]")?.getAttribute("aria-label"),
                 lane.getAttribute("data-lane"),
             ]),
         })),
@@ -1654,8 +1730,8 @@ test("draw a bar's slack after it, and set how much is done by its grip's arrow 
         ],
         done: changes.map((item) => item.progress),
     }).toEqual({
-        // the slack runs from the end at 4.08 of 4.16 days shown, two days long
-        slack: [98.076_923_076_923_07, 48.076_923_076_923_07],
+        // the slack runs from the end at 4.08 of 4.16 days shown, cut where the window ends
+        slack: [98.076_923_076_923_07, 1.923_076_923_076_927_3],
         grip: ["slider", "50", "50%"],
         done: [0.6, 1, 0],
     });
@@ -1811,4 +1887,240 @@ test("open a link with Enter or a double click, and keep every option off the ti
         shortcuts: "Delete Backspace Enter",
         attributes: [],
     });
+});
+
+/** Frames at 25 a second, marked every ten, things landing on even ones. */
+const FRAMES: TimelineScale = {
+    ticks: ({ range }) =>
+        Array.from({ length: Math.floor((range.end - range.start) / 10) + 1 }, (_, index) => ({
+            at: Math.ceil(range.start / 10) * 10 + index * 10,
+        })),
+    label: (at) => `f${String(at)}`,
+    snap: (at) => Math.round(at / 2) * 2,
+};
+
+/** Two clips of a track that overlap, and a track of its own. */
+const CLIPS: readonly TimelineItem[] = [
+    { key: "film", label: "Film" },
+    { key: "roofs", label: "Roofs", row: "film", start: 0, end: 50 },
+    { key: "harbour", label: "Harbour", row: "film", start: 40, end: 80 },
+    { key: "curve", label: "Curve" },
+];
+
+/** Draw the clips, reading the axis, the lanes and the rows' heights. */
+function drawClips(overlap: "stack" | "cover") {
+    const { container } = render(() => (
+        <Timeline
+            axis={FRAMES}
+            items={CLIPS}
+            overlap={overlap}
+            rowHeight={(node) => (node.item.key === "film" ? 60 : 20)}
+            defaultWindow={{ start: 0, end: 80 }}
+        />
+    ));
+    flush();
+    const all = (slot: string) => [
+        ...container.querySelectorAll<HTMLElement>(`[data-slot=${slot}]`),
+    ];
+
+    return {
+        marks: all("timeline-axis-mark").map((mark) => mark.textContent),
+        lanes: all("timeline-lane").map((lane) => lane.dataset["lane"]),
+        heights: all("timeline-row").map((row) => row.style.getPropertyValue("--x-height")),
+    };
+}
+
+test("count an axis by the caller's scale, and stack or cover what overlaps in rows of any height", () => {
+    measureElements();
+    const marks = ["f0", "f10", "f20", "f30", "f40", "f50", "f60", "f70", "f80"];
+
+    expect({ stack: drawClips("stack"), cover: drawClips("cover") }).toEqual({
+        stack: { marks, lanes: ["0", "1"], heights: ["120px", "20px"] },
+        cover: { marks, lanes: ["0", "0"], heights: ["60px", "20px"] },
+    });
+});
+
+test("move a marker, a range and its edges by the keys, landing on the scale's marks", () => {
+    measureElements();
+    const [at, setAt] = createSignal(20);
+    const [loop, setLoop] = createSignal({ start: 20, end: 50 });
+    const { container } = render(() => (
+        <Timeline axis={FRAMES} items={CLIPS} defaultWindow={{ start: 0, end: 80 }}>
+            <TimelineHeader>
+                <TimelineAxis>
+                    <TimelineRange {...loop()} onRangeChange={setLoop} aria-label="Loop" />
+                </TimelineAxis>
+            </TimelineHeader>
+            <TimelineBody>
+                <TimelineMarker at={at()} onAtChange={setAt} aria-label="Playhead" />
+            </TimelineBody>
+        </Timeline>
+    ));
+    flush();
+    const step = (selector: string, key: string) => {
+        const element = container.querySelector<HTMLElement>(selector);
+        element?.focus();
+        press(container, key);
+
+        return [element?.role, element?.getAttribute("aria-valuetext")];
+    };
+
+    const marker = "[data-slot=timeline-marker]";
+
+    expect({
+        bounds: ["aria-valuemin", "aria-valuemax"].map((name) =>
+            container.querySelector(marker)?.getAttribute(name),
+        ),
+        up: step(marker, "ArrowUp"),
+        home: step(marker, "Home"),
+        end: step(marker, "End"),
+        back: step(marker, "ArrowLeft"),
+        marker: step(marker, "ArrowRight"),
+        at: at(),
+        edge: step("[data-slot=timeline-range-edge][data-edge=end]", "ArrowRight"),
+        loop: loop(),
+    }).toEqual({
+        bounds: ["0", "80"],
+        up: ["slider", "f20"],
+        home: ["slider", "f0"],
+        end: ["slider", "f80"],
+        back: ["slider", "f70"],
+        marker: ["slider", "f80"],
+        at: 80,
+        edge: ["slider", "f60"],
+        loop: { start: 20, end: 60 },
+    });
+});
+
+test("draw the caller's own content on a track beside its bars", () => {
+    measureElements();
+    const { container } = render(() => (
+        <Timeline axis={FRAMES} items={CLIPS} defaultWindow={{ start: 0, end: 80 }}>
+            <TimelineBody>
+                <TimelineRowList>
+                    {() => (
+                        <TimelineRow>
+                            <TimelineTrack>
+                                <i>wave</i>
+                                <TimelineBarList>{(item) => <b>{item().label}</b>}</TimelineBarList>
+                            </TimelineTrack>
+                        </TimelineRow>
+                    )}
+                </TimelineRowList>
+            </TimelineBody>
+        </Timeline>
+    ));
+    flush();
+
+    expect(
+        [...container.querySelectorAll("[data-slot=timeline-track]")].map(
+            (track) => track.textContent,
+        ),
+    ).toEqual(["waveRoofsHarbour", "wave"]);
+});
+
+test("shade no days on an axis of offsets, and keep a window as long as ten however far it zooms", () => {
+    // a trace of a Saturday, an hour long, zoomed in past its shortest window
+    measureElements();
+    const start = Date.UTC(2026, 10, 21);
+    let control: TimelineControl | undefined;
+    const { container } = render(() => (
+        <Timeline
+            items={[{ key: "run", label: "Run", start, end: start + 3_600_000 }]}
+            axis="offset"
+        >
+            <Probe read={(each) => (control = each)} />
+            <TimelineBody />
+        </Timeline>
+    ));
+    flush();
+    const shades = container.querySelectorAll("[data-slot=timeline-non-working]").length;
+    for (let count = 0; count < 60; count += 1) {
+        control?.window.zoom(2, 0.5);
+        flush();
+    }
+    const range = control?.window.range();
+
+    expect({ shades, length: (range?.end ?? 0) - (range?.start ?? 0) }).toEqual({
+        shades: 0,
+        length: 10,
+    });
+});
+
+test("land an offset on the marks of its axis, counted from the first start", () => {
+    // a trace that starts 37 milliseconds past a round time
+    measureElements();
+    let control: TimelineControl | undefined;
+    render(() => (
+        <Timeline items={[{ key: "run", label: "Run", start: 1037, end: 2037 }]} axis="offset">
+            <Probe read={(each) => (control = each)} />
+            <TimelineBody />
+        </Timeline>
+    ));
+    flush();
+    const marks = control?.window.ticks().map((tick) => tick.at) ?? [];
+    const landed = control?.window.snap(1250, "start");
+
+    expect({ landed, isMark: marks.includes(landed ?? 0) }).toEqual({ landed: 1237, isMark: true });
+});
+
+/** Report whether something describes the first bar of a view. */
+function isDescribed(view: () => JSX.Element): boolean | undefined {
+    const { container } = render(view);
+
+    return container.querySelector("[data-slot=timeline-bar]")?.hasAttribute("aria-describedby");
+}
+
+test("describe a bar by its card, and by none where it has none", () => {
+    measureElements();
+    expect([
+        isDescribed(() => <Timeline items={TRACE} axis="offset" />),
+        isDescribed(() => (
+            <Timeline items={TRACE} axis="offset">
+                <TimelineBody>
+                    <TimelineRowList>
+                        {() => (
+                            <TimelineRow>
+                                <TimelineTrack>
+                                    <TimelineBarList>
+                                        {() => <TimelineBar>{null}</TimelineBar>}
+                                    </TimelineBarList>
+                                </TimelineTrack>
+                            </TimelineRow>
+                        )}
+                    </TimelineRowList>
+                </TimelineBody>
+            </Timeline>
+        )),
+    ]).toEqual([true, false]);
+});
+
+test("build a part's children once", () => {
+    measureElements();
+    let built = 0;
+    const Count = (): JSX.Element => {
+        built += 1;
+
+        return null;
+    };
+    render(() => (
+        <Timeline items={CLIPS} axis={FRAMES}>
+            <TimelineBody>
+                <TimelineRowList>
+                    {(node) => (
+                        <TimelineRow>
+                            <TimelineTrack>
+                                <Show when={node().item.key === "film"}>
+                                    <Count />
+                                </Show>
+                            </TimelineTrack>
+                        </TimelineRow>
+                    )}
+                </TimelineRowList>
+            </TimelineBody>
+        </Timeline>
+    ));
+    flush();
+
+    expect(built).toBe(1);
 });

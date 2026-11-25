@@ -1,19 +1,7 @@
 import { t } from "@destack/locale";
-import {
-    Duration,
-    nth,
-    type ScheduleEdge,
-    type Tick,
-    type TickUnit,
-    TimeScale,
-    TimeZone,
-    type Week,
-    WorkCalendar,
-    WorkWeek,
-} from "@destack/schema";
+import { Duration, type ScheduleEdge, TimeScale, WorkCalendar, WorkWeek } from "@destack/schema";
 import {
     type Accessor,
-    createControllableSignal,
     createMemo,
     createSignal,
     untrack,
@@ -22,6 +10,16 @@ import {
 } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
 import type { TimelineOptions } from "./control.ts";
+import {
+    DateScale,
+    DAY_UNITS,
+    ElapsedScale,
+    isDated,
+    type TimelinePeriod,
+    type TimelineScale,
+    type TimelineTick,
+    type TimelineView,
+} from "./scale.ts";
 import type { TimelineItem, TimelineTree } from "./tree.ts";
 
 /** The zoom levels of a timeline: a week, a month or a quarter per column. */
@@ -30,47 +28,11 @@ export const TIMELINE_ZOOM_LEVELS = ["week", "month", "quarter"] as const;
 /** A zoom level of a timeline. */
 export type TimelineZoomLevel = (typeof TIMELINE_ZOOM_LEVELS)[number];
 
-/** How a timeline's axis reads: dates and times of a plan, or offsets from a trace's start. */
-export type TimelineAxisMode = "time" | "offset";
-
 /** The milliseconds of a day of UTC. */
 export const DAY = Duration.milliseconds({ days: 1 });
 
-/** The date and time parts a period above the marks shows: November 2026 above the days. */
-const PERIOD_LABELS: Readonly<Record<TickUnit, Intl.DateTimeFormatOptions>> = {
-    millisecond: { second: "2-digit" },
-    second: { hour: "numeric", minute: "2-digit", second: "2-digit" },
-    minute: { hour: "numeric", minute: "2-digit" },
-    hour: { weekday: "short", day: "numeric", month: "short", hour: "numeric" },
-    day: { weekday: "short", day: "numeric", month: "short" },
-    week: { day: "numeric", month: "short" },
-    month: { month: "long", year: "numeric" },
-    year: { year: "numeric" },
-};
-
-/** The date and time parts a mark shows under its period, such as 18 under November. */
-const MARK_LABELS: Readonly<Record<TickUnit, Intl.DateTimeFormatOptions>> = {
-    millisecond: { second: "2-digit", fractionalSecondDigits: 3 },
-    second: { second: "2-digit" },
-    minute: { hour: "numeric", minute: "2-digit" },
-    hour: { hour: "numeric" },
-    day: { day: "numeric" },
-    week: { day: "numeric" },
-    month: { month: "short" },
-    year: { year: "numeric" },
-};
-
-/** The units of marks within a day, which say their day at midnight. */
-const DAY_UNITS: ReadonlySet<TickUnit> = new Set(["hour", "minute", "second", "millisecond"]);
-
-/** The units a duration is written in, largest first, with their milliseconds. */
-const DURATION_UNITS: readonly (readonly [string, number])[] = [
-    ["day", Duration.milliseconds({ days: 1 })],
-    ["hour", Duration.milliseconds({ hours: 1 })],
-    ["minute", Duration.milliseconds({ minutes: 1 })],
-    ["second", Duration.milliseconds({ seconds: 1 })],
-    ["millisecond", 1],
-];
+/** The shortest window, ten of what the axis counts, such as frames. */
+const LEAST_LENGTH = 10;
 
 /** The most days a window shades its non-working days over, past which the days are too narrow. */
 const SHADED_DAYS = 400;
@@ -88,24 +50,6 @@ const LEVEL_TOLERANCE = 0.15;
 /** The pixels one unit of a zoom level takes, past the marks' spacing so marks fall on units. */
 const UNIT_WIDTH = 120;
 
-/** The pixels between marks with short labels at least, such as 18 under November. */
-const MARK_SPACING = 32;
-
-/** The pixels between marks of each unit at least, by the width of their short labels. */
-const MARK_SPACINGS: Readonly<Record<TickUnit, number>> = {
-    millisecond: 64,
-    second: 64,
-    minute: 64,
-    hour: 64,
-    day: MARK_SPACING,
-    week: MARK_SPACING,
-    month: 40,
-    year: 48,
-};
-
-/** The pixels between marks with long labels at least, such as 400ms or 2026. */
-const TICK_SPACING = 96;
-
 /** The time a timeline shows, how it is marked, and how instants map onto its track. */
 export class TimelineWindow {
     /** The span shown, moved on to working time where hidden days would cover it whole. */
@@ -115,13 +59,13 @@ export class TimelineWindow {
     /** The element whose width is the track's, none until mounted. */
     readonly track: Accessor<HTMLElement | undefined>;
     /** The marks of the axis, none until the track has a width. */
-    readonly ticks: Accessor<Tick[]>;
+    readonly ticks: Accessor<readonly TimelineTick[]>;
     /** The calendar the track counts: the working days while hidden, else every millisecond. */
     readonly calendar: Accessor<WorkCalendar>;
     /** The non-working days to shade, none while hidden or while marks are wider than days. */
     readonly nonWorking: Accessor<TimeScale[]>;
     /** The periods above the marks, the first and last cut to the window. */
-    readonly periods: Accessor<TimeScale[]>;
+    readonly periods: Accessor<readonly TimelinePeriod[]>;
     /** Set the element whose width is the track's. */
     readonly attachTrack: (element: HTMLElement | undefined) => void;
     /** Show another span and tell the owner. */
@@ -130,8 +74,8 @@ export class TimelineWindow {
     readonly #workDays: Accessor<WorkCalendar>;
     /** The window's length in the track's time. */
     readonly #length: Accessor<number>;
-    /** The count of marks the window takes, none until the track has a width. */
-    readonly #countedMarks: Accessor<number | undefined>;
+    /** What the axis counts in. */
+    readonly scale: Accessor<TimelineScale>;
     /** The timeline's options. */
     readonly #options: TimelineOptions;
     /** The items, whose span the window fits and whose origin offsets count from. */
@@ -151,19 +95,26 @@ export class TimelineWindow {
         environment: ReturnType<typeof useEnvironment>,
         ticking: Accessor<number | undefined>,
     ) {
-        // show every item until the person zooms, or the span the owner controls
+        // show a trace's items as they grow until the person zooms, a plan's as it opened
         this.#options = options;
         this.#tree = tree;
         this.#locale = locale;
         this.#environment = environment;
         this.#ticking = ticking;
-        const [shown, show] = createControllableSignal<TimeScale>({
-            isControlled: () => options.window !== undefined,
-            value: () => options.window ?? tree.span(),
-            defaultValue: untrack(() => options.defaultWindow ?? tree.span()),
-            onChange: (range) => options.onWindowChange?.(range),
-        });
-        this.#show = show;
+        const [chosen, choose] = createSignal<TimeScale | undefined>(
+            untrack(
+                () => options.defaultWindow ?? (isDated(options.axis) ? tree.span() : undefined),
+            ),
+            { ownedWrite: true },
+        );
+        const shown = (): TimeScale => options.window ?? chosen() ?? tree.span();
+        this.#show = (range) => {
+            // keep the span the person chose unless the owner controls it
+            if (options.window === undefined) {
+                choose(range);
+            }
+            options.onWindowChange?.(range);
+        };
 
         // measure the track
         const [track, setTrack] = createSignal<HTMLElement | undefined>(undefined, {
@@ -202,28 +153,28 @@ export class TimelineWindow {
             return this.calendar().between(range.start, range.end);
         });
 
-        // mark the window once per change: the count of marks, then the marks and periods
-        this.#countedMarks = createMemo(() => {
-            // space marks by the elapsed width the track would take, past hidden days
-            const width = this.width();
-            const range = this.range();
-            const elapsed =
-                width === undefined
-                    ? undefined
-                    : (width * (range.end - range.start)) / this.#length();
-
-            return elapsed === undefined
-                ? undefined
-                : markCountOf(range, elapsed, this.#locale.week);
+        // count in dates, in offsets from the first start, or by the caller's scale
+        const dates = new DateScale(locale, {
+            timeZone: () => this.timeZone(),
+            calendar: () => this.calendar(),
+            now: () => this.now(),
+            unit: () => (options.snap === false ? undefined : options.snap),
         });
-        this.ticks = createMemo(() => this.#ticksOf());
-        this.periods = createMemo(() => {
-            const unit = this.periodUnit();
+        const elapsed = new ElapsedScale(locale, () => tree.origin());
+        this.scale = () =>
+            typeof options.axis === "object"
+                ? options.axis
+                : options.axis === "offset"
+                  ? elapsed
+                  : dates;
 
-            return unit === undefined
-                ? []
-                : TimeScale.periods(this.range(), unit, this.timeZone(), this.#locale.week);
+        // mark the window once per change, nothing until the track has a width
+        this.ticks = createMemo(() => {
+            const view = this.view();
+
+            return view.width === 0 ? [] : this.scale().ticks(view);
         });
+        this.periods = createMemo(() => this.scale().periods?.(this.view()) ?? []);
 
         // shade the weekends while they show and the marks are days
         this.nonWorking = createMemo(() => {
@@ -231,8 +182,9 @@ export class TimelineWindow {
             const [first] = this.ticks();
             const range = this.range();
             const isDaily =
-                first !== undefined && (first.unit === "day" || DAY_UNITS.has(first.unit));
+                first?.unit !== undefined && (first.unit === "day" || DAY_UNITS.has(first.unit));
             const isShaded =
+                isDated(options.axis) &&
                 options.hideNonWorking !== true &&
                 isDaily &&
                 range.end - range.start <= SHADED_DAYS * DAY;
@@ -261,7 +213,7 @@ export class TimelineWindow {
         // keep the instant at the share where it is, in the track's time
         const calendar = this.calendar();
         const pivot = this.instant(around);
-        const length = Math.round(this.#length() / factor);
+        const length = Math.max(LEAST_LENGTH, Math.round(this.#length() / factor));
         const start = calendar.add(pivot, Math.round(-around * length));
         this.#showFrom(calendar.add(start, Math.round(share * length)), length);
     }
@@ -317,26 +269,21 @@ export class TimelineWindow {
         return this.calendar().add(this.range().start, Math.round(share * this.#length()));
     }
 
-    /** Snap an edge to the owner's unit, to nothing, or to the nearest mark, off hidden days. */
+    /** Read what the axis shows. */
+    view(): TimelineView {
+        return { range: this.range(), width: this.width() ?? 0 };
+    }
+
+    /** Snap an edge to where things land, or to nothing, off hidden days. */
     snap(at: number, edge: ScheduleEdge): number {
-        // leave the instant where the owner snaps to nothing
-        const unit = this.#options.snap;
+        // leave the place where the owner snaps to nothing
         const calendar = this.calendar();
-        if (unit === false) {
+        if (this.#options.snap === false) {
             return calendar.align(at, edge);
         }
 
-        // take the nearest mark or unit boundary in elapsed time, then its neighbour if nearer on the track
-        const nearest =
-            unit === undefined
-                ? TimeScale.snap(
-                      this.range(),
-                      this.#markCount(),
-                      at,
-                      this.timeZone(),
-                      this.#locale.week,
-                  )
-                : TimeScale.round(unit, at, this.timeZone(), this.#locale.week);
+        // take where things land, then the place beside it if nearer on the track
+        const nearest = this.scale().snap(at, this.view());
         const other = this.#beside(nearest, at > nearest ? 1 : -1);
         const isOther =
             Math.abs(calendar.between(at, other)) < Math.abs(calendar.between(at, nearest));
@@ -388,15 +335,9 @@ export class TimelineWindow {
         }
     }
 
-    /** Write an instant for a person: its date and time in the axis's zone, or its offset. */
+    /** Write a place for a person, such as its date and time. */
     instantLabel(at: number): string {
-        return this.#options.axis === "offset"
-            ? this.durationLabel(at - this.#tree.origin())
-            : this.#locale.date(at, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                  timeZone: this.timeZone(),
-              });
+        return this.scale().label(at);
     }
 
     /** Read a level's unit in the track's time around an instant, such as five working days. */
@@ -406,20 +347,26 @@ export class TimelineWindow {
         return this.calendar().between(around - half, around + half);
     }
 
-    /** Read the owner's unit boundary or the axis's mark beside an instant, after or before it. */
+    /** Read the place a step beside one, after or before it, the next mark by default. */
     #beside(at: number, direction: 1 | -1): number {
-        const unit = this.#options.snap;
+        // take the scale's own step
+        const scale = this.scale();
+        const view = this.view();
+        if (scale.step !== undefined) {
+            return scale.step(at, direction, view);
+        }
 
-        return unit === undefined || unit === false
-            ? TimeScale.markBeside(
-                  this.range(),
-                  this.#markCount(),
-                  at,
-                  direction,
-                  this.timeZone(),
-                  this.#locale.week,
-              )
-            : TimeScale.boundaryBeside(unit, at, direction, this.timeZone(), this.#locale.week);
+        // look for a mark as far as the window is long
+        const length = view.range.end - view.range.start;
+        const around = {
+            range: { start: at - length, end: at + length },
+            width: 2 * view.width,
+        };
+        const marks = scale.ticks(around).map((tick) => tick.at);
+        const next =
+            direction === 1 ? marks.find((mark) => mark > at) : marks.findLast((mark) => mark < at);
+
+        return next ?? at;
     }
 
     /** Show a span from a start, its length counted in the track's time. */
@@ -437,87 +384,23 @@ export class TimelineWindow {
         return width;
     }
 
-    /** Write a mark's label: its local time at its unit's precision, or its offset. */
-    tickLabel(tick: Tick): string {
-        // write an offset in the mark's unit, such as 120 ms or 1.5 s
-        const locale = this.#locale;
-        if (this.#options.axis === "offset") {
-            const offset = tick.at - this.#tree.origin();
-
-            return tick.unit === "millisecond"
-                ? locale.number(offset, {
-                      style: "unit",
-                      unit: "millisecond",
-                      unitDisplay: "narrow",
-                  })
-                : this.durationLabel(offset);
-        }
-
-        // write a time at its unit's precision, its period written above it
-        return locale.date(tick.at, { ...MARK_LABELS[tick.unit], timeZone: this.timeZone() });
+    /** Write a mark's label. */
+    tickLabel(tick: TimelineTick): string {
+        return tick.label ?? this.scale().label(tick.at);
     }
 
-    /** Read the unit of the periods above the marks: months above days, none on an offset axis. */
-    periodUnit(): TickUnit | undefined {
-        const [first] = this.ticks();
-
-        return this.#options.axis === "offset" || first === undefined
-            ? undefined
-            : TimeScale.periodOf(first.unit);
-    }
-
-    /** Write a period's label at the precision of the periods' unit, such as November 2026. */
-    periodLabel(period: TimeScale): string {
-        const unit = this.periodUnit();
-        if (unit === undefined) {
-            throw new RangeError("timeline period is invalid: the axis has no periods");
-        }
-
-        return this.#locale.date(period.start, {
-            ...PERIOD_LABELS[unit],
-            timeZone: this.timeZone(),
-        });
-    }
-
-    /** Report whether a mark of days stands on today, which the axis marks as a pill. */
-    isToday(tick: Tick): boolean {
-        const now = this.now();
-        const zone = this.timeZone();
-
-        return (
-            tick.unit === "day" &&
-            now !== undefined &&
-            TimeZone.date(zone, tick.at) === TimeZone.date(zone, now)
-        );
-    }
-
-    /** Write the dates or times an item spans at the marks' precision, such as Nov 6 – 12. */
-    rangeLabel(item: TimelineItem): string {
-        // write an offset from the trace's start, or a date at the marks' precision in the zone
-        const [first] = this.ticks();
-        const isWithinDay = first !== undefined && DAY_UNITS.has(first.unit);
-        const fields: Intl.DateTimeFormatOptions = isWithinDay
-            ? { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }
-            : { month: "short", day: "numeric" };
-        const options = { ...fields, timeZone: this.timeZone() };
-        const isOffset = this.#options.axis === "offset";
-        const write = (at: number) =>
-            isOffset
-                ? this.durationLabel(at - this.#tree.origin())
-                : this.#locale.date(at, options);
-        const { start, end } = item;
-
-        // write a range by its last covered day, its end being the first instant after it
+    /** Write the stretch an item spans at the marks' precision, such as Nov 6 – 12. */
+    rangeLabel({ start, end }: Pick<TimelineItem, "start" | "end">): string {
+        // write a place as the scale writes it in a stretch
+        const scale = this.scale();
+        const view = this.view();
+        const write = (at: number): string => scale.brief?.(at, view) ?? scale.label(at);
         if (start !== undefined && end !== undefined) {
-            const last = isWithinDay || isOffset ? end : end - 1;
-
             return start === end
                 ? write(start)
-                : isOffset
-                  ? `${write(start)} – ${write(end)}`
-                  : this.#locale.dateRange(start, last, options);
+                : (scale.span?.({ start, end }, view) ?? `${write(start)} – ${write(end)}`);
         }
-        // write the one date of an open item
+        // write the one place of an open item
         else if (start !== undefined) {
             return this.#locale.render(t`From ${write(start)}`);
         } else if (end !== undefined) {
@@ -529,78 +412,8 @@ export class TimelineWindow {
         }
     }
 
-    /** Write a duration in its largest fitting unit, such as 850 ms, 2.4 s or 3.5 h. */
-    durationLabel(duration: number): string {
-        // pick the largest unit the duration fills, or the smallest
-        const unit =
-            DURATION_UNITS.find(([, length]) => Math.abs(duration) >= length) ??
-            nth(DURATION_UNITS, -1);
-
-        return this.#locale.number(duration / unit[1], {
-            style: "unit",
-            unit: unit[0],
-            unitDisplay: "narrow",
-            maximumFractionDigits: 1,
-        });
+    /** Write how long a stretch is, none on a scale that does not say. */
+    durationLabel(length: number): string | undefined {
+        return this.scale().duration?.(length);
     }
-
-    /** Read the marks of the window: local times of a plan, offsets from a trace's start. */
-    #ticksOf(): Tick[] {
-        // mark nothing until the track has a width
-        const width = this.width();
-        if (width === undefined) {
-            return [];
-        }
-
-        // mark offsets on round numbers from the origin, with long labels
-        const range = this.range();
-        const { week } = this.#locale;
-        const wide = Math.max(1, Math.floor(width / TICK_SPACING));
-        if (this.#options.axis === "offset") {
-            const origin = this.#tree.origin();
-            const offsets = { start: range.start - origin, end: range.end - origin };
-
-            return TimeScale.ticks(offsets, wide, "UTC", week).map((tick) => ({
-                ...tick,
-                at: tick.at + origin,
-            }));
-        }
-
-        // mark times densely with short labels under periods, else sparsely with long ones
-        const zone = this.timeZone();
-        const dense = TimeScale.ticks(range, this.#markCount(), zone, week);
-        const [first] = dense;
-        const ticks =
-            first !== undefined && TimeScale.periodOf(first.unit) !== undefined
-                ? dense
-                : TimeScale.ticks(range, wide, zone, week);
-
-        // leave out a mark the next one draws over, as days hidden before a Monday
-        const calendar = this.calendar();
-
-        return ticks.filter((tick, index) => {
-            const next = ticks[index + 1];
-
-            return next === undefined || calendar.between(tick.at, next.at) > 0;
-        });
-    }
-
-    /** Count the marks the window takes, as many as fit at their labels' width. */
-    #markCount(): number {
-        const count = this.#countedMarks();
-        if (count === undefined) {
-            throw new TypeError("timeline marks read before the track measured");
-        }
-
-        return count;
-    }
-}
-
-/** Count the marks a window takes at a width, as many as fit at their labels' width. */
-function markCountOf(range: TimeScale, width: number, week: Week): number {
-    // try the tightest spacing, then space the unit it gives by its labels' width
-    const count = (spacing: number) => Math.max(1, Math.floor(width / spacing));
-    const [first] = TimeScale.ticks(range, count(MARK_SPACING), "UTC", week);
-
-    return count(first === undefined ? MARK_SPACING : MARK_SPACINGS[first.unit]);
 }

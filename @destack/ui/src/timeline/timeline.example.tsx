@@ -1,15 +1,17 @@
+import warningCircleIcon from "@destack/icon/phosphor/warning-circle";
 import { defineExample } from "@destack/package/declare";
 import { Duration, Schedule, ScheduleLink, ScheduleLinkType, TimeZone } from "@destack/schema";
-import { createMemo, createSignal, Show } from "@destack/view";
+import { createMemo, createSignal, Show, useLocale } from "@destack/view";
+import { createElementSize } from "@destack/view/primitives/resize-observer";
 import * as style from "@destack/style";
-import { weight } from "@destack/theme/tokens.stylex";
+import { color, swatch } from "@destack/theme/tokens.stylex";
 import {
     Timeline,
     TimelineAxis,
     TimelineCell,
     TimelineColumn,
-    TimelineBar,
     TimelineBody,
+    TimelineTrack,
     TimelineGrid,
     TimelineHeader,
     type TimelineItem,
@@ -19,113 +21,193 @@ import {
     TimelineNow,
     TimelineRange,
     TimelineRow,
+    TimelineRowGuide,
     TimelineRowLabel,
     TimelineRowList,
+    TimelineRowToggle,
     TimelineToday,
     TimelineToolbar,
     TimelineZoom,
 } from "./index.ts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../dialog/index.ts";
+import { KINDS, RUN, Step } from "../example/run.ts";
 import { Field, FieldLabel } from "../field/index.ts";
+import { Icon } from "../icon/index.ts";
 import { Input } from "../input/index.ts";
 import { Label } from "../label/index.ts";
 import { Stack } from "../stack/index.ts";
 import { Switch } from "../switch/index.ts";
 import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
 
-/** The spans on the trace's critical path, which set the whole request's end. */
-const CRITICAL: ReadonlySet<string> = new Set(["request", "signups", "render", "template"]);
-
-/** The span that failed. */
-const FAILED = "template";
-
-/** The styles of the trace's bars and the plan's toolbar. */
+/** The styles of the trace's rows and the plan's toolbar. */
 const styles = style.create({
-    critical: {
-        fontWeight: weight.semibold,
+    name: {
+        flexGrow: 1,
+        minWidth: 0,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    },
+    kind: {
+        display: "inline-flex",
+        flexShrink: 0,
+        color: color.mutedForeground,
+    },
+    failed: {
+        display: "inline-flex",
+        flexShrink: 0,
+        color: swatch.destructiveText,
+    },
+    figure: {
+        justifyContent: "flex-end",
+        borderInlineEndWidth: 0,
+        color: color.mutedForeground,
+        fontVariantNumeric: "tabular-nums",
     },
 });
 
 /** The milliseconds of a day, which the link editor writes lags in. */
 const DAY = Duration.milliseconds({ days: 1 });
 
-/** The start of the example trace, an instant in launch week. */
-const TRACE_START = Date.UTC(2026, 10, 19, 9, 0, 0);
+/** The width in pixels from which the run shows figures beside its labels. */
+const WIDE = 560;
 
-/** A request's trace: the handler, its queries and a template that failed to render. */
-const TRACE: readonly TimelineItem[] = [
-    { key: "request", label: "GET /launch", start: TRACE_START, end: TRACE_START + 1180 },
+/** The run's steps on a timeline. */
+const TRACE: readonly TimelineItem[] = RUN.map((each) => Step.item(each));
+
+/** An agent's run: what each step is, how long it took, its tokens, and the one that failed. */
+export const timelineTrace = defineExample({
+    of: Timeline,
+    name: "trace",
+    description: "an agent's run: each step's kind, time and tokens, and the one that failed",
+    layout: "padded",
+    properties: {
+        axis: "offset",
+    },
+    render: (properties) => {
+        // leave the figures out where they would take the bars' room
+        const locale = useLocale();
+        const [element, setElement] = createSignal<HTMLElement | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const size = createElementSize(element);
+        const isWide = (): boolean => (size.width ?? WIDE) >= WIDE;
+
+        return (
+            <Timeline {...properties} ref={setElement} items={TRACE}>
+                <TimelineHeader corner="Step">
+                    <Show when={isWide()}>
+                        <TimelineColumn width="4rem" xstyle={styles.figure}>
+                            Time
+                        </TimelineColumn>
+                        <TimelineColumn width="4rem" xstyle={styles.figure}>
+                            Tokens
+                        </TimelineColumn>
+                    </Show>
+                    <TimelineAxis />
+                </TimelineHeader>
+                <TimelineBody>
+                    <TimelineGrid />
+                    <TimelineRowList>
+                        {(node) => {
+                            // read what the row's step shows
+                            const shown = (): Step => Step.of(node().item.key);
+                            const seconds = (): number =>
+                                ((node().item.end ?? 0) - (node().item.start ?? 0)) / 1_000;
+
+                            return (
+                                <TimelineRow>
+                                    <TimelineRowLabel>
+                                        <TimelineRowGuide />
+                                        <TimelineRowToggle />
+                                        <span {...style.attrs(styles.kind)}>
+                                            <Icon icon={KINDS[shown().kind].icon} />
+                                        </span>
+                                        <span {...style.attrs(styles.name)}>
+                                            {node().item.label}
+                                        </span>
+                                        <Show when={Step.hasFailed(shown())}>
+                                            <span {...style.attrs(styles.failed)}>
+                                                <Icon
+                                                    icon={warningCircleIcon}
+                                                    weight={
+                                                        shown().error === undefined
+                                                            ? "regular"
+                                                            : "fill"
+                                                    }
+                                                    label={shown().error ?? "A step below failed"}
+                                                />
+                                            </span>
+                                        </Show>
+                                    </TimelineRowLabel>
+                                    <Show when={isWide()}>
+                                        <TimelineCell xstyle={styles.figure}>
+                                            {locale.number(seconds(), {
+                                                style: "unit",
+                                                unit: "second",
+                                                unitDisplay: "narrow",
+                                                maximumFractionDigits: 1,
+                                            })}
+                                        </TimelineCell>
+                                        <TimelineCell xstyle={styles.figure}>
+                                            <Show when={shown().tokens}>
+                                                {(tokens) => locale.number(tokens())}
+                                            </Show>
+                                        </TimelineCell>
+                                    </Show>
+                                    <TimelineTrack />
+                                </TimelineRow>
+                            );
+                        }}
+                    </TimelineRowList>
+                </TimelineBody>
+            </Timeline>
+        );
+    },
+});
+
+/** The start of the request, an instant in launch week. */
+const REQUEST = Date.UTC(2026, 10, 19, 9, 0, 0);
+
+/** A request's spans: the handler, its queries and the page it renders. */
+const SPANS: readonly TimelineItem[] = [
+    { key: "request", label: "GET /launch", start: REQUEST, end: REQUEST + 1_180 },
     {
         key: "auth",
         label: "verify session",
-        start: TRACE_START + 12,
-        end: TRACE_START + 64,
+        start: REQUEST + 12,
+        end: REQUEST + 64,
         parent: "request",
         color: "cyan",
     },
     {
         key: "signups",
         label: "SELECT signups",
-        start: TRACE_START + 70,
-        end: TRACE_START + 410,
-        parent: "request",
-        color: "purple",
-    },
-    {
-        key: "plans",
-        label: "SELECT plans",
-        start: TRACE_START + 72,
-        end: TRACE_START + 190,
+        start: REQUEST + 70,
+        end: REQUEST + 410,
         parent: "request",
         color: "purple",
     },
     {
         key: "render",
         label: "render page",
-        start: TRACE_START + 420,
-        end: TRACE_START + 1150,
+        start: REQUEST + 420,
+        end: REQUEST + 1_150,
         parent: "request",
-    },
-    {
-        key: "template",
-        label: "render template",
-        start: TRACE_START + 430,
-        end: TRACE_START + 1120,
-        parent: "render",
+        color: "green",
     },
 ];
 
-/** A request's trace with its critical path and a failed span, read as offsets from its start. */
-export const timelineTrace = defineExample({
+/** A request's spans as the timeline draws them alone. */
+export const timelineRequest = defineExample({
     of: Timeline,
-    name: "trace",
-    description: "a request's trace: nested spans, the critical path and a failed template",
+    name: "request",
+    description: "a request's spans as the timeline draws them without children",
     layout: "padded",
     properties: {
         axis: "offset",
     },
-    render: (properties) => (
-        <Timeline {...properties} items={TRACE}>
-            <TimelineHeader corner="Span" />
-            <TimelineBody>
-                <TimelineGrid />
-                <TimelineRowList>
-                    {(node) => (
-                        <TimelineRow>
-                            <TimelineRowLabel />
-                            <TimelineBar
-                                {...(node().item.key === FAILED
-                                    ? { color: "red", variant: "solid" }
-                                    : {})}
-                                xstyle={CRITICAL.has(node().item.key) && styles.critical}
-                            />
-                        </TimelineRow>
-                    )}
-                </TimelineRowList>
-            </TimelineBody>
-            <TimelineMinimap />
-        </Timeline>
-    ),
+    render: (properties) => <Timeline {...properties} items={SPANS} />,
 });
 
 /** Read the instant of a day's start in Vienna. */
@@ -252,9 +334,11 @@ export const timelinePlan = defineExample({
                 </Label>
                 <Timeline
                     items={items().map((item) =>
-                        schedule().has(item.key) && !schedule().isCritical(item.key)
-                            ? { ...item, slack: schedule().slack(item.key) }
-                            : item,
+                        !schedule().has(item.key)
+                            ? item
+                            : schedule().isCritical(item.key)
+                              ? { ...item, variant: "solid" as const }
+                              : { ...item, slack: schedule().slack(item.key) },
                     )}
                     timeZone="Europe/Vienna"
                     links={links()}
@@ -325,14 +409,7 @@ export const timelinePlan = defineExample({
                                             )}
                                         </Show>
                                     </TimelineCell>
-                                    <TimelineBar
-                                        variant={
-                                            schedule().has(node().item.key) &&
-                                            schedule().isCritical(node().item.key)
-                                                ? "solid"
-                                                : "tint"
-                                        }
-                                    />
+                                    <TimelineTrack />
                                 </TimelineRow>
                             )}
                         </TimelineRowList>

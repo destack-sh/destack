@@ -164,3 +164,25 @@ test("pack items with one date into lanes by the length their bars draw", () => 
         ["next", "second"],
     ]);
 });
+
+test("unfold every item over one, leaving other folds", () => {
+    const tree = treeOf([
+        { key: "run", label: "Run", start: 0, end: 9 },
+        { key: "read", label: "Read", parent: "run", start: 0, end: 4 },
+        { key: "open", label: "Open", parent: "read", start: 0, end: 1 },
+        { key: "write", label: "Write", start: 5, end: 9 },
+        { key: "save", label: "Save", parent: "write", start: 8, end: 9 },
+    ]);
+    for (const key of ["run", "read", "write"]) {
+        tree.toggle(key);
+        flush();
+    }
+    const folded = rowsOf(tree);
+    tree.unfold("open");
+    flush();
+
+    expect({ folded, unfolded: rowsOf(tree) }).toEqual({
+        folded: ["run", "write"],
+        unfolded: ["run", "  read", "    open", "write"],
+    });
+});

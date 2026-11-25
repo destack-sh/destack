@@ -5,6 +5,7 @@ import { type Accessor, createMemo, createSignal, untrack } from "@destack/view"
 import { Collection } from "../collection/index.ts";
 import type { KeyboardDelegate } from "../focus/index.ts";
 import type { TimelineOptions } from "./control.ts";
+import { isDated } from "./scale.ts";
 import { DAY } from "./window.ts";
 
 /** The milliseconds of an hour, the span an empty timeline shows. */
@@ -15,6 +16,12 @@ const MARGIN = 0.02;
 
 /** The share of the items' span a bar with one date draws toward its missing date. */
 const OPEN_SHARE = 0.08;
+
+/** The color of an item that sets none. */
+const DEFAULT_COLOR: Hue = "blue";
+
+/** How a bar is drawn: filled with its color's tint or solid, or a line without its label. */
+export type TimelineBarVariant = "tint" | "solid" | "line";
 
 /** An item on a timeline: a task of a plan, or a span of a trace. */
 export interface TimelineItem {
@@ -32,6 +39,8 @@ export interface TimelineItem {
     readonly row?: string;
     /** The item's color, blue by default. */
     readonly color?: Hue;
+    /** How its bar is drawn, filled with its color's tint by default. */
+    readonly variant?: TimelineBarVariant;
     /** How much of it is done, from 0 to 1, drawn as a fill. */
     readonly progress?: number;
     /** The dates it was planned for, drawn beneath it. */
@@ -59,6 +68,11 @@ export const TimelineItem = {
     /** Report whether an item has a date, which a bar draws from. */
     isDated(item: TimelineItem): boolean {
         return item.start !== undefined || item.end !== undefined;
+    },
+
+    /** Read the color an item draws in. */
+    hue(item: TimelineItem): Hue {
+        return item.color ?? DEFAULT_COLOR;
     },
 
     /** Report whether an item ends past its deadline, an item without an end never. */
@@ -147,12 +161,15 @@ export class TimelineTree {
         );
 
         // span every item with a margin, a day at least on a plan's axis
-        const least = untrack(() => (options.axis === "offset" ? 1 : DAY));
-        this.span = createMemo(() => spanOf(options.items, opened, least));
+        const isTrace = untrack(() => !isDated(options.axis));
+        const least = isTrace ? 1 : DAY;
+        this.span = createMemo(() => spanOf(options.items, opened, least, isTrace ? 0 : MARGIN));
         this.origin = createMemo(() => extentOf(options.items)?.start ?? this.span().start);
 
         // pack each row's bars into lanes, and gather each folded item's dated descendants
-        this.#lanes = createMemo(() => lanesOf(options.items, (item) => this.drawn(item)));
+        this.#lanes = createMemo(() =>
+            lanesOf(options.items, (item) => this.drawn(item), options.overlap === "cover"),
+        );
         this.#rollups = createMemo(() => rollupsOf(this.#children(), folded()));
         this.collection = new Collection({
             sections: () => [{ key: "rows", items: this.rows() }],
@@ -204,6 +221,11 @@ export class TimelineTree {
         return this.#lanes().get(row) ?? [];
     }
 
+    /** Report whether an item draws as a neutral summary of its children, as in Gantt charts. */
+    isSummary(item: TimelineItem): boolean {
+        return this.#children().has(item.key) && item.color === undefined;
+    }
+
     /** List the items drawn on the visible rows, row by row and lane by lane. */
     bars(): readonly TimelineItem[] {
         return this.rows().flatMap((row) => this.lanes(row.item.key).flat());
@@ -235,6 +257,18 @@ export class TimelineTree {
     /** Report whether a row shows its children: it has some and is not folded. */
     isUnfolded(node: TimelineNode): boolean {
         return node.hasChildren && !this.folded().has(node.item.key);
+    }
+
+    /** Unfold every item over another, so its row shows. */
+    unfold(key: string): void {
+        // walk up from the item
+        const folded = new Set(this.folded());
+        let parent = this.item(key).parent;
+        while (parent !== undefined) {
+            folded.delete(parent);
+            parent = this.item(parent).parent;
+        }
+        this.#setFolded(folded);
     }
 
     /** Fold or unfold an item's children. */
@@ -559,10 +593,11 @@ function rollupsOf(
     return rollups;
 }
 
-/** Pack each row's dated items into lanes by start, each into the first lane it fits after. */
+/** Pack each row's dated items into lanes by start, or into one where they cover one another. */
 function lanesOf(
     items: readonly TimelineItem[],
     drawn: (item: TimelineItem) => TimeScale,
+    isCovering: boolean,
 ): Map<string, TimelineItem[][]> {
     // group the dated items by the row they are drawn on
     const rows = new Map<string, TimelineItem[]>();
@@ -588,7 +623,7 @@ function lanesOf(
             // take an instant at the least, so milestones at one time stack
             const { start, end } = drawn(item);
             const taken = Math.max(end, start + 1);
-            const lane = ends.findIndex((laneEnd) => laneEnd <= start);
+            const lane = ends.findIndex((laneEnd) => isCovering || laneEnd <= start);
             if (lane === -1) {
                 lanes.push([item]);
                 ends.push(taken);
@@ -623,7 +658,12 @@ function extentOf(items: readonly TimelineItem[]): TimeScale | undefined {
 }
 
 /** Span the items with a margin, at a least length, or the current hour without items. */
-function spanOf(items: readonly TimelineItem[], now: number, least: number): TimeScale {
+function spanOf(
+    items: readonly TimelineItem[],
+    now: number,
+    least: number,
+    lead: number,
+): TimeScale {
     // show an empty timeline's current hour
     const extent = extentOf(items);
     if (extent === undefined) {
@@ -635,7 +675,9 @@ function spanOf(items: readonly TimelineItem[], now: number, least: number): Tim
     // widen an extent shorter than the least length around its middle, then pad it
     const length = Math.max(extent.end - extent.start, least);
     const middle = (extent.start + extent.end) / 2;
-    const margin = length * MARGIN;
 
-    return { start: middle - length / 2 - margin, end: middle + length / 2 + margin };
+    return {
+        start: middle - length / 2 - length * lead,
+        end: middle + length / 2 + length * MARGIN,
+    };
 }

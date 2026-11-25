@@ -1,18 +1,22 @@
 export * from "./actions.ts";
 export {
-    type TimelineBarVariant,
     type TimelineColumnHeader,
     TimelineContext,
     TimelineControl,
     type TimelineOptions,
     type TimelinePartProperties,
+    TimelineBarContext,
+    TimelineTrackContext,
+    type TimelineBarControl,
     TimelineRowContext,
     type TimelineRowControl,
     type TimelineRowPoint,
     useTimeline,
+    useTimelineBar,
     useTimelineRow,
 } from "./control.ts";
 export {
+    type TimelineBarVariant,
     type TimelineDepths,
     TimelineItem,
     type TimelineMilestone,
@@ -20,12 +24,7 @@ export {
     type TimelineRowMove,
     TimelineTree,
 } from "./tree.ts";
-export {
-    TIMELINE_ZOOM_LEVELS,
-    type TimelineAxisMode,
-    TimelineWindow,
-    type TimelineZoomLevel,
-} from "./window.ts";
+export { TIMELINE_ZOOM_LEVELS, TimelineWindow, type TimelineZoomLevel } from "./window.ts";
 export { type TimelineBarDrags, type TimelineBarPart, TimelineDrag } from "./drag.ts";
 export { Timeline, TimelineBody, type TimelineProperties } from "./timeline.tsx";
 export {
@@ -40,11 +39,28 @@ export {
 export {
     TimelineCell,
     TimelineRow,
+    TimelineRowGrip,
+    TimelineRowGuide,
     TimelineRowLabel,
     TimelineRowList,
     type TimelineRowListProperties,
+    TimelineRowToggle,
 } from "./row.tsx";
-export { TimelineBar, type TimelineBarProperties } from "./bar.tsx";
+export {
+    TimelineBar,
+    TimelineBarAddon,
+    type TimelineBarAddonProperties,
+    TimelineBarCard,
+    TimelineBarLabel,
+    TimelineBarProgress,
+    type TimelineBarProperties,
+} from "./bar.tsx";
+export {
+    type TimelineBarEdge,
+    TimelineBarHandle,
+    type TimelineBarHandleProperties,
+} from "./handle.tsx";
+export { TimelineBarList, type TimelineBarListProperties, TimelineTrack } from "./track.tsx";
 export { TimelineLinkLayer } from "./links.tsx";
 export {
     TimelineGrid,
@@ -55,3 +71,13 @@ export {
     type TimelineRangeProperties,
 } from "./marker.tsx";
 export { TimelineMinimap } from "./minimap.tsx";
+export {
+    DateScale,
+    type DateScaleOptions,
+    ElapsedScale,
+    type TimelineAxisMode,
+    type TimelinePeriod,
+    type TimelineScale,
+    type TimelineTick,
+    type TimelineView,
+} from "./scale.ts";

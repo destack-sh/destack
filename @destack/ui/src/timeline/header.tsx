@@ -10,7 +10,12 @@ import { Move, Sweep } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { ToggleGroup, ToggleGroupItem, type ToggleGroupProperties } from "../toggle-group/index.ts";
-import { useTimeline, type TimelinePartProperties, MIN_LABEL_WIDTH } from "./control.ts";
+import {
+    TimelineTrackContext,
+    useTimeline,
+    type TimelinePartProperties,
+    MIN_LABEL_WIDTH,
+} from "./control.ts";
 import { TIMELINE_ZOOM_LEVELS, type TimelineZoomLevel } from "./window.ts";
 import { places } from "./places.ts";
 
@@ -196,7 +201,7 @@ export function TimelineHeader(
             >
                 {properties.corner}
             </div>
-            {properties.children ?? <TimelineAxis />}
+            {"children" in properties ? properties.children : <TimelineAxis />}
 
             {/* The edge of the labels' column, dragged or stepped by the arrow keys */}
             <div
@@ -296,7 +301,7 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
     // place the periods and the marks by their share of the window
     const control = useTimeline();
     const locale = useLocale();
-    const rest = omit(properties, "xstyle", "style");
+    const rest = omit(properties, "children", "xstyle", "style");
     const share = (at: number) => control.window.share(at);
 
     // sweep a span across the axis and zoom to it on release
@@ -330,7 +335,6 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
     return (
         <div
             data-slot="timeline-axis"
-            aria-hidden="true"
             {...mergeProperties(
                 mergeProperties(
                     { ref: (created: HTMLElement) => (element = created) },
@@ -355,7 +359,11 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
 
             {/* Periods */}
             <Show when={control.window.periods().length > 0}>
-                <div data-slot="timeline-axis-periods" {...style.attrs(styles.axisRow)}>
+                <div
+                    data-slot="timeline-axis-periods"
+                    aria-hidden="true"
+                    {...style.attrs(styles.axisRow)}
+                >
                     <For each={control.window.periods()} keyed={(period) => period.start}>
                         {(period) => (
                             <span
@@ -369,7 +377,7 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
                                     ),
                                 )}
                             >
-                                {control.window.periodLabel(period())}
+                                {period().label}
                             </span>
                         )}
                     </For>
@@ -377,16 +385,20 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
             </Show>
 
             {/* Marks */}
-            <div data-slot="timeline-axis-marks" {...style.attrs(styles.axisRow)}>
+            <div
+                data-slot="timeline-axis-marks"
+                aria-hidden="true"
+                {...style.attrs(styles.axisRow)}
+            >
                 <For each={control.window.ticks()} keyed={(tick) => tick.at}>
                     {(tick) => (
                         <span {...style.attrs(text.xs, styles.tick, places.at(share(tick().at)))}>
                             <span
                                 data-slot="timeline-axis-mark"
-                                data-today={control.window.isToday(tick()) ? "" : undefined}
+                                data-today={tick().isCurrent === true ? "" : undefined}
                                 {...style.attrs(
                                     styles.mark,
-                                    control.window.isToday(tick()) && state.checked,
+                                    tick().isCurrent === true && state.checked,
                                 )}
                             >
                                 {control.window.tickLabel(tick())}
@@ -395,6 +407,9 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
                     )}
                 </For>
             </div>
+
+            {/* What stands on the axis, such as a playhead or a loop */}
+            <TimelineTrackContext value={true}>{properties.children}</TimelineTrackContext>
         </div>
     );
 }

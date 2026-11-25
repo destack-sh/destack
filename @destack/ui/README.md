@@ -446,47 +446,98 @@ A conversation of many thousands puts one `Virtualizer` over `useMessageScroller
 
 ### Compose a timeline
 
-Arrange a `Timeline` from its parts and render each row yourself.
+A `Timeline` draws its items without children, and each part's children replace its standard ones.
 
 ```tsx
 import {
     Timeline,
     TimelineBar,
+    TimelineBarCard,
+    TimelineBarList,
     TimelineBody,
     TimelineGrid,
     TimelineHeader,
     type TimelineItem,
+    TimelineMarker,
     TimelineRow,
+    TimelineRowGuide,
     TimelineRowLabel,
     TimelineRowList,
+    TimelineRowToggle,
+    TimelineTrack,
 } from "@destack/ui/timeline";
 
-/** Show a trace without a minimap, its failed spans solid red. */
+/** Draw a request's spans. */
+export function Request(properties: { readonly spans: readonly TimelineItem[] }) {
+    return <Timeline items={properties.spans} axis="offset" />;
+}
+
+/** Draw a request's spans as lines, with a card of one's own and a place to seek. */
 export function Trace(properties: {
+    /** The spans. */
     readonly spans: readonly TimelineItem[];
-    readonly failed: ReadonlySet<string>;
+    /** The place sought. */
+    readonly at: number;
+    /** Handle the person seeking another place. */
+    readonly onSeek: (at: number) => void;
 }) {
     return (
-        <Timeline items={properties.spans} axis="offset" rowHeight={28}>
+        <Timeline items={properties.spans} axis="offset">
             <TimelineHeader corner="Span" />
             <TimelineBody>
                 <TimelineGrid />
                 <TimelineRowList>
                     {(node) => (
                         <TimelineRow>
-                            <TimelineRowLabel />
-                            {properties.failed.has(node().item.key) ? (
-                                <TimelineBar color="red" variant="solid" />
-                            ) : (
-                                <TimelineBar />
-                            )}
+                            <TimelineRowLabel>
+                                <TimelineRowGuide />
+                                <TimelineRowToggle />
+                                {node().item.label}
+                            </TimelineRowLabel>
+                            <TimelineTrack>
+                                <TimelineBarList>
+                                    {(span) => (
+                                        <TimelineBar variant="line">
+                                            <TimelineBarCard>{span().label}</TimelineBarCard>
+                                        </TimelineBar>
+                                    )}
+                                </TimelineBarList>
+                            </TimelineTrack>
                         </TimelineRow>
                     )}
                 </TimelineRowList>
+                <TimelineMarker
+                    aria-label="Playhead"
+                    at={properties.at}
+                    onAtChange={properties.onSeek}
+                />
             </TimelineBody>
         </Timeline>
     );
 }
+```
+
+### Count an axis in frames
+
+An `axis` takes a scale of one's own, which says where its marks stand, what they say and where things land.
+
+```tsx
+import type { TimelineScale } from "@destack/ui/timeline";
+
+/** The frames of a second. */
+const RATE = 25;
+
+/** The frames of a film, marked each second. */
+export const frames: TimelineScale = {
+    ticks: ({ range }) => {
+        const first = Math.ceil(range.start / RATE);
+        const count = Math.floor(range.end / RATE) - first + 1;
+
+        return Array.from({ length: count }, (_, index) => ({ at: (first + index) * RATE }));
+    },
+    label: (frame) => `${String(Math.floor(frame / RATE))}s`,
+    snap: Math.round,
+};
 ```
 
 ### Compose a calendar

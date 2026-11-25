@@ -1,4 +1,5 @@
-import { size } from "@destack/theme/tokens.stylex";
+import { size, width } from "@destack/theme/tokens.stylex";
+import type { Hue } from "@destack/color";
 import type { Direction } from "@destack/locale";
 import {
     nth,
@@ -22,31 +23,31 @@ import {
 } from "@destack/view";
 import type { DragManager } from "../drag/index.ts";
 import { Focus } from "../focus/index.ts";
-import type { InteractionEvent } from "../interaction/index.ts";
+import type { InteractionEvent, Move } from "../interaction/index.ts";
+import type { ElementPartProperties } from "../part/index.ts";
 import { type MultipleSelection, Selection } from "../selection/index.ts";
 import { Length, Virtualizer } from "../virtualizer/index.ts";
-import { TimelineDrag } from "./drag.ts";
+import { type TimelineBarDrags, type TimelineBarPart, TimelineDrag } from "./drag.ts";
 import {
     RowsDelegate,
-    type TimelineItem,
+    type TimelineBarVariant,
+    TimelineItem,
     type TimelineNode,
     type TimelineRowMove,
     TimelineTree,
 } from "./tree.ts";
-import { type TimelineAxisMode, TimelineWindow } from "./window.ts";
+import type { TimelineAxisMode } from "./scale.ts";
+import { TimelineWindow } from "./window.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The height of a row in pixels until it is measured, about Jaeger's. */
 const ROW_HEIGHT = 32;
 
 /** The width of the labels' column by default. */
-const LABEL_WIDTH = "16rem";
+const LABEL_WIDTH = `min(${width.sidebar}, 50%)`;
 
 /** The narrowest labels' column in pixels, room for a short label beside its fold. */
 export const MIN_LABEL_WIDTH = 120;
-
-/** How a bar is filled: with its color's tint, or solid. */
-export type TimelineBarVariant = "tint" | "solid";
 
 /** The items, window and handlers of a timeline. */
 export interface TimelineOptions {
@@ -88,9 +89,11 @@ export interface TimelineOptions {
     readonly workWeek?: WorkWeek;
     /** The IANA time zone the axis marks local times in, the environment's by default. */
     readonly timeZone?: string;
-    /** The height of a row in pixels, a control's by default. */
-    readonly rowHeight?: number;
-    /** The width of the labels' column at first, 16rem by default, which the person can drag. */
+    /** The height of each row's lanes in pixels, or a row's from the standard, a control's. */
+    readonly rowHeight?: number | ((node: TimelineNode, standard: number) => number);
+    /** How the bars of a row that overlap share it: in lanes by default, or over one another. */
+    readonly overlap?: "stack" | "cover";
+    /** The width of the labels' column at first, a sidebar's by default. */
     readonly labelWidth?: string;
     /** Handle the person resizing the labels' column, such as to save its width. */
     readonly onLabelWidthChange?: (width: string) => void;
@@ -116,8 +119,8 @@ export class TimelineControl {
     readonly highlight: Accessor<ScheduleLink | undefined>;
     /** Set the highlighted link, or none. */
     readonly setHighlight: (link: ScheduleLink | undefined) => void;
-    /** The height of a row in pixels. */
-    readonly rowHeight: Accessor<number>;
+    /** Read the height of a lane of a row in pixels. */
+    readonly rowHeight: (node: TimelineNode) => number;
     /** The length that measures a row's height, as tall as a control. */
     readonly rowLength: Length;
     /** The width of the labels' column. */
@@ -153,7 +156,13 @@ export class TimelineControl {
         );
         this.window = new TimelineWindow(options, this.tree, locale, environment, ticking);
         this.rowLength = new Length(() => size[2]);
-        this.rowHeight = () => options.rowHeight ?? this.rowLength.pixels() ?? ROW_HEIGHT;
+        this.rowHeight = (node) => {
+            // take the caller's height, or the standard's
+            const given = options.rowHeight;
+            const standard = this.rowLength.pixels() ?? ROW_HEIGHT;
+
+            return typeof given === "function" ? given(node, standard) : (given ?? standard);
+        };
         const [labelWidth, setLabelWidth] = createSignal(
             untrack(() => options.labelWidth ?? LABEL_WIDTH),
         );
@@ -169,7 +178,7 @@ export class TimelineControl {
             const tops = [0];
             for (const row of this.tree.rows()) {
                 const lanes = this.tree.laneCount(row.item.key);
-                tops.push(nth(tops, -1) + lanes * this.rowHeight());
+                tops.push(nth(tops, -1) + lanes * this.rowHeight(row));
             }
 
             return tops;
@@ -269,7 +278,10 @@ export class TimelineControl {
             return undefined;
         }
 
-        return { index, lane: Math.floor((offset - nth(tops, index)) / this.rowHeight()) };
+        // count the lanes down the row
+        const height = this.rowHeight(nth(this.tree.rows(), index));
+
+        return { index, lane: Math.floor((offset - nth(tops, index)) / height) };
     }
 
     /** Read the gap between rows nearest an offset from the rows' top. */
@@ -343,9 +355,39 @@ export class TimelineControl {
 
     /** Resize the labels' column to a width in pixels, leaving each column room. */
     resizeLabels(pixels: number, total: number): void {
-        const width = `${String(Math.round(Math.min(Math.max(pixels, MIN_LABEL_WIDTH), total / 2)))}px`;
-        this.#setLabelWidth(width);
-        this.options.onLabelWidthChange?.(width);
+        const labelWidth = `${String(Math.round(Math.min(Math.max(pixels, MIN_LABEL_WIDTH), total / 2)))}px`;
+        this.#setLabelWidth(labelWidth);
+        this.options.onLabelWidthChange?.(labelWidth);
+    }
+
+    /** Bring an item into view: unfold the rows over it, scroll to its row and show its time. */
+    reveal(key: string): void {
+        // unfold the rows over it, and scroll once they show
+        const item = untrack(() => this.tree.item(key));
+        untrack(() => this.tree.unfold(key));
+        queueMicrotask(() => {
+            // find the row the item draws on
+            const rows = untrack(() => this.tree.rows());
+            const index = rows.findIndex((row) => row.item.key === (item.row ?? key));
+            if (index !== -1) {
+                this.virtualizer.scrollToIndex(index);
+            }
+        });
+
+        // show its time where it lies past the window
+        untrack(() => this.#revealTime(item));
+    }
+
+    /** Show an item's time where it lies past the window. */
+    #revealTime(item: TimelineItem): void {
+        // leave a window that shows any of it
+        if (TimelineItem.isDated(item)) {
+            const { start, end } = this.tree.drawn(item);
+            const isShown = this.window.share(end) >= 0 && this.window.share(start) <= 1;
+            if (!isShown) {
+                this.window.reveal((start + end) / 2);
+            }
+        }
     }
 
     /** Fold or unfold the focused row on its inline arrow, reporting whether it did. */
@@ -386,6 +428,63 @@ export interface TimelineRowControl {
 /** The nearest row of a timeline, null outside one. */
 export const TimelineRowContext = createContext<TimelineRowControl | null>(null);
 
+/** A bar as its parts read it: its item, its place, and what drags it. */
+export interface TimelineBarControl {
+    /** The item's key. */
+    readonly key: string;
+    /** The item, as a drag previews it. */
+    readonly item: Accessor<TimelineItem>;
+    /** The bar's place among the bars of its row that overlap, from the top. */
+    readonly lane: Accessor<number>;
+    /** The bar's start, as a share of the window. */
+    readonly from: Accessor<number>;
+    /** The bar's end, as a share of the window. */
+    readonly to: Accessor<number>;
+    /** The bar's color. */
+    readonly hue: Accessor<Hue>;
+    /** How the bar is drawn. */
+    readonly variant: Accessor<TimelineBarVariant>;
+    /** Whether the item is one instant. */
+    readonly isMilestone: Accessor<boolean>;
+    /** Whether the bar is being moved. */
+    readonly isMoving: Accessor<boolean>;
+    /** The edge without a date, none on a dated item. */
+    readonly open: Accessor<"start" | "end" | undefined>;
+    /** How much of the item is done, from 0 to 1, as its handle is dragged. */
+    readonly progress: Accessor<number | undefined>;
+    /** Set how much of the item is done. */
+    readonly commitProgress: (done: number) => void;
+    /** The drags of the bar's parts, none while nothing moves or links. */
+    readonly drags: TimelineBarDrags | undefined;
+    /** The attributes of the handle that drags how much is done. */
+    readonly progressDrag: ReturnType<Move["attributes"]>;
+    /** Add the card that describes the bar, until it unmounts. */
+    readonly addCard: () => void;
+    /** Register a part's element, which drags lift. */
+    readonly register: (part: TimelineBarPart) => (element: HTMLElement) => void;
+}
+
+/** Keep a press on what a person drags from what it stands on. */
+export function leave(event: Event): void {
+    event.stopPropagation();
+}
+
+/** Whether the nearest part stands on a track, which places it by the track's width. */
+export const TimelineTrackContext = createContext(false);
+
+/** The nearest bar of a timeline, null outside one. */
+export const TimelineBarContext = createContext<TimelineBarControl | null>(null);
+
+/** Read the nearest bar of a timeline, refusing a part outside one. */
+export function useTimelineBar(): TimelineBarControl {
+    const bar = useContext(TimelineBarContext);
+    if (bar === null) {
+        throw new TypeError("timeline bar part is invalid: it renders outside a timeline's track");
+    }
+
+    return bar;
+}
+
 /** Read the nearest timeline, refusing a part outside one. */
 export function useTimeline(): TimelineControl {
     const control = useContext(TimelineContext);
@@ -411,3 +510,10 @@ export interface TimelinePartProperties extends Omit<JSX.HTMLAttributes<HTMLDivE
     /** The StyleX styles applied after the part's. */
     readonly xstyle?: style.Styles;
 }
+
+/** The properties of an element part of a timeline, the native element's attributes included. */
+export type TimelineElementProperties<Target extends HTMLElement = HTMLSpanElement> = Omit<
+    JSX.HTMLAttributes<Target>,
+    "class"
+> &
+    ElementPartProperties;

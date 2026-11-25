@@ -6,7 +6,6 @@ import { Move } from "../interaction/index.ts";
 import { useTimeline, type TimelinePartProperties } from "./control.ts";
 import { TimelineItem } from "./tree.ts";
 import { places } from "./places.ts";
-import { DEFAULT_COLOR } from "./bar.tsx";
 
 /** The styles of a timeline's minimap. */
 const styles = style.create({
@@ -23,6 +22,7 @@ const styles = style.create({
         position: "absolute",
         height: space[1],
         marginBlockStart: `calc(${space[1]} / -2)`,
+        forcedColorAdjust: "none",
         borderRadius: radius.full,
     },
     lens: {
@@ -148,7 +148,9 @@ export function TimelineMinimap(properties: TimelinePartProperties): JSX.Element
                                 (control.tree.drawn(item).end - control.tree.drawn(item).start) /
                                     (span().end - span().start),
                                 (index() + 0.5) / dated().length,
-                                swatch[`${item.color ?? DEFAULT_COLOR}Mark`],
+                                control.tree.isSummary(item)
+                                    ? color.mutedForeground
+                                    : swatch[`${TimelineItem.hue(item)}Mark`],
                             ),
                         )}
                     />

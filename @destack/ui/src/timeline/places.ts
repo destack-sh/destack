@@ -1,8 +1,6 @@
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
-
-/** The indent of a row's label per level of depth, which the theme scales. */
-export const ROW_INDENT = space[4];
+import { INDENT } from "../disclosure/index.ts";
 
 /** The places of a timeline's parts. */
 export const places = style.create({
@@ -31,11 +29,8 @@ export const places = style.create({
         height: `${String(height)}px`,
     }),
     height: (height: number) => ({ height: `${String(height)}px` }),
-    indent: (gutter: string, depth: number) => ({
-        paddingInlineStart: `calc(${gutter} + ${String(depth)} * ${ROW_INDENT})`,
-    }),
     inset: (gutter: string, depth: number) => ({
-        insetInlineStart: `calc(${gutter} + ${String(depth)} * ${ROW_INDENT})`,
+        insetInlineStart: `calc(${gutter} + ${String(depth)} * ${INDENT})`,
     }),
     trace: (left: number, width: number, top: number, mark: string) => ({
         insetInlineStart: `${String(left * 100)}%`,

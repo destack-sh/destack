@@ -33,7 +33,11 @@ import {
     type TimelinePartProperties,
 } from "./control.ts";
 import { linkItem, moveRowDown, moveRowUp, panLeft, panRight } from "./actions.ts";
+import { TimelineHeader } from "./header.tsx";
+import { TimelineLinkLayer } from "./links.tsx";
+import { TimelineGrid } from "./marker.tsx";
 import { places } from "./places.ts";
+import { TimelineRowList } from "./row.tsx";
 import { TimelineItem } from "./tree.ts";
 
 /** The styles of a timeline and its body. */
@@ -244,7 +248,14 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
                 {...mergeProperties(keys, rest)}
                 {...style.attributes([styles.timeline, properties.xstyle], properties.style)}
             >
-                {properties.children}
+                {"children" in properties ? (
+                    properties.children
+                ) : (
+                    <>
+                        <TimelineHeader />
+                        <TimelineBody />
+                    </>
+                )}
                 {control.rowLength.render()}
             </div>
             <Show when={!drags.isShared}>
@@ -340,7 +351,15 @@ export function TimelineBody(properties: TimelinePartProperties): JSX.Element {
                 </div>
 
                 {/* Parts */}
-                {properties.children}
+                {"children" in properties ? (
+                    properties.children
+                ) : (
+                    <>
+                        <TimelineGrid />
+                        <TimelineLinkLayer />
+                        <TimelineRowList />
+                    </>
+                )}
             </div>
         </div>
     );

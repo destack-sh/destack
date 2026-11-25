@@ -11,7 +11,7 @@ import {
 } from "../drag/index.ts";
 import type { Selection } from "../selection/index.ts";
 import type { TimelineOptions, TimelineRowPoint } from "./control.ts";
-import { ROW_INDENT } from "./places.ts";
+import { INDENT } from "../disclosure/index.ts";
 import { TimelineItem, type TimelineTree } from "./tree.ts";
 import type { TimelineWindow } from "./window.ts";
 
@@ -576,7 +576,7 @@ function rowGapOf(
 function indentOf(element: HTMLElement): number {
     // lay out a probe as wide as the indent, then take it away
     const probe = document.createElement("div");
-    probe.style.width = ROW_INDENT;
+    probe.style.width = INDENT;
     element.append(probe);
     const width = probe.getBoundingClientRect().width;
     probe.remove();

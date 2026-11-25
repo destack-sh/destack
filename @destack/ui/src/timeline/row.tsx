@@ -1,27 +1,35 @@
 import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
-import caretLeft from "@destack/icon/phosphor/caret-left";
 import dotsSixVertical from "@destack/icon/phosphor/dots-six-vertical";
-import caretRight from "@destack/icon/phosphor/caret-right";
 import { nth } from "@destack/schema";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, motion, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import { color, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type Accessor, For, type JSX, omit, Show, untrack, useLocale } from "@destack/view";
 import { Draggable } from "../drag/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { DisclosureCaret, indent, indicator } from "../disclosure/index.ts";
+import { Press } from "../interaction/index.ts";
+import { mergeProperties, renderPart } from "../part/index.ts";
 import {
     TimelineRowContext,
     useTimeline,
     useTimelineRow,
+    type TimelineControl,
+    type TimelineElementProperties,
     type TimelinePartProperties,
 } from "./control.ts";
 import type { TimelineNode } from "./tree.ts";
 import { ROW_TYPE, ROWS } from "./drag.ts";
 import { places } from "./places.ts";
-import { TimelineBar } from "./bar.tsx";
+import { TimelineTrack } from "./track.tsx";
 import { rowMarker } from "./marker.stylex.ts";
+
+/** The elements of a label that take a press themselves. */
+const CONTROLS = "button, a, input, [data-slot=timeline-row-grip]";
+
+/** The label a row's grip stands in. */
+const LABEL_SLOT = "[data-slot=timeline-row-label]";
 
 /** The styles of a timeline's rows. */
 const styles = style.create({
@@ -40,6 +48,10 @@ const styles = style.create({
         borderInlineEndWidth: stroke.border,
         borderInlineEndStyle: "solid",
         borderInlineEndColor: color.border,
+        overflow: "hidden",
+    },
+    words: {
+        minWidth: 0,
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -57,21 +69,12 @@ const styles = style.create({
         whiteSpace: "nowrap",
         textOverflow: "ellipsis",
     },
-    disclosure: {
+    toggle: {
         display: "inline-flex",
-        justifyContent: "center",
         flexShrink: 0,
+        justifyContent: "center",
         width: space[4],
         color: color.mutedForeground,
-        transitionProperty: "transform",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
-    },
-    unfolded: {
-        transform: "rotate(90deg)",
-    },
-    unfoldedBack: {
-        transform: "rotate(-90deg)",
     },
     grip: {
         position: "absolute",
@@ -102,11 +105,11 @@ const styles = style.create({
 
 /** The properties of a timeline's rows. */
 export interface TimelineRowListProperties {
-    /** Render a row, a label and a bar by default. */
+    /** Render a row, a label and a track by default. */
     readonly children?: (node: Accessor<TimelineNode>) => JSX.Element;
 }
 
-/** Render the rows in view, each from the function given or as a label and a bar. */
+/** Render the rows in view, each from the function given or as a label and a track. */
 export function TimelineRowList(properties: TimelineRowListProperties): JSX.Element {
     const control = useTimeline();
 
@@ -147,7 +150,7 @@ export function TimelineRowList(properties: TimelineRowListProperties): JSX.Elem
     );
 }
 
-/** Render a row at its place: its label and its bar by default. */
+/** Render a row at its place: its label and its track by default. */
 export function TimelineRow(properties: TimelinePartProperties): JSX.Element {
     // focus the row as the timeline's tab stop
     const control = useTimeline();
@@ -194,103 +197,172 @@ export function TimelineRow(properties: TimelinePartProperties): JSX.Element {
                 properties.style,
             )}
         >
-            {properties.children ?? (
+            {"children" in properties ? (
+                properties.children
+            ) : (
                 <>
                     <TimelineRowLabel />
-                    <TimelineBar />
+                    <TimelineTrack />
                 </>
             )}
         </div>
     );
 }
 
-/** Render a row's label, indented by its depth, with a fold where items belong under it. */
+/** Render a row's label, indented by its depth: its grip, guide, toggle and words by default. */
 export function TimelineRowLabel(properties: TimelinePartProperties): JSX.Element {
-    // read the row and its fold
+    // leave room for the grip of rows that move
     const control = useTimeline();
-    const locale = useLocale();
-    const node = useTimelineRow().node;
-    const key = untrack(() => node().item.key);
+    const { node } = useTimelineRow();
+    const gutter = untrack(() => gutterOf(control));
     const rest = omit(properties, "children", "xstyle", "style");
-    const isFolded = () => control.tree.folded().has(key);
-    const isRightToLeft = () => locale.direction === "rtl";
-    const isTurned = () => !isFolded() && !isRightToLeft();
-    const isTurnedBack = () => !isFolded() && isRightToLeft();
 
-    // move the row by its grip when the timeline takes moved rows
-    let element: HTMLElement | undefined;
-    const grip = untrack(() => control.options.onRowMove !== undefined)
-        ? new Draggable(
-              {
-                  id: JSON.stringify([ROWS, key]),
-                  item: key,
-                  type: ROW_TYPE,
-                  kind: "move",
-                  label: () => node().item.label,
-                  element: () => element,
-                  home: () => ({
-                      kind: "list",
-                      droppable: ROWS,
-                      index: control.tree.rows().findIndex((row) => row.item.key === key),
-                      depth: node().depth,
-                  }),
-              },
-              control.drag.manager,
-          ).attributes([" "])
-        : undefined;
+    // select or open the item on a press beside the buttons in the label
+    const press = new Press({
+        onPress: (event) => {
+            const { target } = event;
+            if (target instanceof Element && target.closest(CONTROLS) === null) {
+                control.press(
+                    untrack(() => node().item.key),
+                    event,
+                );
+            }
+        },
+        keys: [],
+        shouldCancelOnMove: true,
+    });
 
     return (
         <div
             role="gridcell"
             data-slot="timeline-row-label"
-            ref={(created) => (element = created)}
-            {...rest}
+            {...mergeProperties(press.attributes(), rest)}
             {...style.attributes(
-                [
-                    styles.label,
-                    places.indent(grip === undefined ? space[2] : space[4], node().depth),
-                    properties.xstyle,
-                ],
+                [styles.label, indent.by(gutter, node().depth), properties.xstyle],
                 properties.style,
             )}
         >
-            {/* The grip a row moves by */}
-            <Show when={grip}>
-                {(attributes) => (
-                    <span
-                        tabindex={-1}
-                        data-slot="timeline-row-grip"
-                        aria-label={locale.render(t`Move ${node().item.label}`)}
-                        {...attributes()}
-                        {...style.attrs(text.xs, styles.grip)}
-                    >
-                        <Icon icon={dotsSixVertical} />
-                    </span>
+            {"children" in properties ? (
+                properties.children
+            ) : (
+                <>
+                    <TimelineRowGrip />
+                    <TimelineRowGuide />
+                    <TimelineRowToggle />
+                    <span {...style.attrs(styles.words)}>{node().item.label}</span>
+                </>
+            )}
+        </div>
+    );
+}
+
+/** Read the room before a timeline's labels, which a grip stands in. */
+function gutterOf(control: TimelineControl): string {
+    return control.options.onRowMove === undefined ? space[2] : space[4];
+}
+
+/** Render the grip a row moves by, where its timeline takes moved rows. */
+export function TimelineRowGrip(properties: TimelineElementProperties): JSX.Element {
+    // move the row with its label
+    const control = useTimeline();
+    const locale = useLocale();
+    const { node } = useTimelineRow();
+    const key = untrack(() => node().item.key);
+    let element: HTMLElement | undefined;
+    if (untrack(() => control.options.onRowMove === undefined)) {
+        return null;
+    }
+    const grip = new Draggable(
+        {
+            id: JSON.stringify([ROWS, key]),
+            item: key,
+            type: ROW_TYPE,
+            kind: "move",
+            label: () => node().item.label,
+            element: () => element?.closest<HTMLElement>(LABEL_SLOT) ?? undefined,
+            home: () => ({
+                kind: "list",
+                droppable: ROWS,
+                index: control.tree.rows().findIndex((row) => row.item.key === key),
+                depth: node().depth,
+            }),
+        },
+        control.drag.manager,
+    ).attributes([" "]);
+
+    return renderPart(
+        "span",
+        "timeline-row-grip",
+        properties,
+        [text.xs, styles.grip],
+        mergeProperties(
+            mergeProperties({ ref: (created: HTMLElement) => (element = created) }, grip),
+            {
+                tabindex: -1,
+                get "aria-label"() {
+                    return locale.render(t`Move ${node().item.label}`);
+                },
+                get children() {
+                    return <Icon icon={dotsSixVertical} />;
+                },
+            },
+        ),
+    );
+}
+
+/** Render the lines of the rows a row is under. */
+export function TimelineRowGuide(properties: TimelineElementProperties): JSX.Element {
+    // start under the toggle of the outermost row
+    const control = useTimeline();
+    const { node } = useTimelineRow();
+    const gutter = untrack(() => gutterOf(control));
+
+    return (
+        <Show when={node().depth > 0}>
+            {renderPart(
+                "span",
+                "timeline-row-guide",
+                properties,
+                () => [indent.guide, indent.guideAt(gutter, node().depth)],
+                { "aria-hidden": "true" as const },
+            )}
+        </Show>
+    );
+}
+
+/** Render the button that folds the rows under a row, or the room of one where rows nest. */
+export function TimelineRowToggle(
+    properties: TimelineElementProperties<HTMLButtonElement>,
+): JSX.Element {
+    // turn with the row's fold
+    const control = useTimeline();
+    const locale = useLocale();
+    const { node } = useTimelineRow();
+    const key = untrack(() => node().item.key);
+    const isFolded = (): boolean => control.tree.folded().has(key);
+
+    return (
+        <Show when={control.tree.isNested()}>
+            <Show when={node().hasChildren} fallback={<span {...style.attrs(styles.toggle)} />}>
+                {renderPart(
+                    "button",
+                    "timeline-row-toggle",
+                    properties,
+                    () => [styles.toggle, indicator.base, !isFolded() && indicator.open],
+                    {
+                        type: "button" as const,
+                        tabindex: -1,
+                        onClick: () => control.tree.toggle(key),
+                        get "aria-label"() {
+                            return locale.render(isFolded() ? t`Expand` : t`Collapse`);
+                        },
+                        get children() {
+                            return <DisclosureCaret />;
+                        },
+                    },
                 )}
             </Show>
-
-            <Show when={control.tree.isNested()}>
-                <Show
-                    when={node().hasChildren}
-                    fallback={<span {...style.attrs(styles.disclosure)} />}
-                >
-                    <button
-                        type="button"
-                        tabindex={-1}
-                        aria-label={locale.render(isFolded() ? t`Expand` : t`Collapse`)}
-                        onClick={() => control.tree.toggle(key)}
-                        {...style.attrs(
-                            styles.disclosure,
-                            isTurned() && styles.unfolded,
-                            isTurnedBack() && styles.unfoldedBack,
-                        )}
-                    >
-                        <Icon icon={isRightToLeft() ? caretLeft : caretRight} />
-                    </button>
-                </Show>
-            </Show>
-            {properties.children ?? node().item.label}
-        </div>
+        </Show>
     );
 }
 
