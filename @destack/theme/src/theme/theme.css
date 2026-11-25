@@ -38,6 +38,13 @@
         font-family: var(--destack-font-code);
     }
 
+    /* draw thin scrollbars in the theme's text color over whatever they lie on */
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: color-mix(in oklab, var(--destack-color-foreground) 25%, transparent)
+            transparent;
+    }
+
     /* draw placeholders in the theme's muted text color */
     ::placeholder {
         color: var(--destack-color-muted-foreground);
