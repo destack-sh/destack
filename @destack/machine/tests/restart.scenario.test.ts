@@ -61,5 +61,5 @@ test("deliver a home change to a laptop replica soon after the home restarts", a
 function startOf<Row extends { readonly name: string }>(
     result: IteratorResult<readonly Row[], void>,
 ): Row | undefined {
-    return result.done === true ? undefined : result.value.find((row) => row.name === "start");
+    return result.done === true ? undefined : result.value.find((row) => row.name === "home");
 }

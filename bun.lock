@@ -73,21 +73,6 @@
         "@destack/test",
       ],
     },
-    "@destack/template": {
-      "name": "@destack/template",
-      "dependencies": {
-        "@destack/locale": "workspace:*",
-        "@destack/object": "workspace:*",
-        "@destack/package": "workspace:*",
-        "@destack/style": "workspace:*",
-        "@destack/theme": "workspace:*",
-        "@destack/view": "workspace:*",
-      },
-      "devDependencies": {
-        "@destack/check": "workspace:*",
-        "@types/bun": "1.4.4",
-      },
-    },
     "@destack/bucket": {
       "name": "@destack/bucket",
       "dependencies": {
@@ -679,13 +664,13 @@
       },
       "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
-        "@destack/template": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/social": "workspace:*",
+        "@destack/template": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/theme": "workspace:*",
         "@destack/universe": "workspace:*",
@@ -771,6 +756,7 @@
     "@destack/machine/tests/fixture/stack": {
       "name": "@destack/machine-stack-fixture",
       "dependencies": {
+        "@destack/account": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/machine-start-fixture": "workspace:*",
@@ -1315,6 +1301,21 @@
         "@destack/resource",
         "@opentelemetry/context-async-hooks",
       ],
+    },
+    "@destack/template": {
+      "name": "@destack/template",
+      "dependencies": {
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/style": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/view": "workspace:*",
+      },
+      "devDependencies": {
+        "@destack/check": "workspace:*",
+        "@types/bun": "1.4.4",
+      },
     },
     "@destack/test": {
       "name": "@destack/test",
@@ -1947,8 +1948,6 @@
 
     "@destack/account": ["@destack/account@workspace:@destack/account"],
 
-    "@destack/template": ["@destack/template@workspace:@destack/template"],
-
     "@destack/bucket": ["@destack/bucket@workspace:@destack/bucket"],
 
     "@destack/build": ["@destack/build@workspace:@destack/build"],
@@ -2032,6 +2031,8 @@
     "@destack/sync": ["@destack/sync@workspace:@destack/sync"],
 
     "@destack/telemetry": ["@destack/telemetry@workspace:@destack/telemetry"],
+
+    "@destack/template": ["@destack/template@workspace:@destack/template"],
 
     "@destack/test": ["@destack/test@workspace:@destack/test"],
 

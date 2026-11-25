@@ -5,6 +5,7 @@
         ".": "./src/index.ts"
     },
     "dependencies": {
+        "@destack/account": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/machine-start-fixture": "workspace:*",

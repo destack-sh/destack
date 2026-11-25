@@ -50,7 +50,7 @@ export const launchApp = defineScenario({
         {
             operation: "app.launch",
             times: "{launches}",
-            step: { action: "launch", installation: "start", view: "start" },
+            step: { action: "launch", installation: "home", view: "start" },
         },
     ],
 });
