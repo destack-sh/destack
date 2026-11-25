@@ -20,18 +20,18 @@ function version(name: string): PackageVersion {
     });
 }
 
-/** An installation of a package by its local name, chosen by someone or not. */
-function installed(name: string, isRoot: boolean) {
+/** An installation of a package by its local name, chosen at the top or kept as a dependency. */
+function installed(name: string, kind: "requested" | "dependency") {
     const id = schema.identifier("installation").parse(`installation-${numbered(name)}`);
 
-    return { id, name, packageId: version(name).id, isRoot };
+    return { id, name, packageId: version(name).id, kind };
 }
 
 test("keep what roots require transitively, name what is missing, and drop what nothing reaches", () => {
     // tasks, a root, requires contacts, which requires vault; an old unreached search stays from before
-    const tasks = installed("tasks", true);
-    const contacts = installed("contacts", false);
-    const search = installed("search", false);
+    const tasks = installed("tasks", "requested");
+    const contacts = installed("contacts", "dependency");
+    const search = installed("search", "dependency");
     const requirements = [
         { by: tasks, package: version("contacts") },
         { by: contacts, package: version("vault") },
@@ -57,9 +57,9 @@ test("keep what roots require transitively, name what is missing, and drop what 
 
 test("keep a root nothing requires, and drop non-roots that only require each other", () => {
     // a root nobody requires, and two non-roots requiring each other with no root reaching them
-    const notes = installed("notes", true);
-    const left = installed("left", false);
-    const right = installed("right", false);
+    const notes = installed("notes", "requested");
+    const left = installed("left", "dependency");
+    const right = installed("right", "dependency");
     const requirements = [
         { by: left, package: version("right") },
         { by: right, package: version("left") },

@@ -141,8 +141,10 @@ export const installation = defineObject(
                 .guard({ read: "update" }),
             /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
             isolation: field.enum(["sandbox", "host"]).default("sandbox"),
-            /** Whether someone chose it, as opposed to another installation's need keeping it. */
-            isRoot: field.boolean().default(true),
+            /** Why it is there: someone requested it, or another installation's need keeps it. */
+            kind: field.enum(["requested", "dependency"]).default("requested"),
+            /** The installation of its space it is browsable below, absent at the top. */
+            parentId: field.string(schema.identifier("installation")).optional(),
 
             /** The principal submitting the targeted revision, absent before the first one. */
             submittedBy: field.subject().optional(),
@@ -170,6 +172,13 @@ export const installation = defineObject(
                 kind: "foreignKey",
                 on: ["scope", "managerInstallationId"],
                 references: { object: "self", on: ["scope", "id"] },
+            },
+            // place a child below an installation of its own space, which cannot go while it has children
+            parentInstallation: {
+                kind: "foreignKey",
+                on: ["scope", "parentId"],
+                references: { object: "self", on: ["scope", "id"] },
+                onDelete: "no action",
             },
             scopePackage: { kind: "unique", on: ["scope", "packageId"] },
             scopeId: { kind: "unique", on: ["scope", "id"] },
@@ -262,7 +271,8 @@ export const installation = defineObject(
                 "capabilities",
                 "directories",
                 "isolation",
-                "isRoot",
+                "kind",
+                "parentId",
             ],
         }),
         update: method.update("update", {
@@ -280,7 +290,8 @@ export const installation = defineObject(
                 "capabilities",
                 "directories",
                 "isolation",
-                "isRoot",
+                "kind",
+                "parentId",
             ],
         }),
         delete: method.delete("delete"),
@@ -441,6 +452,17 @@ export const Installation = {
         return new Set(rows.map((row) => row.id));
     },
 
+    /** Find the installation a parent has as a child under a name, absent without one. */
+    async child(
+        reader: Pick<Snapshot, "read">,
+        parent: Pick<Installation, "scope" | "id">,
+        name: string,
+    ): Promise<Installation | undefined> {
+        return await reader.read(installation.table).findFirst({
+            where: { scope: parent.scope, parentId: parent.id, name },
+        });
+    },
+
     /** Describe an installation's condition waiting for a reason. */
     waiting(reason: WaitingReason, message: string): Condition {
         return { status: "false", reason, message };
@@ -512,7 +534,7 @@ export const Installation = {
      * Roots keep what they require, transitively, as a package manager resolves dependencies.
      */
     resolve<
-        Row extends Pick<Installation, "id" | "packageId" | "isRoot">,
+        Row extends Pick<Installation, "id" | "packageId" | "kind">,
         Required extends Pick<PackageRequirement, "package"> & { readonly by: Pick<Row, "id"> },
     >(
         installed: readonly Row[],
@@ -524,7 +546,7 @@ export const Installation = {
     } {
         // walk from the roots through the installations of what they require, each package once
         const required = new Map<PackageId, Required>();
-        const queue = installed.filter((row) => row.isRoot);
+        const queue = installed.filter((row) => row.kind === "requested");
         for (let row = queue.shift(); row !== undefined; row = queue.shift()) {
             for (const requirement of requirements.filter((each) => each.by.id === row.id)) {
                 if (!required.has(requirement.package.id)) {
@@ -543,7 +565,9 @@ export const Installation = {
         const missing = [...required.values()].filter(
             (requirement) => !installed.some((row) => row.packageId === requirement.package.id),
         );
-        const unrequired = installed.filter((row) => !row.isRoot && !required.has(row.packageId));
+        const unrequired = installed.filter(
+            (row) => row.kind === "dependency" && !required.has(row.packageId),
+        );
 
         return { required, missing, unrequired };
     },
