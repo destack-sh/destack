@@ -21,7 +21,7 @@ const styles = style.create({
 });
 
 /** Render an empty page with Destack's mark. */
-export default function Blank(): JSX.Element {
+export default function App(): JSX.Element {
     return (
         <main {...style.attrs(styles.page)}>
             <img src={MARK_URL} alt="Destack" {...style.attrs(styles.mark)} />

@@ -11,25 +11,25 @@ import { expectDirectory } from "../../tests/fixture.ts";
 /** The packages the instances depend on at a released version, the others at the default tag. */
 const RELEASED = ["@destack/object", "@destack/setting"];
 
-test("instantiate the blank package as a template", async () => {
+test("instantiate the app package as a template", async () => {
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
     const directory = await files.makeTemporaryDirectory("template-");
     const template = await Template.read(
-        fileURLToPath(new URL("../../../blank/", import.meta.url)),
+        fileURLToPath(new URL("../../../app/", import.meta.url)),
         files,
     );
     const parameters: TemplateInput = {
         id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
-        name: "@example/blank",
+        name: "@example/app",
         dependencies: {},
         versions: Object.fromEntries(RELEASED.map((each) => [each, "2026.9.0"])),
     };
 
     try {
         // instantiate the package into a new directory
-        const destination = join(directory, "blank");
+        const destination = join(directory, "app");
         await template.write(destination, parameters, Toolchain.workspace(), files);
 
         // compare every written file against the fixture
@@ -40,7 +40,7 @@ test("instantiate the blank package as a template", async () => {
         }
         await expectDirectory(
             written,
-            new URL("../../tests/fixture/template/blank/expected/", import.meta.url),
+            new URL("../../tests/fixture/template/app/expected/", import.meta.url),
             environment,
         );
     } finally {

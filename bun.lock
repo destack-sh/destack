@@ -73,8 +73,8 @@
         "@destack/test",
       ],
     },
-    "@destack/blank": {
-      "name": "@destack/blank",
+    "@destack/app": {
+      "name": "@destack/app",
       "dependencies": {
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
@@ -679,7 +679,7 @@
       },
       "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
-        "@destack/blank": "workspace:*",
+        "@destack/app": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/message": "workspace:*",
@@ -1947,7 +1947,7 @@
 
     "@destack/account": ["@destack/account@workspace:@destack/account"],
 
-    "@destack/blank": ["@destack/blank@workspace:@destack/blank"],
+    "@destack/app": ["@destack/app@workspace:@destack/app"],
 
     "@destack/bucket": ["@destack/bucket@workspace:@destack/bucket"],
 

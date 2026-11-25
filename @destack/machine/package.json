@@ -55,7 +55,7 @@
     },
     "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
-        "@destack/blank": "workspace:*",
+        "@destack/app": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/message": "workspace:*",

@@ -288,8 +288,8 @@
                     "description": "Sign people and machines in, and manage their accounts, organizations and spaces."
                 },
                 {
-                    "directory": "@destack/blank",
-                    "name": "@destack/blank",
+                    "directory": "@destack/app",
+                    "name": "@destack/app",
                     "description": "Show an empty page with Destack's mark: the app a space and a new package start from."
                 },
                 {
@@ -644,7 +644,7 @@
             "roles": {
                 "@destack/access": "builtin",
                 "@destack/account": "builtin",
-                "@destack/blank": "app",
+                "@destack/app": "app",
                 "@destack/bucket": "library",
                 "@destack/build": "library",
                 "@destack/check": "library",

@@ -7,7 +7,7 @@ import { CommandOption, type CommandBody } from "../command/command.ts";
 import { PackageSpecifier } from "../catalog/installation.ts";
 
 /** The template a package is made from unless another is asked for. */
-const DEFAULT_TEMPLATE = "@destack/blank";
+const DEFAULT_TEMPLATE = "@destack/app";
 
 /** Make a package from a published template in a new repository, checked out on this computer. */
 export const newCommand: CommandBody = {

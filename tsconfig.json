@@ -40,7 +40,7 @@
         "out",
         "@destack/access",
         "@destack/account",
-        "@destack/blank",
+        "@destack/app",
         "@destack/bucket",
         "@destack/build",
         "@destack/check",
