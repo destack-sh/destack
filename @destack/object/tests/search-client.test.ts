@@ -125,15 +125,73 @@ test("search a client's rows live, as they are added and renamed", async () => {
 
     // search both types, as they are added
     const found = client.search("ord", { types: [note, task], limit: 3 }).subscribe();
-    const hits = async () => (await found.read()).map(({ type, row }) => [type.name, row["title"]]);
+    const hits = async () =>
+        (await found.read()).hits.map(({ type, row }) => [type.name, row["title"]]);
     await client.mutate(task).create({ title: "Ord" }).predicted;
     const both = await hits();
     await client.mutate(note).create({ title: "ORD" }).predicted;
     const bothAfter = await hits();
     await found.close();
     const blank = client.search(" ", { types: [task], limit: 3 }).subscribe();
-    const every = (await blank.read()).map(({ reference }) => reference.type);
+    const every = (await blank.read()).hits.map(({ reference }) => reference.type);
     await blank.close();
+
+    // search as meant where the text finds nothing, until something has it
+    const texts = async (text: string) => {
+        const search = client
+            .search(text, { types: [note, task], limit: 3, typos: "correct" })
+            .subscribe();
+        const result = await search.read();
+        await search.close();
+
+        return [result.text, result.isCorrected, result.hits.length];
+    };
+    const meant = {
+        typo: await texts("ordr"),
+        plural: await texts("orders"),
+        more: await texts("order invoice"),
+        exact: await texts("order"),
+        digit: await texts("order 194"),
+        none: await texts("zebra"),
+    };
+    const typo = client
+        .search("odrer", { types: [note, task], limit: 3, typos: "correct" })
+        .subscribe();
+    const stopping = new AbortController();
+    const watched = typo.watch(stopping.signal);
+    const nextText = async () => {
+        const next = await watched.next();
+
+        return next.done === true
+            ? undefined
+            : [next.value.text, next.value.isCorrected, next.value.hits.length];
+    };
+    const followed = [await nextText(), await nextText()];
+    await client.mutate(note).create({ title: "Odrer" }).predicted;
+    for (let last = await nextText(); last?.[0] !== "odrer"; last = await nextText()) {
+        followed.push(last);
+    }
+    followed.push(await texts("odrer"));
+    stopping.abort();
+    await typo.close();
+    const kept = client.search("ordr", { types: [note, task], limit: 3 }).subscribe();
+    expect({ meant, followed, kept: await kept.read() }).toEqual({
+        meant: {
+            typo: ["order", true, 3],
+            plural: ["order", true, 3],
+            more: ["order", true, 3],
+            exact: ["order", false, 3],
+            digit: ["order 194", false, 0],
+            none: ["zebra", false, 0],
+        },
+        followed: [
+            ["odrer", false, 0],
+            ["order", true, 3],
+            ["odrer", false, 1],
+        ],
+        kept: { text: "ordr", isCorrected: false, hits: [] },
+    });
+    await kept.close();
 
     expect({ both, bothAfter, every }).toEqual({
         both: [
@@ -200,7 +258,7 @@ test("search a client's rich text by what a person reads", async () => {
     }).predicted;
     const found = async (text: string) => {
         const live = client.search(text, { types: [page], limit: 5 }).subscribe();
-        const hits = (await live.read()).map(({ row, excerpt }) => [row["title"], excerpt]);
+        const hits = (await live.read()).hits.map(({ row, excerpt }) => [row["title"], excerpt]);
         await live.close();
 
         return hits;

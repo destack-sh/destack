@@ -1031,7 +1031,8 @@ export async function starAndUndo(
 
 ### Search a client's objects
 
-`client.search` finds the searchable objects of some types, the most relevant first, and follows them live.
+`client.search` finds the searchable objects of some types, the most relevant and newest first, and follows them live.
+With `typos: "correct"` a text that finds nothing is searched as it was most likely meant, which the result tells.
 
 ```ts
 import type { ObjectType } from "@destack/object";
@@ -1045,9 +1046,10 @@ export async function printMatches(
     signal: AbortSignal,
 ) {
     const live = client
-        .search(text, { types, limit: 10 })
+        .search(text, { types, limit: 10, typos: "correct" })
         .subscribe({ after: { milliseconds: 150 } });
-    for await (const hits of live.watch(signal)) {
+    for await (const { text: found, isCorrected, hits } of live.watch(signal)) {
+        console.log(isCorrected ? `results for ${found}` : "results");
         console.log(hits.map(({ reference, row }) => [reference.id, row["title"]]));
     }
     await live.close();

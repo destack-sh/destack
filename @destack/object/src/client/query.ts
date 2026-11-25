@@ -198,6 +198,112 @@ export class Query<Value> implements PromiseLike<Value> {
         }
     }
 
+    /** Follow a live query, and another that opens while a value of the first is nothing. */
+    static either<Value>(
+        live: LiveQuery<Value>,
+        isNothing: (value: Value) => boolean,
+        open: (signal: AbortSignal) => Promise<LiveQuery<Value> | undefined>,
+    ): LiveQuery<Value> {
+        // keep the others open to close with the first
+        const closing = new AbortController();
+        const others = new Set<LiveQuery<Value>>();
+        const openOther = async (signal: AbortSignal) => {
+            const other = await open(AbortSignal.any([signal, closing.signal]));
+            if (other !== undefined) {
+                others.add(other);
+            }
+
+            return other;
+        };
+
+        return {
+            ready: live.ready,
+            read: async () => {
+                // read the other only where the first has nothing
+                const value = await live.read();
+                const other = isNothing(value) ? await openOther(closing.signal) : undefined;
+
+                return other === undefined ? value : await other.read();
+            },
+            watch: (signal) => Query.#watchEither(live, isNothing, openOther, signal),
+            close: async () => {
+                closing.abort();
+                await Promise.all([live, ...others].map((each) => each.close()));
+            },
+        };
+    }
+
+    /** Watch a live query, and while its value is nothing another that opens. */
+    static async *#watchEither<Value>(
+        live: LiveQuery<Value>,
+        isNothing: (value: Value) => boolean,
+        open: (signal: AbortSignal) => Promise<LiveQuery<Value> | undefined>,
+        signal: AbortSignal,
+    ): AsyncGenerator<Value> {
+        // read each stream on only once the reader does, the other until the first changes
+        const stream = live.watch(signal);
+        let first = stream.next();
+        let stopping = new AbortController();
+        let other: AsyncGenerator<Value> | undefined;
+        let second: Promise<IteratorResult<Value>> | undefined;
+        try {
+            while (!signal.aborted) {
+                const { isFirst, result } = await Promise.race([
+                    first.then((next) => ({ isFirst: true, result: next })),
+                    ...(second === undefined
+                        ? []
+                        : [second.then((next) => ({ isFirst: false, result: next }))]),
+                ]);
+
+                // end with the first
+                if (isFirst && result.done === true) {
+                    return;
+                }
+                // yield the first's value, and watch the other while that is nothing
+                else if (isFirst && result.done !== true) {
+                    stopping.abort();
+                    stopping = new AbortController();
+                    second = undefined;
+                    yield result.value;
+                    if (isNothing(result.value)) {
+                        other = Query.#opened(open, AbortSignal.any([signal, stopping.signal]));
+                        second = other.next();
+                    }
+                    first = stream.next();
+                }
+                // leave the other once it ends
+                else if (result.done === true) {
+                    second = undefined;
+                }
+                // yield the other's value
+                else {
+                    yield result.value;
+                    second = other?.next();
+                }
+            }
+        } finally {
+            stopping.abort();
+        }
+    }
+
+    /** Open a live query and watch it, nothing where none opens before the signal aborts. */
+    static async *#opened<Value>(
+        open: (signal: AbortSignal) => Promise<LiveQuery<Value> | undefined>,
+        signal: AbortSignal,
+    ): AsyncGenerator<Value> {
+        try {
+            const live = await open(signal);
+            if (live !== undefined && !signal.aborted) {
+                yield* live.watch(signal);
+            }
+        } catch (error) {
+            // rethrow unless stopped
+            if (!signal.aborted) {
+                throw error;
+            }
+        }
+    }
+
     /** Query what a function makes of each value. */
     map<Shaped>(shape: (value: Value) => Shaped): Query<Shaped> {
         return new Query((options) => Query.presented(this.subscribe(options), shape));

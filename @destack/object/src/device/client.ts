@@ -9,6 +9,7 @@ import { TelemetryScope } from "@destack/telemetry";
 import type { Localization } from "@destack/locale";
 import type { Choice } from "../presentation/choice.ts";
 import { TextSpan } from "../sequence/index.ts";
+import { chunk } from "../text/table.ts";
 import { ObjectError } from "../error/error.ts";
 import {
     FindOptions,
@@ -117,6 +118,12 @@ const SEPARATE_STORAGES = ["ephemeral", "external", "local"] as const;
 
 /** How long the local log retains changes: a minute, past any tab's catch-up. */
 const LOCAL_LOG_RETENTION = { minutes: 1 } as const;
+
+/** A digit, which a word of an identifier or a date has. */
+const DIGIT = /\p{Nd}/u;
+
+/** Read a query on this device alone, closed long before the store would follow it. */
+const DEVICE_ONLY: SubscribeOptions = { after: { hours: 1 } };
 
 /** Milliseconds per second: the monotonic clock reads milliseconds, durations record seconds. */
 const MILLISECONDS = 1000;
@@ -1275,8 +1282,42 @@ export class ObjectClient<
         );
     }
 
-    /** Query the objects of some types a text finds, the most relevant first, all for no words. */
-    search(text: string, options: SearchOptions): Query<readonly Hit[]> {
+    /** Search the objects of some types, the best and newest first, all for a text of no words. */
+    search(text: string, options: SearchOptions): Query<SearchResult> {
+        // search the text as it is
+        const search = this.#search(text, options).map((result) => ({
+            ...result,
+            isCorrected: false,
+        }));
+        if (options.typos !== "correct") {
+            return search;
+        }
+
+        // search as someone most likely meant while the text itself finds nothing
+        return new Query((subscribed) =>
+            Query.either(
+                search.subscribe(subscribed),
+                ({ hits }) => hits.length === 0,
+                async (signal) => {
+                    // wait as long as the store would
+                    const { after } = subscribed;
+                    if (after !== undefined) {
+                        await this.environment.clock.sleep(Duration.milliseconds(after), signal);
+                    }
+                    const meant = await this.#meant(text, options);
+
+                    return meant === undefined
+                        ? undefined
+                        : this.#search(meant, options)
+                              .map((result) => ({ ...result, isCorrected: true }))
+                              .subscribe(subscribed);
+                },
+            ),
+        );
+    }
+
+    /** Search the objects of some types by a text as it is. */
+    #search(text: string, options: SearchOptions): Query<Omit<SearchResult, "isCorrected">> {
         // match the words of each type's objects, scored by the columns it searches
         const search = Search.of(text);
         const where = search.isEmpty ? {} : { SEARCH: search.words.join(" ") };
@@ -1285,20 +1326,21 @@ export class ObjectClient<
                 type.key,
                 this.queryType(type).findMany({
                     where: { AND: [options.where ?? {}, where] },
-                    extras: { relevance: relevanceOf(type, search) },
+                    extras: { relevance: relevanceOf(type, search), changed: changedOf(type) },
                 }),
             ]),
         );
         const byKey = new Map(options.types.map((type) => [type.key, type]));
 
         return this.union(members, {
-            orderBy: { relevance: "desc" },
+            orderBy: { relevance: "desc", changed: "desc" },
             limit: options.limit,
-        }).map((entries) =>
-            entries.map(({ name, row: read }) => {
+        }).map((entries) => ({
+            text,
+            hits: entries.map(({ name, row: read }) => {
                 // reference the object
                 const type = found(byKey, name);
-                const { relevance, ...row } = JsonValue.object(read);
+                const { relevance, changed: _changed, ...row } = JsonValue.object(read);
                 const excerpt = excerptOf(type, search, row);
 
                 return {
@@ -1309,7 +1351,47 @@ export class ObjectClient<
                     ...(excerpt === undefined ? {} : { excerpt }),
                 };
             }),
+        }));
+    }
+
+    /** Read what someone most likely meant by a text that finds nothing on this device. */
+    async #meant(text: string, options: SearchOptions): Promise<string | undefined> {
+        // replace each word by the closest of the types' indexes, leaving out one like none
+        const tables = options.types.flatMap((type) => [
+            type.table,
+            ...(type.text.length === 0 ? [] : [chunk]),
+        ]);
+        const indexes = [...new Set(tables)].flatMap((table) => table[TABLE].fullText ?? []);
+        const { words } = Search.of(text);
+        const closest = await Promise.all(
+            words.map(async (word, index) => {
+                // keep a word with a digit, such as an identifier's or a date's
+                if (DIGIT.test(word)) {
+                    return word;
+                }
+                const terms = await Promise.all(
+                    indexes.map((each) => each.terms(this.database, word)),
+                );
+
+                return Search.closest(word, terms.flat(), index === words.length - 1);
+            }),
         );
+
+        // leave out the last other words until the rest finds something on this device
+        let kept = closest.filter((word) => word !== undefined);
+        while (kept.length > 0) {
+            const meant = kept.join(" ");
+            const live = this.#search(meant, { ...options, limit: 1 }).subscribe(DEVICE_ONLY);
+            const { hits } = await live.read();
+            await live.close();
+            if (hits.length > 0) {
+                return meant === words.join(" ") ? undefined : meant;
+            }
+            const last = kept.findLastIndex((word) => !DIGIT.test(word));
+            kept = last === -1 ? [] : kept.toSpliced(last, 1);
+        }
+
+        return undefined;
     }
 
     /** Read a hit as a choice in a locale, as it looks now. */
@@ -2175,6 +2257,13 @@ function relevanceOf(type: ObjectType, search: Search): Expression {
     return columns.length === 0 || search.isEmpty
         ? Expression.literal(0)
         : Expression.relevance(columns, search.words.join(" "));
+}
+
+/** Read when a type's rows last changed, never for those that do not tell. */
+function changedOf(type: ObjectType): Expression {
+    return Object.hasOwn(type.table[TABLE].columns, "updatedAt")
+        ? Expression.column("updatedAt")
+        : Expression.literal(0);
 }
 
 /** Cut the passage of an object's searched long texts a search matches, absent without one. */
