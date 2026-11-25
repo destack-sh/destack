@@ -1,6 +1,13 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
-import { Tree, TreeItem } from "./index.ts";
+import {
+    Tree,
+    TreeItem,
+    TreeItemGroup,
+    TreeItemGuide,
+    TreeItemRow,
+    TreeItemToggle,
+} from "./index.ts";
 import { render } from "@destack/view/test";
 import { treeWorkExpanded } from "./tree.example.tsx";
 
@@ -78,4 +85,34 @@ test("leave a controlled item at its owner's expansion, reporting the person's t
     setExpanded(true);
     flush();
     expect([before, expansion(), changes]).toEqual(["false", "true", [true]]);
+});
+
+test("render an item from its parts, a row and a group", () => {
+    const { container } = render(() => (
+        <Tree aria-label="Notebooks">
+            <TreeItem value="trips" label="Trips" defaultExpanded>
+                <TreeItem value="porto">
+                    <TreeItemRow>
+                        <TreeItemGuide />
+                        <TreeItemToggle />
+                        <em>Porto</em>
+                    </TreeItemRow>
+                    <TreeItemGroup>
+                        <TreeItem value="ribeira" label="Ribeira" />
+                    </TreeItemGroup>
+                </TreeItem>
+            </TreeItem>
+        </Tree>
+    ));
+    const rows = [...container.querySelectorAll("[data-slot=tree-item-row]")].map((row) =>
+        [...row.children].map(
+            (child) => child.getAttribute("data-slot") ?? child.tagName.toLowerCase(),
+        ),
+    );
+
+    expect(rows).toEqual([
+        ["tree-item-toggle"],
+        ["tree-item-guide", "tree-item-toggle", "em"],
+        ["tree-item-toggle"],
+    ]);
 });

@@ -1,9 +1,6 @@
 import { state } from "@destack/theme/state";
-import { Icon } from "@destack/ui/icon";
-import caretLeft from "@destack/icon/phosphor/caret-left";
-import caretRight from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
-import { color, motion, radius, space, stroke, size } from "@destack/theme/tokens.stylex";
+import { color, radius, space, stroke, size } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -19,7 +16,9 @@ import {
 } from "@destack/view";
 import type { Direction } from "@destack/locale";
 import { Collection, CollectionBuilder } from "../collection/index.ts";
+import { DisclosureCaret, indent, indicator } from "../disclosure/index.ts";
 import { Focus, ListDelegate } from "../focus/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { Selection, type SingleSelection } from "../selection/index.ts";
 
 /** The tree of the nearest tree, null outside one. */
@@ -39,10 +38,8 @@ const styles = style.create({
     item: {
         outlineStyle: "none",
     },
-    indent: (level: number) => ({
-        paddingInlineStart: `calc(${level - 1} * ${space[4]})`,
-    }),
     row: {
+        position: "relative",
         display: "flex",
         alignItems: "center",
         minHeight: size[2],
@@ -60,21 +57,9 @@ const styles = style.create({
         outlineColor: color.ring,
     },
     toggle: {
-        display: "inline-flex",
-        width: space[4],
         justifyContent: "center",
-        flexShrink: 0,
-        transitionProperty: "transform",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
+        width: space[4],
     },
-    expanded: {
-        transform: "rotate(90deg)",
-    },
-    expandedBack: {
-        transform: "rotate(-90deg)",
-    },
-    group: {},
 });
 
 /** The items, selection and focused item of a tree, which its items share. */
@@ -225,15 +210,15 @@ export interface TreeItemProperties extends Omit<
 > {
     /** The value the item stands for. */
     readonly value: string;
-    /** The text or content of the item's row. */
-    readonly label: JSX.Element;
+    /** The label of a standard row, whose items are the children, parts of its own when absent. */
+    readonly label?: JSX.Element;
     /** Whether the item's children show, which makes the expansion controlled. */
     readonly expanded?: boolean;
     /** Whether the item's children show at first while uncontrolled. */
     readonly defaultExpanded?: boolean;
     /** Handle the person expanding or collapsing the item. */
     readonly onExpandedChange?: (expanded: boolean) => void;
-    /** The StyleX styles applied after the row's styles. */
+    /** The StyleX styles applied after a standard row's styles. */
     readonly xstyle?: style.Styles;
 }
 
@@ -292,7 +277,9 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
         defaultValue: properties.defaultExpanded === true,
         onChange: (expanded) => properties.onExpandedChange?.(expanded),
     });
-    const isParent = (): boolean => "children" in properties;
+    const groups = new CollectionBuilder<() => HTMLElement | undefined>((group) => group());
+    const isParent = (): boolean =>
+        properties.label === undefined ? groups.items().length > 0 : "children" in properties;
     const isSelected = (): boolean => control.selection.isSelected(properties.value);
     const activate = (): void => {
         // select the item and toggle a parent
@@ -314,8 +301,18 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
         () => element,
     );
 
-    // label the item by its own row
+    // share the item with its row and group, which labels it and which makes it a parent
     const rowId = createUniqueId();
+    const item: TreeItemControl = {
+        value: properties.value,
+        rowId,
+        level,
+        isParent,
+        isExpanded,
+        isSelected,
+        isFocused: () => control.focus.isFocused() && control.focus.isActive(properties.value),
+        addGroup: (group) => void groups.add(group),
+    };
 
     return (
         <li
@@ -330,7 +327,7 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
             data-closed={isParent() && !isExpanded() ? "" : undefined}
             data-value={properties.value}
             {...rest}
-            ref={(item) => (element = item)}
+            ref={(created) => (element = created)}
             onClick={(event) => {
                 // select the clicked row's own item and toggle a parent
                 event.stopPropagation();
@@ -357,88 +354,144 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
             }}
             {...style.attrs(styles.item)}
         >
-            <TreeItemRow
-                id={rowId}
-                level={level}
-                isParent={isParent()}
-                isExpanded={isExpanded()}
-                isFocused={control.focus.isFocused() && control.focus.isActive(properties.value)}
-                isSelected={isSelected()}
-                xstyle={properties.xstyle}
-            >
-                {properties.label}
-            </TreeItemRow>
-            <Show when={isParent()}>
-                <TreeGroup level={level} parent={properties.value} isExpanded={isExpanded()}>
-                    {properties.children}
-                </TreeGroup>
-            </Show>
+            <TreeItemContext value={item}>
+                {properties.label === undefined ? (
+                    properties.children
+                ) : (
+                    <>
+                        <TreeItemRow xstyle={properties.xstyle}>
+                            <TreeItemToggle />
+                            {properties.label}
+                        </TreeItemRow>
+                        <Show when={"children" in properties}>
+                            <TreeItemGroup>{properties.children}</TreeItemGroup>
+                        </Show>
+                    </>
+                )}
+            </TreeItemContext>
         </li>
     );
 }
 
-/** Render the group of a parent's children one level deeper. */
-function TreeGroup(properties: {
+/** An item of a tree as its parts read it. */
+export interface TreeItemControl {
+    /** The value the item stands for. */
+    readonly value: string;
+    /** The id of its row, which labels it. */
+    readonly rowId: string;
+    /** The item's depth, 1 at the top level. */
     readonly level: number;
-    readonly parent: string;
-    readonly isExpanded: boolean;
-    readonly children: JSX.Element;
-}): JSX.Element {
-    return (
-        <ul
-            role="group"
-            hidden={!properties.isExpanded}
-            data-slot="tree-group"
-            {...style.attrs(styles.group)}
-        >
-            <TreeLevelContext value={properties.level + 1}>
-                <TreeParentContext value={properties.parent}>
-                    {properties.children}
-                </TreeParentContext>
-            </TreeLevelContext>
-        </ul>
+    /** Whether items are under it. */
+    readonly isParent: Accessor<boolean>;
+    /** Whether the items under it show. */
+    readonly isExpanded: Accessor<boolean>;
+    /** Whether it is the one selected. */
+    readonly isSelected: Accessor<boolean>;
+    /** Whether it has the focus. */
+    readonly isFocused: Accessor<boolean>;
+    /** Add the group of the items under it, until it unmounts. */
+    readonly addGroup: (element: () => HTMLElement | undefined) => void;
+}
+
+/** The nearest item of a tree, null outside one. */
+const TreeItemContext = createContext<TreeItemControl | null>(null);
+
+/** Read the nearest item of a tree, refusing a part outside one. */
+export function useTreeItem(): TreeItemControl {
+    const item = useContext(TreeItemContext);
+    if (item === null) {
+        throw new TypeError("a tree item part needs a tree item around it");
+    }
+
+    return item;
+}
+
+/** The properties of a part of an item's row, the native element's attributes included. */
+export type TreeItemElementProperties<Target extends HTMLElement = HTMLSpanElement> = Omit<
+    JSX.HTMLAttributes<Target>,
+    "class"
+> &
+    ElementPartProperties;
+
+/** Render the row of an item: its guide, toggle, and what it stands for. */
+export function TreeItemRow(properties: TreeItemElementProperties<HTMLDivElement>): JSX.Element {
+    const { rowId, level, isFocused, isSelected } = useTreeItem();
+
+    return renderPart(
+        "div",
+        "tree-item-row",
+        properties,
+        () => [
+            state.hover,
+            styles.row,
+            indent.by("0px", level - 1),
+            isFocused() && styles.focused,
+            isSelected() && state.selected,
+        ],
+        { id: rowId },
     );
 }
 
-/** Render an item's row: indented by its level, with a chevron that turns as a parent expands. */
-function TreeItemRow(properties: {
-    readonly id: string;
-    readonly level: number;
-    readonly isParent: boolean;
-    readonly isExpanded: boolean;
-    readonly isFocused: boolean;
-    readonly isSelected: boolean;
-    readonly xstyle: style.Styles | undefined;
-    readonly children: JSX.Element;
-}): JSX.Element {
-    // turn the chevron along the reading direction
-    const locale = useLocale();
-    const isRightToLeft = (): boolean => locale.direction === "rtl";
-    const turned = () => (isRightToLeft() ? styles.expandedBack : styles.expanded);
+/** Render the items under an item, one level deeper, while it is expanded. */
+export function TreeItemGroup(
+    properties: TreeItemElementProperties<HTMLUListElement>,
+): JSX.Element {
+    // make the item a parent
+    const { value, level, isExpanded, addGroup } = useTreeItem();
+    const rest = omit(properties, "children");
+    let element: HTMLElement | undefined;
+    addGroup(() => element);
+
+    return renderPart("ul", "tree-group", rest, null, {
+        ref: (created: HTMLElement) => void (element = created),
+        role: "group" as const,
+        get hidden() {
+            return !isExpanded();
+        },
+        get children() {
+            return (
+                <TreeLevelContext value={level + 1}>
+                    <TreeParentContext value={value}>{properties.children}</TreeParentContext>
+                </TreeLevelContext>
+            );
+        },
+    });
+}
+
+/** Render the caret that turns as a parent expands, or the room of one. */
+export function TreeItemToggle(properties: TreeItemElementProperties): JSX.Element {
+    // turn with the item's expansion
+    const { isParent, isExpanded } = useTreeItem();
+    const rest = omit(properties, "children");
+
+    return renderPart(
+        "span",
+        "tree-item-toggle",
+        rest,
+        () => [styles.toggle, indicator.base, isParent() && isExpanded() && indicator.open],
+        {
+            "aria-hidden": "true" as const,
+            get children() {
+                return <Show when={isParent()}>{properties.children ?? <DisclosureCaret />}</Show>;
+            },
+        },
+    );
+}
+
+/** Render the lines of the items an item is under. */
+export function TreeItemGuide(properties: TreeItemElementProperties): JSX.Element {
+    const { level } = useTreeItem();
 
     return (
-        <div
-            id={properties.id}
-            data-slot="tree-item-row"
-            {...style.attributes([
-                state.hover,
-                styles.row,
-                styles.indent(properties.level),
-                properties.isFocused && styles.focused,
-                properties.isSelected && state.selected,
-                properties.xstyle,
-            ])}
-        >
-            <span
-                aria-hidden="true"
-                {...style.attrs(styles.toggle, properties.isExpanded && turned())}
-            >
-                <Show when={properties.isParent}>
-                    <Icon icon={isRightToLeft() ? caretLeft : caretRight} />
-                </Show>
-            </span>
-            {properties.children}
-        </div>
+        <Show when={level > 1}>
+            {renderPart(
+                "span",
+                "tree-item-guide",
+                properties,
+                [indent.guide, indent.guideAt("0px", level - 1)],
+                { "aria-hidden": "true" as const },
+            )}
+        </Show>
     );
 }
 
