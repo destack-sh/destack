@@ -10,14 +10,14 @@ const PART_BYTES = 8 * 1024 * 1024;
 
 /** Blobs in packs, files of any bucket below a prefix, such as an R2 or S3 bucket's. */
 export class BucketBlobStorage implements BlobStorage {
-    /** The residency's bucket. */
+    /** The region's bucket. */
     readonly #files: Bucket;
     /** The prefix of the bucket's packs, such as `bucket-…/`. */
     readonly #prefix: string;
     /** The randomness naming each pack of several blobs. */
     readonly #random: Random;
 
-    /** Store a bucket's blobs below a prefix of the residency's bucket. */
+    /** Store a bucket's blobs below a prefix of the region's bucket. */
     constructor(files: Bucket, prefix: string, random: Random) {
         this.#files = files;
         this.#prefix = prefix;

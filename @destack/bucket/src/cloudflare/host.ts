@@ -22,9 +22,9 @@ const FENCE_FILE = "fence";
 
 /** Where a cell keeps its buckets. */
 export interface R2BucketHostOptions {
-    /** The residency's R2 bucket. */
+    /** The region's R2 bucket. */
     readonly bucket: Bucket;
-    /** The name of the residency's R2 bucket, such as `destack-production-eu`. */
+    /** The name of the region's R2 bucket, such as `destack-production-eu`. */
     readonly name: string;
     /** The key prefix of the host's buckets, such as `spaces/<space>/buckets/`. */
     readonly prefix: string;
@@ -44,9 +44,9 @@ export interface R2BucketHostOptions {
 export class R2BucketHost extends CatalogueBucketHost {
     /** The provider code of R2 buckets. */
     readonly provider: CatalogueProvider;
-    /** The residency's R2 bucket. */
+    /** The region's R2 bucket. */
     readonly #bucket: Bucket;
-    /** The name of the residency's R2 bucket. */
+    /** The name of the region's R2 bucket. */
     readonly name: string;
     /** The key prefix of the host's buckets. */
     readonly #prefix: string;
@@ -57,9 +57,9 @@ export class R2BucketHost extends CatalogueBucketHost {
     /** The spans and durations of the bucket opens. */
     readonly #scope: TelemetryScope;
 
-    /** Keep a cell's buckets in the residency's R2 bucket and the cell's database. */
+    /** Keep a cell's buckets in the region's R2 bucket and the cell's database. */
     constructor(options: R2BucketHostOptions) {
-        // keep the residency's bucket and the catalogues
+        // keep the region's bucket and the catalogues
         super(options);
         this.provider = "r2";
         this.#bucket = options.bucket;
@@ -70,7 +70,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
-    /** Name where a bucket's blobs live: its prefix in the residency's R2 bucket. */
+    /** Name where a bucket's blobs live: its prefix in the region's R2 bucket. */
     override reference(bucket: Pick<BucketReference, "bucketId">): string {
         return `r2://${this.name}/${this.#key(bucket.bucketId)}`;
     }
@@ -194,7 +194,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         return opened;
     }
 
-    /** Write a bucket's key prefix in the residency's bucket. */
+    /** Write a bucket's key prefix in the region's bucket. */
     #key(bucketId: string): string {
         return `${this.#prefix}${bucketId}/`;
     }

@@ -32,7 +32,7 @@ const CREDENTIALS = { accessKeyId: "CELL", secretAccessKey: "cell-secret" };
 
 /** The cell's S3 endpoint. */
 const ENDPOINT = new URL("https://s3.cell.test");
-/** The key prefix of the cell's buckets in the residency's bucket. */
+/** The key prefix of the cell's buckets in the region's bucket. */
 const PREFIX = "spaces/space-01a1e99e-334f-75c3-be74-db59d62491ce/buckets/";
 
 /** Hash text as a blob digest. */
@@ -86,13 +86,13 @@ class TestCatalogueStore implements CatalogueStore, AsyncDisposable {
     }
 }
 
-test("provision a bucket as a prefix of the residency's bucket beside its catalogue, serve presigned writes and reads, and destroy both", async () => {
-    // keep the residency's bucket locally, as R2 keeps it, and the catalogues in test databases
+test("provision a bucket as a prefix of the region's bucket beside its catalogue, serve presigned writes and reads, and destroy both", async () => {
+    // keep the region's bucket locally, as R2 keeps it, and the catalogues in test databases
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     await using files = await LocalBucket.open(
         join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
-        "residency",
+        "region",
         world,
     );
     await using catalogues = new TestCatalogueStore(world);
@@ -180,7 +180,7 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
     });
     await using files = await LocalBucket.open(
         join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
-        "residency",
+        "region",
         world,
     );
     await using catalogues = new TestCatalogueStore(world);
@@ -208,7 +208,7 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
     const snapshot = await source.snapshot.snapshot(from, [], store);
     await target.snapshot.restore(to, [], snapshot, store);
 
-    // read the device's files on the cell, only their blobs left in the residency's bucket
+    // read the device's files on the cell, only their blobs left in the region's bucket
     const received = await cell.open({ bucketId });
     const listed = await received.list();
     expect([
@@ -224,7 +224,7 @@ test("fence a cell bucket through its provider: refuse presigned and direct writ
     const world = simulation.environment("host");
     await using files = await LocalBucket.open(
         join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
-        "residency",
+        "region",
         world,
     );
     await using catalogues = new TestCatalogueStore(world);
@@ -300,7 +300,7 @@ test("list a cell bucket's files and groups in key byte order", async () => {
     const world = simulation.environment("host");
     await using files = await LocalBucket.open(
         join(await world.files.makeTemporaryDirectory("r2-host-"), "files"),
-        "residency",
+        "region",
         world,
     );
     await using catalogues = new TestCatalogueStore(world);
