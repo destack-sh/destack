@@ -1,4 +1,6 @@
+import { Environment } from "@destack/environment";
 import { BunEnvironment } from "@destack/environment/bun";
+import { LineExporter, LOG_LEVEL_VARIABLE } from "@destack/environment/line";
 import { Release, type ReleaseProcess } from "@destack/update/release";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
@@ -24,8 +26,12 @@ const MILLISECONDS_PER_SECOND = 1000;
 /** The name the program's command line records its load under, beside its other processes'. */
 const COMMAND_LINE = "command";
 
-/** The environment the program runs on: the system's environment. */
-const environment = BunEnvironment.system;
+/** The system's environment, whose variables decide whether the program prints its telemetry. */
+const system = BunEnvironment.system;
+
+/** The environment the program runs on, printing its signals as lines when a level is set. */
+const environment =
+    system.process.variables[LOG_LEVEL_VARIABLE] === undefined ? system : printing(system);
 
 /** The process the program starts as, absent for its command line. */
 const selected = Release.process(environment.process.arguments);
@@ -52,5 +58,18 @@ else {
         environment.process.arguments,
         () => native.open(),
         environment,
+    );
+}
+
+/** Instrument an environment to print its log records and spans as lines on standard error. */
+function printing(source: typeof BunEnvironment.system): typeof BunEnvironment.system {
+    const exporter = new LineExporter(
+        (line) => source.process.stderr.writeSync(line),
+        LineExporter.options(source.process.variables),
+    );
+
+    return Environment.instrument(
+        source,
+        exporter.telemetry(source.clock, source.telemetry.context),
     );
 }
