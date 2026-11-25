@@ -5,7 +5,6 @@ import registryPackage from "@destack/registry/package";
 import { Account, group, Placement } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { expect, onTestFinished, test } from "@destack/test";
-import { TestMachine } from "./machine.ts";
 import { TEST_UNIVERSE, TestUniverse } from "./universe.ts";
 
 test("sign a person up through the mailed code a native client redeems, make an example's calls in their account, and refuse an example it cannot make", async () => {
@@ -140,17 +139,16 @@ test("forward Git for a repository link to its account's registry as the caller,
     });
 });
 
-test("enroll a person's machine of their account, published at its name through its region's relay, as the directory reads it", async () => {
+test("enroll a person's machine of their account, published at its origin through its region's relay, as the directory reads it", async () => {
     // enroll ada's machine in her personal account behind a relay, and follow the directory as it
     await using started = await TestUniverse.open();
     const ada = await started.signIn("ada@example.test");
     const machine = await started.enroll(ada, ada.account, "https://relay-eu.machine.test");
     await started.simulation.idle();
 
-    // locate the machine at its name below her handle
-    const name = { machine: TestMachine.nameOf(machine.id), handle: ada.handle };
+    // locate the machine at its origin
     expect(await machine.directory.answering(machine.id, started.clock.now())).toBe(
-        TEST_UNIVERSE.machine(name),
+        TEST_UNIVERSE.machine(machine.id),
     );
 });
 

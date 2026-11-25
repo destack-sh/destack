@@ -12,7 +12,7 @@ import {
     TestMail,
     OPERATOR_EMAIL,
     PersonSignIn,
-    REGION_STACK,
+    PLATFORM_STACK,
     STACKS,
     TestPerson,
     PLATFORM_HANDLE,
@@ -42,7 +42,6 @@ import objectPackage from "@destack/object/package";
 import type { Example } from "@destack/package/declare";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
-import { Platform } from "@destack/account/server";
 import type { UniverseDefinition } from "../universe/definition.ts";
 import { BuildLayer } from "@destack/package/manifest";
 import { Universe, type UniverseOptions, UNIVERSE_PACKAGES } from "../universe/universe.ts";
@@ -121,7 +120,7 @@ export interface TestUniverseOptions {
     readonly layer?: UniverseOptions["layer"];
     /** The stacks its spaces are born with, the account test fixture's by default. */
     readonly stacks?: UniverseDefinition["platform"]["stacks"];
-    /** The stack the platform's home runs in each region, the account fixture's by default. */
+    /** The stack the platform's home runs, the account fixture's by default. */
     readonly home?: StackRelease;
     /** The migrated database it starts over, which the caller closes, a new one by default. */
     readonly storage?: TestDatabase;
@@ -328,10 +327,8 @@ export class TestUniverse implements AsyncDisposable {
                 clients: [],
                 handle: PLATFORM_HANDLE,
                 domains: [],
-                homes: Object.fromEntries(
-                    regions.map(({ code }) => [code, options.home ?? REGION_STACK]),
-                ),
-                hostnames: Object.fromEntries(regions.map(({ code }) => [code, []])),
+                home: options.home ?? PLATFORM_STACK,
+                hostnames: [],
                 stacks: options.stacks ?? STACKS,
                 machines: declared,
             },
@@ -525,20 +522,18 @@ export class TestUniverse implements AsyncDisposable {
         });
     }
 
-    /** Read the home of the platform's account in a region. */
-    async platformHome(code: RegionCode): Promise<Identifier<"space">> {
-        // read the platform's account in the region by its handle
-        const handle = Platform.handle({ handle: PLATFORM_HANDLE, regionId: TEST_REGION }, code);
-        const platform = await Account.byHandle(this.storage.database.snapshot(), handle);
+    /** Read the home of the platform's account. */
+    async platformHome(): Promise<Identifier<"space">> {
+        const platform = await Account.byHandle(this.storage.database.snapshot(), PLATFORM_HANDLE);
 
-        return Account.home(present(platform, `the platform's account in ${code}`).id);
+        return Account.home(present(platform, "the platform's account").id);
     }
 
     /** Read the platform's merchant, the finance installation its home declares. */
     async #merchant(): Promise<Subject> {
         // derive the installation the platform home's stack declares under the merchant's name
         const snapshot = this.storage.database.snapshot();
-        const home = await Scope.object(snapshot, await this.platformHome(TEST_REGION));
+        const home = await Scope.object(snapshot, await this.platformHome());
         const crypto = this.universe.store.environment.crypto;
         const id = await InstallationId.of(home, REGION_MERCHANT, crypto);
 
@@ -810,16 +805,6 @@ export class TestUniverse implements AsyncDisposable {
         }
 
         return opened;
-    }
-
-    /** Read the relay a region's home declares, which the universe relates to the region. */
-    async relay(code: RegionCode = TEST_REGION): Promise<Subject> {
-        // derive the installation the platform home's stack declares under the relay's name
-        const snapshot = this.storage.database.snapshot();
-        const home = await Scope.object(snapshot, await this.platformHome(code));
-        const id = await InstallationId.of(home, "relay", this.environment.crypto);
-
-        return principal.installation.reference(home.id, id);
     }
 
     /** Stop the machines, then the universe, then remove its database. */
