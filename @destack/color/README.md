@@ -1,15 +1,18 @@
 # @destack/color
 
-Name the hues colors mean things in, which each theme fills in.
+Read, change and write colors, and name the hues they mean things in.
 
 ## Overview
 
-`@destack/color` is ten hues in Radix Colors' values, which a theme may replace.
+`@destack/color` is a color in sRGB, HSL, HSB or OKLCH, and ten hues in Radix Colors' values, which a theme may replace.
 
 ```ts
-import { DEFAULT_HUES, Hue } from "@destack/color";
+import { Color, DEFAULT_HUES, Hue } from "@destack/color";
 
 // read a hue's color without a theme
 const hue = Hue.parse("cyan");
 const color = DEFAULT_HUES[hue]; // #00a2c7
+
+// make it lighter as people see it
+const lighter = Color.parse(color).to("oklch").with("lightness", 80).toString();
 ```

@@ -308,6 +308,9 @@
       "dependencies": {
         "@destack/schema": "workspace:*",
       },
+      "devDependencies": {
+        "@destack/test": "workspace:*",
+      },
     },
     "@destack/connection": {
       "name": "@destack/connection",
