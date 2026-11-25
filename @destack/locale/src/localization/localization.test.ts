@@ -161,12 +161,28 @@ test("write numbers, dates, date ranges and lists as each locale does", () => {
 test("write an instant relative to now in its largest whole unit, past and future", () => {
     const [english, german] = [Localization.of("en", []), Localization.of("de", [])];
     expect([
+        english.relative(NOW - 3 * 24 * HOUR, NOW, { style: "narrow" }),
+        english.relative(NOW - 45_000, NOW, { precision: "minute" }),
+        german.relative(NOW - 45_000, NOW, { precision: "minute" }),
+        english.relative(NOW - 90_000, NOW, { precision: "minute" }),
+        english.relative(NOW - HOUR + 1000, NOW),
         english.relative(NOW - 3 * 24 * HOUR, NOW),
         german.relative(NOW + 2 * HOUR, NOW),
         english.relative(NOW - 24 * HOUR, NOW),
         english.relative(NOW - 10_000, NOW),
         english.relative(NOW, NOW),
-    ]).toEqual(["3 days ago", "in 2 Stunden", "yesterday", "10 seconds ago", "now"]);
+    ]).toEqual([
+        "3d ago",
+        "now",
+        "jetzt",
+        "1 minute ago",
+        "1 hour ago",
+        "3 days ago",
+        "in 2 Stunden",
+        "yesterday",
+        "10 seconds ago",
+        "now",
+    ]);
 });
 
 test("render a message with the arguments its reader supplies, refusing one left out", () => {

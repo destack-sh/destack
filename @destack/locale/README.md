@@ -89,7 +89,7 @@ It renders in the nearest translated locale, else in the `source` language, Engl
 | `date(time, options)`            | formats an instant in epoch milliseconds, as `Intl.DateTimeFormat`                                 |
 | `dateRange(start, end, options)` | formats the span between two instants, sharing their common parts                                  |
 | `list(items, options)`           | joins items, such as `Ada, Grace, and Linus`                                                       |
-| `relative(time, now)`            | formats an instant in its largest whole unit, such as `3 days ago`                                 |
+| `relative(time, now, format?)`   | formats an instant in its largest whole unit, such as `3 days ago`                                 |
 | `tag`, `direction`               | the locale, and the direction its text runs in                                                     |
 
 ### Locale

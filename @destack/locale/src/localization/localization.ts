@@ -20,6 +20,14 @@ const UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] = [
     SECOND,
 ];
 
+/** How an instant is written relative to now. */
+export interface RelativeFormat {
+    /** How long the words are, long by default, such as 3 days ago, 3 days ago or 3d ago. */
+    readonly style?: Intl.RelativeTimeFormatStyle;
+    /** The smallest unit written, below which it is now, seconds by default. */
+    readonly precision?: Intl.RelativeTimeFormatUnitSingular;
+}
+
 /** The arguments a message's reader supplies, none for a message without any. */
 export type RenderArguments<Names extends string> = [Names] extends [never]
     ? []
@@ -67,7 +75,7 @@ export interface Localization {
     /** Write a list joined as the locale joins one, such as a, b and c. */
     readonly list: (items: readonly string[], options?: Intl.ListFormatOptions) => string;
     /** Write an instant relative to now in its largest whole unit, such as 3 days ago. */
-    readonly relative: (time: number, now: number) => string;
+    readonly relative: (time: number, now: number, format?: RelativeFormat) => string;
 }
 
 /** How a localization reads its messages and runs its text. */
@@ -116,7 +124,10 @@ export const Localization = {
         const lists = cached(
             (options?: Intl.ListFormatOptions) => new Intl.ListFormat(tag, options),
         );
-        const relatives = new Intl.RelativeTimeFormat(tag, { numeric: "auto" });
+        const relatives = cached(
+            (options?: Intl.RelativeTimeFormatOptions) =>
+                new Intl.RelativeTimeFormat(tag, { numeric: "auto", ...options }),
+        );
         const compiled = new Map<string, MessageFormat>();
         const compile = (locale: LocaleTag, text: string) => {
             // compile each locale's text once
@@ -163,7 +174,8 @@ export const Localization = {
                     TimeZone.instant("UTC", end, "00:00"),
                 ),
             list: (items, options) => lists(options).format(items),
-            relative: (time, now) => relative(time, now, relatives),
+            relative: (time, now, { style = "long", precision = "second" } = {}) =>
+                relative(time, now, relatives({ style }), precision),
         };
     },
 };
@@ -226,13 +238,31 @@ function money(
     return formatter.format(amount / 10 ** digits);
 }
 
-/** Write an instant relative to now in its largest whole unit, seconds below a second. */
-function relative(time: number, now: number, relatives: Intl.RelativeTimeFormat): string {
+/** Write an instant relative to now in its largest whole unit, now below the smallest. */
+function relative(
+    time: number,
+    now: number,
+    relatives: Intl.RelativeTimeFormat,
+    precision: Intl.RelativeTimeFormatUnitSingular,
+): string {
     // take the largest unit the distance covers once, seconds below that
     const distance = time - now;
-    const [unit, length] = UNITS.find(([, size]) => Math.abs(distance) >= size) ?? SECOND;
+    const least = UNITS.find(([unit]) => unit === precision)?.[1] ?? SECOND[1];
+    if (Math.abs(distance) < least) {
+        return relatives.format(0, SECOND[0]);
+    }
 
-    return relatives.format(Math.round(distance / length), unit);
+    // round in that unit, then take the unit the rounded distance covers: 59.9 minutes are an hour
+    const [, size] = unitOf(distance);
+    const rounded = Math.round(distance / size) * size;
+    const [unit, length] = unitOf(rounded);
+
+    return relatives.format(Math.round(rounded / length), unit);
+}
+
+/** Find the largest unit a distance covers once, seconds below a minute. */
+function unitOf(distance: number): (typeof UNITS)[number] {
+    return UNITS.find(([, size]) => Math.abs(distance) >= size) ?? SECOND;
 }
 
 /** Return a factory that builds a formatter once per options and returns the same one after. */
