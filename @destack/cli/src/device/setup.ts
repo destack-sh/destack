@@ -8,7 +8,7 @@ import { present } from "@destack/schema";
 import {
     Distribution,
     type InstalledRelease,
-    Installer,
+    type Installer,
     type StagedRelease,
     UpdateError,
     type Updater,
@@ -140,7 +140,7 @@ export class Setup {
 
     /** Find the distribution files of the home, apart from the device's user databases. */
     installer(): Installer {
-        return new Installer(join(this.home.directory, "distribution"), this.environment);
+        return this.home.distribution(this.environment).distribution.installer();
     }
 
     /** Read the release version the running machine runs, absent when no machine answers. */
