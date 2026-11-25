@@ -92,6 +92,7 @@ function stylePlugin(
     };
     const own = new Map<string, Rule[]>();
     const depended = new Map<string, Rule[]>();
+    let added: string | undefined;
 
     return {
         name: "destack:style",
@@ -162,7 +163,15 @@ function stylePlugin(
             if (imported !== undefined) {
                 const css = await cachedSheet([...depended, ...own], cache, environment);
                 const reference = this.emitFile({ type: "asset", name: SHEET_FILE, source: css });
-                imported.add(this.getFileName(reference));
+
+                // replace the sheet an earlier build of a warm bundle added, as chunks' metadata outlives it
+                for (const chunk of chunks) {
+                    if (added !== undefined) {
+                        chunk.viteMetadata?.importedCss.delete(added);
+                    }
+                }
+                added = this.getFileName(reference);
+                imported.add(added);
             }
         },
     };
