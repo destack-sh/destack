@@ -10,7 +10,7 @@ import { Toolchain } from "@destack/check/toolchain";
 import { verifyApplication } from "../apple/install.ts";
 import { ShellPath } from "../install/path.ts";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import type { StagedRelease } from "../install/installer.ts";
+import { Installer, type StagedRelease } from "../install/installer.ts";
 import { RELEASE_ROOT, Release, type Profile } from "../release/index.ts";
 import { UpdateError } from "../error/index.ts";
 import { Updater } from "../update/index.ts";
@@ -107,6 +107,11 @@ export class Distribution {
     /** The directory with the versioned releases and their activation records. */
     get directory(): string {
         return join(this.options.home, "distribution");
+    }
+
+    /** Find the installer of the distribution's releases, in its directory. */
+    installer(): Installer {
+        return new Installer(this.directory, this.options.environment);
     }
 
     /** Find the Mac application the distribution installs. */
