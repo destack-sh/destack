@@ -66,6 +66,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropd
 import { mergeProperties } from "../part/index.ts";
 import { type MultipleSelection, Selection } from "../selection/index.ts";
 import { type VirtualHost, VirtualHostContext, type VirtualWindow } from "../virtual-list/index.ts";
+import type { DragItem } from "../drag/index.ts";
 import {
     Sortable,
     SortableContainer,
@@ -344,6 +345,8 @@ export interface BoardMove extends BoardCell {
     readonly previous: string | undefined;
     /** The id of the card after it, undefined at the end. */
     readonly next: string | undefined;
+    /** What it brings from outside the page, such as files, nothing of an item of the page. */
+    readonly items: readonly DragItem[];
 }
 
 /** The verbs of a board's moves. */
@@ -351,7 +354,7 @@ export const BoardMove = {
     /** Apply a move to the owner's lists of cards, keyed by cell as the owner keys them. */
     apply<Item>(
         lists: Readonly<Record<string, readonly Item[]>>,
-        move: BoardMove,
+        move: Pick<BoardMove, "id" | "column" | "lane" | "next">,
         keyOf: (cell: BoardCell) => string,
         idOf: (item: Item) => string,
     ): Record<string, readonly Item[]> {
@@ -1297,6 +1300,7 @@ export class BoardControl {
                 ...cell,
                 previous: move.previous,
                 next: move.next,
+                items: move.items,
             });
         }
         // re-file sorted cards only when one changes cell, the owner placing them by its order
@@ -1376,6 +1380,7 @@ export class BoardControl {
                 ...cell,
                 previous: before,
                 next,
+                items: [],
             });
             before = key;
         }

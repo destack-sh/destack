@@ -51,7 +51,7 @@ import {
     VIEW_ACTIONS,
 } from "./actions.ts";
 import { writeClipboard } from "@destack/view/primitives/clipboard";
-import type { Draggable, DragManager, DragOperation, DragTarget } from "../drag/index.ts";
+import type { DragManager, DragOperation, DragSource, DragTarget } from "../drag/index.ts";
 import { HoverCardControl } from "../hover-card/index.ts";
 import type { InteractionEvent } from "../interaction/index.ts";
 import { type MultipleSelection, Selection } from "../selection/index.ts";
@@ -1290,7 +1290,7 @@ export class EventCalendarControl {
     }
 
     /** Report whether a place of a kind takes a dragged item: a shown event, or a received type. */
-    accepts(draggable: Draggable, place: "time" | "cell"): boolean {
+    accepts(draggable: DragSource, place: "time" | "cell"): boolean {
         // take another view's items of the types the calendar receives
         if (draggable.type !== EVENT_TYPE) {
             return (

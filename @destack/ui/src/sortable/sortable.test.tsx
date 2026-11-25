@@ -79,7 +79,9 @@ test("lift an item with Space, move it down and across with the arrow keys, anno
         moved: "Write moved to position 2 of 3 in To do.",
         marked: "Ship",
         dropped: "Write dropped at position 2 of 2 in Done.",
-        moves: [{ id: "a", type: "item", container: "done", previous: "d", next: undefined }],
+        moves: [
+            { id: "a", type: "item", container: "done", previous: "d", next: undefined, items: [] },
+        ],
     });
 });
 
@@ -152,7 +154,7 @@ test("drag an item with the pointer past the middle of another, previewed above 
             "--x-width: 200px; --x-height: 20px; --x-translate: 0px 25px;",
         ],
         isPreviewedAfter: false,
-        moves: [{ id: "a", type: "item", container: "todo", previous: "b", next: "c" }],
+        moves: [{ id: "a", type: "item", container: "todo", previous: "b", next: "c", items: [] }],
     });
 });
 
@@ -186,8 +188,15 @@ test("nest an item under the one before it with the right arrow, and move a nest
     press(container, " ");
 
     expect(moves).toEqual([
-        { id: "faq", type: "item", container: "guide", previous: "setup", next: undefined },
-        { id: "setup", type: "item", container: "root", previous: "guide", next: "faq" },
+        {
+            id: "faq",
+            type: "item",
+            container: "guide",
+            previous: "setup",
+            next: undefined,
+            items: [],
+        },
+        { id: "setup", type: "item", container: "root", previous: "guide", next: "faq", items: [] },
     ]);
 });
 
@@ -203,7 +212,7 @@ test("apply a move across keyed lists and within one list, refusing a neighbour 
     const lists = { first: ["a", "b"], second: ["x", "y"] };
     const across = SortableMove.apply(
         lists,
-        { id: "b", type: "item", container: "second", previous: "x", next: "y" },
+        { id: "b", container: "second", next: "y" },
         (id) => id,
     );
     const within = SortableMove.place(["x", "y", "z"], "z", { id: "z", next: "x" }, (id) => id);

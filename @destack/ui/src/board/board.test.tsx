@@ -160,6 +160,7 @@ test("move a card into the next column with Space and the arrow keys, leaving En
                 lane: undefined,
                 previous: "price-the-plans",
                 next: undefined,
+                items: [],
             },
         ],
     });
@@ -215,6 +216,7 @@ test("drag a card with the pointer into an empty column, and leave it where it i
                 lane: undefined,
                 previous: undefined,
                 next: undefined,
+                items: [],
             },
         ],
     });
@@ -349,6 +351,7 @@ test("skip a column a card may not enter, which the drag marks as refusing it", 
                 lane: undefined,
                 previous: undefined,
                 next: undefined,
+                items: [],
             },
         ],
     });
@@ -764,6 +767,7 @@ test("take an item of another view dropped into a column, with the cards it land
             lane: undefined,
             previous: undefined,
             next: "c",
+            items: [],
         },
     ]);
 });

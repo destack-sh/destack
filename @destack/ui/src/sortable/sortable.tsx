@@ -20,6 +20,7 @@ import {
 } from "@destack/view";
 import type { Environment } from "@destack/environment";
 import {
+    type DragItem,
     DragAnnouncer,
     Draggable,
     type DragManager,
@@ -142,6 +143,8 @@ export interface SortableMove {
     readonly previous: string | undefined;
     /** The id of the item after it, undefined at the end. */
     readonly next: string | undefined;
+    /** What it brings from outside the page, such as files, nothing of an item of the page. */
+    readonly items: readonly DragItem[];
 }
 
 /** Apply a move to the owner's lists: take the item out and insert it before its next neighbour. */
@@ -149,7 +152,7 @@ export const SortableMove = {
     /** Move an item between keyed lists, before its next neighbour in the list it lands in. */
     apply<Item>(
         lists: Readonly<Record<string, readonly Item[]>>,
-        move: SortableMove,
+        move: Pick<SortableMove, "id" | "container" | "next">,
         idOf: (item: Item) => string,
     ): Record<string, readonly Item[]> {
         // take the item out of its list
@@ -230,6 +233,8 @@ interface SortableList {
     readonly label: () => string;
     /** The types of items it takes. */
     readonly accepts: () => readonly string[];
+    /** Read how high it floats over the others. */
+    readonly height: () => number;
     /** Report whether it takes a given item. */
     readonly allows: (id: string) => boolean;
     /** The lists a keyboard step crosses between. */
@@ -547,6 +552,7 @@ export class SortableControl {
             container: target.droppable,
             previous: this.idAt(target.droppable, target.index - 1),
             next: this.idAt(target.droppable, target.index),
+            items: operation.items,
         };
     }
 
@@ -574,6 +580,7 @@ export class SortableControl {
                 const move = this.moveOf(operation);
                 this.animate(() => this.properties.onMove?.(move));
             },
+            height: list.height,
             scroller: () => list.window()?.scroller(),
             reveal: (target, item) => this.#reveal(list, target, item),
         };
@@ -584,11 +591,12 @@ export class SortableControl {
         // read the items' bounds, and the room the dragged one takes among them
         this.#measured.set(list.id, list.window() === undefined ? this.#boundsOf(list) : []);
         const dragged = this.dragged();
-        const element = dragged === undefined ? undefined : this.elementOf(dragged);
-        const first = this.#entriesOf(list.id)[0]?.element()?.parentElement ?? undefined;
+        const first = this.#entriesOf(list.id)[0]?.element();
+        const element = (dragged === undefined ? undefined : this.elementOf(dragged)) ?? first;
+        const row = first?.parentElement ?? undefined;
         const isVertical = untrack(list.orientation) === "vertical";
         const gap =
-            first === undefined ? "" : getComputedStyle(first)[isVertical ? "rowGap" : "columnGap"];
+            row === undefined ? "" : getComputedStyle(row)[isVertical ? "rowGap" : "columnGap"];
         const length = isVertical ? element?.offsetHeight : element?.offsetWidth;
         this.#lengths.set(list.id, (length ?? 0) + (Number.parseFloat(gap) || 0));
     }
@@ -823,6 +831,8 @@ export interface SortableContainerProperties extends SortableElementProperties<
     readonly label?: string;
     /** The types of items it takes. */
     readonly accepts?: readonly string[];
+    /** How high it floats over the others, zero by default. */
+    readonly height?: number;
     /** Report whether it takes a given item beside its types. */
     readonly allows?: (id: string) => boolean;
     /** The lists a keyboard step crosses between, those of the same accepted types by default. */
@@ -911,6 +921,7 @@ export function SortableContainer(properties: SortableContainerProperties): JSX.
         "orientation",
         "label",
         "accepts",
+        "height",
         "group",
         "isEndOnly",
         "allows",
@@ -968,6 +979,7 @@ export function SortableContainer(properties: SortableContainerProperties): JSX.
             orientation: () => properties.orientation ?? "vertical",
             label: () => properties.label ?? locale.render(t`the list`),
             accepts: () => properties.accepts ?? [DEFAULT_TYPE],
+            height: () => properties.height ?? 0,
             allows: (item) => properties.allows?.(item) !== false,
             group: () => properties.group ?? (properties.accepts ?? [DEFAULT_TYPE]).join(" "),
             isEndOnly: () => properties.isEndOnly === true,
@@ -1089,6 +1101,7 @@ export function SortableItem(properties: SortableItemProperties): JSX.Element {
             label: () =>
                 properties.label ?? element?.textContent?.trim() ?? locale.render(t`the item`),
             accepts: () => [type],
+            height: () => 0,
             allows: () => true,
             group: () => id,
             isEndOnly: () => false,

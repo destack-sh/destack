@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { flush, useEnvironment, useLocale } from "@destack/view";
 import { render, testWorld } from "@destack/view/test";
@@ -327,4 +328,130 @@ test("move an item between two components that share a provider's drags, announc
         announcers: container.querySelectorAll("[data-slot=drag-announcer]").length,
         announced: announced(container),
     }).toEqual({ drops: ["book on right"], announcers: 1, announced: "Book dropped at right." });
+});
+
+/** Send a platform's drag event over an element, with what it brings. */
+function send(
+    element: Element,
+    type: "dragover" | "dragleave" | "drop",
+    at: { readonly x: number; readonly y: number },
+    transfer: Readonly<Record<string, unknown>>,
+): Event {
+    // add what the test's page leaves out of the event
+    const event = new Event(type, { bubbles: true, cancelable: true });
+    Object.assign(event, {
+        clientX: at.x,
+        clientY: at.y,
+        relatedTarget: null,
+        view: element.ownerDocument.defaultView,
+        dataTransfer: { effectAllowed: "all", items: [], types: [], ...transfer },
+    });
+    element.dispatchEvent(event);
+    flush();
+
+    return event;
+}
+
+/** A place that takes files on its left half alone, recording its drops. */
+function Desk(properties: { readonly drops: DragOperation[] }) {
+    const { manager } = useDragManager();
+    let element: HTMLElement | undefined;
+    void new Droppable(
+        {
+            id: "desk",
+            group: "desk",
+            axis: "both",
+            element: () => element,
+            accepts: ({ type }) => type === "Files",
+            measure: () => undefined,
+            targetAt: (x) =>
+                x < 50 ? { kind: "cell", droppable: "desk", key: "left" } : undefined,
+            step: () => undefined,
+            enter: () => ({ kind: "cell", droppable: "desk", key: "left" }),
+            describe: () => ({ kind: "label", label: "the desk" }),
+            drop: (operation) => properties.drops.push(operation),
+        },
+        manager,
+    );
+
+    return (
+        <div
+            data-aim={manager.operation()?.target === undefined ? "none" : "left"}
+            ref={(created: HTMLElement) => {
+                element = created;
+                created.getBoundingClientRect = () => new DOMRect(0, 0, 100, 100);
+            }}
+        >
+            <input />
+        </div>
+    );
+}
+
+/** Render a desk, and read where a drag over it aims. */
+function drawDesk() {
+    const drops: DragOperation[] = [];
+    const { container } = render(() => <Desk drops={drops} />);
+    flush();
+    const desk = present(container.firstElementChild, "the desk");
+
+    return { desk, drops, aim: () => desk.getAttribute("data-aim") };
+}
+
+test("take files from outside where a droppable accepts them, and hand them on", () => {
+    const { desk, drops, aim } = drawDesk();
+    const file = new File(["hello"], "hello.txt", { type: "text/plain" });
+    const files = { types: ["Files"] };
+    const over = send(desk, "dragover", { x: 10, y: 10 }, files);
+    const aims = [aim()];
+    const beside = send(desk, "dragover", { x: 80, y: 10 }, files);
+    aims.push(aim());
+    send(desk, "dragover", { x: 20, y: 10 }, files);
+    send(
+        desk,
+        "drop",
+        { x: 20, y: 10 },
+        {
+            ...files,
+            items: [{ kind: "file", getAsFile: () => file, webkitGetAsEntry: () => null }],
+        },
+    );
+
+    expect({
+        aims,
+        isTaken: [over.defaultPrevented, beside.defaultPrevented],
+        drops: drops.map(({ type, effect, items, target }) => ({ type, effect, items, target })),
+        after: aim(),
+    }).toEqual({
+        aims: ["left", "none"],
+        isTaken: [true, false],
+        drops: [
+            {
+                type: "Files",
+                effect: "copy",
+                items: [{ kind: "file", file }],
+                target: { kind: "cell", droppable: "desk", key: "left" },
+            },
+        ],
+        after: "none",
+    });
+});
+
+test("leave what nothing takes, text over a field, and a drag that leaves", () => {
+    const { desk, drops, aim } = drawDesk();
+    const at = { x: 10, y: 10 };
+    const link = send(desk, "dragover", at, { types: ["text/uri-list", "text/plain"] });
+    const aims = [aim()];
+    send(desk, "dragover", at, { types: ["Files"] });
+    aims.push(aim());
+    send(desk, "dragleave", { x: 0, y: 0 }, { types: ["Files"] });
+    aims.push(aim());
+    const drop = send(desk, "drop", at, { types: ["Files"] });
+    const field = present(desk.querySelector("input"), "the field");
+    const text = send(field, "dragover", at, { types: ["text/plain"] });
+
+    expect({
+        aims,
+        isTaken: [link, drop, text].map(({ defaultPrevented }) => defaultPrevented),
+        drops,
+    }).toEqual({ aims: ["none", "left", "none"], isTaken: [false, false, false], drops: [] });
 });

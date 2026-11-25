@@ -3,6 +3,7 @@ import type { Environment } from "@destack/environment";
 import { type Direction, type Localization, type Message, t } from "@destack/locale";
 import {
     type Accessor,
+    createEffect,
     createMemo,
     createSignal,
     createUniqueId,
@@ -14,6 +15,8 @@ import { Move, type PointerType } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { Scroll } from "../position/index.ts";
 import { inDocumentOrder } from "../collection/index.ts";
+import type { DragItem } from "./item.ts";
+import { NativeDrag } from "./native.ts";
 
 /** The milliseconds a finger rests on an item before it lifts, as iOS and Android wait. */
 const LIFT_DELAY = 500;
@@ -83,6 +86,12 @@ export type DragTarget =
           readonly droppable: string;
           /** The side. */
           readonly side: "start" | "end" | "top" | "bottom" | "middle";
+      }
+    | {
+          /** Outside the page, where a drag of the platform's comes from and others may land. */
+          readonly kind: "outside";
+          /** The droppable, or the manager's own id for the platform's drags. */
+          readonly droppable: string;
       };
 
 /** The verbs of drag targets. */
@@ -104,6 +113,8 @@ export const DragTarget = {
             return right.kind === "edge" && left.key === right.key && left.edge === right.edge;
         } else if (left.kind === "side") {
             return right.kind === "side" && left.side === right.side;
+        } else if (left.kind === "outside") {
+            return right.kind === "outside";
         }
         // compare a time and its row
         else {
@@ -160,6 +171,26 @@ export interface DragOperation {
     readonly offsetX: number;
     /** The vertical distance a pointer moved it, zero on the keyboard. */
     readonly offsetY: number;
+    /** What it brings from outside once it drops, nothing of an item of the page. */
+    readonly items: readonly DragItem[];
+}
+
+/** What a drag takes. */
+export interface DragSource {
+    /** The id, unique in its manager. */
+    readonly id: string;
+    /** The item it drags. */
+    readonly item: string;
+    /** The kind of item. */
+    readonly type: string;
+    /** What a drag does to it. */
+    readonly kind: DragKind;
+    /** The name announcements call it by. */
+    readonly label: () => string;
+    /** The element that takes the focus back after a keyboard drag, none from outside. */
+    readonly element: () => HTMLElement | undefined;
+    /** Read where the item stands. */
+    readonly home: () => DragTarget;
 }
 
 /** The options of a draggable. */
@@ -194,8 +225,10 @@ export interface DroppableOptions {
     readonly axis: "block" | "inline" | "both";
     /** The element, whose bounds take the pointer. */
     readonly element: () => HTMLElement | undefined;
+    /** Where it takes the pointer: in its element by default, or outside the page. */
+    readonly area?: "element" | "outside";
     /** Report whether an item may land here by a kind of drag. */
-    readonly accepts: (draggable: Draggable, kind: DragKind) => boolean;
+    readonly accepts: (source: DragSource, kind: DragKind) => boolean;
     /** Read the layout once as a drag lifts or scrolls. */
     readonly measure: (operation: DragOperation) => void;
     /** Find where a point lands. */
@@ -208,6 +241,8 @@ export interface DroppableOptions {
     readonly describe: (target: DragTarget, operation: DragOperation) => DragPlace;
     /** Handle a drop on one of its targets other than where the item stood. */
     readonly drop: (operation: DragOperation & { readonly target: DragTarget }) => void;
+    /** Read how high it floats over the others, zero by default. */
+    readonly height?: () => number;
     /** Read the element that scrolls its items, its element's scrolling ancestor when absent. */
     readonly scroller?: () => HTMLElement | undefined;
     /** Bring a target into view as a keyboard drag steps there or cancels back to it. */
@@ -215,7 +250,7 @@ export interface DroppableOptions {
 }
 
 /** An item a person drags. */
-export class Draggable {
+export class Draggable implements DragSource {
     /** The draggable's id, unique in its manager. */
     readonly id: string;
     /** The item it drags. */
@@ -353,6 +388,8 @@ export class Droppable {
     readonly axis: "block" | "inline" | "both";
     /** The element, whose bounds take the pointer. */
     readonly element: DroppableOptions["element"];
+    /** Where it takes the pointer. */
+    readonly area: "element" | "outside";
     /** Report whether an item may land here by a kind of drag. */
     readonly accepts: DroppableOptions["accepts"];
     /** Read the layout once as a drag lifts or scrolls. */
@@ -367,6 +404,8 @@ export class Droppable {
     readonly describe: DroppableOptions["describe"];
     /** Handle a drop on one of its targets. */
     readonly drop: DroppableOptions["drop"];
+    /** Read how high it floats over the others. */
+    readonly height: () => number;
     /** Read the element that scrolls its items, none for its element's scrolling ancestor. */
     readonly scroller: DroppableOptions["scroller"];
     /** Bring a target into view, none where every target shows. */
@@ -379,6 +418,7 @@ export class Droppable {
         this.group = options.group;
         this.axis = options.axis;
         this.element = options.element;
+        this.area = options.area ?? "element";
         this.accepts = options.accepts;
         this.measure = options.measure;
         this.targetAt = options.targetAt;
@@ -386,6 +426,7 @@ export class Droppable {
         this.enter = options.enter;
         this.describe = options.describe;
         this.drop = options.drop;
+        this.height = options.height ?? (() => 0);
         this.scroller = options.scroller;
         this.reveal = options.reveal;
         manager.addDroppable(this);
@@ -413,7 +454,9 @@ export class DragManager {
     /** The last announcement. */
     readonly announcement: Accessor<string>;
     /** The draggables by id. */
-    readonly #draggables = new Map<string, Draggable>();
+    readonly #draggables = new Map<string, DragSource>();
+    /** The id of what comes from outside the page. */
+    readonly #outside: string;
     /** The droppables by id. */
     readonly #droppables = new Map<string, Droppable>();
     /** The reader's locale. */
@@ -445,6 +488,7 @@ export class DragManager {
         });
         const [announcement, setAnnouncement] = createSignal("", { ownedWrite: true });
         this.instructionsId = createUniqueId();
+        this.#outside = createUniqueId();
         this.operation = operation;
         this.#item = createMemo(() => operation()?.item);
         this.announcement = announcement;
@@ -455,6 +499,12 @@ export class DragManager {
 
         // stop scrolling once the manager goes
         onCleanup(() => this.#stopScroll());
+
+        // take the platform's drags over the page
+        createEffect(
+            () => undefined,
+            () => new NativeDrag(this).listen(document),
+        );
     }
 
     /** Add a draggable until its owner goes. */
@@ -494,6 +544,11 @@ export class DragManager {
         return this.#item() === item;
     }
 
+    /** Read where the pointer is, undefined without a pointer's drag. */
+    pointer(): { readonly x: number; readonly y: number } | undefined {
+        return this.#pointer;
+    }
+
     /** Read the target the drag aims at inside a droppable. */
     targetIn(droppable: string): DragTarget | undefined {
         const target = this.operation()?.target;
@@ -511,30 +566,64 @@ export class DragManager {
             return;
         }
 
-        // start where it stands and measure every droppable that takes it
-        const from = draggable.home();
+        // start where it stands
+        const element = present(draggable.element(), `the lifted draggable '${id}'`);
+        this.#start(draggable, kind, pointer, element.ownerDocument);
+    }
+
+    /** Take a drag of a type that enters a page from outside, where a droppable does. */
+    enter(type: string, page: Document): boolean {
+        // leave it during another drag, and where nothing takes it
+        const home: DragTarget = { kind: "outside", droppable: this.#outside };
+        const source: DragSource = {
+            id: this.#outside,
+            item: this.#outside,
+            type,
+            kind: "move",
+            label: () => this.locale.render(t`the dragged item`),
+            element: () => undefined,
+            home: () => home,
+        };
+        const isTaken = [...this.#droppables.values()].some((each) => each.accepts(source, "move"));
+        if (this.#current !== undefined || !isTaken) {
+            return false;
+        }
+
+        // follow it as any other
+        this.#draggables.set(source.id, source);
+        this.#start(source, "move", "mouse", page);
+
+        return true;
+    }
+
+    /** Start a drag, measuring every droppable that takes it. */
+    #start(source: DragSource, kind: DragKind, pointer: PointerType, page: Document): void {
+        // start where it stands
+        const from = source.home();
         const operation = {
-            item: draggable.item,
-            draggable: id,
-            type: draggable.type,
+            item: source.item,
+            draggable: source.id,
+            type: source.type,
             kind,
             effect: "move" as const,
             pointer,
             from,
             grab: from,
-            target: from,
+            target: from.kind === "outside" ? undefined : from,
             offsetX: 0,
             offsetY: 0,
+            items: [],
         };
         this.#set(operation);
-        this.#measure(draggable, operation);
-        this.#announce("lift", operation);
+        this.#measure(source, operation);
+        if (from.kind !== "outside") {
+            this.#announce("lift", operation);
+        }
 
         // aim a pointer drag again whenever a scroller under it moves, by wheel or by autoscroll
         if (pointer !== "keyboard") {
             const scrolling = new AbortController();
             this.#scrolling = scrolling;
-            const page = present(draggable.element(), `the lifted draggable '${id}'`).ownerDocument;
             page.addEventListener("scroll", () => this.#aimNextFrame(), {
                 capture: true,
                 passive: true,
@@ -551,12 +640,12 @@ export class DragManager {
             return;
         }
         const next = { ...operation, offsetX, offsetY, effect };
-        const under = this.#measured.find((each) => contains(each.bounds, x, y));
+        const under = this.#measured.find((each) => isOver(each, x, y));
         const target = under?.droppable.targetAt(x, y, next);
 
         // take the target at the press, before any travel, as where the drag took the item
         const [pressX, pressY] = [x - offsetX, y - offsetY];
-        const pressed = this.#measured.find((each) => contains(each.bounds, pressX, pressY));
+        const pressed = this.#measured.find((each) => isOver(each, pressX, pressY));
         const isFirst = operation.offsetX === 0 && operation.offsetY === 0;
         const still = { ...next, offsetX: 0, offsetY: 0 };
         const grab =
@@ -629,14 +718,15 @@ export class DragManager {
         return true;
     }
 
-    /** Drop the dragged item, moving it or copying it. */
-    drop(effect: DragEffect): void {
+    /** Drop the dragged item, moving it or copying it, with what it brings from outside. */
+    drop(effect: DragEffect, items: readonly DragItem[] = []): void {
         // announce where the item landed
         const current = this.#current;
         if (current === undefined) {
             return;
         }
-        const operation = { ...current, effect };
+        const operation = { ...current, effect, items };
+        this.#set(operation);
         this.#announce(operation.target === undefined ? "cancel" : "drop", operation);
 
         // hand on a drop at another target while the drag stands, as HTML's drop precedes dragend
@@ -672,7 +762,9 @@ export class DragManager {
                     .get(operation.from.droppable)
                     ?.reveal?.(operation.from, operation.item);
             }
-            this.#announce("cancel", operation);
+            if (operation.from.kind !== "outside") {
+                this.#announce("cancel", operation);
+            }
             this.#end();
         }
     }
@@ -705,11 +797,11 @@ export class DragManager {
         return neighbour?.enter(target);
     }
 
-    /** Measure the droppables that take a draggable. */
-    #measure(draggable: Draggable, operation: DragOperation): void {
+    /** Measure the droppables that take what is dragged. */
+    #measure(source: DragSource, operation: DragOperation): void {
         // read each accepting droppable's layout and bounds once
         const accepting = [...this.#droppables.values()].filter((each) =>
-            each.accepts(draggable, operation.kind),
+            each.accepts(source, operation.kind),
         );
         const measured = accepting.flatMap((droppable) => {
             const element = droppable.element();
@@ -726,12 +818,14 @@ export class DragManager {
                   ];
         });
 
-        // order nested droppables before the ones around them, by how deep they stand
+        // order those over the others first, then nested ones, by how deep they are
         const depths = new Map(
             measured.map(({ droppable }) => [droppable, depthOf(droppable.element())]),
         );
         this.#measured = measured.toSorted(
-            (left, right) => (depths.get(right.droppable) ?? 0) - (depths.get(left.droppable) ?? 0),
+            ({ droppable: left }, { droppable: right }) =>
+                right.height() - left.height() ||
+                (depths.get(right) ?? 0) - (depths.get(left) ?? 0),
         );
     }
 
@@ -751,7 +845,10 @@ export class DragManager {
 
         // find, along each axis, the nearest scroller under the pointer near its edge that way
         const under = this.#measured.find(
-            (each) => each.scroller !== undefined && contains(each.bounds, pointer.x, pointer.y),
+            (each) =>
+                each.scroller !== undefined &&
+                each.droppable.area === "element" &&
+                contains(each.bounds, pointer.x, pointer.y),
         );
         let [deltaX, deltaY] = [0, 0];
         let [scrollerX, scrollerY]: (HTMLElement | undefined)[] = [undefined, undefined];
@@ -848,6 +945,7 @@ export class DragManager {
     #end(): void {
         // clear the drag, its measures, its scrolling and its listener
         this.#set(undefined);
+        this.#draggables.delete(this.#outside);
         this.#measured = [];
         this.#pointer = undefined;
         this.#stopScroll();
@@ -944,6 +1042,17 @@ function depthOf(element: Element | undefined): number {
     }
 
     return depth;
+}
+
+/** Report whether a point is where a droppable takes it. */
+function isOver({ droppable, bounds }: Measured, x: number, y: number): boolean {
+    // look past the page's own sides
+    const view = droppable.element()?.ownerDocument.defaultView;
+    if (droppable.area === "outside" && view !== undefined && view !== null) {
+        return x < 0 || y < 0 || x > view.innerWidth || y > view.innerHeight;
+    }
+
+    return contains(bounds, x, y);
 }
 
 /** Report whether a point lies within bounds. */
