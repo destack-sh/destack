@@ -11,6 +11,8 @@ import { dev, type DevEngine } from "rolldown/experimental";
 import { BuildError, bundleFailureOf } from "../error/index.ts";
 import { present } from "@destack/schema";
 
+/** Vite's plugins that report on a whole build, which assume a full bundle a rebuild lacks. */
+const BUILD_REPORT = /^(?:vite:license|vite:ssr-manifest|native:manifest|native:reporter)/u;
 /** A bundle's output with the modules of the graph it was built from. */
 export interface BundleOutput {
     /** The chunks and assets. */
@@ -71,9 +73,10 @@ export class Bundle implements AsyncDisposable {
             },
         };
 
-        // start the engine with its watcher, handing each output to the bundle
+        // start the engine with its watcher on Vite's transforms, leaving out its build reports, handing each output to the bundle
         const received = { take: (_result: RolldownOutput | Error): void => undefined };
-        const plugins = [recorder, ...[input.plugins ?? []].flat()];
+        const transforms = [input.plugins ?? []].flat().filter((plugin) => !isBuildReport(plugin));
+        const plugins = [recorder, ...transforms];
         const engine = await dev(
             { ...input, plugins, experimental: { ...input.experimental, incrementalBuild: true } },
             output,
@@ -168,4 +171,12 @@ export class Bundle implements AsyncDisposable {
 
         return (await Promise.all(checks)).every(Boolean);
     }
+}
+
+/** Report whether a plugin reports on a whole build, as Vite's manifest and license do. */
+function isBuildReport(plugin: unknown): boolean {
+    const name: unknown =
+        typeof plugin === "object" && plugin !== null ? Reflect.get(plugin, "name") : undefined;
+
+    return typeof name === "string" && BUILD_REPORT.test(name);
 }
