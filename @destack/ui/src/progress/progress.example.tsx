@@ -1,5 +1,11 @@
 import { defineExample } from "@destack/package/declare";
-import { Progress, ProgressIndicator } from "./progress.tsx";
+import {
+    Progress,
+    ProgressIndicator,
+    ProgressLabel,
+    ProgressTrack,
+    ProgressValue,
+} from "./progress.tsx";
 
 /** An upload two thirds of the way through. */
 export const progressUpload = defineExample({
@@ -24,7 +30,9 @@ export const progressSync = defineExample({
     },
     render: (properties) => (
         <Progress {...properties}>
-            <ProgressIndicator />
+            <ProgressTrack>
+                <ProgressIndicator />
+            </ProgressTrack>
         </Progress>
     ),
 });
@@ -40,4 +48,19 @@ export const progressUploadComplete = defineExample({
         "aria-label": "Upload",
     },
     render: (properties) => <Progress {...properties} />,
+});
+
+/** An import counted in rows, with its label and its value above the bar. */
+export const progressImport = defineExample({
+    of: ProgressValue,
+    name: "import",
+    description: "an import counted in rows, with its label and its value above the bar",
+    layout: "padded",
+    render: () => (
+        <Progress value={1840} max={5200} format={{}}>
+            <ProgressLabel>Importing contacts</ProgressLabel>
+            <ProgressValue>{(written) => `${written ?? ""} of 5,200`}</ProgressValue>
+            <ProgressTrack />
+        </Progress>
+    ),
 });

@@ -1,7 +1,19 @@
+import type { NumberFormat } from "@destack/locale";
 import * as style from "@destack/style";
+import { text } from "@destack/theme/text";
 import { media } from "@destack/style/media.stylex";
-import { motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
-import { type Accessor, createContext, type JSX, omit, useContext } from "@destack/view";
+import { color, motion, radius, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
+import {
+    type Accessor,
+    createContext,
+    createUniqueId,
+    type JSX,
+    omit,
+    untrack,
+    useContext,
+    useLocale,
+} from "@destack/view";
+import { CollectionBuilder } from "../collection/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The maximum of a progress bar that sets none. */
@@ -16,6 +28,20 @@ const sweep = style.keyframes({
 /** The styles of a progress bar and its indicator. */
 const styles = style.create({
     progress: {
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+        alignItems: "baseline",
+        rowGap: space[2],
+        columnGap: space[2],
+        width: "100%",
+    },
+    label: {
+        gridColumn: "1",
+        minWidth: 0,
+        fontWeight: weight.medium,
+    },
+    track: {
+        gridColumn: "1 / -1",
         outlineStyle: { default: "none", [media.forcedColors]: "solid" },
         outlineWidth: stroke.border,
         outlineOffset: `calc(-1 * ${stroke.border})`,
@@ -35,6 +61,12 @@ const styles = style.create({
         transitionProperty: "transform",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
+    },
+    value: {
+        gridColumn: "2",
+        justifySelf: "end",
+        color: color.mutedForeground,
+        fontVariantNumeric: "tabular-nums",
     },
     indeterminate: {
         width: "40%",
@@ -59,6 +91,12 @@ interface ProgressControl {
     readonly value: Accessor<number | undefined>;
     /** The maximum. */
     readonly max: Accessor<number>;
+    /** The share done, between 0 and 1, undefined while indeterminate. */
+    readonly share: Accessor<number | undefined>;
+    /** The value as it is written, undefined while indeterminate. */
+    readonly written: Accessor<string | undefined>;
+    /** Label the bar by an element until it unmounts. */
+    readonly addLabel: (id: string) => void;
     /** The state. */
     readonly state: Accessor<ProgressState>;
 }
@@ -70,8 +108,12 @@ const ProgressContext = createContext<ProgressControl | null>(null);
 export interface ProgressProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The work done, between 0 and the maximum, indeterminate when absent. */
     readonly value?: number | undefined;
+    /** The value no work is done at, 0 by default. */
+    readonly min?: number;
     /** The work there is, 100 by default. */
     readonly max?: number;
+    /** How the value is written, the share done in percent by default. */
+    readonly format?: NumberFormat;
     /** Describe the value for assistive technology, its percentage by default. */
     readonly getValueLabel?: (value: number, max: number) => string;
     /** The StyleX styles applied after the progress bar's styles. */
@@ -82,38 +124,69 @@ export interface ProgressProperties extends Omit<JSX.HTMLAttributes<HTMLDivEleme
 export type ProgressIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
 
-/** Render a progress bar around its indicator, indeterminate without a value. */
+/** Render progress as a bar, with the label and the value composed in it. */
 export function Progress(properties: ProgressProperties): JSX.Element {
     // clamp the value to the range and read the state it puts the bar in
-    const rest = omit(properties, "value", "max", "getValueLabel", "xstyle", "style", "children");
-    const max = (): number => maximumOf(properties.max);
+    const locale = useLocale();
+    const rest = omit(
+        properties,
+        "value",
+        "min",
+        "max",
+        "format",
+        "getValueLabel",
+        "xstyle",
+        "style",
+        "children",
+    );
+    const labels = new CollectionBuilder<string>();
+    const min = (): number => properties.min ?? 0;
+    const max = (): number => maximumOf(min(), properties.max);
     const value = (): number | undefined =>
-        properties.value === undefined ? undefined : Math.min(Math.max(properties.value, 0), max());
+        properties.value === undefined
+            ? undefined
+            : Math.min(Math.max(properties.value, min()), max());
+    const share = (): number | undefined => {
+        const current = value();
+
+        return current === undefined ? undefined : (current - min()) / (max() - min());
+    };
     const state = (): ProgressState => {
         const current = value();
 
         return current === undefined ? "indeterminate" : current === max() ? "complete" : "loading";
     };
-    const label = (): string | undefined => {
+
+    // write the value, the share done without a format
+    const written = (): string | undefined => {
         const current = value();
         if (current === undefined) {
             return undefined;
         }
 
-        return (
-            properties.getValueLabel?.(current, max()) ??
-            `${String(Math.round((current / max()) * 100))}%`
-        );
+        return properties.format === undefined
+            ? locale.number(share() ?? 0, { style: "percent" })
+            : locale.number(current, properties.format);
+    };
+    const label = (): string | undefined => {
+        const current = value();
+
+        return current === undefined
+            ? undefined
+            : (properties.getValueLabel?.(current, max()) ?? written());
     };
 
     return (
-        <ProgressContext value={{ value, max, state }}>
+        <ProgressContext
+            value={{ value, max, share, written, state, addLabel: (id) => void labels.add(id) }}
+        >
             <div
                 role="progressbar"
-                aria-valuemin={0}
+                aria-valuemin={min()}
                 aria-valuemax={max()}
                 aria-valuenow={value()}
                 aria-valuetext={label()}
+                aria-labelledby={labels.items().at(-1)}
                 data-slot="progress"
                 data-indeterminate={state() === "indeterminate" ? "" : undefined}
                 data-progressing={state() === "loading" ? "" : undefined}
@@ -123,32 +196,60 @@ export function Progress(properties: ProgressProperties): JSX.Element {
                 {...rest}
                 {...style.attributes([styles.progress, properties.xstyle], properties.style)}
             >
-                {properties.children ?? <ProgressIndicator />}
+                {properties.children ?? <ProgressTrack />}
             </div>
         </ProgressContext>
     );
 }
 
-/** Render the filled part of the nearest progress bar, sweeping across it while indeterminate. */
-export function ProgressIndicator(properties: ProgressIndicatorProperties): JSX.Element {
-    // read the bar, refusing an indicator outside one
+/** Read the nearest progress bar, refusing a part outside one. */
+function useProgress(): ProgressControl {
     const progress = useContext(ProgressContext);
     if (progress === null) {
-        throw new TypeError("a progress indicator needs a progress bar around it");
+        throw new TypeError("a progress part needs a progress bar around it");
     }
-    const share = (): number | undefined => {
-        const value = progress.value();
 
-        return value === undefined ? undefined : (value / progress.max()) * 100;
-    };
+    return progress;
+}
 
+/** Render the label of the nearest progress bar, which names it. */
+export function ProgressLabel(
+    properties: Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> & ElementPartProperties,
+): JSX.Element {
+    // label the bar until it unmounts
+    const progress = useProgress();
+    const given = untrack(() => properties.id);
+    const id = typeof given === "string" ? given : createUniqueId();
+    progress.addLabel(id);
+
+    return renderPart("span", "progress-label", properties, [text.sm, styles.label], { id });
+}
+
+/** Render the track of the nearest progress bar around its indicator. */
+export function ProgressTrack(
+    properties: Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & ElementPartProperties,
+): JSX.Element {
+    const rest = omit(properties, "children");
+
+    return renderPart("div", "progress-track", rest, styles.track, {
+        get children() {
+            return properties.children ?? <ProgressIndicator />;
+        },
+    });
+}
+
+/** Render the filled part of the nearest progress bar, sweeping across it while indeterminate. */
+export function ProgressIndicator(properties: ProgressIndicatorProperties): JSX.Element {
+    const progress = useProgress();
     return renderPart(
         "div",
         "progress-indicator",
         properties,
         () => [
             styles.indicator,
-            share() === undefined ? styles.indeterminate : fills.fill(share() ?? 0),
+            progress.share() === undefined
+                ? styles.indeterminate
+                : fills.fill((progress.share() ?? 0) * 100),
         ],
         {
             get "data-indeterminate"() {
@@ -170,10 +271,40 @@ export function ProgressIndicator(properties: ProgressIndicatorProperties): JSX.
     );
 }
 
-/** Read a progress bar's maximum, 100 when it sets none, refusing a maximum of zero or less. */
-function maximumOf(max: number | undefined): number {
-    if (max !== undefined && max <= 0) {
-        throw new RangeError(`a progress bar's maximum must be positive, not '${String(max)}'`);
+/** The properties of a progress bar's value, the native element's attributes included. */
+export type ProgressValueProperties = Omit<
+    JSX.HTMLAttributes<HTMLSpanElement>,
+    "class" | "children"
+> &
+    ElementPartProperties & {
+        /** Render the value as written, undefined while indeterminate. */
+        readonly children?: (written: string | undefined, value: number | undefined) => JSX.Element;
+    };
+
+/** Render the value of the nearest progress bar as it is written, which its label reads aloud. */
+export function ProgressValue(properties: ProgressValueProperties): JSX.Element {
+    // write the bar's value
+    const progress = useProgress();
+    const rest = omit(properties, "children");
+
+    return renderPart("span", "progress-value", rest, [text.sm, styles.value], {
+        "aria-hidden": "true" as const,
+        get children() {
+            const { children } = properties;
+
+            return children === undefined
+                ? progress.written()
+                : children(progress.written(), progress.value());
+        },
+    });
+}
+
+/** Read a progress bar's maximum, 100 when it sets none, refusing one at its minimum or less. */
+function maximumOf(min: number, max: number | undefined): number {
+    if (max !== undefined && max <= min) {
+        throw new RangeError(
+            `a progress bar's maximum must be above its minimum, not '${String(max)}'`,
+        );
     }
 
     return max ?? MAXIMUM;

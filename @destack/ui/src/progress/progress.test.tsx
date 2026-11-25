@@ -1,13 +1,22 @@
-import { Errored } from "@destack/view";
+import { Locale, Localization } from "@destack/locale";
+import { Errored, LocaleContext } from "@destack/view";
 import { expect, test } from "@destack/test";
 import { markup, render } from "@destack/view/test";
-import { Progress, ProgressIndicator } from "./index.ts";
+import {
+    Progress,
+    ProgressIndicator,
+    ProgressLabel,
+    ProgressTrack,
+    ProgressValue,
+} from "./index.ts";
 
 test("report a progress bar's value, state and percentage, and an indeterminate one without a value", () => {
     const { container } = render(() => (
         <>
             <Progress value={30} aria-label="Upload">
-                <ProgressIndicator />
+                <ProgressTrack>
+                    <ProgressIndicator />
+                </ProgressTrack>
             </Progress>
             <Progress value={140} max={140} aria-label="Import" />
             <Progress aria-label="Sync" />
@@ -15,9 +24,9 @@ test("report a progress bar's value, state and percentage, and an indeterminate 
     ));
 
     expect(markup(container)).toBe(
-        '<div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="30" aria-valuetext="30%" data-slot="progress" data-progressing="" data-value="30" data-max="100" aria-label="Upload"><div data-slot="progress-indicator" style="--x-transform: translateX(-70%);" data-progressing="" data-value="30" data-max="100"></div></div>' +
-            '<div role="progressbar" aria-valuemin="0" aria-valuemax="140" aria-valuenow="140" aria-valuetext="100%" data-slot="progress" data-complete="" data-value="140" data-max="140" aria-label="Import"><div data-slot="progress-indicator" style="--x-transform: translateX(-0%);" data-complete="" data-value="140" data-max="140"></div></div>' +
-            '<div role="progressbar" aria-valuemin="0" aria-valuemax="100" data-slot="progress" data-indeterminate="" data-max="100" aria-label="Sync"><div data-slot="progress-indicator" data-indeterminate="" data-max="100"></div></div>',
+        '<div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="30" aria-valuetext="30%" data-slot="progress" data-progressing="" data-value="30" data-max="100" aria-label="Upload"><div data-slot="progress-track"><div data-slot="progress-indicator" style="--x-transform: translateX(-70%);" data-progressing="" data-value="30" data-max="100"></div></div></div>' +
+            '<div role="progressbar" aria-valuemin="0" aria-valuemax="140" aria-valuenow="140" aria-valuetext="100%" data-slot="progress" data-complete="" data-value="140" data-max="140" aria-label="Import"><div data-slot="progress-track"><div data-slot="progress-indicator" style="--x-transform: translateX(-0%);" data-complete="" data-value="140" data-max="140"></div></div></div>' +
+            '<div role="progressbar" aria-valuemin="0" aria-valuemax="100" data-slot="progress" data-indeterminate="" data-max="100" aria-label="Sync"><div data-slot="progress-track"><div data-slot="progress-indicator" data-indeterminate="" data-max="100"></div></div></div>',
     );
 });
 
@@ -29,6 +38,32 @@ test("refuse a progress bar whose maximum is not positive", () => {
     ));
 
     expect(container.textContent).toBe(
-        "RangeError: a progress bar's maximum must be positive, not '0'",
+        "RangeError: a progress bar's maximum must be above its minimum, not '0'",
     );
+});
+
+test("write a value in the reader's language or a format, from any minimum, and label the bar", () => {
+    const { container } = render(() => (
+        <LocaleContext value={Localization.of(Locale.parse("de"), [])}>
+            <Progress value={30}>
+                <ProgressLabel>Hochladen</ProgressLabel>
+                <ProgressValue />
+            </Progress>
+            <Progress value={15} min={10} max={20} format={{ minimumFractionDigits: 1 }}>
+                <ProgressValue>
+                    {(written, value) => `${written ?? ""}|${String(value)}`}
+                </ProgressValue>
+            </Progress>
+        </LocaleContext>
+    ));
+    const bars = [...container.querySelectorAll("[role=progressbar]")].map((bar) => [
+        container.querySelector(`#${bar.getAttribute("aria-labelledby") ?? "none"}`)?.textContent,
+        bar.getAttribute("aria-valuetext"),
+        bar.querySelector("[data-slot=progress-value]")?.textContent,
+    ]);
+
+    expect(bars).toEqual([
+        ["Hochladen", "30\u00a0%", "30\u00a0%"],
+        [undefined, "15,0", "15,0|15"],
+    ]);
 });
