@@ -295,6 +295,7 @@ export async function startSpace(
 ```
 
 A process prints its log records and spans from the level in `DESTACK_LOG_LEVEL` on, `info` when absent, and exports every level.
+The command line prints them only when `DESTACK_LOG_LEVEL` is set, as its terminal shows its own output; its live views then redraw over the printed lines.
 
 Each case uses one kind of record:
 
