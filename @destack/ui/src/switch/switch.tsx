@@ -29,13 +29,7 @@ import {
     ToggleState,
 } from "../toggle-state/index.ts";
 import { useFieldControl, useFieldValue } from "../field/control.ts";
-import {
-    type ElementPartProperties,
-    type PartAttributes,
-    type Render,
-    useRender,
-    renderPart,
-} from "../part/index.ts";
+import { type ElementPartProperties, type Render, renderPart } from "../part/index.ts";
 
 /** The distance a checked thumb travels: the track's inner width less the thumb. */
 const TRAVEL = `calc(${size[2]} - 2 * ${stroke.border} - ${space[4]})`;
@@ -163,60 +157,11 @@ export function Switch(given: SwitchProperties): JSX.Element {
         "form",
         "disabled",
         "size",
-        "xstyle",
-        "style",
-        "render",
         "children",
     );
     const isDisabled = (): boolean => properties.disabled === true || field?.isDisabled() === true;
 
     // mark the part, report its state and flip it on activation
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [
-                    state.focus,
-                    state.touch,
-                    state.disabled,
-                    styles.switch,
-                    properties.size === "sm" && styles.small,
-                    toggle.isChecked() && styles.checked,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
-        {
-            role: "switch" as const,
-            get "aria-checked"() {
-                return toggle.isChecked() ? "true" : "false";
-            },
-            get "aria-readonly"() {
-                return properties.readOnly === true ? "true" : undefined;
-            },
-            get "data-readonly"() {
-                return properties.readOnly === true ? "" : undefined;
-            },
-            get "aria-required"() {
-                return properties.required === true ? "true" : undefined;
-            },
-            "data-slot": "switch",
-            get "data-checked"() {
-                return toggle.isChecked() ? "" : undefined;
-            },
-            get "data-unchecked"() {
-                return toggle.isChecked() ? undefined : "";
-            },
-            get "data-disabled"() {
-                return isDisabled() ? "" : undefined;
-            },
-            onClick: () => toggle.set(!toggle.isChecked()),
-            get children() {
-                return properties.children ?? <SwitchThumb />;
-            },
-        },
-        () => ({ ...field?.attributes(), disabled: isDisabled() ? true : undefined }),
-    );
-
     return (
         <SwitchContext
             value={{
@@ -225,12 +170,56 @@ export function Switch(given: SwitchProperties): JSX.Element {
                 isSmall: () => properties.size === "sm",
             }}
         >
-            {useRender({
-                render: properties.render,
-                defaultTagName: "button",
-                part: merge({ type: "button" }, part),
-                properties: rest,
-            })}
+            {renderPart(
+                "button",
+                "switch",
+                rest,
+                () => [
+                    state.focus,
+                    state.touch,
+                    state.disabled,
+                    styles.switch,
+                    properties.size === "sm" && styles.small,
+                    toggle.isChecked() && styles.checked,
+                ],
+                merge(
+                    {
+                        type: "button" as const,
+                        role: "switch" as const,
+                        get "aria-checked"() {
+                            return toggle.isChecked() ? "true" : "false";
+                        },
+                        get "aria-readonly"() {
+                            return properties.readOnly === true ? "true" : undefined;
+                        },
+                        get "data-readonly"() {
+                            return properties.readOnly === true ? "" : undefined;
+                        },
+                        get "aria-required"() {
+                            return properties.required === true ? "true" : undefined;
+                        },
+                        get "data-checked"() {
+                            return toggle.isChecked() ? "" : undefined;
+                        },
+                        get "data-unchecked"() {
+                            return toggle.isChecked() ? undefined : "";
+                        },
+                        get "data-disabled"() {
+                            return isDisabled() ? "" : undefined;
+                        },
+                        onClick: () => toggle.set(!toggle.isChecked()),
+                        get children() {
+                            return properties.children ?? <SwitchThumb />;
+                        },
+                    },
+                    field?.attributes() ?? {},
+                    {
+                        get disabled() {
+                            return isDisabled() ? true : undefined;
+                        },
+                    },
+                ),
+            )}
             <Show when={isSubmitted(properties)}>
                 <ToggleInput
                     name={properties.name}

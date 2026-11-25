@@ -133,14 +133,25 @@ export class FieldControl {
 
     /** Return the attributes that connect a control element to its field. */
     attributes(): FieldControlAttributes {
-        const descriptions = this.descriptions();
+        // read each as it is read, so that they follow the field
+        const { id, value, descriptions, isInvalid, isDisabled } = this;
 
         return {
-            id: this.id,
-            name: this.value?.path.join("."),
-            "aria-describedby": descriptions.length > 0 ? descriptions.join(" ") : undefined,
-            "aria-invalid": this.isInvalid() ? "true" : undefined,
-            disabled: this.isDisabled() ? true : undefined,
+            id,
+            get name() {
+                return value?.path.join(".");
+            },
+            get "aria-describedby"() {
+                const ids = descriptions();
+
+                return ids.length > 0 ? ids.join(" ") : undefined;
+            },
+            get "aria-invalid"() {
+                return isInvalid() ? "true" : undefined;
+            },
+            get disabled() {
+                return isDisabled() ? true : undefined;
+            },
         };
     }
 }
@@ -154,7 +165,7 @@ interface FieldDescriptionState {
 }
 
 /** The attributes that connect a control element to its field. */
-export interface FieldControlAttributes {
+export type FieldControlAttributes = {
     /** The id the field's label points at. */
     readonly id: string;
     /** The name a browser fills it in by, its path in the form. */
@@ -165,7 +176,7 @@ export interface FieldControlAttributes {
     readonly "aria-invalid": "true" | undefined;
     /** Whether the field is disabled. */
     readonly disabled: true | undefined;
-}
+};
 
 /** The attributes that connect a group of controls to its field. */
 export interface FieldGroupAttributes {

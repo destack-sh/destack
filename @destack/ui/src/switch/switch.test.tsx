@@ -24,7 +24,7 @@ test("flip a switch and its thumb on click, submitting its state under its name"
     const submitted = container.querySelector("input");
 
     expect(markup(container).replace(/<input[^>]*>/u, "")).toBe(
-        '<form><button type="button" role="switch" aria-checked="true" data-slot="switch" data-checked=""><span data-slot="switch-thumb" data-checked=""></span></button></form>',
+        '<form><button data-slot="switch" type="button" role="switch" aria-checked="true" data-checked=""><span data-slot="switch-thumb" data-checked=""></span></button></form>',
     );
     expect([changes, submitted?.name, submitted?.checked]).toEqual([[true], "notifications", true]);
 });

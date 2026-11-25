@@ -39,11 +39,9 @@ import { StoredItem } from "@destack/view/primitives/storage";
 import { Hover, Move } from "../interaction/index.ts";
 import {
     type ElementPartProperties,
-    type PartAttributes,
     type PartEvent,
     mergeProperties,
     type Render,
-    useRender,
     renderPart,
 } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
@@ -845,7 +843,7 @@ export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.
     const { tooltip } = control;
     const isHinting = (): boolean =>
         properties.tooltip !== undefined && !control.isOpen() && !control.isMobile();
-    const rest = omit(properties, "tooltip", "active", "size", "xstyle", "style", "render");
+    const rest = omit(properties, "tooltip", "active", "size");
     let element: HTMLElement | undefined;
     const hint = (reason: OpenReason, target: HTMLElement) => {
         if (isHinting()) {
@@ -858,22 +856,20 @@ export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.
         onHoverEnd: () => tooltip.close(new OpenChange("trigger-hover")),
     });
     onCleanup(() => tooltip.drop(element));
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [
-                    state.focus,
-                    state.hover,
-                    styles.menuButton,
-                    sizes[properties.size ?? "default"],
-                    properties.active === true && state.current,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
-        hover.attributes(),
-        {
-            "data-slot": "sidebar-menu-button",
+
+    // render a link for an address, else a button
+    return renderPart(
+        () => (properties.href === undefined ? "button" : "a"),
+        "sidebar-menu-button",
+        rest,
+        () => [
+            state.focus,
+            state.hover,
+            styles.menuButton,
+            sizes[properties.size ?? "default"],
+            properties.active === true && state.current,
+        ],
+        merge(hover.attributes(), {
             get "data-active"() {
                 return properties.active === true ? "" : undefined;
             },
@@ -886,18 +882,8 @@ export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.
             ref: (target: HTMLElement) => (element = target),
             onFocus: (event: PartEvent<Event>) => hint("trigger-focus", event.currentTarget),
             onBlur: (event: FocusEvent) => tooltip.close(new OpenChange("focus-out", event)),
-        },
+        }),
     );
-
-    // render a link for an address, else a button
-    return useRender({
-        render: properties.render,
-        get defaultTagName() {
-            return properties.href === undefined ? "button" : "a";
-        },
-        part: merge(() => (properties.href === undefined ? { type: "button" } : {}), part),
-        properties: rest,
-    });
 }
 
 /** Render placeholder rows of a menu while its entries load, through the shared skeleton. */
@@ -965,37 +951,28 @@ export function SidebarMenuSubItem(
 
 /** Render a sub-entry's link, marked as the current page when active. */
 export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties): JSX.Element {
-    const rest = omit(properties, "active", "xstyle", "style", "render");
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [
-                    state.focus,
-                    state.hover,
-                    styles.menuButton,
-                    sizes.sm,
-                    properties.active === true && state.current,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
+    const rest = omit(properties, "active");
+
+    return renderPart(
+        "a",
+        "sidebar-menu-sub-button",
+        rest,
+        () => [
+            state.focus,
+            state.hover,
+            styles.menuButton,
+            sizes.sm,
+            properties.active === true && state.current,
+        ],
         {
             get "aria-current"() {
                 return properties.active === true ? "page" : undefined;
             },
-            "data-slot": "sidebar-menu-sub-button",
             get "data-active"() {
                 return properties.active === true ? "" : undefined;
             },
         },
     );
-
-    return useRender({
-        render: properties.render,
-        defaultTagName: "a",
-        part: part,
-        properties: rest,
-    });
 }
 
 /** Hash an identifier to a whole number, alike on the server and in the hydrating page. */

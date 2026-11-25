@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { dynamic, type JSX, merge, omit, untrack } from "@destack/view";
+import { createMemo, dynamic, type JSX, merge, omit, untrack } from "@destack/view";
 import { access, type MaybeAccessor } from "@destack/view/primitives/utils";
 
 /** The key a part's styles stand under for a kit part its caller renders, which composes them. */
@@ -48,6 +48,39 @@ export type PartEvent<Base extends Event> = Base & { readonly currentTarget: HTM
 /** Render another element with a part's attributes, such as a link in place of a button. */
 export type Render = (attributes: PartAttributes) => JSX.Element;
 
+/** The events a person raises on any element, whose handlers a part forwards. */
+const EVENTS = [
+    "Click",
+    "DblClick",
+    "AuxClick",
+    "ContextMenu",
+    "Focus",
+    "Blur",
+    "FocusIn",
+    "FocusOut",
+    "KeyDown",
+    "KeyUp",
+    "PointerEnter",
+    "PointerLeave",
+    "PointerOver",
+    "PointerOut",
+    "PointerDown",
+    "PointerMove",
+    "PointerUp",
+    "PointerCancel",
+    "LostPointerCapture",
+    "MouseDown",
+    "MouseUp",
+    "MouseEnter",
+    "MouseLeave",
+    "Wheel",
+    "TouchStart",
+    "TouchMove",
+    "TouchEnd",
+    "TouchCancel",
+    "DragStart",
+];
+
 /** The attributes besides `aria-*` and `data-*` that a part forwards to its caller's element. */
 const FORWARDED: ReadonlySet<string> = new Set([
     "ref",
@@ -55,13 +88,8 @@ const FORWARDED: ReadonlySet<string> = new Set([
     "href",
     "role",
     "tabindex",
-    "onClick",
-    "onFocus",
-    "onKeyDown",
-    "onPointerEnter",
-    "onPointerLeave",
-    "onBlur",
     "children",
+    ...EVENTS.map((event) => `on${event}`),
 ]);
 
 /** Report whether an attribute is one a part forwards to an element its caller renders. */
@@ -160,19 +188,12 @@ export function useRender(options: UseRenderOptions): JSX.Element {
 
 /** Render an element part on its own tag or the element its caller renders. */
 export function renderPart<Tag extends keyof JSX.IntrinsicElements>(
-    tag: Tag,
+    tag: MaybeAccessor<Tag>,
     slot: string,
     properties: ElementPartProperties & Omit<JSX.IntrinsicElements[Tag], "class">,
     styles: MaybeAccessor<style.Styles>,
     attributes?: ElementAttributes<Tag>,
 ): JSX.Element {
-    // refuse a class that comes without an outer part's styles, which it stands for
-    if (untrack(() => properties.class !== undefined && properties[PART_STYLES] === undefined)) {
-        throw new TypeError(
-            `part '${slot}' is invalid: a class comes only with an outer part's styles`,
-        );
-    }
-
     // mark the part and give it its styles, then an outer part's it renders for, then the caller's
     const rest = omit(properties, "xstyle", "style", "render", "class", PART_STYLES);
     const composed = (): style.Styles => [
@@ -180,18 +201,45 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements>(
         properties[PART_STYLES],
         properties.xstyle,
     ];
-    const styled = () => ({
-        ...style.attributes(composed(), properties.style),
-        [PART_STYLES]: composed(),
+    const styled = createMemo(() => {
+        // refuse a class that comes without an outer part's styles, which it stands for
+        if (properties.class !== undefined && properties[PART_STYLES] === undefined) {
+            throw new TypeError(
+                `part '${slot}' is invalid: a class comes only with an outer part's styles`,
+            );
+        }
+
+        return style.attributes(composed(), properties.style);
     });
 
-    // put them before its attributes, whose content then stays as they change
-    const part = merge({ "data-slot": slot }, styled, attributes ?? {});
+    // read each by itself, as reading any other attribute then leaves them alone
+    const part = merge(
+        {
+            "data-slot": slot,
+            get class() {
+                return styled().class;
+            },
+            get style() {
+                return styled().style;
+            },
+            get [PART_STYLES]() {
+                return composed();
+            },
+        },
+        attributes ?? {},
+    );
 
     // read the caller's element once
     const render = untrack(() => properties.render);
 
-    return useRender({ render, defaultTagName: tag, part, properties: rest });
+    return useRender({
+        render,
+        get defaultTagName() {
+            return access(tag);
+        },
+        part,
+        properties: rest,
+    });
 }
 
 /** Run two handlers or references in order, or the one there is, either a list of several. */

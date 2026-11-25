@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { createContext, type JSX, merge, omit, useContext, useLocale } from "@destack/view";
-import { type PartAttributes, type Render, useRender } from "../part/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 import { SELECTION_OPTIONS, Selection, type SelectionProperties } from "../selection/index.ts";
 import { ListState } from "../focus/index.ts";
 import type { Axis } from "../position/index.ts";
@@ -148,24 +148,23 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
     });
 
     // report the state as a radio in a single group and as a pressed button otherwise
-    const rest = omit(properties, "value", "disabled", "xstyle", "style", "render");
+    const rest = omit(properties, "value", "disabled");
     const isPressed = (): boolean => control.selection.isSelected(properties.value);
     const isSingle = (): boolean => control.properties.multiple !== true;
     const state = (): "true" | "false" => (isPressed() ? "true" : "false");
-    const part: PartAttributes = merge(
+
+    return renderPart(
+        "button",
+        "toggle-group-item",
+        rest,
         () =>
-            style.attributes(
-                [
-                    toggleVariants({
-                        variant: control.properties.variant ?? "default",
-                        size: control.properties.size ?? "default",
-                        pressed: isPressed(),
-                    }),
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
+            toggleVariants({
+                variant: control.properties.variant ?? "default",
+                size: control.properties.size ?? "default",
+                pressed: isPressed(),
+            }),
         {
+            type: "button" as const,
             get role() {
                 return isSingle() ? ("radio" as const) : undefined;
             },
@@ -175,7 +174,6 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
             get "aria-pressed"() {
                 return isSingle() ? undefined : state();
             },
-            "data-slot": "toggle-group-item",
             get "data-pressed"() {
                 return isPressed() ? "" : undefined;
             },
@@ -195,11 +193,4 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
             onFocus: () => control.list.focus.focusIn(properties.value),
         },
     );
-
-    return useRender({
-        render: properties.render,
-        defaultTagName: "button",
-        part: merge({ type: "button" }, part),
-        properties: rest,
-    });
 }

@@ -11,7 +11,7 @@ import {
     swatch,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, merge } from "@destack/view";
+import { type JSX } from "@destack/view";
 import { readText, takeText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { useJoin } from "../join/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
@@ -89,6 +89,6 @@ export function Input(given: InputProperties): JSX.Element {
         "input",
         properties,
         () => [inputStyle({ invalid: isInvalid() }), styles.input, join()],
-        merge(() => field?.attributes() ?? {}),
+        field?.attributes(),
     );
 }

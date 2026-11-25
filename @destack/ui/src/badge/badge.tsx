@@ -4,7 +4,7 @@ import { media } from "@destack/style/media.stylex";
 import { color, radius, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit } from "@destack/view";
-import { type PartAttributes, type Render, useRender } from "../part/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 
 /** The variant of a badge that sets none. */
 const DEFAULTS: Required<Pick<BadgeProperties, "variant">> = { variant: "default" };
@@ -87,24 +87,14 @@ export function badgeVariants(options: BadgeVariantProperties): style.Styles {
 export function Badge(properties: BadgeProperties): JSX.Element {
     // mark the part and its variant over its styles
     const badge = merge(DEFAULTS, properties);
-    const rest = omit(badge, "variant", "color", "xstyle", "style", "render");
-    const part: PartAttributes = merge(
-        () => style.attributes([badgeVariants(badge), badge.xstyle], badge.style),
-        {
-            "data-slot": "badge",
-            get "data-variant"() {
-                return badge.variant;
-            },
-            get "data-color"() {
-                return badge.color;
-            },
-        },
-    );
+    const rest = omit(badge, "variant", "color");
 
-    return useRender({
-        render: badge.render,
-        defaultTagName: "span",
-        part: part,
-        properties: rest,
+    return renderPart("span", "badge", rest, () => badgeVariants(badge), {
+        get "data-variant"() {
+            return badge.variant;
+        },
+        get "data-color"() {
+            return badge.color;
+        },
     });
 }

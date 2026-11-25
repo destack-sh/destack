@@ -5,6 +5,10 @@ import { createSignal, flush } from "@destack/view";
 import * as style from "@destack/style";
 import { Button, buttonVariants } from "./index.ts";
 import { classes, markup, render } from "@destack/view/test";
+import { renderPart } from "../part/index.ts";
+
+/** The styles of a part that draws a button. */
+const outer = style.create({ raised: { opacity: 0.5 } });
 
 test("render a native button with its variant, size and attributes", () => {
     const { container } = render(() => (
@@ -15,6 +19,18 @@ test("render a native button with its variant, size and attributes", () => {
     expect(markup(container)).toBe(
         '<button data-slot="button" data-variant="outline" data-size="sm" disabled="" type="submit" aria-label="Save note">Save</button>',
     );
+});
+
+test("keep a button's styles under a styled part that draws it", () => {
+    const { container } = render(() => (
+        <>
+            <Button xstyle={outer.raised} />
+            {renderPart("div", "outer", { render: (part) => <Button {...part} /> }, outer.raised)}
+        </>
+    ));
+    const [plain, drawn] = container.querySelectorAll("button");
+
+    expect(drawn?.className).toBe(plain?.className);
 });
 
 test("restyle a button when its variant changes", () => {

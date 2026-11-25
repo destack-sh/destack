@@ -2,7 +2,7 @@ import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
-import { type PartAttributes, type Render, useRender } from "../part/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 
 /** The orientation and role of a separator that sets neither. */
 const DEFAULTS: Required<Pick<SeparatorProperties, "orientation" | "decorative">> = {
@@ -44,33 +44,19 @@ export interface SeparatorProperties extends Omit<JSX.HTMLAttributes<HTMLDivElem
 export function Separator(properties: SeparatorProperties): JSX.Element {
     // mark the part with its orientation and role over its styles
     const separator = merge(DEFAULTS, properties);
-    const rest = omit(separator, "orientation", "decorative", "xstyle", "style", "render");
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [orientations[separator.orientation], separator.xstyle],
-                separator.style,
-            ),
-        {
-            "data-slot": "separator",
-            get "data-orientation"() {
-                return separator.orientation;
-            },
-            get role() {
-                return separator.decorative ? "none" : "separator";
-            },
-            get "aria-orientation"() {
-                return !separator.decorative && separator.orientation === "vertical"
-                    ? "vertical"
-                    : undefined;
-            },
-        },
-    );
+    const rest = omit(separator, "orientation", "decorative");
 
-    return useRender({
-        render: separator.render,
-        defaultTagName: "div",
-        part: part,
-        properties: rest,
+    return renderPart("div", "separator", rest, () => orientations[separator.orientation], {
+        get "data-orientation"() {
+            return separator.orientation;
+        },
+        get role() {
+            return separator.decorative ? "none" : "separator";
+        },
+        get "aria-orientation"() {
+            return !separator.decorative && separator.orientation === "vertical"
+                ? "vertical"
+                : undefined;
+        },
     });
 }

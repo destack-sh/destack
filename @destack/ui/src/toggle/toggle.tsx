@@ -1,9 +1,9 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { type PartAttributes, type Render, useRender } from "../part/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createControllableSignal, type JSX, merge, omit } from "@destack/view";
+import { createControllableSignal, type JSX, omit } from "@destack/view";
 
 /** The styles every toggle shares. */
 const styles = style.create({
@@ -95,9 +95,6 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
         "pressed",
         "defaultPressed",
         "onPressedChange",
-        "xstyle",
-        "style",
-        "render",
     );
     const [isPressed, setPressed] = createControllableSignal({
         isControlled: () => properties.pressed !== undefined,
@@ -107,21 +104,18 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
     });
 
     // mark the part, report its state and flip it
-    const part: PartAttributes = merge(
+    return renderPart(
+        "button",
+        "toggle",
+        rest,
         () =>
-            style.attributes(
-                [
-                    toggleVariants({
-                        variant: properties.variant ?? "default",
-                        size: properties.size ?? "default",
-                        pressed: isPressed(),
-                    }),
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
+            toggleVariants({
+                variant: properties.variant ?? "default",
+                size: properties.size ?? "default",
+                pressed: isPressed(),
+            }),
         {
-            "data-slot": "toggle",
+            type: "button" as const,
             get "data-pressed"() {
                 return isPressed() ? "" : undefined;
             },
@@ -134,11 +128,4 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
             },
         },
     );
-
-    return useRender({
-        render: properties.render,
-        defaultTagName: "button",
-        part: merge({ type: "button" }, part),
-        properties: rest,
-    });
 }

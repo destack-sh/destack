@@ -63,7 +63,7 @@ test("render a message's avatar, header, body, footer and actions", () => {
             'Hello<div data-slot="message-footer">Read</div></div>',
             '<div role="toolbar" aria-orientation="horizontal" data-slot="message-toolbar" aria-label="Actions">',
             '<fieldset role="none">',
-            '<button data-slot="toolbar-button" data-variant="ghost" data-size="icon" type="button">Reply</button>',
+            '<button data-variant="ghost" data-size="icon" type="button" data-slot="toolbar-button">Reply</button>',
             "</fieldset></div></div>",
         ].join(""),
     );

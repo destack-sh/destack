@@ -24,6 +24,7 @@ const STATE = new Set([
     "drag",
     "focus",
     "interaction",
+    "motion",
     "part",
     "position",
     "selection",
@@ -99,7 +100,7 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
         '<div _hk=0040 data-slot="sidebar-wrapper">' +
             '<div _hk=00430 id="000" data-slot="sidebar" data-open data-variant="sidebar" data-side="left"><div>' +
             '<div _hk=0043140 data-slot="sidebar-content">Notebooks</div></div></div>' +
-            '<button _hk=00490 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon" type="button" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true">' +
+            '<button _hk=00490 data-variant="ghost" data-size="icon" type="button" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true" data-slot="sidebar-trigger">' +
             '<svg _hk=00491 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
             '<section _hk=004i1 aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
             '<ol popover="manual" data-slot="toaster-stack" style="--x-height:0px"></ol></section></div>' +

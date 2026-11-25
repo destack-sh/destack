@@ -5,14 +5,8 @@ import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, size, space } from "@destack/theme/tokens.stylex";
-import { createControllableSignal, For, type JSX, merge, omit, useLocale } from "@destack/view";
-import {
-    type ElementPartProperties,
-    type PartAttributes,
-    type Render,
-    useRender,
-    renderPart,
-} from "../part/index.ts";
+import { createControllableSignal, For, type JSX, omit, useLocale } from "@destack/view";
+import { type ElementPartProperties, type Render, renderPart } from "../part/index.ts";
 import { buttonVariants, type ButtonSize } from "../button/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
@@ -100,37 +94,28 @@ export function PaginationItem(
 
 /** Render a link to a page, marked as the current page when active. */
 export function PaginationLink(properties: PaginationLinkProperties): JSX.Element {
-    const rest = omit(properties, "active", "size", "xstyle", "style", "render");
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [
-                    buttonVariants({
-                        variant: properties.active === true ? "outline" : "ghost",
-                        size: properties.size ?? "icon",
-                    }),
-                    properties.active === true && styles.current,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
+    const rest = omit(properties, "active", "size");
+
+    return renderPart(
+        "a",
+        "pagination-link",
+        rest,
+        () => [
+            buttonVariants({
+                variant: properties.active === true ? "outline" : "ghost",
+                size: properties.size ?? "icon",
+            }),
+            properties.active === true && styles.current,
+        ],
         {
             get "aria-current"() {
                 return properties.active === true ? "page" : undefined;
             },
-            "data-slot": "pagination-link",
             get "data-active"() {
                 return properties.active === true ? "" : undefined;
             },
         },
     );
-
-    return useRender({
-        render: properties.render,
-        defaultTagName: "a",
-        part: part,
-        properties: rest,
-    });
 }
 
 /** Render the link to the previous page, its arrow pointing against the text. */

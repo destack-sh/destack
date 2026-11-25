@@ -14,7 +14,7 @@ import {
 } from "@destack/view";
 import { CheckboxGroupContext } from "./group.tsx";
 import { useFieldControl, useFieldValue } from "../field/control.ts";
-import { type PartAttributes, type Render, useRender } from "../part/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 import {
     ToggleInput,
     type ToggleFormProperties,
@@ -141,9 +141,6 @@ export function Checkbox(given: CheckboxProperties): JSX.Element {
         "required",
         "form",
         "disabled",
-        "xstyle",
-        "style",
-        "render",
         "children",
     );
     const isDisabled = (): boolean => properties.disabled === true || field?.isDisabled() === true;
@@ -157,72 +154,70 @@ export function Checkbox(given: CheckboxProperties): JSX.Element {
               : "unchecked";
 
     // mark the part, report its state and check it on a click or Space but not Enter
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [
+    return (
+        <CheckboxContext value={{ state: value, isDisabled }}>
+            {renderPart(
+                "button",
+                "checkbox",
+                rest,
+                () => [
                     state.focus,
                     state.touch,
                     state.disabled,
                     styles.checkbox,
                     value() !== "unchecked" && styles.checked,
                     isInvalid() && state.invalid,
-                    properties.xstyle,
                 ],
-                properties.style,
-            ),
-        {
-            role: "checkbox" as const,
-            get "aria-checked"() {
-                return value() === "indeterminate"
-                    ? "mixed"
-                    : value() === "checked"
-                      ? "true"
-                      : "false";
-            },
-            get "aria-readonly"() {
-                return properties.readOnly === true ? "true" : undefined;
-            },
-            get "data-readonly"() {
-                return properties.readOnly === true ? "" : undefined;
-            },
-            get "aria-required"() {
-                return properties.required === true ? "true" : undefined;
-            },
-            "data-slot": "checkbox",
-            get "data-checked"() {
-                return value() === "checked" ? "" : undefined;
-            },
-            get "data-unchecked"() {
-                return value() === "unchecked" ? "" : undefined;
-            },
-            get "data-indeterminate"() {
-                return value() === "indeterminate" ? "" : undefined;
-            },
-            get "data-disabled"() {
-                return isDisabled() ? "" : undefined;
-            },
-            onClick: () => toggle.set(value() !== "checked"),
-            onKeyDown: (event: KeyboardEvent) => {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                }
-            },
-            get children() {
-                return properties.children ?? <CheckboxIndicator />;
-            },
-        },
-        () => ({ ...field?.attributes(), disabled: isDisabled() ? true : undefined }),
-    );
-
-    return (
-        <CheckboxContext value={{ state: value, isDisabled }}>
-            {useRender({
-                render: properties.render,
-                defaultTagName: "button",
-                part: merge({ type: "button" }, part),
-                properties: rest,
-            })}
+                merge(
+                    {
+                        type: "button" as const,
+                        role: "checkbox" as const,
+                        get "aria-checked"() {
+                            return value() === "indeterminate"
+                                ? "mixed"
+                                : value() === "checked"
+                                  ? "true"
+                                  : "false";
+                        },
+                        get "aria-readonly"() {
+                            return properties.readOnly === true ? "true" : undefined;
+                        },
+                        get "data-readonly"() {
+                            return properties.readOnly === true ? "" : undefined;
+                        },
+                        get "aria-required"() {
+                            return properties.required === true ? "true" : undefined;
+                        },
+                        get "data-checked"() {
+                            return value() === "checked" ? "" : undefined;
+                        },
+                        get "data-unchecked"() {
+                            return value() === "unchecked" ? "" : undefined;
+                        },
+                        get "data-indeterminate"() {
+                            return value() === "indeterminate" ? "" : undefined;
+                        },
+                        get "data-disabled"() {
+                            return isDisabled() ? "" : undefined;
+                        },
+                        onClick: () => toggle.set(value() !== "checked"),
+                        onKeyDown: (event: KeyboardEvent) => {
+                            if (event.key === "Enter") {
+                                event.preventDefault();
+                            }
+                        },
+                        get children() {
+                            return properties.children ?? <CheckboxIndicator />;
+                        },
+                    },
+                    field?.attributes() ?? {},
+                    {
+                        get disabled() {
+                            return isDisabled() ? true : undefined;
+                        },
+                    },
+                ),
+            )}
             <Show when={isSubmitted(properties)}>
                 <ToggleInput
                     name={properties.name}

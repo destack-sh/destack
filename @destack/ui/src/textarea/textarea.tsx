@@ -42,7 +42,7 @@ export function Textarea(given: TextareaProperties): JSX.Element {
         "textarea",
         properties,
         () => [inputStyle({ invalid: isInvalid() }), styles.textarea],
-        merge(() => field?.attributes() ?? {}, { onKeyDown: submit }),
+        merge(field?.attributes() ?? {}, { onKeyDown: submit }),
     );
 }
 

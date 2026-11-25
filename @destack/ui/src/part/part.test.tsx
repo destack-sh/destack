@@ -1,8 +1,19 @@
 import * as style from "@destack/style";
 import { expect, test } from "@destack/test";
-import { createSignal, flush } from "@destack/view";
+import { createMemo, createSignal, flush, type JSX } from "@destack/view";
 import { markup, render } from "@destack/view/test";
-import { mergeProperties, type PartAttributes, renderPart, useRender } from "./index.ts";
+import {
+    type ElementPartProperties,
+    mergeProperties,
+    type PartAttributes,
+    type Render,
+    renderPart,
+    useRender,
+} from "./index.ts";
+
+/** The properties of the parts of these tests. */
+type PartProperties = ElementPartProperties &
+    Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style">;
 
 /** The properties of a test part: attributes any element takes, and options only the part reads. */
 const PROPERTIES = {
@@ -23,6 +34,16 @@ const styles = style.create({
 
 /** The attributes a test part gives its element. */
 const PART: PartAttributes = { "data-slot": "button", role: "link", tabindex: 0 };
+
+/** Render a plain part. */
+function Plain(properties: PartProperties): JSX.Element {
+    return renderPart("div", "plain", properties, null, { role: "note" });
+}
+
+/** Render a plain part drawn by another. */
+function Nested(properties: PartProperties): JSX.Element {
+    return <Plain {...properties} render={(part) => <Plain {...part} />} />;
+}
 
 test("render a part's own element with every attribute, or the caller's element with the forwarded ones", () => {
     const { container } = render(() => (
@@ -115,6 +136,35 @@ test("compose an outer part's styles between a kit part's styles and its caller'
     );
 });
 
+test("run the handlers of an outer part on the element an inner part's caller renders", () => {
+    const ran: string[] = [];
+    const { container } = render(() =>
+        renderPart(
+            "div",
+            "outer",
+            {
+                render: (attributes) =>
+                    renderPart(
+                        "div",
+                        "inner",
+                        { ...attributes, render: (inner) => <li {...inner} /> },
+                        null,
+                    ),
+            },
+            null,
+            {
+                onPointerDown: () => void ran.push("down"),
+                onContextMenu: () => void ran.push("menu"),
+            },
+        ),
+    );
+    const item = container.querySelector("li");
+    item?.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    item?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+
+    expect(ran).toEqual(["down", "menu"]);
+});
+
 test("run every reference of lists", () => {
     const ran: string[] = [];
     const mark = (name: string) => () => void ran.push(name);
@@ -164,4 +214,56 @@ test("keep a part's content as its styles change", () => {
         container.querySelector("b") === content,
         container.firstElementChild?.className,
     ]).toEqual([true, style.attributes([styles.caller]).class]);
+});
+
+test("build a part's content once, whatever writes what its styles read", () => {
+    // draw a part by others, its style reading what changes before or while it builds
+    const draws: Record<string, Render> = {
+        native: (part) => <i {...part} />,
+        part: (part) => <Plain {...part} />,
+        nested: (part) => <Nested {...part} />,
+    };
+    const counts = Object.entries(draws).flatMap(([name, draw]) =>
+        ["before", "inside"].map((place) => {
+            // read through a memo, stale as the part first reads it
+            const [version, setVersion] = createSignal(0, { ownedWrite: true });
+            const write = (): void => void setVersion((each) => each + 1);
+            let built = 0;
+            const Outer = (properties: PartProperties): JSX.Element => {
+                const isOdd = createMemo(() => version() % 2 === 1);
+                if (place === "before") {
+                    write();
+                }
+
+                return renderPart("div", "outer", properties, () => [isOdd() && styles.caller]);
+            };
+            const Content = (): JSX.Element => {
+                built += 1;
+                if (place === "inside" && built === 1) {
+                    write();
+                }
+
+                return null;
+            };
+            render(() => (
+                <Outer render={draw}>
+                    <Content />
+                </Outer>
+            ));
+            flush();
+            write();
+            flush();
+
+            return [name, place, built];
+        }),
+    );
+
+    expect(counts).toEqual([
+        ["native", "before", 1],
+        ["native", "inside", 1],
+        ["part", "before", 1],
+        ["part", "inside", 1],
+        ["nested", "before", 1],
+        ["nested", "inside", 1],
+    ]);
 });

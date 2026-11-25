@@ -46,7 +46,7 @@ test("render a composer's header, addon, text and footer as a form", () => {
             '<div data-slot="composer-addon" data-align="inline-end">Beside</div>',
             '<textarea data-slot="composer-input" rows="1" aria-label="Message" placeholder="Write"></textarea>',
             '<div data-slot="composer-footer">',
-            '<button data-slot="composer-submit" data-variant="default" data-size="icon" type="submit" aria-label="Send">',
+            '<button data-variant="default" data-size="icon" data-slot="composer-submit" type="submit" aria-label="Send">',
             '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg>',
             "</button></div></div></form>",
         ].join(""),

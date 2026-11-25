@@ -23,7 +23,7 @@ import {
     untrack,
     useEnvironment,
 } from "@destack/view";
-import { type PartAttributes, type Render, useRender } from "../part/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 import { useJoin } from "../join/index.ts";
 import { Spinner } from "../spinner/index.ts";
 
@@ -220,19 +220,7 @@ export function Button(properties: ButtonProperties): JSX.Element {
     // join the button to its neighbours in a button group
     const join = useJoin();
     const button = merge(DEFAULTS, properties);
-    const rest = omit(
-        button,
-        "variant",
-        "size",
-        "shape",
-        "xstyle",
-        "style",
-        "render",
-        "data-slot",
-        "loading",
-        "disabled",
-        "children",
-    );
+    const rest = omit(button, "variant", "size", "shape", "loading", "disabled", "children");
     const isBusy = (): boolean => button.loading === true;
     const isWaiting = untrack(() => "loading" in properties);
 
@@ -269,16 +257,16 @@ export function Button(properties: ButtonProperties): JSX.Element {
     };
 
     // mark the part and give it its styles with the caller's last
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [buttonVariants(button), isWaiting && styles.busy, join(), button.xstyle],
-                button.style,
-            ),
+    return renderPart(
+        "button",
+        "button",
+        merge(
+            untrack(() => button.render) === undefined ? { type: "button" as const } : {},
+            rest,
+            isWaiting ? { onClick: click } : {},
+        ),
+        () => [buttonVariants(button), isWaiting && styles.busy, join()],
         {
-            get "data-slot"() {
-                return button["data-slot"] ?? "button";
-            },
             get "data-variant"() {
                 return button.variant;
             },
@@ -312,15 +300,4 @@ export function Button(properties: ButtonProperties): JSX.Element {
             },
         },
     );
-
-    return useRender({
-        render: untrack(() => button.render),
-        defaultTagName: "button",
-        part: part,
-        properties: merge(
-            untrack(() => button.render) === undefined ? { type: "button" as const } : {},
-            rest,
-            isWaiting ? { onClick: click } : {},
-        ),
-    });
 }

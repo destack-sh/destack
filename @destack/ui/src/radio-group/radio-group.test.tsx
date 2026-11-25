@@ -35,8 +35,8 @@ test("check one radio at a time on click, showing its indicator and moving the t
     flush();
     expect(markup(container)).toBe(
         '<div role="radiogroup" data-slot="radio-group" aria-label="Density">' +
-            '<button type="button" role="radio" aria-checked="false" tabindex="-1" data-slot="radio-group-item" data-value="compact" aria-label="Compact" data-unchecked=""></button>' +
-            '<button type="button" role="radio" aria-checked="true" tabindex="0" data-slot="radio-group-item" data-value="regular" aria-label="Regular" data-checked=""><span data-slot="radio-group-indicator" data-checked=""></span></button></div>',
+            '<button data-slot="radio-group-item" type="button" role="radio" aria-checked="false" tabindex="-1" data-value="compact" aria-label="Compact" data-unchecked=""></button>' +
+            '<button data-slot="radio-group-item" type="button" role="radio" aria-checked="true" tabindex="0" data-value="regular" aria-label="Regular" data-checked=""><span data-slot="radio-group-indicator" data-checked=""></span></button></div>',
     );
     expect(changes).toEqual(["regular"]);
 });

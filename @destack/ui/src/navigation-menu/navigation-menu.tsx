@@ -21,7 +21,6 @@ import {
     createSignal,
     createUniqueId,
     type JSX,
-    merge,
     omit,
     Portal,
     type Setter,
@@ -33,7 +32,7 @@ import {
 } from "@destack/view";
 import { Timeout } from "@destack/view/primitives/timer";
 import { Hover, type HoverEvent, SafePolygon } from "../interaction/index.ts";
-import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 import { ListState, tabbablesIn } from "../focus/index.ts";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
@@ -611,39 +610,25 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
     if (isTop) {
         menu.join(key, () => element);
     }
-    const rest = omit(properties, "active", "xstyle", "style", "render");
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [text.sm, state.focus, styles.link, properties.xstyle],
-                properties.style,
-            ),
-        {
-            get "aria-current"() {
-                return properties.active === true ? "page" : undefined;
-            },
-            get "data-active"() {
-                return properties.active === true ? "" : undefined;
-            },
-            "data-navigation-top": isTop ? "" : undefined,
-            "data-slot": "navigation-menu-link",
-            ref: (link: HTMLElement) => {
-                element = link;
-            },
-            onFocus: () => {
-                // follow the focus onto a top-level link
-                if (isTop) {
-                    menu.list.focus.focusIn(key);
-                }
-            },
-        },
-    );
+    const rest = omit(properties, "active");
 
-    return useRender({
-        render: properties.render,
-        defaultTagName: "a",
-        part: part,
-        properties: rest,
+    return renderPart("a", "navigation-menu-link", rest, [text.sm, state.focus, styles.link], {
+        get "aria-current"() {
+            return properties.active === true ? "page" : undefined;
+        },
+        get "data-active"() {
+            return properties.active === true ? "" : undefined;
+        },
+        "data-navigation-top": isTop ? "" : undefined,
+        ref: (link: HTMLElement) => {
+            element = link;
+        },
+        onFocus: () => {
+            // follow the focus onto a top-level link
+            if (isTop) {
+                menu.list.focus.focusIn(key);
+            }
+        },
     });
 }
 

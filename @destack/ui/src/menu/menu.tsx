@@ -40,10 +40,8 @@ import { Timeout } from "@destack/view/primitives/timer";
 import { Hover, type HoverEvent, SafePolygon } from "../interaction/index.ts";
 import {
     type ElementPartProperties,
-    type PartAttributes,
     type PartEvent,
     type Render,
-    useRender,
     renderPart,
 } from "../part/index.ts";
 import { type Direction, Shortcut } from "@destack/locale";
@@ -52,7 +50,7 @@ import { type JsonValue, mapValues } from "@destack/schema";
 import { ChoiceIcon } from "../action/choice-icon.tsx";
 import type { IconBodies } from "@destack/icon";
 import { useCommandPlatform } from "../kbd/index.ts";
-import { ListState } from "../focus/index.ts";
+import { ListState, tabbablesIn } from "../focus/index.ts";
 import {
     type Align,
     type Anchor,
@@ -421,7 +419,7 @@ export class MenuControl<Payload = unknown> {
             this.#unplace();
             content.hidePopover();
             if (this.#isReturningFocus) {
-                untrack(this.state.trigger)?.element.focus();
+                focusIn(untrack(this.state.trigger)?.element);
             }
         }
         this.#isReturningFocus = false;
@@ -743,30 +741,27 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
 export function MenuItem(properties: MenuItemProperties): JSX.Element {
     // join the menu and report the item's state over its styles
     const control = useMenu();
-    const rest = omit(properties, "onSelect", "disabled", "variant", "xstyle", "style", "render");
+    const rest = omit(properties, "onSelect", "disabled", "variant");
     const item = control.join(() => properties.disabled === true);
     const hover: Hover = new Hover({
         onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
     });
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [
-                    styles.item,
-                    properties.variant === "destructive" && styles.destructive,
-                    properties.disabled === true && state.inert,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
-        hover.attributes(),
-        {
+
+    return renderPart(
+        "div",
+        "menu-item",
+        rest,
+        () => [
+            styles.item,
+            properties.variant === "destructive" && styles.destructive,
+            properties.disabled === true && state.inert,
+        ],
+        merge(hover.attributes(), {
             role: "menuitem" as const,
             tabindex: -1,
             ref: item.ref,
             onFocus: item.onFocus,
             "data-menu-item": "",
-            "data-slot": "menu-item",
             get "data-variant"() {
                 return properties.variant ?? "default";
             },
@@ -778,15 +773,8 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
             },
             onClick: (event: MouseEvent) => choose(event, control, properties),
             onKeyDown: activate,
-        },
+        }),
     );
-
-    return useRender({
-        render: properties.render,
-        defaultTagName: "div",
-        part: part,
-        properties: rest,
-    });
 }
 
 /** Render an item that checks and unchecks, reporting its state through `aria-checked`. */
@@ -1070,6 +1058,16 @@ function activate(event: PartEvent<KeyboardEvent>): void {
     }
 }
 
+/** Focus an element, else what takes the focus in it first. */
+function focusIn(element: HTMLElement | undefined): void {
+    // go in where the element itself takes no focus, such as what a context menu opens from
+    element?.focus();
+    if (element !== undefined && element !== element.ownerDocument.activeElement) {
+        const inside = element.querySelector<HTMLElement>("button, a[href], [tabindex]");
+        (tabbablesIn(element)[0] ?? inside)?.focus();
+    }
+}
+
 /** Run an item's action and close every menu unless the action prevents it. */
 function choose(
     event: MouseEvent,
@@ -1217,7 +1215,7 @@ function MenuChoices(properties: {
         () => control.root().isOpen(),
         (isOpen) => {
             if (isOpen) {
-                void properties.list().then(setChoices, reportError);
+                void untrack(() => properties.list()).then(setChoices, reportError);
             }
         },
     );

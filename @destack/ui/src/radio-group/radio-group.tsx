@@ -8,7 +8,6 @@ import {
     createContext,
     createUniqueId,
     type JSX,
-    merge,
     omit,
     Show,
     useContext,
@@ -18,7 +17,7 @@ import {
 import { ToggleInput, isSubmitted } from "../toggle-state/index.ts";
 import { ListState } from "../focus/index.ts";
 import { Selection, type SingleSelection, valuesOf } from "../selection/index.ts";
-import { type PartAttributes, type Render, useRender } from "../part/index.ts";
+import { type Render, renderPart } from "../part/index.ts";
 import { useFieldValue, readChoice } from "../field/control.ts";
 
 /** The checked value of the nearest radio group, null outside a group. */
@@ -265,7 +264,7 @@ export function RadioGroup(given: RadioGroupProperties): JSX.Element {
 export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Element {
     // read the group and refuse a radio outside one
     const group = useRadioGroup();
-    const rest = omit(properties, "value", "disabled", "xstyle", "style", "render", "children");
+    const rest = omit(properties, "value", "disabled", "children");
     const isDisabled = (): boolean =>
         properties.disabled === true || group.properties.disabled === true;
     const isChecked = (): boolean => group.selection.isSelected(properties.value);
@@ -278,62 +277,53 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
     });
 
     // mark the part, report its state and check it on a click or Space
-    const part: PartAttributes = merge(
-        () =>
-            style.attributes(
-                [
+    return (
+        <RadioGroupItemContext value={{ isChecked, isDisabled }}>
+            {renderPart(
+                "button",
+                "radio-group-item",
+                rest,
+                () => [
                     state.focus,
                     state.touch,
                     state.disabled,
                     styles.item,
                     isChecked() && styles.checked,
-                    properties.xstyle,
                 ],
-                properties.style,
-            ),
-        {
-            role: "radio" as const,
-            get "aria-checked"() {
-                return isChecked() ? "true" : "false";
-            },
-            get tabindex() {
-                return group.list.focus.isActive(properties.value) ? 0 : -1;
-            },
-            get disabled() {
-                return isDisabled() ? true : undefined;
-            },
-            ref: (target: HTMLElement) => {
-                element = target;
-            },
-            "data-slot": "radio-group-item",
-            get "data-checked"() {
-                return isChecked() ? "" : undefined;
-            },
-            get "data-unchecked"() {
-                return isChecked() ? undefined : "";
-            },
-            get "data-disabled"() {
-                return isDisabled() ? "" : undefined;
-            },
-            get "data-value"() {
-                return properties.value;
-            },
-            onClick: () => group.choose(properties.value),
-            onFocus: () => group.list.focus.focusIn(properties.value),
-            get children() {
-                return properties.children ?? <RadioGroupIndicator />;
-            },
-        },
-    );
-
-    return (
-        <RadioGroupItemContext value={{ isChecked, isDisabled }}>
-            {useRender({
-                render: properties.render,
-                defaultTagName: "button",
-                part: merge({ type: "button" }, part),
-                properties: rest,
-            })}
+                {
+                    type: "button" as const,
+                    role: "radio" as const,
+                    get "aria-checked"() {
+                        return isChecked() ? "true" : "false";
+                    },
+                    get tabindex() {
+                        return group.list.focus.isActive(properties.value) ? 0 : -1;
+                    },
+                    get disabled() {
+                        return isDisabled() ? true : undefined;
+                    },
+                    ref: (target: HTMLElement) => {
+                        element = target;
+                    },
+                    get "data-checked"() {
+                        return isChecked() ? "" : undefined;
+                    },
+                    get "data-unchecked"() {
+                        return isChecked() ? undefined : "";
+                    },
+                    get "data-disabled"() {
+                        return isDisabled() ? "" : undefined;
+                    },
+                    get "data-value"() {
+                        return properties.value;
+                    },
+                    onClick: () => group.choose(properties.value),
+                    onFocus: () => group.list.focus.focusIn(properties.value),
+                    get children() {
+                        return properties.children ?? <RadioGroupIndicator />;
+                    },
+                },
+            )}
             <Show when={isSubmitted(group.properties)}>
                 <ToggleInput
                     type="radio"

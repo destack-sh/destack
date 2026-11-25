@@ -21,8 +21,8 @@ test("leave one item of a single toggle group on, exposed as radios", () => {
     // the clicked item replaces the pressed one, and the pressed one has the tab stop
     expect(markup(container)).toBe(
         '<div role="radiogroup" data-slot="toggle-group" aria-orientation="horizontal" aria-label="Alignment">' +
-            '<button type="button" role="radio" aria-checked="false" data-slot="toggle-group-item" data-value="left" tabindex="-1">Left</button>' +
-            '<button type="button" role="radio" aria-checked="true" data-slot="toggle-group-item" data-value="center" tabindex="0" data-pressed="">Center</button></div>',
+            '<button data-slot="toggle-group-item" type="button" role="radio" aria-checked="false" data-value="left" tabindex="-1">Left</button>' +
+            '<button data-slot="toggle-group-item" type="button" role="radio" aria-checked="true" data-value="center" tabindex="0" data-pressed="">Center</button></div>',
     );
     expect(changes).toEqual(["center"]);
 });

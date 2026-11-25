@@ -26,9 +26,9 @@ test("toggle a checkbox and its indicator on click, report an indeterminate one 
     flush();
 
     expect(markup(container)).toBe(
-        '<button type="button" role="checkbox" aria-checked="true" data-slot="checkbox" aria-label="Terms" data-checked=""><span data-slot="checkbox-indicator" data-checked=""><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span></button>' +
-            '<button type="button" role="checkbox" aria-checked="mixed" data-slot="checkbox" data-indeterminate="" aria-label="Select all"><span data-slot="checkbox-indicator" data-indeterminate=""><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span></button>' +
-            '<button type="button" role="checkbox" aria-checked="false" data-slot="checkbox" data-unchecked="" data-disabled="" disabled="" aria-label="Locked"></button>',
+        '<button data-slot="checkbox" type="button" role="checkbox" aria-checked="true" aria-label="Terms" data-checked=""><span data-slot="checkbox-indicator" data-checked=""><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span></button>' +
+            '<button data-slot="checkbox" type="button" role="checkbox" aria-checked="mixed" data-indeterminate="" aria-label="Select all"><span data-slot="checkbox-indicator" data-indeterminate=""><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span></button>' +
+            '<button data-slot="checkbox" type="button" role="checkbox" aria-checked="false" data-unchecked="" data-disabled="" disabled="" aria-label="Locked"></button>',
     );
 });
 
