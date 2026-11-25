@@ -84,10 +84,14 @@ export class FixtureSource {
     }
 
     /** Build the copy with a warm compiler of the pool. */
-    #build(request: Omit<PackageBuildOptions, "directory">): Promise<BuildReader> {
+    async #build(request: Omit<PackageBuildOptions, "directory">): Promise<BuildReader> {
+        // build the copy with a warm compiler, taking its stored build
         const options = { ...request, directory: this.directory };
+        const built = await this.#compilers.use(this.directory, (compiler) =>
+            compiler.build(options),
+        );
 
-        return this.#compilers.use(this.directory, (compiler) => compiler.build(options));
+        return built.build;
     }
 }
 
