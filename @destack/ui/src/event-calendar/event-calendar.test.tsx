@@ -1,6 +1,7 @@
 import { Locale, Localization } from "@destack/locale";
 import { TimeZone } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { present } from "@destack/schema";
+import { beforeEach, expect, test } from "@destack/test";
 import { createSignal, Errored, flush, For, LocaleContext } from "@destack/view";
 import { render, stubPopovers, testWorld } from "@destack/view/test";
 import { Draggable, DragProvider, useDragManager } from "../drag/index.ts";
@@ -34,6 +35,7 @@ import {
     EventCalendarSourceList,
     EventCalendarDayGrid,
     EventCalendarYear,
+    useEventCalendar,
     useEventCalendarDay,
 } from "./index.ts";
 
@@ -94,6 +96,8 @@ function drawCalendar(
 
     return { container, changes, created };
 }
+
+beforeEach(() => stubPopovers());
 
 /** Read each week row's events as their titles and first and last days. */
 function weeksOf(container: HTMLElement): string[][] {
@@ -206,7 +210,7 @@ test("move the focused day with the arrows and a month with Page Down, the title
         visits.push(container.ownerDocument.activeElement?.getAttribute("aria-label") ?? "");
     }
 
-    expect({ visits, title: container.querySelector("h2")?.textContent }).toEqual({
+    expect({ visits, title: container.querySelector("h2 > span")?.textContent }).toEqual({
         visits: [
             "Friday, November 20, 2026",
             "Friday, November 27, 2026",
@@ -596,7 +600,7 @@ test("compose the header from its parts, render events with the caller's part, a
         header: header.map((part) => part.getAttribute("data-slot")),
         own,
         changes: changes.map(wall),
-        title: container.querySelector("[data-slot=event-calendar-title]")?.textContent,
+        title: container.querySelector("[data-slot=event-calendar-title] > span")?.textContent,
     }).toEqual({
         header: ["event-calendar-title", "event-calendar-next"],
         own: "own Planning",
@@ -744,8 +748,8 @@ test("hide the weekend from the week and the month, the arrows and Home and End 
         columns: [
             ...week.container.querySelectorAll<HTMLElement>("[data-slot=event-calendar-column]"),
         ].map((column) => column.dataset["date"]),
-        title: week.container.querySelector("h2")?.textContent,
-        nextDay: day.container.querySelector("h2")?.textContent,
+        title: week.container.querySelector("h2 > span")?.textContent,
+        nextDay: day.container.querySelector("h2 > span")?.textContent,
         visits,
     }).toEqual({
         weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri"],
@@ -1001,7 +1005,7 @@ test("offer the views the parts compose, the days view showing four shown days a
         [...container.querySelectorAll<HTMLElement>("[data-slot=event-calendar-column]")].map(
             (column) => column.dataset["date"],
         );
-    const title = () => container.querySelector("h2")?.textContent;
+    const title = () => container.querySelector("h2 > span")?.textContent;
     const first = { columns: columns(), title: title() };
     container.querySelector<HTMLElement>("[data-slot=event-calendar-next]")?.click();
     flush();
@@ -1025,6 +1029,91 @@ test("offer the views the parts compose, the days view showing four shown days a
     });
 });
 
+/** Read the days a view shows from a Wednesday in some room, and the first of those after. */
+function daysIn(view: EventCalendarView, room: number, resources: readonly string[]): unknown[] {
+    // draw a calendar and hand out its control
+    let control: ReturnType<typeof useEventCalendar> | undefined;
+    const Probe = () => {
+        control = useEventCalendar();
+
+        return undefined;
+    };
+    render(() => (
+        <EventCalendar
+            events={[]}
+            timeZone={ZONE}
+            defaultDate="2026-11-18"
+            defaultView={view}
+            resources={resources.map((key) => ({ key, label: key }))}
+        >
+            <Probe />
+        </EventCalendar>
+    ));
+    const calendar = present(control, "the calendar");
+    calendar.setRoom(room);
+    flush();
+    const days = calendar.days();
+    calendar.step(1);
+    flush();
+
+    return [days.length, days[0], calendar.days()[0]];
+}
+
+test("show as many days as there is room for, a column of each for every resource", () => {
+    expect([
+        daysIn("week", 7, []),
+        daysIn("week", 3, []),
+        daysIn("days", 3, []),
+        daysIn("week", 3, ["ada", "grace"]),
+        daysIn("month", 3, []).slice(0, 2),
+    ]).toEqual([
+        [7, "2026-11-15", "2026-11-22"],
+        [3, "2026-11-18", "2026-11-21"],
+        [3, "2026-11-18", "2026-11-21"],
+        [1, "2026-11-18", "2026-11-19"],
+        [7, "2026-11-15"],
+    ]);
+});
+
+/** Swipe an element by a finger, from one place to another. */
+function swipe(element: Element, from: readonly [number, number], to: readonly [number, number]) {
+    // send each step with the finger's place
+    const send = (type: string, places: readonly (readonly [number, number])[]) => {
+        const touches = places.map(([clientX, clientY]) => ({ clientX, clientY }));
+        element.dispatchEvent(Object.assign(new Event(type, { bubbles: true }), { touches }));
+        flush();
+    };
+    send("touchstart", [from]);
+    send("touchmove", [to]);
+    send("touchend", []);
+}
+
+test("turn the pages by swipes across, leaving scrolls and short swipes alone", () => {
+    const { container } = drawCalendar("en-US", "2026-11-18", [], "week");
+    const view = present(
+        container.querySelector<HTMLElement>("[data-slot=event-calendar-time]"),
+        "the time view",
+    );
+    view.getBoundingClientRect = () => DOMRect.fromRect({ width: 400, height: 600 });
+    const days = [
+        [300, 100],
+        [300, 310],
+        [100, 320],
+    ].map(([across, along]) => {
+        swipe(view, [300, 300], [across ?? 0, along ?? 0]);
+
+        return container
+            .querySelector("[data-slot=event-calendar-column]")
+            ?.getAttribute("data-date");
+    });
+    swipe(view, [100, 300], [300, 300]);
+
+    expect([
+        ...days,
+        container.querySelector("[data-slot=event-calendar-column]")?.getAttribute("data-date"),
+    ]).toEqual(["2026-11-15", "2026-11-15", "2026-11-22", "2026-11-15"]);
+});
+
 test("show a year of months, each day marked by its events, a press opening its day", () => {
     // a trip from Friday to Monday and a meeting on the Friday
     const events: readonly CalendarEvent[] = [
@@ -1043,7 +1132,7 @@ test("show a year of months, each day marked by its events, a press opening its 
             "[data-slot=event-calendar-year-day]:not([data-count='0'])",
         ),
     ].map((day) => `${day.dataset["date"] ?? ""} ${day.dataset["count"] ?? ""}`);
-    const title = container.querySelector("h2")?.textContent;
+    const title = container.querySelector("h2 > span")?.textContent;
     container
         .querySelector<HTMLElement>("[data-slot=event-calendar-year-day][data-date='2026-11-20']")
         ?.click();
@@ -1053,7 +1142,7 @@ test("show a year of months, each day marked by its events, a press opening its 
         months,
         marked,
         title,
-        opened: container.querySelector("h2")?.textContent,
+        opened: container.querySelector("h2 > span")?.textContent,
     }).toEqual({
         months: 12,
         marked: ["2026-11-20 2", "2026-11-21 1", "2026-11-22 1", "2026-11-23 1"],
@@ -1491,7 +1580,7 @@ test("move, switch views, create and select by the calendar's keys", () => {
         );
         flush();
 
-        return container.querySelector("h2")?.textContent;
+        return container.querySelector("h2 > span")?.textContent;
     };
     const titles = [key("j"), key("k"), key("m"), key("x"), key("d"), key("w")];
     key("c");
@@ -1718,7 +1807,7 @@ test("step a month from its last weekday to the next month's, and the days view 
     }
 
     expect({
-        month: month.container.querySelector("h2")?.textContent,
+        month: month.container.querySelector("h2 > span")?.textContent,
         days: [
             ...days.container.querySelectorAll<HTMLElement>("[data-slot=event-calendar-column]"),
         ].map((column) => column.dataset["date"]),

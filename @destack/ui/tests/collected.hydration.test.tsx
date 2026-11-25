@@ -1,6 +1,6 @@
 import { expect, test, vi } from "@destack/test";
 import { flush } from "@destack/view";
-import { render, renderOnServer, wait } from "@destack/view/test";
+import { render, renderOnServer, stubPopovers, wait } from "@destack/view/test";
 import * as fixture from "./fixture/collected.tsx";
 
 /** The server's HTML of each component that reads the children mounted in it. */
@@ -43,6 +43,7 @@ test.each(Object.entries(fixture))(
     "hydrate a server's %s to the elements a browser renders, without a warning",
     async (name, Component) => {
         // hydrate the server's markup and let the mount run
+        stubPopovers();
         const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
         const container = document.createElement("div");
         container.innerHTML = PAGES[name] ?? "";

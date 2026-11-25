@@ -4,6 +4,7 @@ import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import { nth } from "@destack/schema";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
@@ -23,11 +24,19 @@ import { HoverCard } from "../hover-card/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { DragAnnouncer, useDragManager } from "../drag/index.ts";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuTrigger,
+} from "../dropdown-menu/index.ts";
 import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
 import {
     EVENT_CALENDAR_VIEWS,
     EventCalendarContext,
     type EventCalendarProperties,
+    type EventCalendarView,
     EventCalendarControl,
     useEventCalendar,
     EventCalendarEventContext,
@@ -41,31 +50,51 @@ const DEFAULT_HEIGHT = "40rem";
 /** How often the now line moves: each minute, finer than a column's pixels between snaps. */
 const NOW_INTERVAL = { minutes: 1 } as const;
 
+/** A calendar as narrow as a phone. */
+const NARROW_QUERY = "@container event-calendar (max-width: 36rem)";
+
 /** The styles of a calendar and its header. */
 const styles = style.create({
     calendar: {
+        containerType: "inline-size",
+        containerName: "event-calendar",
         display: "flex",
         flexDirection: "column",
         gap: space[3],
         height: DEFAULT_HEIGHT,
         minHeight: 0,
+        // cut off a page a finger swipes away
+        overflowX: { default: null, [media.pointerCoarse]: "clip" },
+        overflowClipMargin: space[1],
     },
     header: {
         display: "flex",
         // move the views below the title where both are too wide
         flexWrap: "wrap",
         alignItems: "center",
-        gap: space[2],
+        gap: { default: space[2], [NARROW_QUERY]: space[1] },
     },
     views: {
+        display: { default: null, [NARROW_QUERY]: "none" },
         flexWrap: "wrap",
         maxWidth: "100%",
     },
+    wide: {
+        display: { default: null, [NARROW_QUERY]: "none" },
+    },
+    narrow: {
+        display: { default: "none", [NARROW_QUERY]: "inline-flex" },
+    },
+    tight: {
+        paddingInline: { default: space[3], [NARROW_QUERY]: space[2] },
+    },
     title: {
+        // lead the header of a phone
+        order: { default: null, [NARROW_QUERY]: -1 },
         flexGrow: 1,
         whiteSpace: "nowrap",
         margin: 0,
-        marginInlineStart: space[3],
+        marginInlineStart: { default: space[3], [NARROW_QUERY]: 0 },
         fontWeight: weight.medium,
     },
 });
@@ -177,6 +206,7 @@ export function EventCalendarHeader(properties: EventCalendarPartProperties): JS
                     <EventCalendarNext />
                     <EventCalendarTitle />
                     <EventCalendarViewSwitcher />
+                    <EventCalendarViewMenu />
                 </>
             )}
         </div>
@@ -212,6 +242,7 @@ export function EventCalendarToday(properties: Omit<ButtonProperties, "onClick">
             variant="outline"
             data-slot="event-calendar-today"
             {...properties}
+            xstyle={[styles.tight, properties.xstyle]}
             onClick={() => control.showToday()}
         >
             {properties.children ?? locale.render(t`Today`)}
@@ -266,6 +297,21 @@ export function EventCalendarTitle(properties: EventCalendarPartProperties): JSX
         }
     };
 
+    // title a phone by the months shown, as its days say the rest
+    const shortTitle = (): string => {
+        if (control.view() === "year") {
+            return title();
+        }
+        const range = control.range();
+        const date = control.date();
+        const isMonth = control.view() === "month";
+
+        return locale.plainDateRange(isMonth ? date : range.from, isMonth ? date : range.to, {
+            month: "short",
+            year: "numeric",
+        });
+    };
+
     // take the caller's attributes, and their title in place of the range
     const rest = omit(properties, "children", "xstyle", "style");
 
@@ -276,7 +322,12 @@ export function EventCalendarTitle(properties: EventCalendarPartProperties): JSX
             {...rest}
             {...style.attributes([text.lg, styles.title, properties.xstyle], properties.style)}
         >
-            {properties.children ?? title()}
+            {properties.children ?? (
+                <>
+                    <span {...style.attrs(styles.wide)}>{title()}</span>
+                    <span {...style.attrs(styles.narrow)}>{shortTitle()}</span>
+                </>
+            )}
         </h2>
     );
 }
@@ -312,6 +363,51 @@ export function EventCalendarViewSwitcher(): JSX.Element {
                 )}
             </For>
         </ToggleGroup>
+    );
+}
+
+/** Render the menu of the views the calendar's view parts offer, on a phone in their place. */
+export function EventCalendarViewMenu(properties: ButtonProperties): JSX.Element {
+    // write the view shown
+    const control = useEventCalendar();
+    const locale = useLocale();
+    const title = (view: EventCalendarView): string => locale.render(control.viewTitle(view));
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger
+                render={(attributes) => (
+                    <Button
+                        {...attributes}
+                        variant="outline"
+                        {...properties}
+                        xstyle={[styles.narrow, styles.tight, properties.xstyle]}
+                    />
+                )}
+                data-slot="event-calendar-view-menu"
+            >
+                {properties.children ?? title(control.view())}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuRadioGroup
+                    value={control.view()}
+                    onValueChange={(view) => {
+                        const chosen = EVENT_CALENDAR_VIEWS.find((each) => each === view);
+                        if (chosen !== undefined) {
+                            control.setView(chosen);
+                        }
+                    }}
+                >
+                    <For each={control.views()}>
+                        {(view) => (
+                            <DropdownMenuRadioItem value={view}>
+                                {title(view)}
+                            </DropdownMenuRadioItem>
+                        )}
+                    </For>
+                </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }
 

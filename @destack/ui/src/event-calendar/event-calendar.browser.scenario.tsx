@@ -4,7 +4,7 @@ import { EventCalendar } from "./event-calendar.tsx";
 import { eventCalendarLaunchMonth, eventCalendarWorkWeek } from "./event-calendar.example.tsx";
 
 /** The title of the calendar's shown range. */
-const title = { css: "[data-slot=event-calendar-title]" };
+const title = { css: "[data-slot=event-calendar-title] > :first-child" };
 
 /** Move through a month's days with the arrows and to the next month with Page Down. */
 export const eventCalendarMoveDaysWithKeys = defineScenario({

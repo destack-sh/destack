@@ -38,6 +38,15 @@ const LIST_TIME_WIDTH = "9rem";
 /** The heights of a placed event too short for a second line: two lines of extra-small text. */
 const SHORT_QUERY = "@container (max-height: 2.5rem)";
 
+/** A calendar as narrow as a phone. */
+const NARROW_QUERY = "@container event-calendar (max-width: 36rem)";
+
+/** A calendar too narrow for a time beside a title in a month, about six root text sizes a day. */
+const COMPACT_QUERY = "@container event-calendar (max-width: 44rem)";
+
+/** A day's column too narrow for times below a title. */
+const SLIM_QUERY = "@container (max-width: 6rem)";
+
 /** The actions an event's preview offers, each by its icon. */
 const PREVIEW_ACTIONS = [
     { action: openItem, icon: arrowSquareOut },
@@ -121,8 +130,10 @@ const styles = style.create({
     },
     inline: {
         alignItems: "center",
-        marginInline: space[1],
-        paddingInline: space[2],
+        marginInline: { default: space[1], [NARROW_QUERY]: stroke.border },
+        paddingInlineStart: { default: space[2], [NARROW_QUERY]: space[1] },
+        paddingInlineEnd: { default: space[2], [NARROW_QUERY]: 0 },
+        borderRadius: { default: radius[2], [NARROW_QUERY]: radius[1] },
         whiteSpace: "nowrap",
     },
     block: {
@@ -139,9 +150,12 @@ const styles = style.create({
     },
     list: {
         display: "grid",
-        gridTemplateColumns: `${LIST_TIME_WIDTH} ${space[2]} minmax(0, 1fr)`,
+        gridTemplateColumns: {
+            default: `${LIST_TIME_WIDTH} ${space[2]} minmax(0, 1fr)`,
+            [NARROW_QUERY]: `${space[2]} minmax(0, 1fr)`,
+        },
         alignItems: "center",
-        gap: space[2],
+        columnGap: space[2],
         width: "100%",
         paddingBlock: space[1],
         paddingInline: space[1],
@@ -176,7 +190,26 @@ const styles = style.create({
         fontVariantNumeric: "tabular-nums",
     },
     whole: {
+        display: { default: null, [COMPACT_QUERY]: "none" },
         flexShrink: 0,
+    },
+    below: {
+        gridColumn: { default: null, [NARROW_QUERY]: "2" },
+        gridRow: { default: null, [NARROW_QUERY]: "2" },
+    },
+    span: {
+        display: { default: null, [SLIM_QUERY]: "none" },
+    },
+    clipped: {
+        textOverflow: { default: "ellipsis", [NARROW_QUERY]: "clip" },
+        fontWeight: { default: weight.medium, [NARROW_QUERY]: weight.regular },
+    },
+    edged: {
+        borderInlineStartWidth: { default: null, [NARROW_QUERY]: stroke.ring },
+        borderInlineStartStyle: { default: null, [NARROW_QUERY]: "solid" },
+    },
+    lone: {
+        display: { default: null, [NARROW_QUERY]: "none" },
     },
     lead: {
         flexShrink: 0,
@@ -311,6 +344,8 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                     properties.layout === "block" &&
                         !isBusy() &&
                         fills.edge(swatch[`${hue()}Mark`]),
+                    properties.layout === "inline" &&
+                        !isBusy() && [styles.edged, fills.edge(swatch[`${hue()}Mark`])],
                     isBusy() && styles.busy,
                     control.selection.isSelected(properties.event.key) && styles.selected,
                     !properties.isEnd && styles.continues,
@@ -322,7 +357,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
         >
             {/* An event in a list: its time or all day, then its color's dot */}
             <Show when={properties.layout === "list"}>
-                <span {...style.attrs(styles.time)}>
+                <span {...style.attrs(styles.time, styles.below)}>
                     <Show when={timed()} fallback={locale.render(t`All day`)}>
                         {(current) => (
                             <>
@@ -343,7 +378,13 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                 {(current) => (
                     <>
                         <Show when={!isDayLong()}>
-                            <span {...style.attrs(styles.dot, fills.dot(swatch[`${hue()}Mark`]))} />
+                            <span
+                                {...style.attrs(
+                                    styles.dot,
+                                    styles.lone,
+                                    fills.dot(swatch[`${hue()}Mark`]),
+                                )}
+                            />
                         </Show>
                         <span {...style.attrs(styles.time, styles.whole)}>
                             {time(current().start)}
@@ -353,14 +394,20 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
             </Show>
 
             {/* Title */}
-            <span {...style.attrs(styles.title, properties.layout === "block" && styles.lead)}>
+            <span
+                {...style.attrs(
+                    styles.title,
+                    properties.layout === "block" && styles.lead,
+                    properties.layout === "inline" && styles.clipped,
+                )}
+            >
                 {isBusy() ? locale.render(t`Busy`) : properties.event.title}
             </span>
 
             {/* A timed event in a column: its start and end */}
             <Show when={properties.layout === "block" ? timed() : undefined}>
                 {(current) => (
-                    <span {...style.attrs(styles.time)}>
+                    <span {...style.attrs(styles.time, styles.span)}>
                         {locale.dateRange(current().start, current().end, {
                             hour: "numeric",
                             minute: "2-digit",

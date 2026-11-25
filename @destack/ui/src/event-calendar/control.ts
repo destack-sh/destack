@@ -16,7 +16,7 @@ import {
     PlainTime,
     present,
 } from "@destack/schema";
-import { type Message, t } from "@destack/locale";
+import { type Message, plural, t } from "@destack/locale";
 import type * as style from "@destack/style";
 import {
     flush,
@@ -317,6 +317,10 @@ export class EventCalendarControl {
     readonly setHiddenSources: (keys: readonly string[]) => void;
     /** The views the calendar's parts offer, in the order of the calendar's views. */
     readonly views: Accessor<readonly EventCalendarView[]>;
+    /** The columns the day views have room for, without bound until they are measured. */
+    readonly #room: Accessor<number>;
+    /** Set the columns the day views have room for. */
+    readonly setRoom: (columns: number) => void;
     /** The views each mounted view part offers. */
     readonly #offered: CollectionBuilder<readonly EventCalendarView[]>;
     /** The drags of the events. */
@@ -379,6 +383,9 @@ export class EventCalendarControl {
         const [hovered, setHovered] = createSignal<number | undefined>(undefined);
         this.hovered = hovered;
         this.setHovered = setHovered;
+        const [room, setRoom] = createSignal(Infinity, { ownedWrite: true });
+        this.#room = room;
+        this.setRoom = (columns) => void setRoom(columns);
         this.availability = new CalendarAvailability(options, locale, this.timeZone);
         [this.hiddenSources, this.setHiddenSources] = createControllableSignal<readonly string[]>({
             isControlled: () => options.hiddenSources !== undefined,
@@ -491,9 +498,40 @@ export class EventCalendarControl {
         return (this.options.slotDuration ?? SLOT_MINUTES) * MINUTE;
     }
 
-    /** Read the days the days view shows. */
+    /** Read the days the days view shows, as many as it has room for. */
     dayCount(): number {
-        return this.options.dayCount ?? DAY_COUNT;
+        return Math.min(this.options.dayCount ?? DAY_COUNT, this.#roomForDays());
+    }
+
+    /** Read the days there is room for, each with a column for every resource. */
+    #roomForDays(): number {
+        const resources = Math.max(1, this.options.resources?.length ?? 0);
+
+        return Math.max(1, Math.floor(this.#room() / resources));
+    }
+
+    /** Read the days a view shows from the date on: some days, or a week without room for it. */
+    #consecutiveDays(): number | undefined {
+        // count the days view's own
+        const view = this.view();
+        if (view === "days") {
+            return this.dayCount();
+        }
+
+        // count those of a week that has no room for them all
+        const room = this.#roomForDays();
+
+        return view === "week" && room < this.#weekDays().length ? room : undefined;
+    }
+
+    /** List the days of the date's week from the locale's first, past its hidden days. */
+    #weekDays(): PlainDate[] {
+        const start = Week.startOf(this.week, this.date());
+        const week = Array.from({ length: WEEK_DAYS }, (_, index) =>
+            PlainDate.add(start, { days: index }),
+        );
+
+        return week.filter((day) => !this.isHidden(day));
     }
 
     /** Read the time the day views open scrolled to. */
@@ -740,13 +778,12 @@ export class EventCalendarControl {
     days(): PlainDate[] {
         // show the date alone in the day view
         const date = this.date();
-        const view = this.view();
-        if (view === "day") {
+        const count = this.#consecutiveDays();
+        if (this.view() === "day") {
             return [date];
         }
-        // show the count of shown days from the date in the days view
-        else if (view === "days") {
-            const count = this.dayCount();
+        // show a count of shown days from the date
+        else if (count !== undefined) {
             const days: PlainDate[] = [];
             for (
                 let day = this.skipHidden(date, 1);
@@ -758,14 +795,9 @@ export class EventCalendarControl {
 
             return days;
         }
-        // show the date's week from the locale's first day, past its hidden days
+        // show the date's week
         else {
-            const start = Week.startOf(this.week, date);
-            const week = Array.from({ length: WEEK_DAYS }, (_, index) =>
-                PlainDate.add(start, { days: index }),
-            );
-
-            return week.filter((day) => !this.isHidden(day));
+            return this.#weekDays();
         }
     }
 
@@ -814,7 +846,9 @@ export class EventCalendarControl {
 
     /** Read the key a list renders a segment under, which a move, a cut or busy display changes. */
     segmentKey(segment: Segment<unknown>): string {
-        const isBusy = this.isBusy(this.eventOf(segment.key));
+        // read an event no longer shown as any other, as a list compares the rows it had
+        const event = this.#occurrences().get(segment.key)?.event;
+        const isBusy = event !== undefined && this.isBusy(event);
 
         return JSON.stringify([segment.key, segment.start, segment.isStart, segment.isEnd, isBusy]);
     }
@@ -921,14 +955,15 @@ export class EventCalendarControl {
         };
     }
 
-    /** Step the view's date by the view's length, the days view by its count of shown days. */
+    /** Step the view's date by the view's length, days from the date by their count. */
     step(steps: number): void {
-        // move the days view by its count of shown days from its first shown day, past hidden ones
+        // move days from the date by their count from the first shown one, past hidden ones
         const direction = steps < 0 ? -1 : 1;
         const view = this.view();
-        if (view === "days") {
+        const count = this.#consecutiveDays();
+        if (view === "days" || count !== undefined) {
             let date = this.skipHidden(this.date(), 1);
-            for (let index = 0; index < Math.abs(steps) * this.dayCount(); index += 1) {
+            for (let index = 0; index < Math.abs(steps) * (count ?? 1); index += 1) {
                 date = this.skipHidden(PlainDate.add(date, { days: direction }), direction);
             }
             this.setDate(date);
@@ -1236,7 +1271,9 @@ export class EventCalendarControl {
     viewTitle(view: EventCalendarView): Message {
         const count = this.dayCount();
 
-        return view === "days" ? t`${String(count)} days` : VIEW_TITLES[view];
+        return view === "days"
+            ? t`${plural(count, { one: "# day", other: "# days" })}`
+            : VIEW_TITLES[view];
     }
 
     /** Create an hour-long event from the next snap today, else from the date's scroll time. */

@@ -6,6 +6,7 @@ export {
     EventCalendarPrevious,
     EventCalendarTitle,
     EventCalendarToday,
+    EventCalendarViewMenu,
     EventCalendarViewSwitcher,
 } from "./event-calendar.tsx";
 export {

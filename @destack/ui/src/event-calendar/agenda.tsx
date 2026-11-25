@@ -15,6 +15,9 @@ const DATE_WIDTH = "8rem";
 /** The views the part shows. */
 const AGENDA_VIEWS: readonly EventCalendarView[] = ["agenda"];
 
+/** A calendar as narrow as a phone. */
+const NARROW_QUERY = "@container event-calendar (max-width: 36rem)";
+
 /** The styles of an agenda. */
 const styles = style.create({
     agenda: {
@@ -23,18 +26,23 @@ const styles = style.create({
         margin: 0,
         padding: 0,
         listStyleType: "none",
-        borderWidth: stroke.border,
+        borderBlockWidth: stroke.border,
+        borderInlineWidth: { default: stroke.border, [NARROW_QUERY]: 0 },
         borderStyle: "solid",
         borderColor: color.border,
-        borderRadius: radius[4],
-        overflow: "hidden",
+        borderRadius: { default: radius[4], [NARROW_QUERY]: 0 },
+        overflowX: "hidden",
+        overflowY: { default: "hidden", [NARROW_QUERY]: "auto" },
     },
     day: {
         display: "grid",
-        gridTemplateColumns: `${DATE_WIDTH} minmax(0, 1fr)`,
-        gap: space[3],
+        gridTemplateColumns: {
+            default: `${DATE_WIDTH} minmax(0, 1fr)`,
+            [NARROW_QUERY]: "minmax(0, 1fr)",
+        },
+        gap: { default: space[3], [NARROW_QUERY]: space[1] },
         paddingBlock: space[2],
-        paddingInline: space[3],
+        paddingInline: { default: space[3], [NARROW_QUERY]: 0 },
         borderBlockEndWidth: { default: stroke.border, ":last-child": 0 },
         borderBlockEndStyle: "solid",
         borderBlockEndColor: color.border,

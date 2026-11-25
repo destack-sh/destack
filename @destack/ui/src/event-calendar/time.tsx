@@ -54,14 +54,21 @@ import {
     useEventCalendarDay,
     type EventCalendarView,
 } from "./control.ts";
+import { Paging } from "./paging.ts";
 import { OfferedView } from "./view.tsx";
 import { CalendarEvent, type TimedCalendarEvent } from "./event.ts";
 
 /** The height of an hour in the time grid, about twelve in view. */
 const HOUR_HEIGHT = "3rem";
 
-/** The width of the hour labels beside the day columns. */
-const GUTTER = "4rem";
+/** The property with the width of the hour labels beside the day columns, in root text sizes. */
+const GUTTER = "--destack-event-calendar-gutter";
+
+/** The least width of a day's column in root text sizes, three beside the hours on a phone. */
+const COLUMN_WIDTH = 5;
+
+/** The least height of an event a finger is sure to hit, as WCAG's target size asks for. */
+const TOUCH_HEIGHT = "1.5rem";
 
 /** The share of an hour shown above the opening hour, so its label is whole. */
 const OPENING_LEAD = 0.25;
@@ -87,16 +94,21 @@ const DAYS = "event-calendar-days";
 /** The views the part shows. */
 const TIME_VIEWS: readonly EventCalendarView[] = ["day", "days", "week"];
 
+/** A calendar as narrow as a phone. */
+const NARROW_QUERY = "@container event-calendar (max-width: 36rem)";
+
 /** The styles of a time grid. */
 const styles = style.create({
     grid: {
+        [GUTTER]: { default: "4", [NARROW_QUERY]: "2.75" },
         display: "flex",
         flexDirection: "column",
         minHeight: 0,
-        borderWidth: stroke.border,
+        borderBlockWidth: stroke.border,
+        borderInlineWidth: { default: stroke.border, [NARROW_QUERY]: 0 },
         borderStyle: "solid",
         borderColor: color.border,
-        borderRadius: radius[4],
+        borderRadius: { default: radius[4], [NARROW_QUERY]: 0 },
         overflow: "hidden",
     },
     row: {
@@ -186,7 +198,8 @@ const styles = style.create({
     },
     hour: {
         position: "absolute",
-        insetInlineEnd: space[2],
+        insetInlineEnd: { default: space[2], [NARROW_QUERY]: space[1] },
+        fontSize: { default: null, [NARROW_QUERY]: "0.6875rem" },
         transform: "translateY(-50%)",
         color: color.mutedForeground,
         fontVariantNumeric: "tabular-nums",
@@ -209,7 +222,10 @@ const styles = style.create({
     event: {
         containerType: "size",
         position: "absolute",
-        minHeight: `calc(${space[4]} + ${space[1]})`,
+        minHeight: {
+            default: `calc(${space[4]} + ${space[1]})`,
+            [media.pointerCoarse]: TOUCH_HEIGHT,
+        },
         paddingInlineEnd: space[1],
     },
     fill: {
@@ -258,7 +274,9 @@ const styles = style.create({
         outlineStyle: { default: null, [media.forcedColors]: "solid" },
         outlineWidth: { default: null, [media.forcedColors]: "1px" },
         marginInlineEnd: `calc(-1 * ${space[1]})`,
-        paddingInline: space[1],
+        paddingInline: { default: space[1], [NARROW_QUERY]: stroke.ring },
+        fontSize: { default: null, [NARROW_QUERY]: "0.625rem" },
+        letterSpacing: { default: null, [NARROW_QUERY]: "-0.02em" },
         borderRadius: radius[1],
         backgroundColor: swatch.destructiveSolid,
         color: swatch.destructiveLabel,
@@ -315,7 +333,7 @@ const styles = style.create({
 const places = style.create({
     hours: (hourHeight: string) => ({ height: `calc(${hourHeight} * ${String(DAY_HOURS)})` }),
     columns: (days: number, zones: number) => ({
-        gridTemplateColumns: `calc(${GUTTER} * ${String(zones)}) repeat(${String(days)}, minmax(0, 1fr))`,
+        gridTemplateColumns: `calc(var(${GUTTER}) * 1rem * ${String(zones)}) repeat(${String(days)}, minmax(0, 1fr))`,
     }),
     column: (column: number) => ({ gridColumn: String(column) }),
     span: (column: number, span: number, row: number) => ({
@@ -421,13 +439,32 @@ export function EventCalendarTime(properties: EventCalendarPartProperties): JSX.
 
 /** Render the time view while it shows. */
 function TimeView(properties: EventCalendarPartProperties): JSX.Element {
+    // show the days there is room for
+    const control = useEventCalendar();
     const rest = omit(properties, "children", "xstyle", "style");
+    const locale = useLocale();
+    const paging = new Paging(control, () => locale.direction === "rtl");
+    const [grid, setGrid] = createSignal<HTMLElement>();
+    createResizeObserver(grid, ({ width }, element) => {
+        // measure in root text sizes, so larger text shows fewer days
+        const root = element.ownerDocument.documentElement;
+        const rem = Number.parseFloat(getComputedStyle(root).fontSize);
+        const hours = Number.parseFloat(getComputedStyle(element).getPropertyValue(GUTTER));
+        const gutter = hours * control.zones().length;
+        const columns = Math.floor((width / rem - gutter) / COLUMN_WIDTH);
+        if (width > 0 && Number.isFinite(columns)) {
+            control.setRoom(columns);
+        }
+    });
 
     return (
         <div
             data-slot="event-calendar-time"
-            {...rest}
-            {...style.attributes([styles.grid, properties.xstyle], properties.style)}
+            {...mergeProperties(mergeProperties({ ref: setGrid }, paging.attributes()), rest)}
+            {...style.attributes(
+                [styles.grid, paging.style(), properties.xstyle],
+                properties.style,
+            )}
         >
             {properties.children ?? (
                 <>

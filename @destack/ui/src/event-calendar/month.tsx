@@ -31,6 +31,7 @@ import {
     useEventCalendarDay,
     type EventCalendarView,
 } from "./control.ts";
+import { Paging } from "./paging.ts";
 import { OfferedView } from "./view.tsx";
 import { CalendarEvent } from "./event.ts";
 
@@ -42,6 +43,9 @@ const MONTH = "event-calendar-month";
 
 /** The views the part shows. */
 const MONTH_VIEWS: readonly EventCalendarView[] = ["month"];
+
+/** A calendar as narrow as a phone. */
+const NARROW_QUERY = "@container event-calendar (max-width: 36rem)";
 
 /** The styles of a month and its days. */
 const styles = style.create({
@@ -61,10 +65,11 @@ const styles = style.create({
         overflowY: "auto",
         gridTemplateRows: "auto",
         gridAutoRows: `minmax(${WEEK_HEIGHT}, 1fr)`,
-        borderWidth: stroke.border,
+        borderBlockWidth: stroke.border,
+        borderInlineWidth: { default: stroke.border, [NARROW_QUERY]: 0 },
         borderStyle: "solid",
         borderColor: color.border,
-        borderRadius: radius[4],
+        borderRadius: { default: radius[4], [NARROW_QUERY]: 0 },
     },
     weekdays: {
         display: "grid",
@@ -93,10 +98,14 @@ const styles = style.create({
         display: "contents",
     },
     day: {
+        // reach over the space below the events to the next week
         gridRow: "1 / -1",
-        borderInlineEndWidth: { default: stroke.border, ":last-child": 0 },
-        borderInlineEndStyle: "solid",
-        borderInlineEndColor: color.border,
+        marginBlockEnd: `calc(-1 * ${space[1]})`,
+    },
+    divided: {
+        borderInlineStartWidth: stroke.border,
+        borderInlineStartStyle: "solid",
+        borderInlineStartColor: color.border,
     },
     weekend: {
         backgroundColor: `color-mix(in oklab, ${color.muted} 50%, transparent)`,
@@ -120,7 +129,7 @@ const styles = style.create({
     },
     more: {
         justifySelf: "start",
-        marginInline: space[1],
+        marginInline: { default: space[1], [NARROW_QUERY]: 0 },
         paddingInline: space[1],
         borderRadius: radius[2],
         color: color.mutedForeground,
@@ -310,6 +319,9 @@ function MonthView(properties: EventCalendarPartProperties): JSX.Element {
         control.manager,
     );
 
+    // turn the pages by a finger's swipe
+    const paging = new Paging(control, () => locale.direction === "rtl");
+
     return (
         <EventCalendarMonthContext value={month}>
             <div
@@ -317,6 +329,7 @@ function MonthView(properties: EventCalendarPartProperties): JSX.Element {
                 role="grid"
                 {...mergeProperties(
                     {
+                        ...paging.attributes(),
                         ref: (created: HTMLDivElement) => (element = created),
                         onKeyDown: (event: KeyboardEvent) =>
                             event.defaultPrevented
@@ -327,7 +340,10 @@ function MonthView(properties: EventCalendarPartProperties): JSX.Element {
                     },
                     rest,
                 )}
-                {...style.attributes([styles.month, properties.xstyle], properties.style)}
+                {...style.attributes(
+                    [styles.month, paging.style(), properties.xstyle],
+                    properties.style,
+                )}
             >
                 {properties.children ?? (
                     <>
@@ -512,6 +528,7 @@ export function EventCalendarMonthDay(properties: EventCalendarPartProperties): 
                     [
                         state.focusInset,
                         styles.day,
+                        index() > 0 && styles.divided,
                         places.column(index() + 1),
                         control.isRestDay(day) && styles.weekend,
                         month.isTarget(day) && state.target,
