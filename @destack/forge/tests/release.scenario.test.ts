@@ -1,6 +1,6 @@
 import { auditedCalls } from "@destack/object/test";
 import type { TestPerson } from "@destack/account/test";
-import { ACCOUNT_ID, REGION, TEST_COMMIT, TestForge } from "../src/test/index.ts";
+import { ACCOUNT_ID, TEST_COMMIT, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { Digest, found, Identifier, present, Version } from "@destack/schema";
 import { RequestId } from "@destack/sync";
@@ -763,7 +763,7 @@ test("publish builtins under the platform's account alone", async () => {
     const forge = await TestForge.open();
     const { crypto } = forge.environment;
     const operator = await forge.home.universe.operator();
-    const platformId = Account.ofHome(await forge.home.universe.platformHome(REGION));
+    const platformId = Account.ofHome(await forge.home.universe.platformHome());
     const platform = await forge.account(platformId, operator);
     const platformAccount = await platform.home.database
         .snapshot()
