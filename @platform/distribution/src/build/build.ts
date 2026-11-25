@@ -1,10 +1,10 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { join, resolve } from "node:path";
-import { account, type StackRelease } from "@destack/account/object";
+import { Account, account, type StackRelease } from "@destack/account/object";
 import type { Session } from "@destack/account/client";
 import type { PlatformDefinition } from "@destack/account/server";
 import * as stacks from "@platform/stack";
-import { PLATFORM_INPUTS, RESIDENCIES } from "@platform/stack";
+import { PLATFORM_INPUTS, REGIONS } from "@platform/stack";
 import { Claim, PackageMount, RetryAfter, SERVER_EXPORT, SpaceMount } from "@destack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
 import {
@@ -49,9 +49,9 @@ const EXPORTS = {
     space: "SPACE_STACK",
 } as const satisfies Record<keyof PlatformDefinition["stacks"], keyof typeof stacks>;
 
-/** The exports declaring each residency home's stack, the same on every universe. */
-const STACK_EXPORTS = RESIDENCIES.map(
-    (residency) => residency.stack,
+/** The exports declaring each region home's stack, the same on every universe. */
+const STACK_EXPORTS = REGIONS.map(
+    (region) => region.stack,
 ) satisfies readonly (keyof typeof stacks)[];
 
 /** A stack definition's installations, by name. */
@@ -335,16 +335,14 @@ export class PlatformBuild implements AsyncDisposable {
         handle: string,
         environment: Environment,
     ) {
-        // find the handle's account and its residency's home, which serves its forge
+        // find the handle's account and its home, which serves its forge
         const accounts = session.accounts();
         const claimed = await accounts.claim.owner(Claim.key(account, "handle", [handle]));
         if (claimed === null) {
             throw new Error(`no account claims '@${handle}'`);
         }
         const accountId = account.identifier(claimed.objectId);
-        const home = schema
-            .identifier("space")
-            .parse(await accounts.residency.locate({ account: accountId }));
+        const home = Account.home(accountId);
 
         // call the forge at the machine serving the home, as the session bound to the home
         const { clock, network } = environment;
