@@ -1,11 +1,5 @@
 import { ObjectError } from "../error/error.ts";
-import {
-    type Column,
-    index,
-    type OpenCondition,
-    SearchText,
-    type TableConstraint,
-} from "@destack/db";
+import { type Column, index, type OpenCondition, Search, type TableConstraint } from "@destack/db";
 import { CHUNKS } from "../text/table.ts";
 import { present, schema } from "@destack/schema";
 
@@ -25,12 +19,12 @@ const SearchSchema = schema.object({
     sort: schema.array(schema.string().min(1)).readonly(),
 });
 /** The fields search ranks and lists filter and sort a type's objects by. */
-export type Search = schema.Infer<typeof SearchSchema>;
+export type SearchFields = schema.Infer<typeof SearchSchema>;
 
 /** The search of objects: resolving a definition's roles, expanding searches, indexing fields. */
 export const Searchable = {
     /** Resolve a definition's search roles, absent without any. */
-    of(definition: Pick<ObjectDefinition, "searchable">): Search | undefined {
+    of(definition: Pick<ObjectDefinition, "searchable">): SearchFields | undefined {
         return definition.searchable === undefined
             ? undefined
             : SearchSchema.parse({ text: [], filter: [], sort: [], ...definition.searchable });
@@ -50,7 +44,7 @@ export const Searchable = {
 
     /** Index each filterable or sortable field once, after the objects' scope. */
     indexes(
-        options: Search,
+        options: SearchFields,
         table: string,
         columns: Readonly<Record<string, Column>>,
     ): TableConstraint[] {
@@ -67,7 +61,7 @@ export const Searchable = {
     },
 
     /** Refuse a role pointing at an unknown field, or a field its role cannot read. */
-    requireRoles(object: ObjectType, options: Search): void {
+    requireRoles(object: ObjectType, options: SearchFields): void {
         const roles = [
             ["text", options.text, SEARCHED_TYPES],
             ["filter", options.filter, INDEXED_TYPES],
@@ -121,7 +115,7 @@ export const Searchable = {
             throw ObjectError.of("TEXT_REQUIRED", "search text is required");
         }
 
-        return SearchText.query(searched).map((word) => ({
+        return Search.parse(searched).words.map((word) => ({
             OR: [
                 ...(isColumnSearched ? [{ SEARCH: word }] : []),
                 { [CHUNKS]: { field: { in: [...texts] }, SEARCH: word } },
@@ -156,7 +150,7 @@ export const Searchable = {
 };
 
 /** How a definition declares its query roles, a role left out pointing at no field. */
-export type SearchableDefinition = Partial<Search>;
+export type SearchableDefinition = Partial<SearchFields>;
 
 /** The field types full-text search reads. */
 const SEARCHED_TYPES: ReadonlySet<string> = new Set(["string", "text", "enum"]);
@@ -178,7 +172,7 @@ const INDEXED_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /** Objects found by query roles, each filter or sort field indexed in the objects' scope. */
-const searchableTrait: TraitBehavior<Search> = {
+const searchableTrait: TraitBehavior<SearchFields> = {
     key: "searchable",
     storages: ["durable", "events"],
     options: (definition) => Searchable.of(definition),

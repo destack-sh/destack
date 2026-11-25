@@ -6,6 +6,9 @@ import type { ActionContext } from "../declare/template.ts";
 import { ObjectNode } from "../client/node.ts";
 import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
+import type { Localization } from "@destack/locale";
+import type { Choice } from "../presentation/choice.ts";
+import { TextSpan } from "../sequence/index.ts";
 import { ObjectError } from "../error/error.ts";
 import {
     FindOptions,
@@ -22,6 +25,8 @@ import {
     Row,
     type Scalar,
     Expression,
+    type JsonCondition,
+    Search,
     declareState,
 } from "@destack/db";
 import { type DatabaseConnection, Transaction } from "@destack/db/database";
@@ -43,7 +48,6 @@ import type { ObjectRemote } from "../replica/remote.ts";
 import type { ObjectConnection } from "../replica/connection.ts";
 import { Replay } from "../audit/replay.ts";
 import { decisionTables } from "@destack/access";
-import { Observable } from "../client/observable.ts";
 import { RetryPolicy, type Clock, type Environment } from "@destack/environment";
 import * as sync from "@destack/sync";
 import * as syncDataflow from "@destack/sync/dataflow";
@@ -65,6 +69,7 @@ import type { NestedItem } from "../query/item.ts";
 import { RelationGraph } from "../query/query.ts";
 import { TextPresenter } from "../client/presenter.ts";
 import {
+    Query,
     RelationalQuery,
     ObjectQueryBuilder,
     type LiveItems,
@@ -91,6 +96,8 @@ import type {
     ObjectMutators,
     ObjectQueries,
     Reader,
+    Hit,
+    SearchOptions,
     Submission,
     UnionEntry,
     UnionOptions,
@@ -220,6 +227,8 @@ export class ObjectClient<
     #accessed: Promise<boolean> | undefined;
     /** The open followed queries. */
     readonly #subscriptions = new Set<Subscription>();
+    /** The unfollows of closed queries still under way. */
+    readonly #unfollows = new Set<Promise<void>>();
     /** How many live queries follow each key, by shape and key. */
     readonly #followCounts = new Map<string, number>();
     /** The client's captures, on the environment's telemetry. */
@@ -920,6 +929,7 @@ export class ObjectClient<
         await Promise.all([
             ...(this.#base === undefined ? [this.#outbox.close()] : []),
             ...[...this.#subscriptions].map((subscribed) => subscribed.done),
+            ...this.#unfollows,
         ]);
     }
 
@@ -1104,6 +1114,7 @@ export class ObjectClient<
         const subscribed = this.#subscribe(
             split,
             AbortSignal.any([closed.signal, this.#closing.signal]),
+            options.after,
         );
         this.#subscriptions.add(subscribed);
 
@@ -1124,8 +1135,12 @@ export class ObjectClient<
                 await subscribed.done;
                 this.#subscriptions.delete(subscribed);
 
-                // unfollow its keys at once, after their time to live, or never
-                await subscribed.unfollow(options.ttl);
+                // unfollow its keys at once, after their time to live, or never, but leave a closed client's to lapse
+                if (!this.#closing.signal.aborted) {
+                    const unfollow = subscribed.unfollow(options.ttl);
+                    this.#unfollows.add(unfollow);
+                    await unfollow.finally(() => this.#unfollows.delete(unfollow));
+                }
             },
         };
     }
@@ -1197,17 +1212,28 @@ export class ObjectClient<
         await this.#outbox.outcome(id, this.party);
     }
 
-    /** Follow a live union of several queries in one order and limit, with each entry's member. */
+    /** Query the union of several queries in one order and limit, with each entry's member. */
     union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
         members: Members,
         options: UnionOptions<MemberItem<Members>>,
-    ): LiveQuery<readonly UnionEntry<Members>[]> {
-        // refuse members ordering or limiting themselves, and follow each in the union's order and limit
+    ): Query<readonly UnionEntry<Members>[]> {
+        // refuse members ordering or limiting themselves
         for (const [name, member] of Object.entries(members)) {
             if (member.options.orderBy !== undefined || member.options.limit !== undefined) {
                 throw new TypeError(`union member '${name}' cannot order or limit itself`);
             }
         }
+
+        return new Query((subscribed) => this.#union(members, options, subscribed));
+    }
+
+    /** Follow a union live, each member in the union's order and limit. */
+    #union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
+        members: Members,
+        options: UnionOptions<MemberItem<Members>>,
+        subscribed: SubscribeOptions,
+    ): LiveQuery<readonly UnionEntry<Members>[]> {
+        // follow each member
         const orderBy = OrderBy.schema.parse(options.orderBy);
         const followed = Object.entries(members).map(([name, member]) => ({
             name,
@@ -1216,7 +1242,7 @@ export class ObjectClient<
             live: this.#live(
                 member.object,
                 { ...member.options, orderBy, limit: options.limit },
-                options.ttl === undefined ? {} : { ttl: options.ttl },
+                subscribed,
             ),
         }));
         const byName = new Map(followed.map((member) => [member.name, member]));
@@ -1243,20 +1269,55 @@ export class ObjectClient<
             });
         };
 
+        return Query.combined(
+            followed.map(({ live }) => live),
+            merge,
+        );
+    }
+
+    /** Query the objects of some types a text finds, the most relevant first, all for no words. */
+    search(text: string, options: SearchOptions): Query<readonly Hit[]> {
+        // match the words of each type's objects, scored by the columns it searches
+        const search = Search.of(text);
+        const where = search.isEmpty ? {} : { SEARCH: search.words.join(" ") };
+        const members = Object.fromEntries(
+            options.types.map((type) => [
+                type.key,
+                this.queryType(type).findMany({
+                    where: { AND: [options.where ?? {}, where] },
+                    extras: { relevance: relevanceOf(type, search) },
+                }),
+            ]),
+        );
+        const byKey = new Map(options.types.map((type) => [type.key, type]));
+
+        return this.union(members, {
+            orderBy: { relevance: "desc" },
+            limit: options.limit,
+        }).map((entries) =>
+            entries.map(({ name, row: read }) => {
+                // reference the object
+                const type = found(byKey, name);
+                const { relevance, ...row } = JsonValue.object(read);
+                const excerpt = excerptOf(type, search, row);
+
+                return {
+                    type,
+                    reference: type.reference(this.scope, schema.string().parse(row["id"])),
+                    row,
+                    relevance: schema.number().parse(relevance),
+                    ...(excerpt === undefined ? {} : { excerpt }),
+                };
+            }),
+        );
+    }
+
+    /** Read a hit as a choice in a locale, as it looks now. */
+    choice({ type, reference, row, excerpt }: Hit, localization: Localization): Choice {
         return {
-            // wait for the members only once asked, leaving no derived promise unobserved
-            get ready() {
-                return Promise.all(followed.map(({ live }) => live.ready)).then(() => {});
-            },
-            read: async () => merge(await Promise.all(followed.map(({ live }) => live.read()))),
-            watch: (signal) =>
-                Observable.latest(
-                    followed.map(({ live }) => live.watch(signal)),
-                    merge,
-                ),
-            close: async () => {
-                await Promise.all(followed.map(({ live }) => live.close()));
-            },
+            value: reference,
+            ...type.appearance(row, this.context().moment, localization),
+            ...(excerpt === undefined ? {} : { excerpt }),
         };
     }
 
@@ -1456,6 +1517,27 @@ export class ObjectClient<
         }
     }
 
+    /** Follow a key after a while, reporting whether the query was still open then. */
+    async #followAfter(
+        follow: OnDemandFollow<{ readonly query: ObjectQuery }>,
+        at: FollowKey<{ readonly query: ObjectQuery }>,
+        after: Duration | undefined,
+        signal: AbortSignal,
+    ): Promise<boolean> {
+        // wait until the query closes, or the while passed
+        if (after !== undefined) {
+            await this.environment.clock
+                .sleep(Duration.milliseconds(after), signal)
+                .catch(() => undefined);
+            if (signal.aborted) {
+                return false;
+            }
+        }
+        await this.#follow(follow, at);
+
+        return true;
+    }
+
     /** Follow a key for the client's live queries, counting the queries following it. */
     async #follow(
         follow: OnDemandFollow<{ readonly query: ObjectQuery }>,
@@ -1495,20 +1577,23 @@ export class ObjectClient<
         }
     }
 
-    /** Follow a storage query and the lookups its rows key. */
-    #subscribe(split: StorageQuery, signal: AbortSignal): Subscription {
-        // name a local query, or follow a followed one
+    /** Follow a storage query, after a while when given one, and the lookups its rows key. */
+    #subscribe(split: StorageQuery, signal: AbortSignal, after?: Duration): Subscription {
+        // name a local query, or a followed one
         const follow = this.#follows.get(split.object.storage);
         const at = { key: { scope: this.#readScope(split.object), query: split.query } };
-        const named =
+        const isFollowed =
             follow === undefined
-                ? ObjectClient.#queryName(split.query, this.environment.crypto)
-                : this.#follow(follow, at).then(() =>
-                      nth(Object.keys(follow.shape.keyed([{ query: split.query }])), 0),
-                  );
+                ? Promise.resolve(false)
+                : this.#followAfter(follow, at, after, signal);
+        const name = async () =>
+            follow === undefined
+                ? await ObjectClient.#queryName(split.query, this.environment.crypto)
+                : nth(Object.keys(follow.shape.keyed([{ query: split.query }])), 0);
+        const named = after === undefined ? isFollowed.then(name) : name();
 
         // read a local query at once, or wait until the store's replica follows it
-        const replicated = named.then(async () => {
+        const replicated = isFollowed.then(async () => {
             if (follow !== undefined) {
                 await this.database.log.waitUntil(
                     () => follow.shape.isSynced(this.database, at.key),
@@ -1519,7 +1604,7 @@ export class ObjectClient<
         const lookups = new Map<Lookup, LookupSubscription>();
         if (split.lookups.length === 0) {
             const unfollow = async (ttl: Duration | "forever" | undefined) => {
-                if (follow !== undefined) {
+                if (follow !== undefined && (await isFollowed)) {
                     await this.#unfollow(follow, at, ttl);
                 }
             };
@@ -1546,8 +1631,8 @@ export class ObjectClient<
             ready: Promise.race([ready, done.then(() => replicated)]),
             done,
             unfollow: async (ttl) => {
-                // unfollow the query's key and its lookups'
-                if (follow !== undefined) {
+                // unfollow the query's key once followed, and its lookups'
+                if (follow !== undefined && (await isFollowed)) {
                     await this.#unfollow(follow, at, ttl);
                 }
                 for (const { subscribed } of lookups.values()) {
@@ -2080,4 +2165,24 @@ interface LookupSubscription {
     readonly subscribed: Subscription;
     /** Stops the subscription. */
     readonly stop: AbortController;
+}
+
+/** Score a type's rows by the text columns a search reads, nothing without any. */
+function relevanceOf(type: ObjectType, search: Search): Expression {
+    const searched = type.table[TABLE].fullText?.properties ?? [];
+    const columns = type.search?.text.filter((name) => searched.includes(name)) ?? [];
+
+    return columns.length === 0 || search.isEmpty
+        ? Expression.literal(0)
+        : Expression.relevance(columns, search.words.join(" "));
+}
+
+/** Cut the passage of an object's searched long texts a search matches, absent without one. */
+function excerptOf(type: ObjectType, search: Search, row: JsonObject): string | undefined {
+    return type.text
+        .filter((name) => type.search?.text.includes(name) === true)
+        .map((name) =>
+            search.excerpt(TextSpan.plain(schema.array(TextSpan).parse(row[name] ?? []))),
+        )
+        .find((excerpt) => excerpt !== undefined);
 }

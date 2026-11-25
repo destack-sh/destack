@@ -23,7 +23,12 @@ export {
     Icon,
     Presentation,
 } from "./presentable.ts";
-export { type Search, searchable, Searchable, type SearchableDefinition } from "./searchable.ts";
+export {
+    type SearchFields,
+    searchable,
+    Searchable,
+    type SearchableDefinition,
+} from "./searchable.ts";
 export { orderable, Orderable, type OrderableDefinition, type Ordering } from "./orderable.ts";
 export { shareable, Shareable } from "./shareable.ts";
 export { numbered, Numbered, type NumberedDefinition } from "./numbered.ts";

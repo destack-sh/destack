@@ -170,7 +170,7 @@ import {
     type Ordering,
 } from "../trait/orderable.ts";
 import {
-    type Search,
+    type SearchFields,
     searchable,
     Searchable,
     type SearchableDefinition,
@@ -712,7 +712,7 @@ type ObjectDerived<Configuration extends ObjectConfiguration> = {
     /** How the store numbers the objects. */
     readonly numbering: () => Numbering | undefined;
     /** The fields search ranks and lists filter and order by. */
-    readonly search: () => Search | undefined;
+    readonly search: () => SearchFields | undefined;
     /** The schema of the objects' identifiers. */
     readonly idSchema: () => schema.Schema<string>;
     /** The tables a database with the objects needs. */
@@ -976,7 +976,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** The fields search ranks and lists filter and order the objects by, if any. */
-    get search(): Search | undefined {
+    get search(): SearchFields | undefined {
         return this.derived.search();
     }
 

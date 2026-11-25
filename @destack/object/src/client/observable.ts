@@ -27,6 +27,13 @@ export class Observable<Value> {
         streams: readonly AsyncIterator<Value>[],
         combine: (values: readonly Value[]) => Combined,
     ): AsyncGenerator<Combined> {
+        // combine nothing at once
+        if (streams.length === 0) {
+            yield combine([]);
+
+            return;
+        }
+
         // race the streams for their next values
         const values = new Map<number, Value>();
         const next = (index: number) =>
@@ -35,16 +42,16 @@ export class Observable<Value> {
                 .then((result) => ({ index, result }));
         const pending = new Map(streams.map((_, index) => [index, next(index)]));
         while (pending.size > 0) {
-            // yield once every stream has a value
+            // yield once every stream has a value, reading on only once the reader does
             const { index, result } = await Promise.race(pending.values());
             if (result.done === true) {
                 pending.delete(index);
             } else {
                 values.set(index, result.value);
-                pending.set(index, next(index));
                 if (values.size === streams.length) {
                     yield combine(streams.map((_, position) => found(values, position)));
                 }
+                pending.set(index, next(index));
             }
         }
     }

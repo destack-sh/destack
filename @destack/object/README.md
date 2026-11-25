@@ -1029,6 +1029,31 @@ export async function starAndUndo(
 }
 ```
 
+### Search a client's objects
+
+`client.search` finds the searchable objects of some types, the most relevant first, and follows them live.
+
+```ts
+import type { ObjectType } from "@destack/object";
+import type { ObjectClient } from "@destack/object/client";
+
+/** Print the ten best matches as they change, followed at the store once 150 ms passed. */
+export async function printMatches(
+    client: ObjectClient,
+    types: readonly ObjectType[],
+    text: string,
+    signal: AbortSignal,
+) {
+    const live = client
+        .search(text, { types, limit: 10 })
+        .subscribe({ after: { milliseconds: 150 } });
+    for await (const hits of live.watch(signal)) {
+        console.log(hits.map(({ reference, row }) => [reference.id, row["title"]]));
+    }
+    await live.close();
+}
+```
+
 ### Send and show a file
 
 An `ObjectFileClient` sends a file in parts, each again until it arrives, and a write then stores it in its field.

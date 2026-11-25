@@ -14,6 +14,8 @@ export interface Choice {
     readonly icon?: Icon | undefined;
     /** The color, none without one. */
     readonly color?: Hue | undefined;
+    /** The passage a search matched, none without one. */
+    readonly excerpt?: string | undefined;
 }
 
 /** One of the values a person picks, groups or filters by, with how it looks. */

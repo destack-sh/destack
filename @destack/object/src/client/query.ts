@@ -9,11 +9,14 @@ import type { ObjectQuery } from "../replica/replica.ts";
 import type { AggregateOptions, FindOptions, FindResult } from "../query/item.ts";
 import { type NestedItem, relateItems } from "../query/item.ts";
 import type { LiveQuery, ObjectQueries } from "./access.ts";
+import { Observable } from "./observable.ts";
 
 /** How long a closed live query stays followed: for a while, always, or not at all when absent. */
 export interface SubscribeOptions {
     /** How long the closed query stays followed, as Zero's time to live. */
     readonly ttl?: Duration | "forever";
+    /** How long the query reads this device before the store follows it, none when absent. */
+    readonly after?: Duration;
 }
 
 /** A query's items a client follows live, with the query its open form compiled to. */
@@ -127,16 +130,125 @@ export class ObjectQueryBuilder<Object extends ObjectType, Objects extends Objec
 }
 
 /** The value a query reads. */
-export type QueryValue<Query> = Query extends RelationalQuery<infer Value> ? Value : never;
+export type QueryValue<Queried> = Queried extends Query<infer Value> ? Value : never;
 
 /** A lazy query of a client's replica, read once when awaited and live when subscribed. */
-export class RelationalQuery<Value> implements PromiseLike<Value> {
+export class Query<Value> implements PromiseLike<Value> {
+    /** Follow the query live over the client's replica, its reads shaped into the query's value. */
+    readonly #follow: (options: SubscribeOptions) => LiveQuery<Value>;
+
+    /** Describe a query, followed live with its value shaped from its reads. */
+    constructor(follow: (options: SubscribeOptions) => LiveQuery<Value>) {
+        this.#follow = follow;
+    }
+
+    /** Query several values at once, each in its place. */
+    static all<Value>(queries: readonly Query<Value>[]): Query<readonly Value[]> {
+        return new Query((options) =>
+            Query.combined(
+                queries.map((query) => query.subscribe(options)),
+                (values) => values,
+            ),
+        );
+    }
+
+    /** Combine the latest reads of several live queries into a value. */
+    static combined<Read, Value>(
+        lives: readonly LiveQuery<Read>[],
+        combine: (reads: readonly Read[]) => Value,
+    ): LiveQuery<Value> {
+        return {
+            // wait for the queries only once asked, leaving no derived promise unobserved
+            get ready() {
+                return Promise.all(lives.map((live) => live.ready)).then(() => {});
+            },
+            read: async () => combine(await Promise.all(lives.map((live) => live.read()))),
+            watch: (signal) =>
+                Observable.latest(
+                    lives.map((live) => live.watch(signal)),
+                    combine,
+                ),
+            close: async () => {
+                await Promise.all(lives.map((live) => live.close()));
+            },
+        };
+    }
+
+    /** Shape each read of a live query into a value. */
+    static presented<Read, Value>(
+        live: LiveQuery<Read>,
+        shape: (read: Read) => Value,
+    ): LiveQuery<Value> {
+        return {
+            ready: live.ready,
+            read: async () => shape(await live.read()),
+            watch: (signal) => Query.watched(live, shape, signal),
+            close: () => live.close(),
+        };
+    }
+
+    /** Shape each watched read of a live query into a value. */
+    static async *watched<Read, Value>(
+        live: LiveQuery<Read>,
+        shape: (read: Read) => Value,
+        signal: AbortSignal,
+    ): AsyncGenerator<Value> {
+        for await (const read of live.watch(signal)) {
+            yield shape(read);
+        }
+    }
+
+    /** Query what a function makes of each value. */
+    map<Shaped>(shape: (value: Value) => Shaped): Query<Shaped> {
+        return new Query((options) => Query.presented(this.subscribe(options), shape));
+    }
+
+    /** Follow the query live over the client's replica until closed. */
+    subscribe(options: SubscribeOptions = {}): LiveQuery<Value> {
+        return this.#follow(options);
+    }
+
+    /** Read the query once, following it only until the replica has it. */
+    then<Fulfilled = Value, Rejected = never>(
+        fulfilled?: ((value: Value) => Fulfilled | PromiseLike<Fulfilled>) | null,
+        rejected?: ((reason: unknown) => Rejected | PromiseLike<Rejected>) | null,
+    ): PromiseLike<Fulfilled | Rejected> {
+        return this.#read().then(fulfilled, rejected);
+    }
+
+    /** Follow the query until the replica has it, read it, and close it. */
+    async #read(): Promise<Value> {
+        const live = this.subscribe();
+        try {
+            await live.ready;
+
+            return await live.read();
+        } finally {
+            await live.close();
+        }
+    }
+
+    /** Read the query's value once the replica has it, then at every change until aborted. */
+    async *watch(signal: AbortSignal): AsyncGenerator<Value> {
+        const live = this.subscribe();
+        try {
+            // wait for the replica to have the query, unless aborted first
+            await untilAborted(live.ready, signal);
+            if (!signal.aborted) {
+                yield* live.watch(signal);
+            }
+        } finally {
+            await live.close();
+        }
+    }
+}
+
+/** A lazy query of the rows of one object type, with their relations. */
+export class RelationalQuery<Value> extends Query<Value> {
     /** The queried object type. */
     readonly object: ObjectType;
     /** The query in its open form. */
     readonly options: Omit<ObjectQuery, "object" | "package">;
-    /** Follow the query live over the client's replica, its reads shaped into the query's value. */
-    readonly #follow: (options: SubscribeOptions) => LiveQuery<Value>;
 
     /** Describe a query of one object type, followed live with its value shaped from its reads. */
     constructor(
@@ -144,9 +256,9 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         options: Omit<ObjectQuery, "object" | "package">,
         follow: (options: SubscribeOptions) => LiveQuery<Value>,
     ) {
+        super(follow);
         this.object = object;
         this.options = options;
-        this.#follow = follow;
     }
 
     /** Select a query's items, reusing each unchanged item's object across reads. */
@@ -198,47 +310,8 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         return Object.fromEntries([...fields, ...relations]);
     }
 
-    /** Follow the query live over the client's replica until closed. */
-    subscribe(options: SubscribeOptions = {}): LiveQuery<Value> {
-        return this.#follow(options);
-    }
-
-    /** Read the query once, following it only until the replica has it. */
-    then<Fulfilled = Value, Rejected = never>(
-        fulfilled?: ((value: Value) => Fulfilled | PromiseLike<Fulfilled>) | null,
-        rejected?: ((reason: unknown) => Rejected | PromiseLike<Rejected>) | null,
-    ): PromiseLike<Fulfilled | Rejected> {
-        return this.#read().then(fulfilled, rejected);
-    }
-
-    /** Follow the query until the replica has it, read it, and close it. */
-    async #read(): Promise<Value> {
-        const live = this.subscribe();
-        try {
-            await live.ready;
-
-            return await live.read();
-        } finally {
-            await live.close();
-        }
-    }
-
-    /** Read the query's value once the replica has it, then at every change until aborted. */
-    async *watch(signal: AbortSignal): AsyncGenerator<Value> {
-        const live = this.subscribe();
-        try {
-            // wait for the replica to have the query, unless aborted first
-            await untilAborted(live.ready, signal);
-            if (!signal.aborted) {
-                yield* live.watch(signal);
-            }
-        } finally {
-            await live.close();
-        }
-    }
-
     /** Read independent queries' latest values together at any one's change, until one ends. */
-    static async *latest<const Queries extends Readonly<Record<string, RelationalQuery<unknown>>>>(
+    static async *latest<const Queries extends Readonly<Record<string, Query<unknown>>>>(
         queries: Queries,
         signal: AbortSignal,
     ): AsyncGenerator<{ readonly [Key in keyof Queries]: QueryValue<Queries[Key]> }> {
@@ -290,30 +363,6 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         } finally {
             stopped.abort();
             await watched;
-        }
-    }
-
-    /** Shape each read of a live query into a value. */
-    static presented<Read, Value>(
-        live: LiveQuery<Read>,
-        shape: (read: Read) => Value,
-    ): LiveQuery<Value> {
-        return {
-            ready: live.ready,
-            read: async () => shape(await live.read()),
-            watch: (signal) => RelationalQuery.watched(live, shape, signal),
-            close: () => live.close(),
-        };
-    }
-
-    /** Shape each watched read of a live query into a value. */
-    static async *watched<Read, Value>(
-        live: LiveQuery<Read>,
-        shape: (read: Read) => Value,
-        signal: AbortSignal,
-    ): AsyncGenerator<Value> {
-        for await (const read of live.watch(signal)) {
-            yield shape(read);
         }
     }
 }
