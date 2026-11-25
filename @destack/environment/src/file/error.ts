@@ -49,6 +49,15 @@ export const FileSystemError = Object.assign(family, {
 
         return undefined;
     },
+
+    /** Read a missing path or one the process may not open as absent, as Node's resolution does. */
+    absentOrDenied: (error: unknown): undefined => {
+        if (!family.is(error, "FILE_NOT_FOUND") && !family.is(error, "PERMISSION_DENIED")) {
+            throw error;
+        }
+
+        return undefined;
+    },
 });
 
 /** A stable cause of file system failures. */
