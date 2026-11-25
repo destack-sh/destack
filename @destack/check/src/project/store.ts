@@ -141,19 +141,37 @@ export class TestStore {
         );
 
         // write the run's passes as one record below the inputs digest
-        if (this.bucket !== undefined && durations.size > 0) {
+        const bucket = this.bucket;
+        if (bucket !== undefined && durations.size > 0) {
             const rounded = new Map(
                 [...durations].map(([file, value]) => [file, Math.round(value)]),
             );
             const record = JSON.stringify({ files: Object.fromEntries(rounded) });
-            await this.bucket.put(`tests/${name}/${inputs}/${this.#id()}.json`, record);
+            const key = `tests/${name}/${inputs}/${this.#id()}.json`;
+            await this.#put(bucket, key, record);
         }
     }
 
     /** Record how long a package's check took, in the bucket. */
     async check(name: string, milliseconds: number): Promise<void> {
+        // write the duration as one record below the package, when the process names a bucket
         const record = JSON.stringify({ milliseconds: Math.round(milliseconds) });
-        await this.bucket?.put(`checks/${name}/${this.#id()}.json`, record);
+        const key = `checks/${name}/${this.#id()}.json`;
+        const bucket = this.bucket;
+        if (bucket !== undefined) {
+            await this.#put(bucket, key, record);
+        }
+    }
+
+    /** Write a record to the bucket, reporting a refusal, since a record only saves later work. */
+    async #put(bucket: Bucket, key: string, record: string): Promise<void> {
+        // report a refusal on standard error
+        try {
+            await bucket.put(key, record);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.environment.process.stderr.writeSync(`cannot record '${key}': ${message}\n`);
+        }
     }
 
     /** Read how long a package's test files last took, from its newest records over any inputs. */
