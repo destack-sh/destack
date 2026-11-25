@@ -1,5 +1,34 @@
 import { defineExample } from "@destack/package/declare";
-import { Slider, SliderIndicator, SliderThumb, SliderTrack } from "./slider.tsx";
+import * as style from "@destack/style";
+import { space } from "@destack/theme/tokens.stylex";
+import { createSignal } from "@destack/view";
+import { Field, FieldLabel } from "../field/index.ts";
+import {
+    Slider,
+    SliderIndicator,
+    SliderMarks,
+    SliderThumb,
+    SliderTrack,
+    SliderValue,
+} from "./slider.tsx";
+
+/** The styles of the examples. */
+const styles = style.create({
+    stack: {
+        display: "grid",
+        gap: space[6],
+        width: "18rem",
+        maxWidth: "100%",
+    },
+    below: {
+        position: "absolute",
+        insetBlockStart: "100%",
+        marginBlockStart: space[2],
+    },
+    labelled: {
+        marginBlockEnd: space[6],
+    },
+});
 
 /** A slider that sets the font size of a note. */
 export const sliderFontSize = defineExample({
@@ -66,5 +95,75 @@ export const sliderWorkingHours = defineExample({
             <SliderThumb />
             <SliderThumb />
         </Slider>
+    ),
+});
+
+/** A budget with its value written beside its label, and one a person only reads. */
+export const sliderBudget = defineExample({
+    of: SliderValue,
+    name: "budget",
+    description: "a budget with its values written out, and one a person only reads",
+    render: () => {
+        const [budget, setBudget] = createSignal<readonly number[]>([1200, 3400]);
+        const format = { style: "currency", currency: "EUR", maximumFractionDigits: 0 } as const;
+
+        return (
+            <div {...style.attrs(styles.stack)}>
+                <Slider
+                    aria-label="Budget"
+                    min={0}
+                    max={5000}
+                    step={100}
+                    minStepsBetweenValues={5}
+                    format={format}
+                    value={budget()}
+                    onValueChange={setBudget}
+                    xstyle={styles.labelled}
+                >
+                    <SliderTrack>
+                        <SliderIndicator />
+                    </SliderTrack>
+                    <SliderThumb />
+                    <SliderThumb />
+                    <SliderValue xstyle={styles.below} />
+                </Slider>
+                <Slider
+                    aria-label="Spent"
+                    max={5000}
+                    defaultValue={[2100]}
+                    format={format}
+                    readOnly
+                />
+            </div>
+        );
+    },
+});
+
+/** A rating on labelled marks, in halves. */
+export const sliderRating = defineExample({
+    of: SliderMarks,
+    name: "rating",
+    description: "a rating on labelled marks, in halves",
+    render: () => (
+        <div {...style.attrs(styles.stack)}>
+            <Field>
+                <FieldLabel>Effort</FieldLabel>
+                <Slider
+                    min={0}
+                    max={5}
+                    step={0.5}
+                    largeStep={2}
+                    defaultValue={[2.5]}
+                    marks={[0, 1, 2, 3, 4, 5]}
+                    xstyle={styles.labelled}
+                >
+                    <SliderTrack>
+                        <SliderIndicator />
+                    </SliderTrack>
+                    <SliderMarks>{(mark) => String(mark)}</SliderMarks>
+                    <SliderThumb />
+                </Slider>
+            </Field>
+        </div>
     ),
 });

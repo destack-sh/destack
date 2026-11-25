@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Errored, flush } from "@destack/view";
-import { Slider, SliderIndicator, SliderThumb, SliderTrack } from "./index.ts";
+import { Slider, SliderIndicator, SliderThumb, SliderTrack, SliderValue } from "./index.ts";
 import { markup, render } from "@destack/view/test";
 
 /** Move a thumb of a container to a value as the person drags it. */
@@ -120,4 +120,113 @@ test("label a single thumb as its slider, by name or by the element it points to
         ["Volume", null],
         [null, "brightness"],
     ]);
+});
+
+/** Press a key on a container's thumb. */
+function press(container: Element, index: number, key: string, shiftKey = false): void {
+    const thumb = container.querySelectorAll("input")[index];
+    thumb?.dispatchEvent(new KeyboardEvent("keydown", { key, shiftKey, bubbles: true }));
+    flush();
+}
+
+test("take large steps by the keys, keep the least steps between, and write the values", () => {
+    const committed: (readonly number[])[] = [];
+    const { container } = render(() => (
+        <Slider
+            max={500}
+            step={10}
+            largeStep={5}
+            minStepsBetweenValues={2}
+            defaultValue={[100, 300]}
+            format={{ style: "currency", currency: "EUR", maximumFractionDigits: 0 }}
+            onValueCommitted={(values) => committed.push(values)}
+        >
+            <SliderValue />
+            <SliderThumb />
+            <SliderThumb />
+        </Slider>
+    ));
+    press(container, 0, "PageUp");
+    press(container, 0, "ArrowUp", true);
+    press(container, 1, "PageDown");
+    drag(container, 0, 400);
+
+    expect([
+        thumbs(container),
+        committed,
+        container.querySelector("output")?.textContent,
+        container.querySelector("input")?.getAttribute("aria-valuetext"),
+    ]).toEqual([
+        ["230", "250"],
+        [
+            [150, 300],
+            [200, 300],
+            [200, 250],
+        ],
+        "€230 – €250",
+        "€230",
+    ]);
+});
+
+/** Send a pointer over a slider 120 wide, whose thumbs travel 100. */
+function point(container: Element, type: string, x: number): void {
+    const slider = container.querySelector<HTMLElement>("[data-slot=slider]");
+    if (slider !== null) {
+        slider.getBoundingClientRect = () => DOMRect.fromRect({ width: 120, height: 20 });
+        slider.setPointerCapture = () => {};
+        slider.dispatchEvent(
+            new PointerEvent(type, { clientX: x, clientY: 10, pointerId: 1, bubbles: true }),
+        );
+    }
+    flush();
+}
+
+test("drag the thumb nearest a press anywhere on the track, and put it back when cancelled", () => {
+    const committed: (readonly number[])[] = [];
+    const { container } = render(() => (
+        <Slider defaultValue={[20, 80]} onValueCommitted={(values) => committed.push(values)} />
+    ));
+    const places: string[][] = [];
+    const step = (type: string, x: number) => {
+        point(container, type, x);
+        places.push(thumbs(container));
+    };
+    step("pointerdown", 40);
+    step("pointermove", 60);
+    step("pointerup", 60);
+    step("pointerdown", 110);
+    step("pointermove", 10);
+    step("pointercancel", 10);
+
+    expect([places, committed]).toEqual([
+        [
+            ["30", "80"],
+            ["50", "80"],
+            ["50", "80"],
+            ["50", "100"],
+            ["50", "50"],
+            ["50", "80"],
+        ],
+        [[50, 80]],
+    ]);
+});
+
+test("let a person read a slider they cannot move", () => {
+    const { container } = render(() => <Slider defaultValue={[20]} readOnly />);
+    drag(container, 0, 60);
+    press(container, 0, "PageUp");
+    point(container, "pointerdown", 110);
+
+    expect([
+        thumbs(container),
+        container.querySelector("input")?.getAttribute("aria-readonly"),
+    ]).toEqual([["20"], "true"]);
+});
+
+test("step by decimals without floating point's remainder", () => {
+    const { container } = render(() => <Slider max={1} step={0.1} defaultValue={[0.2]} />);
+    press(container, 0, "PageUp");
+    drag(container, 0, 0.3);
+
+    expect(thumbs(container)).toEqual(["0.3"]);
 });
