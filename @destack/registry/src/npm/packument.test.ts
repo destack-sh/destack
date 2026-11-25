@@ -4,7 +4,7 @@ import { NpmPackument } from "./packument.ts";
 
 /** The address of a release's tarball at the fixture forge. */
 function tarball(version: string): string {
-    return `https://forge.test/npm/@example/notes/-/notes-${version}.tgz`;
+    return `https://forge.test/.npm/@example/notes/-/notes-${version}.tgz`;
 }
 
 test("list a package's releases in release order with their install fields, and its tags at listed releases", () => {
