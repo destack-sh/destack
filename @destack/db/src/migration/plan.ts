@@ -2,7 +2,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 import type { TableDescription } from "../table/description.ts";
 import { createLog, logTriggers } from "../log/trigger.ts";
 import { multikeyIndexTriggers, rebuildMultikeyIndex } from "../multikey/trigger.ts";
-import { FullTextIndex } from "../search/search.ts";
+import { FullTextIndex } from "../search/fulltext.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
 import { dependentTriggers } from "../dependent/trigger.ts";
 import { createStamp, createState, deleteState, coversState, type TableState } from "./state.ts";
@@ -42,6 +42,8 @@ export interface TableStep extends Step {
     readonly converted?: { readonly table: string; readonly columns: readonly string[] };
     /** The table a SQLite replace step rebuilds, written with the plan's other rebuilds. */
     readonly rebuild?: statement.TableRebuild;
+    /** The table whose new full-text index SQLite fills after the steps. */
+    readonly indexed?: TableState;
 }
 
 /** When a table step runs: expanding tables, converting rows after the triggers, or contracting. */
@@ -523,11 +525,12 @@ function multikeyIndexSteps(
     });
 }
 
-/** Rebuild a full-text index whose columns or table changed, and drop or create one as declared. */
+/** Rebuild a full-text index that changed, and drop or create one as declared. */
 function fullTextSteps(state: TableState, previous: TableState): TableStep[] {
     // leave an unchanged index of an unrenamed table
     const isSame =
         canonicalize(state.fullText ?? null) === canonicalize(previous.fullText ?? null) &&
+        state.fullTextVersion === previous.fullTextVersion &&
         state.table.name === previous.table.name;
     if (isSame) {
         return [];
@@ -535,19 +538,21 @@ function fullTextSteps(state: TableState, previous: TableState): TableStep[] {
 
     // drop the applied index, then create the declared one
     const dialect = state.table.dialect;
+    const rebuilt = step(
+        "update",
+        Address.join("table", state.table.name, "fullText"),
+        "safe",
+        "rebuild the full-text index",
+        [
+            ...(previous.fullText === undefined ? [] : FullTextIndex.drop(previous, dialect)),
+            ...(state.fullText === undefined ? [] : FullTextIndex.create(state, dialect)),
+        ],
+    );
 
-    return [
-        step(
-            "update",
-            Address.join("table", state.table.name, "fullText"),
-            "safe",
-            "rebuild the full-text index",
-            [
-                ...(previous.fullText === undefined ? [] : FullTextIndex.drop(previous, dialect)),
-                ...(state.fullText === undefined ? [] : FullTextIndex.create(state, dialect)),
-            ],
-        ),
-    ];
+    // fill SQLite's, which PostgreSQL's own expression does
+    const isFilled = state.fullText !== undefined && dialect === "sqlite";
+
+    return [isFilled ? { ...rebuilt, indexed: state } : rebuilt];
 }
 
 /** Compute new or changed aggregates and stop maintaining removed ones. */

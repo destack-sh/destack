@@ -3,6 +3,7 @@ import { insertEpoch } from "../log/schema.ts";
 import { sql } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { DatabaseError } from "../error/error.ts";
+import { FullTextIndex } from "../search/fulltext.ts";
 import { STATE, type TableState, writeState } from "./state.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -70,6 +71,13 @@ async function applySteps(
             writeState(state, manager, appliedAt, database.state.namespace),
         );
         await runStatements(transaction, [...pending, ...recorded], manager);
+
+        // fill the new full-text indexes of SQLite with the converted rows' tokens
+        for (const step of plan.steps) {
+            if (step.indexed !== undefined) {
+                await FullTextIndex.fill(transaction.driver.session, step.indexed);
+            }
+        }
 
         // require every converted value to pass its column's schema, since reads trust stored values
         for (const step of plan.steps) {

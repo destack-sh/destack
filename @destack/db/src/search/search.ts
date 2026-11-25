@@ -1,212 +1,239 @@
-import type { Dialect } from "../dialect/dialect.ts";
-import { quote } from "../dialect/quote.ts";
-import type { Session } from "../database/session.ts";
-import type { TableState } from "../migration/state.ts";
-import { LOG, LOG_TRANSACTION } from "../log/schema.ts";
-import { dialectSQL, inline, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
-import { boundedName, relation } from "../table/namespace.ts";
-import { present, schema } from "@destack/schema";
-import { TABLE, type Table } from "../table/table.ts";
-import type { Row } from "../table/row.ts";
-import { SearchText } from "./text.ts";
+import { DatabaseError } from "../error/error.ts";
+import { type FoldedText, Tokenizer } from "./tokenizer.ts";
 
-/** The suffix of a table's full-text table in SQLite and its index in PostgreSQL. */
-const SUFFIX = "__search";
+/** The most words someone searches for, a long sentence. */
+const MAX_WORDS = 32;
 
-/** The PostgreSQL collation folding case and classing letters and digits by Unicode. */
-const COLLATION = "pg_c_utf8";
+/** The characters of an excerpt, two lines of a list. */
+const EXCERPT_LENGTH = 132;
 
-/** What PostgreSQL splits text into words at: any run of characters but letters and digits. */
-const SEPARATOR = "[^[:alnum:]]+";
+/** A stretch of a line an excerpt is cut from, to a space where there is one. */
+const STRETCH = /.{1,400}(?:\s|$)|.{1,400}/gu;
 
-/** The SQLite FTS5 tokenizer: Unicode words, case-folded, with their diacritics. */
-const TOKENIZER = "unicode61 remove_diacritics 0";
+/** What ends a line of a text: a line break, or the character that stands for a block or node. */
+const LINE_END = /[\n\ufffc]+/u;
 
-/** The most keys one SQLite statement deletes or inserts, within SQLite's parameter limit. */
-const KEEP_BATCH = 500;
+/** How well texts match, from a text that is the search to words somewhere inside them. */
+export const SEARCH_SCORE = {
+    /** The whole title. */
+    whole: 10,
+    /** The title's opening. */
+    opening: 8,
+    /** Words of the title. */
+    words: 6,
+    /** The starts of the title's words. */
+    starts: 4,
+    /** The starts of words across the texts. */
+    across: 2,
+    /** Characters inside the texts. */
+    inside: 1,
+} as const;
 
-/** A searched column's logged value: text, or nothing. */
-const SearchedValue = schema.string().nullable();
+/** How much less a match of another text than the title scores. */
+export const SEARCH_LATER = 1;
 
-/** A row's logged image: its values by SQL column name. */
-const LoggedRow = schema.jsonObject();
+/** A match's place in a text: its first character, and the one after its last. */
+export type SearchRange = readonly [start: number, end: number];
 
-/** A table's full-text search: its searched text columns and the index of their words. */
-export class FullTextIndex {
-    /** The searched text properties, in index order. */
-    readonly properties: readonly string[];
-    /** The SQL names of the searched columns, in index order. */
-    readonly columns: readonly string[];
-    /** The SQL name of the table that stores the index, an alias's source. */
-    readonly table: string;
+/** What someone searches for, matched alike in SQLite, PostgreSQL and memory. */
+export class Search {
+    /** The words, folded. */
+    readonly words: readonly string[];
+    /** The tokens each match needs, a word's last character left out after its pairs. */
+    readonly tokens: readonly string[];
 
-    /** Search some text columns of a table. */
-    constructor(properties: readonly string[], columns: readonly string[], table: string) {
-        this.properties = properties;
-        this.columns = columns;
-        this.table = table;
-    }
+    /** Search for some folded words. */
+    constructor(words: readonly string[]) {
+        this.words = words;
+        this.tokens = words.flatMap((word) => {
+            const pairs = Tokenizer.pairs(word);
 
-    /** Name a table's full-text index: an FTS5 table in SQLite, a GIN index in PostgreSQL. */
-    static index(table: string): string {
-        return boundedName(`${table}${SUFFIX}`);
-    }
-
-    /** Write the statements creating a searched table's full-text index and filling it. */
-    static create(state: TableState, dialect: Dialect): string[] {
-        // name the table, its index and its searched columns
-        const columns = state.fullText ?? [];
-        const table = quote(state.table.name);
-        const index = quote(FullTextIndex.index(state.table.name));
-
-        // index the PostgreSQL document of the columns
-        if (dialect === "postgresql") {
-            const identifiers = columns.map((column) => sql.identifier(column));
-            const document = inline(postgresDocument(identifiers), dialect);
-
-            return [`CREATE INDEX ${index} ON ${table} USING gin ((${document}))`];
-        }
-
-        // update the columns in an FTS5 table keyed as the log keys rows, filled from the table
-        const key = keyOf(state);
-        const listed = columns.map((column) => quote(column)).join(", ");
-
-        return [
-            `CREATE VIRTUAL TABLE ${index} USING fts5("key" UNINDEXED, ${listed}, tokenize = '${TOKENIZER}')`,
-            `INSERT INTO ${index} ("key", ${listed}) SELECT ${key}, ${listed} FROM ${table}`,
-        ];
-    }
-
-    /** Write the statements dropping a table's full-text index. */
-    static drop(state: TableState, dialect: Dialect): string[] {
-        const index = quote(FullTextIndex.index(state.table.name));
-
-        return [
-            dialect === "postgresql"
-                ? `DROP INDEX IF EXISTS ${index}`
-                : `DROP TABLE IF EXISTS ${index}`,
-        ];
-    }
-
-    /** Report whether a row's searched text contains each word of a search as a word's prefix. */
-    matches(row: Row, words: readonly string[]): boolean {
-        return SearchText.matches(
-            this.properties.map((property) => row[property]),
-            words,
-        );
-    }
-
-    /** Write a search of the table's rows over bound columns, each word a word's prefix. */
-    match(
-        words: readonly string[],
-        columns: readonly SQLWrapper[],
-        key: readonly SQLWrapper[],
-    ): SQL {
-        const index = sql.relation(FullTextIndex.index(this.table));
-
-        return dialectSQL({
-            postgresql: sql`${postgresDocument(columns)} @@ ${sql.param(SearchText.tsquery(words))}::tsquery`,
-            sqlite: sql`json_array(${sql.join(key, sql`, `)}) IN (SELECT "key" FROM ${index} WHERE ${index} MATCH ${sql.param(SearchText.fts5(words))})`,
+            return pairs.length > 1 ? pairs.slice(0, -1) : pairs;
         });
     }
 
-    /** Update the full-text rows of a SQLite transaction's changed searched rows, from its log. */
-    static async update(
-        session: Session,
-        searched: ReadonlyMap<string, Table>,
-        namespace?: string,
-    ): Promise<void> {
-        // read the transaction's changes of searched tables, last change of each row winning
-        if (searched.size === 0) {
-            return;
+    /** Read a search from what someone typed: its first words, none for blank text. */
+    static of(text: string): Search {
+        return new Search(Tokenizer.words(text).slice(0, MAX_WORDS));
+    }
+
+    /** Read a condition's search, refusing one of no words or of too many. */
+    static parse(text: string): Search {
+        // count its words
+        const words = Tokenizer.words(text);
+        const { length } = words;
+        if (length === 0 || length > MAX_WORDS) {
+            throw DatabaseError.of(
+                "QUERY_INVALID",
+                `search '${text}' is invalid: it has ${length} words, not 1 to ${MAX_WORDS}`,
+            );
         }
-        const log = quote(relation(LOG, namespace));
-        const marker = quote(relation(LOG_TRANSACTION, namespace));
-        const tables = [...searched.keys()];
-        const changes = await session.all(
-            `SELECT "table", "key", operation, "row" FROM ${log}
-                WHERE "transaction" = (SELECT id FROM ${marker} WHERE slot = 1)
-                AND "table" IN (${tables.map(() => "?").join(", ")})
-                ORDER BY sequence`,
-            tables,
+
+        return new Search(words);
+    }
+
+    /** Whether it has no words, so every text matches. */
+    get isEmpty(): boolean {
+        return this.words.length === 0;
+    }
+
+    /** Report whether each token starts a word of some texts, as a row matches. */
+    isIn(texts: readonly string[]): boolean {
+        const line = texts.map((text) => Tokenizer.line(text)).join("");
+
+        return this.tokens.every((token) => line.includes(startOf(token)));
+    }
+
+    /** Score how well texts match, the title first, undefined where a word is nowhere in them. */
+    score(texts: readonly string[]): number | undefined {
+        // leave out texts without the tokens anywhere, before taking their words apart
+        const folded = texts.map((text) => Tokenizer.fold(text));
+        if (!this.tokens.every((token) => folded.some((text) => text.includes(token)))) {
+            return undefined;
+        }
+
+        // match the starts of words, else the words inside the texts
+        if (this.isIn(texts)) {
+            return this.relevance(texts);
+        }
+        const isInside = this.words.every((word) => folded.some((text) => text.includes(word)));
+
+        return isInside ? SEARCH_SCORE.inside : undefined;
+    }
+
+    /** Score how well the best of the texts of a row that matches does, the title first. */
+    relevance(texts: readonly string[]): number {
+        const scores = texts.map((text, index) =>
+            Math.max(0, this.#scoreOf(text) - (index === 0 ? 0 : SEARCH_LATER)),
         );
-        const latest = new Map<string, Map<string, { operation: string; row: string }>>();
-        for (const change of changes) {
-            const table = String(change["table"]);
-            const rows = latest.get(table) ?? new Map<string, { operation: string; row: string }>();
-            rows.set(String(change["key"]), {
-                operation: String(change["operation"]),
-                row: String(change["row"]),
-            });
-            latest.set(table, rows);
-        }
 
-        // replace each changed row's full-text row, leaving out deleted rows
-        for (const [table, rows] of latest) {
-            const searchedTable = present(searched.get(table), `searched table ${table}`);
-            await present(searchedTable[TABLE].fullText, `the search of ${table}`).replace(
-                session,
-                rows,
-                namespace,
-            );
-        }
+        return Math.max(SEARCH_SCORE.across, ...scores);
     }
 
-    /** Replace the full-text rows of the table's changed rows, leaving out deleted ones. */
-    async replace(
-        session: Session,
-        rows: ReadonlyMap<string, { readonly operation: string; readonly row: string }>,
-        namespace: string | undefined,
-    ): Promise<void> {
-        // name the full-text table, its columns and the changed keys
-        const index = quote(relation(FullTextIndex.index(this.table), namespace));
-        const columns = this.columns;
-        const listed = columns.map((column) => quote(column)).join(", ");
-        const keys = [...rows.keys()];
-
-        // delete every changed row's full-text row
-        for (let start = 0; start < keys.length; start += KEEP_BATCH) {
-            const batch = keys.slice(start, start + KEEP_BATCH);
-            await session.run(
-                `DELETE FROM ${index} WHERE "key" IN (${batch.map(() => "?").join(", ")})`,
-                batch,
-            );
+    /** List the items whose texts match, the best first, equal ones in their order. */
+    rank<Item>(items: readonly Item[], textsOf: (item: Item) => readonly string[]): Item[] {
+        // leave them in order without words
+        if (this.isEmpty) {
+            return [...items];
         }
 
-        // insert the text of each row still there, a batch per statement
-        const kept = [...rows]
-            .filter(([, change]) => change.operation !== "delete")
-            .map(([key, change]) => {
-                const image = LoggedRow.parse(JSON.parse(change.row));
+        // put the best first
+        const matched = items.flatMap((item) => {
+            const score = this.score(textsOf(item));
 
-                return [key, ...columns.map((column) => SearchedValue.parse(image[column]))];
-            });
-        const placeholders = `(${["?", ...columns.map(() => "?")].join(", ")})`;
-        for (let start = 0; start < kept.length; start += KEEP_BATCH) {
-            const batch = kept.slice(start, start + KEEP_BATCH);
-            await session.run(
-                `INSERT INTO ${index} ("key", ${listed}) VALUES ${batch.map(() => placeholders).join(", ")}`,
-                batch.flat(),
-            );
+            return score === undefined ? [] : [{ item, score }];
+        });
+
+        return matched.toSorted((one, other) => other.score - one.score).map(({ item }) => item);
+    }
+
+    /** List the places of a text's words that a word starts, else those all words are inside. */
+    ranges(text: string): readonly SearchRange[] {
+        // find every word at the start of one, or a character of a script without spaces
+        const located = Tokenizer.located(text);
+        const starts = Array.from(located.text.matchAll(START), ({ index }) => index);
+        const found = this.words.flatMap((word) =>
+            starts
+                .filter((start) => located.text.startsWith(word, start))
+                .map((start) => rangeOf(located, start, word.length)),
+        );
+        if (found.length > 0) {
+            return joined(found);
         }
+
+        // else find them all inside
+        const inside = this.words.map((word) => [located.text.indexOf(word), word.length] as const);
+
+        return inside.some(([start]) => start === -1)
+            ? []
+            : joined(inside.map(([start, length]) => rangeOf(located, start, length)));
+    }
+
+    /** Cut the passage around the first match of a text, undefined for none. */
+    excerpt(text: string, length: number = EXCERPT_LENGTH): string | undefined {
+        // take the first of the stretches with the most tokens, each quick to fold
+        const stretches = text
+            .split(LINE_END)
+            .flatMap((line) => line.replace(/\s+/gu, " ").trim().match(STRETCH) ?? []);
+        const counts = stretches.map((stretch) => {
+            const folded = Tokenizer.line(stretch);
+
+            return this.tokens.filter((token) => folded.includes(startOf(token))).length;
+        });
+        const most = Math.max(0, ...counts);
+        const line = most === 0 ? undefined : stretches[counts.indexOf(most)]?.trim();
+        const [first] = line === undefined ? [] : this.ranges(line);
+        if (line === undefined || first === undefined) {
+            return undefined;
+        }
+
+        // start some words before the match, and end at a space
+        const from = Math.max(0, first[0] - Math.floor(length / 3));
+        const space = line.slice(from, first[0]).indexOf(" ");
+        const start = from === 0 || space === -1 ? from : from + space + 1;
+        const full = start + length;
+        const last = line.slice(first[1], full).lastIndexOf(" ");
+        const end = full >= line.length || last === -1 ? full : first[1] + last;
+
+        return `${start === 0 ? "" : "…"}${line.slice(start, end)}${end >= line.length ? "" : "…"}`;
+    }
+
+    /** Score how well one text matches alone, 0 where a token starts none of its words. */
+    #scoreOf(text: string): number {
+        // compare the words in order, then each token with any
+        const line = Tokenizer.line(text);
+        const opening = ` ${this.words.join(" ")}`;
+        if (line === `${opening} `) {
+            return SEARCH_SCORE.whole;
+        } else if (line.startsWith(opening)) {
+            return SEARCH_SCORE.opening;
+        } else if (this.tokens.every((token) => line.includes(wholeOf(token)))) {
+            return SEARCH_SCORE.words;
+        }
+
+        return this.tokens.every((token) => line.includes(startOf(token)))
+            ? SEARCH_SCORE.starts
+            : 0;
     }
 }
 
-/** Write the PostgreSQL document of some columns: their case-folded words as lexemes, unparsed. */
-function postgresDocument(columns: readonly SQLWrapper[]): SQL {
-    const text = sql.join(
-        columns.map((column) => sql`coalesce(${column}, '')`),
-        sql` || ' ' || `,
-    );
-
-    return sql`array_to_tsvector(array_remove(regexp_split_to_array(lower((${text}) COLLATE ${sql.raw(COLLATION)}), ${sql.raw(`'${SEPARATOR}'`)}), ''))`;
+/** Write a token as it starts a word of a line, a pair as it is in one. */
+export function startOf(token: string): string {
+    return Tokenizer.isUnspaced(token) ? token : ` ${token}`;
 }
 
-/** Write a table's key as SQLite's log records it: a JSON array of its key columns. */
-function keyOf(state: TableState): string {
-    const key = state.table.constraints.flatMap((constraint) =>
-        constraint.kind === "primaryKey" ? constraint.columns : [],
-    );
+/** Write a token as it is a word of a line, a pair as it is in one. */
+export function wholeOf(token: string): string {
+    return Tokenizer.isUnspaced(token) ? token : ` ${token} `;
+}
 
-    return `json_array(${key.map((column) => quote(column)).join(", ")})`;
+/** The starts of words in a folded text, and each character of a script without spaces. */
+const START = new RegExp(
+    `[${Tokenizer.unspaced}]|(?<![${Tokenizer.letter}])[${Tokenizer.letter}]|(?<=[${Tokenizer.unspaced}])[${Tokenizer.letter}]`,
+    "gu",
+);
+
+/** Read the place of some folded characters in their text, with the accents after them. */
+function rangeOf({ places }: FoldedText, start: number, length: number): SearchRange {
+    // end before the next character of the text folded to others
+    const last = places[start + length - 1];
+    const end = places.slice(start + length).find((place) => place !== last);
+
+    return [places[start] ?? 0, end ?? places.at(-1) ?? 0];
+}
+
+/** Join ranges that overlap, in order. */
+function joined(ranges: readonly SearchRange[]): SearchRange[] {
+    const apart: SearchRange[] = [];
+    for (const [start, end] of ranges.toSorted(([one], [other]) => one - other)) {
+        // grow the last range, or begin another
+        const last = apart.at(-1);
+        if (last !== undefined && start < last[1]) {
+            apart[apart.length - 1] = [last[0], Math.max(last[1], end)];
+        } else {
+            apart.push([start, end]);
+        }
+    }
+
+    return apart;
 }

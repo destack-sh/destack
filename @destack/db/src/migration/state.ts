@@ -20,6 +20,7 @@ import { describeLog, loggedKey, REPLICA_COLUMN } from "../log/schema.ts";
 import { integer } from "../table/column.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
+import { FULL_TEXT_VERSION } from "../search/fulltext.ts";
 
 import { MultikeyIndexDescription } from "../multikey/description.ts";
 import { expandMultikeyIndexes } from "../multikey/multikey.ts";
@@ -57,6 +58,8 @@ export const TableState = schema.object({
     dependents: schema.array(DependentDescription).exactOptional(),
     /** The SQL names of the text columns the full-text index reads. */
     fullText: schema.array(schema.string().min(1)).exactOptional(),
+    /** The version of the tokenizer the full-text index has, absent for one the database cut. */
+    fullTextVersion: schema.number().exactOptional(),
     /** The global indexes over the rows, with the SQL names of each row's identifier and scope. */
     globalIndexes: schema
         .array(
@@ -265,7 +268,10 @@ export function declareState(
             ...(dependents.length === 0 ? {} : { dependents }),
             ...(definition.fullText === undefined
                 ? {}
-                : { fullText: [...definition.fullText.columns] }),
+                : {
+                      fullText: [...definition.fullText.columns],
+                      fullTextVersion: FULL_TEXT_VERSION,
+                  }),
             ...(moved === undefined ? {} : { moved }),
             ...(conversions === undefined ? {} : { conversions }),
             ...(predefined.length === 0 ? {} : { predefined }),

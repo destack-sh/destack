@@ -477,9 +477,10 @@ export async function getStarredPlans(database: DatabaseConnection) {
 ### Search text
 
 A logged table lists the properties a full-text index covers, and a `SEARCH` condition matches rows with every word of a query.
+`Expression.relevance` scores the best of some columns, the first one highest.
 
 ```ts
-import { Condition, defineTable, text } from "@destack/db";
+import { Condition, defineTable, Expression, sql, text } from "@destack/db";
 import { type DatabaseConnection } from "@destack/db/database";
 
 // define a logged table whose title and body are searched
@@ -494,7 +495,28 @@ export async function searchNotes(database: DatabaseConnection, query: string) {
     return await database
         .select()
         .from(note)
-        .where(Condition.render({ SEARCH: query }, note));
+        .where(Condition.render({ SEARCH: query }, note))
+        .orderBy(
+            sql`${Expression.render(Expression.relevance(["title", "body"], query), note)} DESC`,
+        );
+}
+```
+
+### Search in memory
+
+`Search` ranks what is in memory, marks where it matches, and cuts an `excerpt` of a long text.
+Case, accents and width never matter, and Chinese, Japanese and Thai match anywhere in a word.
+
+```ts
+import { Search } from "@destack/db";
+
+/** List the titles a person searches for, the best first, with the first match's place. */
+export function findTitles(titles: readonly string[], typed: string) {
+    const search = Search.of(typed);
+
+    return search
+        .rank(titles, (title) => [title])
+        .map((title) => ({ title, place: search.ranges(title)[0] }));
 }
 ```
 

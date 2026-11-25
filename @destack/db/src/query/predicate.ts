@@ -1,3 +1,4 @@
+import type { Search } from "../search/search.ts";
 import {
     Parameter,
     Placeholder,
@@ -55,8 +56,8 @@ export interface Binding<Value, Decision = Value> {
     readonly placeholder: (name: string) => Scalar;
     /** Resolve whether a related row meets a condition. */
     readonly exists: (via: string, where: Condition) => Decision;
-    /** Resolve whether the row's searched text contains each word as a word's prefix. */
-    readonly search: (words: readonly string[]) => Decision;
+    /** Resolve whether the row's searched text matches a search. */
+    readonly search: (search: Search) => Decision;
     /** Stand in for a compared literal of a field, in the order a key walk collects them. */
     readonly slot?: (field: Value, literal: Comparable) => Value;
 }
@@ -82,7 +83,7 @@ export type Predicate =
     | { readonly kind: "all" | "any"; readonly predicates: readonly Predicate[] }
     | { readonly kind: "not"; readonly predicate: Predicate }
     | { readonly kind: "exists"; readonly via: string; readonly where: Condition }
-    | { readonly kind: "search"; readonly words: readonly string[] };
+    | { readonly kind: "search"; readonly search: Search };
 
 /** A compiled predicate, deciding a row in three-valued logic. */
 export type Match = (binding: Binding<unknown, boolean | undefined>) => boolean | undefined;
@@ -339,14 +340,14 @@ function bind(
 
             return namespace.exists(via, where);
         },
-        search: (words) => {
+        search: (search) => {
             // match the searched columns through the table's full-text index
             const definition = table[TABLE];
-            const search = definition.requireFullText();
+            const index = definition.requireFullText();
 
-            return search.match(
-                words,
-                search.properties.map((property) => columnOf(table, property)),
+            return index.match(
+                search,
+                index.properties.map((property) => columnOf(table, property)),
                 definition.key.map((property) => columnOf(table, property)),
             );
         },
@@ -407,7 +408,7 @@ function render(predicate: Predicate, binding: Binding<SQLWrapper>): SQL {
         case "exists":
             return sql`${binding.exists(predicate.via, predicate.where)}`;
         case "search":
-            return sql`${binding.search(predicate.words)}`;
+            return sql`${binding.search(predicate.search)}`;
     }
 }
 
@@ -446,7 +447,7 @@ function key(predicate: Predicate, literals: Comparable[]): string {
         case "exists":
             return `(exists ${predicate.via} ${JSON.stringify(predicate.where)})`;
         case "search":
-            return `(search ${JSON.stringify(predicate.words)})`;
+            return `(search ${JSON.stringify(predicate.search.words)})`;
     }
 }
 
@@ -803,9 +804,9 @@ function compileExists(predicate: Extract<Predicate, { readonly kind: "exists" }
 
 /** Compile a search, which the binding decides over the row's searched text. */
 function compileSearch(predicate: Extract<Predicate, { readonly kind: "search" }>): Match {
-    const { words } = predicate;
+    const { search } = predicate;
 
-    return (binding) => binding.search(words);
+    return (binding) => binding.search(search);
 }
 
 /** Refuse a placeholder no value binds, as rendering refuses it. */

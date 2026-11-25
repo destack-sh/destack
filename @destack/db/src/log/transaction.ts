@@ -6,7 +6,7 @@ import type { ConnectionState } from "../database/connection.ts";
 import { CHANGED_AT_SETTING, COMMIT_TOKEN_SETTING, LOG, LOG_TRANSACTION } from "./schema.ts";
 import { relation } from "../table/namespace.ts";
 import { LogColumn } from "./position.ts";
-import { FullTextIndex } from "../search/search.ts";
+import { FullTextIndex } from "../search/fulltext.ts";
 
 /** The token a PostgreSQL commit notification sends back to its writer. */
 interface CommitToken {

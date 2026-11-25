@@ -1,3 +1,4 @@
+import type { Search } from "../search/search.ts";
 import { and, inArray, sql, type SQL } from "../sql/index.ts";
 import { PreparedQuery } from "../query/prepared.ts";
 import { Projection } from "../query/selection.ts";
@@ -883,7 +884,7 @@ async function decides(
         field: (name: string) => row[name],
         placeholder: Predicate.unbound,
         exists: () => undefined,
-        search: (words: readonly string[]) => table[TABLE].requireFullText().matches(row, words),
+        search: (search: Search) => table[TABLE].requireFullText().matches(row, search),
     };
     const decided = match(binding);
     if (decided !== undefined || relations === undefined) {

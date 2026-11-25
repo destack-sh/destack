@@ -1,7 +1,7 @@
 import { type JsonValue, schema } from "@destack/schema";
 import type { JsonOf } from "../table/column.ts";
 import { DatabaseError } from "../error/error.ts";
-import { SearchText } from "../search/text.ts";
+import { Search } from "../search/search.ts";
 import { Predicate } from "./predicate.ts";
 import { Namespace } from "./namespace.ts";
 import { Placeholder, type SQL } from "../sql/index.ts";
@@ -343,7 +343,7 @@ function resolveEntry(name: string, entry: OpenEntry, fields: ReadonlySet<string
             throw DatabaseError.of("QUERY_INVALID", "search is invalid: it needs text");
         }
 
-        return { kind: "search", words: SearchText.query(entry) };
+        return { kind: "search", search: Search.parse(entry) };
     }
     // compare a field
     else if (fields.has(name)) {

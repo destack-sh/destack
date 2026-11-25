@@ -1135,9 +1135,23 @@ async function sqliteTemplate(
     replicated: ReadonlySet<string>,
     environment: DatabaseEnvironment,
 ): Promise<string> {
-    // name the file by the digest of the state, log and records
-    const key = JSON.stringify(declareState(tables, "sqlite", { isReplica, replicated }));
-    const layout = JSON.stringify([key, createLog("sqlite"), createState(), createStamp()]);
+    // name the file by the digest of the state, the statements creating it, log and records
+    const state = declareState(tables, "sqlite", { isReplica, replicated });
+    const created = planTables({
+        applied: [],
+        existing: [],
+        declared: state,
+        dialect: "sqlite",
+        changed: new Set(),
+        empty: new Set(),
+    });
+    const layout = JSON.stringify([
+        state,
+        created.steps.map((step) => step.statements),
+        createLog("sqlite"),
+        createState(),
+        createStamp(),
+    ]);
     const directory = join(await HOST.files.runtimeDirectory(), "destack-template");
     const file = join(directory, `${await digestOf(layout, environment.crypto)}.db`);
 

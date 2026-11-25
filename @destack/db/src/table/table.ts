@@ -33,7 +33,7 @@ import type { Condition, Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../log/description.ts";
 import { MultikeyIndex, type EntryTable, type MultikeyName } from "../multikey/multikey.ts";
-import { FullTextIndex } from "../search/search.ts";
+import { FullTextIndex } from "../search/fulltext.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { ColumnDescription, TableDescription } from "./description.ts";
 import type { TableState } from "../migration/state.ts";

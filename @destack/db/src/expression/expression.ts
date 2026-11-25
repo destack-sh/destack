@@ -3,7 +3,8 @@ import { DatabaseError } from "../error/error.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { ColumnKind, ColumnValue } from "../table/column.ts";
 import type { Namespace } from "../query/namespace.ts";
-import { type JsonObject, JsonValue, Edition, mapValues, schema } from "@destack/schema";
+import { Search } from "../search/search.ts";
+import { type JsonObject, JsonValue, Edition, mapValues, present, schema } from "@destack/schema";
 import { Condition, Scalar, type JsonCondition } from "../query/condition.ts";
 
 /** The most terms one expression has, bounding compiled SQL; computed fields use under ten. */
@@ -72,7 +73,8 @@ export type Expression =
           readonly otherwise: Expression;
       }
     | { readonly kind: "scalar"; readonly of: Expression; readonly as: ScalarKind }
-    | { readonly kind: "before"; readonly of: Expression; readonly separator: string };
+    | { readonly kind: "before"; readonly of: Expression; readonly separator: string }
+    | { readonly kind: "relevance"; readonly columns: readonly string[]; readonly search: string };
 
 /** How a rollup measures related rows. */
 export const Rollup = schema.enum(["count", "sum", "min", "max"]);
@@ -196,6 +198,14 @@ const expressionSchema: schema.Schema<Expression> = schema.lazy(() =>
             /** The separator. */
             separator: schema.string().min(1),
         }),
+        schema.object({
+            /** Score how relevant searched text columns are to a search. */
+            kind: schema.literal("relevance"),
+            /** The columns' properties, the most important first. */
+            columns: schema.array(schema.string().min(1)).min(1),
+            /** The search. */
+            search: schema.string().min(1),
+        }),
     ]),
 );
 
@@ -276,6 +286,13 @@ export const Expression = {
         separator,
     }),
 
+    /** Score how relevant searched text columns are to a search, the most important one first. */
+    relevance: (columns: readonly string[], search: string): Expression => ({
+        kind: "relevance",
+        columns,
+        search,
+    }),
+
     /** Count an expression's terms. */
     terms(expression: Expression): number {
         let count = 0;
@@ -316,6 +333,8 @@ export const Expression = {
         visit(expression, (entry) => {
             if (entry.kind === "column") {
                 names.add(entry.name);
+            } else if (entry.kind === "relevance") {
+                entry.columns.forEach((column) => names.add(column));
             }
         });
 
@@ -355,6 +374,8 @@ export const Expression = {
                     })),
                     otherwise: renamed(expression.otherwise),
                 };
+            case "relevance":
+                return { ...expression, columns: expression.columns.map(name) };
             case "json":
             case "literal":
             case "lookup":
@@ -436,6 +457,14 @@ export const Expression = {
             case "lookup":
             case "rollup":
                 return evaluateRelated(expression, related);
+            case "relevance": {
+                // score no text as empty
+                const texts = expression.columns.map((column) => row[column]);
+
+                return Search.parse(expression.search).relevance(
+                    texts.map((text) => (typeof text === "string" ? text : "")),
+                );
+            }
         }
     },
 
@@ -585,6 +614,20 @@ function renderAs(expression: Expression, kind: Kind, table: Table, namespace: N
 
             return kind === "text" ? value : float(value);
         }
+        case "relevance": {
+            // score by the table's full-text index
+            const definition = table[TABLE];
+            const { columns, key } = definition;
+
+            return definition.requireFullText().relevance(
+                Search.parse(expression.search),
+                expression.columns.map((property) => ({
+                    property,
+                    column: present(columns[property], "a scored column"),
+                })),
+                key.map((name) => present(columns[name], "a key column")),
+            );
+        }
     }
 }
 
@@ -640,6 +683,8 @@ function kindOf(
         case "coalesce":
             // take the shared kind, reals over integers
             return sharedKind(expression.values.map((value) => kindOf(value, table, namespace)));
+        case "relevance":
+            return "integer";
         case "rollup":
             return kindOfRollup(expression, table, namespace);
         case "lookup": {
