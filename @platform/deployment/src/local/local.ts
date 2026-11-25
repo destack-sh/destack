@@ -344,8 +344,11 @@ export class LocalUniverse {
             { universe: deployment.universe.origin, send, bookmark: new Bookmark(), environment },
         );
 
-        // build the checkout's releases, and publish them at its commit pointing latest
-        await using build = await PlatformBuild.build(CHECKOUT, environment);
+        // build the checkout's releases at the version the forge releases next, as a deploy's prepare reads it
+        const version = await PlatformBuild.next(session, deployment.universe.origin, environment);
+        await using build = await PlatformBuild.build(CHECKOUT, environment, { version });
+
+        // publish them at the checkout's commit, pointing latest
         await build.publish(session, deployment.universe.origin, deployment.tag, {
             commit: await readCommit(CHECKOUT, environment),
             tags: [LATEST_TAG],
