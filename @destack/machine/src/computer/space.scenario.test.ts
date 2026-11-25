@@ -27,7 +27,7 @@ import {
     CallError,
     defineInstallationBinding,
 } from "@destack/object";
-import { UniverseOrigin } from "@destack/account/address";
+import { MachineOrigin, UniverseOrigin } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { createClient } from "@destack/object/client";
 import { RequestId, Scope, ObjectReference } from "@destack/sync";
@@ -39,13 +39,12 @@ import { StepUp, principal } from "@destack/access";
 import { expect, refusal, test } from "@destack/test";
 import boardPackage from "../../tests/fixture/board/src/package.ts";
 import machinePackage from "../package.ts";
-import type { TestRelay } from "@destack/relay/test";
 import {
     OWNER_EMAIL,
     PUBLISHER,
-    RELAY_NODE,
     TestComputer,
     type TestComputerOptions,
+    type TestRegionRelay,
     type TestWorld,
     TestDistribution,
 } from "./test/index.ts";
@@ -212,7 +211,7 @@ async function openComputer(
 }
 
 /** Serve a space on a computer of the owner's account through a relay, running echo in process. */
-async function openEcho(world: TestWorld, name: string, relay: TestRelay): Promise<Echoing> {
+async function openEcho(world: TestWorld, name: string, relay: TestRegionRelay): Promise<Echoing> {
     // run instances in the test's process with their packages' workloads, on the computer's node
     const node = `computer-${name}`;
     const runners = workloads(world.simulation.environment(node));
@@ -489,8 +488,8 @@ async function openComputers() {
     const { home } = await TestComputer.home({ organizations: [PUBLISHER] });
     const { world } = home;
 
-    // serve both spaces
-    const relay = await TestComputer.relay(world);
+    // serve both spaces through the relay the home's managed computer hosts
+    const relay = home.relay();
     const source = await openEcho(world, "source", relay);
     const caller = await openEcho(world, "caller", relay);
 
@@ -521,19 +520,19 @@ async function openComputers() {
         return [response.status, await response.json()];
     };
 
-    return { world, source, caller, called, calling, call };
+    return { world, relay, source, caller, called, calling, call };
 }
 
 test("move a space with its files to its caller's computer", async () => {
     // store a file in another bucket of the source space and answer a first call
-    const { world, source, caller, called, calling, call } = await openComputers();
+    const { world, relay, source, caller, called, calling, call } = await openComputers();
     const files = await keepBucket(source, { name: "files", spec: {}, package: echo });
     await (await (await buckets(source)).open({ bucketId: files })).put("notes/a.txt", "first");
     const first = await call("/first");
 
     // cut the source computer off the relay, so its peers neither call nor capture it
     const { network } = world.simulation;
-    network.partition(source.node, RELAY_NODE);
+    network.partition(source.node, relay.computer.node);
 
     // move the space as its owner, stepped up to a second factor, which the caller cannot capture
     const owner = await steppedUp(source);
@@ -593,7 +592,7 @@ test("move a space with its files to its caller's computer", async () => {
         return row?.updatedAt;
     };
     const before = await published();
-    network.heal(source.node, RELAY_NODE);
+    network.heal(source.node, relay.computer.node);
     await source.computer.waitUntil(universe, async () => (await published()) !== before);
     const cancelled = await call("/cancelled");
 
@@ -819,15 +818,28 @@ test("authorize a move by step-up and its fence by a bound token", async () => {
     });
 });
 
-test("publish a renamed machine's relay name without a restart", async () => {
+test("keep a renamed machine's published origin, which its followers go on calling", async () => {
     // serve a computer routing its names through the region's relay
     const world = await TestComputer.world();
     const relay = await TestComputer.relay(world);
     const { computer } = await openComputer(world, world.owner.account, "work", {
         relay: relay.url,
     });
+    const universe = world.universe.storage.database;
+    const published = async () => {
+        const [row] = await universe
+            .select({ url: accountObject.endpoint.table.url })
+            .from(accountObject.endpoint.table)
+            .where(eq(accountObject.endpoint.table.parentId, computer.machine.id));
 
-    // rename the machine as itself and find it published under the new name
+        return row?.url;
+    };
+    const origin = TEST_UNIVERSE.url(
+        MachineOrigin.format(computer.machine.id, TEST_UNIVERSE.domains.machine),
+    );
+    await computer.waitUntil(universe, async () => (await published()) === origin);
+
+    // rename the machine as itself, and wait until the relay's machine has the name
     const { machine, device } = computer;
     const accounts = createClient(
         accountPackage,
@@ -843,19 +855,21 @@ test("publish a renamed machine's relay name without a restart", async () => {
         requestId: RequestId.create(computer.environment),
         name: "renamed",
     });
-    const universe = world.universe.storage.database;
+    const { directory } = relay.computer.computer.machine;
     await computer.waitUntil(universe, async () => {
-        const [published] = await universe
-            .select({ url: accountObject.endpoint.table.url })
-            .from(accountObject.endpoint.table)
-            .where(eq(accountObject.endpoint.table.parentId, machine.id));
+        const named = await directory.snapshot
+            .read(accountObject.machine.table)
+            .findFirst({ where: { id: machine.id } });
 
-        return (
-            published?.url ===
-            TEST_UNIVERSE.machine({ machine: "renamed", handle: world.owner.handle })
-        );
+        return named?.name === "renamed";
     });
-    expect(computer.captured()).toEqual([]);
+
+    // keep the origin, with no follower failing
+    expect([await published(), computer.captured(), relay.computer.captured()]).toEqual([
+        origin,
+        [],
+        [],
+    ]);
 });
 
 test("close a space before its open bucket without a failure", async () => {

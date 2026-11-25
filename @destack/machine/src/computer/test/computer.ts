@@ -36,7 +36,7 @@ import type { PackageId } from "@destack/package";
 import { inject, onTestFinished } from "@destack/test";
 import { Universe } from "@destack/universe";
 import { TEST_UNIVERSE, TestUniverse, UniverseWorld } from "@destack/universe/test";
-import { TestRelay } from "@destack/relay/test";
+import { TUNNEL_PATH } from "@destack/tunnel";
 import type { MachineEnrollment } from "../device/object/index.ts";
 import machinePackage from "../../package.ts";
 import { Computer, type ComputerOptions, MACHINE_KEYS } from "../computer.ts";
@@ -67,9 +67,6 @@ const HTTPS_PORT = 443;
 
 /** The node the region's relay runs as in the simulated network. */
 export const RELAY_NODE = "relay";
-
-/** The host name the region's relay answers at, where computers open their tunnels. */
-const RELAY_HOSTNAME = "relay-eu.machine.test";
 
 /** The region the owner and the cloud machine live in. */
 const REGION: RegionCode = "eu";
@@ -179,6 +176,14 @@ export interface TestComputerOptions {
     readonly keychains?: Readonly<Record<string, Readonly<Record<string, string>>>>;
 }
 
+/** The region's relay a test reaches: its tunnel's URL, and the managed machine hosting it. */
+export interface TestRegionRelay {
+    /** The URL self-hosted machines open their tunnels at. */
+    readonly url: string;
+    /** The region's managed machine hosting the relay. */
+    readonly computer: TestComputer;
+}
+
 /** A Destack computer as its process composes it, in a test universe on a simulated network. */
 export class TestComputer implements AsyncDisposable {
     /** The world the computer runs in. */
@@ -189,6 +194,8 @@ export class TestComputer implements AsyncDisposable {
     readonly computer: Computer;
     /** The computer's node in the world, its process included. */
     readonly environment: Environment<"files" | "process" | "host" | "server">;
+    /** The name of the computer's node on the simulated network. */
+    readonly node: string;
     /** The computer's state directory. */
     readonly directory: string;
     /** The origin the computer answers at on the simulated network. */
@@ -204,6 +211,7 @@ export class TestComputer implements AsyncDisposable {
         readonly options: TestComputerOptions;
         readonly computer: Computer;
         readonly environment: Environment<"files" | "process" | "host" | "server">;
+        readonly node: string;
         readonly directory: string;
         readonly endpoint: string;
         readonly keychains: Map<string, MemoryKeychain>;
@@ -214,6 +222,7 @@ export class TestComputer implements AsyncDisposable {
         this.#options = fields.options;
         this.computer = fields.computer;
         this.environment = fields.environment;
+        this.node = fields.node;
         this.directory = fields.directory;
         this.endpoint = fields.endpoint;
         this.keychains = fields.keychains;
@@ -364,29 +373,26 @@ export class TestComputer implements AsyncDisposable {
         });
     }
 
-    /** Start the region's relay on a node of its own, waiting until it follows the universe. */
-    static async relay(world: TestWorld, defer: Defer = onTestFinished): Promise<TestRelay> {
-        // host the relay as the region's cloud machine does, the names DNS sends it answered on its node
-        const { simulation, universe } = world;
-        const host = await universe.machine(REGION);
-        const relay = await TestRelay.open({
-            universe,
-            host,
-            environment: simulation.environment(RELAY_NODE),
-            hostname: RELAY_HOSTNAME,
-            names: [`*.${TEST_UNIVERSE.domains.machine}`, `*.${TEST_UNIVERSE.domains.space}`],
-        });
-        defer(() => relay[Symbol.asyncDispose]());
+    /** Start the region's managed machine, which hosts the region's relay. */
+    static async relay(world: TestWorld, defer: Defer = onTestFinished): Promise<TestRegionRelay> {
+        // host the relay on the region's managed machine, as its Worker does
+        const computer = await TestComputer.open(
+            { world, region: REGION, node: RELAY_NODE },
+            defer,
+        );
 
-        // wait until its replicas reached the universe
-        const deadline = simulation.clock.timeout(RECEIVE_MILLISECONDS);
-        if (!(await relay.waitCaughtUp(deadline))) {
-            throw new TypeError(`the relay did not catch up in ${RECEIVE_MILLISECONDS} ms`, {
-                cause: deadline.reason,
-            });
-        }
+        return computer.relay();
+    }
 
-        return relay;
+    /** Read the region's relay this managed computer hosts. */
+    relay(): TestRegionRelay {
+        const code = present(this.#options.region, "the region of a managed computer");
+        const region = present(
+            this.world.universe.universe.definition.regions.find((entry) => entry.code === code),
+            `the region '${code}'`,
+        );
+
+        return { url: `${region.relay}${TUNNEL_PATH}`, computer: this };
     }
 
     /** List the templates the run writes once for the computers' worlds. */
@@ -479,13 +485,27 @@ export class TestComputer implements AsyncDisposable {
             throw new TypeError(`the universe declares no origin of '${cloud.id}'`);
         }
         if (declared !== undefined) {
-            const published = environment.server.http({
-                hostname: new URL(declared).hostname,
-                port: HTTPS_PORT,
-                fetch: route,
-                websocket: serving.websocket,
-            });
-            stack.defer(() => published.stop(true));
+            // answer its origin, its region's relay and the names DNS sends it, as its Worker's routes do
+            const region = present(
+                universe.universe.definition.regions.find((entry) => entry.code === options.region),
+                `the region '${String(options.region)}'`,
+            );
+            const { domains } = TEST_UNIVERSE;
+            const hostnames = [
+                new URL(declared).hostname,
+                new URL(region.relay).hostname,
+                `*.${domains.machine}`,
+                `*.${domains.space}`,
+            ];
+            for (const hostname of hostnames) {
+                const published = environment.server.http({
+                    hostname,
+                    port: HTTPS_PORT,
+                    fetch: route,
+                    websocket: serving.websocket,
+                });
+                stack.defer(() => published.stop(true));
+            }
 
             // stand in front of the universe's origin as the platform's machine does, refusing upgrades
             stack.use(
@@ -563,6 +583,7 @@ export class TestComputer implements AsyncDisposable {
             options,
             computer,
             environment,
+            node,
             directory,
             endpoint: declared ?? `http://127.0.0.1:${port}`,
             keychains,

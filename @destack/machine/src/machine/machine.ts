@@ -32,6 +32,7 @@ import {
     type Environment,
     type FetchOptions,
     copyRequest,
+    Once,
     untilAborted,
     WebSocketUpgrade,
 } from "@destack/environment";
@@ -69,7 +70,8 @@ import {
 } from "@destack/tunnel";
 import { Bearer, type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/token";
 import { RequestId, Scope, type Publisher } from "@destack/sync";
-import { HibernationHost, type SocketDelivery } from "@destack/object/workload";
+import { type EphemeralHost, HibernationHost, type SocketDelivery } from "@destack/object/workload";
+import { ProcessRelay, Tunnel } from "@destack/relay/server";
 import { SocketBridge } from "../gateway/bridge.ts";
 import {
     canonicalize,
@@ -133,6 +135,8 @@ export type MachineOptions = Pick<
 > & {
     /** Hand an instance's socket event to its runtime, absent where the runtime keeps them. */
     readonly instances: SocketDelivery | undefined;
+    /** Open the memory of each instance of the region's relay this machine hosts, if any. */
+    readonly relayMemory?: (partition: string | undefined) => EphemeralHost;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** Read the machine's enrollment, through a controller's view when given. */
@@ -165,19 +169,12 @@ type SelfEnrollment = Extract<Enrollment, { readonly kind: "self" }>;
 
 /** A machine: its standing at the universe, the storage of its spaces, and the spaces it serves. */
 export class Machine {
-    /** The universe's tables a machine replicates: machines, keys, names and placements. */
+    /** The universe's tables a machine replicates, the tables of the shapes it follows. */
     static readonly replicated: readonly Table[] = [
-        ...[
-            accountObject.machine,
-            accountObject.key,
-            accountObject.endpoint,
-            accountObject.claim,
-            accountObject.identity,
-            accountObject.operation,
-        ].map((type) => type.table),
-        accountObject.placement.table,
-        accountObject.assignment.table,
-    ];
+        accountObject.directoryShape,
+        accountObject.identityShape,
+        accountObject.machineShape,
+    ].flatMap((shape) => shape.objects.map((type) => type.table));
 
     /** The machine. */
     readonly id: Identifier<"machine">;
@@ -225,6 +222,10 @@ export class Machine {
     readonly #trusted: Set<Digest>;
     /** The releases of the packages the machine links, by package. */
     readonly #linked: Map<PackageId, PackageRelease>;
+    /** Open each instance's memory of the region's relay, absent where this machine hosts none. */
+    readonly #relayMemory: MachineOptions["relayMemory"];
+    /** The region's relay this machine hosts, started on first use, absent where it hosts none. */
+    readonly #relay = new Once<ProcessRelay | undefined>();
     /** The images of the linked releases, pulled once, by package name. */
     #linkedImages: Promise<ReadonlyMap<string, BuildImage>> | undefined;
     /** The releases the machine ships, by package. */
@@ -311,6 +312,7 @@ export class Machine {
         this.alarm = options.alarm;
         this.server = options.server;
         this.#linked = new Map(options.linked);
+        this.#relayMemory = options.relayMemory;
         this.shipped = new Map(
             options.shipped.map((each) => [PackageId.parse(each.package.id), each]),
         );
@@ -684,9 +686,25 @@ export class Machine {
 
             return new Response(null, { status: 204 });
         }
+        // hand a tunnel's event to the relay running here, a refusal closing the socket once it stopped
+        else if (Tunnel.isPartition(instance)) {
+            const relay = await this.#relay.current();
+            if (relay === undefined) {
+                const stopped = `'${this.id}' is unavailable: its relay stopped`;
 
+                return refusal(
+                    MachineError.of("MACHINE_UNAVAILABLE", stopped),
+                    this.environment.telemetry,
+                );
+            }
+            await relay.receive(instance, new Request(`http://relay${path}`, request));
+
+            return new Response(null, { status: 204 });
+        }
         // hand an instance's to the runtime running it
-        return instances(instance, path, request);
+        else {
+            return instances(instance, path, request);
+        }
     }
 
     /** Send a request to another origin as it is, with a lent call's client certificate. */
@@ -1109,10 +1127,14 @@ export class Machine {
         // serve a space placed here, taking an origin of one placed elsewhere as a name
         const routed = await this.#route(request);
         const isOrigin = InstallationOrigin.of(request, this.domain) !== undefined;
+        if (routed === undefined && isOrigin) {
+            return this.serveName(request);
+        }
 
-        return routed === undefined && isOrigin
-            ? this.serveName(request)
-            : this.#serve(routed, voucher);
+        // relay a request for no space here, such as a tunnel's opening, where the region's relay runs
+        const relay = routed === undefined ? await this.relay() : undefined;
+
+        return relay === undefined ? this.#serve(routed, voucher) : relay.fetch(request);
     }
 
     /** Send an npm client at the universe's origin to the forge of the handle it asks for. */
@@ -1167,7 +1189,47 @@ export class Machine {
             return routed;
         }
 
-        return this.#serve(routed);
+        // relay a name of no space here, where the region's relay runs
+        const relay = routed === undefined ? await this.relay() : undefined;
+
+        return relay === undefined ? this.#serve(routed) : relay.fetch(request);
+    }
+
+    /** Read the region's relay this machine hosts, started once, absent where it hosts none. */
+    relay(): Promise<ProcessRelay | undefined> {
+        return this.#relay.get(() => this.#startRelay());
+    }
+
+    /** Start the region's relay on a managed machine serving hostnames, at its region's relay. */
+    async #startRelay(): Promise<ProcessRelay | undefined> {
+        // host none on a machine without hostnames, sockets or relay memory
+        const memory = this.#relayMemory;
+        const { hibernation } = this;
+        if (!this.isServingHostnames || hibernation === undefined || memory === undefined) {
+            return undefined;
+        }
+
+        // read the machine's region and its relay's origin
+        const snapshot = this.directory.snapshot;
+        const row = present(
+            await snapshot.read(accountObject.machine.table).findFirst({ where: { id: this.id } }),
+            `the machine ${this.id}`,
+        );
+        const region = await accountObject.Region.require(
+            snapshot,
+            present(row.regionId, `the region of the managed machine ${this.id}`),
+        );
+
+        return new ProcessRelay({
+            origin: region.relay,
+            region: region.code,
+            universe: await this.universe(),
+            principal: principal.machine.reference(Scope.universe.id, this.id),
+            publisher: (scope) => this.publisher(scope),
+            memory,
+            hibernation,
+            environment: this.environment,
+        });
     }
 
     /** Report whether a request is for a space started here with the package below its mount. */
@@ -1251,7 +1313,7 @@ export class Machine {
                 // open the tunnel peers reach a personal machine through before its spaces start, while enrolled
                 const isEnrolled = await this.isEnrolled();
                 if (current.status !== undefined && isEnrolled) {
-                    tunnel ??= await this.#relay();
+                    tunnel ??= await this.#openTunnel();
                 }
 
                 // close the spaces while not enrolled
@@ -1428,10 +1490,11 @@ export class Machine {
         // refuse requests until the next serve
         this.health.set("draining", "it stops serving");
 
-        // close every space, then the tunnel, and settle the announcement, idle again
+        // close every space and the hosted relay before the connections they follow through, then the tunnel
         try {
             await this.#closeSpaces();
         } finally {
+            await (await this.#relay.take())?.[Symbol.asyncDispose]();
             this.#closeConnections();
             await tunnel?.[Symbol.asyncDispose]();
             await announced;
@@ -1509,8 +1572,8 @@ export class Machine {
         return this.#origin;
     }
 
-    /** Keep a personal machine's tunnel open at its relay, renewed under each name it gives. */
-    async #relay(): Promise<AsyncDisposable> {
+    /** Keep a personal machine's tunnel open at its relay. */
+    async #openTunnel(): Promise<AsyncDisposable> {
         // open none for a cloud machine, which answers at its declared origin, nor for a personal one without a relay
         const enrollment = await this.enrolled("opening its tunnel");
         const relayed = this.#tunnel;

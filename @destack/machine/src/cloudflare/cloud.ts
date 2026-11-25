@@ -22,8 +22,11 @@ import { type LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { Envelope, EnvelopeConfiguration } from "@destack/identity/aws";
 import { MailSender } from "@destack/mail/sender";
 import { mailConnector } from "@destack/mail/transport";
-import { CallKey, PackageMount, tablesOf } from "@destack/object";
-import { type Identifier, schema } from "@destack/schema";
+import { CallKey, type Fetch, PackageMount, tablesOf } from "@destack/object";
+import { principal } from "@destack/access";
+import { RelayHost } from "@destack/relay/server";
+import { Scope } from "@destack/sync";
+import { type Identifier, present, schema } from "@destack/schema";
 import type { DurableObjectNamespace, PartitionBindings } from "./runtime/index.ts";
 import { defineDatabase } from "@destack/db";
 import { DIRECTORY_PREFIX, directoryConfiguration, directoryWorkload } from "./directory.ts";
@@ -44,6 +47,9 @@ export const CLOUD_RUNTIMES = ["workerd", "browser"] as const;
 
 /** The header Cloudflare writes a public request's client address into, which marks it public. */
 export const CONNECTING_IP_HEADER = "cf-connecting-ip";
+
+/** The name of the object running the region's relay's root, and below it each tunnel's. */
+const RELAY_OBJECT = "relay";
 
 /** The bindings of a cloud machine's spaces' storage. */
 export interface CloudflareStorageBindings {
@@ -301,16 +307,7 @@ export class CloudMachine {
         await database.migrate(CloudMachine.database.tables);
 
         // follow them as the machine through the universe's account package
-        const publisher = ObjectConnection.open({
-            url: ObjectConnection.url(
-                PackageMount.url(CloudMachine.universe(this.bindings).origin, accountPackage.id),
-            ),
-            authorize: (request) =>
-                this.identity
-                    .at(this.issuer, (sent) => this.environment.network.fetch(sent))
-                    .authorize(request, accountPackage.id, {}),
-            environment: this.environment,
-        });
+        const publisher = this.publisher();
         const instance = await WorkloadInstance.start(directoryWorkload, {
             environment: this.environment,
             resources: new ResourceContext().bind(directoryConfiguration, {
@@ -339,6 +336,76 @@ export class CloudMachine {
             fetch: (request) => host.read(request),
             alarm: (deadline) => instance.alarm(deadline),
         };
+    }
+
+    /** Open the machine's connection to the universe's account package, followed as itself. */
+    publisher(): ObjectConnection {
+        return ObjectConnection.open({
+            url: ObjectConnection.url(
+                PackageMount.url(CloudMachine.universe(this.bindings).origin, accountPackage.id),
+            ),
+            authorize: (request) =>
+                this.identity
+                    .at(this.issuer, (sent) => this.environment.network.fetch(sent))
+                    .authorize(request, accountPackage.id, {}),
+            environment: this.environment,
+        });
+    }
+
+    /** Host the region's relay, at its region's relay origin, calling its instances' objects. */
+    async relay(): Promise<RelayHost> {
+        // read the machine's region and its relay's origin from the directory replica
+        const snapshot = this.replica.snapshot();
+        const row = present(
+            await snapshot.read(accountObject.machine.table).findFirst({ where: { id: this.id } }),
+            `the machine ${this.id}`,
+        );
+        const region = await accountObject.Region.require(
+            snapshot,
+            present(row.regionId, `the region of the managed machine ${this.id}`),
+        );
+
+        // follow the universe as the machine, and call each instance in its own object
+        const publisher = this.publisher();
+
+        return new RelayHost({
+            origin: region.relay,
+            region: region.code,
+            universe: CloudMachine.universe(this.bindings),
+            principal: principal.machine.reference(Scope.universe.id, this.id),
+            publisher: () => publisher,
+            tunnels: (request) => this.relayObject(RelayHost.partition(request)).fetch(request),
+            environment: this.environment,
+        });
+    }
+
+    /** Read the object running the relay's root, or a tunnel's partition below it. */
+    relayObject(partition: string | undefined): { readonly fetch: Fetch } {
+        const objects = Jurisdiction.narrow(
+            this.bindings.PARTITION,
+            this.bindings.DESTACK_JURISDICTION,
+        );
+        const name = partition === undefined ? RELAY_OBJECT : `${partition}--${RELAY_OBJECT}`;
+
+        return objects.get(objects.idFromName(name));
+    }
+
+    /** Read the partition a relay object runs, the root's as absent, nothing for another object. */
+    static relayPartition(name: string | undefined): { readonly partition?: string } | undefined {
+        const suffix = `--${RELAY_OBJECT}`;
+
+        // read the root's object
+        if (name === RELAY_OBJECT) {
+            return {};
+        }
+        // read a tunnel's, below the root's name
+        else if (name?.endsWith(suffix) === true) {
+            return { partition: name.slice(0, -suffix.length) };
+        }
+        // read any other object as none
+        else {
+            return undefined;
+        }
     }
 
     /** Refuse a call to the replicas' packages, which serve nothing. */

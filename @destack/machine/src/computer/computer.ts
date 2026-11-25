@@ -70,6 +70,7 @@ import {
     LOOPBACK_DOMAIN,
     S3Origin,
     MachineAddress,
+    MachineOrigin,
 } from "@destack/account/address";
 import { ComputerServer } from "./server/index.ts";
 import { LocalSpaceStorage } from "./storage.ts";
@@ -394,6 +395,17 @@ export class Computer implements AsyncDisposable {
                     isEnforcingEntitlements: false,
                     // serve accounts' hostnames on a managed machine, which their DNS points at
                     isServingHostnames: options.enrollment?.kind === "managed",
+                    // keep the region's relay a managed machine hosts in this process's memory
+                    ...(options.enrollment?.kind === "managed"
+                        ? {
+                              relayMemory: () => ({
+                                  open: (tables) =>
+                                      connectBunSqlite(":memory:", tables, {
+                                          environment: options.environment,
+                                      }),
+                              }),
+                          }
+                        : {}),
                     domain: LOOPBACK_DOMAIN,
                     runtimes: [runtime, new ProcessRuntime()],
                     instances: async (instanceId, path, request) => {
@@ -1266,10 +1278,12 @@ export class Computer implements AsyncDisposable {
 
     /** Route a request the relay forwards through this machine's tunnel. */
     async relay(request: Request): Promise<Response> {
-        // serve a name the relay routes here, else the machine's peers
+        // serve a name the relay routes here, else the machine's peers at its origin or its name
         const url = new URL(request.url);
         const { domains } = await this.machine.universe();
-        if (MachineAddress.parse(url.hostname, domains.machine) === undefined) {
+        const isOrigin = MachineOrigin.parse(url.hostname, domains.machine) !== undefined;
+        const isName = MachineAddress.parse(url.hostname, domains.machine) !== undefined;
+        if (!isOrigin && !isName) {
             return this.machine.serveName(request);
         }
 

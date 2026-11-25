@@ -373,7 +373,7 @@ async function openHome(): Promise<Served> {
 /** Serve a work space of the owner's account on their own computer in the home's world. */
 async function openWork(home: Served): Promise<Served> {
     // enroll the owner's computer through the relay in their account, and create the space on it
-    const relay = await TestComputer.relay(home.computer.world);
+    const relay = home.computer.relay();
     const computer = await TestComputer.open({ world: home.computer.world, relay: relay.url });
     const { owner } = computer.world;
     const signedIn = await computer.signIn(OWNER_EMAIL);

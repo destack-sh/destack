@@ -13,7 +13,7 @@ test("deliver a home change to a laptop replica soon after the home restarts", a
     // run the owner's home in the cloud, and their laptop through the relay, signed in
     const { home, login } = await TestComputer.home();
     const { world } = home;
-    const relay = await TestComputer.relay(world);
+    const relay = home.relay();
     const laptop = await TestComputer.open({ world, relay: relay.url });
     const signedIn = await laptop.signIn(OWNER_EMAIL);
     await laptop.enroll(signedIn, world.owner.account);

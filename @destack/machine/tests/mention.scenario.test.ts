@@ -44,7 +44,7 @@ test("project a mention on a card in a sandboxed space on one computer into the 
     const { world } = home;
 
     // serve the board's space on another computer behind the relay, shared with another person
-    const relay = await TestComputer.relay(world);
+    const relay = home.relay();
     const account = found(organizations, PUBLISHER.handle);
     const source = await openBoard(home, account, { relay: relay.url });
     const stranger = await grantStranger(world, source);

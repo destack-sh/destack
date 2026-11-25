@@ -15,7 +15,12 @@ import type { SpaceAddress } from "@destack/account/address";
 import { Directory } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
 import { AlarmClock, type Alarm } from "@destack/db/database";
-import { type DurableObjectStorage, Jurisdiction, CONTENT_PATH } from "@destack/db/cloudflare";
+import {
+    type DurableObjectStorage,
+    DurableObjectDatabaseHost,
+    Jurisdiction,
+    CONTENT_PATH,
+} from "@destack/db/cloudflare";
 import { Forwarded, Once, WebSocketUpgrade } from "@destack/environment";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ClaimLookup, claimTable, InstallationMount, Egress, refusal } from "@destack/object";
@@ -26,7 +31,14 @@ import {
     type DurableObjectWorkloadInstance,
     type Upgrade,
 } from "@destack/object/cloudflare";
-import { type HibernationHost, SOCKET_HEADER, SocketRefusal } from "@destack/object/workload";
+import {
+    type EphemeralHost,
+    HibernationHost,
+    SOCKET_HEADER,
+    SocketRefusal,
+    type WorkloadInstance,
+} from "@destack/object/workload";
+import { RelayHost } from "@destack/relay/server";
 import { type Identifier, present, schema } from "@destack/schema";
 import { SettingValue } from "@destack/setting/object";
 import { Route } from "@destack/stack/object";
@@ -92,6 +104,12 @@ type PartitionObjectState = PartitionState & {
 /** The tag of the space store's WebSockets, beside the installations' tags their facets keep. */
 const STORE_SOCKET_TAG = "store";
 
+/** The tag of a relay tunnel's WebSockets, in its own object. */
+const TUNNEL_SOCKET_TAG = "tunnel";
+
+/** The host relay instances call each other at, which stays inside the machine's objects. */
+const TUNNELS_HOST = "tunnels";
+
 /** The space a partition's object serves, with its storage and its instances' runtime. */
 interface ServedSpace {
     /** The space. */
@@ -102,7 +120,17 @@ interface ServedSpace {
     readonly runtime: WorkerdRuntime;
 }
 
-/** A partition's object: the machine's directory, a space and its facets, or a partition. */
+/** A relay instance a relay object runs: the root, or a tunnel with its sockets. */
+interface RelayObject {
+    /** The host the instance started from. */
+    readonly host: RelayHost;
+    /** The instance. */
+    readonly instance: WorkloadInstance;
+    /** The host of a tunnel's sockets, which the object hibernates. */
+    readonly sockets: HibernationHost;
+}
+
+/** A partition's object: the directory, a relay instance, a space and facets, or a partition. */
 export class PartitionObject {
     /** The object's state. */
     readonly #state: PartitionObjectState;
@@ -122,6 +150,10 @@ export class PartitionObject {
     readonly #facets: FacetHost;
     /** The space store's WebSockets, kept for its machine's host across hibernation. */
     readonly #storeHibernation: DurableObjectHibernation;
+    /** The relay instance the object runs, in a relay object alone. */
+    readonly #relay: Promise<RelayObject> | undefined;
+    /** A relay tunnel's WebSockets, kept for its sockets' host across hibernation. */
+    readonly #tunnelHibernation: DurableObjectHibernation;
 
     /** Resume the space the object served before any event. */
     constructor(state: PartitionObjectState, bindings: MachineBindings) {
@@ -132,6 +164,14 @@ export class PartitionObject {
         this.#alarms = new AlarmClock(state.storage, state.storage);
         this.#facets = new FacetHost(state, bindings, WorkerdEnvironment.system, this.#alarms);
         this.#storeHibernation = new DurableObjectHibernation(state, STORE_SOCKET_TAG);
+        this.#tunnelHibernation = new DurableObjectHibernation(state, TUNNEL_SOCKET_TAG);
+
+        // run the relay's root, or a tunnel, in a relay object
+        const relayed = CloudMachine.relayPartition(state.id.name);
+        this.#relay =
+            relayed === undefined
+                ? undefined
+                : state.blockConcurrencyWhile(() => this.#startRelay(relayed.partition));
 
         // follow the directory in the machine partition's object
         const objects = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
@@ -159,6 +199,10 @@ export class PartitionObject {
         // answer the reads of the machine's directory replica
         if (this.#directory !== undefined) {
             return (await this.#directory).fetch(request);
+        }
+        // answer a relay instance's calls and names
+        else if (this.#relay !== undefined) {
+            return this.#relayed(await this.#relay, request);
         }
 
         // add the work the tail traced to the space's traffic
@@ -235,8 +279,13 @@ export class PartitionObject {
         socket: HibernatingSocket,
         message: ArrayBuffer | string,
     ): Promise<void> {
+        // hand a tunnel's message to its sockets' host
+        if (this.#tunnelHibernation.has(socket)) {
+            const { sockets } = await present(this.#relay, "the tunnel of the socket");
+            this.#tunnelHibernation.message(sockets, socket, message);
+        }
         // hand the store's message to its machine's host, which delivers each in order
-        if (this.#storeHibernation.has(socket)) {
+        else if (this.#storeHibernation.has(socket)) {
             this.#storeHibernation.message(await this.#storeHost(), socket, message);
         }
         // hand an installation's to its facet
@@ -247,14 +296,60 @@ export class PartitionObject {
 
     /** Hand an accepted WebSocket's close to the space's store, else to its installation. */
     async webSocketClose(socket: HibernatingSocket, code: number, reason: string): Promise<void> {
+        // hand a tunnel's close to its sockets' host
+        if (this.#tunnelHibernation.has(socket)) {
+            const { sockets } = await present(this.#relay, "the tunnel of the socket");
+            this.#tunnelHibernation.close(sockets, socket, code, reason);
+        }
         // hand the store's close to its machine's host
-        if (this.#storeHibernation.has(socket)) {
+        else if (this.#storeHibernation.has(socket)) {
             this.#storeHibernation.close(await this.#storeHost(), socket, code, reason);
         }
         // hand an installation's to its facet
         else {
             await this.#facets.socket(socket).webSocketClose(socket, code, reason);
         }
+    }
+
+    /** Answer a relay instance's call as the machine, else hand a name to the root's names. */
+    async #relayed(running: RelayObject, request: Request): Promise<Response> {
+        // hand a name the Worker relays to the root's names
+        const { host, instance, sockets } = running;
+        if (new URL(request.url).host !== TUNNELS_HOST) {
+            return host.names(instance, request);
+        }
+
+        // call the instance, keeping the socket of an upgrade a tunnel accepts in this object
+        const answer = await host.call(instance, request);
+        const isAccepted =
+            WebSocketUpgrade.of(request) !== undefined && answer.headers.has(SOCKET_HEADER);
+
+        return isAccepted ? this.#tunnelHibernation.accept(sockets, answer) : answer;
+    }
+
+    /** Start the relay's root or a tunnel over the object's storage, its sockets kept here. */
+    async #startRelay(partition: string | undefined): Promise<RelayObject> {
+        // keep the instance's memory in the object's storage, which outlives hibernation
+        const cloud = await this.#machine();
+        const host = await cloud.relay();
+        const storage = new DurableObjectDatabaseHost(this.#storage, cloud.environment);
+        const memory: EphemeralHost = { open: async (tables) => storage.connect(tables) };
+
+        // hibernate a tunnel's sockets under its partition, delivering their events to the instance
+        const sockets: HibernationHost = new HibernationHost(async (instanceId, path, request) => {
+            const { instance } = await present(this.#relay, "the relay instance of the socket");
+            await sockets
+                .instance(instanceId)
+                .receive(new Request(`http://relay${path}`, request), instance.sockets);
+
+            return new Response(null, { status: 204 });
+        }, cloud.environment.telemetry);
+        const instance = await host.start(partition, {
+            memory,
+            ...(partition === undefined ? {} : { hibernation: sockets.instance(partition) }),
+        });
+
+        return { host, instance, sockets };
     }
 
     /** Read the host of the served space's machine, which keeps the store's sockets. */
@@ -583,8 +678,12 @@ export class MachineWorker {
             return routed;
         }
 
-        // refuse a request outside every space, or to the path the tail posts traced work at
-        if (routed === undefined || new URL(routed.request.url).pathname === TRACES_PATH) {
+        // relay a request for no space here to the region's relay, a name of a machine or of a space elsewhere
+        if (routed === undefined) {
+            return (await this.#machine(bindings)).relayObject(undefined).fetch(request);
+        }
+        // refuse the path the tail posts traced work at
+        else if (new URL(routed.request.url).pathname === TRACES_PATH) {
             return new Response(null, { status: 404 });
         }
 

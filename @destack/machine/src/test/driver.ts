@@ -129,8 +129,6 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
     readonly #invitations = new Map<string, string>();
     /** The spaces the world created, by name. */
     readonly #spaces = new Map<string, Identifier<"space">>();
-    /** The relay personal computers reach each other through, opened with the first of them. */
-    #relay: Awaited<ReturnType<typeof TestComputer.relay>> | undefined;
     /** The failures the devices' loops reported. */
     readonly #failures: unknown[] = [];
 
@@ -178,11 +176,11 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         }
         // start a personal computer through the relay with the owner signed in
         else if (step.action === "open") {
-            this.#relay ??= await TestComputer.relay(this.home.world);
+            const relay = this.home.relay();
             const computer = await TestComputer.open({
                 world: this.home.world,
                 node: step.computer,
-                relay: this.#relay.url,
+                relay: relay.url,
             });
             const signedIn = await computer.signIn(OWNER_EMAIL);
             await computer.enroll(signedIn, this.home.world.owner.account);
