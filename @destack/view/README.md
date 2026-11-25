@@ -95,6 +95,7 @@ A static view has an `origin`, `pages` with its paths, an optional `document`, a
 `useQuery(note, (query) => query.findMany(…))` follows a query of notes, as in `@destack/db`, on the person's device.
 `useMutation(note, "update")` calls a method of notes, as in `@destack/object`, its prediction showing at once.
 Each reads and writes the scope the type lives in for the view, or `{ scope }`: `"home"`, `"account"`, or a space's identifier.
+`useSearch(text, { types, limit })` finds objects as a person types, in the scopes of the view.
 `useFiles(note)` sends files of notes and writes their addresses, as `ObjectFileClient` in `@destack/object`.
 
 ### Actions

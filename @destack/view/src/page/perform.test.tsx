@@ -1,18 +1,28 @@
 import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import type { Environment } from "@destack/environment";
-import { argument, plural, t } from "@destack/locale";
-import { defineAction, defineObject, field, picked, Place, selected } from "@destack/object";
+import { argument, Localization, plural, t } from "@destack/locale";
+import {
+    type Choice,
+    defineAction,
+    defineObject,
+    field,
+    picked,
+    Place,
+    searchable,
+    selected,
+} from "@destack/object";
 import { ObjectRemote } from "@destack/object/client";
 import { ObjectClient } from "@destack/object/device";
-import { type JsonValue, schema } from "@destack/schema";
+import { type JsonValue, present, schema } from "@destack/schema";
 import { type ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testWorld } from "../test/browser.ts";
 import type {} from "@destack/package/import-meta";
-import { flush } from "solid-js";
+import { createSignal, flush, Loading } from "solid-js";
 import { render } from "../test/index.ts";
 import { ActionRegistry, type ActionQuestion } from "./action.ts";
+import { useQuery, useSearch } from "../scope/index.ts";
 import { useAction } from "./state.ts";
 
 /** A board with cards. */
@@ -39,6 +49,7 @@ const card = defineObject(
             status: field.enum(["open", "done"]).default("open"),
         },
         access: { permissions: { read: relation("owner"), edit: relation("owner") } },
+        traits: [searchable({ text: ["title"] })],
     },
     (method) => ({
         list: method.list("read"),
@@ -158,7 +169,7 @@ async function openPage() {
             )
         ).map((rows) => rows.map((row) => `${row.title} ${row.status}`));
 
-    return { actions, cards, state };
+    return { actions, cards, clients: [first, second] as const, state };
 }
 
 test("call a method on the objects selected across spaces, and leave what it does not apply to", async () => {
@@ -289,4 +300,159 @@ test("follow the value every target has, as its rows change", async () => {
         names: "state",
         told: [["open"], [], ["done"]],
     });
+});
+
+/** Write the titles of some choices, nothing for none. */
+function titlesOf(choices: readonly Choice[] | undefined): string {
+    return (choices ?? []).map(({ title }) => title).join();
+}
+
+test("pick among every object a search finds, past those listed first", async () => {
+    // add more cards than a list shows, the last found by its words alone
+    const { actions, clients } = await openPage();
+    const [first] = clients;
+    for (let index = 0; index < 210; index += 1) {
+        await first.mutate(card).create({ title: `Card ${String(index)}` }).predicted;
+    }
+    await first.mutate(card).create({ title: "Zebra crossing" }).predicted;
+    const localization = Localization.of("en", []);
+    const input = present(
+        follow.inputs.find(({ name }) => name === "after"),
+        "the picked input",
+    );
+    const listed = await actions.choices(follow, input, null, localization);
+
+    // search as a person types, the choices found before staying until the next are read
+    const [text, setText] = createSignal<string | undefined>("zeb");
+    const { container } = render(
+        () => {
+            const found = useSearch(text, {
+                types: [card],
+                limit: 5,
+                scope: actions.scopeOf(follow, input, null),
+            });
+
+            return <output>{titlesOf(found.choices())}</output>;
+        },
+        { actions },
+    );
+    const shown: (string | null)[] = [];
+    const settle = async (expected: string) => {
+        await expect
+            .poll(() => {
+                flush();
+                shown.push(container.textContent);
+
+                return container.textContent;
+            })
+            .toBe(expected);
+    };
+    await settle("Zebra crossing");
+    shown.length = 0;
+    setText("cross");
+    await settle("Zebra crossing");
+
+    expect({ listed: listed.length, blanks: shown.filter((each) => each === "") }).toEqual({
+        listed: 200,
+        blanks: [],
+    });
+});
+
+test("search every scope of a view live, the most relevant first", async () => {
+    // search the cards of the first board as a person types
+    const { actions, clients } = await openPage();
+    const [first, second] = clients;
+    await first.mutate(card).create({ title: "The order book" }).predicted;
+    await second.mutate(card).create({ title: "Order" }).predicted;
+    actions.attach({ clients: new Map([[BOARDS[0], first]]), scope: BOARDS[0] });
+    const [text, setText] = createSignal<string | undefined>("order");
+    const { container } = render(
+        () => {
+            const found = useSearch(text, { types: [card], limit: 5 });
+
+            return (
+                <output>
+                    {titlesOf(found.choices())}
+                    {found.isPending() ? " pending" : ""}
+                </output>
+            );
+        },
+        { actions },
+    );
+    const settle = async (expected: string) => {
+        await expect
+            .poll(() => {
+                flush();
+
+                return container.textContent;
+            })
+            .toBe(expected);
+    };
+    await settle("The order book pending");
+
+    // attach the second board, and add and rename cards that match
+    actions.attach({
+        clients: new Map([
+            [BOARDS[0], first],
+            [BOARDS[1], second],
+        ]),
+        scope: BOARDS[0],
+    });
+    await settle("Order,The order book pending");
+    const { id } = await first.mutate(card).create({ title: "Order form" }).predicted;
+    await settle("Order,Order form,The order book pending");
+    await first.mutate(card).update({ id, title: "Margins" }).predicted;
+    await settle("Order,The order book pending");
+
+    // type on, and clear the text
+    setText("order b");
+    await settle("The order book pending");
+    setText(undefined);
+    await settle("");
+});
+
+test("follow another query as a filter changes, showing the last rows until it reads", async () => {
+    // follow the cards whose title has a word
+    const { actions, clients } = await openPage();
+    const [first] = clients;
+    const [text, setText] = createSignal("apples");
+    const { container } = render(
+        () => {
+            const cards = useQuery(() =>
+                first.queryType(card).findMany({ where: { SEARCH: text() } }),
+            );
+
+            return (
+                <Loading fallback={<output>Loading</output>}>
+                    <output>
+                        {cards()
+                            .map(({ title }) => title)
+                            .join()}
+                    </output>
+                </Loading>
+            );
+        },
+        { actions },
+    );
+    const shown: (string | null)[] = [];
+    const settle = async (expected: string) => {
+        await expect
+            .poll(() => {
+                flush();
+                shown.push(container.textContent);
+
+                return container.textContent;
+            })
+            .toBe(expected);
+    };
+    await settle("Apples");
+
+    // filter by another word, and add a card that has it
+    shown.length = 0;
+    setText("bread");
+    await settle("Bread");
+    await first.mutate(card).create({ title: "Bread rolls" }).predicted;
+    await settle("Bread,Bread rolls");
+
+    expect([...new Set(shown)]).toEqual(["Apples", "Bread", "Bread,Bread rolls"]);
 });

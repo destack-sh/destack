@@ -162,6 +162,10 @@ export class ActionRegistry {
     readonly #revision: Accessor<number>;
     /** Replace the count of changes. */
     readonly #setRevision: Setter<number>;
+    /** The clients of the scopes the page opens, which searches follow. */
+    readonly #clients: Accessor<readonly ObjectClient[]>;
+    /** Replace the clients. */
+    readonly #setClients: Setter<readonly ObjectClient[]>;
 
     /** Create a page's registry without handlers, its keys the person's, else the declared ones. */
     constructor(keybindings: Accessor<Readonly<Record<string, Shortcut | null>>> = () => ({})) {
@@ -170,6 +174,13 @@ export class ActionRegistry {
         const [revision, setRevision] = createSignal(0, { ownedWrite: true });
         this.#revision = revision;
         this.#setRevision = setRevision;
+
+        // follow the clients apart from the handlers, which change far more
+        const [clients, setClients] = createSignal<readonly ObjectClient[]>([], {
+            ownedWrite: true,
+        });
+        this.#clients = clients;
+        this.#setClients = setClients;
 
         // follow where the person is
         const [last, setLast] = createSignal<Element | null>(null, { ownedWrite: true });
@@ -401,23 +412,18 @@ export class ActionRegistry {
         if (client === undefined) {
             return [];
         }
-        const live = client.queryType(type).findMany({ where, limit: CHOICES }).subscribe();
-        const rows = await live.read();
+        const live = client.search("", { types: [type], where, limit: CHOICES }).subscribe();
+        const hits = await live.read();
         await live.close();
 
-        // read how each looks at this moment
-        const { moment } = client.context();
+        return hits.map((hit) => client.choice(hit, localization));
+    }
 
-        return rows.map((each) => {
-            // read the row
-            const row = JsonValue.object(each);
-            const id = schema.string().parse(row["id"]);
-
-            return {
-                value: type.policy.reference(client.scope, id),
-                ...type.appearance(row, moment, localization),
-            };
-        });
+    /** Find the space an input's objects are in: the one its action is on, else the page's. */
+    scopeOf(action: Action, { value }: ActionInput, element: Element | null): string | undefined {
+        return value.kind === "object"
+            ? this.#clientOf(value.type, this.#scopeAt(action, element))?.scope
+            : undefined;
     }
 
     /** List the values an input has as the action's handler tells, absent where it tells none. */
@@ -541,6 +547,14 @@ export class ActionRegistry {
     attach(host: ActionHost): void {
         this.#host = host;
         this.#changed();
+        if (!isServer) {
+            this.#setClients([...host.clients.values()]);
+        }
+    }
+
+    /** List the clients of the scopes the page opens. */
+    clients(): readonly ObjectClient[] {
+        return this.#clients();
     }
 
     /** Ask the person through a part of the page, the latest, until it stops. */

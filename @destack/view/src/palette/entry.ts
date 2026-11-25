@@ -1,12 +1,10 @@
+import { Search } from "@destack/db";
 import { InstallationOrigin } from "@destack/account/address";
 import { DeclarationName, OriginPath, PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Shortcut } from "@destack/locale";
 import { OBJECT_PARAMETER, TARGET_PARAMETER } from "../declare/context.ts";
-
-/** How strongly a title matching the query from its start ranks. */
-const MATCHES = { start: 3, word: 2, inside: 1 } as const;
 
 /** How much higher an entry ranks for the focused window. */
 const BOOSTS = { space: 0.25, installation: 0.5, object: 1 } as const;
@@ -161,10 +159,13 @@ export type PaletteFocus = schema.Infer<typeof paletteFocus>;
 export const Palette = {
     /** Rank the entries that match a query. */
     rank(entries: readonly PaletteEntry[], query: string, focus: PaletteFocus): PaletteEntry[] {
+        const search = Search.of(query);
         const scored = entries.flatMap((entry) => {
-            const match = Palette.match(entry, query);
+            const match = Palette.match(entry, search);
 
-            return match === 0 ? [] : [{ entry, score: match + Palette.boost(entry, focus) }];
+            return match === undefined
+                ? []
+                : [{ entry, score: match + Palette.boost(entry, focus) }];
         });
 
         return scored
@@ -175,25 +176,12 @@ export const Palette = {
             .map(({ entry }) => entry);
     },
 
-    /** Score how an entry's title, installation or category matches a query. */
-    match(entry: PaletteEntry, query: string): number {
-        // match every entry for an empty query
-        const wanted = query.trim().toLowerCase();
+    /** Score how an entry's words match a search, undefined where they do not. */
+    match(entry: PaletteEntry, search: Search): number | undefined {
         const installation = "installation" in entry ? entry.installation : "";
         const category = "category" in entry ? (entry.category ?? "") : "";
-        const text = `${entry.title} ${installation} ${category}`.toLowerCase();
-        if (wanted === "") {
-            return MATCHES.inside;
-        }
 
-        // prefer a match at the start, then at a word's start
-        if (text.startsWith(wanted)) {
-            return MATCHES.start;
-        } else if (text.split(/\s+/u).some((word) => word.startsWith(wanted))) {
-            return MATCHES.word;
-        }
-
-        return text.includes(wanted) ? MATCHES.inside : 0;
+        return search.score([entry.title, installation, category]);
     },
 
     /** Score how an entry relates to the focused window. */

@@ -131,6 +131,8 @@ async function* follow<Value>(
     node: ObjectNode | Promise<ObjectNode>,
     query: (node: ObjectNode) => RelationalQuery<Value>,
     signal: AbortSignal,
+    options: SubscribeOptions = {},
+    onReady?: () => void,
 ): AsyncGenerator<Value> {
     const live = query(await node).subscribe();
     try {
