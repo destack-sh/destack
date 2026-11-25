@@ -145,37 +145,51 @@ type ShortcutKey =
     | "="
     | "-";
 
-/** A literal shortcut the compiler checks, never for one the syntax refuses. */
-export type ShortcutText<Text extends string> = Text extends `${ShortcutModifier}+${infer Rest}`
-    ? [ShortcutText<Rest>] extends [never]
+/** A literal stroke the compiler checks, never for one the syntax refuses. */
+type StrokeText<Text extends string> = Text extends `${ShortcutModifier}+${infer Rest}`
+    ? [StrokeText<Rest>] extends [never]
         ? never
         : Text
     : Text extends ShortcutKey
       ? Text
       : never;
 
-/** A key combination in the keybinding syntax editors write. */
+/** A literal shortcut the compiler checks, never for one the syntax refuses. */
+export type ShortcutText<Text extends string> = Text extends `${infer First} ${infer Rest}`
+    ? [StrokeText<First>] extends [never]
+        ? never
+        : [ShortcutText<Rest>] extends [never]
+          ? never
+          : Text
+    : StrokeText<Text>;
+
+/** A stroke of a shortcut: a key with the modifiers held. */
+const STROKE =
+    "(?:(?:(?:mod|ctrl|alt|shift|meta)\\+)*(?:[a-z0-9]|space|enter|escape|tab|backspace|delete|up|down|left|right|f[0-9]{1,2}|[,./;'[\\]\\\\`=-])|(?:(?:mod|ctrl|alt|meta)\\+)*plus)";
+
+/** A key combination, or several pressed after one another, in the syntax editors write. */
 export const Shortcut = Object.assign(
-    schema
-        .string()
-        .regex(
-            /^(?:(?:(?:mod|ctrl|alt|shift|meta)\+)*(?:[a-z0-9]|space|enter|escape|tab|backspace|delete|up|down|left|right|f[0-9]{1,2}|[,./;'[\]\\`=-])|(?:(?:mod|ctrl|alt|meta)\+)*plus)$/u,
-        ),
+    schema.string().regex(new RegExp(`^${STROKE}(?: ${STROKE})*$`, "u")),
     {
         /** Report whether a user agent runs on a platform whose `mod` key is Command. */
         isCommand(userAgent: string): boolean {
             return COMMAND_PLATFORM.test(userAgent);
         },
 
-        /** List the labels of a shortcut's modifiers and key the way each platform prints them. */
-        labels(shortcut: string, isCommand: boolean): string[] {
+        /** List the strokes of a shortcut, pressed after one another. */
+        strokes(shortcut: string): string[] {
+            return shortcut.split(" ");
+        },
+
+        /** List the labels of a stroke's modifiers and key the way each platform prints them. */
+        labels(stroke: string, isCommand: boolean): string[] {
             // name each modifier, refusing one the syntax lacks, then the key
-            const parts = shortcut.split("+");
-            const key = parts.at(-1) ?? shortcut;
+            const parts = stroke.split("+");
+            const key = parts.at(-1) ?? stroke;
             const modifiers = parts.slice(0, -1).map((modifier) => {
                 const label = isCommand ? COMMAND_MODIFIERS[modifier] : MODIFIERS[modifier];
                 if (label === undefined) {
-                    throw new RangeError(`shortcut '${shortcut}' has no modifier '${modifier}'`);
+                    throw new RangeError(`shortcut '${stroke}' has no modifier '${modifier}'`);
                 }
 
                 return label;
@@ -189,27 +203,33 @@ export const Shortcut = Object.assign(
 
         /** Write a shortcut for people. */
         format(shortcut: string, isCommand: boolean): string {
-            return Shortcut.labels(shortcut, isCommand).join(isCommand ? "" : "+");
+            return Shortcut.strokes(shortcut)
+                .map((stroke) => Shortcut.labels(stroke, isCommand).join(isCommand ? "" : "+"))
+                .join(" ");
         },
 
-        /** List the keys of a shortcut as keyboard events call them. */
-        keys(shortcut: string, isCommand: boolean): string[] {
-            return shortcut
+        /** List the keys of a stroke as keyboard events call them. */
+        keys(stroke: string, isCommand: boolean): string[] {
+            return stroke
                 .split("+")
                 .map((part) => (isCommand ? COMMAND_KEYS[part] : KEYS[part]) ?? part.toUpperCase());
         },
 
-        /** Write a shortcut's keys for screen readers, as `aria-keyshortcuts` does. */
-        aria(shortcut: string, isCommand: boolean): string {
-            return Shortcut.keys(shortcut, isCommand)
-                .map((key) => ARIA_KEYS[key] ?? key)
-                .join("+");
+        /** Write a shortcut for `aria-keyshortcuts`, undefined for several strokes. */
+        aria(shortcut: string, isCommand: boolean): string | undefined {
+            const [stroke, ...others] = Shortcut.strokes(shortcut);
+
+            return stroke === undefined || others.length > 0
+                ? undefined
+                : Shortcut.keys(stroke, isCommand)
+                      .map((key) => ARIA_KEYS[key] ?? key)
+                      .join("+");
         },
 
-        /** Report whether a key press presses a shortcut. */
-        matches(shortcut: string, event: KeyPress, isCommand: boolean): boolean {
-            // read the modifiers and the shortcut's key
-            const parts = shortcut.split("+");
+        /** Report whether a key press presses a stroke. */
+        matches(stroke: string, event: KeyPress, isCommand: boolean): boolean {
+            // read the modifiers and the stroke's key
+            const parts = stroke.split("+");
             const modifiers = new Set(parts.slice(0, -1));
             const hasMod = modifiers.has("mod");
 

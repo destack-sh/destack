@@ -1,5 +1,5 @@
-import { expect, test } from "@destack/test";
-import { Shortcut, type KeyPress } from "./shortcut.ts";
+import { expect, expectTypeOf, test } from "@destack/test";
+import { type KeyPress, Shortcut, type ShortcutText } from "./shortcut.ts";
 
 /** Press a key with some modifiers held. */
 function press(
@@ -97,4 +97,27 @@ test("write plus as a key, refusing a shift beside it", () => {
         Shortcut.safeParse("mod+shift+plus").success,
         Shortcut.safeParse("shift+mod+plus").success,
     ]).toEqual(["⌘+", "Ctrl++", "Control+Plus", "Space", true, false, false]);
+});
+
+test("read and write strokes pressed after one another", () => {
+    expect({
+        strokes: Shortcut.strokes("mod+k mod+s"),
+        formats: [Shortcut.format("g m", true), Shortcut.format("mod+k mod+s", false)],
+        aria: [Shortcut.aria("mod+k", false), Shortcut.aria("g m", false)],
+        parsed: ["g m", "mod+k mod+s", "g  m", "g hyper+m", " g"].map(
+            (each) => Shortcut.safeParse(each).success,
+        ),
+    }).toEqual({
+        strokes: ["mod+k", "mod+s"],
+        formats: ["G M", "Ctrl+K Ctrl+S"],
+        aria: ["Control+K", undefined],
+        parsed: [true, true, false, false, false],
+    });
+});
+
+test("check literal strokes pressed after one another", () => {
+    expectTypeOf<ShortcutText<"g m">>().toEqualTypeOf<"g m">();
+    expectTypeOf<ShortcutText<"mod+k mod+s">>().toEqualTypeOf<"mod+k mod+s">();
+    expectTypeOf<ShortcutText<"g hyper+m">>().toEqualTypeOf<never>();
+    expectTypeOf<ShortcutText<"g  m">>().toEqualTypeOf<never>();
 });
