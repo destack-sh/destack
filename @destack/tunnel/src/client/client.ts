@@ -269,7 +269,7 @@ export class TunnelClient {
         const session = new Session(
             { send: (message) => socket.send(message), close: () => socket.close() },
             "client",
-            { accept: (stream) => void this.#answer(session, dial, stream) },
+            { accept: (stream) => void this.#answer(stream) },
         );
         dial.session = session;
 
@@ -422,7 +422,7 @@ export class TunnelClient {
     }
 
     /** Answer a request the relay forwards, carrying a WebSocket upgrade's socket on the stream. */
-    async #answer(session: Session, dial: Dial, stream: Stream): Promise<void> {
+    async #answer(stream: Stream): Promise<void> {
         // read the relay's request, carrying an upgrade's socket on the stream
         const request = stream.request();
         if (stream.head.protocol === "websocket") {
@@ -432,15 +432,8 @@ export class TunnelClient {
         }
         let response: Response;
         try {
-            // renew at once as the relay asks at its own tunnel URL, learning a new name
-            if (request.method === "PUT" && request.url === this.#options.url) {
-                void this.#schedule(dial, session, 0);
-                response = new Response(null, { status: 204 });
-            }
             // answer a forwarded request
-            else {
-                response = await this.#options.fetch(request);
-            }
+            response = await this.#options.fetch(request);
         } catch (error) {
             this.#instruments.captureException(error);
             response = new Response(null, { status: BAD_GATEWAY });
