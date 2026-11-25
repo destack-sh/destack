@@ -12,6 +12,7 @@ const STATE = new Set([
     "drag",
     "focus",
     "interaction",
+    "motion",
     "part",
     "position",
     "selection",
@@ -69,7 +70,9 @@ function problemsOf(container: HTMLElement): string[] {
     // name every control, and tell every button what it does in a form
     const page = container.ownerDocument;
     const controls = [...page.body.querySelectorAll<HTMLElement>(CONTROLS)].filter(
-        (control) => control.closest("[aria-hidden=true], [inert], select :scope") === null,
+        (control) =>
+            !control.hasAttribute("hidden") &&
+            control.closest("[aria-hidden=true], [inert], select :scope") === null,
     );
     const unnamed = controls
         .filter((control) => accessibleName(control) === "")

@@ -56,13 +56,13 @@ Each entry is `@destack/ui/<entry>`.
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-picker`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `date-time-field`, `cropper`, `dropzone`, `editable`, `emoji-picker`, `field`, `form`, `icon-picker`, `input`, `input-group`, `label`, `number-field`, `otp-field`, `password-field`, `radio-group`, `search-field`, `select`, `slider`, `switch`, `tag-field`, `textarea`, `time-field`, `toggle`, `toggle-group`, `value-field` |
 | Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                                                                                                                                                               |
-| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `overflow`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                                                                      |
 | Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `filter`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `sort`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                                                                              |
 | Conversations          | `activity`, `bubble`, `composer`, `marker`, `message`, `message-scroller`, `quote`, `reaction`                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `meter`, `progress`, `prose`, `relative-time`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                                                     |
+| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `meter`, `pane`, `progress`, `prose`, `relative-time`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                                             |
 | Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                                                                                                                                                                               |
+| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `motion`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                                                                                                                                                                     |
 
 ### Parts
 
@@ -443,6 +443,62 @@ export function Chat(properties: {
 ```
 
 A conversation of many thousands puts one `Virtualizer` over `useMessageScroller().viewport`, as the `virtual` example does.
+
+### Hide what does not fit
+
+An `Overflow` hides what does not fit and lists it in its menu, whose place decides what hides first.
+
+```tsx
+import { Overflow, OverflowMenu } from "@destack/ui/overflow";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@destack/ui/tabs";
+
+/** Draw a project's views, the ones that do not fit in a menu. */
+export function Views() {
+    return (
+        <Tabs defaultValue="overview">
+            <Overflow>
+                <TabsList aria-label="Views" variant="line">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="roadmap">Roadmap</TabsTrigger>
+                    <TabsTrigger value="settings">Settings</TabsTrigger>
+                </TabsList>
+                <OverflowMenu />
+            </Overflow>
+            <TabsContent value="overview">What changed</TabsContent>
+            <TabsContent value="roadmap">What comes next</TabsContent>
+            <TabsContent value="settings">How it is set up</TabsContent>
+        </Tabs>
+    );
+}
+```
+
+### Arrange panes
+
+A `PaneGroup` draws a `PaneLayout`, which the person splits, merges and resizes, and keeps contents alive as they move.
+
+```tsx
+import { PaneGroup, PaneLayout } from "@destack/ui/pane";
+import { createSignal } from "@destack/view";
+
+/** Draw files side by side. */
+export function Files() {
+    const [layout, setLayout] = createSignal(PaneLayout.of(["plan.md", "notes.md"], ["todo.md"]));
+    const open = (path: string) => setLayout((all) => PaneLayout.open(all, path));
+
+    return (
+        <>
+            <button type="button" onClick={() => open("ideas.md")}>
+                Open
+            </button>
+            <PaneGroup
+                layout={layout()}
+                onLayoutChange={setLayout}
+                content={(item) => <textarea aria-label={item().value} />}
+            />
+        </>
+    );
+}
+```
 
 ### Compose a timeline
 
