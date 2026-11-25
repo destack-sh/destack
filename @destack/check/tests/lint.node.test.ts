@@ -242,7 +242,7 @@ tester.run("error-message-style", rules["error-message-style"], {
         'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_UNAUTHENTICATED", "authentication required: token expired");',
         "throw new Error(`note '${name}' is invalid: it takes ${size} bytes of at most ${MAX_NOTE_BYTES}`);",
         "throw new Error(`note '${name}' is invalid: it takes ${size + 1} bytes`);",
-        "throw new Error(`residency '${residency.code}' is unavailable`);",
+        "throw new Error(`region '${region.code}' is unavailable`);",
         'const notes = new Map([["Note", "Draft."]]);',
     ],
     invalid: [
