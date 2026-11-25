@@ -14,7 +14,7 @@ import {
     untilAborted,
     waitAborted,
 } from "@destack/environment";
-import { LOG_LEVEL_VARIABLE } from "@destack/environment/line";
+import { LOG_FORMAT_VARIABLE, LOG_LEVEL_VARIABLE } from "@destack/environment/line";
 import { type Keychain, KeyPair, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { BunKeychain } from "@destack/identity/bun";
 import {
@@ -112,7 +112,16 @@ const MACHINE_POLL_MILLISECONDS = 100;
 const MACHINE_SERVE_MILLISECONDS = 5_000;
 
 /** The variables of this process the local universe's machine runs with. */
-const INHERITED = ["HOME", "PATH", "TMPDIR", "LANG", "LC_ALL", "USER"] as const;
+const INHERITED = [
+    "HOME",
+    "PATH",
+    "TMPDIR",
+    "LANG",
+    "LC_ALL",
+    "USER",
+    LOG_LEVEL_VARIABLE,
+    LOG_FORMAT_VARIABLE,
+] as const;
 
 /** The directory below a local universe's Worker storage where its Workers find each other. */
 const WORKER_REGISTRY = "registry";
