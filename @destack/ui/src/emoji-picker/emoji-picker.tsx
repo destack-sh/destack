@@ -182,6 +182,13 @@ const styles = style.create({
         columnGap: space[2],
         minWidth: 0,
     },
+    // keep the footer's height whatever a name's length
+    words: {
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
     placeholder: {
         color: color.mutedForeground,
     },
@@ -478,7 +485,9 @@ function ActiveEmoji(properties: {
         <Show
             when={properties.entry}
             fallback={
-                <span {...style.attrs(styles.placeholder)}>{locale.render(t`Pick an emoji…`)}</span>
+                <span {...style.attrs(styles.words, styles.placeholder)}>
+                    {locale.render(t`Pick an emoji…`)}
+                </span>
             }
         >
             {(entry) => (
@@ -486,7 +495,9 @@ function ActiveEmoji(properties: {
                     <span aria-hidden="true" {...style.attrs(styles.emoji)}>
                         {entry().emoji}
                     </span>
-                    <span>{entry().label}</span>
+                    <span title={entry().label} {...style.attrs(styles.words)}>
+                        {entry().label}
+                    </span>
                 </span>
             )}
         </Show>

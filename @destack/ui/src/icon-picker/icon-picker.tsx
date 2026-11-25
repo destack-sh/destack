@@ -86,6 +86,13 @@ const styles = style.create({
         minWidth: 0,
         color: color.foreground,
     },
+    // keep the footer's height whatever a name's length
+    words: {
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
     placeholder: {
         color: color.mutedForeground,
     },
@@ -266,13 +273,17 @@ function ActiveIcon(properties: {
         <Show
             when={properties.icon}
             fallback={
-                <span {...style.attrs(styles.placeholder)}>{locale.render(t`Pick an icon…`)}</span>
+                <span {...style.attrs(styles.words, styles.placeholder)}>
+                    {locale.render(t`Pick an icon…`)}
+                </span>
             }
         >
             {(icon) => (
                 <span data-slot="icon-picker-active-icon" {...style.attrs(styles.active)}>
                     <LazyIcon name={icon()} />
-                    <span>{icon()}</span>
+                    <span title={icon()} {...style.attrs(styles.words)}>
+                        {icon()}
+                    </span>
                 </span>
             )}
         </Show>
