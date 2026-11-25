@@ -246,12 +246,14 @@ export class Fixture implements AsyncDisposable {
     async build(
         request: Omit<PackageBuildOptions, "directory" | "dependencies" | "links">,
     ): Promise<BuildReader> {
-        return await this.#compiler.build({
+        const built = await this.#compiler.build({
             directory: this.source,
             dependencies: {},
             links: {},
             ...request,
         });
+
+        return built.build;
     }
 
     /** Build the copied package, then index it for Bun with the build's declarations. */

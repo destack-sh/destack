@@ -796,16 +796,6 @@ export class CompilerWorker {
                     traces: traces(),
                 };
             }
-            // evaluate the package's declarations alone
-            else if (request.kind === "evaluate") {
-                const declarations = await compiler.evaluate(request.options);
-
-                return {
-                    kind: "result",
-                    result: { kind: "evaluate", declarations },
-                    traces: traces(),
-                };
-            }
             // build the package on declarations evaluated before
             else if (request.kind === "compile") {
                 const { options, declarations, destination } = request;

@@ -81,10 +81,12 @@ export class PackageCopy implements AsyncDisposable {
     async build(
         request: Omit<PackageBuildOptions, "directory" | "dependencies" | "links">,
     ): Promise<BuildReader> {
+        // build the copy on its dependencies with the warm compiler
         const { source, dependencies } = this;
         const options = { ...request, directory: source, dependencies, links: {} };
+        const built = await this.#compilers.use(source, (compiler) => compiler.build(options));
 
-        return await this.#compilers.use(this.source, (compiler) => compiler.build(options));
+        return built.build;
     }
 
     /** Remove the copy, its builds and their trees. */

@@ -425,39 +425,15 @@ export class Compiler implements AsyncDisposable {
         await writeMessage(input, { kind: "cached", id: request.id, bytes });
     }
 
-    /** Build a package's current source in one request: evaluate its declarations, compile it. */
-    async build(options: PackageBuildOptions): Promise<BuildReader> {
-        return (await this.compile(options, undefined)).build;
-    }
-
-    /** Compile current source on declarations given, else evaluated here, storing the build. */
-    compile(
+    /** Build current source on declarations given, else evaluated here, storing the build. */
+    build(
         options: PackageBuildOptions,
-        declarations: readonly EvaluatedDeclaration[] | undefined,
+        declarations?: readonly EvaluatedDeclaration[],
     ): Promise<CompiledBuild> {
         return this.#scope.span(
             "destack.compiler.build",
             { "destack.package.directory": relative(this.workspace, options.directory) },
             () => this.#storeBuild(options, declarations),
-        );
-    }
-
-    /** Evaluate current source's declarations in the isolated compiler, as a build does. */
-    evaluate(options: PackageBuildOptions): Promise<readonly EvaluatedDeclaration[]> {
-        return this.#scope.span("destack.compiler.evaluate", {}, () =>
-            this.#serially(async () => {
-                // send the request at the real directory, the dependencies installed
-                const request = {
-                    kind: "evaluate",
-                    options: await this.#requested(options),
-                } as const;
-                const response = await this.#request(request, options.signal, options.timeout);
-                if (response.kind !== "evaluate") {
-                    throw Compiler.mismatched(request.kind, response.kind);
-                }
-
-                return response.declarations;
-            }),
         );
     }
 

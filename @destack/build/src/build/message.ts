@@ -21,11 +21,6 @@ export const BuildResult = schema.discriminatedUnion("kind", [
         declarations: schema.array(DeclarationDescription),
     }),
     schema.object({
-        kind: schema.literal("evaluate"),
-        /** The declarations the export entries evaluate to, with the modules exporting them. */
-        declarations: schema.array(EvaluatedDeclaration),
-    }),
-    schema.object({
         kind: schema.literal("index"),
         /** The graph file of each module of the indexed package. */
         modules: schema.array(graph.Module),
@@ -116,11 +111,6 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
         /** The directory the build writes into. */
         destination: schema.string(),
         /** The build's options. */
-        options: RequestedBuild,
-    }),
-    schema.object({
-        kind: schema.literal("evaluate"),
-        /** The build's options, whose export entries evaluate. */
         options: RequestedBuild,
     }),
     schema.object({

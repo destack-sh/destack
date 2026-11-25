@@ -1080,9 +1080,7 @@ export class WorkspacePackage {
         readonly declarations: readonly EvaluatedDeclaration[];
     }> {
         // compile it with the unit's compiler
-        const compiled = await this.#use(unit, (compiler) =>
-            compiler.compile(options, declarations),
-        );
+        const compiled = await this.#use(unit, (compiler) => compiler.build(options, declarations));
         const { crypto } = this.#store.environment;
         const manifest = await BuildStore.digest(compiled.build.manifest, crypto);
 

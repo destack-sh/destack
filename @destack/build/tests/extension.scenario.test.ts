@@ -213,7 +213,12 @@ test("apply the extensions of a package's runtime dependency closure, its depend
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    const transformed = await compiler.build({ directory, dependencies: {}, links: {}, outputs });
+    const { build: transformed } = await compiler.build({
+        directory,
+        dependencies: {},
+        links: {},
+        outputs,
+    });
     expect([
         loaded.map((entry) => entry.directory),
         await readEntry(transformed, ".", files),
@@ -261,12 +266,22 @@ test("compile a package through a listed extension and leave a development depen
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    const untouched = await compiler.build({ directory, dependencies: {}, links: {}, outputs });
+    const { build: untouched } = await compiler.build({
+        directory,
+        dependencies: {},
+        links: {},
+        outputs,
+    });
 
     // list the leaf's extension, then build again through it
     await listExtensions(directory, ["@fixture/leaf"], files);
     const listed = await extensions();
-    const transformed = await compiler.build({ directory, dependencies: {}, links: {}, outputs });
+    const { build: transformed } = await compiler.build({
+        directory,
+        dependencies: {},
+        links: {},
+        outputs,
+    });
     expect([
         developed,
         await readEntry(untouched, ".", files),
