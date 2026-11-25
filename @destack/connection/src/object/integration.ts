@@ -121,7 +121,7 @@ export const integration = defineObject(
                 // the installation issuing its tokens, related as it is created
                 issuer: { subjects: [principal.installation], grantedBy: null },
             },
-            // let the spaces it serves, its issuing installation and its residency's servers replicate it, and its connection installations request its tokens by possession
+            // let its spaces, its issuer and whoever serves its account read it, and installations request its tokens
             permissions: {
                 read: union(
                     contained(principal.space),

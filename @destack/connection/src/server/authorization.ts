@@ -3,7 +3,7 @@ import {
     type MethodContextOf,
     type ObjectReconciliation,
     type ResultOf,
-    StatusCondition,
+    Condition,
 } from "@destack/object";
 import { Duration, present } from "@destack/schema";
 import type { Token } from "../credential/credential.ts";
@@ -162,7 +162,7 @@ export class ConnectionAuthorization {
             expiresAt: grant.expiresAt ?? null,
             conditions: {
                 ...target.conditions,
-                Authorized: StatusCondition.observe(
+                Authorized: Condition.observe(
                     target.conditions["Authorized"],
                     {
                         status: "true",

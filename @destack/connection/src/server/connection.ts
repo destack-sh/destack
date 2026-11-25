@@ -4,7 +4,8 @@ import {
     type ObjectReconciliation,
     Observation,
     type ResultOf,
-    StatusCondition,
+    Condition,
+    Status,
 } from "@destack/object";
 import { RetryPolicy } from "@destack/environment";
 import { nth } from "@destack/schema";
@@ -157,7 +158,7 @@ async function disconnect(
         renewAt: context.now,
         conditions: {
             ...target.conditions,
-            Authorized: StatusCondition.observe(
+            Authorized: Condition.observe(
                 target.conditions["Authorized"],
                 { ...DISCONNECTED, observedGeneration: target.generation },
                 context.now,
@@ -214,7 +215,7 @@ async function reconcile(
     }
     // act on a live one, ready at its identifier for each generation, and record when it is next due
     else {
-        if (!Observation.isCurrent(current, "Ready")) {
+        if (!Status.isCurrent(current, "Ready")) {
             await reconciliation.mutate([
                 Observation.call(connection, current, { conditions: { Ready: READY }, fields: {} }),
             ]);
