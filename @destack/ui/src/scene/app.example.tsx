@@ -35,6 +35,33 @@ import {
     BoardColumnHeader,
     BoardItem,
 } from "../board/index.ts";
+import { Bubble, BubbleContent } from "../bubble/index.ts";
+import {
+    Composer,
+    ComposerAddon,
+    ComposerFooter,
+    ComposerFrame,
+    ComposerInput,
+    ComposerSubmit,
+} from "../composer/index.ts";
+import { Marker, MarkerContent, MarkerIcon } from "../marker/index.ts";
+import {
+    Message,
+    MessageToolbar,
+    MessageAuthor,
+    MessageAvatar,
+    MessageContent,
+    MessageFooter,
+    MessageHeader,
+} from "../message/index.ts";
+import {
+    MessageScroller,
+    MessageScrollerButton,
+    MessageScrollerContent,
+    MessageScrollerItem,
+    MessageScrollerViewport,
+} from "../message-scroller/index.ts";
+import { ToolbarButton } from "../toolbar/index.ts";
 import {
     Breadcrumb,
     BreadcrumbItem,
@@ -43,7 +70,7 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "../breadcrumb/index.ts";
-import { Button, buttonVariants } from "../button/index.ts";
+import { Button } from "../button/index.ts";
 import { Checkbox } from "../checkbox/index.ts";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../collapsible/index.ts";
 import {
@@ -55,14 +82,7 @@ import {
     EventCalendarTime,
 } from "../event-calendar/index.ts";
 import { PICTURES } from "../example/picture.ts";
-import {
-    InputGroup,
-    InputGroupAddon,
-    InputGroupButton,
-    InputGroupInput,
-    InputGroupTextarea,
-} from "../input-group/index.ts";
-import { Kbd, KbdShortcut } from "../kbd/index.ts";
+import { KbdShortcut } from "../kbd/index.ts";
 import { Label } from "../label/index.ts";
 import { Prose } from "../prose/index.ts";
 import "../prose/prose.css";
@@ -149,7 +169,7 @@ interface Task {
 }
 
 /** The people of the studio. */
-const PEOPLE = {
+export const PEOPLE = {
     ada: { name: "Ada Lovelace", initials: "AL", picture: PICTURES.ada },
     grace: { name: "Grace Hopper", initials: "GH", picture: PICTURES.grace },
     jonas: { name: "Jonas Abiola", initials: "JA" },
@@ -340,7 +360,10 @@ const styles = style.create({
     },
     document: {
         display: "grid",
-        gridTemplateColumns: `minmax(0, 44rem) ${width.popover}`,
+        gridTemplateColumns: {
+            default: `minmax(0, 44rem) ${width.popover}`,
+            "@media (max-width: 60rem)": "minmax(0, 1fr)",
+        },
         justifyContent: "center",
         alignItems: "start",
         columnGap: space[8],
@@ -370,30 +393,10 @@ const styles = style.create({
         // center the first author on the text's first line
         paddingBlockStart: `calc(${space[1]} / 2)`,
     },
-    comment: {
-        display: "grid",
-        gridTemplateColumns: `${space[5]} 1fr`,
-        columnGap: space[2],
-        rowGap: space[1],
-        alignItems: "center",
-    },
-    commentText: {
-        gridColumn: "2",
-        margin: 0,
-    },
     thread: {
         width: "100%",
-        maxWidth: "44rem",
+        maxWidth: "46rem",
         marginInline: "auto",
-    },
-    asked: {
-        alignSelf: "end",
-        maxWidth: "32rem",
-        margin: 0,
-        paddingBlock: space[2],
-        paddingInline: space[4],
-        borderRadius: radius[5],
-        backgroundColor: color.muted,
     },
     steps: {
         paddingBlock: space[2],
@@ -407,23 +410,29 @@ const styles = style.create({
         borderColor: color.border,
         borderRadius: radius[4],
     },
+    answer: {
+        gap: space[4],
+    },
+    // fill the page edge to edge, as the rows scroll to it
+    conversation: {
+        display: "flex",
+        flexDirection: "column",
+        flexGrow: 1,
+        minHeight: 0,
+        margin: `calc(-1 * ${space[5]})`,
+    },
     composer: {
-        position: "sticky",
-        insetBlockEnd: 0,
+        flexShrink: 0,
         width: "100%",
-        maxWidth: "44rem",
+        maxWidth: "46rem",
         marginInline: "auto",
-        marginBlockStart: "auto",
-        paddingBlockEnd: space[2],
-        backgroundColor: color.background,
+        paddingInline: space[4],
+        paddingBlockEnd: space[4],
     },
 });
 
-/** The look of a quiet row that opens what an answer did. */
-const STEP_TRIGGER = buttonVariants({ variant: "ghost", size: "sm" });
-
 /** Render a person's picture, or their initials without one. */
-function Face(properties: {
+export function Face(properties: {
     /** The person the face shows. */
     readonly person: Person;
 }): JSX.Element {
@@ -438,7 +447,7 @@ function Face(properties: {
 }
 
 /** Render an app: its sidebar of places, then a bar and a page beside it. */
-function App(properties: {
+export function App(properties: {
     /** The app's name. */
     readonly name: string;
     /** The groups of places its sidebar leads to. */
@@ -834,7 +843,7 @@ function TaskCalendar(): JSX.Element {
     );
 }
 
-/** Render a comment: who wrote it and when, and its text below. */
+/** Render a comment by the side of a page. */
 function Comment(properties: {
     /** The person who wrote the comment. */
     readonly person: Person;
@@ -844,14 +853,18 @@ function Comment(properties: {
     readonly children: JSX.Element;
 }): JSX.Element {
     return (
-        <div {...style.attrs(styles.comment)}>
-            <Face person={properties.person} />
-            <Cluster space="2" xstyle={styles.person}>
-                <span {...style.attrs(styles.cardTitle)}>{properties.person.name}</span>
-                <span {...style.attrs(text.xs, styles.muted)}>{properties.time}</span>
-            </Cluster>
-            <p {...style.attrs(styles.commentText)}>{properties.children}</p>
-        </div>
+        <Message>
+            <MessageAvatar position="top">
+                <Face person={properties.person} />
+            </MessageAvatar>
+            <MessageContent>
+                <MessageHeader>
+                    <MessageAuthor>{properties.person.name}</MessageAuthor>
+                    {properties.time}
+                </MessageHeader>
+                <div {...style.attrs(text.sm)}>{properties.children}</div>
+            </MessageContent>
+        </Message>
     );
 }
 
@@ -1092,17 +1105,21 @@ export const appDocument = defineExample({
                     <Comment person={PEOPLE.grace} time="Yesterday">
                         The demo is at 2:10 now. Cutting the intro.
                     </Comment>
-                    <div {...style.attrs(styles.comment)}>
-                        <Face person={PEOPLE.ada} />
-                        <InputGroup>
-                            <InputGroupInput placeholder="Reply" aria-label="Reply" />
-                            <InputGroupAddon align="inline-end">
-                                <InputGroupButton size="icon-sm" aria-label="Send">
-                                    <Icon name="arrow-up" />
-                                </InputGroupButton>
-                            </InputGroupAddon>
-                        </InputGroup>
-                    </div>
+                    <Message>
+                        <MessageAvatar position="top">
+                            <Face person={PEOPLE.ada} />
+                        </MessageAvatar>
+                        <MessageContent>
+                            <Composer onSubmit={() => {}}>
+                                <ComposerFrame>
+                                    <ComposerInput placeholder="Reply" aria-label="Reply" />
+                                    <ComposerAddon align="inline-end">
+                                        <ComposerSubmit />
+                                    </ComposerAddon>
+                                </ComposerFrame>
+                            </Composer>
+                        </MessageContent>
+                    </Message>
                 </Stack>
             </article>
         </App>
@@ -1143,106 +1160,176 @@ export const appConversation = defineExample({
                 </Button>
             }
         >
-            <Stack space="5" xstyle={styles.grow}>
-                <Stack space="5" xstyle={styles.thread}>
-                    <p {...style.attrs(text.base, styles.asked)}>
-                        What is still open for the launch on Friday, and who has it?
-                    </p>
-                    <Collapsible>
-                        <CollapsibleTrigger xstyle={STEP_TRIGGER}>
-                            <Icon name="magnifying-glass" />
-                            Read 8 tasks in Launch
-                        </CollapsibleTrigger>
-                        <CollapsibleContent xstyle={[text.sm, styles.steps]}>
-                            Searched Tasks for the Launch project, then read the tasks that are not
-                            done.
-                        </CollapsibleContent>
-                    </Collapsible>
-                    <p {...style.attrs(text.base, styles.paragraph)}>
-                        Four tasks are in progress or in review. One is at risk:
-                    </p>
-                    <div {...style.attrs(styles.found)}>
-                        <Table>
-                            <TableBody>
-                                <For each={IN_PROGRESS}>
-                                    {(task) => (
-                                        <TableRow>
-                                            <TableCell>
-                                                <Cluster
-                                                    space="2"
-                                                    align="center"
-                                                    render={(attributes) => (
-                                                        <span {...attributes} />
-                                                    )}
+            <div {...style.attrs(styles.conversation)}>
+                <MessageScroller>
+                    <MessageScrollerViewport>
+                        <MessageScrollerContent xstyle={styles.thread}>
+                            <MessageScrollerItem messageId="question" scrollAnchor>
+                                <Message align="end">
+                                    <MessageContent>
+                                        <Bubble variant="secondary">
+                                            <BubbleContent>
+                                                What is still open for the launch on Friday, and who
+                                                has it?
+                                            </BubbleContent>
+                                        </Bubble>
+                                    </MessageContent>
+                                </Message>
+                            </MessageScrollerItem>
+                            <MessageScrollerItem messageId="steps">
+                                <Collapsible>
+                                    <Marker
+                                        render={(attributes) => (
+                                            <CollapsibleTrigger {...attributes} />
+                                        )}
+                                    >
+                                        <MarkerIcon>
+                                            <Icon name="magnifying-glass" />
+                                        </MarkerIcon>
+                                        <MarkerContent>Read 8 tasks in Launch</MarkerContent>
+                                    </Marker>
+                                    <CollapsibleContent xstyle={[text.sm, styles.steps]}>
+                                        Searched Tasks for the Launch project, then read the tasks
+                                        that are not done.
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            </MessageScrollerItem>
+                            <MessageScrollerItem messageId="answer">
+                                <Message>
+                                    <MessageContent xstyle={styles.answer}>
+                                        <p {...style.attrs(text.base, styles.paragraph)}>
+                                            Four tasks are in progress or in review. One is at risk:
+                                        </p>
+                                        <div {...style.attrs(styles.found)}>
+                                            <Table>
+                                                <TableBody>
+                                                    <For each={IN_PROGRESS}>
+                                                        {(task) => (
+                                                            <TableRow>
+                                                                <TableCell>
+                                                                    <Cluster
+                                                                        space="2"
+                                                                        align="center"
+                                                                        render={(attributes) => (
+                                                                            <span {...attributes} />
+                                                                        )}
+                                                                    >
+                                                                        <span
+                                                                            {...style.attrs(
+                                                                                text.xs,
+                                                                                styles.code,
+                                                                            )}
+                                                                        >
+                                                                            {task.id}
+                                                                        </span>
+                                                                        <span
+                                                                            {...style.attrs(
+                                                                                styles.cardTitle,
+                                                                            )}
+                                                                        >
+                                                                            {task.title}
+                                                                        </span>
+                                                                    </Cluster>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Cluster
+                                                                        space="2"
+                                                                        align="center"
+                                                                        xstyle={styles.person}
+                                                                        render={(attributes) => (
+                                                                            <span {...attributes} />
+                                                                        )}
+                                                                    >
+                                                                        <Face person={task.owner} />
+                                                                        {task.owner.name}
+                                                                    </Cluster>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Show
+                                                                        when={task.id === "LAU-14"}
+                                                                        fallback={
+                                                                            <Badge
+                                                                                color={task.tag[1]}
+                                                                            >
+                                                                                {task.tag[0]}
+                                                                            </Badge>
+                                                                        }
+                                                                    >
+                                                                        <Badge color="red">
+                                                                            At risk
+                                                                        </Badge>
+                                                                    </Show>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </For>
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                        <p {...style.attrs(text.base, styles.paragraph)}>
+                                            The demo runs 2:10 against a two-minute limit. Grace is
+                                            cutting the intro today.
+                                        </p>
+                                        <Cluster space="2">
+                                            <Button variant="outline">Open the board</Button>
+                                            <Button variant="outline">Remind the owners</Button>
+                                        </Cluster>
+                                        <MessageFooter>
+                                            <MessageToolbar
+                                                placement="inline"
+                                                autohide="not-last"
+                                                aria-label="Actions"
+                                            >
+                                                <ToolbarButton
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    aria-label="Copy"
                                                 >
-                                                    <span {...style.attrs(text.xs, styles.code)}>
-                                                        {task.id}
-                                                    </span>
-                                                    <span {...style.attrs(styles.cardTitle)}>
-                                                        {task.title}
-                                                    </span>
-                                                </Cluster>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Cluster
-                                                    space="2"
-                                                    align="center"
-                                                    xstyle={styles.person}
-                                                    render={(attributes) => (
-                                                        <span {...attributes} />
-                                                    )}
+                                                    <Icon name="copy" />
+                                                </ToolbarButton>
+                                                <ToolbarButton
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    aria-label="Good answer"
                                                 >
-                                                    <Face person={task.owner} />
-                                                    {task.owner.name}
-                                                </Cluster>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Show
-                                                    when={task.id === "LAU-14"}
-                                                    fallback={
-                                                        <Badge color={task.tag[1]}>
-                                                            {task.tag[0]}
-                                                        </Badge>
-                                                    }
+                                                    <Icon name="thumbs-up" />
+                                                </ToolbarButton>
+                                                <ToolbarButton
+                                                    variant="ghost"
+                                                    size="icon-sm"
+                                                    aria-label="Answer again"
                                                 >
-                                                    <Badge color="red">At risk</Badge>
-                                                </Show>
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </For>
-                            </TableBody>
-                        </Table>
-                    </div>
-                    <p {...style.attrs(text.base, styles.paragraph)}>
-                        The demo runs 2:10 against a two-minute limit. Grace is cutting the intro
-                        today.
-                    </p>
-                    <Cluster space="2">
-                        <Button variant="outline">Open the board</Button>
-                        <Button variant="outline">Remind the owners</Button>
-                    </Cluster>
-                </Stack>
+                                                    <Icon name="arrows-clockwise" />
+                                                </ToolbarButton>
+                                            </MessageToolbar>
+                                        </MessageFooter>
+                                    </MessageContent>
+                                </Message>
+                            </MessageScrollerItem>
+                        </MessageScrollerContent>
+                    </MessageScrollerViewport>
+                    <MessageScrollerButton />
+                </MessageScroller>
                 <div {...style.attrs(styles.composer)}>
-                    <InputGroup>
-                        <InputGroupTextarea
-                            placeholder="Ask about anything in this space"
-                            aria-label="Message"
-                        />
-                        <InputGroupAddon align="block-end">
-                            <InputGroupButton size="icon-sm" aria-label="Attach a file">
-                                <Icon name="paperclip" />
-                            </InputGroupButton>
-                            <Badge color="orange">Launch</Badge>
-                            <span {...style.attrs(styles.grow)} />
-                            <Kbd>↵</Kbd>
-                            <InputGroupButton size="icon-sm" variant="default" aria-label="Send">
-                                <Icon name="arrow-up" />
-                            </InputGroupButton>
-                        </InputGroupAddon>
-                    </InputGroup>
+                    <Composer onSubmit={() => {}}>
+                        <ComposerFrame>
+                            <ComposerInput placeholder="Ask about anything in this space" />
+                            <ComposerFooter>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    shape="round"
+                                    aria-label="Attach a file"
+                                >
+                                    <Icon name="plus" />
+                                </Button>
+                                <Badge color="orange">Launch</Badge>
+                                <ComposerSubmit />
+                            </ComposerFooter>
+                        </ComposerFrame>
+                    </Composer>
                 </div>
-            </Stack>
+            </div>
         </App>
     ),
 });

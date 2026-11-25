@@ -12,7 +12,7 @@ interface Colors {
 
 /** Draw a picture as an SVG data URL, so an example shows an image without a file. */
 function draw(colors: Colors, shape: string, width = 640, height = 360): string {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${String(width)} ${String(height)}" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${colors.top}"/><stop offset="1" stop-color="${colors.bottom}"/></linearGradient></defs><rect width="${String(width)}" height="${String(height)}" fill="url(#sky)"/><g fill="${colors.shape}">${shape}</g></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${String(width)} ${String(height)}" width="${String(width)}" height="${String(height)}" preserveAspectRatio="xMidYMid slice"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${colors.top}"/><stop offset="1" stop-color="${colors.bottom}"/></linearGradient></defs><rect width="${String(width)}" height="${String(height)}" fill="url(#sky)"/><g fill="${colors.shape}">${shape}</g></svg>`;
 
     return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }

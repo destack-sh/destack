@@ -52,16 +52,17 @@ export const Save = () => {
 
 Each entry is `@destack/ui/<entry>`.
 
-| Group                  | Entries                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `date-time-field`, `dropzone`, `emoji-picker`, `field`, `form`, `icon-picker`, `input`, `input-group`, `label`, `number-field`, `otp-field`, `password-field`, `radio-group`, `search-field`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group`, `value-field` |
-| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                                                                                                           |
-| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                              |
-| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `filter`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `sort`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                          |
-| Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                           |
-| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                                                                                                                           |
-| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                                                                                                                           |
+| Group                  | Entries                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-picker`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `date-time-field`, `cropper`, `dropzone`, `editable`, `emoji-picker`, `field`, `form`, `icon-picker`, `input`, `input-group`, `label`, `number-field`, `otp-field`, `password-field`, `radio-group`, `search-field`, `select`, `slider`, `switch`, `tag-field`, `textarea`, `time-field`, `toggle`, `toggle-group`, `value-field` |
+| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                                                                                                                                                               |
+| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `filter`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `sort`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                                                                              |
+| Conversations          | `activity`, `bubble`, `composer`, `marker`, `message`, `message-scroller`, `quote`, `reaction`                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `meter`, `progress`, `prose`, `relative-time`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                                                     |
+| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                                                                                                                                                                               |
 
 ### Parts
 
@@ -354,6 +355,94 @@ export function Conversation(properties: {
     );
 }
 ```
+
+### Compose a chat
+
+Put messages in a `MessageScroller`, and write the next one in a `Composer`.
+
+```tsx
+import { Bubble, BubbleContent } from "@destack/ui/bubble";
+import {
+    Composer,
+    ComposerFooter,
+    ComposerFrame,
+    ComposerInput,
+    ComposerSubmit,
+} from "@destack/ui/composer";
+import { Message, MessageContent } from "@destack/ui/message";
+import {
+    MessageScroller,
+    MessageScrollerButton,
+    MessageScrollerContent,
+    MessageScrollerItem,
+    MessageScrollerViewport,
+} from "@destack/ui/message-scroller";
+import { For } from "@destack/view";
+
+/** A message of a chat. */
+interface Line {
+    /** The message's id. */
+    readonly id: string;
+    /** The message's text. */
+    readonly text: string;
+    /** Whether the reader wrote it. */
+    readonly isOwn: boolean;
+}
+
+/** Show a chat that brings each question near the top and follows its answer. */
+export function Chat(properties: {
+    readonly lines: readonly Line[];
+    readonly isAnswering: boolean;
+    readonly onSend: (form: HTMLFormElement) => void;
+    readonly onStop: () => void;
+}) {
+    return (
+        <>
+            <MessageScroller autoScroll defaultScrollPosition="last-anchor">
+                <MessageScrollerViewport>
+                    <MessageScrollerContent aria-busy={properties.isAnswering ? "true" : undefined}>
+                        <For each={properties.lines} keyed={(line) => line.id}>
+                            {(line) => (
+                                <MessageScrollerItem
+                                    messageId={line().id}
+                                    scrollAnchor={line().isOwn}
+                                >
+                                    <Message align={line().isOwn ? "end" : "start"}>
+                                        <MessageContent>
+                                            <Bubble variant={line().isOwn ? "secondary" : "ghost"}>
+                                                <BubbleContent>{line().text}</BubbleContent>
+                                            </Bubble>
+                                        </MessageContent>
+                                    </Message>
+                                </MessageScrollerItem>
+                            )}
+                        </For>
+                    </MessageScrollerContent>
+                </MessageScrollerViewport>
+                <MessageScrollerButton />
+            </MessageScroller>
+            <Composer
+                busy={properties.isAnswering}
+                onStop={properties.onStop}
+                onSubmit={(event) => {
+                    if (event.currentTarget instanceof HTMLFormElement) {
+                        properties.onSend(event.currentTarget);
+                    }
+                }}
+            >
+                <ComposerFrame>
+                    <ComposerInput name="text" placeholder="Ask anything" />
+                    <ComposerFooter>
+                        <ComposerSubmit />
+                    </ComposerFooter>
+                </ComposerFrame>
+            </Composer>
+        </>
+    );
+}
+```
+
+A conversation of many thousands puts one `Virtualizer` over `useMessageScroller().viewport`, as the `virtual` example does.
 
 ### Compose a timeline
 
@@ -721,6 +810,19 @@ Components, parts and props follow shadcn/ui and Radix, and some follow their ow
 | copied React components | Solid components in a package | Styled with StyleX instead of Tailwind.            |
 | Radix's Popper          | CSS anchor positioning        | Dialogs, popovers and drawers are native elements. |
 | English strings         | the reader's locale           | Component text is translated.                      |
+
+### Conversations
+
+Chats follow shadcn/ui, and a list of changes follows Primer.
+
+| Prior art                     | `@destack/ui`     | Difference                                                          |
+| ----------------------------- | ----------------- | ------------------------------------------------------------------- |
+| shadcn/ui's `MessageScroller` | `MessageScroller` | Works without a provider. Counts messages unseen and steps by keys. |
+| shadcn/ui's `Message`         | `Message`         | Adds actions by hover, focus and long press, and a swipe.           |
+| shadcn/ui's `Bubble`          | `Bubble`          | The same.                                                           |
+| shadcn/ui's `Marker`          | `Marker`          | Adds `busy`.                                                        |
+| shadcn/ui's `Attachment`      | `FileItem`        | Shows uploads and opens files.                                      |
+| Primer's `Timeline`           | `Activity`        | Condenses an item's badge and body with it.                         |
 
 ### React Aria and dnd-kit
 
