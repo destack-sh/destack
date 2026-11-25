@@ -44,6 +44,9 @@ const S3_NAME = "s3";
 /** The pattern of a name separator: a hyphen pair with no third hyphen beside it. */
 const NAME_SEPARATOR_PATTERN = /(?<!-)--(?!-)/u;
 
+/** The identifier schema of machines. */
+const MACHINE_IDENTIFIER = schema.identifier("machine");
+
 /** The identifier schema of spaces. */
 const SPACE_IDENTIFIER = schema.identifier("space");
 
@@ -203,9 +206,9 @@ export class UniverseOrigin {
         return url.origin;
     }
 
-    /** Write the URL a machine's address answers at below the machines' domain. */
-    machine(address: MachineAddress): string {
-        return this.url(MachineAddress.format(address, this.domains.machine));
+    /** Write the URL a machine answers at below the machines' domain, by its identifier. */
+    machine(machineId: Identifier<"machine">): string {
+        return this.url(MachineOrigin.format(machineId, this.domains.machine));
     }
 
     /** Write the URL an installation origin answers at, a loopback machine's below its own port. */
@@ -255,6 +258,21 @@ export const MachineAddress = {
     /** Write the server name of a machine address under a domain. */
     format(address: MachineAddress, domain: string): string {
         return `${address.machine}${NAME_SEPARATOR}${address.handle}.${domain}`;
+    },
+};
+
+/** Read and write a machine's origin below the machines' domain, by its unchanging identifier. */
+export const MachineOrigin = {
+    /** Read the machine of an origin's host name under a domain, absent for any other name. */
+    parse(hostname: string, domain: string): Identifier<"machine"> | undefined {
+        const parsed = MACHINE_IDENTIFIER.safeParse(labelBelow(hostname, domain));
+
+        return parsed.success ? parsed.data : undefined;
+    },
+
+    /** Write the host name of a machine's origin under a domain. */
+    format(machine: Identifier<"machine">, domain: string): string {
+        return `${machine}.${domain}`;
     },
 };
 

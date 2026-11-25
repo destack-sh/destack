@@ -1,5 +1,9 @@
+import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { UniverseOrigin } from "./address.ts";
+import { MachineOrigin, UniverseOrigin } from "./address.ts";
+
+/** A machine's identifier. */
+const MACHINE = schema.identifier("machine").parse("machine-01a0f4c2-c400-7425-abe7-d5f2cb80c824");
 
 /** A universe at Destack's origin and domains. */
 const UNIVERSE = new UniverseOrigin("https://destack.app", {
@@ -33,10 +37,7 @@ test("write the URLs of a universe's names at its scheme and port, a loopback ma
     expect({
         issuer: [UNIVERSE.issuer, local.issuer],
         page: [UNIVERSE.page("signIn").href, local.page("signIn").href],
-        machine: [
-            UNIVERSE.machine({ machine: "macbook", handle: "ada" }),
-            local.machine({ machine: "macbook", handle: "ada" }),
-        ],
+        machine: [UNIVERSE.machine(MACHINE), local.machine(MACHINE)],
         installation: [
             UNIVERSE.installation(home, "https://eu-central--platform.destack.computer"),
             local.installation(home, "http://macbook--ada.computer.localhost:4100"),
@@ -53,8 +54,8 @@ test("write the URLs of a universe's names at its scheme and port, a loopback ma
         issuer: ["https://destack.app/oauth", "http://destack.localhost:4100/oauth"],
         page: ["https://destack.app/sign-in", "http://destack.localhost:4100/sign-in"],
         machine: [
-            "https://macbook--ada.destack.computer",
-            "http://macbook--ada.computer.localhost:4100",
+            "https://machine-01a0f4c2-c400-7425-abe7-d5f2cb80c824.destack.computer",
+            "http://machine-01a0f4c2-c400-7425-abe7-d5f2cb80c824.computer.localhost:4100",
         ],
         installation: [
             "https://ada.destack.space",
@@ -94,4 +95,14 @@ test("read app and repository links below the universe's origin, and nothing els
         undefined,
         undefined,
     ]);
+});
+
+test("read a machine's origin back to the machine, and no machine from its name", () => {
+    const origin = new URL(UNIVERSE.machine(MACHINE)).hostname;
+
+    expect([
+        MachineOrigin.parse(origin, "destack.computer"),
+        MachineOrigin.parse("macbook--ada.destack.computer", "destack.computer"),
+        MachineOrigin.parse(origin, "destack.space"),
+    ]).toEqual([MACHINE, undefined, undefined]);
 });

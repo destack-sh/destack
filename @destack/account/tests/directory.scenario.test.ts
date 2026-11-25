@@ -3,12 +3,12 @@ import type { ClientOf } from "@destack/object/client";
 import accountPackage from "../src/package.ts";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Identifier, present, schema } from "@destack/schema";
+import { Identifier, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, Recording, test, refusal } from "@destack/test";
-import { MachineAddress } from "../src/address/index.ts";
+import { MachineOrigin } from "../src/address/index.ts";
 import { Directory } from "../src/client/index.ts";
-import { Account, endpoint, machine, placement } from "../src/object/index.ts";
+import { Account, endpoint, placement } from "../src/object/index.ts";
 import {
     DOMAINS,
     TestAccount,
@@ -76,13 +76,9 @@ async function openNotes() {
         requestId: RequestId.create(fixture.environment),
     });
 
-    // address the machine below its account's handle
-    const named = await fixture.database
-        .snapshot()
-        .read(machine.table)
-        .findFirst({ where: { id: schema.identifier("machine").parse(computer.subject.id) } });
-    const address = MachineAddress.format(
-        { machine: present(named, "the machine").name, handle },
+    // address the machine at its origin
+    const address = MachineOrigin.format(
+        schema.identifier("machine").parse(computer.subject.id),
         DOMAINS.machine,
     );
 

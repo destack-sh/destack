@@ -1,11 +1,9 @@
 import { principal } from "@destack/access";
-import { present } from "@destack/schema";
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { Proof, type PublicKey } from "@destack/identity";
 import type { Select } from "@destack/db";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
-import { account } from "../object/account.ts";
 import type { UniverseOrigin } from "../address/address.ts";
 import { key, Key } from "../object/key.ts";
 import { machine, Machine } from "../object/machine.ts";
@@ -84,7 +82,7 @@ async function declare(
     return row;
 }
 
-/** Record a self-hosted machine's tunnel at its derived name. */
+/** Record a self-hosted machine's tunnel at its origin. */
 async function relay(
     context: MethodContextOf<typeof machine, "relay">,
     universe: UniverseOrigin,
@@ -97,18 +95,9 @@ async function relay(
         );
     }
 
-    // address the machine below its account's handle
-    const owner = present(
-        await context
-            .read(account)
-            .findFirst({ where: { id: account.identifier(context.target.scope) } }),
-        `the account of machine ${context.target.id}`,
-    );
-    const url = universe.machine({ machine: context.target.name, handle: owner.handle });
-
     // replace the machine's endpoint, or record its first one
     await Endpoint.upsert(context, context.target.id, {
-        url,
+        url: universe.machine(context.target.id),
         relay: context.input.url,
         lapsesAt: context.input.lapsesAt,
     });

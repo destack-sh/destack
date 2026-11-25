@@ -172,15 +172,9 @@ function relay(
     );
 }
 
-/** Read the URL a personal machine answers at through its relay, below its account's handle. */
-async function relayed(fixture: TestAccount, machineId: string, handle: string): Promise<string> {
-    const named = await fixture.database
-        .snapshot()
-        .read(machine.table)
-        .findFirst({ where: { id: schema.identifier("machine").parse(machineId) } });
-    const address = { machine: present(named, `machine ${machineId}`).name, handle };
-
-    return UNIVERSE.machine(address);
+/** Read the URL a personal machine answers at through its relay, by its identifier. */
+function relayed(machineId: string): string {
+    return UNIVERSE.machine(schema.identifier("machine").parse(machineId));
 }
 
 /** Read where a space runs as a caller. */
@@ -620,7 +614,7 @@ test("publish a machine's tunnel as the machine alone", async () => {
     ];
 
     // read it as the peer and another account's machine, and resolve the laptop's space through the directory
-    const address = await relayed(fixture, local.subject.id, handle);
+    const address = relayed(local.subject.id);
     const resolver = new Directory(fixture.database.snapshot());
     expect([
         published,
@@ -881,7 +875,7 @@ test("drop a lapsed tunnel", async () => {
         await published(),
     ];
     expect({ first, lapsed }).toEqual({
-        first: ["done", await relayed(fixture, enrolled.subject.id, owner.handle)],
+        first: ["done", relayed(enrolled.subject.id)],
         lapsed: ["done", null],
     });
 });

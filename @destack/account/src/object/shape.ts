@@ -75,12 +75,13 @@ export const machineShape = defineShape({
     queries: ({ machine: id }) => [assignment.query({ where: { machineId: id } })],
 });
 
-/** The directory machines and routers read: placements, names, machines and endpoints. */
+/** The directory machines and routers read: regions, placements, names, machines and endpoints. */
 export const directoryShape = defineShape({
     name: "directory",
     parameters: schema.object({}),
-    objects: [placement, claim, machine, key, endpoint],
+    objects: [region, placement, claim, machine, key, endpoint],
     queries: () => [
+        region.query({ scopes: "every" }),
         placement.query({ scopes: "every" }),
         claim.query({ scopes: "every" }),
         machine.query({ scopes: "every" }),
