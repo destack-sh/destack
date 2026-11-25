@@ -148,11 +148,11 @@ import { Toolchain } from "@destack/check/toolchain";
 import { BunEnvironment } from "@destack/environment/bun";
 import type { TemplateInput } from "@destack/package/template";
 
-/** Create a site package from the blank template. */
+/** Create a site package from the template. */
 export async function createSite(parameters: TemplateInput) {
     // read the template, and write a package with a fresh identity
     const { files } = BunEnvironment.system;
-    const template = await Template.read("/templates/blank", files);
+    const template = await Template.read("/templates/template", files);
     await template.write("/work/site", parameters, Toolchain.workspace(), files);
 }
 ```

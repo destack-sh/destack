@@ -61,7 +61,7 @@ const INSTALLATIONS = schema.record(schema.string(), InstallationDefinition);
 const DESKTOP = "@destack/desktop";
 
 /** The template package, which a new package starts from by default. */
-const TEMPLATE = "@destack/blank";
+const TEMPLATE = "@destack/template";
 
 /**
  * How long a home may take to serve its forge, in milliseconds.

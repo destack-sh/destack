@@ -138,13 +138,13 @@
             "packages": [
                 {
                     "directory": ".",
-                    "name": "@destack/blank",
-                    "description": "Show an empty page with Destack's mark: the app a space and a new package start from."
+                    "name": "@destack/template",
+                    "description": "Show an empty page with Destack's mark."
                 }
             ],
             "entrypoints": [],
             "roles": {
-                "@destack/blank": "app",
+                "@destack/template": "app",
                 "@destack/locale": "builtin",
                 "@destack/object": "builtin",
                 "@destack/package": "builtin",

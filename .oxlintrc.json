@@ -288,11 +288,6 @@
                     "description": "Sign people and machines in, and manage their accounts, organizations and spaces."
                 },
                 {
-                    "directory": "@destack/blank",
-                    "name": "@destack/blank",
-                    "description": "Show an empty page with Destack's mark: the app a space and a new package start from."
-                },
-                {
                     "directory": "@destack/bucket",
                     "name": "@destack/bucket",
                     "description": "Store files in buckets on local disk, Cloudflare R2 or any S3 endpoint."
@@ -478,6 +473,11 @@
                     "description": "Instrument Destack packages with traces, metrics, logs, exceptions and analytics."
                 },
                 {
+                    "directory": "@destack/template",
+                    "name": "@destack/template",
+                    "description": "Show an empty page with Destack's mark."
+                },
+                {
                     "directory": "@destack/test",
                     "name": "@destack/test",
                     "description": "Write and run Destack tests: unit tests on Vitest, simulated worlds, and scenarios played through drivers."
@@ -644,7 +644,6 @@
             "roles": {
                 "@destack/access": "builtin",
                 "@destack/account": "builtin",
-                "@destack/blank": "app",
                 "@destack/bucket": "library",
                 "@destack/build": "library",
                 "@destack/check": "library",
@@ -682,6 +681,7 @@
                 "@destack/style": "library",
                 "@destack/sync": "builtin",
                 "@destack/telemetry": "builtin",
+                "@destack/template": "app",
                 "@destack/test": "library",
                 "@destack/theme": "library",
                 "@destack/tunnel": "library",

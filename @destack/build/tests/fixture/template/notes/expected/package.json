@@ -1,8 +1,8 @@
 {
-    "name": "@example/blank",
+    "name": "@example/notes",
     "license": "MIT",
     "type": "module",
-    "description": "Show an empty page with Destack's mark: the app a space and a new package start from.",
+    "description": "Show an empty page with Destack's mark.",
     "exports": {
         "./package": "./src/package.ts",
         "./view": "./src/view/index.ts"

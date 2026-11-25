@@ -7,5 +7,5 @@ export const start = defineView({
     title: t`Start`,
     categories: ["main"],
     audience: "anyone",
-    component: () => import("./blank.tsx"),
+    component: () => import("./app.tsx"),
 });
