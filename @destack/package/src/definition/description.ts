@@ -58,6 +58,9 @@ const WORKSPACE_RANGE = "workspace:";
 /** The tag npm clients install by default, taken for an unlinked workspace dependency. */
 const DEFAULT_TAG = "latest";
 
+/** The range any version satisfies, taken for an unlinked workspace peer. */
+const ANY_RANGE = "*";
+
 /** The fields of a package file listing dependencies by range. */
 const DEPENDENCY_FIELDS = [
     "dependencies",
@@ -65,6 +68,9 @@ const DEPENDENCY_FIELDS = [
     "optionalDependencies",
     "devDependencies",
 ] as const;
+
+/** A field of a package file listing dependencies by range. */
+type DependencyField = (typeof DEPENDENCY_FIELDS)[number];
 
 /** A package's package.json, with its destack.json as its definition. */
 export const PackageJson = Object.assign(packageJson, {
@@ -92,7 +98,9 @@ export const PackageJson = Object.assign(packageJson, {
                 released[field] = Object.fromEntries(
                     Object.entries(ranges.data).map(([name, range]) => [
                         name,
-                        range.startsWith(WORKSPACE_RANGE) ? releasedRange(versions[name]) : range,
+                        range.startsWith(WORKSPACE_RANGE)
+                            ? releasedRange(versions[name], field)
+                            : range,
                     ]),
                 );
             }
@@ -118,7 +126,7 @@ export const PackageJson = Object.assign(packageJson, {
                 requirements.optionalDependencies?.[name] ??
                     requirements.dependencies?.[name] ??
                     requirements.peerDependencies?.[name] ??
-                    "*",
+                    ANY_RANGE,
             ]),
         );
     },
@@ -164,14 +172,22 @@ export const RuntimeRequirements = schema.looseObject({
 /** The runtime dependency groups of a package.json, each absent when it declares none. */
 export type RuntimeRequirements = schema.Infer<typeof RuntimeRequirements>;
 
-/** Write the range a release requires a linked version at: that release or newer, or its tag. */
-function releasedRange(version: string | undefined): string {
-    // take the default tag for an unlinked package, the dev tag for unreleased code
-    if (version === undefined) {
+/** Write the range a release requires a workspace package at, by the field that lists it. */
+function releasedRange(version: string | undefined, field: DependencyField): string {
+    // range a peer from its linked release on, else at any version, as a peer range is no tag
+    if (field === "peerDependencies") {
+        return version !== undefined && Version.isRelease(version) ? `>=${version}` : ANY_RANGE;
+    }
+    // take the default tag for an unlinked package
+    else if (version === undefined) {
         return DEFAULT_TAG;
-    } else if (!Version.isRelease(version)) {
+    }
+    // take the dev tag for unreleased code
+    else if (!Version.isRelease(version)) {
         return version;
     }
-
-    return `>=${version}`;
+    // range a dependency from its linked release on
+    else {
+        return `>=${version}`;
+    }
 }
