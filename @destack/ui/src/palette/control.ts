@@ -112,6 +112,8 @@ export interface PaletteGroup {
     readonly items: Accessor<readonly PaletteItem[]>;
     /** Who ranks the entries a search finds: the palette by default, or the owner that searched. */
     readonly ranking?: "palette" | "owner";
+    /** The text the entries match, which they mark, the typed one when absent. */
+    readonly text?: Accessor<string | undefined>;
     /** Whether the owner still searches, which an empty palette says. */
     readonly isPending?: Accessor<boolean>;
 }

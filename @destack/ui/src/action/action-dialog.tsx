@@ -1,3 +1,4 @@
+import { Search } from "@destack/db";
 import check from "@destack/icon/phosphor/check";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -35,6 +36,7 @@ import {
 import { Badge } from "../badge/index.ts";
 import { Button } from "../button/index.ts";
 import { ChoiceIcon } from "./choice-icon.tsx";
+import { titleOf } from "./search-title.ts";
 import {
     Command,
     CommandDialog,
@@ -310,7 +312,7 @@ function ActionChoices(properties: {
                         ? locale.render(t`Searching…`)
                         : locale.render(t`No results.`)}
                 </CommandEmpty>
-                <CommandGroup>
+                <CommandGroup heading={titleOf(found, locale)}>
                     <For each={choices()}>
                         {(choice, index) => (
                             <CommandItem
@@ -320,7 +322,7 @@ function ActionChoices(properties: {
                                 icon={<ChoiceIcon choice={choice} />}
                                 onSelect={() => pick(choice)}
                             >
-                                <Highlight text={choice.title} />
+                                <Highlight text={choice.title} search={searchOf(found.text())} />
                                 <CommandItemMeta>
                                     <Show
                                         when={properties.chosen.includes(
@@ -496,4 +498,9 @@ function ActionField(properties: {
             />
         </Field>
     );
+}
+
+/** Read the search of a text, the nearest list's without one. */
+function searchOf(text: string | undefined): Search | undefined {
+    return text === undefined ? undefined : Search.of(text);
 }

@@ -24,6 +24,7 @@ import {
     toggleSelection,
 } from "./action.ts";
 import { ChoiceIcon } from "./choice-icon.tsx";
+import { titleOf } from "./search-title.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
 import type { PaletteGroup, PaletteItem } from "../palette/index.ts";
 import { CommandPalette } from "../palette/index.ts";
@@ -54,6 +55,8 @@ export interface ActionPaletteProperties {
     readonly objects?: {
         /** Their types. */
         readonly types: readonly ObjectType[];
+        /** Whether a text that finds nothing is corrected, as it is by default. */
+        readonly typos?: "correct" | "keep";
         /** Open one a person picks. */
         readonly onOpen: (reference: ObjectReference) => void;
     };
@@ -119,6 +122,9 @@ export function ActionPalette(properties: ActionPaletteProperties): JSX.Element 
                 return properties.objects?.types ?? [];
             },
             limit: FOUND,
+            get typos() {
+                return properties.objects?.typos ?? "correct";
+            },
         },
     );
     const objects = (): readonly PaletteItem[] =>
@@ -149,8 +155,9 @@ export function ActionPalette(properties: ActionPaletteProperties): JSX.Element 
                     { id: "actions", title: locale.render(t`Actions`), items },
                     {
                         id: "objects",
-                        title: locale.render(t`Results`),
+                        title: titleOf(found, locale) ?? locale.render(t`Results`),
                         items: objects,
+                        text: found.text,
                         ranking: "owner",
                         isPending: found.isPending,
                     },

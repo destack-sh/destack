@@ -1,3 +1,4 @@
+import { Search } from "@destack/db";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { Shortcut, t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -204,7 +205,13 @@ function PaletteContent(properties: {
                         {(result) => (
                             <CommandGroup heading={result().group.title}>
                                 <For each={result().items} keyed={(item) => item.id}>
-                                    {(item) => <PaletteEntry item={item()} control={control} />}
+                                    {(item) => (
+                                        <PaletteEntry
+                                            item={item()}
+                                            control={control}
+                                            text={result().group.text?.()}
+                                        />
+                                    )}
                                 </For>
                             </CommandGroup>
                         )}
@@ -260,8 +267,11 @@ function PaletteEntry(properties: {
     readonly item: PaletteItem;
     /** The palette, which runs it. */
     readonly control: PaletteControl;
+    /** The text it matches, the typed one when absent. */
+    readonly text?: string | undefined;
 }): JSX.Element {
     const value = untrack(() => properties.item.id);
+    const search = () => (properties.text === undefined ? undefined : Search.of(properties.text));
 
     return (
         <CommandItem
@@ -277,11 +287,11 @@ function PaletteEntry(properties: {
                 }
             }}
         >
-            <Highlight text={properties.item.title} />
+            <Highlight text={properties.item.title} search={search()} />
             <Show when={properties.item.subtitle}>
                 {(subtitle) => (
                     <CommandItemDescription>
-                        <Highlight text={subtitle()} />
+                        <Highlight text={subtitle()} search={search()} />
                     </CommandItemDescription>
                 )}
             </Show>

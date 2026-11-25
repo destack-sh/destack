@@ -106,6 +106,13 @@ function shownItems(): HTMLElement[] {
     return [...document.querySelectorAll<HTMLElement>("[data-slot=command-item]")];
 }
 
+/** List the titles of the groups the palette shows. */
+function shownHeadings(): (string | null)[] {
+    return [...document.querySelectorAll("[data-slot=command-group-heading]")].map(
+        (heading) => heading.textContent,
+    );
+}
+
 test("find objects as a person types, the best first, and open the one picked", async () => {
     // keep some cards on a device whose server never answers
     stubPopovers();
@@ -163,8 +170,32 @@ test("find objects as a person types, the best first, and open the one picked", 
         })
         .toEqual(["Order form", "The order book"]);
     const marks = shownItems().map((item) => item.querySelector("mark")?.textContent);
+
+    // type a word nothing has, found as it was meant
+    input.value = "odrer";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await expect
+        .poll(() => {
+            flush();
+
+            return shownItems().length;
+        })
+        .toBe(0);
+    await testWorld().simulation.sleep(200);
+    await expect
+        .poll(() => {
+            flush();
+
+            return shownHeadings();
+        })
+        .toEqual(["Results for “\u2068order\u2069”"]);
+    const meant = shownItems().map((item) => item.querySelector("mark")?.textContent);
     shownItems()[0]?.click();
     await wait(0);
 
-    expect({ marks, opened }).toEqual({ marks: ["Ord", "ord"], opened: ["card", BOARD] });
+    expect({ marks, meant, opened }).toEqual({
+        marks: ["Ord", "ord"],
+        meant: ["Order", "order"],
+        opened: ["card", BOARD],
+    });
 });
