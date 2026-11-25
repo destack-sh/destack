@@ -16,6 +16,9 @@ const styles = style.create({
     spinner: {
         display: "inline-flex",
         flexShrink: 0,
+        // turn about the mark, also where a layout stretches what is in it
+        width: "fit-content",
+        height: "fit-content",
         animationName: spin,
         animationDuration: `calc(2 * ${motion.durationLong})`,
         animationTimingFunction: "linear",

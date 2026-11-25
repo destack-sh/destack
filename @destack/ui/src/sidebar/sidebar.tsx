@@ -49,6 +49,7 @@ import {
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { toggleSidebar } from "./actions.ts";
 import { Input, type InputProperties } from "../input/index.ts";
+import { entryMarker } from "./marker.stylex.ts";
 import { Sheet, SheetContent, SheetTitle } from "../sheet/index.ts";
 import { Skeleton } from "../skeleton/index.ts";
 import { OpenChange, type OpenReason } from "../layer/index.ts";
@@ -235,7 +236,14 @@ const styles = style.create({
         alignItems: "center",
         insetBlock: 0,
         insetInlineEnd: space[2],
-        color: color.mutedForeground,
+        color: {
+            default: color.mutedForeground,
+            [media.forcedColors]: {
+                default: "CanvasText",
+                [style.when.ancestor(":has([data-active])", entryMarker)]: "HighlightText",
+            },
+        },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
         fontVariantNumeric: "tabular-nums",
         pointerEvents: "none",
     },
@@ -819,7 +827,7 @@ export function SidebarMenu(
 export function SidebarMenuItem(
     properties: SidebarElementProperties<JSX.LiHTMLAttributes<HTMLLIElement>>,
 ): JSX.Element {
-    return renderPart("li", "sidebar-menu-item", properties, styles.menuItem);
+    return renderPart("li", "sidebar-menu-item", properties, [entryMarker, styles.menuItem]);
 }
 
 /** Render an entry's button, or its link with `href`. */

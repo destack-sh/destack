@@ -1,7 +1,7 @@
 import type { Hue } from "@destack/color";
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { color, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -10,9 +10,12 @@ import {
     type JSX,
     merge,
     omit,
+    onSettled,
     type Setter,
     Show,
+    untrack,
     useContext,
+    useEnvironment,
 } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -25,14 +28,14 @@ const styles = style.create({
         position: "relative",
         display: "flex",
         flexShrink: 0,
-        borderRadius: "50%",
+        borderRadius: radius.full,
         userSelect: "none",
     },
     image: {
         aspectRatio: "1",
         width: "100%",
         height: "100%",
-        borderRadius: "50%",
+        borderRadius: radius.full,
         objectFit: "cover",
     },
     loading: {
@@ -44,7 +47,7 @@ const styles = style.create({
         justifyContent: "center",
         width: "100%",
         height: "100%",
-        borderRadius: "50%",
+        borderRadius: radius.full,
         backgroundColor: color.muted,
         color: color.mutedForeground,
     },
@@ -62,7 +65,7 @@ const styles = style.create({
         justifyContent: "center",
         width: "30%",
         height: "30%",
-        borderRadius: "50%",
+        borderRadius: radius.full,
         backgroundColor: swatch.accentSolid,
         color: swatch.accentLabel,
         boxShadow: `0 0 0 ${stroke.ring} ${color.background}`,
@@ -81,7 +84,7 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         marginInlineStart: `calc(-1 * ${space[2]})`,
-        borderRadius: "50%",
+        borderRadius: radius.full,
         backgroundColor: color.muted,
         color: color.mutedForeground,
         boxShadow: `0 0 0 ${stroke.ring} ${color.background}`,
@@ -201,15 +204,35 @@ export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
     );
 }
 
+/** The properties of an avatar's fallback, the native element's attributes included. */
+export type AvatarFallbackProperties = AvatarElementProperties<
+    JSX.HTMLAttributes<HTMLSpanElement>
+> & {
+    /** The milliseconds before it shows while an image loads, at once by default. */
+    readonly delay?: number;
+};
+
 /** Render what an avatar shows while its image loads or after it failed, such as initials. */
-export function AvatarFallback(
-    properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
-): JSX.Element {
+export function AvatarFallback(properties: AvatarFallbackProperties): JSX.Element {
+    // wait for a picture that loads at once, so the fallback does not flash before it
     const avatar = useAvatar();
+    const { clock } = useEnvironment();
+    const delay = untrack(() => properties.delay ?? 0);
+    const [isDue, setDue] = createSignal(delay === 0, { ownedWrite: true });
+    const rest = omit(properties, "delay");
+    onSettled(() => {
+        // wait only where there is a delay
+        if (delay === 0) {
+            return undefined;
+        }
+        const timer = clock.setTimeout(() => void setDue(true), delay);
+
+        return () => clock.clearTimeout(timer);
+    });
 
     return (
-        <Show when={avatar.status() !== "loaded"}>
-            {renderPart("span", "avatar-fallback", properties, () => {
+        <Show when={avatar.status() === "error" || (avatar.status() === "loading" && isDue())}>
+            {renderPart("span", "avatar-fallback", rest, () => {
                 // tint the fallback in its color, as a badge tints itself
                 const tint = avatar.color();
 
