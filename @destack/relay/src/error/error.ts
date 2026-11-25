@@ -36,7 +36,6 @@ export const RelayError = defineErrorFamily({
         // unreachable
         ENDPOINT_UNREACHABLE: {},
         HEAD_UNREACHABLE: {},
-        RENEWAL_UNREACHABLE: {},
     },
 });
 

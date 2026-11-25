@@ -3,7 +3,7 @@ import { defineMount, definePackage } from "@destack/object";
 import { directoryShape, identityShape, regionShape } from "@destack/account/object";
 import { RelayError } from "./error/error.ts";
 
-/** The handle stacks import to install the relay in the platform's home of a region. */
+/** The relay each region's managed machine hosts: names and self-hosted machines' tunnels. */
 export default definePackage({
     title: t`Relay`,
     description: t`Relay HTTP requests for Destack names to the machines serving them.`,

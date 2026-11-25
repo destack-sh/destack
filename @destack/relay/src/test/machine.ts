@@ -2,15 +2,15 @@ import type { UniverseDefinition } from "@destack/universe";
 import { testSimulation } from "@destack/test/world";
 import { Failure } from "@destack/error";
 import { type ClientSocket, type Environment, MemoryWebSocket } from "@destack/environment";
-import { MachineAddress } from "@destack/account/address";
-import { endpoint, type Endpoint, machine, type RegionCode } from "@destack/account/object";
+import { MachineOrigin } from "@destack/account/address";
+import { endpoint, type Endpoint, type RegionCode } from "@destack/account/object";
 import { PackageMount } from "@destack/object";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
 import { createClient } from "@destack/object/client";
-import { Identifier, present } from "@destack/schema";
-import { RequestId, type Subject } from "@destack/sync";
+import { Identifier } from "@destack/schema";
+import { RequestId } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { TEST_UNIVERSE, type TestMachine, TestUniverse } from "@destack/universe/test";
@@ -192,12 +192,11 @@ export class TestTunnelMachine implements AsyncDisposable {
         return opened;
     }
 
-    /** Start a relay installation in the platform's home of a region, Europe by default. */
+    /** Start a region's relay on its managed machine, Europe by default. */
     async relay(
         options: {
             readonly region?: RegionCode;
             readonly hostname?: string;
-            readonly installation?: Subject;
             readonly names?: readonly string[];
         } = {},
     ): Promise<TestRelay> {
@@ -241,18 +240,9 @@ export class TestTunnelMachine implements AsyncDisposable {
             .findFirst({ where: { parentId: this.machine.id } });
     }
 
-    /** Read the computer's address, its name within its account under the account's handle. */
-    async address(): Promise<string> {
-        const enrolled = await this.universe.storage.database
-            .snapshot()
-            .read(machine.table)
-            .findFirst({ where: { id: this.machine.id } });
-        const name = present(enrolled, `machine ${this.machine.id}`).name;
-
-        return MachineAddress.format(
-            { machine: name, handle: HANDLE },
-            TEST_UNIVERSE.domains.machine,
-        );
+    /** Read the computer's origin, by its identifier, which a rename leaves as it is. */
+    origin(): string {
+        return MachineOrigin.format(this.machine.id, TEST_UNIVERSE.domains.machine);
     }
 
     /** Open a forwarded upgrade's socket in the computer, greeting each message. */

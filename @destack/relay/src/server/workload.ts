@@ -1,27 +1,23 @@
-import { TUNNEL_PATH } from "@destack/tunnel";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { principal } from "@destack/access";
 import { copyRequest } from "@destack/environment";
 import { type DatabaseSchema, Relations, TABLE } from "@destack/db";
-import { MemoryBlobStorage } from "@destack/resource";
-import { UniverseOrigin } from "@destack/account/address";
+import { MemoryBlobStorage, ResourceHandle } from "@destack/resource";
 import { directoryShape, identityShape, regionShape } from "@destack/account/object";
-import { Egress, type Follow, PackageMount, tablesOf, VERSION_HEADER } from "@destack/object";
+import { type Follow, PackageMount, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore } from "@destack/object/server";
 import {
     defineWorkload,
     ClientHead,
-    type ServerContext,
     type WorkloadContext,
     type WorkloadImplementation,
 } from "@destack/object/workload";
 import { Failure } from "@destack/error";
 import { present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import { origin, region, universe } from "../declare/setting.ts";
 import { RelayError } from "../error/index.ts";
+import type { RelayHost } from "./hosting.ts";
 import relayPackage from "../package.ts";
 import { Relay } from "./relay.ts";
 import { TunnelToken } from "./token.ts";
@@ -57,23 +53,26 @@ const REPLICA: DatabaseSchema = {
     relations: new Relations(),
 };
 
+/** The host a relay's workload runs with, which its machine binds. */
+export const relayHost = new ResourceHandle<RelayHost>(relayPackage, "relay");
+
 /** The relay's workload: the router of names at its root, a machine's tunnel in a partition. */
 export const relayWorkload = defineWorkload({
     name: "relay",
     start: (context) => {
         // route names at the root, and run a machine's tunnel in its partition
-        const server = present(context.server, "the relay installation's server context");
+        const host = relayHost.get(context.resources);
 
-        return server.partition === undefined
-            ? serveRoot(context, server)
-            : servePartition(context, server, server.partition);
+        return host.partition === undefined
+            ? serveRoot(context, host)
+            : servePartition(context, host, host.partition);
     },
 });
 
 /** Serve the root: the router of names over the directory's replica, and the names' controller. */
 async function serveRoot(
     context: WorkloadContext,
-    server: ServerContext,
+    host: RelayHost,
 ): Promise<WorkloadImplementation> {
     // answer the partitions' reads of their machines' standing, refusing every other call at the root
     const answer = async (request: Request): Promise<Response> => {
@@ -91,20 +90,18 @@ async function serveRoot(
     };
 
     // follow the directory and the identities into memory
-    const code = region.read(server.settings);
-    const address = UniverseOrigin.of(universe.read(server.settings));
     const follows = [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, REGION_FOLLOW];
     const names = (request: Request) =>
         relay.fetch(copyRequest(restore(request), { signal: request.signal }));
-    const store = await openReplica(context, server, follows, answer, names);
+    const store = await openReplica(context, host, follows, answer, names);
     const relay = new Relay({
-        origin: origin.read(server.settings),
-        universe: address,
-        itself: itselfOf(server),
+        origin: host.origin,
+        universe: host.universe,
+        itself: host.tunnels,
         view: store.database.snapshot(),
-        fetch: (request) => server.fetch(request),
+        fetch: host.fetch,
         environment: context.environment,
-        region: code,
+        region: host.region,
         synced: async () => {
             // wait until the directory's, the identities' and the regions' replicas synced
             const isSynced = async () => {
@@ -129,7 +126,7 @@ async function serveRoot(
 /** Serve a machine's partition: its tunnel over the hibernated sockets. */
 async function servePartition(
     context: WorkloadContext,
-    server: ServerContext,
+    host: RelayHost,
     partition: string,
 ): Promise<WorkloadImplementation> {
     // answer the root's calls to the tunnel
@@ -137,14 +134,13 @@ async function servePartition(
 
     // follow the identities and the regions into memory, verifying the renewals by them
     const follows = [IDENTITY_FOLLOW, REGION_FOLLOW];
-    const store = await openReplica(context, server, follows, answer, refuseNames);
-    const root = itselfOf(server);
+    const store = await openReplica(context, host, follows, answer, refuseNames);
+    const root = host.tunnels;
     const running: Tunnel = new Tunnel(Tunnel.machine(partition), {
         hibernation: present(context.hibernation, "the hibernation of the tunnel's sockets"),
-        url: new URL(TUNNEL_PATH, origin.read(server.settings)).href,
         tokens: new TunnelToken(
-            UniverseOrigin.of(universe.read(server.settings)).issuer,
-            region.read(server.settings),
+            host.universe.issuer,
+            host.region,
             store.database.snapshot(),
             context.environment,
         ),
@@ -194,7 +190,7 @@ async function servePartition(
 /** Open a store following some of the universe's rows into the instance's memory. */
 async function openReplica(
     context: WorkloadContext,
-    server: ServerContext,
+    host: RelayHost,
     follows: readonly Follow[],
     tunnels: (request: Request) => Promise<Response>,
     names: (request: Request) => Promise<Response>,
@@ -205,15 +201,13 @@ async function openReplica(
     await database.migrate(REPLICA.tables);
     context.defer(() => database.close());
 
-    // follow the rows through the home space's replicas, served at the relay installation
+    // follow the rows from the universe as the machine hosting the relay
     return new ObjectStore({
         blobs: new MemoryBlobStorage(context.environment.crypto),
-        servers: [
-            implementPackage(relayPackage, { follows, mounts: { tunnels, names } }).at(server),
-        ],
+        servers: [implementPackage(relayPackage, { follows, mounts: { tunnels, names } })],
         chain: async () => undefined,
-        principal: principal.installation.reference(server.scope, server.installation),
-        publisher: () => server.remote,
+        principal: host.principal,
+        publisher: host.publisher,
         database,
         environment: context.environment,
         origin: { package: relayPackage },
@@ -223,22 +217,6 @@ async function openReplica(
 /** Refuse a routed name at a machine's tunnel, as the root alone routes names. */
 function refuseNames(): Promise<Response> {
     throw RelayError.of("TUNNEL_CALL_NOT_FOUND", "name route at a machine's tunnel not found");
-}
-
-/** Call the relay installation itself at its own release, which the gateway routes calls by. */
-function itselfOf(server: ServerContext): ReturnType<ServerContext["at"]> {
-    const at = server.at(Egress.address(server.name, server.scope));
-
-    return {
-        ...at,
-        fetch: (request) => {
-            // state the release the call speaks, which picks the deployment serving it
-            const headers = new Headers(request.headers);
-            headers.set(VERSION_HEADER, import.meta.destack.package.version);
-
-            return at.fetch(copyRequest(request, { headers }));
-        },
-    };
 }
 
 /** Answer one call of the root to a machine's tunnel. */
@@ -272,15 +250,6 @@ async function tunnelCall(request: Request, running: Tunnel): Promise<Response> 
     // forward a request through the tunnel under the host it asked for
     else if (verb === "forward") {
         return running.fetch(restore(request));
-    }
-    // tell the tunnel the machine's name
-    else if (verb === "rename") {
-        const { name } = schema
-            .object({ name: schema.string().min(1) })
-            .parse(await request.json());
-        await running.rename(name);
-
-        return new Response(null, { status: 204 });
     }
     // close the tunnel's sockets for a reason
     else if (verb === "close") {

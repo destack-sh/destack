@@ -86,7 +86,7 @@ export const ClientAttachment = schema.object({
 export type ClientAttachment = schema.Infer<typeof ClientAttachment>;
 
 /** The calls the relay's root makes to a machine's tunnel in its partition. */
-export type TunnelCall = "open" | "forward" | "rename" | "close";
+export type TunnelCall = "open" | "forward" | "close";
 
 /** Why a tunnel's socket ends: a revoked key, a deleted machine, a lapse, a move, or its close. */
 export const TunnelCloseReason = schema.enum([
@@ -140,8 +140,6 @@ interface ForwardedSocket {
 export interface TunnelOptions {
     /** The host of the partition's hibernated sockets. */
     readonly hibernation: Pick<Hibernation, "list" | "socket" | "accept" | "attach">;
-    /** The relay's tunnel URL the machine dials, which its renames come from. */
-    readonly url: string;
     /** The universe's tunnel tokens and keys, which machines renew their tunnels with. */
     readonly tokens: Pick<TunnelToken, "verify" | "isStanding">;
     /** Wait until the replicas verifying the tokens, identities and regions, synced. */
@@ -168,8 +166,6 @@ export class Tunnel implements SocketHandler {
     readonly #forwarded = new Map<string, ForwardedSocket>();
     /** The sessions over the sockets hibernated before this instance started, once listed. */
     #listing: Promise<void> | undefined;
-    /** The name the root last told the tunnel, absent since the instance started. */
-    #name: string | undefined;
 
     /** Run a machine's tunnel in its partition. */
     constructor(machineId: Identifier<"machine">, options: TunnelOptions) {
@@ -184,6 +180,16 @@ export class Tunnel implements SocketHandler {
     /** Derive the partition of a machine's tunnel. */
     static partition(machineId: Identifier<"machine">): string {
         return `${PARTITION_PREFIX}${Identifier.uuid(machineId)}`;
+    }
+
+    /** Report whether a name is a tunnel's partition. */
+    static isPartition(name: string): boolean {
+        const machine = `machine-${name.slice(PARTITION_PREFIX.length)}`;
+
+        return (
+            name.startsWith(PARTITION_PREFIX) &&
+            schema.identifier("machine").safeParse(machine).success
+        );
     }
 
     /** Read the machine a tunnel's partition leads to. */
@@ -202,7 +208,6 @@ export class Tunnel implements SocketHandler {
             lapsesAt: handshake.lapsesAt,
             kid: handshake.kid,
         };
-        this.#name = handshake.name;
         this.#accepted.set(id, attachment);
 
         return this.#options.hibernation.accept({
@@ -389,26 +394,6 @@ export class Tunnel implements SocketHandler {
     /** Report whether a hibernated socket is a client's the tunnel forwards. */
     static #isForwarded(socket: Socket): boolean {
         return ClientAttachment.safeParse(socket.attachment).success;
-    }
-
-    /** Take the machine's name from the root, asking the machine to renew once it changed. */
-    async rename(name: string): Promise<void> {
-        // leave a name the tunnel has, and a machine without a socket
-        await this.sweep();
-        const isRenamed = this.#name !== name;
-        this.#name = name;
-        if (!isRenamed || this.#sockets.length === 0) {
-            return;
-        }
-
-        // ask the connected machine to renew, to learn the name
-        const response = await this.fetch(new Request(this.#options.url, { method: "PUT" }));
-        if (!response.ok) {
-            throw RelayError.of(
-                "RENEWAL_UNREACHABLE",
-                `could not renew the tunnel: HTTP ${response.status}`,
-            );
-        }
     }
 
     /** Read the running socket of a host's event, running one accepted here on its first event. */

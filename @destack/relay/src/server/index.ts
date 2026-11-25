@@ -1,4 +1,4 @@
-export * from "../declare/setting.ts";
+export * from "./hosting.ts";
 export * from "./relay.ts";
 export * from "./token.ts";
 export * from "./tunnel.ts";

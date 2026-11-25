@@ -1,126 +1,76 @@
 import { ReplicaSet, Scope, type Subject } from "@destack/sync";
-import { Caller } from "@destack/access";
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-import { Account, machine, Region } from "@destack/account/object";
+import { Caller, principal } from "@destack/access";
+import { machine, Region } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import type { DatabaseConnection } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { Environment, Listener } from "@destack/environment";
-import { LineExporter } from "@destack/environment/line";
-import { Egress, PackageMount } from "@destack/object";
+import { PackageMount } from "@destack/object";
 import { ObjectConnection, type ObjectRemote } from "@destack/object/client";
-import {
-    type EphemeralHost,
-    CLIENT_HEAD_HEADER,
-    ClientHead,
-    HibernationHost,
-    PARTITION_HEADER,
-    ROUTE_HEADER,
-    SOCKET_HEADER,
-    SOCKET_INSTANCE_HEADER,
-    SOCKET_PATH,
-    WorkloadRunner,
-} from "@destack/object/workload";
-import { PackageVersion } from "@destack/package";
-import { DeclarationReference } from "@destack/package/declare";
-import { MemoryBuild } from "@destack/package/test";
-import { Identifier, present, schema, Uuid } from "@destack/schema";
-import { TelemetryScope } from "@destack/telemetry";
+import { HibernationHost, PARTITION_HEADER } from "@destack/object/workload";
+import { present } from "@destack/schema";
 import type { TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
-import { origin, relayWorkload, TUNNELS_PATH } from "../server/index.ts";
-import * as setting from "../declare/setting.ts";
-import { region } from "../declare/setting.ts";
+import { ProcessRelay, TUNNELS_PATH } from "../server/index.ts";
 
 /** The port HTTPS names reach the relay at. */
 const HTTPS_PORT = 443;
-
-/** The status of a call to an address the front door does not serve (RFC 9110 15.5.5). */
-const NOT_FOUND = 404;
-
-/** The name the relay installation has in the platform's home. */
-const NAME = "relay";
-
-/** One started instance of the relay's workload: the root, or a machine's partition. */
-interface Instance {
-    /** The instance's runner. */
-    readonly runner: WorkloadRunner;
-    /** The secret the front door and the runner prove each other's requests with. */
-    readonly secret: string;
-}
 
 /** What a test relay is served with: its host, its node's environment and its relays' number. */
 export interface TestRelayOptions {
     /** The universe whose names the relay routes. */
     readonly universe: TestUniverse;
-    /** The region's managed machine hosting the relay in the platform's home. */
+    /** The region's managed machine hosting the relay. */
     readonly host: TestMachine;
     /** The clock and server of the relay's node. */
     readonly environment: Environment<"server">;
     /** The host name the relay answers at, where machines open their tunnels. */
     readonly hostname: string;
-    /** The relay installation it serves as, a new one in the platform's home by default. */
-    readonly installation?: Subject;
     /** The names DNS sends to the relay over HTTPS, such as `*.destack.computer`, or none. */
     readonly names?: readonly string[];
 }
 
-/** A relay installation's workload run in process behind its machine's front door. */
+/** A region's relay run in process by its managed machine, behind the machine's front door. */
 export class TestRelay implements AsyncDisposable {
-    /** The relay installation in the platform's home. */
-    readonly installation: Subject;
+    /** The machine hosting the relay, which its tunnel calls come from. */
+    readonly principal: Subject;
     /** The origin the relay answers at. */
     readonly origin: string;
     /** The universe whose rows the relay follows. */
     readonly #universe: TestUniverse;
+    /** The relay the machine runs in process. */
+    readonly #relay: ProcessRelay;
     /** The memory databases of the instances, the root's under no partition. */
     readonly #memories: ReadonlyMap<string | undefined, Promise<DatabaseConnection>>;
-    /** The instances started so far, the root's under no partition. */
-    readonly #instances: Map<string | undefined, Promise<Instance>>;
-    /** Start the root's or a partition's instance once. */
-    readonly #start: (partition: string | undefined) => Promise<Instance>;
-    /** The front door's listeners: the relay's origin and the host's egress. */
+    /** The front door's listeners: the relay's origin and the names DNS sends it. */
     readonly #listeners: readonly Pick<Listener, "stop">[];
-    /** The connection to the universe's account store the home's replicas follow through. */
+    /** The connection to the universe's account store the replicas follow through. */
     readonly #accounts: ObjectConnection;
-    /** Call the root or a partition as the installation itself, below its address at the egress. */
-    readonly #call: (request: Request) => Promise<Response>;
-    /** The URL of the installation's own address at the host's egress. */
-    readonly #address: string;
     /** The stop once asked for, which every later disposal waits for. */
     #stopping: Promise<void> | undefined;
 
-    /** Keep a started relay's instances and listeners. */
-    private constructor(
-        universe: TestUniverse,
-        installation: Subject,
-        relayOrigin: string,
-        running: {
-            readonly instances: Map<string | undefined, Promise<Instance>>;
-            readonly memories: ReadonlyMap<string | undefined, Promise<DatabaseConnection>>;
-            readonly start: (partition: string | undefined) => Promise<Instance>;
-            readonly call: (request: Request) => Promise<Response>;
-            readonly itself: string;
-            readonly accounts: ObjectConnection;
-        },
-        listeners: readonly Pick<Listener, "stop">[],
-    ) {
-        // keep the universe, the installation and its origin
-        this.#universe = universe;
-        this.#memories = running.memories;
-        this.installation = installation;
-        this.origin = relayOrigin;
-        this.#instances = running.instances;
-        this.#start = running.start;
-        this.#call = running.call;
-        this.#address = running.itself;
-        this.#listeners = listeners;
-        this.#accounts = running.accounts;
+    /** Keep a started relay and its listeners. */
+    private constructor(fields: {
+        readonly universe: TestUniverse;
+        readonly principal: Subject;
+        readonly relay: ProcessRelay;
+        readonly memories: ReadonlyMap<string | undefined, Promise<DatabaseConnection>>;
+        readonly accounts: ObjectConnection;
+        readonly listeners: readonly Pick<Listener, "stop">[];
+    }) {
+        // keep the universe, the hosting machine and the relay
+        this.#universe = fields.universe;
+        this.principal = fields.principal;
+        this.origin = fields.relay.host.origin;
+        this.#relay = fields.relay;
+        this.#memories = fields.memories;
+        this.#accounts = fields.accounts;
+        this.#listeners = fields.listeners;
     }
 
-    /** Run a relay installation in its host's platform home, its universe rows from the host. */
+    /** Run a region's relay on its managed machine, its universe rows followed as the machine. */
     static async open(options: TestRelayOptions): Promise<TestRelay> {
-        // take the installation in the home of the host machine's account
+        // read the hosting machine's region
         const { universe, host, environment, hostname } = options;
         const directory = universe.storage.database.snapshot();
         const hosted = present(
@@ -128,12 +78,9 @@ export class TestRelay implements AsyncDisposable {
             `the machine ${host.id}`,
         );
         const { code } = await Region.require(directory, present(hosted.regionId, "a region"));
-        const home = Account.home(hosted.scope);
-        const installation = options.installation ?? (await universe.relay(code));
-        const relayOrigin = `http://${hostname}`;
-        const egress = `http://host.${hostname}${Egress.path}`;
+        const hosting = principal.machine.reference(Scope.universe.id, host.id);
 
-        // stand in for the home space's replicas: the universe's rows as its machine follows them
+        // follow the universe's rows as the machine follows them
         const accounts = ObjectConnection.open({
             url: ObjectConnection.url(PackageMount.url(host.universe.origin, accountPackage.id)),
             authorize: host.authorize(accountPackage.id),
@@ -143,27 +90,24 @@ export class TestRelay implements AsyncDisposable {
         const replicas: ObjectRemote = {
             ...universal,
             async *stream(subscription, signal) {
-                const followed = { ...subscription, target: Scope.universe.id };
-                yield* accounts.stream(followed, signal);
+                yield* accounts.stream({ ...subscription, target: Scope.universe.id }, signal);
             },
             request: async (subscription) => {
-                const followed = { ...subscription, target: Scope.universe.id };
-                await accounts.request(followed);
+                await accounts.request({ ...subscription, target: Scope.universe.id });
             },
-            // run the relay's changes at the universe as their signer, as the home's machine sends them
+            // run the relay's changes at the universe as the hosting machine
             push: (scope, push, signal) =>
                 universal.push(
                     scope,
-                    { ...push, signer: push.signer ?? Caller.of(installation) },
+                    { ...push, signer: push.signer ?? Caller.of(hosting) },
                     signal,
                 ),
         };
 
         // keep each instance's memory in its own database, the root's read for its replicas' progress
-        const { clock, server, random } = environment;
         const memories = new Map<string | undefined, Promise<DatabaseConnection>>();
-        const memory = (partition: string | undefined): EphemeralHost => ({
-            open: (tables) => {
+        const memory = (partition: string | undefined) => ({
+            open: (tables: Parameters<typeof connectBunSqlite>[1]) => {
                 const opened = connectBunSqlite(":memory:", tables, { environment });
                 memories.set(partition, opened);
 
@@ -171,173 +115,44 @@ export class TestRelay implements AsyncDisposable {
             },
         });
 
-        // hibernate the tunnels' sockets, delivering their events to the instances that accepted them
-        const instances = new Map<string | undefined, Promise<Instance>>();
-        const partitions = new Map<string, string | undefined>();
+        // host the relay as the machine does, its sockets delivered to the tunnels that accepted them
         const sockets = new HibernationHost(async (instanceId, path, request) => {
-            // deliver the event to the instance below the socket's path, with its secret
-            if (!partitions.has(instanceId)) {
-                throw new TypeError(`the test relay started no instance '${instanceId}'`);
-            }
-            const { runner, secret } = await start(partitions.get(instanceId));
-            const headers = new Headers(request.headers);
-            headers.set("authorization", `Bearer ${secret}`);
+            await relay.receive(instanceId, new Request(`http://relay${path}`, request));
 
-            return runner.fetch(new Request(`http://runner${path}`, { ...request, headers }));
+            return new Response(null, { status: 204 });
         }, environment.telemetry);
-
-        // start the root, or a machine's partition on its first call, as the machine starts them
-        const build = await MemoryBuild.write(
-            new Map(),
-            { role: "app", package: PackageVersion.of(relayPackage) },
-            environment.crypto,
-        );
-        const settings = {
-            [DeclarationReference.key(origin.reference)]: relayOrigin,
-            [DeclarationReference.key(setting.universe.reference)]: host.universe.toJSON(),
-            [DeclarationReference.key(region.reference)]: code,
-        };
-        const start = (partition: string | undefined): Promise<Instance> => {
-            // take a started instance
-            const existing = instances.get(partition);
-            if (existing !== undefined) {
-                return existing;
-            }
-
-            // start the workload as a new instance with its own secret
-            const instance = TestRelay.#instance(partitions, partition, environment);
-            const secret = Uuid.v4(random);
-            const started = WorkloadRunner.start(
-                {
-                    workload: relayWorkload,
-                    resources: {},
-                    // leave the relay's local lines unprinted, as the tests read its records from its export
-                    log: new LineExporter(() => {}),
-                    remote: () => replicas,
-                    socketHost: {
-                        url: `http://host.${hostname}${SOCKET_PATH}`,
-                        fetch: (request) => sockets.answer(instance, request),
-                    },
-                    ephemeral: memory(partition),
-                    environment,
-                },
-                {
-                    root: "00".repeat(32),
-                    capabilities: [],
-                    instance,
-                    scope: home,
-                    installation: schema.identifier("installation").parse(installation.id),
-                    name: NAME,
-                    ...(partition === undefined ? {} : { partition }),
-                    bindings: {},
-                    settings,
-                    secret,
-                    egress,
-                    url: relayOrigin,
-                    telemetry: { sampling: 0, delay: 5000 },
-                },
-                build,
-                // record the workload's telemetry in the world, as its node's
-                async () => ({
-                    ...environment.telemetry,
-                    flush: async () => {},
-                    shutdown: async () => {},
-                }),
-                (error) =>
-                    TelemetryScope.of(
-                        import.meta.destack.package,
-                        environment.telemetry,
-                    ).captureException(error),
-            ).then((runner) => ({ runner, secret }));
-            instances.set(partition, started);
-
-            return started;
-        };
-
-        // call the root or a partition as the installation itself, below its address at the egress
-        const call = async (request: Request): Promise<Response> => {
-            // require the installation's own address
-            const addressed = Egress.of(request);
-            if (addressed?.address !== Egress.address(NAME, home)) {
-                return new Response(null, { status: NOT_FOUND });
-            }
-
-            // forward it to the partition it names, else the root, as the installation
-            const partition = addressed.request.headers.get(PARTITION_HEADER) ?? undefined;
-            const target = await start(partition);
-            const headers = new Headers(addressed.request.headers);
-            headers.set("authorization", `Bearer ${target.secret}`);
-            Caller.forward(TestRelay.#itself(installation, clock.now()), headers);
-            const url = new URL(addressed.request.url);
-            const answer = await target.runner.fetch(
-                new Request(`http://runner${url.pathname}${url.search}`, {
-                    method: addressed.request.method,
-                    headers,
-                    body: addressed.request.body,
-                    signal: addressed.request.signal,
-                }),
-            );
-
-            // name the instance that accepted a socket
-            if (!answer.headers.has(SOCKET_HEADER)) {
-                return answer;
-            }
-            const accepted = new Headers(answer.headers);
-            accepted.set(SOCKET_INSTANCE_HEADER, target.runner.start.instance);
-
-            return new Response(answer.body, { status: answer.status, headers: accepted });
-        };
-        const egressListener = server.http({
-            hostname: `host.${hostname}`,
-            port: 80,
-            fetch: (request) => call(request),
+        const relay: ProcessRelay = new ProcessRelay({
+            origin: `http://${hostname}`,
+            region: code,
+            universe: host.universe,
+            principal: hosting,
+            publisher: () => replicas,
+            memory,
+            hibernation: sockets,
+            environment,
         });
 
-        // hand names and tunnel openings to the root's route, hibernating the sockets the partitions accept
-        const route = async (request: Request) => {
-            // hand the client's head to the root's route at the URL it asked for
-            const root = await start(undefined);
-            const url = new URL(request.url);
-            const authority = request.headers.get("host") ?? url.host;
-            const asked = `http://${authority}${url.pathname}${url.search}`;
-            const headers = new Headers({
-                [CLIENT_HEAD_HEADER]: ClientHead.write(request, asked),
-                [ROUTE_HEADER]: "route-names",
-                authorization: `Bearer ${root.secret}`,
-            });
-
-            return root.runner.fetch(
-                new Request(`http://runner${PackageMount.path(relayPackage.id)}/names`, {
-                    method: request.method,
-                    headers,
-                    body: request.body,
-                    signal: request.signal,
-                }),
-            );
-        };
-
-        // keep the sockets a partition accepts, and state a refused upgrade on its socket
-        const listening = sockets.listen(route);
-        const routeListener = server.http({ hostname, port: 80, ...listening });
-
-        // answer the names DNS sends to the relay as well
-        const named = (options.names ?? []).map((name) =>
-            server.http({ hostname: name, port: HTTPS_PORT, ...listening }),
-        );
+        // answer the relay's origin, and the names DNS sends it
+        const listening = sockets.listen((request) => relay.fetch(request));
+        const { server } = environment;
+        const listeners = [
+            server.http({ hostname, port: 80, ...listening }),
+            ...(options.names ?? []).map((name) =>
+                server.http({ hostname: name, port: HTTPS_PORT, ...listening }),
+            ),
+        ];
 
         // start the root at once
-        await start(undefined);
+        await relay.start();
 
-        // keep the installation's own address at the egress
-        const itself = Egress.url(egress, Egress.address(NAME, home));
-
-        return new TestRelay(
+        return new TestRelay({
             universe,
-            installation,
-            relayOrigin,
-            { instances, memories, start, call, itself, accounts },
-            [routeListener, egressListener, ...named],
-        );
+            principal: hosting,
+            relay,
+            memories,
+            accounts,
+            listeners,
+        });
     }
 
     /** The URL machines open their tunnels at. */
@@ -347,10 +162,10 @@ export class TestRelay implements AsyncDisposable {
 
     /** The partitions started so far, the root's as absent. */
     get partitions(): readonly (string | undefined)[] {
-        return [...this.#instances.keys()];
+        return this.#relay.partitions;
     }
 
-    /** Call the relay's tunnels as the installation itself, in a partition or at the root. */
+    /** Call the relay's tunnels as its hosting machine, in a partition or at the root. */
     itself(path: string, request: RequestInit, partition?: string): Promise<Response> {
         // address the partition, else the root
         const headers = new Headers(request.headers);
@@ -359,8 +174,8 @@ export class TestRelay implements AsyncDisposable {
         }
         const tunnels = `${PackageMount.path(relayPackage.id)}${TUNNELS_PATH}`;
 
-        return this.#call(
-            new Request(`${this.#address}${tunnels}${path}`, { ...request, headers }),
+        return this.#relay.tunnels(
+            new Request(`http://tunnels${tunnels}${path}`, { ...request, headers }),
         );
     }
 
@@ -389,19 +204,8 @@ export class TestRelay implements AsyncDisposable {
     }
 
     /** Stop the instances, take a step meanwhile, then start them again as their host does. */
-    async restart(meanwhile: () => Promise<void>): Promise<void> {
-        // stop every instance, keeping the sockets the front door hibernates
-        const stopped = [...this.#instances];
-        this.#instances.clear();
-        for (const [, started] of stopped) {
-            await (await started).runner.close();
-        }
-
-        // take the step, then start the same instances again
-        await meanwhile();
-        for (const [partition] of stopped) {
-            await this.#start(partition);
-        }
+    restart(meanwhile: () => Promise<void>): Promise<void> {
+        return this.#relay.restart(meanwhile);
     }
 
     /** Stop listening, ending every tunnel, then the instances, once. */
@@ -419,43 +223,7 @@ export class TestRelay implements AsyncDisposable {
         }
 
         // stop the instances, then close the connection they followed through
-        for (const started of this.#instances.values()) {
-            await (await started).runner.close();
-        }
+        await this.#relay[Symbol.asyncDispose]();
         this.#accounts.close();
-    }
-
-    /** Read the instance of a partition, the one it started as before, else a new one. */
-    static #instance(
-        partitions: Map<string, string | undefined>,
-        partition: string | undefined,
-        environment: Pick<Environment, "clock" | "random">,
-    ) {
-        // take the instance the partition started as before
-        for (const [instance, started] of partitions) {
-            if (started === partition) {
-                return schema.identifier("instance").parse(instance);
-            }
-        }
-
-        // add a new one
-        const instance = Identifier.create("instance", environment);
-        partitions.set(instance, partition);
-
-        return instance;
-    }
-
-    /** Authenticate a call as the relay installation itself. */
-    static #itself(installation: Subject, now: number) {
-        return {
-            caller: Caller.of(installation),
-            credential: {
-                kind: "installation",
-                id: installation.id,
-                audience: relayPackage.id,
-                verifiedAt: now,
-                expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
-            },
-        };
     }
 }

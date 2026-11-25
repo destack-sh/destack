@@ -27,7 +27,7 @@ async function disconnected(computer: TestTunnelMachine) {
     return [
         "SERVICE_UNAVAILABLE",
         "MACHINE_UNAVAILABLE",
-        `'${await computer.address()}' is unavailable: it is disconnected`,
+        `'${computer.origin()}' is unavailable: it is disconnected`,
     ];
 }
 
@@ -128,29 +128,29 @@ test("route a machine's name within its account through its tunnel", async () =>
     ]).toEqual(["hello GET /status", unresolved("missing--example.destack.computer")]);
 });
 
-test("tell a machine its name as its tunnel opens, and again at once after its rename", async () => {
+test("keep a machine's origin through its rename, answering its new name and refusing its old one", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     await computer.tunnel(relay, { heartbeat: 60_000 });
     const before = await computer.computer();
 
-    // rename the machine as itself
+    // rename the machine as itself, and wait until the relay's replica has the name
     await computer.accounts().machine.rename({
         accountId: computer.accountId,
         id: computer.machine.id,
         requestId: RequestId.create(computer.environment),
         name: "renamed",
     });
-
-    // call the machine by its new name once the relay tells it
-    const renamed = "renamed--example.destack.computer";
-    await computer.waitUntil(() => computer.names.at(-1) === renamed);
     await computer.waitCaughtUp(relay);
+
+    // tell the machine its origin once, which still answers next to the new name
+    const renamed = "renamed--example.destack.computer";
     expect([
         computer.names,
+        await computer.request(relay, computer.origin(), "/status"),
         await computer.request(relay, renamed, "/status"),
         await computer.request(relay, before, "/status"),
-    ]).toEqual([[before, renamed], "hello GET /status", unresolved(before)]);
+    ]).toEqual([[computer.origin()], "hello GET /status", "hello GET /status", unresolved(before)]);
 });
 
 test("refuse names that lead nowhere, and a named machine that has no tunnel and whose endpoint does not answer", async () => {
@@ -276,19 +276,18 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
     ]);
 });
 
-test("publish a machine's tunnel as the relay accepting it, at the machine's name and its token's lapse", async () => {
+test("publish a machine's tunnel as the relay accepting it, at the machine's origin and its token's lapse", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     const renewals: Renewal[] = [];
     await computer.tunnel(relay, { renewed: (renewal) => void renewals.push(renewal) });
 
-    // keep the endpoint the relay published, at the name and lapse it told the machine
+    // keep the endpoint the relay published, at the origin and lapse it told the machine
     const published = await computer.endpoint();
     const [renewal] = renewals;
-    const name = await computer.computer();
     expect([renewals.length, published?.url, published?.relay, published?.lapsesAt]).toEqual([
         1,
-        `https://${name}`,
+        `https://${computer.origin()}`,
         new URL(relay.url).origin,
         renewal?.lapsesAt,
     ]);
@@ -413,9 +412,9 @@ test("restore the route when the machine reconnects after its relay restarts", a
     const first = await computer.relay();
     await computer.tunnel(first);
 
-    // restart the relay at the same origin, and wait for the machine to dial it again
+    // restart the region's relay at the same origin on the same machine, and wait for the machine to dial it again
     await computer.stop(first);
-    const second = await computer.relay({ installation: first.installation });
+    const second = await computer.relay();
     await computer.waitUntil(
         async () =>
             (await computer.request(second, computer.notes, "/again")) === "hello GET /again",

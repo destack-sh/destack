@@ -405,19 +405,6 @@ test("refuse a renewal of a machine left keyless or missing from the directory m
     ]);
 });
 
-test("refuse a rename the machine refuses to renew for", async () => {
-    const { tunnel: running, connect, telemetry: recorded } = openTunnel();
-    using _telemetry = recorded;
-    await connect("host", TEST_START + 60_000, 503);
-
-    // rename the machine, whose session answers its renewal with a 503
-    expect(await refusal(running.rename("renamed--example.destack.computer"))).toEqual([
-        "BAD_GATEWAY",
-        "RENEWAL_UNREACHABLE",
-        "could not renew the tunnel: HTTP 503",
-    ]);
-});
-
 test("keep a lapsed socket open until the next use, which closes it and forwards through the newest socket left", async () => {
     const { tunnel: running, connect, simulation, telemetry: recorded } = openTunnel();
     using telemetry = recorded;
@@ -547,4 +534,15 @@ test("refuse a request beyond a machine's open requests, and time out the ones t
         ],
         Array.from({ length: MAX_STREAMS }, () => timeout),
     ]);
+});
+
+test("read a tunnel's partition back to its machine, and no partition from other names", () => {
+    const partition = Tunnel.partition(machineId);
+
+    expect([
+        Tunnel.machine(partition),
+        Tunnel.isPartition(partition),
+        Tunnel.isPartition("instance-01996ab0-0000-7000-8000-0000000000d1"),
+        Tunnel.isPartition("tunnel-unknown"),
+    ]).toEqual([machineId, true, false, false]);
 });

@@ -8,12 +8,12 @@ import {
     type UniverseOrigin,
     InstallationOrigin,
     MachineAddress,
+    MachineOrigin,
     S3Origin,
     SpaceAddress,
 } from "@destack/account/address";
 import { Directory } from "@destack/account/client";
 import {
-    account,
     endpoint,
     Endpoint,
     key,
@@ -26,7 +26,7 @@ import type { Projection, Snapshot } from "@destack/db/database";
 import { type Clock, type Environment, Forwarded, WebSocketUpgrade } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { type Identifier, schema } from "@destack/schema";
-import { Claim, claimTable, type Fetch, PackageMount, refusal } from "@destack/object";
+import { type Fetch, PackageMount, refusal } from "@destack/object";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
 import { RelayError } from "../error/index.ts";
 import { PackageId } from "@destack/package";
@@ -205,7 +205,7 @@ export class Relay {
         return { name: replicated.name };
     }
 
-    /** Bring a machine's tunnel here in line with its replica: its name, or its close. */
+    /** Close a machine's tunnel here once its replica no longer keeps it here. */
     async reconcile(machineId: Identifier<"machine">): Promise<void> {
         // read whether the machine stands, and where its endpoint leads
         const standing = await this.standing(machineId);
@@ -215,21 +215,15 @@ export class Relay {
 
         // close the tunnel of a machine that no longer stands
         if ("reason" in standing) {
-            await this.#post(machineId, "close", { reason: standing.reason });
-        }
-        // tell a tunnel still here its machine's name, which a renamed machine renews to learn
-        else if (published !== undefined && this.isHere(published)) {
-            await this.#post(machineId, "rename", { name: standing.name });
+            await this.#close(machineId, { reason: standing.reason });
         }
         // close the tunnel here of a machine whose endpoint moved to another relay, or that unpublished it
-        else {
-            await this.#post(machineId, "close", {
-                reason: published === undefined ? "closed" : "moved",
-            });
+        else if (published === undefined || !this.isHere(published)) {
+            await this.#close(machineId, { reason: published === undefined ? "closed" : "moved" });
         }
     }
 
-    /** Project the tunnels here from the replica, telling each machine its name or ending it. */
+    /** Project the tunnels here from the replica, ending each one that no longer stands. */
     projection(): Projection {
         // key each tunnel by its machine, among the endpoints here
         const here = { relay: this.#origin.origin };
@@ -242,8 +236,8 @@ export class Relay {
             reads: [
                 // take a machine whose endpoint came here or left
                 { table: endpoint.table, fields: ["relay"], where: here },
-                // take a renamed machine tunnelled here
-                { table: machine.table, fields: ["name"], on: { parentId: "id" } },
+                // take a deleted machine tunnelled here
+                { table: machine.table, fields: ["deletedAt"], on: { parentId: "id" } },
                 // take the machine of a key that was revoked, suspended, restored or removed
                 {
                     table: key.table,
@@ -251,32 +245,17 @@ export class Relay {
                     where: { parentType: machine.name },
                     on: { parentId: "parentId" },
                 },
-                // take the machines of an account whose handle claim changed
-                {
-                    table: claimTable,
-                    fields: ["state"],
-                    where: { index: Claim.index(account, "handle") },
-                    path: [
-                        {
-                            table: machine.table,
-                            cardinality: "many",
-                            on: { kind: "key", column: "scope", parent: "objectId" },
-                        },
-                    ],
-                    on: { parentId: "id" },
-                },
             ],
             project: (machineId) => this.reconcile(schema.identifier("machine").parse(machineId)),
         };
     }
 
-    /** Post a body to a machine's tunnel, failing with its refusal. */
-    async #post(
+    /** Close a machine's tunnel for a reason, failing with its refusal. */
+    async #close(
         machineId: Identifier<"machine">,
-        call: Extract<TunnelCall, "close" | "rename">,
-        body: { readonly reason: TunnelCloseReason } | { readonly name: string },
+        body: { readonly reason: TunnelCloseReason },
     ): Promise<void> {
-        const response = await this.call(machineId, call, {
+        const response = await this.call(machineId, "close", {
             method: "POST",
             body: JSON.stringify(body),
         });
@@ -394,9 +373,10 @@ export class Relay {
 
     /** Find where a name's requests go through the replicas of the directory and the machines. */
     async #resolve(name: string): Promise<Destination> {
-        // read the name as a space's origin, a space's S3 origin or a machine's name
+        // read the name as a space's origin, a space's S3 origin, a machine's origin or its name
         const origin = InstallationOrigin.parse(name, this.universe.domains.space);
         const s3 = S3Origin.parse(name, this.universe.domains.space);
+        const machineId = MachineOrigin.parse(name, this.universe.domains.machine);
         const computer = MachineAddress.parse(name, this.universe.domains.machine);
 
         // route a space's name, and its branches', to its placement's machine
@@ -406,6 +386,10 @@ export class Relay {
         // route a space's S3 origin to its placement's machine
         else if (s3 !== undefined) {
             return this.#locatePlacement(name, s3);
+        }
+        // route a machine's origin to its tunnel
+        else if (machineId !== undefined) {
+            return this.#destination(machineId);
         }
         // route a machine's name to its tunnel
         else if (computer !== undefined) {
@@ -478,31 +462,17 @@ export class Relay {
             : { kind: "endpoint", url: published.relay ?? published.url };
     }
 
-    /** Read a live machine's name and its account, absent once deleted. */
-    async #machine(machineId: Identifier<"machine">): Promise<
-        | {
-              readonly name: string;
-              readonly account: Identifier<"account">;
-          }
-        | undefined
-    > {
-        // read the live machine and the handle its account claims, none for a machine outside accounts
+    /** Read a live machine's origin, absent once deleted. */
+    async #machine(
+        machineId: Identifier<"machine">,
+    ): Promise<{ readonly name: string } | undefined> {
         const replicated = await this.#view
             .read(machine.table)
             .findFirst({ where: { id: machineId, deletedAt: { isNull: true } } });
-        const handle =
-            replicated === undefined ? undefined : await this.#directory.handle(replicated.scope);
-        if (replicated === undefined || handle === undefined) {
-            return undefined;
-        }
 
-        // read the machine's name
-        const address = { machine: replicated.name, handle };
-
-        return {
-            name: MachineAddress.format(address, this.universe.domains.machine),
-            account: schema.identifier("account").parse(replicated.scope),
-        };
+        return replicated === undefined
+            ? undefined
+            : { name: MachineOrigin.format(machineId, this.universe.domains.machine) };
     }
 
     /** Report whether a machine has a standing key, unrevoked, unsuspended and unexpired. */
