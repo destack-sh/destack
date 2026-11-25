@@ -372,9 +372,14 @@ export class ObjectSink {
         const position = await database.log.position();
         const changes = await this.#changes(position.sequence);
 
-        // list the requests
+        // list the requests, a primary following no shape at its own scope, whose rows it writes here
         const view = database.snapshot();
-        const entries = await subscriber.subscriptions(view, changes);
+        const { scope } = this.store;
+        const chain = (await this.store.chain(view))?.kind;
+        const isPrimary = chain === "home" || chain === "pending";
+        const entries = (await subscriber.subscriptions(view, changes)).filter(
+            (entry) => !isPrimary || entry.subscription.scope !== scope,
+        );
         const named = new Set(entries.map((entry) => ObjectSink.#key(entry.subscription)));
         const held = await sync.ReplicaSet.subscriptions(view);
         const requests = await Promise.all(

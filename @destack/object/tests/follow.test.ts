@@ -595,6 +595,70 @@ test("serve a store whose follows ask for nothing before its replica controller 
     });
 });
 
+test("follow no shape at a home's own scope, whose rows it writes itself", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // store two documents in a home, one asking for annotations at the home itself and one at another space
+    const machine = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { document }, tables: [] }],
+            follows: [],
+            tables: [lease],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => machine.close());
+    await machine.database.transaction(
+        async (transaction) =>
+            await transaction.insert(document.table).values(
+                ["own", "other"].map((title) => ({
+                    id: Identifier.create("document", world),
+                    scope: spaceId,
+                    title,
+                    createdAt: 1,
+                    updatedAt: 1,
+                })),
+            ),
+    );
+    const annotations = defineShape({
+        name: "annotations",
+        parameters: schema.object({}),
+        objects: [annotation],
+        queries: () => [annotation.query()],
+    });
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => ({ kind: "home", parent: accountId }),
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([document], {
+            follows: [
+                annotations.per(document, {
+                    key: async (row) => ({
+                        key: { scope: row.title === "own" ? spaceId : otherSpaceId },
+                    }),
+                }),
+            ],
+        }),
+        database: machine.database,
+        remote: TestRemote.of({ stream: async function* () {}, request: async () => {} }),
+        callKey: testCallKey,
+        events: await testEvents(machine.database, world),
+        origin: { package: document.package },
+    });
+
+    // list the replicas in the store's sync loop, following its chain above it and the other space alone
+    const controller = new AbortController();
+    const running = new ControlLoop(machine.database, [store.syncing()]).run(controller.signal);
+    onTestFinished(async () => {
+        controller.abort();
+        await running;
+    });
+    const scopes = async () =>
+        (await store.sink.followed()).map((entry) => entry.subscription.scope);
+    await expect.poll(scopes).toEqual([accountId, otherSpaceId]);
+});
+
 test("report a follow its source refuses, and drop its replica once a change of the rows the follow reads stops requesting it", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
