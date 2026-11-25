@@ -166,8 +166,12 @@ export class Move {
             return;
         }
 
-        // capture the pointer and sample where it pressed
-        element.setPointerCapture(event.pointerId);
+        // capture the pointer on what it pressed, as a finger does, which leaves its click there
+        if (event.target instanceof Element) {
+            event.target.setPointerCapture(event.pointerId);
+        }
+
+        // sample where it pressed
         const sample = { x: event.clientX, y: event.clientY, time: event.timeStamp };
         const run: MoveRun = {
             pointerId: event.pointerId,
@@ -190,6 +194,11 @@ export class Move {
         view.addEventListener("pointermove", (each) => this.#pointerMove(each), options);
         view.addEventListener("pointerup", (each) => this.#pointerEnd(each, false), options);
         view.addEventListener("pointercancel", (each) => this.#pointerEnd(each, true), options);
+
+        // select no text on the way
+        view.document.addEventListener("selectstart", (select) => select.preventDefault(), {
+            signal,
+        });
 
         // take a finger's gesture from the page's scrolling wherever it moves the element
         if (run.pointerType === "touch") {
@@ -309,6 +318,11 @@ export class Move {
 
     /** Start the move from where the pointer pressed. */
     #start(run: MoveRun): void {
+        // capture the pointer for the move, unless it left with the press
+        if (run.element.ownerDocument.contains(run.element)) {
+            run.element.setPointerCapture(run.pointerId);
+        }
+
         // take the pointer from the element's other gestures
         const taken = {
             bubbles: true,

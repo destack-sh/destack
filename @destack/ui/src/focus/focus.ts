@@ -263,7 +263,7 @@ export class Focus<Key> {
 /** List the elements in a root the Tab key stops at, in document order. */
 export function tabbablesIn(root: ParentNode): HTMLElement[] {
     return [...root.querySelectorAll<HTMLElement>(TABBABLE)].filter(
-        (element) => element.closest("[inert], [hidden]") === null,
+        (element) => element.tabIndex >= 0 && element.closest("[inert], [hidden]") === null,
     );
 }
 

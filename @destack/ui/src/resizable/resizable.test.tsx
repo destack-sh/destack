@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { createSignal, flush, Show } from "@destack/view";
+import { createSignal, flush, type JSX, Show } from "@destack/view";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./index.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { render } from "@destack/view/test";
@@ -122,4 +122,28 @@ test("restore the layout a group saved under its id", async () => {
         ["55", "45"],
         "[55,45]",
     ]);
+});
+
+test("keep a panel's content as its share changes", () => {
+    let built = 0;
+    const Count = (): JSX.Element => {
+        built += 1;
+
+        return null;
+    };
+    const { container } = render(() => (
+        <ResizablePanelGroup>
+            <ResizablePanel>
+                <Count />
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel />
+        </ResizablePanelGroup>
+    ));
+    const handle = container.querySelector<HTMLElement>("[role=separator]");
+    handle?.focus();
+    handle?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    flush();
+
+    expect({ built, now: handle?.getAttribute("aria-valuenow") }).toEqual({ built: 1, now: "60" });
 });

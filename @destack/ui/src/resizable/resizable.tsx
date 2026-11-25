@@ -24,7 +24,7 @@ import {
 } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Move } from "../interaction/index.ts";
-import { mergeProperties } from "../part/index.ts";
+import { mergeProperties, renderPart } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The storage key prefix of saved layouts. */
@@ -439,8 +439,6 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
         "maxSize",
         "collapsible",
         "collapsedSize",
-        "xstyle",
-        "style",
     );
 
     // read whether a panel that can collapse is collapsed
@@ -449,18 +447,22 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
     const isCollapsed = (): boolean =>
         isCollapsible() && control.sizeOf(panel) <= control.share(panel.collapsedSize);
 
-    return (
-        <div
-            id={panel.id}
-            data-slot="resizable-panel"
-            data-collapsed={isCollapsed() ? "" : undefined}
-            data-expanded={isCollapsible() && !isCollapsed() ? "" : undefined}
-            {...mergeProperties({ ref: (created: HTMLDivElement) => (element = created) }, rest)}
-            {...style.attributes(
-                [styles.panel, styles.share(control.sizeOf(panel)), properties.xstyle],
-                properties.style,
-            )}
-        />
+    // keep the content as its share changes
+    return renderPart(
+        "div",
+        "resizable-panel",
+        rest,
+        () => [styles.panel, styles.share(control.sizeOf(panel))],
+        {
+            id: panel.id,
+            get "data-collapsed"() {
+                return isCollapsed() ? "" : undefined;
+            },
+            get "data-expanded"() {
+                return isCollapsible() && !isCollapsed() ? "" : undefined;
+            },
+            ref: (created) => (element = created),
+        },
     );
 }
 
