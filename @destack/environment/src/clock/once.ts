@@ -12,4 +12,12 @@ export class Once<Value> {
 
         return this.#read;
     }
+
+    /** Forget the current read, returning it, so the next use reads again. */
+    take(): Promise<Value> | undefined {
+        const read = this.#read;
+        this.#read = undefined;
+
+        return read;
+    }
 }
