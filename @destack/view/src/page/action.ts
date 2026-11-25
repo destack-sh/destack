@@ -413,7 +413,7 @@ export class ActionRegistry {
             return [];
         }
         const live = client.search("", { types: [type], where, limit: CHOICES }).subscribe();
-        const hits = await live.read();
+        const { hits } = await live.read();
         await live.close();
 
         return hits.map((hit) => client.choice(hit, localization));

@@ -374,6 +374,7 @@ test("search every scope of a view live, the most relevant first", async () => {
                 <output>
                     {titlesOf(found.choices())}
                     {found.isPending() ? " pending" : ""}
+                    {found.isCorrected() ? found.text() : ""}
                 </output>
             );
         },
@@ -407,6 +408,14 @@ test("search every scope of a view live, the most relevant first", async () => {
     // type on, and clear the text
     setText("order b");
     await settle("The order book pending");
+
+    // correct a typo, until a card has it
+    setText("bokk");
+    await settle(" pending");
+    await testWorld().simulation.sleep(200);
+    await settle("The order book pendingbook");
+    await first.mutate(card).create({ title: "Bokk choy" }).predicted;
+    await settle("Bokk choy pending");
     setText(undefined);
     await settle("");
 });
