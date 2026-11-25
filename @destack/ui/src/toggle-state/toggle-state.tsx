@@ -2,7 +2,7 @@ import { Timeout } from "@destack/view/primitives/timer";
 import * as style from "@destack/style";
 import { handleFormReset } from "../form-input/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
-import { type Accessor, createControllableSignal, type JSX, untrack } from "@destack/view";
+import { type Accessor, createControllableSignal, type JSX, Show, untrack } from "@destack/view";
 
 /** The styles of the hidden native input that submits a control's state with its form. */
 const styles = style.create({
@@ -20,6 +20,8 @@ export interface ToggleStateProperties {
     readonly defaultChecked?: boolean | undefined;
     /** Handle the person checking or unchecking the control. */
     readonly onCheckedChange?: ((checked: boolean) => void) | undefined;
+    /** Whether the person reads the state but does not change it. */
+    readonly readOnly?: boolean | undefined;
 }
 
 /** The form attributes of a control, which its hidden native input submits. */
@@ -28,6 +30,8 @@ export interface ToggleFormProperties {
     readonly name?: string | undefined;
     /** The value the control submits while checked, `on` by default. */
     readonly value?: string | undefined;
+    /** The value the control submits while unchecked, none by default. */
+    readonly uncheckedValue?: string | undefined;
     /** Whether a form needs the control checked before it submits. */
     readonly required?: boolean | undefined;
     /** The id of the form the control belongs to, its ancestor form by default. */
@@ -69,9 +73,11 @@ export class ToggleState {
         this.#setChecked = setChecked;
     }
 
-    /** Check or uncheck the control and tell the owner. */
+    /** Check or uncheck the control and tell the owner, unless the person only reads it. */
     set(checked: boolean): void {
-        this.#setChecked(checked);
+        if (this.#properties.readOnly !== true) {
+            this.#setChecked(checked);
+        }
     }
 
     /** Return the control to the state it started in, as a form reset does. */
@@ -108,18 +114,31 @@ export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
     );
 
     return (
-        <input
-            type={properties.type ?? "checkbox"}
-            aria-hidden="true"
-            tabindex={-1}
-            name={properties.name}
-            value={properties.value ?? "on"}
-            required={properties.required}
-            form={properties.form}
-            disabled={properties.disabled}
-            checked={properties.checked}
-            ref={(input) => (element = input)}
-            {...style.attributes([visuallyHiddenStyle(), styles.input])}
-        />
+        <>
+            <input
+                type={properties.type ?? "checkbox"}
+                aria-hidden="true"
+                tabindex={-1}
+                name={properties.name}
+                value={properties.value ?? "on"}
+                required={properties.required}
+                form={properties.form}
+                disabled={properties.disabled}
+                checked={properties.checked}
+                ref={(input) => (element = input)}
+                {...style.attributes([visuallyHiddenStyle(), styles.input])}
+            />
+            <Show when={properties.checked ? undefined : properties.uncheckedValue}>
+                {(value) => (
+                    <input
+                        type="hidden"
+                        name={properties.name}
+                        value={value()}
+                        form={properties.form}
+                        disabled={properties.disabled}
+                    />
+                )}
+            </Show>
+        </>
     );
 }

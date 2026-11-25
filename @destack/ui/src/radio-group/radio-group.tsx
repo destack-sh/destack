@@ -96,6 +96,8 @@ export interface RadioGroupProperties extends Omit<
     readonly onValueChange?: (value: string) => void;
     /** Whether every radio ignores the person. */
     readonly disabled?: boolean;
+    /** Whether the person reads the checked radio but does not change it. */
+    readonly readOnly?: boolean;
     /** Whether a form needs a checked radio before it submits. */
     readonly required?: boolean;
     /** The direction the radios lay out along; arrow keys move both ways either way. */
@@ -173,7 +175,9 @@ export class RadioGroupControl {
 
     /** Check a radio's value. */
     choose(value: string): void {
-        this.selection.add(value);
+        if (this.properties.readOnly !== true) {
+            this.selection.add(value);
+        }
     }
 
     /** Return the group to the value it started with, as a form reset does. */
@@ -216,6 +220,7 @@ export function RadioGroup(given: RadioGroupProperties): JSX.Element {
         "defaultValue",
         "onValueChange",
         "disabled",
+        "readOnly",
         "required",
         "orientation",
         "xstyle",
@@ -230,6 +235,8 @@ export function RadioGroup(given: RadioGroupProperties): JSX.Element {
                 data-orientation={properties.orientation}
                 data-disabled={properties.disabled === true ? "" : undefined}
                 aria-orientation={properties.orientation}
+                data-readonly={properties.readOnly === true ? "" : undefined}
+                aria-readonly={properties.readOnly === true ? "true" : undefined}
                 aria-required={properties.required === true ? "true" : undefined}
                 aria-disabled={properties.disabled === true ? "true" : undefined}
                 {...rest}

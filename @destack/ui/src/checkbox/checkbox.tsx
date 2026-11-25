@@ -12,6 +12,7 @@ import {
     Show,
     useContext,
 } from "@destack/view";
+import { CheckboxGroupContext } from "./group.tsx";
 import { useFieldControl, useFieldValue } from "../field/control.ts";
 import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import {
@@ -39,7 +40,11 @@ const styles = style.create({
         borderColor: color.mutedForeground,
         borderRadius: radius[2],
         color: swatch.accentLabel,
-        cursor: { default: "pointer", ":disabled": "not-allowed" },
+        cursor: {
+            default: "pointer",
+            ":disabled": "not-allowed",
+            ":is([data-readonly])": "default",
+        },
         transitionProperty: "background-color, border-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
@@ -86,6 +91,8 @@ export interface CheckboxProperties
         ToggleFormProperties {
     /** Whether the box shows neither checked nor unchecked, such as for a partly selected list. */
     readonly indeterminate?: boolean;
+    /** Whether the box checks every box of its group at once, in between while some are. */
+    readonly parent?: boolean;
     /** The StyleX styles applied after the checkbox's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with the checkbox's attributes, the native button by default. */
@@ -100,27 +107,37 @@ export type CheckboxIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLSpanElemen
     readonly xstyle?: style.Styles;
 };
 
-/** Render a button exposed as a checkbox around its indicator. */
-export function Checkbox(given: CheckboxProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
+/** Edit the value of the nearest field's form. */
+function useCheckboxField(given: CheckboxProperties): CheckboxProperties {
+    return useFieldValue(given, {
         value: "checked",
         change: "onCheckedChange",
         read: (value) => value === true,
         settles: true,
     });
+}
+
+/** Render a button exposed as a checkbox around its indicator. */
+export function Checkbox(given: CheckboxProperties): JSX.Element {
+    // follow the group around, else edit the value of the field's form
+    const group = useContext(CheckboxGroupContext);
+    const properties = group === null ? useCheckboxField(given) : group.checkbox(given);
 
     // take the id and state of the nearest field
-    const field = useFieldControl();
+    const nearest = useFieldControl();
+    const field = group === null ? nearest : null;
     const toggle = new ToggleState(properties);
     const rest = omit(
         properties,
         "checked",
         "defaultChecked",
         "onCheckedChange",
+        "readOnly",
         "indeterminate",
+        "parent",
         "name",
         "value",
+        "uncheckedValue",
         "required",
         "form",
         "disabled",
@@ -163,6 +180,12 @@ export function Checkbox(given: CheckboxProperties): JSX.Element {
                       ? "true"
                       : "false";
             },
+            get "aria-readonly"() {
+                return properties.readOnly === true ? "true" : undefined;
+            },
+            get "data-readonly"() {
+                return properties.readOnly === true ? "" : undefined;
+            },
             get "aria-required"() {
                 return properties.required === true ? "true" : undefined;
             },
@@ -204,6 +227,7 @@ export function Checkbox(given: CheckboxProperties): JSX.Element {
                 <ToggleInput
                     name={properties.name}
                     value={properties.value}
+                    uncheckedValue={properties.uncheckedValue}
                     required={properties.required}
                     form={properties.form}
                     checked={toggle.isChecked()}

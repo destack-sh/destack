@@ -52,3 +52,20 @@ export const switchComposed = defineExample({
         </Label>
     ),
 });
+
+/** A small switch, and one a person reads but does not flip. */
+export const switchSmall = defineExample({
+    of: Switch,
+    name: "small",
+    description: "a small switch, and one a person reads but does not flip",
+    render: () => (
+        <div>
+            <Label>
+                <Switch size="sm" defaultChecked /> Notifications
+            </Label>
+            <Label>
+                <Switch size="sm" defaultChecked readOnly /> Backups
+            </Label>
+        </div>
+    ),
+});

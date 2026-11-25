@@ -40,6 +40,9 @@ import {
 /** The distance a checked thumb travels: the track's inner width less the thumb. */
 const TRAVEL = `calc(${size[2]} - 2 * ${stroke.border} - ${space[4]})`;
 
+/** The distance a small checked thumb travels. */
+const SMALL_TRAVEL = `calc(${size[1]} - 2 * ${stroke.border} - ${space[3]})`;
+
 /** The styles of a switch and its thumb. */
 const styles = style.create({
     switch: {
@@ -54,7 +57,11 @@ const styles = style.create({
         borderColor: { default: "transparent", [media.forcedColors]: "ButtonBorder" },
         borderRadius: radius.full,
         backgroundColor: { default: color.input, [media.forcedColors]: "ButtonFace" },
-        cursor: { default: "pointer", ":disabled": "not-allowed" },
+        cursor: {
+            default: "pointer",
+            ":disabled": "not-allowed",
+            ":is([data-readonly])": "default",
+        },
         transitionProperty: "background-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
@@ -76,6 +83,16 @@ const styles = style.create({
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
     },
+    small: {
+        width: `calc(${size[1]} - 2 * ${stroke.border})`,
+        height: space[3],
+    },
+    smallThumb: {
+        width: space[3],
+        height: space[3],
+    },
+    smallThumbChecked: { transform: `translateX(${SMALL_TRAVEL})` },
+    smallThumbCheckedReversed: { transform: `translateX(calc(-1 * ${SMALL_TRAVEL}))` },
     thumbChecked: {
         backgroundColor: { default: "white", [media.forcedColors]: "HighlightText" },
         transform: `translateX(${TRAVEL})`,
@@ -92,6 +109,8 @@ interface SwitchControl {
     readonly isChecked: Accessor<boolean>;
     /** Whether the switch ignores the person. */
     readonly isDisabled: Accessor<boolean>;
+    /** Whether the switch is small. */
+    readonly isSmall: Accessor<boolean>;
 }
 
 /** The nearest switch, null outside one. */
@@ -106,6 +125,8 @@ export interface SwitchProperties
         >,
         ToggleStateProperties,
         ToggleFormProperties {
+    /** The size, default by default. */
+    readonly size?: "sm" | "default";
     /** The StyleX styles applied after the switch's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with the switch's attributes, the native button by default. */
@@ -134,11 +155,14 @@ export function Switch(given: SwitchProperties): JSX.Element {
         "checked",
         "defaultChecked",
         "onCheckedChange",
+        "readOnly",
         "name",
         "value",
+        "uncheckedValue",
         "required",
         "form",
         "disabled",
+        "size",
         "xstyle",
         "style",
         "render",
@@ -155,6 +179,7 @@ export function Switch(given: SwitchProperties): JSX.Element {
                     state.touch,
                     state.disabled,
                     styles.switch,
+                    properties.size === "sm" && styles.small,
                     toggle.isChecked() && styles.checked,
                     properties.xstyle,
                 ],
@@ -164,6 +189,12 @@ export function Switch(given: SwitchProperties): JSX.Element {
             role: "switch" as const,
             get "aria-checked"() {
                 return toggle.isChecked() ? "true" : "false";
+            },
+            get "aria-readonly"() {
+                return properties.readOnly === true ? "true" : undefined;
+            },
+            get "data-readonly"() {
+                return properties.readOnly === true ? "" : undefined;
             },
             get "aria-required"() {
                 return properties.required === true ? "true" : undefined;
@@ -187,7 +218,13 @@ export function Switch(given: SwitchProperties): JSX.Element {
     );
 
     return (
-        <SwitchContext value={{ isChecked: toggle.isChecked, isDisabled }}>
+        <SwitchContext
+            value={{
+                isChecked: toggle.isChecked,
+                isDisabled,
+                isSmall: () => properties.size === "sm",
+            }}
+        >
             {useRender({
                 render: properties.render,
                 defaultTagName: "button",
@@ -198,6 +235,7 @@ export function Switch(given: SwitchProperties): JSX.Element {
                 <ToggleInput
                     name={properties.name}
                     value={properties.value}
+                    uncheckedValue={properties.uncheckedValue}
                     required={properties.required}
                     form={properties.form}
                     checked={toggle.isChecked()}
@@ -224,8 +262,14 @@ export function SwitchThumb(properties: SwitchThumbProperties): JSX.Element {
         properties,
         () => [
             styles.thumb,
+            control.isSmall() && styles.smallThumb,
             control.isChecked() &&
                 (locale.direction === "rtl" ? styles.thumbCheckedReversed : styles.thumbChecked),
+            control.isChecked() &&
+                control.isSmall() &&
+                (locale.direction === "rtl"
+                    ? styles.smallThumbCheckedReversed
+                    : styles.smallThumbChecked),
         ],
         {
             get "data-checked"() {
