@@ -1,4 +1,7 @@
+import caretLeftIcon from "@destack/icon/phosphor/caret-left";
+import caretRightIcon from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
+import { color, motion, space, stroke } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -6,8 +9,10 @@ import {
     type JSX,
     omit,
     useContext,
+    useLocale,
 } from "@destack/view";
-import { followToggle, refuseDisabled } from "../disclosure/index.ts";
+import { disclosure, DisclosurePanel, followToggle, refuseDisabled } from "../disclosure/index.ts";
+import { Icon } from "../icon/index.ts";
 import { OpenChange, type OpenProperties, OpenState } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -32,12 +37,31 @@ export interface CollapsibleControl {
     readonly isDisabled: Accessor<boolean>;
 }
 
-/** The styles of a collapsible's trigger. */
+/** The styles of a collapsible and its parts. */
 const styles = style.create({
     trigger: {
         listStyle: "none",
         cursor: { default: "pointer", ":is([aria-disabled=true])": "not-allowed" },
         "::-webkit-details-marker": { display: "none" },
+    },
+    indicator: {
+        display: "inline-flex",
+        flexShrink: 0,
+        transitionProperty: "rotate",
+        transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
+    },
+    turned: { rotate: "90deg" },
+    turnedBack: { rotate: "-90deg" },
+    // run a line down the start of it, below the middle of the trigger's icon
+    line: {
+        minWidth: 0,
+        marginBlockStart: space[2],
+        marginInlineStart: `calc((1em - ${stroke.border}) / 2)`,
+        paddingInlineStart: space[4],
+        borderInlineStartWidth: stroke.border,
+        borderInlineStartStyle: "solid",
+        borderInlineStartColor: color.border,
     },
 });
 
@@ -86,7 +110,7 @@ export function Collapsible(properties: CollapsibleProperties): JSX.Element {
                         true,
                     )
                 }
-                {...style.attributes([properties.xstyle], properties.style)}
+                {...style.attributes([disclosure.root, properties.xstyle], properties.style)}
             />
         </CollapsibleContext>
     );
@@ -114,18 +138,62 @@ export function CollapsibleTrigger(
     });
 }
 
-/** Render the content a collapsible shows when open. */
-export function CollapsibleContent(
-    properties: CollapsibleElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
+/** Render the mark of a trigger that turns as its collapsible opens, a caret by default. */
+export function CollapsibleIndicator(
+    properties: CollapsibleElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
+    // turn down from the reading direction
     const control = useCollapsible();
+    const locale = useLocale();
+    const isRightToLeft = (): boolean => locale.direction === "rtl";
+    const rest = omit(properties, "children");
 
-    return renderPart("div", "collapsible-content", properties, null, {
-        get "data-open"() {
-            return control.isOpen() ? "" : undefined;
+    return renderPart(
+        "span",
+        "collapsible-indicator",
+        rest,
+        () => [
+            styles.indicator,
+            control.isOpen() && (isRightToLeft() ? styles.turnedBack : styles.turned),
+        ],
+        {
+            "aria-hidden": "true" as const,
+            get children() {
+                return (
+                    properties.children ?? (
+                        <Icon icon={isRightToLeft() ? caretLeftIcon : caretRightIcon} />
+                    )
+                );
+            },
         },
-        get "data-closed"() {
-            return control.isOpen() ? undefined : "";
-        },
-    });
+    );
+}
+
+/** The properties of a collapsible's content, the native element's attributes included. */
+export type CollapsibleContentProperties = CollapsibleElementProperties<
+    JSX.HTMLAttributes<HTMLDivElement>
+> & {
+    /** The layout, plain by default, or along a line below the icon of its trigger. */
+    readonly variant?: "default" | "line";
+};
+
+/** Render the content a collapsible shows when open. */
+export function CollapsibleContent(properties: CollapsibleContentProperties): JSX.Element {
+    // lay it out along a line when asked
+    const control = useCollapsible();
+    const rest = omit(properties, "variant");
+    const layout = (): style.Styles => (properties.variant === "line" ? styles.line : null);
+
+    return (
+        <DisclosurePanel isOpen={() => control.isOpen()}>
+            {renderPart("div", "collapsible-content", rest, layout, {
+                get "data-open"() {
+                    return control.isOpen() ? "" : undefined;
+                },
+                get "data-closed"() {
+                    return control.isOpen() ? undefined : "";
+                },
+            })}
+        </DisclosurePanel>
+    );
 }

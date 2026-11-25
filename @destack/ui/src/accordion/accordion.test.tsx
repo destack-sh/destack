@@ -27,10 +27,10 @@ test("give a single accordion's items one shared name so the platform has one op
         '<div data-slot="accordion" data-orientation="vertical">' +
             '<details name="id-1" data-slot="accordion-item" data-closed="">' +
             `<summary data-slot="accordion-trigger">Is it accessible?${chevron}</summary>` +
-            '<div data-slot="accordion-content" data-closed="">Yes.</div></details>' +
+            '<div><div data-slot="accordion-content" data-closed="">Yes.</div></div></details>' +
             '<details name="id-1" data-slot="accordion-item" data-open="" open="">' +
             `<summary data-slot="accordion-trigger" data-panel-open="">Is it styled?${chevron}</summary>` +
-            '<div data-slot="accordion-content" data-open="">Yes.</div></details></div>',
+            '<div><div data-slot="accordion-content" data-open="">Yes.</div></div></details></div>',
     );
 });
 

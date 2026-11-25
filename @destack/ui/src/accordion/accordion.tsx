@@ -15,7 +15,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { SELECTION_OPTIONS, Selection, type SelectionProperties } from "../selection/index.ts";
-import { followToggle, refuseDisabled } from "../disclosure/index.ts";
+import { disclosure, DisclosurePanel, followToggle, refuseDisabled } from "../disclosure/index.ts";
 import { ListState } from "../focus/index.ts";
 import { renderPart } from "../part/index.ts";
 
@@ -51,15 +51,6 @@ const styles = style.create({
         borderBottomStyle: "solid",
         borderBottomWidth: { default: stroke.border, ":last-child": 0 },
         borderBottomColor: color.border,
-        interpolateSize: "allow-keywords",
-        "::details-content": {
-            height: { default: 0, ":open": "auto" },
-            overflow: "clip",
-            transitionProperty: "height, content-visibility",
-            transitionDuration: motion.durationMedium,
-            transitionTimingFunction: motion.easingStandard,
-            transitionBehavior: "allow-discrete",
-        },
     },
     trigger: {
         display: "flex",
@@ -85,11 +76,11 @@ const styles = style.create({
         // center on the title's first line
         height: "1lh",
         color: color.mutedForeground,
-        transform: { default: "none", [style.when.ancestor(":open")]: "rotate(180deg)" },
         transitionProperty: "transform",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
     },
+    turned: { transform: "rotate(180deg)" },
     content: {
         paddingBottom: space[4],
     },
@@ -252,7 +243,7 @@ export function AccordionItem(properties: AccordionItemProperties): JSX.Element 
                     )
                 }
                 {...style.attributes(
-                    [style.defaultMarker(), styles.item, properties.xstyle],
+                    [disclosure.root, styles.item, properties.xstyle],
                     properties.style,
                 )}
             />
@@ -297,7 +288,7 @@ export function AccordionTrigger(
             )}
         >
             {properties.children}
-            <span {...style.attrs(styles.chevron)}>
+            <span {...style.attrs(styles.chevron, item.isOpen() && styles.turned)}>
                 <Icon name="caret-down" />
             </span>
         </summary>
@@ -309,12 +300,16 @@ export function AccordionContent(
 ): JSX.Element {
     const item = useAccordionItem();
 
-    return renderPart("div", "accordion-content", properties, [text.sm, styles.content], {
-        get "data-open"() {
-            return item.isOpen() ? "" : undefined;
-        },
-        get "data-closed"() {
-            return item.isOpen() ? undefined : "";
-        },
-    });
+    return (
+        <DisclosurePanel isOpen={() => item.isOpen()}>
+            {renderPart("div", "accordion-content", properties, [text.sm, styles.content], {
+                get "data-open"() {
+                    return item.isOpen() ? "" : undefined;
+                },
+                get "data-closed"() {
+                    return item.isOpen() ? undefined : "";
+                },
+            })}
+        </DisclosurePanel>
+    );
 }
