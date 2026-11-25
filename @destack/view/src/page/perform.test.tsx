@@ -5,12 +5,15 @@ import { argument, plural, t } from "@destack/locale";
 import { defineAction, defineObject, field, picked, Place, selected } from "@destack/object";
 import { ObjectRemote } from "@destack/object/client";
 import { ObjectClient } from "@destack/object/device";
-import { schema } from "@destack/schema";
+import { type JsonValue, schema } from "@destack/schema";
 import { type ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testWorld } from "../test/browser.ts";
 import type {} from "@destack/package/import-meta";
+import { flush } from "solid-js";
+import { render } from "../test/index.ts";
 import { ActionRegistry, type ActionQuestion } from "./action.ts";
+import { useAction } from "./state.ts";
 
 /** A board with cards. */
 const board = defineObject({
@@ -69,6 +72,14 @@ const add = defineAction({
     keybinding: "c",
     input: { title: field.string(schema.string()).labeled(t`Title`) },
     call: ({ title }) => card.prepare("create", { title }),
+});
+
+/** Set where cards stand. */
+const mark = defineAction({
+    name: "card.mark",
+    title: t`Mark`,
+    input: { cards: selected(card), state: field.enum(["open", "done"]) },
+    call: ({ cards, state }) => cards.prepare("update", { status: state }),
 });
 
 /** Two boards. */
@@ -191,7 +202,7 @@ test("ask for what neither places nor what is given answer, and run nothing once
     // answer each question in turn, cancelling the first
     const { actions, cards, state } = await openPage();
     const [apples, bread] = cards;
-    actions.provide(() => Place.showing(apples ?? card.policy.reference("", "")));
+    actions.provide(() => Place.current(apples ?? card.policy.reference("", "")));
     const asked: string[][] = [];
     const answers = [undefined, { after: bread ?? null }, { title: "Dates" }];
     actions.asks(async ({ action, asked: inputs }: ActionQuestion) => {
@@ -222,7 +233,7 @@ test("confirm before removing for good, and refuse to where no part of the page 
     // remove the page's card by its own method, first with nobody to ask
     const { actions, cards, state } = await openPage();
     const [apples] = cards;
-    actions.provide(() => Place.showing(apples ?? card.policy.reference("", "")));
+    actions.provide(() => Place.current(apples ?? card.policy.reference("", "")));
     const remove = (await actions.at(null)).find(({ name }) => name === "card.delete");
     if (remove === undefined) {
         throw new TypeError("the page offers no delete");
@@ -234,5 +245,48 @@ test("confirm before removing for good, and refuse to where no part of the page 
     expect({ refused, state: await state() }).toEqual({
         refused: `TypeError: action '${card.package.id}/card.delete' removes for good, and no part of the page asks to confirm it`,
         state: [["Bread open"], ["Cheese open"]],
+    });
+});
+
+test("follow the value every target has, as its rows change", async () => {
+    // select a card of each board, and follow where they stand
+    const { actions, cards } = await openPage();
+    const [apples, , cheese] = cards;
+    const several = [apples, cheese].filter((each) => each !== undefined);
+    actions.provide(() => Place.selected(several));
+    const [input] = actions.asked(mark, null);
+    const told: (readonly JsonValue[])[] = [];
+    actions.offer(mark);
+    const { container } = render(
+        () => {
+            const values = useAction(() => ({ action: mark, element: null })).chosen;
+
+            return <output>{JSON.stringify(values())}</output>;
+        },
+        { actions },
+    );
+    const settle = async (expected: readonly JsonValue[]) => {
+        await expect
+            .poll(() => {
+                flush();
+
+                return container.textContent;
+            })
+            .toBe(JSON.stringify(expected));
+        told.push(expected);
+    };
+    await settle(["open"]);
+
+    // finish one, then both
+    actions.provide(() => Place.selected(several.slice(0, 1)));
+    await actions.run(finish, null);
+    await settle([]);
+    actions.provide(() => Place.selected(several));
+    await actions.run(mark, null, { state: "done" });
+    await settle(["done"]);
+
+    expect({ names: input?.name, told }).toEqual({
+        names: "state",
+        told: [["open"], [], ["done"]],
     });
 });

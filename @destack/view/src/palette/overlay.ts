@@ -81,27 +81,20 @@ export class PaletteOverlay {
         // run each press the person's key combinations bind
         const isCommand = Shortcut.isCommand(navigator.userAgent);
         const listener = (event: KeyboardEvent) => {
-            // find the binding the keys run where they were pressed, leaving any other press to the page
+            // run a handled action where the keys were pressed, else open the palette at the action
             const focus = event.target instanceof Element ? event.target : null;
-            const binding = PaletteOverlay.#find(
-                this.keybindings(focus, isCommand),
-                event,
-                isCommand,
-            );
-            if (binding === undefined) {
-                return;
-            }
-            event.preventDefault();
-
-            // run a handled action there, else open the palette at the action
-            const bound = this.#actions.find(binding.action);
-            if (bound !== undefined && this.#actions.has(binding.action, focus)) {
-                void this.#actions
-                    .run(bound, focus)
-                    .catch((error: unknown) => globalThis.reportError(error));
-            } else {
-                this.open(focus, binding.action);
-            }
+            const isField = PaletteOverlay.#isField(event.target);
+            const bindings = this.keybindings(focus, isCommand)
+                .filter(({ focus: allowed }) => allowed === "any" || !isField)
+                .map(({ key, action }) => ({ key, target: action }));
+            this.#actions.type(event, bindings, { isCommand }, (reference) => {
+                const bound = this.#actions.find(reference);
+                if (bound !== undefined && this.#actions.has(reference, focus)) {
+                    this.#actions.start(bound, focus);
+                } else {
+                    this.open(focus, reference);
+                }
+            });
         };
         window.addEventListener("keydown", listener, { signal });
 
@@ -213,7 +206,7 @@ export class PaletteOverlay {
             const listed: PaletteMessage = {
                 action: "actions.listed",
                 actions: this.#entries(focus),
-                selection: this.#actions.selection(),
+                selection: this.#actions.selection(focus),
             };
             const target = present(frame.contentWindow, "the palette's frame window");
             target.postMessage(listed, new URL(frame.src).origin);
@@ -231,21 +224,6 @@ export class PaletteOverlay {
         else {
             throw new TypeError(`the palette's frame sent '${message.action}'`);
         }
-    }
-
-    /** Find the binding a press runs, leaving a field's press to it unless bound anywhere. */
-    static #find(
-        bindings: readonly Keybinding[],
-        event: KeyboardEvent,
-        isCommand: boolean,
-    ): Keybinding | undefined {
-        const isField = PaletteOverlay.#isField(event.target);
-
-        return bindings.find(
-            (binding) =>
-                (binding.focus === "any" || !isField) &&
-                Shortcut.matches(binding.key, event, isCommand),
-        );
     }
 
     /** Report whether a target is a field, which handles keys such as undo itself. */

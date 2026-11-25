@@ -15,7 +15,6 @@ import {
     defineAction,
     type ObjectType,
     Place,
-    type PlaceVariable,
     selected,
     type ValuesOf,
 } from "@destack/object";
@@ -23,6 +22,7 @@ import type { ObjectNode } from "@destack/object/client";
 import { FamilyError } from "@destack/error";
 import { JsonValue, mapValues, schema } from "@destack/schema";
 import { ActionRegistryContext } from "./context.ts";
+import { isModifier, type ShortcutBinding, ShortcutSequence } from "./sequence.ts";
 
 /** The roles of widgets whose keys type text, after ARIA. */
 const FIELD_ROLES: ReadonlySet<string> = new Set(["textbox", "searchbox", "combobox"]);
@@ -74,6 +74,10 @@ export interface ActionHandler<Inputs extends ActionInputs = ActionInputs> {
     run(event: ActionEvent<Inputs>): Promise<void> | void;
     /** List the values a person picks an input from where they are, such as a board's columns. */
     readonly choices?: (input: string, element: Element | null) => readonly Choice[];
+    /** Read the values an input has where the person is, which its list marks. */
+    readonly chosen?: (input: string, element: Element | null) => readonly JsonValue[];
+    /** Title what it runs on where the person is, such as a tab, absent for the page's own. */
+    readonly subject?: (element: Element | null) => string | undefined;
     /** Report whether the handler runs where the person is, read reactively, as menus validate. */
     readonly isEnabled?: (element: Element | null) => boolean;
     /** Report whether what it turns on is on, absent for what turns nothing on. */
@@ -90,10 +94,18 @@ interface Handling {
 
 /** A place with the element it is of, absent for the whole page. */
 interface Provision {
-    /** Read the place now. */
-    readonly place: Accessor<Place>;
+    /** Read the place where a person is in the element. */
+    readonly place: (element: Element | null) => Place;
     /** The element, whose actions find the place. */
     readonly element: Element | undefined;
+}
+
+/** What actions act on at a place of a page, such as a list's rows. */
+export interface ActionSubject {
+    /** The part that gives it, absent for the page itself. */
+    readonly part: Element | undefined;
+    /** What it gives the actions on it. */
+    readonly places: readonly Place[];
 }
 
 /** What a page calls methods with: its clients, and the space it is in. */
@@ -130,8 +142,6 @@ export class ActionRegistry {
     readonly #handlers = new Map<string, Handling[]>();
     /** The places of the page's parts, the latest last. */
     #provisions: readonly Provision[] = [];
-    /** Read the objects the person selected in the page, absent while no component tracks them. */
-    #selection: (() => readonly ObjectReference[]) | undefined;
     /** The actions calling methods that the page offers, by setting key. */
     readonly #offered = new Map<string, Action>();
     /** What the page calls methods with, absent on a page without clients. */
@@ -146,6 +156,8 @@ export class ActionRegistry {
     #fails: readonly ActionFail[] = [];
     /** Read the person's key combinations by setting key, null for an unbound one. */
     readonly #keybindings: Accessor<Readonly<Record<string, Shortcut | null>>>;
+    /** The strokes a person types of shortcuts pressed after one another. */
+    readonly sequence = new ShortcutSequence<DeclarationReference>();
     /** Count the changes to the handlers, which readers of the actions follow. */
     readonly #revision: Accessor<number>;
     /** Replace the count of changes. */
@@ -210,22 +222,22 @@ export class ActionRegistry {
     /** List the actions that run for a focus, the innermost first, then those on what is around. */
     actions(focus: Element | null): Action[] {
         // put an element's handled actions before those of the elements around it, the page's last
+        const places = this.places(focus);
         const handled = [...this.#actions].flatMap(([key, action]) => {
             const chosen = this.#chosen(key, focus);
 
-            return chosen === undefined ? [] : [{ action, depth: depthOf(chosen.element) }];
+            return chosen === undefined || !isGiven(action, places)
+                ? []
+                : [{ action, depth: depthOf(chosen.element) }];
         });
         const ordered = handled.toSorted((one, other) => other.depth - one.depth);
 
         // add the calls of methods on objects around, and those on the page's space
-        const places = this.places(focus);
         const offered = [...this.#offered.values()].filter(
-            ({ call }) =>
-                call !== undefined &&
-                this.#client(call) !== undefined &&
-                call.inputs.every(
-                    (input) => input.name !== call.target || input.shown(places) !== undefined,
-                ),
+            (action) =>
+                action.call !== undefined &&
+                this.#client(action.call) !== undefined &&
+                isGiven(action, places),
         );
 
         return [...ordered.map(({ action }) => action), ...offered];
@@ -233,18 +245,52 @@ export class ActionRegistry {
 
     /** List every action at an element, each titled method of the objects around too. */
     async at(element: Element | null): Promise<Action[]> {
-        // read the rows of the nearest objects of each type the page opens
-        const places = this.places(element);
+        return this.#listed(this.actions(element), this.places(element));
+    }
+
+    /** List the actions on what is nearest around an element, before its rows are read. */
+    actionsOn(element: Element | null): Action[] {
+        const places = this.subjectAt(element)?.places ?? [];
+
+        return this.actions(element).filter(({ subject }) => subject?.shown(places) !== undefined);
+    }
+
+    /** List the actions on what is nearest around an element, as its rows allow. */
+    async on(element: Element | null): Promise<Action[]> {
+        return this.#listed(this.actionsOn(element), this.subjectAt(element)?.places ?? []);
+    }
+
+    /** Find what actions act on nearest around an element, undefined for nothing. */
+    subjectAt(element: Element | null): ActionSubject | undefined {
+        // look from the innermost part around, the page last
         const running = this.actions(element);
+        const provisions = this.#around(element);
+        const parts = new Set(provisions.map(({ element: part }) => part));
+
+        return [...parts]
+            .map((part) => ({
+                part,
+                places: provisions
+                    .filter((each) => each.element === part)
+                    .map(({ place }) => place(element)),
+            }))
+            .find(
+                ({ places }) =>
+                    Place.selection(places).length > 0 ||
+                    running.some(({ subject }) => subject?.shown(places) !== undefined),
+            );
+    }
+
+    /** List running actions as the rows of some places allow, and those rows' methods. */
+    async #listed(running: readonly Action[], places: readonly Place[]): Promise<Action[]> {
+        // read the rows of the nearest objects of each type the page opens
         const types = new Set(
             [...(this.#host?.clients.values() ?? [])].flatMap(({ objects }) => objects),
         );
         const lists: Action[] = [];
         const listed = new Set<ObjectType>();
         for (const type of types) {
-            const shown = ActionInput.of("target", selected(type)).shown(places);
-            const references =
-                shown === undefined ? [] : schema.array(ObjectReference).parse(shown);
+            const references = selected(type).read(places);
             const rows = await Promise.all(
                 references.map(async (each) =>
                     this.#host?.clients.get(each.scope)?.find(type, each),
@@ -258,7 +304,7 @@ export class ActionRegistry {
             }
         }
 
-        // put the rest of the running actions first, those on objects as their rows allow
+        // put the rest of the running actions first
         const others = running.filter(
             ({ call }) => call?.target === undefined || !listed.has(call.object),
         );
@@ -374,6 +420,102 @@ export class ActionRegistry {
         });
     }
 
+    /** List the values an input has as the action's handler tells, absent where it tells none. */
+    chosen(
+        action: Action,
+        input: ActionInput,
+        element: Element | null,
+    ): readonly JsonValue[] | undefined {
+        const key = DeclarationReference.key(action.reference);
+
+        return this.#chosen(key, element)?.handler.chosen?.(input.name, element);
+    }
+
+    /** Follow the rows an action runs on, telling the values of an input all of them have. */
+    follow(
+        action: Action,
+        input: ActionInput,
+        element: Element | null,
+        tell: (values: readonly JsonValue[]) => void,
+    ): () => void {
+        // read the targets of a call
+        const { call } = action;
+        const given = this.#resolve(action, element, {}).values[call?.target ?? ""];
+        const targets = schema
+            .array(ObjectReference)
+            .safeParse(Array.isArray(given) ? given : [given]).data;
+        const closing = new AbortController();
+        if (call === undefined || targets === undefined) {
+            return () => closing.abort();
+        }
+
+        // follow those of each space, telling once every space's are read
+        const spaces = Map.groupBy(targets, ({ scope }) => scope);
+        const read = new Map<string, readonly (JsonValue | undefined)[]>();
+        const watch = async (scope: string, references: readonly ObjectReference[]) => {
+            // follow the rows until the caller stops
+            const client = this.#host?.clients.get(scope);
+            const where = { id: { in: references.map(({ id }) => id) } };
+            const live = client?.queryType(call.object).findMany({ where }).subscribe();
+            if (live === undefined) {
+                return;
+            }
+            try {
+                for await (const rows of live.watch(closing.signal)) {
+                    const values = rows.map((row) =>
+                        call.chosen(input, scope, JsonValue.object(row)),
+                    );
+                    read.set(scope, values);
+                    const all = [...read.values()].flat();
+                    const keys = new Set(all.map((value) => JSON.stringify(value)));
+                    const [first] = all;
+                    if (read.size === spaces.size) {
+                        tell(keys.size === 1 && first !== undefined ? [first] : []);
+                    }
+                }
+            } finally {
+                await live.close();
+            }
+        };
+        for (const [scope, references] of spaces) {
+            void watch(scope, references).catch(reportError);
+        }
+
+        return () => closing.abort();
+    }
+
+    /** Title what an action runs on at an element, undefined where nothing says so. */
+    async subjectTitle(
+        action: Action,
+        element: Element | null,
+        localization: Localization,
+    ): Promise<string | undefined> {
+        // take the handler's, for an action of the page's own
+        const key = DeclarationReference.key(action.reference);
+        const handled = this.#chosen(key, element)?.handler.subject?.(element);
+        const target = action.subject;
+        if (handled !== undefined || target?.value.kind !== "object") {
+            return handled;
+        }
+
+        // title a lone object, and count several
+        const { type } = target.value;
+        const shown = target.shown(this.places(element));
+        const several = schema.array(ObjectReference).safeParse(shown).data;
+        const lone = ObjectReference.safeParse(shown).data ?? several?.[0];
+        if (several !== undefined && several.length !== 1) {
+            const count = localization.number(several.length);
+
+            return `${count} ${localization.render(type.declared.title, { count: several.length })}`;
+        }
+        const client = lone === undefined ? undefined : this.#host?.clients.get(lone.scope);
+        const row = lone === undefined ? undefined : await client?.find(type, lone);
+
+        return row === undefined || client === undefined
+            ? undefined
+            : type.appearance(row, client.context().moment, localization).title;
+    }
+
     /** Find where an action runs for an element: there, else where the person last was. */
     placeOf(action: Action, element: Element): Element | null {
         const last = this.#last();
@@ -427,29 +569,37 @@ export class ActionRegistry {
     }
 
     /** Give a place to the actions in an element, else the whole page, until it stops. */
-    provide(place: Accessor<Place>, element?: Element): () => void {
+    provide(place: (element: Element | null) => Place, element?: Element): () => void {
+        // add it, until it stops
         const provision: Provision = { place, element };
         this.#provisions = [...this.#provisions, provision];
+        this.#changed();
 
         return () => {
             this.#provisions = this.#provisions.filter((each) => each !== provision);
+            this.#changed();
         };
     }
 
     /** List the places around an element, the nearest first, the page's own last. */
     places(element: Element | null): Place[] {
-        // take the page's places, and those of the parts around the element
-        const around = this.#provisions.flatMap(({ place, element: of }) => {
-            const isAround = of === undefined || (element !== null && of.contains(element));
+        return this.#around(element).map(({ place }) => place(element));
+    }
 
-            return isAround ? [{ place: place(), depth: depthOf(of) }] : [];
-        });
+    /** List the provisions around an element, the innermost first, the page's own last. */
+    #around(element: Element | null): Provision[] {
+        // follow the places as they come and go
+        this.#revision();
 
-        // put the innermost first, and a later place of one part before an earlier
+        // take the page's, and those of the parts around the element
+        const around = this.#provisions.filter(
+            ({ element: of }) => of === undefined || (element !== null && of.contains(element)),
+        );
+
+        // put a later one of a part before an earlier
         return around
             .toReversed()
-            .toSorted((one, other) => other.depth - one.depth)
-            .map(({ place }) => place);
+            .toSorted((one, other) => depthOf(other.element) - depthOf(one.element));
     }
 
     /** List the key combinations that run an action: the person's, else the platform's declared. */
@@ -461,33 +611,65 @@ export class ActionRegistry {
 
     /** Run the innermost action a key press binds, of a part where one asks. */
     press(event: KeyboardEvent, isCommand: boolean, part?: Element): boolean {
-        // find the action, leaving what something took, a button's own, and a field's unless bound anywhere
+        // bind the actions here, within the part where one asks, leaving a field's keys to it
         const focus = event.target instanceof Element ? event.target : null;
         const isField = isTextField(event.target);
-        const isTaken = event.defaultPrevented || isPressing(event);
-        const action = isTaken
-            ? undefined
-            : this.actions(focus).find((each) => {
-                  // match its keys, within the part where one asks
-                  const keys = this.keybindings(each, isCommand);
-                  const key = DeclarationReference.key(each.reference);
-                  const chosen = this.#chosen(key, focus)?.element;
-                  const isOwn =
-                      part === undefined || (chosen !== undefined && part.contains(chosen));
+        const bindings = this.actions(focus).flatMap((action) => {
+            // take one handled in the part, where its focus may be
+            const key = DeclarationReference.key(action.reference);
+            const chosen = this.#chosen(key, focus)?.element;
+            const isOwn = part === undefined || (chosen !== undefined && part.contains(chosen));
+            const isBound = isOwn && (action.focus === "any" || !isField);
 
-                  return (
-                      isOwn &&
-                      (each.focus === "any" || !isField) &&
-                      keys.some((shortcut) => Shortcut.matches(shortcut, event, isCommand))
-                  );
-              });
-        if (action === undefined) {
+            return !isBound
+                ? []
+                : this.keybindings(action, isCommand).map((each) => ({
+                      key: each,
+                      target: action.reference,
+                  }));
+        });
+
+        return this.type(event, bindings, { isCommand, part }, (reference) => {
+            const action = this.find(reference);
+            if (action !== undefined) {
+                this.start(action, focus);
+            }
+        });
+    }
+
+    /** Take a press for the shortcuts of some bindings, running what it completes. */
+    type(
+        event: KeyboardEvent,
+        bindings: readonly ShortcutBinding<DeclarationReference>[],
+        { isCommand, part }: { readonly isCommand: boolean; readonly part?: Element | undefined },
+        run: (reference: DeclarationReference) => void,
+    ): boolean {
+        // leave what something took, and a button's own
+        if (event.defaultPrevented || isPressing(event)) {
             return false;
         }
 
-        // take the press and run the action there
+        // forget the strokes another key breaks off, which Escape does alone
+        const isTyping = this.sequence.isTyping();
+        const pressed = this.sequence.press(event, bindings, isCommand);
+        const isBroken = isTyping && !pressed.isTaken && part === undefined && !isModifier(event);
+        if (isBroken) {
+            this.sequence.cancel();
+        }
+
+        // read any other key that breaks them off anew
+        const isEscaped = isBroken && event.key === "Escape";
+        const { target, isTaken } =
+            isBroken && !isEscaped ? this.sequence.press(event, bindings, isCommand) : pressed;
+        if (!isTaken && !isEscaped) {
+            return false;
+        }
+
+        // take the press, and run what it completes
         event.preventDefault();
-        this.start(action, focus);
+        if (target !== undefined) {
+            run(target);
+        }
 
         return true;
     }
@@ -687,27 +869,12 @@ export class ActionRegistry {
         return (several?.[0] ?? ObjectReference.safeParse(shown).data)?.scope;
     }
 
-    /** Track the objects the person selects, refusing a second component tracking them. */
-    select(read: () => readonly ObjectReference[]): () => void {
-        // refuse two components tracking one selection
-        if (this.#selection !== undefined) {
-            throw new TypeError("the page already tracks a selection");
-        }
-        this.#selection = read;
-
-        return () => {
-            if (this.#selection === read) {
-                this.#selection = undefined;
-            }
-        };
+    /** List the objects selected at an element, the nearest of each type. */
+    selection(element: Element | null): ObjectReference[] {
+        return Place.selection(this.places(element));
     }
 
-    /** Read the objects the person selected in the page, none while no component tracks them. */
-    selection(): ObjectReference[] {
-        return [...(this.#selection?.() ?? [])];
-    }
-
-    /** Tell readers of the actions that the handlers changed. */
+    /** Tell readers of the actions that the handlers or places changed. */
     #changed(): void {
         // write no signal on a server, which renders once
         if (!isServer) {
@@ -737,6 +904,15 @@ export class ActionRegistry {
 
         return innermost ?? enabled.findLast(({ element }) => element === undefined);
     }
+}
+
+/** Report whether places give what an action acts on, as they do for one on nothing. */
+function isGiven({ subject }: Action, places: readonly Place[]): boolean {
+    return (
+        subject === undefined ||
+        subject.presence !== "required" ||
+        subject.shown(places) !== undefined
+    );
 }
 
 /** Resolve the inputs of a page's own action from what is given and the places around. */
@@ -790,23 +966,14 @@ export function isTextField(target: EventTarget | null): boolean {
     );
 }
 
-/** Give a variable's value to the actions of the running page while the component is mounted. */
-export function provideVariable<Value extends JsonValue>(
-    variable: PlaceVariable<Value>,
-    value: Accessor<Value>,
-): void {
-    const place = () => new Place().with(variable, value());
-    onCleanup(useContext(ActionRegistryContext).provide(place));
+/** Give a place to the actions in the element this is the `ref` of, by where a person is in it. */
+export function provide(place: (element: Element | null) => Place): (element: Element) => void {
+    return attached((actions, element) => actions.provide(place, element));
 }
 
-/** Give a variable's value to the actions in the element this is the `ref` of, while mounted. */
-export function provide<Value extends JsonValue>(
-    variable: PlaceVariable<Value>,
-    value: Accessor<Value>,
-): (element: Element) => void {
-    const place = () => new Place().with(variable, value());
-
-    return attached((actions, element) => actions.provide(place, element));
+/** Give a place to the actions of the running page while the calling component is mounted. */
+export function provideOnPage(place: () => Place): void {
+    onCleanup(useContext(ActionRegistryContext).provide(place));
 }
 
 /** Read the actions the running page's components handle. */
@@ -815,7 +982,7 @@ export function useActions(): ActionRegistry {
 }
 
 /** Handle an action of the running page while the calling component is mounted. */
-export function handleAction<Inputs extends ActionInputs>(
+export function handleOnPage<Inputs extends ActionInputs>(
     action: Action<Inputs>,
     handler: ActionHandler<Inputs>,
 ): void {
@@ -855,11 +1022,4 @@ export function handleAsking(ask: ActionAsk): void {
 /** Tell the person where actions fail, through a part of the page while it is mounted. */
 export function handleFailing(fail: ActionFail): void {
     onCleanup(useContext(ActionRegistryContext).fails(fail));
-}
-
-/** Track the objects the person selects in the running page while the component is mounted. */
-export function registerSelection(read: () => readonly ObjectReference[]): void {
-    // track it until the component goes
-    const stop = useContext(ActionRegistryContext).select(read);
-    onCleanup(stop);
 }

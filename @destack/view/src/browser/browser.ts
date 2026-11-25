@@ -185,7 +185,7 @@ export async function mount(
             // act on the object the view opened for, and offer the package's actions on the types it opens
             const { target } = context;
             if (target !== undefined) {
-                actions.provide(() => Place.showing(target));
+                actions.provide(() => Place.current(target));
             }
             for (const { name, description } of declared.actions) {
                 const types = [

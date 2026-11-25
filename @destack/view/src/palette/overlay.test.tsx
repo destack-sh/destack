@@ -2,7 +2,7 @@ import { Localization, Shortcut, SOURCE_LOCALE, t } from "@destack/locale";
 import { PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineAction } from "@destack/object";
+import { defineAction, Place } from "@destack/object";
 import { ActionRegistry, undo } from "../page/action.ts";
 import type { PaletteMessage } from "./message.ts";
 import { PaletteOverlay } from "./overlay.ts";
@@ -59,7 +59,7 @@ function palette(overrides: Readonly<Record<string, string | null>> = {}) {
     actions.handle(copyLink, { run: () => void ran.push("copy") });
     actions.handle(zoom, { run: () => void ran.push("zoom") });
     actions.handle(send, { run: () => void ran.push("send") });
-    actions.select(() => [NOTE]);
+    actions.provide(() => Place.selected([NOTE]));
     const overlay = new PaletteOverlay({
         actions,
         declared: [{ packageId: NOTES, name: "archive", description: archive.describe() }],

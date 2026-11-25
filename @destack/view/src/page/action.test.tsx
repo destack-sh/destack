@@ -1,7 +1,8 @@
-import { t } from "@destack/locale";
+import { Localization, t } from "@destack/locale";
 import { expect, expectTypeOf, onTestFinished, test, vi } from "@destack/test";
 import { createMemo, createSignal, flush } from "solid-js";
 import { type Action, defineAction, defineVariable, ObjectError, Place } from "@destack/object";
+import { PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 import { type ActionHandler, ActionRegistry } from "./action.ts";
@@ -229,6 +230,123 @@ test("run the innermost action a key binds, by the person's keys, leaving fields
         ran: ["calendar", "page", "page", "calendar"],
         keys: [["q"], ["p"]],
     });
+});
+
+test("read the values an input has, and what the action runs on, from the innermost handler", async () => {
+    // handle a move on the page without either, and in a task with both
+    const move = defineAction({ name: "move", title: t`Move`, input: { to: schema.string() } });
+    const task = document.createElement("article");
+    document.body.append(task);
+    onTestFinished(() => task.remove());
+    const actions = new ActionRegistry();
+    actions.handle(move, { run: () => undefined });
+    actions.handle(
+        move,
+        {
+            run: () => undefined,
+            chosen: (input, element) => [input, element === task ? "task" : "page"],
+            subject: () => "Pack",
+        },
+        task,
+    );
+    const [input] = move.inputs;
+    const localization = Localization.of("en", []);
+    const read = async (element: Element | null) =>
+        input === undefined
+            ? undefined
+            : [
+                  actions.chosen(move, input, element),
+                  await actions.subjectTitle(move, element, localization),
+              ];
+
+    expect([await read(task), await read(null)]).toEqual([
+        [["to", "task"], "Pack"],
+        [undefined, undefined],
+    ]);
+});
+
+test("run an action by strokes pressed after one another, which Escape or another key breaks off", async () => {
+    // bind a sequence, and the first key of another by itself
+    const ran: string[] = [];
+    const go = defineAction({ name: "go", title: t`Go`, keybinding: "g m" });
+    const mark = defineAction({ name: "mark", title: t`Mark`, keybinding: "m" });
+    const closing = new AbortController();
+    onTestFinished(() => closing.abort());
+    const actions = new ActionRegistry();
+    actions.handle(go, { run: () => void ran.push("go") });
+    actions.handle(mark, { run: () => void ran.push("mark") });
+    actions.listen(closing.signal);
+    const taken = ["g", "m", "g", "Escape", "m", "g", "x", "g", "Shift", "m"].map((key) => {
+        const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+        document.body.dispatchEvent(event);
+
+        return event.defaultPrevented;
+    });
+    await Promise.resolve();
+
+    expect({ ran, taken }).toEqual({
+        ran: ["go", "mark", "go"],
+        taken: [true, true, true, true, true, true, false, true, false, true],
+    });
+});
+
+test("list the actions on the nearest thing around an element, apart from the page's", async () => {
+    // handle actions on tabs and on notes in the page, with a tab in a note
+    const tabs = defineVariable({ name: "tabs", value: schema.array(schema.string()) });
+    const notes = defineVariable({ name: "notes", value: schema.array(schema.string()) });
+    const search = defineAction({ name: "search", title: t`Search` });
+    const close = defineAction({ name: "close", title: t`Close`, input: { tabs } });
+    const next = defineAction({
+        name: "next",
+        title: t`Next`,
+        input: { tabs: tabs.exactOptional() },
+    });
+    const archive = defineAction({ name: "archive", title: t`Archive`, input: { notes } });
+    const note = document.createElement("article");
+    const tab = document.createElement("div");
+    note.append(tab);
+    document.body.append(note);
+    onTestFinished(() => note.remove());
+    const actions = new ActionRegistry();
+    for (const each of [search, close, next, archive]) {
+        actions.handle(each, { run: () => undefined });
+    }
+    actions.provide(() => new Place().with(notes, ["note"]), note);
+    actions.provide((on) => (on === tab ? new Place().with(tabs, ["tab"]) : new Place()), tab);
+    const on = async (element: Element | null) =>
+        (await actions.on(element)).map(({ name }) => name);
+
+    expect({
+        tab: [await on(tab), actions.subjectAt(tab)?.part === tab],
+        note: [await on(note), actions.subjectAt(note)?.part === note],
+        page: [await on(null), actions.subjectAt(null)],
+        running: [tab, note, null].map((each) => actions.actions(each).map(({ name }) => name)),
+    }).toEqual({
+        tab: [["close", "next"], true],
+        note: [["archive"], true],
+        page: [[], undefined],
+        running: [
+            ["search", "close", "next", "archive"],
+            ["search", "next", "archive"],
+            ["search", "next"],
+        ],
+    });
+});
+
+test("list the objects selected where a person is, the nearest of each type", () => {
+    const note = {
+        packageId: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
+        type: "note",
+        scope: "space-019f7480-0000-7000-8000-000000000002",
+        id: "note-019f7480-0000-7000-8000-000000000003",
+    };
+    const list = document.createElement("div");
+    document.body.append(list);
+    onTestFinished(() => list.remove());
+    const actions = new ActionRegistry();
+    actions.provide(() => Place.selected([note]), list);
+
+    expect([actions.selection(list), actions.selection(null)]).toEqual([[note], []]);
 });
 
 test("type an action's values by its inputs, the optional ones left out as they may be", () => {

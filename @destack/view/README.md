@@ -9,7 +9,8 @@ Build a package's views with Solid, reading and changing its space's objects liv
 Packages declare views:
 
 - `defineView`: a page of a package, with the object types it opens and presents.
-- `handleAction`: runs an action `@destack/object` declares while a component is mounted, from its keys, the palette and menus.
+- `handle` and `handleOnPage`: run an action `@destack/object` declares, in an element or on the page.
+- `provide` and `provideOnPage`: give the place of an element, or of the page, to actions.
 
 Components read and change objects live:
 
@@ -17,7 +18,7 @@ Components read and change objects live:
 - `useMutation`: a mutating method of an object type, predicted at once.
 - `useForm` and `useText`: values as a form edits them, and a collaborative text field.
 - `useSetting`: a person's setting, followed live.
-- `handleAction`: run an action while the component is mounted.
+- `useAction`: what an action does at a place, as buttons and menus draw it.
 
 Pages render and route:
 
@@ -98,35 +99,51 @@ Each reads and writes the scope the type lives in for the view, or `{ scope }`: 
 
 ### Actions
 
-`handleAction(action, handler)` runs an action that `defineAction` from `@destack/object` declares without a call, while a component is mounted.
-Its keys run it outside form fields, unless its `focus` is `"any"`.
+`useActions()` returns the page's actions, which menus, buttons, keys and the palette run.
+A key of a longer shortcut such as `"g m"` waits for the next, and `sequence.progress()` reads what can follow.
 
-`useActions()` answers the page's actions, which menus, buttons, keys and the palette run.
+| Verb                             | What it does                                                         |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `run(action, element, given?)`   | runs it at an element, asking what neither places nor `given` answer |
+| `start(action, element, given?)` | runs it as a person does, telling them where it fails                |
+| `at(element)`                    | lists every action there, with the methods of the objects            |
+| `on(element)`                    | lists the actions on the nearest row, card or page                   |
+| `subjectAt(element)`             | finds that row, card or page                                         |
+| `has(reference, element)`        | reports whether it runs there                                        |
+| `keybindings(action, isCommand)` | lists the person's keys for it, else its own                         |
 
-| Method                                    | What it does                                                            |
-| ----------------------------------------- | ----------------------------------------------------------------------- |
-| `run(action, element, given?)`            | runs it at an element, asking what neither places nor `given` answer    |
-| `start(action, element, given?)`          | runs it as a person does, telling them where it fails                   |
-| `at(element)`                             | lists every action at an element, each titled method of the objects too |
-| `has(reference, element)`                 | reports whether it runs there now                                       |
-| `sentence(action, element, localization)` | writes what it does there, by its `summary`                             |
-| `keybindings(action, isCommand)`          | lists the person's keys for it, else the platform's own                 |
-
-`provide(variable, value)` gives the actions in the element it is the `ref` of a variable's value, such as the sprint a section shows, and `provideVariable` the whole page's.
-`handleFailing(fail)` tells the person which action failed and why, as `Toaster` of `@destack/ui` does.
-`handleAsking(ask)` asks the person for what is missing, as `ActionDialog` of `@destack/ui` does.
+`handleAsking` asks the person for what is missing, and `handleFailing` tells what failed, as `ActionDialog` and `Toaster` of `@destack/ui` do.
 
 ### Handlers
 
-An action bubbles as a DOM event does: from the focus through the elements around it to the page, until a handler whose `isEnabled` reads true takes it.
-`handle(action, handler)` handles it in the element it is the `ref` of, and `handleAction` for the whole page.
+`handle(action, handler)` handles an action in the element it is the `ref` of, and `handleOnPage` on the page.
+The innermost enabled handler wins, as a DOM event bubbles.
 
-| Field       | What it is                                                                      |
-| ----------- | ------------------------------------------------------------------------------- |
-| `run`       | runs the action, with its inputs' `values` and the `element` it runs at         |
-| `choices`   | lists the values a person picks an input from                                   |
-| `isEnabled` | a Solid accessor: false leaves the keys to the page and hides it in the palette |
-| `isOn`      | whether what it turns on is on, which menus check and buttons press             |
+| Field       | What it says                                  | Without it                         |
+| ----------- | --------------------------------------------- | ---------------------------------- |
+| `run`       | what the action does                          | the action's `call`                |
+| `isEnabled` | whether it runs, else its keys go to the page | it does                            |
+| `choices`   | the values a person picks an input from       | the field's, or the type's objects |
+| `chosen`    | the values an input has                       | the values the call's rows share   |
+| `subject`   | the title of what it runs on                  | the object's title                 |
+| `isOn`      | whether what it turns on is on                | it turns on nothing                |
+
+### Places
+
+`provide(place)` gives a `Place` to the actions in the element it is the `ref` of, and `provideOnPage` to the page's.
+An action takes the nearest place around the person that gives what it needs.
+
+### useAction
+
+`useAction(() => ({ action, element }))` tells what an action does at an element, and follows its changes.
+
+| Field                     | What it reads                                       |
+| ------------------------- | --------------------------------------------------- |
+| `isEnabled()`, `isOn()`   | whether it runs, and whether what it turns on is on |
+| `input()`                 | the one input left that a person picks from a list  |
+| `choices()`               | what they pick it from                              |
+| `chosen()`, `isChosen(…)` | the values it has, as they change                   |
+| `start(value?)`           | runs it, with the picked value                      |
 
 ### Standard actions
 
@@ -156,7 +173,7 @@ A `*.browser.scenario.tsx` module plays in Chromium.
 
 ### Primitives
 
-Each primitive is `@destack/view/primitives/<name>`, after Solid Primitives: `active-element`, `audio`, `bounds`, `clipboard`, `connectivity`, `cursor`, `devices`, `event-dispatcher`, `event-listener`, `event-props`, `favicon`, `focus`, `fullscreen`, `geolocation`, `idle`, `input-mask`, `intersection-observer`, `keyboard`, `media`, `mediastream`, `mutation-observer`, `notification`, `orientation`, `page-visibility`, `permission`, `pointer`, `raf`, `resize-observer`, `scheduled`, `scroll`, `selection`, `sensors`, `share`, `storage`, `styles`, `timer`, `upload`, `utils`, `vibrate`, `video`.
+Each primitive is `@destack/view/primitives/<name>`, after Solid Primitives, such as `clipboard`, `media` or `resize-observer`.
 
 ## Examples
 
@@ -189,6 +206,33 @@ export function Editor(properties: {
                 isEnabled: properties.hasSelection,
             })}
         />
+    );
+}
+```
+
+### Draw an action's choices
+
+`useAction` lists what an action takes, and marks what it has.
+
+```tsx
+import type { Action } from "@destack/object";
+import { For, useAction } from "@destack/view";
+
+/** Render the choices of an action on the page as buttons. */
+export function Choices(properties: { readonly action: Action }) {
+    const own = useAction(() => ({ action: properties.action, element: null }));
+
+    return (
+        <For each={own.choices()}>
+            {(choice) => (
+                <button
+                    aria-pressed={own.isChosen(choice) ? "true" : "false"}
+                    onClick={() => own.start(choice.value)}
+                >
+                    {choice.title}
+                </button>
+            )}
+        </For>
     );
 }
 ```
