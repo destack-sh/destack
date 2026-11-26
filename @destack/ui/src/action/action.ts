@@ -186,7 +186,6 @@ export const openMenu = defineAction({
     title: t`Open menu`,
     category: t`Edit`,
     keybinding: "shift+f10",
-    input: { items },
 });
 
 /** Hide the column. */
