@@ -1,4 +1,5 @@
 import { type Message, t } from "@destack/locale";
+import { schema } from "@destack/schema";
 
 /** The channels of each color space, in the order CSS writes them. */
 export const COLOR_CHANNELS = {
@@ -124,6 +125,11 @@ const GAMUT_STEPS = 18;
 
 /** A color in one space, which another has the nearest color of. */
 export class Color {
+    /** A color CSS writes as text: hexadecimal, rgb(), hsl() or oklch(). */
+    static readonly schema = schema.string().refine((text) => Color.read(text) !== undefined, {
+        message: "a color is hexadecimal, rgb(), hsl() or oklch()",
+    });
+
     /** The space. */
     readonly space: ColorSpace;
     /** The numbers, in the order of the space's channels. */

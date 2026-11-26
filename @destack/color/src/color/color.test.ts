@@ -141,3 +141,17 @@ test("say what people call a color", () => {
         "vibrant magenta pink",
     ]);
 });
+
+test("validate text as a color CSS writes, with the reason it refuses another", () => {
+    expect(
+        ["#f76b15", "oklch(69% 0.19 45)", "rgb(0 144 255 / 50%)", "orange", "#12"].map(
+            (text) => Color.schema.safeParse(text).error?.issues[0]?.message ?? "color",
+        ),
+    ).toEqual([
+        "color",
+        "color",
+        "color",
+        "a color is hexadecimal, rgb(), hsl() or oklch()",
+        "a color is hexadecimal, rgb(), hsl() or oklch()",
+    ]);
+});
