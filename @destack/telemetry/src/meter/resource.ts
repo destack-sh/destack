@@ -29,7 +29,7 @@ export const computeUsage = defineMeter({
 /** The requests a space's installations serve. */
 export const computeOperation = defineMeter({
     name: "compute.operation",
-    description: t`Requests served.`,
+    description: t`Requests the space's installations serve.`,
     aggregation: "sum",
     unit: "request",
     attributes: {},
