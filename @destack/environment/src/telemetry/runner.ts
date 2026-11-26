@@ -81,6 +81,12 @@ export interface SpanRunner {
     ): Promise<Result>;
     /** Read the active span, such as the call the platform traces. */
     readonly current: () => Span | undefined;
+    /** Record work timed before telemetry could start, as a span over its start and end. */
+    readonly record: (
+        name: string,
+        attributes: Attributes,
+        times: { readonly start: number; readonly end: number },
+    ) => void;
     /** Time work apart from any span, recording its seconds and failure, and handing them over. */
     readonly measure: <Result>(
         name: string,
@@ -233,7 +239,25 @@ export const SpanRunner = {
             }
         };
 
-        return Object.assign(run, { current: () => trace.getSpan(context.active()), measure });
+        // record work timed before telemetry could start, as a span over its start and end
+        const record = (
+            name: string,
+            attributes: Attributes,
+            times: { readonly start: number; readonly end: number },
+        ): void => {
+            const span = tracer.startSpan(
+                name,
+                { attributes, startTime: times.start },
+                context.active(),
+            );
+            span.end(times.end);
+        };
+
+        return Object.assign(run, {
+            current: () => trace.getSpan(context.active()),
+            measure,
+            record,
+        });
     },
 };
 
