@@ -6,7 +6,6 @@ import { For, type JSX } from "@destack/view";
 import { accordionHelpQuestionsExpanded } from "../accordion/accordion.example.tsx";
 import { alertFailedSync } from "../alert/alert.example.tsx";
 import { alertDialogDeleteNotebook } from "../alert-dialog/alert-dialog.example.tsx";
-import { aspectRatioCoverPhoto } from "../aspect-ratio/aspect-ratio.example.tsx";
 import { autocompleteFruit } from "../autocomplete/autocomplete.example.tsx";
 import { avatarNotebookPeople } from "../avatar/avatar.example.tsx";
 import { badgeNoteState } from "../badge/badge.example.tsx";
@@ -221,7 +220,6 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Accordion", [accordionHelpQuestionsExpanded]],
     ["Alert", [alertFailedSync]],
     ["Alert dialog", [alertDialogDeleteNotebook]],
-    ["Aspect ratio", [aspectRatioCoverPhoto]],
     ["Autocomplete", [autocompleteFruit]],
     ["Avatar", [avatarNotebookPeople]],
     ["Badge", [badgeNoteState]],
