@@ -5,7 +5,7 @@ import { UpdateError } from "./error/error.ts";
 
 /** The handle machines serve their distribution through, and clients call it by. */
 export default definePackage({
-    title: t`Update`,
+    title: t.context("title")`Update`,
     description: t`Update installed Destack distributions from a signed release feed.`,
     icon: "arrows-clockwise",
     color: "brown",

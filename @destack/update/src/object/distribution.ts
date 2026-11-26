@@ -44,9 +44,17 @@ export const distribution = defineObject(
     (method) => ({
         create: method.create("record", { visibility: "package" }),
         /** Download and verify the feed's latest release if newer than the installed one. */
-        stage: method.mutation({ title: t`Stage`, permission: "update", prepared: Staging }),
+        stage: method.mutation({
+            title: t.context("action")`Stage`,
+            permission: "update",
+            prepared: Staging,
+        }),
         /** Restart the distribution into the staged release. */
-        activate: method.mutation({ title: t`Activate`, permission: "update", prepared: Version }),
+        activate: method.mutation({
+            title: t.context("action")`Activate`,
+            permission: "update",
+            prepared: Version,
+        }),
     }),
 );
 
