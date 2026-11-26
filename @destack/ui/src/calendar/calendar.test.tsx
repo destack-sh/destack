@@ -75,7 +75,7 @@ test("select a day on click, ignoring disabled days, and report it", () => {
     const container = drawIn("en-US", () => (
         <Calendar
             defaultMonth={day("2026-10-01")}
-            disabled={(entry) => entry === "2026-10-02"}
+            isDateUnavailable={(entry) => entry === "2026-10-02"}
             onSelect={(entry) => changes.push(entry)}
         />
     ));

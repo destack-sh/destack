@@ -73,8 +73,8 @@ const styles = style.create({
 export type DatePickerProperties = {
     /** The text a multiple date picker's trigger shows before a day is chosen. */
     readonly placeholder?: string;
-    /** Report whether a day cannot be chosen. */
-    readonly disabled?: (day: PlainDate) => boolean;
+    /** Report whether a day cannot be chosen, beside the limits. */
+    readonly isDateUnavailable?: (day: PlainDate) => boolean;
     /** The look of a multiple date picker's trigger, outline by default. */
     readonly variant?: ButtonVariant;
     /** The name of the picker, such as the field it fills. */
@@ -187,7 +187,7 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
                         autoFocus
                         {...selectionOf(properties.mode, value(), change)}
                         {...(properties.today === undefined ? {} : { today: properties.today })}
-                        disabled={properties.disabled ?? (() => false)}
+                        isDateUnavailable={properties.isDateUnavailable ?? (() => false)}
                     />
                 </Show>
             </PopoverContent>

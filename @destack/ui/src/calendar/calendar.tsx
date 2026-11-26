@@ -126,7 +126,7 @@ const CALENDAR_OPTIONS = [
     "defaultSelected",
     "onSelect",
     "defaultMonth",
-    "disabled",
+    "isDateUnavailable",
     "weekStartsOn",
     "today",
     "numberOfMonths",
@@ -159,8 +159,8 @@ export type CalendarProperties = Omit<
 > & {
     /** The month shown at first, the selection's or today's by default. */
     readonly defaultMonth?: PlainDate;
-    /** Report whether a day cannot be selected. */
-    readonly disabled?: (day: PlainDate) => boolean;
+    /** Report whether a day cannot be selected, beside the limits. */
+    readonly isDateUnavailable?: (day: PlainDate) => boolean;
     /** The weekday weeks start on, 1 for Monday to 7 for Sunday, the locale's by default. */
     readonly weekStartsOn?: Weekday;
     /** The day the calendar counts as today, the page clock's by default. */
@@ -254,11 +254,11 @@ export class CalendarControl {
         );
     }
 
-    /** Report whether a day cannot be selected: outside the limits or disabled by the owner. */
+    /** Report whether a day cannot be selected: outside the limits or unavailable by the owner. */
     isUnavailable(day: PlainDate): boolean {
         return (
             isOutsideRange(day, this.properties.min, this.properties.max) ||
-            this.properties.disabled?.(day) === true
+            this.properties.isDateUnavailable?.(day) === true
         );
     }
 

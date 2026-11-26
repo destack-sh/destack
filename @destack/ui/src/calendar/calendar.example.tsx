@@ -31,7 +31,7 @@ export const calendarTripDays = defineExample({
                 mode="range"
                 selected={trip()}
                 onSelect={setTrip}
-                disabled={isPast}
+                isDateUnavailable={isPast}
                 today={TRIP_TODAY}
             />
         );
