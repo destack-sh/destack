@@ -198,6 +198,38 @@ A package's role says how it ships.
 
 Builtins and libraries import only builtins and other libraries; apps also get to import other apps' `object`, `declare`, `client`, `setting` and `view`.
 
+### Exports
+
+A package exports its parts by role, by declaration kind and by runtime or vendor, one subpath each.
+
+| Subpath                                                | What it holds                                                          |
+| ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `.`                                                    | the package's model: its types and the logic every runtime runs        |
+| `./client`                                             | calling the package from elsewhere: connections, nodes, queries        |
+| `./device`                                             | a person's local copy of it: its store, outbox and sync on a database  |
+| `./server`                                             | serving it: its workloads and handlers                                 |
+| `./object`, `./declare`, `./setting`, `./view`, `./stack`, `./provider` | its declarations of one kind                          |
+| `./package`, `./error`, `./inspect`, `./test`          | its package value, errors, inspection and test kit                     |
+| `./<domain>`                                           | one domain module, such as `./trace` or `./manifest`                   |
+| `./<runtime>`, `./<vendor>`                            | its code for one runtime or vendor, from `src/<name>/`                 |
+| `./<role>/<runtime>`                                   | one role's code for one runtime, from `src/<role>/<runtime>.ts`        |
+
+Each subpath loads only what its role runs, so a page importing `./client` never loads a device or a server.
+
+```json
+{
+    "exports": {
+        ".": "./src/index.ts",
+        "./client": "./src/client/index.ts",
+        "./client/browser": "./src/client/browser.ts",
+        "./device": "./src/device/index.ts",
+        "./device/browser": "./src/device/browser.ts",
+        "./server": "./src/server/index.ts",
+        "./cloudflare": "./src/cloudflare/index.ts"
+    }
+}
+```
+
 ### README
 
 A package's README teaches a caller to use the package in a nicely standardised form
