@@ -130,10 +130,8 @@ const seams = style.create({
 /** A length a drawer snaps to. */
 export type DrawerSnapPoint = number | string;
 
-/** Where a drawer opens from and rests. */
+/** Where a drawer rests. */
 export interface DrawerOptions {
-    /** The edge the drawer slides in from, bottom by default. */
-    readonly direction?: Side;
     /** The lengths a drag settles the drawer at, from the smallest to the largest. */
     readonly snapPoints?: readonly DrawerSnapPoint[];
     /** The snap point the drawer rests at, which makes it controlled. */
@@ -148,10 +146,8 @@ export interface DrawerOptions {
 export interface DrawerProperties<Payload = unknown>
     extends DialogProperties<Payload>, DrawerOptions {}
 
-/** The edge and snap points of a drawer, which its content reads. */
+/** The snap points of a drawer, which its content reads. */
 export class DrawerControl {
-    /** The edge the drawer slides in from. */
-    readonly direction: Accessor<Side>;
     /** The lengths a drag settles the drawer at, from the smallest to the largest. */
     readonly snapPoints: Accessor<readonly DrawerSnapPoint[]>;
     /** The snap point the drawer rests at, undefined without snap points. */
@@ -172,7 +168,6 @@ export class DrawerControl {
                 }
             },
         });
-        this.direction = () => properties.direction ?? "bottom";
         this.snapPoints = () => properties.snapPoints ?? [];
         this.activeSnapPoint = () => active() ?? properties.snapPoints?.at(-1);
         this.#setActive = setActive;
@@ -183,11 +178,6 @@ export class DrawerControl {
         const point = this.activeSnapPoint();
 
         return point === undefined ? undefined : this.snapPoints().indexOf(point);
-    }
-
-    /** Report whether the drawer's extent runs along the vertical axis. */
-    isVertical(): boolean {
-        return this.direction() === "top" || this.direction() === "bottom";
     }
 
     /** Settle a released drag at the snap point nearest its projected extent. */
@@ -240,7 +230,6 @@ export function useDrawer(): DrawerControl {
 export function Drawer<Payload = unknown>(properties: DrawerProperties<Payload>): JSX.Element {
     const rest = omit(
         properties,
-        "direction",
         "snapPoints",
         "activeSnapPoint",
         "defaultActiveSnapPoint",
@@ -268,6 +257,7 @@ export function DrawerClose(properties: DialogButtonProperties): JSX.Element {
 
 /** The properties people change in a drawer's controls and inspector. */
 const DRAWER_CONTENT_PROPERTIES = {
+    side: SheetContent.properties.side.default("bottom"),
     showHandle: field
         .boolean()
         .labeled(t.context("label")`Handle`)
@@ -290,15 +280,15 @@ export const DrawerContent = defineComponent({
         // close the drawer on a swipe toward its edge from unscrolled content, or settle it at a snap point
         const drawer = useDrawer();
         const dialog = useDialog();
-        const rest = omit(properties, "showHandle", "xstyle", "style", "children");
+        const rest = omit(properties, "side", "showHandle", "xstyle", "style", "children");
         const swipe = new Swipe(
             {
-                side: () => drawer.direction(),
+                side: () => properties.side,
                 onSwipeEnd: (event) =>
-                    drawer.settle(event, viewportOf(drawer), () =>
+                    drawer.settle(event, viewportOf(properties.side), () =>
                         dialog.close(new OpenChange("swipe")),
                     ),
-                canStart: (event) => canSwipe(drawer, event),
+                canStart: (event) => canSwipe(properties.side, event),
                 flickSpeed: FLICK_SPEED,
                 isElastic: true,
             },
@@ -314,7 +304,7 @@ export const DrawerContent = defineComponent({
             <SheetContent
                 data-slot="drawer-content"
                 data-snap-point={drawer.activeIndex()}
-                side={drawer.direction()}
+                side={properties.side}
                 showCloseButton={false}
                 {...mergeProperties({ ref: measure }, rest)}
                 {...swipe.attributes()}
@@ -322,15 +312,15 @@ export const DrawerContent = defineComponent({
                     styles.drawer,
                     transition.drawer,
                     styles.scrim,
-                    corners[drawer.direction()],
-                    extentStyle(drawer, swipe, content),
-                    drawer.direction() === "bottom" &&
+                    corners[properties.side],
+                    extentStyle(drawer, swipe, content, properties.side),
+                    properties.side === "bottom" &&
                         keyboard() > 0 &&
                         styles.above(`${String(keyboard())}px`),
                     properties.xstyle,
                 ]}
             >
-                <Show when={properties.showHandle ?? drawer.direction() === "bottom"}>
+                <Show when={properties.showHandle ?? properties.side === "bottom"}>
                     <DrawerHandle />
                 </Show>
                 {properties.children}
@@ -374,21 +364,22 @@ function extentStyle(
     drawer: DrawerControl,
     swipe: Swipe,
     content: HTMLElement | undefined,
+    side: Side,
 ): style.Styles {
     // move a drawer without snap points with the swipe
     const point = drawer.activeSnapPoint();
     const offset = swipe.offset();
-    const extent = drawer.isVertical() ? styles.height : styles.width;
+    const extent = isVertical(side) ? styles.height : styles.width;
     if (point === undefined) {
-        return [swipe.style(), dragStyle(drawer, swipe, content)];
+        return [swipe.style(), dragStyle(swipe, content, side)];
     }
     // rest at the active snap point
     else if (offset === undefined) {
-        return [styles.snapping, extent(lengthOf(point, drawer.isVertical()))];
+        return [styles.snapping, extent(lengthOf(point, side))];
     }
 
     // follow the drag between none and the largest snap point
-    const viewport = viewportOf(drawer);
+    const viewport = viewportOf(side);
     const largest = Math.max(...drawer.snapPoints().map((entry) => extentOf(entry, viewport)));
     const dragged = Math.min(Math.max(extentOf(point, viewport) - offset, 0), largest);
 
@@ -396,11 +387,7 @@ function extentStyle(
 }
 
 /** Return the StyleX styles of a drawer's backdrop and edge while a drag moves it. */
-function dragStyle(
-    drawer: DrawerControl,
-    swipe: Swipe,
-    content: HTMLElement | undefined,
-): style.Styles {
+function dragStyle(swipe: Swipe, content: HTMLElement | undefined, side: Side): style.Styles {
     // rest without a drag
     const offset = swipe.offset();
     if (offset === undefined || content === undefined) {
@@ -408,19 +395,18 @@ function dragStyle(
     }
     // fade the backdrop with the part of the drawer dragged off
     else if (offset > 0) {
-        const extent = drawer.isVertical() ? content.offsetHeight : content.offsetWidth;
+        const extent = isVertical(side) ? content.offsetHeight : content.offsetWidth;
 
         return styles.fade(String(Math.max(0, 1 - offset / extent)));
     }
 
     // fill the gap at the edge the drawer gives way from
-    const direction = drawer.direction();
-    const gap = swipe.resisted() * (direction === "bottom" || direction === "right" ? 1 : -1);
+    const gap = swipe.resisted() * (side === "bottom" || side === "right" ? 1 : -1);
     const length = `${String(gap)}px`;
 
     return [
-        seams[direction],
-        drawer.isVertical() ? styles.fill("0px", length) : styles.fill(length, "0px"),
+        seams[side],
+        isVertical(side) ? styles.fill("0px", length) : styles.fill(length, "0px"),
     ];
 }
 
@@ -451,12 +437,12 @@ function createKeyboardInset(): Accessor<number> {
 }
 
 /** Report whether a press may swipe a drawer. */
-function canSwipe(drawer: DrawerControl, event: PointerEvent): boolean {
+function canSwipe(side: Side, event: PointerEvent): boolean {
     // swipe a drawer against a left or right edge from anywhere
     const content = event.currentTarget;
     const target = event.target;
-    if (!drawer.isVertical() || !(content instanceof Element) || !(target instanceof Element)) {
-        return !drawer.isVertical();
+    if (!isVertical(side) || !(content instanceof Element) || !(target instanceof Element)) {
+        return !isVertical(side);
     }
 
     return (
@@ -466,8 +452,13 @@ function canSwipe(drawer: DrawerControl, event: PointerEvent): boolean {
 }
 
 /** Read the viewport's extent along a drawer's axis, in pixels. */
-function viewportOf(drawer: DrawerControl): number {
-    return drawer.isVertical() ? window.innerHeight : window.innerWidth;
+function viewportOf(side: Side): number {
+    return isVertical(side) ? window.innerHeight : window.innerWidth;
+}
+
+/** Report whether a drawer from a side runs along the vertical axis. */
+function isVertical(side: Side): boolean {
+    return side === "top" || side === "bottom";
 }
 
 /** Read the pixels a snap point spans in a viewport. */
@@ -489,8 +480,8 @@ function extentOf(point: DrawerSnapPoint, viewport: number): number {
 }
 
 /** Write a snap point as the CSS length of a drawer's extent along its axis. */
-function lengthOf(point: DrawerSnapPoint, isVertical: boolean): string {
+function lengthOf(point: DrawerSnapPoint, side: Side): string {
     return typeof point === "number"
-        ? `${String(point * 100)}${isVertical ? "dvh" : "dvw"}`
+        ? `${String(point * 100)}${isVertical(side) ? "dvh" : "dvw"}`
         : point;
 }

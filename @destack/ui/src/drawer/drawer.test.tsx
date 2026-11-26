@@ -3,7 +3,7 @@ import { flush } from "@destack/view";
 import { markup, render, wait } from "@destack/view/test";
 import { Drawer, DrawerContent, DrawerTitle } from "./index.ts";
 
-test("place a drawer against its direction, with a handle above a bottom drawer's content", () => {
+test("place a drawer against its side, with a handle above a bottom drawer's content", () => {
     const { container } = render(() => (
         <>
             <Drawer>
@@ -11,8 +11,8 @@ test("place a drawer against its direction, with a handle above a bottom drawer'
                     <DrawerTitle>Share</DrawerTitle>
                 </DrawerContent>
             </Drawer>
-            <Drawer direction="right">
-                <DrawerContent>
+            <Drawer>
+                <DrawerContent side="right">
                     <DrawerTitle>Details</DrawerTitle>
                 </DrawerContent>
             </Drawer>
