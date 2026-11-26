@@ -14,7 +14,6 @@ import {
     OriginPath,
     Sandbox,
 } from "@destack/package";
-import { BASELINE_MODULE } from "@destack/package/vite";
 import { type PackageOutput, ViewDescription, ViewRender } from "@destack/package/manifest";
 import { ACTION_KIND, ActionDescription, OBJECT_KIND } from "@destack/object";
 import { OBJECTS_ENTRYPOINT } from "@destack/object/build";
@@ -485,7 +484,7 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
 /** Write a browser output's frame module, framing the declaration its page's address selects. */
 function frameModule(): string {
     return [
-        `import ${JSON.stringify(BASELINE_MODULE)};`,
+        `import "${VIEW_PACKAGE}/baseline";`,
         ...STYLESHEETS.map((path) => `import ${JSON.stringify(path)};`),
         `import { BrowserEnvironment } from "${VIEW_PACKAGE}/browser";`,
         `import { hostFrame } from "${VIEW_PACKAGE}/example";`,
@@ -589,8 +588,8 @@ function entryModule(
     const imported = `import { ${view.export} as view } from ${JSON.stringify(view.file)};`;
     const stylesheets = STYLESHEETS.map((path) => `import ${JSON.stringify(path)};`);
 
-    // install the browser baseline before any other module of a client entry
-    const baseline = `import ${JSON.stringify(BASELINE_MODULE)};`;
+    // import the browser baseline first, so it runs before the other imports
+    const baseline = `import "${VIEW_PACKAGE}/baseline";`;
 
     // render a static view's pages on the server, linking the page's assets each request names
     if (isServer) {

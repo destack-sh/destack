@@ -211,7 +211,7 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
     expect([[...entries.keys()], loaded.split("\n"), device.split("\n"), described]).toEqual([
         ["./view/main", "./device"],
         [
-            'import "virtual:destack/baseline";',
+            'import "@destack/view/baseline";',
             'import "@destack/view/styles.css";',
             'import "virtual:stylex.css";',
             'import { BrowserEnvironment, mount } from "@destack/view/browser";',

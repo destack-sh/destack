@@ -210,7 +210,12 @@ test("prerender a browser-only package's static page on a Bun output it does not
         island: '<div data-island="/src/islands/counter.tsx" data-island-id="/src/islands/counter.tsx#0" data-island-properties="{&quot;start&quot;:3}"',
         isPageLoaded: false,
         deferred: ["counter"],
-        imports: ["@destack/view", "@destack/view/runtime", "@destack/view/static/browser"],
+        imports: [
+            "@destack/view",
+            "@destack/view/baseline",
+            "@destack/view/runtime",
+            "@destack/view/static/browser",
+        ],
         prerender: false,
         isClaiming: true,
     });
