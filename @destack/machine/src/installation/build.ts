@@ -137,8 +137,8 @@ export function implementBuild(options: BuildOptions) {
                     // record a release its caller pulled, refusing another package or version, with nothing to run
                     if (source.kind === "release") {
                         const { image } = source;
-                        const store = options.space.machine.builds;
-                        if (!(await store.contains(image))) {
+                        const { builds: store, targets } = options.space.machine;
+                        if (!(await store.isPulled({ kind: "image", digest: image }, targets))) {
                             throw StackError.of(
                                 "RELEASE_BLOCKED",
                                 `cannot create a build of release '${image}': pull it into the build store first`,

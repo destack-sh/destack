@@ -70,6 +70,7 @@ export interface RevisionOptions {
         | "requireFollowable"
         | "requireRepository"
         | "exchange"
+        | "isPulled"
         | "author"
         | "runner"
         | "builder"
@@ -401,10 +402,7 @@ export const InstallationTarget = {
         const chosen = selected ?? targeted;
 
         // choose none without a build, or with one whose image the machine lacks
-        if (
-            chosen === undefined ||
-            (await options.space.builds.storeOf(chosen.image)) === undefined
-        ) {
+        if (chosen === undefined || !(await options.space.isPulled(chosen.image))) {
             return undefined;
         }
 
@@ -442,10 +440,7 @@ export const InstallationTarget = {
         // leave a host's release already on the machine
         const { isRunner } = options.space.machine;
         const hosted = kind === "host" ? InstallationTarget.host(packageId, options) : undefined;
-        if (
-            hosted !== undefined &&
-            (await options.space.builds.storeOf(hosted.image)) !== undefined
-        ) {
+        if (hosted !== undefined && (await options.space.isPulled(hosted.image))) {
             return undefined;
         }
 
@@ -743,8 +738,7 @@ async function selectBuild(
         if (source?.kind === "release" && current !== undefined && Build.image(current) === image) {
             return { image, source, build: current.id };
         }
-        const stored = await options.space.builds.storeOf(image);
-        if (stored === undefined) {
+        if (!(await options.space.isPulled(image))) {
             return undefined;
         }
         const root = (await options.space.builds.image(image)).root;

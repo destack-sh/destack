@@ -53,6 +53,23 @@ export async function followedVersion(
     return followed?.version;
 }
 
+/** Report whether a space has the tag an installation follows: its own, or a synced replica's. */
+export async function hasTag(
+    database: DatabaseConnection,
+    row: Pick<Installation, "scope" | "versionScope" | "versionId">,
+    view: Pick<Snapshot, "read">,
+): Promise<boolean> {
+    // take a tag of the space itself, which it stores rather than replicates
+    if (row.versionScope === row.scope) {
+        return true;
+    }
+
+    // require a synced replica following another space's tag
+    const followed = await followedKey(row, view, "tag");
+
+    return followed !== undefined && (await tagShape.isSynced(database, followed.key));
+}
+
 /** Follow the reference each served installation follows, from its home. */
 export const referenceFollow = referenceShape.per(installation, {
     where: { deletedAt: { isNull: true }, versionType: reference.name },

@@ -16,6 +16,7 @@ import {
     PROCESS_RUNTIME,
 } from "@destack/stack/object";
 import { type RevisionOptions, InstallationTarget } from "./target.ts";
+import { hasTag } from "./follow.ts";
 import { account, space } from "@destack/account/object";
 import { planOf } from "../space/entitlement.ts";
 import {
@@ -236,7 +237,7 @@ export class ApplicationInstallation {
                 revision.buildId,
             );
             const { image } = built;
-            if ((await options.space.builds.storeOf(image)) !== undefined) {
+            if (await options.space.isPulled(image)) {
                 const reader = await options.space.root(row.packageId, image);
                 described.push(
                     await scope.span("destack.installation.establish.read", {}, () =>
@@ -535,10 +536,22 @@ export class ApplicationInstallation {
                 active.map((entry) => Deployment.drain(entry)),
             );
 
-            // report a tag nothing is published under yet, or a pinned release not published yet
+            // report a tag the space has not synced yet, which a runner reads its release from
             const kind = InstallationTarget.kind(target);
-            const isEnabled = !isDeleted && target.status === "enabled";
-            if (isEnabled && revision === undefined && (kind === "release" || kind === "tag")) {
+            const isUnrevised = !isDeleted && target.status === "enabled" && revision === undefined;
+            const { database } = call.execution.store;
+            const isTagPending =
+                isUnrevised &&
+                kind === "tag" &&
+                this.#options.space.machine.isRunner &&
+                !(await hasTag(database, target, call));
+            if (isTagPending) {
+                await call.observe(installation, target, {
+                    conditions: { Ready: Installation.waitingForTag() },
+                });
+            }
+            // report a tag nothing is published under yet, or a pinned release not published yet
+            else if (isUnrevised && (kind === "release" || kind === "tag")) {
                 const message =
                     kind === "tag"
                         ? `${target.name} has no release under its tag yet`
@@ -637,7 +650,7 @@ export class ApplicationInstallation {
         }
 
         // wait for a build this machine lacks, which a pull or its stack brings, as an image pull waits
-        if ((await this.#options.space.builds.storeOf(built.image)) === undefined) {
+        if (!(await this.#options.space.isPulled(built.image))) {
             await call.observe(installation, target, {
                 conditions: { Ready: Installation.waitingForBuild(built.image) },
                 fields: InstallationWait.none,

@@ -78,7 +78,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
         const index = await BuildGraph.of(this.#database, scope, this.#builds);
         const { manifest } = index;
         const store = present(
-            await this.#builds.storeOf(manifest),
+            await this.#builds.storeOf({ kind: "manifest", digest: manifest }),
             `the store of build '${manifest}'`,
         );
         const { storage } = store.blobs;

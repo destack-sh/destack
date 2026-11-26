@@ -517,36 +517,42 @@ test("refuse a build of another package, and deploy a release that is not later 
     ]);
 });
 
-test("wait for a release no one has published under the selected tag, reporting it on the installation", async () => {
-    // install the package following a tag its registry never published
-    const fixture = await TestSpace.open();
-    await fixture.serve();
-    const installer = fixture.as(fixture.owner.subject).client(stackPackage);
-    const notes = await installer.installation.create({
-        scope: ids.space,
-        requestId: RequestId.create(fixture.machine.environment),
-        packageId: ids.package,
-        ...following({
-            version: tag.reference(
-                Account.home(ids.account),
-                Identifier.create("tag", fixture.machine.environment),
-            ),
-        }),
-        name: "notes",
+test("wait for a tag that has not reached the space, and for a release under the space's own tag, reporting each", async () => {
+    // install the package following a tag of a home nothing serves here, and an unpublished tag of the space itself
+    const homes = { elsewhere: Account.home(ids.account), own: ids.space };
+    const conditions: Record<string, unknown[]> = {};
+    for (const [where, home] of Object.entries(homes)) {
+        const fixture = await TestSpace.open();
+        await fixture.serve();
+        const installer = fixture.as(fixture.owner.subject).client(stackPackage);
+        const notes = await installer.installation.create({
+            scope: ids.space,
+            requestId: RequestId.create(fixture.machine.environment),
+            packageId: ids.package,
+            ...following({
+                version: tag.reference(home, Identifier.create("tag", fixture.machine.environment)),
+            }),
+            name: "notes",
+        });
+
+        // reconcile its rollout, which finds no release to revise
+        await fixture.simulation.idle();
+        const waiting = await readInstalled(fixture.database, notes.id);
+        const ready = waiting.conditions["Ready"];
+        conditions[where] = [
+            waiting.targetRevisionId,
+            ready?.status,
+            ready?.reason,
+            ready?.message,
+        ];
+    }
+
+    // wait for the other home's tag to arrive, and report that the space's own tag has no release
+    expect(conditions).toEqual({
+        elsewhere: [null, "false", "WaitingForTag", "waiting for its tag to reach the space"],
+        own: [null, "false", "ReleaseNotPublished", "notes has no release under its tag yet"],
     });
-
-    // reconcile its rollout, which finds no release to revise
-    await fixture.simulation.idle();
-    const waiting = await readInstalled(fixture.database, notes.id);
-    const ready = waiting.conditions["Ready"];
-    expect([waiting.targetRevisionId, ready?.status, ready?.reason, ready?.message]).toEqual([
-        null,
-        "false",
-        "ReleaseNotPublished",
-        "notes has no release under its tag yet",
-    ]);
 });
-
 test("open the build each package's installation in a space version, and none for a package the space does not install", async () => {
     // install two packages at different releases, publishing the second's
     const fixture = await TestSpace.open();

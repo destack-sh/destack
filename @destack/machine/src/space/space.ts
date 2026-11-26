@@ -766,6 +766,13 @@ export class Space {
         return CallKey.of(await this.identity(), this.machine.environment.crypto);
     }
 
+    /** Report whether an image is pulled for what the space's machine runs. */
+    async isPulled(image: Digest): Promise<boolean> {
+        const root = { kind: "image", digest: image } as const;
+
+        return (await this.builds.storeOf(root, this.machine.targets)) !== undefined;
+    }
+
     /** Pull an image with the builds it loads into the machine's builds once. */
     pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
         // take an image pulled or pulling already
@@ -784,10 +791,11 @@ export class Space {
 
     /** Pull a published image from its forge, or the space's own image from the space's builds. */
     async #pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
-        // pull a published image from its forge, unless the machine keeps it whole
+        // pull a published image from its forge, unless it is pulled for what the machine runs
         if (!(await this.builds.contains(image))) {
-            if ((await this.machine.builds.storeOf(image)) === undefined) {
-                await this.machine.pull(packageId, { kind: "image", digest: image });
+            const root = { kind: "image", digest: image } as const;
+            if ((await this.machine.builds.storeOf(root, this.machine.targets)) === undefined) {
+                await this.machine.pull(packageId, root);
             }
 
             return await this.machine.builds.image(image);
@@ -2758,7 +2766,7 @@ export class Space {
         const open = async (packageId: PackageId, image: Digest) => {
             // open the root of an image the machine keeps
             if (source === "machine") {
-                const isKept = (await this.builds.storeOf(image)) !== undefined;
+                const isKept = await this.isPulled(image);
                 if (!isKept) {
                     unavailable.push(image);
                 }
