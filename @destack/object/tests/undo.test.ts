@@ -378,6 +378,58 @@ test("undo and redo a party's mutations, restoring only what no one changed sinc
     expect(device.errors).toEqual([]);
 });
 
+test("open another scope's client over a client's database, one outbox for both, undo kept per scope", async () => {
+    // open alice's client of her own scope offline, and the space's client over its database
+    const { connection, environment } = await serveNotes();
+    const storage = await TestDatabase.create([], {
+        environment,
+        dialect: "sqlite",
+        storage: "file",
+    });
+    const caller = principal.user.reference("universe", users.alice);
+    const base = await ObjectClient.open({
+        database: storage.database,
+        objects: { notebook, note },
+        scope: caller.id,
+        caller,
+        environment,
+        remote: connection(users.alice).at(caller.id),
+        publisher: (scope) => connection(users.alice).at(scope),
+    });
+    const scoped = await base.at(spaceId);
+    onTestFinished(async () => {
+        await scoped.close();
+        await base.close();
+    });
+
+    // create a note in the space, predicted at once and queued in the base's outbox
+    const created = scoped.mutate(note).create({ title: "Draft" });
+    await created.predicted;
+    const queued = (await base.inspect()).mutations.pending;
+    const undo = {
+        space: (await scoped.undoStack.latest("done"))?.scope,
+        own: await base.undoStack.latest("done"),
+    };
+
+    // push it from the base, which runs the shared outbox, refusing to run the scope's client
+    const stopping = new AbortController();
+    const running = base.push(stopping.signal);
+    await created.confirmed;
+    stopping.abort();
+    await running;
+    const refused = await scoped.run(stopping.signal).then(
+        () => undefined,
+        (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    );
+
+    // expect the one queued mutation, the space's undo entry alone, and the scope client's refusal
+    expect({ queued, undo, refused }).toEqual({
+        queued: 1,
+        undo: { space: spaceId, own: undefined },
+        refused: `the client of scope '${spaceId}' runs through its base client`,
+    });
+});
+
 test("group a party's updates of one note into one undo, apart across notes, closes and pauses", async () => {
     const simulation = testSimulation();
     const { openDevice, environment } = await serveNotes({ simulation });

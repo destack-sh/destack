@@ -14,6 +14,7 @@
         "./inspect": "./src/inspect/index.ts",
         "./client": "./src/client/index.ts",
         "./browser": "./src/browser/index.ts",
+        "./device": "./src/browser/device.ts",
         "./test": "./src/test/index.ts",
         "./workload": "./src/workload/index.ts",
         "./bun": "./src/bun/index.ts",

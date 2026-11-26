@@ -40,6 +40,8 @@ export const undoEntry = defineTable(
     {
         /** The entry, named after the mutation that first applied its steps. */
         id: text("id").primaryKey(),
+        /** The scope whose stacks hold the entry. */
+        scope: text("scope").notNull(),
         /** The entry's place in the client's stacks. */
         sequence: integer("sequence").notNull(),
         /** The undo group, named after its first entry. */
@@ -57,7 +59,7 @@ export const undoEntry = defineTable(
     },
     {
         constraints: (columns) => [
-            index("undo_entry_sequence").on(columns.sequence),
+            index("undo_entry_sequence").on(columns.scope, columns.sequence),
             index("undo_entry_mutation").on(columns.mutationId),
         ],
     },
@@ -112,7 +114,7 @@ export class UndoStack {
             await transaction
                 .update(undoEntry)
                 .set({ isOpen: false })
-                .where(eq(undoEntry.isOpen, true));
+                .where(and(eq(undoEntry.scope, this.client.scope), eq(undoEntry.isOpen, true)));
         });
     }
 
@@ -121,7 +123,7 @@ export class UndoStack {
         const [entry] = await this.client.database
             .select()
             .from(undoEntry)
-            .where(eq(undoEntry.state, state))
+            .where(and(eq(undoEntry.scope, this.client.scope), eq(undoEntry.state, state)))
             .orderBy(state === "done" ? desc(undoEntry.sequence) : asc(undoEntry.sequence))
             .limit(1);
 
@@ -158,12 +160,14 @@ export class UndoStack {
         composable: string | undefined,
     ): Promise<readonly StoredStep[] | undefined> {
         // clear the redo stack
-        await database.delete(undoEntry).where(eq(undoEntry.state, "undone"));
+        const scoped = eq(undoEntry.scope, this.client.scope);
+        await database.delete(undoEntry).where(and(scoped, eq(undoEntry.state, "undone")));
 
         // close the latest entry
         const [latest] = await database
             .select()
             .from(undoEntry)
+            .where(scoped)
             .orderBy(desc(undoEntry.sequence))
             .limit(1);
         if (latest?.isOpen === true) {
@@ -206,6 +210,7 @@ export class UndoStack {
         const isJoining = latest !== undefined && composed !== undefined;
         await database.insert(undoEntry).values({
             id,
+            scope: this.client.scope,
             sequence: (latest?.sequence ?? 0) + 1,
             group: isJoining ? latest.group : id,
             state: "done",
@@ -224,7 +229,7 @@ export class UndoStack {
     }
 
     /** Fill an executed mutation's missing step results from the server. */
-    async settle(
+    static async settle(
         transaction: DatabaseConnection,
         mutationId: string,
         value: unknown,
@@ -252,7 +257,10 @@ export class UndoStack {
     }
 
     /** Drop the entries of mutations the server rejected. */
-    async forget(transaction: DatabaseConnection, mutations: readonly string[]): Promise<void> {
+    static async forget(
+        transaction: DatabaseConnection,
+        mutations: readonly string[],
+    ): Promise<void> {
         await transaction.delete(undoEntry).where(inArray(undoEntry.mutationId, [...mutations]));
     }
 
@@ -269,14 +277,21 @@ export class UndoStack {
         const [oldest] = await database
             .select({ sequence: undoEntry.sequence })
             .from(undoEntry)
-            .where(eq(undoEntry.id, undoEntry.group))
+            .where(and(eq(undoEntry.scope, this.client.scope), eq(undoEntry.id, undoEntry.group)))
             .orderBy(desc(undoEntry.sequence))
             .limit(1)
             .offset(UNDO_DEPTH - 1);
 
         // drop the entries before it
         if (oldest !== undefined) {
-            await database.delete(undoEntry).where(lt(undoEntry.sequence, oldest.sequence));
+            await database
+                .delete(undoEntry)
+                .where(
+                    and(
+                        eq(undoEntry.scope, this.client.scope),
+                        lt(undoEntry.sequence, oldest.sequence),
+                    ),
+                );
         }
     }
 

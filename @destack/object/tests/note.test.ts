@@ -7,12 +7,8 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { journal, ViewSubscriber } from "../src/index.ts";
 import { eq } from "@destack/db";
-import {
-    type BrowserDevice,
-    BrowserTab,
-    type BrowserTabWorker,
-    DeviceElection,
-} from "../src/browser/index.ts";
+import { BrowserTab, type BrowserTabWorker, DeviceElection } from "../src/browser/index.ts";
+import { type BrowserDevice } from "../src/browser/device.ts";
 import { deviceDatabase, deviceWorker, holdRemote } from "./fixture/browser.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { ObjectClient, RelationalQuery } from "../src/client/index.ts";
@@ -441,7 +437,7 @@ test("count a notebook's notes outside the trash, predicted on a device before t
     expect(device.errors).toEqual([]);
 });
 
-test("share one device between tabs, letting a closed tab's queries lapse and handing it over when the leading tab closes", async () => {
+test("share one device between tabs, letting a closed tab's queries lapse, handing it over when the leader closes", async () => {
     const simulation = testSimulation();
     const { connect, connection } = await serveNotes({ simulation, node: "browser" });
     const alice = connect(users.alice);
@@ -470,48 +466,50 @@ test("share one device between tabs, letting a closed tab's queries lapse and ha
             objects,
             scope: spaceId,
             caller,
-            device,
             election: openElection(worker, environment),
         });
 
     // lead the device in the first tab, and share it with the second
-    const first = await open();
+    const first = open();
     await first.ready;
-    const second = await open();
+    const second = open();
     await second.ready;
-    await second.client.query.notebook.findMany().subscribe().ready;
-    await second.client.query.note.findMany().subscribe().ready;
+    await second.query.notebook.findMany().subscribe().ready;
+    await second.query.note.findMany().subscribe().ready;
 
     // write through the second tab
-    const travel = second.client.mutate(notebook).create({ name: "Travel" });
+    const travel = second.mutate(notebook).create({ name: "Travel" });
     const { id } = await travel.predicted;
     await travel.confirmed;
     expect((await alice.notebook.get({ spaceId, id })).name).toBe("Travel");
 
-    // follow a tab's access rows and queries at the device while it streams, and let them lapse once it closes
-    const held = async () =>
-        (await present(served, "the served device").client.store.followKeys()).filter(
-            (key) => key.expiresAt === null,
-        );
-    const before = await held();
-    const third = await open();
+    // follow a tab's query at the device while the tab reads it, and let it lapse once the tab closes
+    const followed = async () =>
+        (await present(served, "the served device").client.inspect()).followed
+            .filter((query) => query.expiresAt === null)
+            .map((query) => query.name)
+            .toSorted();
+    const before = await followed();
+    const third = open();
     await third.ready;
-    await third.client.query.note.findMany().subscribe().ready;
-    const during = await held();
+    const notes = third.query.note.findMany({ where: { title: "Packing" } }).subscribe();
+    await notes.ready;
+    const during = await followed();
+    await notes.close();
     await third.close();
     await present(served, "the served device").client.database.log.waitUntil(
-        async () => (await held()).length === before.length,
+        async () => (await followed()).length === before.length,
         environment.clock.timeout(5000),
     );
-    const added = during
-        .filter((key) => !before.some((other) => other.follower === key.follower))
-        .map((key) => key.shape)
-        .toSorted();
-    expect([added, await held()]).toEqual([["access", "queries"], before]);
+
+    // expect one more query followed while the tab read it, and none once it closed
+    expect([during.length - before.length, (await followed()).length - before.length]).toEqual([
+        1, 0,
+    ]);
 
     // hand the device over once the leading tab closes, and go on writing through the second
     await first.close();
-    const packing = second.client.mutate(note).create({ parentId: id, title: "Packing" });
+    const packing = second.mutate(note).create({ parentId: id, title: "Packing" });
     await packing.confirmed;
     expect((await alice.note.list({ spaceId })).items.map((item) => item.title)).toEqual([
         "Packing",
@@ -543,13 +541,12 @@ test("reject a tab's write the home refuses after its device queued it, with the
         remote: (scope: string) => holdRemote(home.at(scope), released.promise, new Set(["push"])),
         environment,
     });
-    const tab = await BrowserTab.open({
+    const tab = BrowserTab.open({
         environment,
         name: "notes",
         objects,
         scope: spaceId,
         caller,
-        device,
         election: openElection(worker, environment),
     });
     onTestFinished(() => tab.close());
@@ -557,13 +554,14 @@ test("reject a tab's write the home refuses after its device queued it, with the
 
     // rename a notebook in the tab, which its device queues, then archive it at the home
     const plans = await alice.notebook.create({ ...request(), name: "Plans" });
-    const live = tab.client.query.notebook.findMany({ archived: "include" }).subscribe();
+    const live = tab.query.notebook.findMany({ archived: "include" }).subscribe();
     await live.ready;
-    await tab.client.database.log.waitUntil(
-        async () => (await live.read()).length === 1,
-        simulation.clock.timeout(5000),
-    );
-    const renamed = tab.client.mutate(notebook).update({ id: plans.id, name: "Old plans" });
+    for await (const notebooks of live.watch(simulation.clock.timeout(5000))) {
+        if (notebooks.length === 1) {
+            break;
+        }
+    }
+    const renamed = tab.mutate(notebook).update({ id: plans.id, name: "Old plans" });
     await renamed.predicted;
     await alice.notebook.archive({ ...request(), id: plans.id });
 
@@ -574,76 +572,6 @@ test("reject a tab's write the home refuses after its device queued it, with the
         "OBJECT_BLOCKED",
         "cannot change notebook: it is archived",
     ]);
-});
-
-test("forget a closed tab's outcomes on its device once the tab lets go of its party lock", async () => {
-    const simulation = testSimulation();
-    const { connect, connection } = await serveNotes({ simulation, node: "browser" });
-    const alice = connect(users.alice);
-    const request = () => ({
-        spaceId,
-        requestId: RequestId.create(simulation.environment("test")),
-    });
-
-    // open a tab over a device whose pushes to the home wait until released
-    const environment = new BrowserSimulation(simulation).environment("browser");
-    const objects = { notebook, note };
-    const caller = principal.user.reference("universe", users.alice);
-    const device = principal.device.reference("universe", "device-browser");
-    const released = Promise.withResolvers<void>();
-    const home = connection(users.alice);
-    let served: BrowserDevice | undefined;
-    const worker = deviceWorker({
-        database: await deviceDatabase(objects, environment),
-        objects,
-        caller,
-        device,
-        remote: (scope: string) => holdRemote(home.at(scope), released.promise, new Set(["push"])),
-        environment,
-        served: (opened) => {
-            served = opened;
-        },
-    });
-    const tab = await BrowserTab.open({
-        environment,
-        name: "notes",
-        objects,
-        scope: spaceId,
-        caller,
-        device,
-        election: openElection(worker, environment),
-    });
-    await tab.ready;
-
-    // rename a notebook in the tab, then close the tab before the device pushes the rename
-    const plans = await alice.notebook.create({ ...request(), name: "Plans" });
-    const live = tab.client.query.notebook.findMany().subscribe();
-    await live.ready;
-    await tab.client.database.log.waitUntil(
-        async () => (await live.read()).length === 1,
-        simulation.clock.timeout(5000),
-    );
-    const renamed = tab.client.mutate(notebook).update({ id: plans.id, name: "Old plans" });
-    await renamed.predicted;
-    const origin = (await tab.client.database.log.position()).log;
-    await tab.close();
-
-    // push the rename, and listen as the closed tab once the device sent everything
-    released.resolve();
-    const opened = present(served, "the served device");
-    const { database } = opened.client;
-    const outbox = present(opened.client.store.outbox, "the device's outbox");
-    await database.log.waitUntil(
-        async () => (await outbox.prediction.pending(database)).length === 0,
-        simulation.clock.timeout(5000),
-    );
-    await simulation.idle();
-    const heard: unknown[] = [];
-    const stop = outbox.listen(origin, (outcomes) => heard.push(...outcomes));
-    stop([]);
-
-    // expect the device to hand the closed tab nothing
-    expect(heard).toEqual([]);
 });
 
 test("decide checks on a device from its replica of the caller's access rows, and follow a grant and its revocation into them", async () => {

@@ -10,26 +10,32 @@ import { ChannelRemote } from "../replica/channel.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import type { ObjectRemote } from "../replica/remote.ts";
-import { BrowserTab } from "./tab.ts";
 
 /** A person's objects of one app in one browser, serving the tabs of every scope. */
 export class BrowserDevice<
     Objects extends Readonly<Record<string, ObjectType>> = Readonly<Record<string, ObjectType>>,
 > {
-    /** The device's client, predicting and pushing the tabs' writes to their homes. */
+    /** The device's client of the person's scope, predicting and pushing the tabs' writes. */
     readonly client: ObjectClient<Objects>;
+    /** The device's client of each other scope its tabs opened, by scope. */
+    readonly #scopes: Map<string, Promise<ObjectClient<Objects>>>;
     /** Stop answering the tabs. */
     readonly #stop: () => void;
 
-    /** Serve a client's store to the tabs on a channel. */
-    private constructor(client: ObjectClient<Objects>, stop: () => void) {
+    /** Serve the clients of the tabs' scopes on a channel. */
+    private constructor(
+        client: ObjectClient<Objects>,
+        scopes: Map<string, Promise<ObjectClient<Objects>>>,
+        stop: () => void,
+    ) {
         this.client = client;
+        this.#scopes = scopes;
         this.#stop = stop;
     }
 
     /** Open a person's objects over a database, and answer the tabs on a channel as that person. */
     static async serve<const Objects extends Readonly<Record<string, ObjectType>>>(options: {
-        /** The device's database, an OPFS file in a browser. */
+        /** The device's database of every scope its tabs open, an OPFS file in a browser. */
         readonly database: DatabaseConnection;
         /** The channel the person's tabs call the device on. */
         readonly channel: Channel<unknown>;
@@ -52,23 +58,35 @@ export class BrowserDevice<
         /** The environment the device runs in, with the browser's locks. */
         readonly environment: Environment<"locks"> & Environment;
     }): Promise<BrowserDevice<Objects>> {
-        // open the client over the device's database, forgetting each tab once it lets go of its party lock
-        const { locks } = options.environment;
-        const client = await ObjectClient.open({
-            ...options,
-            closed: (origin, signal) =>
-                locks.request(BrowserTab.lock(origin), { signal }, async () => {}),
-        });
+        // open the person's client over the device's database
+        const client = await ObjectClient.open(options);
 
-        // answer the tabs with the store as the person, whose tabs share it
+        // open another scope's client over the device's store once a tab asks for it
+        const scopes = new Map<string, Promise<ObjectClient<Objects>>>();
+        const scoped = (scope: string): Promise<ObjectClient<Objects>> => {
+            // take the person's or an opened scope's client
+            const known = scope === options.scope ? Promise.resolve(client) : scopes.get(scope);
+            if (known !== undefined) {
+                return known;
+            }
+
+            // open the scope's client once, keeping it for its later tabs
+            const opened = client.at(scope);
+            scopes.set(scope, opened);
+
+            return opened;
+        };
+
+        // answer the tabs with the store and the scopes' clients as the person, whose tabs share them
         const stop = ChannelRemote.serve(
             options.channel,
             client.store.remote,
             options.caller,
             options.environment,
+            scoped,
         );
 
-        return new BrowserDevice(client, stop);
+        return new BrowserDevice(client, scopes, stop);
     }
 
     /** Open the device a starting tab asks for, tell the tab it serves or why not, and run it. */
@@ -104,9 +122,12 @@ export class BrowserDevice<
         });
     }
 
-    /** Stop answering the tabs and close the client. */
+    /** Stop answering the tabs and close the clients. */
     async close(): Promise<void> {
         this.#stop();
+        for (const opened of this.#scopes.values()) {
+            await (await opened).close();
+        }
         await this.client.close();
     }
 }

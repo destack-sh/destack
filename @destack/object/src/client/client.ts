@@ -3,6 +3,7 @@ import type { ActionArguments } from "../declare/call.ts";
 import type { ActionInputs } from "../declare/variable.ts";
 import type { Place } from "../declare/place.ts";
 import type { ActionContext } from "../declare/template.ts";
+import { ObjectNode } from "./node.ts";
 import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import { ObjectError } from "../error/error.ts";
@@ -158,10 +159,6 @@ export type Reader<Object extends ObjectType> = {
 export interface MutationContext {
     /** Call an object type's mutating methods within the mutation. */
     readonly call: <Object extends ObjectType>(object: Object) => Writer<Object>;
-}
-
-/** A mutation context that also calls methods by name, as recorded calls refer to them. */
-interface ReplayContext extends MutationContext {
     /** Call an object type's mutating method by name in the mutation, returning its prediction. */
     readonly invoke: (object: ObjectType, name: string, input: JsonObject) => Promise<unknown>;
 }
@@ -243,7 +240,7 @@ export interface ObjectAccess<Objects extends Readonly<Record<string, ObjectType
     /** Make several calls as one atomic mutation, predicted at once and undone as one step. */
     readonly mutation: ObjectClient["mutation"];
     /** The party's undo and redo stacks. */
-    readonly undoStack: UndoStack;
+    readonly undoStack: ObjectNode["undoStack"];
     /** Call an object type's mutating method by name as one mutation. */
     readonly call: ObjectClient["call"];
     /** Check whether the caller has a permission on an object. */
@@ -289,15 +286,15 @@ export interface ObjectClientOptions<Objects extends Readonly<Record<string, Obj
 /** One scope's objects on a client. */
 export class ObjectClient<
     Objects extends Readonly<Record<string, ObjectType>> = Readonly<Record<string, ObjectType>>,
-> {
+> implements ObjectNode<Objects> {
     /** The local database with the replica and the queued mutations. */
     readonly database: DatabaseConnection;
     /** The relations between the object types the client replicates, chunk types among them. */
     readonly relations: RelationGraph;
     /** The relational queries of the object types, by key. */
     readonly query: ObjectQueries<Objects>;
-    /** Run queries live over the local replica, as the client's relational queries do. */
-    readonly #subscriber: Subscriber = {
+    /** Run queries live over the local replica, for its relational queries and its tabs. */
+    readonly subscriber: Subscriber = {
         rows: (object, query, options) => this.#live(object, query, options),
         results: (object, query, options) => this.#measured(object, query, options),
     };
@@ -337,6 +334,12 @@ export class ObjectClient<
     readonly #isLocalFollowed: boolean;
     /** The local feed of watched queries. */
     readonly #local: syncDataflow.Feed;
+    /** The options the client opened with, which its scope clients derive theirs from. */
+    readonly #options: ObjectClientOptions<Objects>;
+    /** The client whose store this client shares, absent for the client owning its store. */
+    readonly #base: ObjectClient<Objects> | undefined;
+    /** Stop failing the open queries on the store's refusals. */
+    readonly #stopRefusals: () => void;
     /** The environment the client runs in: its clock, network and randomness. */
     readonly environment: Environment;
     /** Aborts outcome waits, lookups and watches on close. */
@@ -354,11 +357,15 @@ export class ObjectClient<
     /** The seconds each live query read of the replica takes. */
     readonly #reads;
 
-    /** Replicate one scope's objects in a local database with existing tables. */
-    private constructor(options: ObjectClientOptions<Objects>) {
-        // declare the client's tables to its database
+    /** Replicate one scope's objects in a local database, over a base client's store when given. */
+    private constructor(options: ObjectClientOptions<Objects>, base?: ObjectClient<Objects>) {
+        // declare the client's tables to its database once
         this.database = options.database;
-        this.database.state.declare(ObjectClient.tables(options.objects));
+        this.#options = options;
+        this.#base = base;
+        if (base === undefined) {
+            this.database.state.declare(ObjectClient.tables(options.objects));
+        }
 
         // store the options, refusing a push larger than the server takes
         this.#presenter = new TextPresenter();
@@ -375,8 +382,9 @@ export class ObjectClient<
         this.undoStack = new UndoStack(this);
 
         // replicate the scope's objects for the caller, and the principals storing local objects
-        this.relations = new RelationGraph(ObjectType.served(Object.values(options.objects)));
-        this.query = ObjectQueryBuilder.of(this.#subscriber, options.objects);
+        this.relations =
+            base?.relations ?? new RelationGraph(ObjectType.served(Object.values(options.objects)));
+        this.query = ObjectQueryBuilder.of(this.subscriber, options.objects);
         this.scope = options.scope;
         this.caller = options.caller;
         this.#owners = [options.caller, ...(options.device === undefined ? [] : [options.device])];
@@ -384,36 +392,19 @@ export class ObjectClient<
         // follow each storage's live queries through one shape, predicting the party's calls in the node's store
         this.#remote = options.remote;
         this.#isLocalFollowed = options.local === "followed";
-        this.#follows = ObjectClient.#queryFollows(this.objects, this.#isLocalFollowed);
+        this.#follows =
+            base === undefined
+                ? ObjectClient.#queryFollows(this.objects, this.#isLocalFollowed)
+                : base.#follows;
         const tables = ObjectClient.#storedTables(this.objects, "durable");
         this.branch = options.branch;
-        const { branch, storage, refresh } = options;
-        this.store = new ObjectStore({
-            servers: ObjectClient.#servers(this.objects, [...new Set(this.#follows.values())], {
-                isLocalServed: !this.#isLocalFollowed,
-            }),
-            principal: options.caller,
-            database: options.database,
-            blobs: new MemoryBlobStorage(options.environment.crypto),
-            origin: { package: nth(this.objects, 0).package },
-            chain: async () => undefined,
-            remote: options.remote,
-            ...(options.publisher === undefined ? {} : { publisher: options.publisher }),
-            ...(options.device === undefined ? {} : { device: options.device }),
-            ...(storage === undefined ? {} : { storage }),
-            ...(refresh === undefined ? {} : { refresh }),
-            log: { retention: options.log?.retention ?? LOCAL_LOG_RETENTION },
-            outbox: {
-                ...(branch === undefined ? {} : { branch }),
-                ...(options.push === undefined ? {} : { mutations: options.push.mutations }),
-                ...(options.retry === undefined ? {} : { retry: options.retry }),
-                ...(options.closed === undefined ? {} : { closed: options.closed }),
-                executed: (transaction, id, value) => this.undoStack.settle(transaction, id, value),
-                rejected: (transaction, ids) => this.undoStack.forget(transaction, ids),
-            },
-            environment: options.environment,
-        });
+        this.store = base?.store ?? this.#openStore(options);
         this.#outbox = present(this.store.outbox, "the client's outbox");
+        this.#stopRefusals = this.store.listenRefusals((error) => {
+            if (Replay.failure(error) !== undefined) {
+                this.#refusal = this.#refusal.refuse(error);
+            }
+        });
 
         // read the store's replicas of the scope: durable, ephemeral and external objects
         this.replica = new syncDataflow.Replica({
@@ -444,6 +435,37 @@ export class ObjectClient<
                 upstream: this.#upstream(this.objects),
             },
         );
+    }
+
+    /** Open the store of a base client's database, settling undo entries as the server answers. */
+    #openStore(options: ObjectClientOptions<Objects>): ObjectStore {
+        const { branch, storage, refresh } = options;
+
+        return new ObjectStore({
+            servers: ObjectClient.#servers(this.objects, [...new Set(this.#follows.values())], {
+                isLocalServed: !this.#isLocalFollowed,
+            }),
+            principal: options.caller,
+            database: options.database,
+            blobs: new MemoryBlobStorage(options.environment.crypto),
+            origin: { package: nth(this.objects, 0).package },
+            chain: async () => undefined,
+            remote: options.remote,
+            ...(options.publisher === undefined ? {} : { publisher: options.publisher }),
+            ...(options.device === undefined ? {} : { device: options.device }),
+            ...(storage === undefined ? {} : { storage }),
+            ...(refresh === undefined ? {} : { refresh }),
+            log: { retention: options.log?.retention ?? LOCAL_LOG_RETENTION },
+            outbox: {
+                ...(branch === undefined ? {} : { branch }),
+                ...(options.push === undefined ? {} : { mutations: options.push.mutations }),
+                ...(options.retry === undefined ? {} : { retry: options.retry }),
+                ...(options.closed === undefined ? {} : { closed: options.closed }),
+                executed: (transaction, id, value) => UndoStack.settle(transaction, id, value),
+                rejected: (transaction, ids) => UndoStack.forget(transaction, ids),
+            },
+            environment: options.environment,
+        });
     }
 
     /** Serve each package's local object types, and follow the live queries' shapes on demand. */
@@ -576,16 +598,34 @@ export class ObjectClient<
         // let the keys a closed client's live queries left lapse, and follow its scope's access rows when it replicates any
         const client = new ObjectClient(options);
         await client.#lapseLeft();
-        const isReplicating = [...client.#follows.values()].some((follow) =>
+        await client.#followAccess();
+
+        return client;
+    }
+
+    /** Open the client of another scope over this client's database, store and outbox. */
+    async at(scope: string): Promise<ObjectClient<Objects>> {
+        // derive the scope's options, its remote toward the scope's home
+        const options = this.#options;
+        const remote = options.publisher?.(scope) ?? options.remote;
+        const client = new ObjectClient({ ...options, scope, remote }, this.#base ?? this);
+
+        // follow the scope's access rows when the client replicates any
+        await client.#followAccess();
+
+        return client;
+    }
+
+    /** Follow the scope's access rows when the client replicates any. */
+    async #followAccess(): Promise<void> {
+        const isReplicating = [...this.#follows.values()].some((follow) =>
             follow.shape.objects.some((type) => type.storage !== "local"),
         );
         if (isReplicating) {
-            await client.store.follow(CLIENT_FOLLOWER, ObjectStore.ACCESS_FOLLOW, [
-                { key: { scope: client.scope } },
+            await this.store.follow(CLIENT_FOLLOWER, ObjectStore.ACCESS_FOLLOW, [
+                { key: { scope: this.scope } },
             ]);
         }
-
-        return client;
     }
 
     /** Let the keys an earlier client's live queries left lapse. */
@@ -738,7 +778,7 @@ export class ObjectClient<
         }
 
         return {
-            query: ObjectQueryBuilder.of(this.#subscriber, objects),
+            query: ObjectQueryBuilder.of(this.subscriber, objects),
             mutate: ObjectClient.#mutators(this, objects),
             mutation: (run) => this.mutation(run),
             undoStack: this.undoStack,
@@ -787,63 +827,19 @@ export class ObjectClient<
     /** Run an action's call on resolved inputs as one mutation, predicted and undone as one. */
     perform<Inputs extends ActionInputs>(
         action: Action<Inputs>,
-        { values, initial = {} }: ActionArguments<Inputs>,
+        values: ActionArguments<Inputs>,
     ): Submission<readonly unknown[]> {
-        // read the rows from the replica, refusing an object of another scope
+        // run a branch type's calls on the main line
         const call = present(action.call, `the call of action '${action.name}'`);
-        const invocations = call.invocations(
-            { values: JsonValue.object(values), initial },
-            {
-                context: this.context(),
-                read: (type, reference) => this.find(type, reference),
-            },
+
+        return ObjectNode.perform(this, action, values, (run) =>
+            this.#mutation(run, this.#isBranchType(call.object)),
         );
-
-        // run an ephemeral or local method call by call, and any other as one mutation
-        const { object, method } = call;
-        const isSingle = object.storage === "ephemeral" || object.storage === "local";
-        const submitted = invocations.then((each): Submission<readonly unknown[]>[] =>
-            isSingle
-                ? each.map(({ input }) => {
-                      const { predicted, confirmed } = this.call(object, method, input);
-
-                      return { predicted: predicted.then((result) => [result]), confirmed };
-                  })
-                : [
-                      this.#mutation(async (mutation) => {
-                          const results: unknown[] = [];
-                          for (const { input } of each) {
-                              results.push(await mutation.invoke(object, method, input));
-                          }
-
-                          return results;
-                      }, this.#isBranchType(object)),
-                  ],
-        );
-        const predicted = submitted.then(async (each) =>
-            (await Promise.all(each.map((submission) => submission.predicted))).flat(),
-        );
-        const confirmed = submitted.then(async (each) => {
-            await Promise.all(each.map((submission) => submission.confirmed));
-        });
-
-        // mark the confirmation handled, and answer its failure in the returned submission
-        confirmed.catch(() => {});
-
-        return { predicted, confirmed };
     }
 
     /** Read what actions read here: who the client is for, its scope, the time, and some places. */
     context(places: readonly Place[] = []): ActionContext {
-        const { packageId, type, scope, id } = this.caller;
-        const { clock, timeZone } = this.environment;
-
-        return {
-            subject: { packageId, type, scope, id },
-            scope: this.scope,
-            moment: { now: clock.now(), timeZone },
-            places,
-        };
+        return ObjectNode.context(this, places);
     }
 
     /** Read an object's row from the replica, from the server where the replica lacks it. */
@@ -885,7 +881,7 @@ export class ObjectClient<
 
     /** Predict several calls together, on the main line when asked, as one mutation. */
     #mutation<Value>(
-        run: (mutation: ReplayContext) => Promise<Value>,
+        run: (mutation: MutationContext) => Promise<Value>,
         isMainLine: boolean,
     ): Submission<Value> {
         // predict every call, as a new mutation or composed into the latest one
@@ -1055,9 +1051,11 @@ export class ObjectClient<
 
     /** Close the client and fail unsettled mutations. */
     async close(): Promise<void> {
+        // stop the scope's queries, closing the outbox when the client owns the store
         this.#closing.abort();
+        this.#stopRefusals();
         await Promise.all([
-            this.#outbox.close(),
+            ...(this.#base === undefined ? [this.#outbox.close()] : []),
             ...[...this.#subscriptions].map((subscribed) => subscribed.done),
         ]);
     }
@@ -1129,6 +1127,11 @@ export class ObjectClient<
 
     /** Push the queued mutations and follow the held queries until aborted. */
     async run(signal: AbortSignal): Promise<void> {
+        // refuse running a scope client, whose base runs the shared store
+        if (this.#base !== undefined) {
+            throw new TypeError(`the client of scope '${this.scope}' runs through its base client`);
+        }
+
         await Promise.all([this.push(signal), this.follow(signal)]);
     }
 
@@ -1139,26 +1142,14 @@ export class ObjectClient<
 
     /** Follow the held queries and the caller's access rows through the store until aborted. */
     async follow(signal: AbortSignal): Promise<void> {
-        // fail the queries open now once a follow fails for good
-        const stop = this.store.listenRefusals((error) => {
-            if (Replay.failure(error) !== undefined) {
-                this.#refusal = this.#refusal.refuse(error);
-            }
-        });
-
-        // run the store's jobs, which capture their own failures
-        try {
-            await this.store.run(signal);
-        } finally {
-            stop();
-        }
+        await this.store.run(signal);
     }
 
     /** Query one of the client's object types, as its keyed queries do. */
     queryType<Object extends ObjectType>(
         object: Object,
     ): ObjectQueryBuilder<Object, Objects[keyof Objects]> {
-        return new ObjectQueryBuilder(this.#subscriber, object);
+        return new ObjectQueryBuilder(this.subscriber, object);
     }
 
     /** Follow a query's items live over the local replica with predictions until closed. */
@@ -1274,6 +1265,18 @@ export class ObjectClient<
                 await subscribed.unfollow(options.ttl);
             },
         };
+    }
+
+    /** Read a scope and the scopes above it, nearest first, from the replica's access rows. */
+    async chain(scope: string): Promise<readonly string[]> {
+        return (await sync.Scope.chain(this.database.snapshot(), scope)).map(
+            (link) => link.object.id,
+        );
+    }
+
+    /** Settle once the replica has the caller's access rows, or once the client closes. */
+    get ready(): Promise<void> {
+        return this.#access().then(() => {});
     }
 
     /** Describe the client for inspection. */

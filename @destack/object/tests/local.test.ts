@@ -33,15 +33,12 @@ import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { Identifier, nth } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
-import {
-    type BrowserDevice,
-    BrowserTab,
-    type BrowserTabWorker,
-    DeviceElection,
-} from "../src/browser/index.ts";
+import { BrowserTab, type BrowserTabWorker, DeviceElection } from "../src/browser/index.ts";
+import { type BrowserDevice } from "../src/browser/device.ts";
 import { deviceDatabase, deviceWorker, holdRemote } from "./fixture/browser.ts";
-import { WasmClient, connectWasmSqlite } from "@destack/db/browser";
-import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
+import { WasmClient, broadcastChannel, connectWasmSqlite } from "@destack/db/browser";
+import { ObjectClient, type ObjectAccess, ObjectQueryBuilder } from "../src/client/index.ts";
+import { ChannelRemote } from "../src/replica/channel.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { space, spacePrincipal } from "../src/test/space.ts";
@@ -66,12 +63,14 @@ test("read a local object one tab writes in another tab through their device, ou
     const objects = { notebook, note, draft };
     const caller = principal.user.reference("universe", alice);
     const browser = principal.device.reference("universe", Identifier.create("device", world));
+    const served: BrowserDevice[] = [];
     const worker = deviceWorker({
         database: await deviceDatabase(objects, environment),
         objects,
         caller,
         device: browser,
         remote: (scope: string) => connection(alice).at(scope),
+        served: (opened) => served.push(opened),
         environment,
     });
     const open = () =>
@@ -81,25 +80,24 @@ test("read a local object one tab writes in another tab through their device, ou
             objects,
             scope: spaceId,
             caller,
-            device: browser,
             election: openElection(worker, environment),
         });
-    const first = await open();
+    const first = open();
     await first.ready;
-    const second = await open();
+    const second = open();
     await second.ready;
 
     // write a draft in the first tab and read it in the second
-    const written = first.client.mutate(draft).create({ text: "Packing list" });
+    const written = first.mutate(draft).create({ text: "Packing list" });
     const created = await written.predicted;
     await written.confirmed;
-    const drafts = second.client.query.draft.findMany().subscribe();
+    const drafts = second.query.draft.findMany().subscribe();
     await drafts.ready;
 
     // expect the draft in the second tab, its partition alice's, and no mutation queued
     expect({
         drafts: (await drafts.read()).map((row) => [row.id, row.scope, row.text]),
-        mutations: (await first.client.inspect()).mutations,
+        mutations: (await nth(served, 0).client.inspect()).mutations,
     }).toEqual({
         drafts: [[created.id, alice, "Packing list"]],
         mutations: { pending: 0, executed: 0, rejected: 0 },
@@ -109,7 +107,53 @@ test("read a local object one tab writes in another tab through their device, ou
     await first.close();
 });
 
-test("replicate a space tab's scope chain from its device once the device's replica arrives", async () => {
+test("query and write a space's objects through the device, the party keeping no database", async () => {
+    // serve a device to a party on the tabs' channel, the party keeping nothing but what it reads
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const { connection } = await serveNotes({ simulation, node: "browser" });
+    const alice = Identifier.create("user", world);
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const objects = { notebook, note, draft };
+    const caller = principal.user.reference("universe", alice);
+    const browser = principal.device.reference("universe", Identifier.create("device", world));
+    openElection(
+        deviceWorker({
+            database: await deviceDatabase(objects, environment),
+            objects,
+            caller,
+            device: browser,
+            remote: (scope: string) => connection(alice).at(scope),
+            environment,
+        }),
+        environment,
+    );
+    const party = new ChannelRemote(
+        broadcastChannel("destack:notes", environment),
+        RequestId.create(environment),
+        environment,
+    );
+    onTestFinished(() => party.close());
+    const query = ObjectQueryBuilder.of(party.subscriber(spaceId, Object.values(objects)), objects);
+
+    // follow the space's notebooks, then create one through the device
+    const notebooks = query.notebook.findMany().subscribe();
+    await notebooks.ready;
+    const before = await notebooks.read();
+    const written = party.mutate(spaceId, notebook, "create", { name: "Travel" });
+    await written.predicted;
+    const predicted = await notebooks.read();
+    await written.confirmed;
+
+    // expect no notebook first, then the device's prediction, before its home confirms it
+    expect({
+        before: before.map((row) => row.name),
+        predicted: predicted.map((row) => row.name),
+    }).toEqual({ before: [], predicted: ["Travel"] });
+    await notebooks.close();
+});
+
+test("make a space tab ready once its device replicates the scope chain", async () => {
     // open a device whose machine answers only once the tab asked for the space's access rows
     const simulation = testSimulation();
     const world = simulation.environment("test");
@@ -134,37 +178,35 @@ test("replicate a space tab's scope chain from its device once the device's repl
     });
 
     // open the tab on the space, then let the machine answer
-    const tab = await BrowserTab.open({
+    const tab = BrowserTab.open({
         environment,
         name: "notes",
         objects,
         scope: spaceId,
         caller,
-        device: browser,
         election: openElection(worker, environment),
     });
     answering.resolve();
     await tab.ready;
 
-    // read the space's chain in the tab as the device has it, once the tab is ready
-    expect({
-        tab: await readChain(tab.client.database),
-        device: await readChain(nth(served, 0).client.database),
-    }).toEqual({ tab: [spaceId, Scope.universe.id], device: [spaceId, Scope.universe.id] });
+    // read the space's chain at the device once the tab is ready
+    expect(await readChain(nth(served, 0).client.database)).toEqual([spaceId, Scope.universe.id]);
     await tab.close();
 });
 
-test("replicate the person's own scope chain to a tab opened before the device's replica arrives", async () => {
+test("make a tab of the person's own scope ready once its device replicates the chain", async () => {
     // serve the person's own scope, answering the device only once its tab asked
-    const { caller, alice, open, answer } = await openOwnScope();
-    const { tab } = await open();
+    const { caller, alice, open, answer, devices } = await openOwnScope();
+    const { tab } = open();
     answer();
     await tab.ready;
 
-    // read the person's chain in the tab, relayed once the device's replica arrived
-    expect(
-        (await Scope.chain(tab.client.database.snapshot(), alice)).map((link) => link.object.id),
-    ).toEqual([caller.id, Scope.universe.id]);
+    // read the person's chain at the device once the tab is ready
+    const { database } = nth(devices, 0).client;
+    expect((await Scope.chain(database.snapshot(), alice)).map((link) => link.object.id)).toEqual([
+        caller.id,
+        Scope.universe.id,
+    ]);
     await tab.close();
 });
 
@@ -177,13 +219,13 @@ test("follow a tab's replicated memos in the person's own scope after its local 
         requestId: RequestId.create(world),
         text: "Call the bank",
     });
-    const { tab } = await open();
+    const { tab } = open();
     await tab.ready;
-    const drafts = tab.client.query.draft.findMany().subscribe();
+    const drafts = tab.query.draft.findMany().subscribe();
     await drafts.ready;
 
     // read the memo, which the device relays once its replica arrives
-    const memos = tab.client.query.memo.findMany({ where: { scope: alice } }).subscribe();
+    const memos = tab.query.memo.findMany({ where: { scope: alice } }).subscribe();
     await memos.ready;
     expect((await memos.read()).map((row) => row.text)).toEqual(["Call the bank"]);
     await memos.close();
@@ -509,13 +551,12 @@ test("refuse a tab's readiness with the reason its device worker could not open 
     // open a tab leading the device through the real worker start
     const alice = Identifier.create("user", world);
     const environment = new BrowserSimulation(simulation).environment("browser");
-    const tab = await BrowserTab.open({
+    const tab = BrowserTab.open({
         environment,
         name: "notes",
         objects: { notebook, note, draft },
         scope: spaceId,
         caller: principal.user.reference("universe", alice),
-        device: principal.device.reference("universe", Identifier.create("device", world)),
         election: openElection(
             BrowserTab.worker(
                 DEVICE_WORKER,
@@ -560,6 +601,7 @@ async function openOwnScope() {
     const browser = principal.device.reference("universe", Identifier.create("device", world));
     const answering = Promise.withResolvers<void>();
     const reached = served.as(alice).connect(memosPackage, { scope: alice });
+    const devices: BrowserDevice[] = [];
     const worker = deviceWorker({
         database: await deviceDatabase(objects, environment),
         objects,
@@ -569,15 +611,15 @@ async function openOwnScope() {
         remote: (scope: string) =>
             holdRemote(reached.at(scope), answering.promise, new Set(["stream", "push"])),
         environment,
+        served: (opened) => devices.push(opened),
     });
-    const open = async () => ({
-        tab: await BrowserTab.open({
+    const open = () => ({
+        tab: BrowserTab.open({
             environment,
             name: "notes",
             objects,
             scope: alice,
             caller,
-            device: browser,
             election: openElection(worker, environment),
         }),
     });
@@ -587,6 +629,7 @@ async function openOwnScope() {
         alice,
         open,
         answer: () => answering.resolve(),
+        devices,
         home: served.as(alice).client(memosPackage),
         world,
     };
@@ -647,17 +690,16 @@ test("follow a nested card from the machine in a tab through its device, and aga
             remote: (scope: string) => objects.as(alice).connect(cardsPackage, { scope }),
             environment,
         });
-        const tab = await BrowserTab.open({
+        const tab = BrowserTab.open({
             environment,
             name: "notes",
             objects: types,
             scope: spaceId,
             caller,
-            device: browser,
             election: openElection(worker, environment),
         });
         await tab.ready;
-        const cards = tab.client.query.card.findMany().subscribe();
+        const cards = tab.query.card.findMany().subscribe();
         await cards.ready;
         const titles = (await cards.read()).map((row) => row.title);
         await cards.close();

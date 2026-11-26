@@ -2,7 +2,8 @@ import { Uuid } from "@destack/schema";
 import type { ObjectOf, ObjectType } from "../object/index.ts";
 import { TextRope, TextSequence, type TextChange, type TextEdit } from "../sequence/index.ts";
 import { chunk } from "../text/table.ts";
-import type { LiveQuery, ObjectClient, Submission } from "./client.ts";
+import type { LiveQuery, Submission } from "./client.ts";
+import type { ObjectNode } from "./node.ts";
 import { Observable } from "./observable.ts";
 
 /** A chunk row of the replica. */
@@ -13,7 +14,7 @@ export class TextDocument {
     /** Settles once the replica has the text. */
     readonly ready: Promise<void>;
     /** The client editing the text. */
-    readonly #client: ObjectClient;
+    readonly #client: ObjectNode;
     /** The object type with the text. */
     readonly #object: ObjectType;
     /** The object's identifier. */
@@ -38,7 +39,7 @@ export class TextDocument {
     readonly #following: Promise<void>;
 
     /** Follow one text field of an object on a client. */
-    constructor(client: ObjectClient, object: ObjectType, id: string, field: string) {
+    constructor(client: ObjectNode, object: ObjectType, id: string, field: string) {
         // require a text field served with chunks
         const chunks = client.objects.find((type) => TextDocument.isChunkType(type));
         if (chunks === undefined || !object.text.includes(field)) {
