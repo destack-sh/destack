@@ -11,10 +11,10 @@ import { BuildError } from "../error/index.ts";
 const COMPILER_ENTRY = new URL("../main.ts", import.meta.url);
 
 /** The version of the compiler's output and keys, bumped whenever either changes. */
-export const COMPILER_VERSION = 10;
+export const COMPILER_VERSION = 11;
 
 /** The version of the npm conversion's output, bumped whenever the conversion changes. */
-export const CONVERSION_VERSION = 1;
+export const CONVERSION_VERSION = 3;
 
 /** The npm releases converting npm packages: the bundler and the CommonJS lexer. */
 const CONVERSION_RELEASES: ReadonlySet<string> = new Set(["rolldown", "cjs-module-lexer"]);

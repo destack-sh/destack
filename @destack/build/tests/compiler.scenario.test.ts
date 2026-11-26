@@ -327,14 +327,15 @@ test("write each warm rebuild's current stylesheets, fonts and workers in develo
 
         // expect each build to write exactly its sources' stylesheets and fonts
         const font = { "asset/font-*.woff2": 5000 };
-        const zero = '.base {\n  margin: 0;\n}\n\n.note {\n  background: url("./font-*.woff2");\n}';
+        const zero =
+            '.base {\n  margin: 0;\n}\n\n.note {\n  background: url("./font-*.woff2");\n}\n/*$vite$:1*/';
         expect([styled, scripted, restyled, both, unstyled, carded]).toEqual([
-            { ...font, "asset/note-*.css": zero },
-            { ...font, "asset/note-*.css": zero },
-            { ...font, "asset/note-*.css": zero.replace("0;", "1px;") },
-            { ...font, "asset/note-*.css": zero.replace("0;", "2px;") },
+            { ...font, "asset/style-*.css": zero },
+            { ...font, "asset/style-*.css": zero },
+            { ...font, "asset/style-*.css": zero.replace("0;", "1px;") },
+            { ...font, "asset/style-*.css": zero.replace("0;", "2px;") },
             {},
-            { "asset/note-*.css": ".card {\n  color: green;\n}" },
+            { "asset/style-*.css": ".card {\n  color: green;\n}\n/*$vite$:1*/" },
         ]);
 
         // expect one worker kept across an edit beside it, replaced by its edit and dropped with its import

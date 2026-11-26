@@ -11,6 +11,7 @@ import {
     PackageJson,
     PackageName,
     type graph,
+    DependencyName,
 } from "@destack/package";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
@@ -30,6 +31,8 @@ import {
 import { BuildStore } from "../store/index.ts";
 import type { BuildCacheOutcome } from "../cache/index.ts";
 import type { LocalBuildStore } from "../store/local.ts";
+import { ImageBundle } from "../compile/image.ts";
+import type { PackageRole } from "@destack/package";
 import type { DependencyBuild } from "./tree.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
@@ -682,15 +685,244 @@ export class WorkspacePackage {
             const image = await this.workspace.unitImage(unit, shared, () =>
                 this.#image(unit, build.manifest, built),
             );
+            const { role } = await this.workspace.manifest(build.manifest);
+            const isRelease = build.package.version !== Version.development;
 
-            return [unit.name, { build, image }] as const;
+            return [unit.name, { build, image, role, isRelease, built }] as const;
         });
 
         // let every build, npm unit and image settle before refusing a failure
         const images = settleAll(imaged);
         await settleAll<unknown>([images, installed]);
+        const made = await images;
 
-        return new Map(await images);
+        // bundle each release app or builtin, leaving the shared units and the host's to their builds
+        const bundling = made.flatMap(([, each]) =>
+            WorkspacePackage.#isBundled(each.role, each.isRelease) ? [each.image] : [],
+        );
+        const sharedUnits = await this.#sharedUnits(bundling);
+        const platform = await this.#platformUnits(this.workspace.host);
+        const bundled = await Promise.all(
+            made.map(async ([name, { build, image, role, isRelease, built }]) => {
+                // bundle a release app or builtin, keeping a library's or a development image
+                const isImageBundled = WorkspacePackage.#isBundled(role, isRelease);
+                const linked = {
+                    builtins: await this.#builtins(built),
+                    shared: sharedUnits,
+                    platform,
+                    exports: "every" as const,
+                };
+                const released = isImageBundled
+                    ? await ImageBundle.release(image, this.#store, linked)
+                    : image;
+
+                return [name, { build, image: released, isBundled: isImageBundled }] as const;
+            }),
+        );
+
+        // bundle each shared unit to the subpaths the bundled images import of it
+        const releases = bundled.flatMap(([, each]) => (each.isBundled ? [each.image] : []));
+        const replaced =
+            releases.length > 0
+                ? await this.#scope.span(
+                      "destack.workspace.release.shared",
+                      {
+                          "destack.package.name": this.root.name,
+                          "destack.bundle.units": sharedUnits.size,
+                      },
+                      async (span) => {
+                          const bundledUnits = await this.#bundleShared(sharedUnits, releases);
+                          span.setAttribute("destack.bundle.reached", bundledUnits.size);
+
+                          return bundledUnits;
+                      },
+                      { level: "info" },
+                  )
+                : new Map<Digest, Digest>();
+
+        // link each image to the bundled shared units
+        const released = await Promise.all(
+            bundled.map(async ([name, { build, image }]) => {
+                const relinked =
+                    replaced.size === 0
+                        ? image
+                        : await this.#store.putImage(
+                              BuildImage.relinked(await this.#store.image(image), replaced),
+                          );
+
+                return [name, { build, image: relinked }] as const;
+            }),
+        );
+
+        return new Map(released);
+    }
+
+    /** Read the npm units some images' roots import by name, with their browser exports. */
+    async #platformUnits(
+        images: readonly BuildImage[],
+    ): Promise<ReadonlyMap<string, ReadonlySet<string>>> {
+        const units = new Map<string, ReadonlySet<string>>();
+        for (const image of images) {
+            for (const { specifier, target } of await this.#imports(image)) {
+                // take an npm unit's browser exports
+                const name = DependencyName.of(specifier);
+                const manifest = await this.#store.get(target);
+                if (!PackageManifest.isPackage(manifest)) {
+                    const exports = PackageManifest.outputs(manifest, "browser").flatMap((output) =>
+                        Object.keys(output.exports),
+                    );
+                    units.set(name, new Set(exports));
+                }
+            }
+        }
+
+        return units;
+    }
+
+    /** Bundle each shared unit to the subpaths release bundles import, answering its build. */
+    async #bundleShared(
+        units: ReadonlySet<Digest>,
+        images: readonly Digest[],
+    ): Promise<ReadonlyMap<Digest, Digest>> {
+        // note the subpaths an image's root imports of each shared unit, answering the units reached anew
+        const reached = new Map<Digest, Set<string>>();
+        const sources = new Map<Digest, BuildImage>();
+        const reach = async (value: BuildImage) => {
+            // note each new subpath of a shared unit the root imports
+            const grown = new Set<Digest>();
+            for (const { specifier, target } of await this.#imports(value)) {
+                const subpaths = reached.get(target);
+                const subpath = DependencyName.subpath(specifier);
+                const isNew = subpaths?.has(subpath) !== true;
+                if (units.has(target) && isNew) {
+                    reached.set(target, new Set([...(subpaths ?? []), subpath]));
+                    sources.set(target, sources.get(target) ?? value);
+                    grown.add(target);
+                }
+            }
+
+            return grown;
+        };
+
+        // start at the release images
+        let grown = new Set<Digest>();
+        for (const digest of images) {
+            for (const unit of await reach(await this.#store.image(digest))) {
+                grown.add(unit);
+            }
+        }
+
+        // bundle each unit reached anew to its subpaths, following what its bundle imports, until no unit grows
+        const replaced = new Map<Digest, Digest>();
+        while (grown.size > 0) {
+            const next = new Set<Digest>();
+            for (const unit of grown) {
+                const image = await this.#store.putImage(BuildImage.at(found(sources, unit), unit));
+                const linked = {
+                    builtins: new Set<string>(),
+                    shared: units,
+                    platform: new Map(),
+                    exports: found(reached, unit),
+                };
+                const released = await this.#store.image(
+                    await ImageBundle.release(image, this.#store, linked),
+                );
+                replaced.set(unit, released.root);
+                for (const each of await reach(released)) {
+                    next.add(each);
+                }
+            }
+            grown = next;
+        }
+
+        return replaced;
+    }
+
+    /** List the specifiers an image's root imports in browsers, each with its linked build. */
+    async #imports(
+        image: BuildImage,
+    ): Promise<readonly { readonly specifier: string; readonly target: Digest }[]> {
+        const reader = await this.#store.contents(image.root);
+
+        return [...(await reader.specifiers("browser"))].flatMap((specifier) => {
+            const target = BuildImage.resolve(image, image.root, DependencyName.of(specifier));
+
+            return target === undefined ? [] : [{ specifier, target }];
+        });
+    }
+
+    /** Tell whether a unit's image is bundled: a release app's or builtin's. */
+    static #isBundled(role: PackageRole, isRelease: boolean): boolean {
+        return isRelease && (role === "app" || role === "builtin");
+    }
+
+    /** List the npm units two or more images' bundles would take in, each kept its own build. */
+    async #sharedUnits(images: readonly Digest[]): Promise<ReadonlySet<Digest>> {
+        // count the bundles taking in each npm unit
+        const counts = new Map<Digest, number>();
+        for (const digest of images) {
+            for (const unit of await this.#bundledUnits(await this.#store.image(digest))) {
+                counts.set(unit, (counts.get(unit) ?? 0) + 1);
+            }
+        }
+
+        return new Set([...counts].filter(([, count]) => count > 1).map(([unit]) => unit));
+    }
+
+    /** List the npm units an image's bundle would take in, builtins left to their own. */
+    async #bundledUnits(image: BuildImage): Promise<ReadonlySet<Digest>> {
+        // follow what each build reached imports, from the root, stopping at the builtins the page links
+        const units = new Set<Digest>();
+        const reached = new Set<Digest>([image.root]);
+        const pending = [image.root];
+        for (let build = pending.pop(); build !== undefined; build = pending.pop()) {
+            for (const specifier of await this.#browserImports(build)) {
+                const target = BuildImage.resolve(image, build, DependencyName.of(specifier));
+                const manifest = target === undefined ? undefined : await this.#store.get(target);
+                const isTaken =
+                    target !== undefined && manifest !== undefined && manifest.role !== "builtin";
+
+                // take a build in once, noting an npm unit
+                if (isTaken && !reached.has(target)) {
+                    reached.add(target);
+                    pending.push(target);
+                    if (!PackageManifest.isPackage(manifest)) {
+                        units.add(target);
+                    }
+                }
+            }
+        }
+
+        return units;
+    }
+
+    /** List the specifiers a build's browser modules import. */
+    async #browserImports(build: Digest): Promise<readonly string[]> {
+        // read a package's modules, whose views no export lists, else an npm unit's exports
+        const manifest = await this.#store.get(build);
+
+        return PackageManifest.isPackage(manifest)
+            ? [...(await (await this.#store.contents(build)).specifiers("browser"))]
+            : PackageManifest.outputs(manifest, "browser").flatMap((output) =>
+                  Object.values(output.exports).flatMap((exported) => exported.imports),
+              );
+    }
+
+    /** Name the builtins a unit runs with: those of its closure, and the host's. */
+    async #builtins(built: ReadonlyMap<string, DependencyBuild>): Promise<ReadonlySet<string>> {
+        // take the closure's builds whose role is builtin
+        const closure = await Promise.all(
+            [...built].map(async ([name, build]) =>
+                (await this.workspace.manifest(build.manifest)).role === "builtin" ? [name] : [],
+            ),
+        );
+        const host = await Promise.all(
+            this.workspace.host.map(
+                async (image) => (await this.workspace.manifest(image.root)).package.name,
+            ),
+        );
+
+        return new Set([...closure.flat(), ...host]);
     }
 
     /** Store every npm unit the workspace's units install, each once, letting every one settle. */

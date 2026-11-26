@@ -97,11 +97,17 @@ export const CompilerCommand = {
         const workspace = await locateWorkspace(root, environment.files);
         const { directory } = toolchain;
 
+        // stamp the compiler's sources at the release this process builds, as its own are
+        const release = environment.process.variables["DESTACK_RELEASE_VERSION"];
+
         return {
             executable,
             arguments: ["run", "--no-env-file", entry],
             read: directory === undefined ? [workspace] : [workspace, directory],
-            variables: directory === undefined ? {} : { DESTACK_TOOLCHAIN: directory },
+            variables: {
+                ...(directory === undefined ? {} : { DESTACK_TOOLCHAIN: directory }),
+                ...(release === undefined ? {} : { DESTACK_RELEASE_VERSION: release }),
+            },
         };
     },
 };
