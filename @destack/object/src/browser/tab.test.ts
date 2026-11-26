@@ -6,7 +6,7 @@ import { BrowserTab } from "./tab.ts";
 /** The module the world defines the device worker's body for. */
 const DEVICE = new URL("https://app.test/device.worker.js");
 
-test("start the device worker while the person has not answered the browser's persistence prompt", async () => {
+test("start the device worker at once, then ask it for the device, while the person has not answered the browser's persistence prompt", async () => {
     // define a device worker serving at a tab's first request
     await using simulation = testSimulation();
     const requests: unknown[] = [];
@@ -21,7 +21,12 @@ test("start the device worker while the person has not answered the browser's pe
     const tab = new BrowserSimulation(simulation, { persistentStorage: "prompt" }).environment(
         "tab",
     );
-    const stop = await BrowserTab.worker(DEVICE, "device", { kind: "open" }, tab)();
+    const stop = await BrowserTab.worker(
+        DEVICE,
+        "device",
+        Promise.resolve({ kind: "open" }),
+        tab,
+    )();
     await stop();
 
     // expect the device served the tab's request, the storage not persisted yet

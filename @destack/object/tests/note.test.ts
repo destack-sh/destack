@@ -1,3 +1,4 @@
+import type { Environment } from "@destack/environment";
 import { worldTelemetry } from "../src/test/world.ts";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
@@ -6,7 +7,12 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { journal, ViewSubscriber } from "../src/index.ts";
 import { eq } from "@destack/db";
-import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
+import {
+    type BrowserDevice,
+    BrowserTab,
+    type BrowserTabWorker,
+    DeviceElection,
+} from "../src/browser/index.ts";
 import { deviceDatabase, deviceWorker, holdRemote } from "./fixture/browser.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { ObjectClient, RelationalQuery } from "../src/client/index.ts";
@@ -465,7 +471,7 @@ test("share one device between tabs, letting a closed tab's queries lapse and ha
             scope: spaceId,
             caller,
             device,
-            worker,
+            election: openElection(worker, environment),
         });
 
     // lead the device in the first tab, and share it with the second
@@ -544,7 +550,7 @@ test("reject a tab's write the home refuses after its device queued it, with the
         scope: spaceId,
         caller,
         device,
-        worker,
+        election: openElection(worker, environment),
     });
     onTestFinished(() => tab.close());
     await tab.ready;
@@ -605,7 +611,7 @@ test("forget a closed tab's outcomes on its device once the tab lets go of its p
         scope: spaceId,
         caller,
         device,
-        worker,
+        election: openElection(worker, environment),
     });
     await tab.ready;
 
@@ -1128,3 +1134,11 @@ test("refuse changing an archived notebook on the device before the server sees 
         "cannot change notebook: it is archived",
     ]);
 });
+
+/** Stand for the notes device's election with a worker for the rest of the test. */
+function openElection(worker: BrowserTabWorker, environment: Environment<"locks">): DeviceElection {
+    const election = DeviceElection.start("notes", worker, environment);
+    onTestFinished(() => election.close());
+
+    return election;
+}

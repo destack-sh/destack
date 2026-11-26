@@ -40,8 +40,6 @@ export class BrowserTab<
     readonly #stopping: AbortController;
     /** Settles once the tab's loops end. */
     readonly #running: Promise<void>;
-    /** Settles once the tab no longer leads the device or waits to. */
-    readonly #leading: Promise<void>;
     /** Settles once the tab no longer holds its party lock. */
     readonly #party: Promise<void>;
 
@@ -52,7 +50,7 @@ export class BrowserTab<
         remote: ChannelRemote,
         options: {
             readonly name: string;
-            readonly worker: BrowserTabWorker;
+            readonly election: DeviceElection;
             readonly environment: BrowserTabEnvironment & Environment;
             /** Aborts the tab's loops and its party lock on close. */
             readonly stopping: AbortController;
@@ -79,25 +77,12 @@ export class BrowserTab<
             }
         });
 
-        // lead the device while no other tab does, starting its worker until the tab closes
-        const lead = async () => {
+        // fail readiness when the page's election of the device fails, unless closing
+        options.election.failed.catch((error: unknown) => {
             if (!signal.aborted) {
-                const stop = await options.worker();
-                try {
-                    await waitAborted(signal);
-                } finally {
-                    await stop();
-                }
+                failed.reject(error);
             }
-        };
-        this.#leading = options.environment.locks
-            .request(`destack:${options.name}:device`, { signal }, lead)
-            .catch((error: unknown) => {
-                // fail readiness unless closing
-                if (!signal.aborted) {
-                    failed.reject(error);
-                }
-            });
+        });
 
         // run the client until closed, capturing a failure that ends it, ready once the tab has the caller's access rows
         this.#running = client
@@ -130,8 +115,8 @@ export class BrowserTab<
         readonly device?: Subject;
         /** How often the device's merged changes arrive, such as for a background tab. */
         readonly refresh?: { readonly every: Duration };
-        /** Start the device worker once the tab leads, such as BrowserTab.worker. */
-        readonly worker: BrowserTabWorker;
+        /** The page's election of the device, which starts its worker once the page leads. */
+        readonly election: DeviceElection;
         /** The environment the tab runs in, with the browser's locks, channels and storage. */
         readonly environment: Environment & BrowserTabEnvironment;
     }): Promise<BrowserTab<Objects>> {
@@ -167,11 +152,11 @@ export class BrowserTab<
         return new BrowserTab(client, database, remote, { ...options, stopping, party });
     }
 
-    /** Start a module's device worker with a message asking for the device, persisting storage. */
+    /** Start a module's device worker at once, asking it for the device once the page can. */
     static worker(
         module: URL,
         name: string,
-        request: JsonObject,
+        request: Promise<JsonObject>,
         environment: Environment<"storage" | "workers">,
     ): BrowserTabWorker {
         return async () => {
@@ -180,11 +165,11 @@ export class BrowserTab<
                 .persist()
                 .catch((error: unknown) => globalThis.reportError(error));
 
-            // start the device worker
+            // start the device worker loading its modules, then ask for the device once the page knows its request
             const worker = environment.workers.start(
                 (Worker) => new Worker(module, { type: "module", name: `destack:${name}` }),
             );
-            worker.postMessage(request);
+            worker.postMessage(await request);
 
             // wait until the worker serves the device, refusing one that cannot open its database or fails to load
             const message = await new Promise<unknown>((resolve, reject) => {
@@ -213,13 +198,67 @@ export class BrowserTab<
 
     /** Close the tab, handing the device over to another tab when it leads. */
     async close(): Promise<void> {
-        // stop the loops and the lead, then close the client, the channel and the database
+        // stop the loops, then close the client, the channel and the database
         this.#stopping.abort();
         await this.#running;
-        await this.#leading;
         await this.#party;
         await this.client.close();
         await this.#remote.close();
         await this.#database.close();
+    }
+}
+
+/** A page's election to lead its device, running its worker while the page leads. */
+export class DeviceElection {
+    /** Rejects once the worker fails to start, which fails the page's tabs. */
+    readonly failed: Promise<never>;
+    /** Aborts the election, stopping a started worker. */
+    readonly #stopping: AbortController;
+    /** Settles once the page no longer leads or waits to. */
+    readonly #leading: Promise<void>;
+
+    /** Stand with a stopping controller, the settled election and its failure. */
+    private constructor(stopping: AbortController, leading: Promise<void>, failed: Promise<never>) {
+        this.#stopping = stopping;
+        this.#leading = leading;
+        this.failed = failed;
+    }
+
+    /** Stand to lead a device, starting its worker once the page leads. */
+    static start(
+        name: string,
+        worker: BrowserTabWorker,
+        environment: Environment<"locks">,
+    ): DeviceElection {
+        // run the worker while holding the device's lock, failing the election on its failure unless closing
+        const stopping = new AbortController();
+        const { signal } = stopping;
+        const failed = Promise.withResolvers<never>();
+        failed.promise.catch(() => undefined);
+        const lead = async () => {
+            if (!signal.aborted) {
+                const stop = await worker();
+                try {
+                    await waitAborted(signal);
+                } finally {
+                    await stop();
+                }
+            }
+        };
+        const leading = environment.locks
+            .request(`destack:${name}:device`, { signal }, lead)
+            .catch((error: unknown) => {
+                if (!signal.aborted) {
+                    failed.reject(error);
+                }
+            });
+
+        return new DeviceElection(stopping, leading, failed.promise);
+    }
+
+    /** Leave the election, stopping a started worker. */
+    async close(): Promise<void> {
+        this.#stopping.abort();
+        await this.#leading;
     }
 }

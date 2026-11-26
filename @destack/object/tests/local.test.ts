@@ -1,4 +1,4 @@
-import type { Clock } from "@destack/environment";
+import type { Clock, Environment } from "@destack/environment";
 import { MemoryBlobStorage } from "@destack/resource";
 import {
     testSimulation,
@@ -33,7 +33,12 @@ import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { Identifier, nth } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
-import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
+import {
+    type BrowserDevice,
+    BrowserTab,
+    type BrowserTabWorker,
+    DeviceElection,
+} from "../src/browser/index.ts";
 import { deviceDatabase, deviceWorker, holdRemote } from "./fixture/browser.ts";
 import { WasmClient, connectWasmSqlite } from "@destack/db/browser";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
@@ -77,7 +82,7 @@ test("read a local object one tab writes in another tab through their device, ou
             scope: spaceId,
             caller,
             device: browser,
-            worker,
+            election: openElection(worker, environment),
         });
     const first = await open();
     await first.ready;
@@ -136,7 +141,7 @@ test("replicate a space tab's scope chain from its device once the device's repl
         scope: spaceId,
         caller,
         device: browser,
-        worker,
+        election: openElection(worker, environment),
     });
     answering.resolve();
     await tab.ready;
@@ -511,7 +516,15 @@ test("refuse a tab's readiness with the reason its device worker could not open 
         scope: spaceId,
         caller: principal.user.reference("universe", alice),
         device: principal.device.reference("universe", Identifier.create("device", world)),
-        worker: BrowserTab.worker(DEVICE_WORKER, "notes", { name: "notes" }, environment),
+        election: openElection(
+            BrowserTab.worker(
+                DEVICE_WORKER,
+                "notes",
+                Promise.resolve({ name: "notes" }),
+                environment,
+            ),
+            environment,
+        ),
     });
 
     expect(await refusal(tab.ready)).toEqual([
@@ -565,7 +578,7 @@ async function openOwnScope() {
             scope: alice,
             caller,
             device: browser,
-            worker,
+            election: openElection(worker, environment),
         }),
     });
 
@@ -641,7 +654,7 @@ test("follow a nested card from the machine in a tab through its device, and aga
             scope: spaceId,
             caller,
             device: browser,
-            worker,
+            election: openElection(worker, environment),
         });
         await tab.ready;
         const cards = tab.client.query.card.findMany().subscribe();
@@ -658,3 +671,11 @@ test("follow a nested card from the machine in a tab through its device, and aga
     const second = await open();
     expect({ first, second }).toEqual({ first: ["Milk"], second: ["Milk"] });
 });
+
+/** Stand for the notes device's election with a worker for the rest of the test. */
+function openElection(worker: BrowserTabWorker, environment: Environment<"locks">): DeviceElection {
+    const election = DeviceElection.start("notes", worker, environment);
+    onTestFinished(() => election.close());
+
+    return election;
+}
