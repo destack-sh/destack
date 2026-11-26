@@ -63,6 +63,9 @@ const FOCUSED = ":has([role=tab]:focus-visible)";
 /** Select what a drag shows of a tab. */
 const PREVIEW = ":is([data-slot=drag-preview] > *)";
 
+/** Whether the nearest tab narrows and cuts its title. */
+const TitleContext = createContext<Accessor<boolean>>(() => false);
+
 /** The look and the sizing of the nearest tab list. */
 const TabsListContext = createContext<{
     /** The look. */
@@ -185,26 +188,27 @@ const styles = style.create({
     },
     // show an icon alone in a narrow list
     icon: {
-        maskImage: {
-            default: `linear-gradient(to right, black calc(100% - ${space[2]}), transparent)`,
-            ":dir(rtl)": {
-                default: `linear-gradient(to left, black calc(100% - ${space[2]}), transparent)`,
-                [NARROW_QUERY]: "none",
-            },
-            [NARROW_QUERY]: "none",
-        },
         // move the words out of view
         gap: { default: space[2], [NARROW_QUERY]: space[6] },
     },
     iconClose: {
         display: { default: "inline-flex", [NARROW_QUERY]: "none" },
     },
-    // cut the words softly where they end in less room
+    // hide what does not fit, the room at the end the title's, which cuts its words
     cut: {
         justifyContent: "flex-start",
         minWidth: 0,
-        paddingInlineEnd: space[2],
+        paddingInlineEnd: 0,
         overflow: "hidden",
+    },
+    title: {
+        minWidth: 0,
+        whiteSpace: "nowrap",
+    },
+    // cut the words softly where they end in less room, in their own direction
+    titleCut: {
+        overflow: "hidden",
+        paddingInlineEnd: space[2],
         maskImage: {
             default: `linear-gradient(to right, black calc(100% - ${space[2]}), transparent)`,
             ":dir(rtl)": `linear-gradient(to left, black calc(100% - ${space[2]}), transparent)`,
@@ -910,67 +914,88 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
     });
     const rest = omit(properties, "value");
     const isSelected = (): boolean => control.value() === value;
+    const isCut = (): boolean => item !== null && sizing() !== "fit";
+
+    return (
+        <TitleContext value={isCut}>
+            {renderPart(
+                "button",
+                "tabs-trigger",
+                rest,
+                () => [
+                    text.sm,
+                    state.focusInset,
+                    state.disabled,
+                    styles.trigger,
+                    triggers[control.properties.orientation],
+                    item === null ? looks[variant()] : styles.inside,
+                    words[variant()],
+                    item?.isClosable() === true && styles.beside,
+                    isCut() &&
+                        (control.properties.orientation === "vertical" || sizing() === "fixed"
+                            ? [styles.cut, styles.icon]
+                            : styles.cut),
+                    isSelected() && [
+                        item === null && styles.selected,
+                        item === null && control.place() === undefined && marks[variant()],
+                    ],
+                ],
+                {
+                    type: "button" as const,
+                    role: "tab" as const,
+                    get id() {
+                        return control.tabId(value);
+                    },
+                    get "aria-controls"() {
+                        return control.panelId(value);
+                    },
+                    get "aria-selected"() {
+                        return isSelected() ? "true" : "false";
+                    },
+                    get "aria-keyshortcuts"() {
+                        return item?.isClosable() === true ? "Delete" : undefined;
+                    },
+                    get tabindex() {
+                        return control.list.focus.isActive(value) ? 0 : -1;
+                    },
+                    ref: (target: HTMLElement) => {
+                        element = target;
+                    },
+                    get "data-active"() {
+                        return isSelected() ? "" : undefined;
+                    },
+                    get "data-value"() {
+                        return value;
+                    },
+                    get "data-orientation"() {
+                        return control.properties.orientation;
+                    },
+                    onClick: () => control.select(value),
+                    onFocus: () => control.list.focus.focusIn(value),
+                    onKeyDown: (event: PartEvent<KeyboardEvent>) => {
+                        if (event.key === "Delete") {
+                            control.close(value);
+                        }
+                    },
+                },
+            )}
+        </TitleContext>
+    );
+}
+
+/** Render the words of a tab, cut in their own direction where the tab narrows. */
+export function TabsTitle(
+    properties: TabsElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
+): JSX.Element {
+    const isCut = useContext(TitleContext);
 
     return renderPart(
-        "button",
-        "tabs-trigger",
-        rest,
-        () => [
-            text.sm,
-            state.focusInset,
-            state.disabled,
-            styles.trigger,
-            triggers[control.properties.orientation],
-            item === null ? looks[variant()] : styles.inside,
-            words[variant()],
-            item?.isClosable() === true && styles.beside,
-            item !== null &&
-                sizing() !== "fit" &&
-                (control.properties.orientation === "vertical" || sizing() === "fixed"
-                    ? [styles.cut, styles.icon]
-                    : styles.cut),
-            isSelected() && [
-                item === null && styles.selected,
-                item === null && control.place() === undefined && marks[variant()],
-            ],
-        ],
+        "span",
+        "tabs-title",
+        properties,
+        () => [styles.title, isCut() && styles.titleCut],
         {
-            type: "button" as const,
-            role: "tab" as const,
-            get id() {
-                return control.tabId(value);
-            },
-            get "aria-controls"() {
-                return control.panelId(value);
-            },
-            get "aria-selected"() {
-                return isSelected() ? "true" : "false";
-            },
-            get "aria-keyshortcuts"() {
-                return item?.isClosable() === true ? "Delete" : undefined;
-            },
-            get tabindex() {
-                return control.list.focus.isActive(value) ? 0 : -1;
-            },
-            ref: (target: HTMLElement) => {
-                element = target;
-            },
-            get "data-active"() {
-                return isSelected() ? "" : undefined;
-            },
-            get "data-value"() {
-                return value;
-            },
-            get "data-orientation"() {
-                return control.properties.orientation;
-            },
-            onClick: () => control.select(value),
-            onFocus: () => control.list.focus.focusIn(value),
-            onKeyDown: (event: PartEvent<KeyboardEvent>) => {
-                if (event.key === "Delete") {
-                    control.close(value);
-                }
-            },
+            dir: "auto",
         },
     );
 }

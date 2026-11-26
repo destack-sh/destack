@@ -33,6 +33,7 @@ import {
     TabsItem,
     TabsList,
     tabsListVariants,
+    TabsTitle,
     TabsTrigger,
 } from "../tabs/index.ts";
 
@@ -298,7 +299,9 @@ function FileTab(properties: {
                     xstyle={properties.file.isPreview === true && styles.preview}
                 >
                     <Icon icon={iconOf(path)} />
-                    <Show when={!isPinned()}>{path}</Show>
+                    <Show when={!isPinned()}>
+                        <TabsTitle>{path}</TabsTitle>
+                    </Show>
                 </TabsTrigger>
                 <Show when={!isPinned()}>
                     <Show when={properties.file.isUnsaved === true} fallback={<TabsClose />}>
@@ -457,7 +460,8 @@ function Pages(): JSX.Element {
                                     render={(part) => <TabsItem {...part} value={page().id} />}
                                 >
                                     <TabsTrigger>
-                                        <Icon icon={page().icon} /> {page().title}
+                                        <Icon icon={page().icon} />
+                                        <TabsTitle>{page().title}</TabsTitle>
                                     </TabsTrigger>
                                     <Show when={page().id !== "home"}>
                                         <TabsClose />
@@ -554,7 +558,8 @@ function Side(): JSX.Element {
                                         render={(part) => <TabsItem {...part} value={page().id} />}
                                     >
                                         <TabsTrigger>
-                                            <Icon icon={page().icon} /> {page().title}
+                                            <Icon icon={page().icon} />
+                                            <TabsTitle>{page().title}</TabsTitle>
                                         </TabsTrigger>
                                         <Show when={page().id !== "home"}>
                                             <TabsClose />

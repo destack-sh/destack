@@ -8,7 +8,7 @@ import { createSignal, type JSX } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "../empty/index.ts";
 import { Icon } from "../icon/index.ts";
-import { TabsClose, TabsTrigger } from "../tabs/index.ts";
+import { TabsClose, TabsTitle, TabsTrigger } from "../tabs/index.ts";
 import { FILES_TYPE } from "../drag/index.ts";
 import {
     PANE_TYPE,
@@ -228,7 +228,8 @@ function Custom(): JSX.Element {
                         {(item) => (
                             <PaneTab item={item()}>
                                 <TabsTrigger>
-                                    <Icon icon={fileIcon} /> {item().value}
+                                    <Icon icon={fileIcon} />
+                                    <TabsTitle>{item().value}</TabsTitle>
                                 </TabsTrigger>
                                 <TabsClose />
                             </PaneTab>

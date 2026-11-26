@@ -11,6 +11,7 @@ import {
     TabsIndicator,
     TabsItem,
     TabsList,
+    TabsTitle,
     TabsTrigger,
 } from "./tabs.tsx";
 
@@ -172,7 +173,8 @@ function Files(): JSX.Element {
                                     render={(part) => <TabsItem value={file} {...part} />}
                                 >
                                     <TabsTrigger>
-                                        <Icon icon={fileIcon} /> {file}
+                                        <Icon icon={fileIcon} />
+                                        <TabsTitle>{file}</TabsTitle>
                                     </TabsTrigger>
                                     {file === "plan.md" ? undefined : <TabsClose />}
                                 </SortableItem>

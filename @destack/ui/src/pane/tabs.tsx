@@ -15,6 +15,7 @@ import {
     type TabsListProperties,
     tabsListVariants,
     type TabsProperties,
+    TabsTitle,
     TabsTrigger,
     type TabsVariant,
 } from "../tabs/index.ts";
@@ -175,7 +176,9 @@ export function PaneTab(properties: PaneTabProperties): JSX.Element {
             {contentOr(properties, () => (
                 <>
                     <PaneLink item={properties.item}>
-                        {group.options.label?.(properties.item) ?? properties.item.value}
+                        <TabsTitle>
+                            {group.options.label?.(properties.item) ?? properties.item.value}
+                        </TabsTitle>
                     </PaneLink>
                     <TabsClose />
                 </>
