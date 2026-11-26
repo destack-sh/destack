@@ -5,7 +5,7 @@ import { type Simulation, type SimulatedClock } from "@destack/environment/simul
 import { notification } from "@destack/notification/object";
 import { TestNotification } from "@destack/notification/test";
 import { ObjectType } from "@destack/object";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import { type TestCaller, testBuild } from "@destack/object/test";
 import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
