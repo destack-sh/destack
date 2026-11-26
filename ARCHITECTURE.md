@@ -38,7 +38,7 @@ What apps build on for shared work: stacks, connections, messages, notifications
 | [`@destack/notification`](@destack/notification) | Declare notifications, notify recipients, watch objects and deliver them as messages. | Knock, Novu |
 | [`@destack/social`](@destack/social) | Attach comments, reactions, receipts, favourites and presence to any object, notifying mentioned and participating principals. | Liveblocks |
 | [`@destack/observability`](@destack/observability) | Query, follow and alert on the telemetry and analytics of Destack scopes, group their failures into issues, and measure what their spaces use. | Sentry, Grafana |
-| [`@destack/finance`](@destack/finance) | Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements. | Autumn, Orb |
+| [`@destack/finance`](@destack/finance) | Sell products with features, bill accounts for subscriptions and usage, and derive their quotas. | Autumn, Orb |
 | [`@destack/vault`](@destack/vault) | Keep secrets as encrypted versions and rotate them without redeploying. | AWS Secrets Manager |
 | [`@destack/forge`](@destack/forge) | Host the Git repositories of accounts and publish, resolve and distribute their Destack packages. | GitHub, npm |
 
