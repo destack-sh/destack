@@ -28,8 +28,8 @@ test("store no person's settings on a visitor's device, and the person's on thei
 
     // expect the person's settings, device settings and profile on their device alone
     expect({
-        visitor: typeNames(storedObjects([view], {})),
-        person: typeNames(storedObjects([view], { device })),
+        visitor: typeNames(storedObjects(view.objects, {})),
+        person: typeNames(storedObjects(view.objects, { device })),
     }).toEqual({ visitor: [], person: ["setting", "device-setting", "user"] });
 });
 

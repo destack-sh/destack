@@ -7,6 +7,7 @@ import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
 import { present, schema, Version } from "@destack/schema";
 import { OriginPath, PackageId } from "@destack/package";
+import { ImportMap } from "@destack/package/manifest";
 import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
@@ -582,10 +583,17 @@ async function openTabs(
         root: devices.root,
         space: context.space,
     };
+
+    // start the device worker with the page's import map, which it loads the device module through
+    const script = present(
+        document.querySelector('script[type="importmap"]'),
+        "the page's import map",
+    );
+    const map = ImportMap.parse(JSON.parse(script.textContent));
     const worker = BrowserTab.worker(
         devices.worker,
         name,
-        schema.jsonObject().parse(DeviceRequest.parse(request)),
+        { map, request: schema.jsonObject().parse(DeviceRequest.parse(request)) },
         environment,
     );
 
@@ -594,7 +602,7 @@ async function openTabs(
         const tab = await BrowserTab.open({
             name,
             worker,
-            objects: deviceObjects(view, played),
+            objects: deviceObjects(view.objects, played),
             scope,
             caller: context.user,
             ...(device === undefined ? {} : { device }),

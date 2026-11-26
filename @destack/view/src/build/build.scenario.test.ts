@@ -49,7 +49,7 @@ function invoke(
     return Reflect.apply(hook.handler, undefined, parameters);
 }
 
-test("split each view into a browser chunk", async () => {
+test("split each view into a browser chunk, starting the device worker from its start module alone", async () => {
     // build the notebook package's browser output on its stored dependency builds, the router's JSX on view's runtime
     await using simulation = testSimulation();
     await using store = await testStore();
@@ -71,12 +71,19 @@ test("split each view into a browser chunk", async () => {
         throw new TypeError("missing browser output");
     }
     const entrypoint = output.views["notebooks"]?.entrypoint ?? "";
+
+    // list the device worker's own modules: its start alone, which loads the device module through the import map
+    const workers = (await build.files())
+        .map((file) => file.path)
+        .filter((path) => path.startsWith("output/browser/asset/") && path.endsWith(".js"))
+        .map((path) => path.slice("output/browser/asset/".length).replace(/-[\w-]{8}\.js$/u, ""));
     expect([
         Object.keys(output.views),
         output.frame !== undefined,
         output.exports["./view/notebooks"]?.path === entrypoint,
         entrypoint === "output/browser/view-notebooks.js",
-    ]).toEqual([["notebooks"], true, true, true]);
+        workers.toSorted(),
+    ]).toEqual([["notebooks"], true, true, true, ["worker"]]);
 });
 
 test("generate a view's mount with its theme, actions and capabilities", () => {
@@ -104,6 +111,7 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
         source: { file: "src/view.ts", line: 0, column: 0 },
         description: {
             presents: [{ packageId: owner.id, type: "note", priority: "default" }],
+            opens: [{ packageId: owner.id, type: "note" }],
             categories: ["home"],
             audience: "person",
             packages: [],
@@ -145,17 +153,29 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
         directory: "/package",
         exports: {},
         requires: new Set(),
+        packages: new Map(),
         runtime: "browser",
         sandbox: { network: { connect: ["api.github.com"] }, camera: {} },
         declarations: [
             view,
+            {
+                ...view,
+                name: "note",
+                kind: "object",
+                package: objects,
+                symbol: { package: owner, symbol: { module: "src/note.ts", name: "note" } },
+                description: {},
+            },
             declared("theme", owner, "ocean", ocean),
             declared("action", owner, "complete", action("complete", owner, "mod+enter")),
             declared("action", owner, "archive", action("archive", owner)),
             declared("action", owner, "zoom", action("zoom", owner, "mod+=", false)),
             declared("action", kind, "pin", action("pin", kind)),
         ],
-        locate: () => ({ file: "/package/src/view.ts", export: "main" }),
+        locate: (declaration) =>
+            declaration.kind === "object"
+                ? { file: "/package/src/note.ts", export: "note" }
+                : { file: "/package/src/view.ts", export: "main" },
         entry: (entrypoint, module) => entries.set(entrypoint, module),
     };
     if (viewExtension.compile === undefined || viewExtension.describe === undefined) {
@@ -189,23 +209,27 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
         { packageId: owner.id, name: "archive", description: action("archive", owner) },
     ];
     expect([[...entries.keys()], loaded.split("\n"), device.split("\n"), described]).toEqual([
-        ["./view/main"],
+        ["./view/main", "./device"],
         [
             'import "virtual:destack/baseline";',
             'import "@destack/view/styles.css";',
             'import "virtual:stylex.css";',
             'import { BrowserEnvironment, mount } from "@destack/view/browser";',
             'import { main as view } from "/package/src/view.ts";',
-            'import device from "virtual:@destack/view/device?worker&url";',
+            'import device from "virtual:@destack/view/worker?worker&url";',
             ``,
-            `await mount(view, ${JSON.stringify({ actions, theme: ocean })}, BrowserEnvironment.system, new URL(device, import.meta.url));`,
+            `const worker = new URL(device, import.meta.url);`,
+            `worker.searchParams.set("entry", new URL("./device.js", import.meta.url).href);`,
+            `await mount(view, ${JSON.stringify({ actions, theme: ocean })}, BrowserEnvironment.system, worker);`,
             ``,
         ],
         [
             'import { BrowserEnvironment, serveDevice } from "@destack/view/device";',
-            'import { main as view0 } from "/package/src/view.ts";',
+            'import { note as module0 } from "/package/src/note.ts";',
             ``,
-            `serveDevice([view0], self, BrowserEnvironment.system);`,
+            `export function serve(scope, request) {`,
+            `    serveDevice([module0], scope, request, BrowserEnvironment.system);`,
+            `}`,
             ``,
         ],
         {
@@ -215,6 +239,7 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
                     stylesheets: ["output/browser/view-main.css"],
                     sandbox: { camera: {} },
                     presents: [{ packageId: owner.id, type: "note", priority: "default" }],
+                    opens: [{ packageId: owner.id, type: "note" }],
                     categories: ["home"],
                     audience: "person",
                     packages: [],

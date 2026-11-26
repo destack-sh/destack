@@ -1,4 +1,5 @@
 import { join, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import type {
     BuildExtension,
@@ -16,7 +17,8 @@ import {
 } from "@destack/package";
 import { BASELINE_MODULE } from "@destack/package/vite";
 import { type PackageOutput, ViewDescription, ViewRender } from "@destack/package/manifest";
-import { ACTION_KIND, ActionDescription } from "@destack/object";
+import { ACTION_KIND, ActionDescription, OBJECT_KIND } from "@destack/object";
+import { OBJECTS_ENTRYPOINT } from "@destack/object/build";
 import { present, Version } from "@destack/schema";
 import { THEME_KIND } from "@destack/theme/declare";
 import { fontPlugin } from "./font.ts";
@@ -34,8 +36,17 @@ const GENERATED = "virtual:@destack/view/";
 /** The prefix of the generated modules rendering each view. */
 export const PREFIX = `${GENERATED}view/`;
 
-/** The generated module of the package's device worker, serving every client view's objects. */
+/** The generated module serving the object types the package's client views open on its device. */
 const DEVICE_MODULE = `${GENERATED}device`;
+
+/** The entrypoint of the device module, which the device worker imports. */
+const DEVICE_ENTRYPOINT = "./device";
+
+/** The generated module starting the device worker, which loads the device module. */
+const WORKER_MODULE = `${GENERATED}worker`;
+
+/** The module loading modules through an import map in a worker, which browsers do not do yet. */
+const MODULE_SHIMS = "es-module-shims/wasm";
 
 /** The generated module of a browser output's frame, rendering the example or scenario it names. */
 const FRAME_MODULE = `${GENERATED}frame`;
@@ -65,7 +76,7 @@ const STYLESHEETS = [`${VIEW_PACKAGE}/styles.css`, "virtual:stylex.css"] as cons
 type DeclaredRender = ReturnType<typeof ViewRender.declaration.parse>;
 
 /** What locating a package's views reads: the package, its declarations and their modules. */
-export type ViewPackage = Pick<Compilation, "package" | "declarations" | "locate">;
+export type ViewPackage = Pick<Compilation, "package" | "packages" | "declarations" | "locate">;
 
 /** A static view's render as its declaration describes it. */
 export type StaticRender = Extract<DeclaredRender, { readonly mode: "static" }>;
@@ -91,6 +102,14 @@ export const viewExtension: BuildExtension = {
         );
         for (const view of views) {
             compilation.entry(`./view/${view.name}`, `${PREFIX}${view.name}`);
+        }
+
+        // emit the device module of a browser output with client views, which its worker imports
+        const isServed =
+            compilation.runtime === "browser" &&
+            views.some((view) => view.render.mode !== "static");
+        if (isServed) {
+            compilation.entry(DEVICE_ENTRYPOINT, DEVICE_MODULE);
         }
 
         // emit the frame of a browser development build whose package renders through this one
@@ -131,6 +150,7 @@ export const viewExtension: BuildExtension = {
                 stylesheets: pageStylesheets(compilation, compiled, view),
                 sandbox,
                 presents: view.presents,
+                opens: view.opens,
                 categories: view.categories,
                 audience: view.audience,
                 packages: view.packages,
@@ -294,6 +314,8 @@ export interface LocatedView extends DeclarationModule {
     readonly name: string;
     /** The object types the view presents. */
     readonly presents: ViewDescription["presents"];
+    /** The object types the view opens. */
+    readonly opens: ViewDescription["opens"];
     /** The roles clients open the view in. */
     readonly categories: ViewDescription["categories"];
     /** Who the view serves. */
@@ -337,6 +359,7 @@ export function locate(compilation: ViewPackage): LocatedView[] {
             name: declaration.name,
             ...compilation.locate(declaration),
             presents: ViewDescription.shape.presents.parse(description["presents"]),
+            opens: ViewDescription.shape.opens.parse(description["opens"]),
             categories: ViewDescription.shape.categories.parse(description["categories"]),
             audience: ViewDescription.shape.audience.parse(description["audience"]),
             packages: ViewDescription.shape.packages.parse(description["packages"]),
@@ -446,8 +469,13 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
                 // write the package's device worker module, else the module of the id's view
                 const view = views.find((entry) => `\0${PREFIX}${entry.name}` === id);
                 const isServer = options?.ssr === true;
-                if (id === `\0${DEVICE_MODULE}`) {
-                    return deviceModule(views.filter((entry) => entry.render.mode !== "static"));
+                if (id === `\0${WORKER_MODULE}`) {
+                    return workerModule();
+                } else if (id === `\0${DEVICE_MODULE}`) {
+                    return deviceModule(
+                        views.filter((entry) => entry.render.mode !== "static"),
+                        compilation,
+                    );
                 } else if (id === `\0${FRAME_MODULE}`) {
                     return frameModule();
                 }
@@ -471,20 +499,94 @@ function frameModule(): string {
     ].join("\n");
 }
 
-/** Write the package's device worker module, serving the person's device to its views' tabs. */
-function deviceModule(views: readonly LocatedView[]): string {
-    // import each client view under its position, then serve the device over all of them
-    const imports = views.map(
-        (view, index) =>
-            `import { ${view.export} as view${String(index)} } from ${JSON.stringify(view.file)};`,
-    );
-    const served = views.map((_view, index) => `view${String(index)}`).join(", ");
+/** Write the device worker's start: take the tab's request, then load the device module. */
+function workerModule(): string {
+    // import the shims from the view package's own dependencies, which the compiled package may lack
+    const shims = fileURLToPath(import.meta.resolve(MODULE_SHIMS));
+
+    // tell the tab why the device module did not load, in BrowserDevice.failed's form, which cannot load before it
+    return [
+        `import ${JSON.stringify(shims)};`,
+        ``,
+        `const request = new Promise((resolve) => self.addEventListener("message", (event) => resolve(event.data), { once: true }));`,
+        `try {`,
+        `    const started = await request;`,
+        `    importShim.addImportMap(started.map);`,
+        `    const device = await importShim(new URL(self.location.href).searchParams.get("entry"));`,
+        `    device.serve(self, started.request);`,
+        `} catch (error) {`,
+        `    self.postMessage({ kind: "failed", message: error instanceof Error ? \`\${error.name}: \${error.message}\` : String(error) });`,
+        `}`,
+        ``,
+    ].join("\n");
+}
+
+/** Write the package's device module, serving the object types its client views open. */
+function deviceModule(views: readonly LocatedView[], compilation: ViewPackage): string {
+    // take each type the views open once
+    const opened = [
+        ...new Map(
+            views
+                .flatMap((view) => view.opens)
+                .map((object) => [`${object.packageId} ${object.type}`, object]),
+        ).values(),
+    ];
+
+    // name each module the types come from once
+    const names = new Map<string, string>();
+    const imports: string[] = [];
+    const named = (key: string, line: (name: string) => string) => {
+        const name = names.get(key) ?? `module${String(names.size)}`;
+        if (!names.has(key)) {
+            names.set(key, name);
+            imports.push(line(name));
+        }
+
+        return name;
+    };
+    const served = opened.map((object) => {
+        // read a dependency's type from its objects entrypoint
+        if (object.packageId !== compilation.package.id) {
+            const resolved = present(
+                compilation.packages.get(object.packageId),
+                `the package declaring object type '${object.type}'`,
+            );
+            const entrypoint = `${resolved}${OBJECTS_ENTRYPOINT.slice(1)}`;
+            const name = named(
+                entrypoint,
+                (local) => `import { objects as ${local} } from ${JSON.stringify(entrypoint)};`,
+            );
+
+            return `${name}[${JSON.stringify(object.type)}]`;
+        }
+
+        // read the package's own type from its declaring export
+        const declared = present(
+            compilation.declarations.find(
+                (declaration) =>
+                    OBJECT_KIND.is(declaration.kind, declaration.package.id) &&
+                    declaration.symbol.package.id === object.packageId &&
+                    declaration.name === object.type,
+            ),
+            `the declaration of object type '${object.type}'`,
+        );
+        const located = compilation.locate(declared);
+        const name = named(
+            `${located.file} ${located.export}`,
+            (local) =>
+                `import { ${located.export} as ${local} } from ${JSON.stringify(located.file)};`,
+        );
+
+        return declared.member === undefined ? name : `${name}.${declared.member}`;
+    });
 
     return [
         `import { BrowserEnvironment, serveDevice } from "${VIEW_PACKAGE}/device";`,
         ...imports,
         ``,
-        `serveDevice([${served}], self, BrowserEnvironment.system);`,
+        `export function serve(scope, request) {`,
+        `    serveDevice([${served.join(", ")}], scope, request, BrowserEnvironment.system);`,
+        `}`,
         ``,
     ].join("\n");
 }
@@ -521,9 +623,10 @@ function entryModule(
             ``,
         ].join("\n");
     }
-    // mount a client view, starting the package's one device worker
+    // mount a client view, starting the package's one device worker on the device module beside it, as entries emit flat by name
     else if (view.render.mode !== "static") {
-        const worker = JSON.stringify(`${DEVICE_MODULE}?worker&url`);
+        const worker = JSON.stringify(`${WORKER_MODULE}?worker&url`);
+        const entry = JSON.stringify(`${DEVICE_ENTRYPOINT}.js`);
 
         return [
             baseline,
@@ -532,7 +635,9 @@ function entryModule(
             imported,
             `import device from ${worker};`,
             ``,
-            `await mount(view, ${declared}, BrowserEnvironment.system, new URL(device, import.meta.url));`,
+            `const worker = new URL(device, import.meta.url);`,
+            `worker.searchParams.set("entry", new URL(${entry}, import.meta.url).href);`,
+            `await mount(view, ${declared}, BrowserEnvironment.system, worker);`,
             ``,
         ].join("\n");
     }

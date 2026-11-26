@@ -146,10 +146,7 @@ export class View {
 
     /** List the object types the view opens in scopes of a type, with those living anywhere. */
     opens(lives: ObjectType): readonly ObjectType[] {
-        return this.objects.filter(
-            (object) =>
-                object.scopes.length === 0 || object.scopes.some((each) => each.same(lives)),
-        );
+        return this.objects.filter((object) => object.livesInType(lives));
     }
 }
 

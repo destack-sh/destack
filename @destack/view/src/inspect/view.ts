@@ -12,6 +12,7 @@ export function describeView(view: View): schema.Infer<typeof ViewDescription.de
             type: object.name,
             priority,
         })),
+        opens: view.objects.map((object) => ({ packageId: object.package.id, type: object.name })),
         categories: [...view.categories],
         audience: view.audience,
         packages: view.packages.map((handle) => handle.id),

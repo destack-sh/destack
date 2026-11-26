@@ -9,7 +9,6 @@ import { Subject } from "@destack/sync";
 import { account, space, user } from "@destack/account/object";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { ScopePath } from "../declare/context.ts";
-import type { View } from "../declare/view.ts";
 
 export { BrowserEnvironment } from "@destack/environment/browser";
 
@@ -44,63 +43,66 @@ export type DeviceRequest = schema.Infer<typeof DeviceRequest>;
 
 /** Serve a package's device from its worker, over the person's database file. */
 export function serveDevice(
-    views: readonly View[],
+    objects: readonly ObjectType[],
     scope: DeviceWorkerScope,
+    message: unknown,
     environment: Environment & Environment<"broadcast" | BrowserCapability>,
 ): void {
-    BrowserDevice.listen(scope, async (message) => {
-        // open the device's database file with the tables of the object types it stores
-        const request = DeviceRequest.parse(message);
-        const { name } = request;
-        const objects = storedObjects(views, request);
-        const file = await WasmClient.opfs(name, environment);
-        const database = connectWasmSqlite(file, ObjectClient.tables(objects), {
-            name,
-            environment,
-        });
+    BrowserDevice.answer(
+        scope,
+        async (started) => {
+            // open the device's database file with the tables of the object types it stores
+            const request = DeviceRequest.parse(started);
+            const { name } = request;
+            const stored = storedObjects(objects, request);
+            const file = await WasmClient.opfs(name, environment);
+            const database = connectWasmSqlite(file, ObjectClient.tables(stored), {
+                name,
+                environment,
+            });
 
-        // follow and write every scope over one connection to the package's origin, connecting to enclosing homes below its home path
-        const connection = ObjectConnection.open({
-            scope: request.caller.id,
-            url: ObjectConnection.url(`${request.root}${ScopePath.of(request.space)}`),
-            homes: (home: string) =>
-                ObjectConnection.open({
-                    scope: home,
-                    url: ObjectConnection.url(`${request.root}${ScopePath.of(home)}`),
-                    environment,
-                }),
-            environment,
-        });
-        const publisher = (followed: string) => connection.at(followed);
+            // follow and write every scope over one connection to the package's origin, connecting to enclosing homes below its home path
+            const connection = ObjectConnection.open({
+                scope: request.caller.id,
+                url: ObjectConnection.url(`${request.root}${ScopePath.of(request.space)}`),
+                homes: (home: string) =>
+                    ObjectConnection.open({
+                        scope: home,
+                        url: ObjectConnection.url(`${request.root}${ScopePath.of(home)}`),
+                        environment,
+                    }),
+                environment,
+            });
+            const publisher = (followed: string) => connection.at(followed);
 
-        // serve the person's device in the person's scope
-        return BrowserDevice.serve({
-            database,
-            channel: broadcastChannel(`destack:${name}`, environment),
-            objects,
-            scope: request.caller.id,
-            caller: request.caller,
-            ...(request.device === undefined ? {} : { device: request.device }),
-            remote: connection,
-            publisher,
-            environment,
-        });
-    });
+            // serve the person's device in the person's scope
+            return BrowserDevice.serve({
+                database,
+                channel: broadcastChannel(`destack:${name}`, environment),
+                objects: stored,
+                scope: request.caller.id,
+                caller: request.caller,
+                ...(request.device === undefined ? {} : { device: request.device }),
+                remote: connection,
+                publisher,
+                environment,
+            });
+        },
+        message,
+    );
 }
 
-/** List the object types a device stores for its views, the person's own only on their device. */
+/** List the object types a device stores, the person's own only on their device. */
 export function storedObjects(
-    views: readonly View[],
+    objects: readonly ObjectType[],
     request: Pick<DeviceRequest, "device">,
 ): Readonly<Record<string, ObjectType>> {
-    const roles = DeviceRole.played(request.device);
-
-    return Object.fromEntries(views.flatMap((view) => Object.entries(deviceObjects(view, roles))));
+    return deviceObjects(objects, DeviceRole.played(request.device));
 }
 
-/** List the object types a scope's roles open for a view, keyed by type. */
+/** List the object types a scope's roles open among some types, keyed by type. */
 export function deviceObjects(
-    view: View,
+    objects: readonly ObjectType[],
     roles: readonly DeviceRole[],
 ): Readonly<Record<string, ObjectType>> {
     return Object.fromEntries(
@@ -108,7 +110,11 @@ export function deviceObjects(
             Object.entries(
                 role === "user"
                     ? ObjectClient.keyed([setting, deviceSetting, user])
-                    : ObjectClient.keyed(view.opens(role === "account" ? account : space)),
+                    : ObjectClient.keyed(
+                          objects.filter((object) =>
+                              object.livesInType(role === "account" ? account : space),
+                          ),
+                      ),
             ),
         ),
     );

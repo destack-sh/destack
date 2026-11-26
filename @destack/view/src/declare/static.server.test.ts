@@ -32,6 +32,7 @@ test("describe a static view by its origin and hydration, never loading its comp
     expect(describeView(view)).toEqual({
         name: "site",
         presents: [],
+        opens: [],
         categories: [],
         audience: "person",
         packages: [],

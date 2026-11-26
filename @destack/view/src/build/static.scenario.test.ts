@@ -175,9 +175,11 @@ async function imported(
 }
 
 test("prerender a browser-only package's static page on a Bun output it does not ship, its island alone loading", async () => {
-    // build the islands fixture
+    // build the islands fixture unminified, as the test reads its modules' imports as text
     await using islands = await PackageCopy.open(ISLANDS, compilers);
-    const build = await islands.build({ outputs: { browser: OUTPUTS.browser } });
+    const build = await islands.build({
+        outputs: { browser: { ...OUTPUTS.browser, minify: false } },
+    });
     const read = async (path: string) => new TextDecoder().decode(await build.load(path));
 
     // read the page, what its script loads of the package at once and on demand, and of other packages

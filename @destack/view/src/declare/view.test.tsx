@@ -39,7 +39,7 @@ const budget = defineObject({
     },
 });
 
-test("describe a declared view by its name, presented types, categories, packages and render mode without loading its component", () => {
+test("describe a declared view by its name, presented and opened types, categories, packages and render mode without loading its component", () => {
     // declare a view of notes calling a package, whose component never loads
     const counter = Package.of(notes, {});
     const view = defineView(
@@ -63,6 +63,7 @@ test("describe a declared view by its name, presented types, categories, package
         {
             name: "notes",
             presents: [{ packageId: note.package.id, type: "note", priority: "default" }],
+            opens: [{ packageId: note.package.id, type: "note" }],
             categories: ["home"],
             audience: "person",
             packages: [notes.id],
