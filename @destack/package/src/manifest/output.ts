@@ -61,6 +61,8 @@ const URL_BASE = "file://";
 export interface ModuleImports {
     /** The paths of the modules its literal imports resolve to. */
     readonly modules: readonly string[];
+    /** The paths of the modules it imports statically. */
+    readonly statics: readonly string[];
     /** Whether it imports a module by a computed name, which reaches any module beside it. */
     readonly isOpen: boolean;
 }
@@ -80,36 +82,6 @@ const importMap = schema.object({
 });
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
 export const ImportMap = Object.assign(importMap, {
-    /** Write the script element of an import map, escaped for HTML. */
-    script(map: ImportMap): string {
-        return `<script type="importmap">${JSON.stringify(map).replaceAll("<", "\\u003c")}</script>`;
-    },
-
-    /** Rebase a map's targets below a base into a namespace, as a worker's resolved modules sit. */
-    rebase(map: ImportMap, base: string, namespace: string): ImportMap {
-        const moved = (targets: Readonly<Record<string, string>>) =>
-            Object.fromEntries(
-                Object.entries(targets).map(([specifier, target]) => [
-                    specifier,
-                    target.startsWith(`${base}/`)
-                        ? `${namespace}${target.slice(base.length)}`
-                        : target,
-                ]),
-            );
-
-        return {
-            imports: moved(map.imports),
-            scopes: Object.fromEntries(
-                Object.entries(map.scopes).map(([prefix, targets]) => [prefix, moved(targets)]),
-            ),
-        };
-    },
-
-    /** Insert an import map at the start of a page's head, before every module it loads. */
-    insert(html: string, map: ImportMap): string {
-        return html.replace(/<head(?:\s[^>]*)?>/u, (head) => `${head}${ImportMap.script(map)}`);
-    },
-
     /** Resolve a specifier a module imports as browsers do, absent for one the map leaves. */
     resolve(map: ImportMap, specifier: string, referrer: string): string | undefined {
         return resolveAlong(chainOf(map, referrer), specifier);
@@ -145,6 +117,7 @@ export const ImportMap = Object.assign(importMap, {
         const [imports] = await parseImports(code);
         const chain = chainOf(map, referrer);
         const modules: string[] = [];
+        const statics: string[] = [];
         let isOpen = false;
         for (const imported of imports) {
             const { specifier } = imported;
@@ -158,10 +131,19 @@ export const ImportMap = Object.assign(importMap, {
                 continue;
             }
             const mapped = resolveAlong(chain, specifier);
-            if (mapped !== undefined) {
-                modules.push(mapped);
-            } else if (RELATIVE_SPECIFIER.test(specifier)) {
-                modules.push(new URL(specifier, `${URL_BASE}${referrer}`).pathname);
+            const resolved =
+                mapped ??
+                (RELATIVE_SPECIFIER.test(specifier)
+                    ? new URL(specifier, `${URL_BASE}${referrer}`).pathname
+                    : undefined);
+            if (resolved !== undefined) {
+                modules.push(resolved);
+            }
+            if (
+                resolved !== undefined &&
+                (imported.type === "static" || imported.type === "reexport-star")
+            ) {
+                statics.push(resolved);
             }
         }
 
@@ -170,7 +152,7 @@ export const ImportMap = Object.assign(importMap, {
             modules.push(new URL(specifier, `${URL_BASE}${referrer}`).pathname);
         }
 
-        return { modules, isOpen };
+        return { modules, statics, isOpen };
     },
 
     /** List the builds a map's URLs point into below a URL prefix, its root's own left out. */

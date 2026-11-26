@@ -67,6 +67,18 @@ export const PackageManifest = Object.assign(manifest, {
         return Object.values(value.outputs).filter((output) => output.runtime === runtime);
     },
 
+    /** List the packages a build imports on a runtime. */
+    dependencies(value: PackageManifest, runtime: Runtime): string[] {
+        const imported = PackageManifest.outputs(value, runtime).flatMap((output) => [
+            ...Object.keys(output.peers),
+            ...Object.values(output.exports).flatMap((exported) =>
+                exported.imports.map((specifier) => DependencyName.of(specifier)),
+            ),
+        ]);
+
+        return [...new Set(imported)];
+    },
+
     /** Read the Destack package a build builds, refusing an npm unit's build. */
     package(value: PackageManifest): PackageVersion {
         // refuse an npm unit's build, which names no Destack package

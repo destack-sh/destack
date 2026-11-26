@@ -66,9 +66,10 @@ test("list the modules a module imports or names by URL, and whether it imports 
                 "/app/shared/chunk.js",
                 "/app/src/worker.js",
             ],
+            statics: ["/view-1/index.js", "/kit/src/button.js", "/app/src/local.js"],
             isOpen: false,
         },
-        { modules: [], isOpen: true },
+        { modules: [], statics: [], isOpen: true },
     ]);
 });
 

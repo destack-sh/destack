@@ -16,8 +16,8 @@ export const OriginPath = {
     build: "/.destack/build",
     /** Serve the files the installation's own server output emits. */
     asset: "/.destack/asset",
-    /** Serve a worker's modules below their image, their imports resolved through its map. */
-    worker: "/.destack/worker",
+    /** Serve an image's modules. */
+    module: "/.destack/module",
     /** Frame one example or scenario of a development build, which the query selects. */
     frame: "/.destack/frame",
 } as const;
