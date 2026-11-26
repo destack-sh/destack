@@ -350,7 +350,7 @@
                 {
                     "directory": "@destack/finance",
                     "name": "@destack/finance",
-                    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements."
+                    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their quotas."
                 },
                 {
                     "directory": "@destack/forge",
@@ -615,6 +615,8 @@
                 "@destack/machine/src/cloudflare/test/scenario.ts",
                 "@destack/machine/src/cloudflare/runtime/test/partition.ts",
                 "@destack/machine/src/cloudflare/graph.ts",
+                "@destack/machine/src/computer/process/test/ready.ts",
+                "@destack/machine/src/computer/process/test/exit.ts",
                 "@destack/object/src/bun/host.ts",
                 "@destack/object/src/cloudflare/host.ts",
                 "@destack/package/src/bun/test/linked.ts",
@@ -656,7 +658,7 @@
                 "@destack/environment": "builtin",
                 "@destack/error": "builtin",
                 "@destack/event": "builtin",
-                "@destack/finance": "app",
+                "@destack/finance": "builtin",
                 "@destack/forge": "app",
                 "@destack/git": "library",
                 "@destack/icon": "library",
@@ -664,13 +666,13 @@
                 "@destack/locale": "builtin",
                 "@destack/machine": "builtin",
                 "@destack/mail": "library",
-                "@destack/message": "app",
-                "@destack/notification": "app",
+                "@destack/message": "builtin",
+                "@destack/notification": "builtin",
                 "@destack/object": "builtin",
                 "@destack/observability": "app",
                 "@destack/package": "builtin",
                 "@destack/registry": "builtin",
-                "@destack/relay": "app",
+                "@destack/relay": "builtin",
                 "@destack/resource": "builtin",
                 "@destack/sandbox": "library",
                 "@destack/schema": "builtin",
