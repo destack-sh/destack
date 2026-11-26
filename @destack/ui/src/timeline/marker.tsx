@@ -89,6 +89,7 @@ const styles = style.create({
         overflow: "hidden",
         paddingInline: space[1],
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     tint: (background: string, label: string) => ({ backgroundColor: background, color: label }),

@@ -110,6 +110,7 @@ const styles = style.create({
         fontFamily: font.code,
         textAlign: "start",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     directory: { color: color.mutedForeground },
@@ -251,6 +252,7 @@ const styles = style.create({
         minWidth: 0,
         fontFamily: font.code,
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     comment: {

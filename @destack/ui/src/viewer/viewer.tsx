@@ -165,6 +165,7 @@ const styles = style.create({
         overflow: "hidden",
         whiteSpace: "nowrap",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         fontWeight: weight.medium,
     },
     count: {

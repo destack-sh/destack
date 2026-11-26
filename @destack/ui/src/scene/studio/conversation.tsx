@@ -130,6 +130,7 @@ const styles = style.create({
         overflow: "hidden",
         whiteSpace: "nowrap",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         color: color.mutedForeground,
     },
     log: {

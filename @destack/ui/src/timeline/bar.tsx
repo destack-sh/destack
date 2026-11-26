@@ -110,6 +110,7 @@ const styles = style.create({
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         alignContent: "center",
         pointerEvents: "none",
     },
@@ -246,6 +247,7 @@ const styles = style.create({
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
 });

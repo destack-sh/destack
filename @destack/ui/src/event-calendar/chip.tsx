@@ -162,10 +162,12 @@ const styles = style.create({
         cursor: "default",
         backgroundColor: "transparent",
     },
+    // lay out each title in its own direction, so one in another script is cut at its end
     title: {
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         fontWeight: weight.medium,
     },
     continues: {
@@ -187,6 +189,7 @@ const styles = style.create({
         color: color.mutedForeground,
         whiteSpace: "nowrap",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         fontVariantNumeric: "tabular-nums",
     },
     whole: {
@@ -202,6 +205,7 @@ const styles = style.create({
     },
     clipped: {
         textOverflow: { default: "ellipsis", [NARROW_QUERY]: "clip" },
+        unicodeBidi: "plaintext",
         fontWeight: { default: weight.medium, [NARROW_QUERY]: weight.regular },
     },
     edged: {

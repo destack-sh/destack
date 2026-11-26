@@ -25,6 +25,7 @@ const styles = style.create({
     title: {
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     dot: (fill: string) => ({

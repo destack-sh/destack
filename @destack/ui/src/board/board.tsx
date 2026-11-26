@@ -264,6 +264,7 @@ const styles = style.create({
     hiddenLabel: {
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     lane: {

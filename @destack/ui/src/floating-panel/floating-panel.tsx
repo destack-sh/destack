@@ -78,6 +78,7 @@ const styles = style.create({
         fontWeight: weight.medium,
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     body: {

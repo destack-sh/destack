@@ -87,6 +87,7 @@ const styles = style.create({
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     form: {

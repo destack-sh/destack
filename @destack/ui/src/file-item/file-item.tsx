@@ -225,6 +225,7 @@ const styles = style.create({
         overflow: "hidden",
         fontWeight: weight.medium,
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     description: {
@@ -232,6 +233,7 @@ const styles = style.create({
         color: color.mutedForeground,
         fontVariantNumeric: "tabular-nums",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     error: {

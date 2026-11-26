@@ -55,6 +55,7 @@ const styles = style.create({
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
     },
     cell: {
         display: "flex",
@@ -68,6 +69,7 @@ const styles = style.create({
         borderInlineEndColor: color.border,
         whiteSpace: "nowrap",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
     },
     toggle: {
         display: "inline-flex",

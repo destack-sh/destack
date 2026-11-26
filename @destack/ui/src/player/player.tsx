@@ -325,6 +325,7 @@ const styles = style.create({
     line: {
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     title: {

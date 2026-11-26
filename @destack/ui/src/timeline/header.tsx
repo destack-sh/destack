@@ -63,6 +63,7 @@ const styles = style.create({
         color: color.mutedForeground,
         whiteSpace: "nowrap",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
     },
     axis: {
         position: "relative",

@@ -175,6 +175,7 @@ const styles = style.create({
         paddingInlineEnd: space[2],
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
     },
     hours: {

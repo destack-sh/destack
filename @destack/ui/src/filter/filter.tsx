@@ -104,6 +104,7 @@ const styles = style.create({
     words: {
         overflow: "hidden",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
         whiteSpace: "nowrap",
         maxWidth: `calc(56 * ${space[1]})`,
     },
