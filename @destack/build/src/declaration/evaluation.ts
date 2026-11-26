@@ -472,7 +472,7 @@ async function evaluateEntry(
         const reason = reasonsOf(cause, project.directory).join("; ");
         throw BuildError.of(
             "INSPECTION_INVALID",
-            `declaration evaluation is invalid: it failed with '${reason}'`,
+            `declaration evaluation of '${project.packageJson.package.name}' is invalid: it failed with '${reason}'`,
             {
                 cause,
             },

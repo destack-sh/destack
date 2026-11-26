@@ -186,7 +186,7 @@ test("refuse a declared kind function its module does not export, by its package
     expect(await refusal(workspacePackage.build({ outputs: OUTPUTS }))).toEqual([
         "BAD_REQUEST",
         "INSPECTION_INVALID",
-        "declaration evaluation is invalid: it failed with '@example/owner/inspect#missing is not an exported function'",
+        "declaration evaluation of '@example/owner' is invalid: it failed with '@example/owner/inspect#missing is not an exported function'",
     ]);
 });
 
@@ -207,7 +207,7 @@ test("report a syntax error with its location", async () => {
     expect(await refusal(workspacePackage.build({ outputs: OUTPUTS }))).toEqual([
         "BAD_REQUEST",
         "INSPECTION_INVALID",
-        "declaration evaluation is invalid: it failed with 'src/app.ts:3:14: Unexpected token'",
+        "declaration evaluation of '@example/app' is invalid: it failed with 'src/app.ts:3:14: Unexpected token'",
     ]);
 });
 
