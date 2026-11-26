@@ -97,23 +97,23 @@ test("list the choices of the one input left, and run with the one picked", asyn
 });
 
 test("ask for several inputs in a form, submitting once each required one is given", async () => {
-    // give the title, then the color
+    // give the title, then the color, whose two choices show as segments
     const { container, ran } = drawNote();
     await pressButton(container, "Rename");
     const form = document.querySelector("form");
     const submit = form?.querySelector<HTMLButtonElement>("button[type=submit]");
     const before = submit?.disabled;
     const title = form?.querySelector("input");
-    const color = form?.querySelector("select");
-    if (title === null || title === undefined || color === null || color === undefined) {
+    const segments = [...(form?.querySelectorAll<HTMLButtonElement>("[role=radio]") ?? [])];
+    const blue = segments.find((segment) => segment.textContent === "blue");
+    if (title === null || title === undefined || blue === null || blue === undefined) {
         throw new TypeError("the form has no title or color");
     }
     title.value = "Lisbon";
     title.dispatchEvent(new Event("input", { bubbles: true }));
     flush();
     const between = submit?.disabled;
-    color.value = JSON.stringify("blue");
-    color.dispatchEvent(new Event("change", { bubbles: true }));
+    blue.click();
     flush();
     submit?.click();
     await wait(0);
