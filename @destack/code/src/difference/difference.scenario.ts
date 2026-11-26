@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { codeInteraction } from "../scenario/code.ts";
 import { Difference } from "./difference.ts";
@@ -6,9 +7,8 @@ import { Difference } from "./difference.ts";
 export const compareLargeFiles = defineScenario({
     of: Difference,
     interaction: codeInteraction,
-    name: "compare-large-files",
-    description:
-        "compare a file of 27,000 lines with ones of which a hundredth, a twentieth and half changed, then merge two",
+    name: "compareLargeFiles",
+    description: t`Compare a file of 27,000 lines with ones of which a hundredth, a twentieth and half changed, then merge two.`,
     given: { examples: [] },
     parameters: { times: 20 },
     when: [

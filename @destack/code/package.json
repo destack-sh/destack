@@ -36,6 +36,7 @@
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/test": "workspace:*",
         "@lezer/generator": "1.8.1",

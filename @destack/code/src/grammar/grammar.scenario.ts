@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { codeInteraction } from "../scenario/code.ts";
 import { LezerGrammar } from "./lezer.ts";
@@ -6,9 +7,8 @@ import { LezerGrammar } from "./lezer.ts";
 export const editLargeFile = defineScenario({
     of: LezerGrammar,
     interaction: codeInteraction,
-    name: "edit-large-file",
-    description:
-        "parse a view of 27,000 lines, its first screen and the whole of it, then type in it and read the tokens of screens",
+    name: "editLargeFile",
+    description: t`Parse a view of 27,000 lines, its first screen and the whole of it, then type in it and read the tokens of screens.`,
     given: { examples: [] },
     parameters: { times: 200 },
     when: [
