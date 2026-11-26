@@ -8,8 +8,8 @@ import {
     SetStep,
 } from "@destack/package/declare";
 import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
-import { ActionInput, type ActionInputDescription, Field } from "@destack/object";
-import { Component, type ComponentProperties } from "../declare/component.ts";
+import { ActionInput, type ActionInputDescription } from "@destack/object";
+import { Component } from "../declare/component.ts";
 import { Catalog } from "@destack/locale";
 import type { PackageId } from "@destack/package";
 import { CONTEXT_ELEMENT, ViewContext } from "../declare/context.ts";
@@ -85,8 +85,9 @@ export class Stage {
             const declared = [
                 ...new Set([...Object.keys(example.properties), ...Object.keys(definitions)]),
             ];
+            const defaults = Component.is(example.of) ? example.of.defaults : {};
             const [values, setValues] = createSignal<Record<string, unknown>>({
-                ...defaultsOf(definitions),
+                ...defaults,
                 ...example.properties,
             });
             const properties = Object.defineProperties(
@@ -697,11 +698,9 @@ function stageOf(given: Given<JSX.Element, Globals>, page: Page): Stage {
 
 /** Read an example's values: its component's defaults, its own properties, then those given. */
 function valuesOf(example: Example<object, JSX.Element>, given: JsonObject): JsonObject {
-    const definitions = Component.is(example.of) ? example.of.properties : {};
+    const defaults = Component.is(example.of) ? example.of.defaults : {};
 
-    return schema
-        .jsonObject()
-        .parse({ ...defaultsOf(definitions), ...example.properties, ...given });
+    return schema.jsonObject().parse({ ...defaults, ...example.properties, ...given });
 }
 
 /** Tell the host an example is shown: its description, its inputs and their values. */
@@ -760,27 +759,6 @@ function inputsOf(example: Example): ActionInputDescription[] {
 
         return input === undefined || input.value.kind === "object" ? [] : [input.describe()];
     });
-}
-
-/** Read the default value of each property a component declares with a defaulted schema. */
-function defaultsOf(
-    definitions: ComponentProperties<Record<string, unknown>>,
-): Record<string, unknown> {
-    // parse nothing through each schema, keeping what a default gives, or a field's initial value
-    const defaults: Record<string, unknown> = {};
-    for (const [name, definition] of Object.entries(definitions)) {
-        const parsed =
-            definition instanceof schema.Schema ? definition.safeParse(undefined) : undefined;
-        if (parsed?.success === true && parsed.data !== undefined) {
-            defaults[name] = parsed.data;
-        }
-        // take the value a field starts with
-        else if (definition instanceof Field && definition.initial !== undefined) {
-            defaults[name] = definition.initial.value;
-        }
-    }
-
-    return defaults;
 }
 
 /** A check of a step that observes the examples, and the value it expects. */
