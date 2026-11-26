@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING, PATTERN_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const grainGradientDefault = defineExample({
     of: GrainGradient,
     name: "default",
-    description: "grain gradient in the default look",
+    description: t`Grain gradient in the default look.`,
     properties: GRAIN_GRADIENT_DEFAULTS,
     render: (properties) => <GrainGradient {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const grainGradientDefault = defineExample({
 export const grainGradientWave = defineExample({
     of: GrainGradient,
     name: "wave",
-    description: "grain gradient in the wave look",
+    description: t`Grain gradient in the wave look.`,
     properties: {
         ...PATTERN_SIZING,
         speed: 1,
@@ -42,7 +43,7 @@ export const grainGradientWave = defineExample({
 export const grainGradientDots = defineExample({
     of: GrainGradient,
     name: "dots",
-    description: "grain gradient in the dots look",
+    description: t`Grain gradient in the dots look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 0.6,
@@ -62,7 +63,7 @@ export const grainGradientDots = defineExample({
 export const grainGradientTruchet = defineExample({
     of: GrainGradient,
     name: "truchet",
-    description: "grain gradient in the truchet look",
+    description: t`Grain gradient in the truchet look.`,
     properties: {
         ...PATTERN_SIZING,
         speed: 1,
@@ -81,7 +82,7 @@ export const grainGradientTruchet = defineExample({
 export const grainGradientRipple = defineExample({
     of: GrainGradient,
     name: "ripple",
-    description: "grain gradient in the ripple look",
+    description: t`Grain gradient in the ripple look.`,
     properties: {
         ...OBJECT_SIZING,
         scale: 0.5,
@@ -101,7 +102,7 @@ export const grainGradientRipple = defineExample({
 export const grainGradientBlob = defineExample({
     of: GrainGradient,
     name: "blob",
-    description: "grain gradient in the blob look",
+    description: t`Grain gradient in the blob look.`,
     properties: {
         ...OBJECT_SIZING,
         scale: 1.3,

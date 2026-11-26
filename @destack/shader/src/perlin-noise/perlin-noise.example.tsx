@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { PATTERN_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const perlinNoiseDefault = defineExample({
     of: PerlinNoise,
     name: "default",
-    description: "perlin noise in the default look",
+    description: t`Perlin noise in the default look.`,
     properties: PERLIN_NOISE_DEFAULTS,
     render: (properties) => <PerlinNoise {...properties} xstyle={styles.canvas} />,
 });
@@ -22,8 +23,8 @@ export const perlinNoiseDefault = defineExample({
 /** The perlin noise in the nintendo water look. */
 export const perlinNoiseNintendoWater = defineExample({
     of: PerlinNoise,
-    name: "nintendo-water",
-    description: "perlin noise in the nintendo water look",
+    name: "nintendoWater",
+    description: t`Perlin noise in the nintendo water look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 1 / 0.2,
@@ -44,7 +45,7 @@ export const perlinNoiseNintendoWater = defineExample({
 export const perlinNoiseMoss = defineExample({
     of: PerlinNoise,
     name: "moss",
-    description: "perlin noise in the moss look",
+    description: t`Perlin noise in the moss look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 1 / 0.15,
@@ -65,7 +66,7 @@ export const perlinNoiseMoss = defineExample({
 export const perlinNoiseWorms = defineExample({
     of: PerlinNoise,
     name: "worms",
-    description: "perlin noise in the worms look",
+    description: t`Perlin noise in the worms look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 0.9,

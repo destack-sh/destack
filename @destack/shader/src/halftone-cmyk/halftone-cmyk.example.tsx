@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const halftoneCmykDefault = defineExample({
     of: HalftoneCmyk,
     name: "default",
-    description: "halftone cmyk in the default look",
+    description: t`Halftone cmyk in the default look.`,
     properties: { ...HALFTONE_CMYK_DEFAULTS, image: SAMPLE_IMAGE },
     render: (properties) => <HalftoneCmyk {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const halftoneCmykDefault = defineExample({
 export const halftoneCmykDrops = defineExample({
     of: HalftoneCmyk,
     name: "drops",
-    description: "halftone cmyk in the drops look",
+    description: t`Halftone cmyk in the drops look.`,
     properties: {
         ...OBJECT_SIZING,
         scale: 1,
@@ -60,7 +61,7 @@ export const halftoneCmykDrops = defineExample({
 export const halftoneCmykNewspaper = defineExample({
     of: HalftoneCmyk,
     name: "newspaper",
-    description: "halftone cmyk in the newspaper look",
+    description: t`Halftone cmyk in the newspaper look.`,
     properties: {
         ...OBJECT_SIZING,
         scale: 1,
@@ -97,7 +98,7 @@ export const halftoneCmykNewspaper = defineExample({
 export const halftoneCmykVintage = defineExample({
     of: HalftoneCmyk,
     name: "vintage",
-    description: "halftone cmyk in the vintage look",
+    description: t`Halftone cmyk in the vintage look.`,
     properties: {
         ...OBJECT_SIZING,
         scale: 1,

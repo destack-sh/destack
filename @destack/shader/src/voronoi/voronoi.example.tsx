@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { PATTERN_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const voronoiDefault = defineExample({
     of: Voronoi,
     name: "default",
-    description: "voronoi in the default look",
+    description: t`Voronoi in the default look.`,
     properties: VORONOI_DEFAULTS,
     render: (properties) => <Voronoi {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const voronoiDefault = defineExample({
 export const voronoiCells = defineExample({
     of: Voronoi,
     name: "cells",
-    description: "voronoi in the cells look",
+    description: t`Voronoi in the cells look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 0.5,
@@ -44,7 +45,7 @@ export const voronoiCells = defineExample({
 export const voronoiBubbles = defineExample({
     of: Voronoi,
     name: "bubbles",
-    description: "voronoi in the bubbles look",
+    description: t`Voronoi in the bubbles look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 0.75,
@@ -65,7 +66,7 @@ export const voronoiBubbles = defineExample({
 export const voronoiLights = defineExample({
     of: Voronoi,
     name: "lights",
-    description: "voronoi in the lights look",
+    description: t`Voronoi in the lights look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 3.3,

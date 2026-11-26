@@ -31,6 +31,7 @@
     },
     "dependencies": {
         "@destack/error": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/view": "workspace:*"

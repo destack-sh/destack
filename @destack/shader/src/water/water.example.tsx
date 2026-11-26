@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const waterDefault = defineExample({
     of: Water,
     name: "default",
-    description: "water in the default look",
+    description: t`Water in the default look.`,
     properties: { ...WATER_DEFAULTS, image: SAMPLE_IMAGE },
     render: (properties) => <Water {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const waterDefault = defineExample({
 export const waterAbstract = defineExample({
     of: Water,
     name: "abstract",
-    description: "water in the abstract look",
+    description: t`Water in the abstract look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",
@@ -47,7 +48,7 @@ export const waterAbstract = defineExample({
 export const waterStreaming = defineExample({
     of: Water,
     name: "streaming",
-    description: "water in the streaming look",
+    description: t`Water in the streaming look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "contain",
@@ -70,8 +71,8 @@ export const waterStreaming = defineExample({
 /** The water in the slow mo look. */
 export const waterSlowMo = defineExample({
     of: Water,
-    name: "slow-mo",
-    description: "water in the slow mo look",
+    name: "slowMo",
+    description: t`Water in the slow mo look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",

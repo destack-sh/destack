@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { PATTERN_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const dotGridDefault = defineExample({
     of: DotGrid,
     name: "default",
-    description: "dot grid in the default look",
+    description: t`Dot grid in the default look.`,
     properties: DOT_GRID_DEFAULTS,
     render: (properties) => <DotGrid {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const dotGridDefault = defineExample({
 export const dotGridTriangles = defineExample({
     of: DotGrid,
     name: "triangles",
-    description: "dot grid in the triangles look",
+    description: t`Dot grid in the triangles look.`,
     properties: {
         ...PATTERN_SIZING,
         colorBack: "#ffffff",
@@ -43,8 +44,8 @@ export const dotGridTriangles = defineExample({
 /** The dot grid in the tree line look. */
 export const dotGridTreeLine = defineExample({
     of: DotGrid,
-    name: "tree-line",
-    description: "dot grid in the tree line look",
+    name: "treeLine",
+    description: t`Dot grid in the tree line look.`,
     properties: {
         ...PATTERN_SIZING,
         colorBack: "#f4fce7",
@@ -65,7 +66,7 @@ export const dotGridTreeLine = defineExample({
 export const dotGridWallpaper = defineExample({
     of: DotGrid,
     name: "wallpaper",
-    description: "dot grid in the wallpaper look",
+    description: t`Dot grid in the wallpaper look.`,
     properties: {
         ...PATTERN_SIZING,
         colorBack: "#204030",

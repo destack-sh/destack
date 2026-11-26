@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const staticRadialGradientDefault = defineExample({
     of: StaticRadialGradient,
     name: "default",
-    description: "static radial gradient in the default look",
+    description: t`Static radial gradient in the default look.`,
     properties: STATIC_RADIAL_GRADIENT_DEFAULTS,
     render: (properties) => <StaticRadialGradient {...properties} xstyle={styles.canvas} />,
 });
@@ -22,8 +23,8 @@ export const staticRadialGradientDefault = defineExample({
 /** The static radial gradient in the cross section look. */
 export const staticRadialGradientCrossSection = defineExample({
     of: StaticRadialGradient,
-    name: "cross-section",
-    description: "static radial gradient in the cross section look",
+    name: "crossSection",
+    description: t`Static radial gradient in the cross section look.`,
     properties: {
         ...OBJECT_SIZING,
         scale: 1,
@@ -49,7 +50,7 @@ export const staticRadialGradientCrossSection = defineExample({
 export const staticRadialGradientRadial = defineExample({
     of: StaticRadialGradient,
     name: "radial",
-    description: "static radial gradient in the radial look",
+    description: t`Static radial gradient in the radial look.`,
     properties: {
         ...OBJECT_SIZING,
         scale: 1,
@@ -74,8 +75,8 @@ export const staticRadialGradientRadial = defineExample({
 /** The static radial gradient in the lo fi look. */
 export const staticRadialGradientLoFi = defineExample({
     of: StaticRadialGradient,
-    name: "lo-fi",
-    description: "static radial gradient in the lo fi look",
+    name: "loFi",
+    description: t`Static radial gradient in the lo fi look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 0,

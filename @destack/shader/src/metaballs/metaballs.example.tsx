@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const metaballsDefault = defineExample({
     of: Metaballs,
     name: "default",
-    description: "metaballs in the default look",
+    description: t`Metaballs in the default look.`,
     properties: METABALLS_DEFAULTS,
     render: (properties) => <Metaballs {...properties} xstyle={styles.canvas} />,
 });
@@ -22,8 +23,8 @@ export const metaballsDefault = defineExample({
 /** The metaballs in the ink drops look. */
 export const metaballsInkDrops = defineExample({
     of: Metaballs,
-    name: "ink-drops",
-    description: "metaballs in the ink drops look",
+    name: "inkDrops",
+    description: t`Metaballs in the ink drops look.`,
     properties: {
         ...OBJECT_SIZING,
         scale: 1,
@@ -41,7 +42,7 @@ export const metaballsInkDrops = defineExample({
 export const metaballsBackground = defineExample({
     of: Metaballs,
     name: "background",
-    description: "metaballs in the background look",
+    description: t`Metaballs in the background look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 0.5,
@@ -61,7 +62,7 @@ export const metaballsBackground = defineExample({
 export const metaballsSolar = defineExample({
     of: Metaballs,
     name: "solar",
-    description: "metaballs in the solar look",
+    description: t`Metaballs in the solar look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 1,

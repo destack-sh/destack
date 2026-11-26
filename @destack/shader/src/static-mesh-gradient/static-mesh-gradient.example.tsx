@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const staticMeshGradientDefault = defineExample({
     of: StaticMeshGradient,
     name: "default",
-    description: "static mesh gradient in the default look",
+    description: t`Static mesh gradient in the default look.`,
     properties: STATIC_MESH_GRADIENT_DEFAULTS,
     render: (properties) => <StaticMeshGradient {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const staticMeshGradientDefault = defineExample({
 export const staticMeshGradientSea = defineExample({
     of: StaticMeshGradient,
     name: "sea",
-    description: "static mesh gradient in the sea look",
+    description: t`Static mesh gradient in the sea look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 0,
@@ -45,7 +46,7 @@ export const staticMeshGradientSea = defineExample({
 export const staticMeshGradientSixties = defineExample({
     of: StaticMeshGradient,
     name: "sixties",
-    description: "static mesh gradient in the sixties look",
+    description: t`Static mesh gradient in the sixties look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 0,
@@ -67,7 +68,7 @@ export const staticMeshGradientSixties = defineExample({
 export const staticMeshGradientSunset = defineExample({
     of: StaticMeshGradient,
     name: "sunset",
-    description: "static mesh gradient in the sunset look",
+    description: t`Static mesh gradient in the sunset look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 0,

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const flutedGlassDefault = defineExample({
     of: FlutedGlass,
     name: "default",
-    description: "fluted glass in the default look",
+    description: t`Fluted glass in the default look.`,
     properties: { ...FLUTED_GLASS_DEFAULTS, image: SAMPLE_IMAGE },
     render: (properties) => <FlutedGlass {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const flutedGlassDefault = defineExample({
 export const flutedGlassWaves = defineExample({
     of: FlutedGlass,
     name: "waves",
-    description: "fluted glass in the waves look",
+    description: t`Fluted glass in the waves look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",
@@ -60,7 +61,7 @@ export const flutedGlassWaves = defineExample({
 export const flutedGlassAbstract = defineExample({
     of: FlutedGlass,
     name: "abstract",
-    description: "fluted glass in the abstract look",
+    description: t`Fluted glass in the abstract look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",
@@ -97,7 +98,7 @@ export const flutedGlassAbstract = defineExample({
 export const flutedGlassFolds = defineExample({
     of: FlutedGlass,
     name: "folds",
-    description: "fluted glass in the folds look",
+    description: t`Fluted glass in the folds look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING, PATTERN_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const ditheringDefault = defineExample({
     of: Dithering,
     name: "default",
-    description: "dithering in the default look",
+    description: t`Dithering in the default look.`,
     properties: DITHERING_DEFAULTS,
     render: (properties) => <Dithering {...properties} xstyle={styles.canvas} />,
 });
@@ -22,8 +23,8 @@ export const ditheringDefault = defineExample({
 /** The dithering in the sine wave look. */
 export const ditheringSineWave = defineExample({
     of: Dithering,
-    name: "sine-wave",
-    description: "dithering in the sine wave look",
+    name: "sineWave",
+    description: t`Dithering in the sine wave look.`,
     properties: {
         ...PATTERN_SIZING,
         speed: 1,
@@ -42,7 +43,7 @@ export const ditheringSineWave = defineExample({
 export const ditheringBugs = defineExample({
     of: Dithering,
     name: "bugs",
-    description: "dithering in the bugs look",
+    description: t`Dithering in the bugs look.`,
     properties: {
         ...PATTERN_SIZING,
         speed: 1,
@@ -60,7 +61,7 @@ export const ditheringBugs = defineExample({
 export const ditheringRipple = defineExample({
     of: Dithering,
     name: "ripple",
-    description: "dithering in the ripple look",
+    description: t`Dithering in the ripple look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 1,
@@ -78,7 +79,7 @@ export const ditheringRipple = defineExample({
 export const ditheringSwirl = defineExample({
     of: Dithering,
     name: "swirl",
-    description: "dithering in the swirl look",
+    description: t`Dithering in the swirl look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 1,
@@ -96,7 +97,7 @@ export const ditheringSwirl = defineExample({
 export const ditheringWarp = defineExample({
     of: Dithering,
     name: "warp",
-    description: "dithering in the warp look",
+    description: t`Dithering in the warp look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 1,

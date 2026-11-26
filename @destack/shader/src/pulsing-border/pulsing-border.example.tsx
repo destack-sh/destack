@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const pulsingBorderDefault = defineExample({
     of: PulsingBorder,
     name: "default",
-    description: "pulsing border in the default look",
+    description: t`Pulsing border in the default look.`,
     properties: PULSING_BORDER_DEFAULTS,
     render: (properties) => <PulsingBorder {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const pulsingBorderDefault = defineExample({
 export const pulsingBorderCircle = defineExample({
     of: PulsingBorder,
     name: "circle",
-    description: "pulsing border in the circle look",
+    description: t`Pulsing border in the circle look.`,
     properties: {
         ...OBJECT_SIZING,
         aspectRatio: "square",
@@ -54,8 +55,8 @@ export const pulsingBorderCircle = defineExample({
 /** The pulsing border in the northern lights look. */
 export const pulsingBorderNorthernLights = defineExample({
     of: PulsingBorder,
-    name: "northern-lights",
-    description: "pulsing border in the northern lights look",
+    name: "northernLights",
+    description: t`Pulsing border in the northern lights look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 0.18,
@@ -86,8 +87,8 @@ export const pulsingBorderNorthernLights = defineExample({
 /** The pulsing border in the solid line look. */
 export const pulsingBorderSolidLine = defineExample({
     of: PulsingBorder,
-    name: "solid-line",
-    description: "pulsing border in the solid line look",
+    name: "solidLine",
+    description: t`Pulsing border in the solid line look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 1,

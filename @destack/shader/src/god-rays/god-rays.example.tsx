@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const godRaysDefault = defineExample({
     of: GodRays,
     name: "default",
-    description: "god rays in the default look",
+    description: t`God rays in the default look.`,
     properties: GOD_RAYS_DEFAULTS,
     render: (properties) => <GodRays {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const godRaysDefault = defineExample({
 export const godRaysWarp = defineExample({
     of: GodRays,
     name: "warp",
-    description: "god rays in the warp look",
+    description: t`God rays in the warp look.`,
     properties: {
         ...OBJECT_SIZING,
         colorBack: "#000000",
@@ -45,7 +46,7 @@ export const godRaysWarp = defineExample({
 export const godRaysLinear = defineExample({
     of: GodRays,
     name: "linear",
-    description: "god rays in the linear look",
+    description: t`God rays in the linear look.`,
     properties: {
         ...OBJECT_SIZING,
         offsetX: 0.2,
@@ -69,7 +70,7 @@ export const godRaysLinear = defineExample({
 export const godRaysEther = defineExample({
     of: GodRays,
     name: "ether",
-    description: "god rays in the ether look",
+    description: t`God rays in the ether look.`,
     properties: {
         ...OBJECT_SIZING,
         offsetX: -0.6,

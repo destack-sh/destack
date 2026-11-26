@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { swatch } from "@destack/theme/tokens.stylex";
@@ -24,7 +25,7 @@ const styles = style.create({
 export const shaderGlow = defineExample({
     of: Shader,
     name: "glow",
-    description: "a custom fragment shader drawing a glow in the theme's accent color",
+    description: t`A custom fragment shader drawing a glow in the theme's accent color.`,
     properties: { speed: 1 },
     render: (properties) => (
         <Shader

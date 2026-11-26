@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const meshGradientDefault = defineExample({
     of: MeshGradient,
     name: "default",
-    description: "mesh gradient in the default look",
+    description: t`Mesh gradient in the default look.`,
     properties: MESH_GRADIENT_DEFAULTS,
     render: (properties) => <MeshGradient {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const meshGradientDefault = defineExample({
 export const meshGradientPurple = defineExample({
     of: MeshGradient,
     name: "purple",
-    description: "mesh gradient in the purple look",
+    description: t`Mesh gradient in the purple look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 0.6,
@@ -41,7 +42,7 @@ export const meshGradientPurple = defineExample({
 export const meshGradientBeach = defineExample({
     of: MeshGradient,
     name: "beach",
-    description: "mesh gradient in the beach look",
+    description: t`Mesh gradient in the beach look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 0.1,
@@ -59,7 +60,7 @@ export const meshGradientBeach = defineExample({
 export const meshGradientInk = defineExample({
     of: MeshGradient,
     name: "ink",
-    description: "mesh gradient in the ink look",
+    description: t`Mesh gradient in the ink look.`,
     properties: {
         ...OBJECT_SIZING,
         speed: 1,

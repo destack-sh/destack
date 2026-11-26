@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const halftoneDotsDefault = defineExample({
     of: HalftoneDots,
     name: "default",
-    description: "halftone dots in the default look",
+    description: t`Halftone dots in the default look.`,
     properties: { ...HALFTONE_DOTS_DEFAULTS, image: SAMPLE_IMAGE },
     render: (properties) => <HalftoneDots {...properties} xstyle={styles.canvas} />,
 });
@@ -22,8 +23,8 @@ export const halftoneDotsDefault = defineExample({
 /** The halftone dots in the led screen look. */
 export const halftoneDotsLedScreen = defineExample({
     of: HalftoneDots,
-    name: "led-screen",
-    description: "halftone dots in the led screen look",
+    name: "ledScreen",
+    description: t`Halftone dots in the led screen look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",
@@ -50,7 +51,7 @@ export const halftoneDotsLedScreen = defineExample({
 export const halftoneDotsMosaic = defineExample({
     of: HalftoneDots,
     name: "mosaic",
-    description: "halftone dots in the mosaic look",
+    description: t`Halftone dots in the mosaic look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",
@@ -76,8 +77,8 @@ export const halftoneDotsMosaic = defineExample({
 /** The halftone dots in the round and square look. */
 export const halftoneDotsRoundAndSquare = defineExample({
     of: HalftoneDots,
-    name: "round-and-square",
-    description: "halftone dots in the round and square look",
+    name: "roundAndSquare",
+    description: t`Halftone dots in the round and square look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const imageDitheringDefault = defineExample({
     of: ImageDithering,
     name: "default",
-    description: "image dithering in the default look",
+    description: t`Image dithering in the default look.`,
     properties: { ...IMAGE_DITHERING_DEFAULTS, image: SAMPLE_IMAGE },
     render: (properties) => <ImageDithering {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const imageDitheringDefault = defineExample({
 export const imageDitheringRetro = defineExample({
     of: ImageDithering,
     name: "retro",
-    description: "image dithering in the retro look",
+    description: t`Image dithering in the retro look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",
@@ -46,7 +47,7 @@ export const imageDitheringRetro = defineExample({
 export const imageDitheringNoise = defineExample({
     of: ImageDithering,
     name: "noise",
-    description: "image dithering in the noise look",
+    description: t`Image dithering in the noise look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",
@@ -69,7 +70,7 @@ export const imageDitheringNoise = defineExample({
 export const imageDitheringNatural = defineExample({
     of: ImageDithering,
     name: "natural",
-    description: "image dithering in the natural look",
+    description: t`Image dithering in the natural look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "cover",

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { PATTERN_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const warpDefault = defineExample({
     of: Warp,
     name: "default",
-    description: "warp in the default look",
+    description: t`Warp in the default look.`,
     properties: WARP_DEFAULTS,
     render: (properties) => <Warp {...properties} xstyle={styles.canvas} />,
 });
@@ -22,8 +23,8 @@ export const warpDefault = defineExample({
 /** The warp in the cauldron pot look. */
 export const warpCauldronPot = defineExample({
     of: Warp,
-    name: "cauldron-pot",
-    description: "warp in the cauldron pot look",
+    name: "cauldronPot",
+    description: t`Warp in the cauldron pot look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 0.9,
@@ -45,8 +46,8 @@ export const warpCauldronPot = defineExample({
 /** The warp in the live ink look. */
 export const warpLiveInk = defineExample({
     of: Warp,
-    name: "live-ink",
-    description: "warp in the live ink look",
+    name: "liveInk",
+    description: t`Warp in the live ink look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 1.2,
@@ -70,7 +71,7 @@ export const warpLiveInk = defineExample({
 export const warpKelp = defineExample({
     of: Warp,
     name: "kelp",
-    description: "warp in the kelp look",
+    description: t`Warp in the kelp look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 0.8,
@@ -93,7 +94,7 @@ export const warpKelp = defineExample({
 export const warpNectar = defineExample({
     of: Warp,
     name: "nectar",
-    description: "warp in the nectar look",
+    description: t`Warp in the nectar look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 2,
@@ -117,7 +118,7 @@ export const warpNectar = defineExample({
 export const warpPassion = defineExample({
     of: Warp,
     name: "passion",
-    description: "warp in the passion look",
+    description: t`Warp in the passion look.`,
     properties: {
         ...PATTERN_SIZING,
         scale: 2.5,

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { OBJECT_SIZING } from "../shader/sizing.ts";
@@ -14,7 +15,7 @@ const styles = style.create({
 export const paperTextureDefault = defineExample({
     of: PaperTexture,
     name: "default",
-    description: "paper texture in the default look",
+    description: t`Paper texture in the default look.`,
     properties: { ...PAPER_TEXTURE_DEFAULTS, image: SAMPLE_IMAGE },
     render: (properties) => <PaperTexture {...properties} xstyle={styles.canvas} />,
 });
@@ -23,7 +24,7 @@ export const paperTextureDefault = defineExample({
 export const paperTextureCreased = defineExample({
     of: PaperTexture,
     name: "creased",
-    description: "paper texture in the creased look",
+    description: t`Paper texture in the creased look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "contain",
@@ -62,7 +63,7 @@ export const paperTextureCreased = defineExample({
 export const paperTextureSpread = defineExample({
     of: PaperTexture,
     name: "spread",
-    description: "paper texture in the spread look",
+    description: t`Paper texture in the spread look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "contain",
@@ -101,7 +102,7 @@ export const paperTextureSpread = defineExample({
 export const paperTextureFlat = defineExample({
     of: PaperTexture,
     name: "flat",
-    description: "paper texture in the flat look",
+    description: t`Paper texture in the flat look.`,
     properties: {
         ...OBJECT_SIZING,
         fit: "contain",
