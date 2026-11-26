@@ -9,6 +9,7 @@ import { createSignal, type JSX, omit, Show, useLocale } from "@destack/view";
 import { writeClipboard } from "@destack/view/primitives/clipboard";
 import { Timeout } from "@destack/view/primitives/timer";
 import { Button, type ButtonProperties } from "../button/index.ts";
+import type { PartAttributes } from "../part/index.ts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
@@ -60,7 +61,7 @@ export function CopyButton(properties: CopyButtonProperties): JSX.Element {
                       ? t.context("option")`Copied`
                       : t.context("option")`Not copied`,
               );
-    const button = (attributes: JSX.ButtonHTMLAttributes<HTMLButtonElement>): JSX.Element => (
+    const button = (attributes: PartAttributes): JSX.Element => (
         <Button
             {...attributes}
             data-slot="copy-button"

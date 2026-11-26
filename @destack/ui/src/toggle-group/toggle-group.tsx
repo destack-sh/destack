@@ -1,20 +1,18 @@
 import * as style from "@destack/style";
 import { color, radius, space, stroke } from "@destack/theme/tokens.stylex";
-import { createContext, type JSX, merge, omit, useContext, useLocale } from "@destack/view";
+import { createContext, type JSX, omit, useContext, useLocale } from "@destack/view";
 import { type Render, renderPart } from "../part/index.ts";
 import { SELECTION_OPTIONS, Selection, type SelectionProperties } from "../selection/index.ts";
 import { ListState } from "../focus/index.ts";
-import type { Axis } from "../position/index.ts";
-import { Toggle, toggleVariants, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
-import { defineComponent } from "@destack/view/declare";
+import { Toggle } from "../toggle/index.ts";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { field } from "@destack/object";
 import { t } from "@destack/locale";
 import { readChoices, useFieldControl, useFieldValue } from "../field/control.ts";
-
-/** The orientation of a toggle group that sets none. */
-const DEFAULTS: Required<Pick<ToggleGroupProperties, "orientation">> = {
-    orientation: "horizontal",
-};
 
 /** The group of the nearest toggle group, null outside one. */
 const ToggleGroupContext = createContext<ToggleGroupControl | null>(null);
@@ -38,21 +36,22 @@ const variants = style.create({
 /** The pressed values and focus of a toggle group, which its items share. */
 export class ToggleGroupControl {
     /** The properties of the group root, read for its controlled state and look. */
-    readonly properties: ToggleGroupProperties;
+    readonly properties: RenderProperties<ToggleGroupAttributes, typeof TOGGLE_GROUP_PROPERTIES>;
     /** The pressed values, controlled or the group's own. */
     readonly selection: Selection;
     /** The items in document order and the one with the tab stop. */
     readonly list: ListState;
 
     /** Create the state of a toggle group from its root's properties. */
-    constructor(properties: ToggleGroupProperties) {
+    constructor(
+        properties: RenderProperties<ToggleGroupAttributes, typeof TOGGLE_GROUP_PROPERTIES>,
+    ) {
         // put the tab stop on the focused item, else the first pressed, else the first
-        const group = merge(DEFAULTS, properties);
         this.properties = properties;
         this.selection = new Selection(properties);
         this.list = new ListState({
             get orientation() {
-                return group.orientation;
+                return properties.orientation;
             },
             isLooping: true,
             isTypeahead: false,
@@ -62,15 +61,7 @@ export class ToggleGroupControl {
 }
 
 /** The properties of a toggle group, the native element's attributes included. */
-export type ToggleGroupProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
-    /** The look of every item, default by default. */
-    readonly variant?: ToggleVariant;
-    /** The height and padding of every item, default by default. */
-    readonly size?: ToggleSize;
-    /** The direction the arrow keys move along, horizontal by default. */
-    readonly orientation?: Axis;
-    /** Whether every toggle of the group is unavailable. */
-    readonly disabled?: boolean;
+export type ToggleGroupAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The StyleX styles applied after the group's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with its attributes, its own by default. */
@@ -100,10 +91,26 @@ export function useToggleGroup(): ToggleGroupControl {
     return control;
 }
 
+/** The properties people change in a toggle group's controls and inspector. */
+const TOGGLE_GROUP_PROPERTIES = {
+    ...Toggle.properties,
+    orientation: field
+        .enum({
+            horizontal: { title: t.context("option")`Horizontal` },
+            vertical: { title: t.context("option")`Vertical` },
+        })
+        .labeled(t.context("label")`Orientation`)
+        .described(t`Whether the toggles lie in a row or a column.`)
+        .default("horizontal"),
+};
+
 /** Render a group of toggles that arrow keys move between, of which a single group has one on. */
-export const ToggleGroup = defineComponent(
-    "toggleGroup",
-    function ToggleGroup(given: ToggleGroupProperties): JSX.Element {
+export const ToggleGroup = defineComponent({
+    name: "toggleGroup",
+    properties: TOGGLE_GROUP_PROPERTIES,
+    render(
+        given: RenderProperties<ToggleGroupAttributes, typeof TOGGLE_GROUP_PROPERTIES>,
+    ): JSX.Element {
         // edit the value of the field's form
         const properties = useFieldValue(given, {
             value: "value",
@@ -127,7 +134,6 @@ export const ToggleGroup = defineComponent(
             "orientation",
             "disabled",
         );
-        const group = merge(DEFAULTS, properties);
 
         return (
             <ToggleGroupContext value={control}>
@@ -136,7 +142,7 @@ export const ToggleGroup = defineComponent(
                     "toggle-group",
                     rest,
                     () => [
-                        orientations[group.orientation],
+                        orientations[properties.orientation],
                         properties.variant === "segmented" && variants.segmented,
                     ],
                     {
@@ -153,13 +159,13 @@ export const ToggleGroup = defineComponent(
                             return properties.multiple === true ? "group" : "radiogroup";
                         },
                         get "aria-orientation"() {
-                            return group.orientation;
+                            return properties.orientation;
                         },
                         get "aria-disabled"() {
-                            return properties.disabled === true ? "true" : undefined;
+                            return properties.disabled ? "true" : undefined;
                         },
                         get "data-disabled"() {
-                            return properties.disabled === true ? "" : undefined;
+                            return properties.disabled ? "" : undefined;
                         },
                         onKeyDown: (event) => control.list.focus.move(event, locale.direction),
                         onFocusOut: (event) => control.list.focus.focusOut(event),
@@ -168,26 +174,14 @@ export const ToggleGroup = defineComponent(
             </ToggleGroupContext>
         );
     },
-    {
-        ...Toggle.properties,
-        orientation: field
-            .enum({
-                horizontal: { title: t.context("option")`Horizontal` },
-                vertical: { title: t.context("option")`Vertical` },
-            })
-            .labeled(t.context("label")`Orientation`)
-            .described(t`Whether the toggles lie in a row or a column.`)
-            .default("horizontal"),
-    },
-);
+});
 
 /** Render a toggle of the nearest toggle group, exposed as a radio in a single group. */
 export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Element {
     // join the group
     const control = useToggleGroup();
     let element: HTMLElement | undefined;
-    const isDisabled = (): boolean =>
-        properties.disabled === true || control.properties.disabled === true;
+    const isDisabled = (): boolean => properties.disabled === true || control.properties.disabled;
     control.list.add({
         key: properties.value,
         text: () => properties.value,
@@ -206,9 +200,9 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
         "toggle-group-item",
         rest,
         () =>
-            toggleVariants({
-                variant: control.properties.variant ?? "default",
-                size: control.properties.size ?? "default",
+            Toggle.styles({
+                variant: control.properties.variant,
+                size: control.properties.size,
                 pressed: isPressed(),
             }),
         {
@@ -242,3 +236,6 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
         },
     );
 }
+
+/** The properties of a toggle group, its native attributes included. */
+export type ToggleGroupProperties = ComponentProperties<typeof ToggleGroup>;

@@ -23,7 +23,12 @@ import {
     untrack,
     useEnvironment,
 } from "@destack/view";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type DeclaredProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 import { field } from "@destack/object";
 import { t } from "@destack/locale";
 import { type Render, renderPart } from "../part/index.ts";
@@ -77,14 +82,8 @@ const SHAPES = {
     round: { title: t.context("option")`Round` },
 };
 
-/** The variant and size of a button that sets neither. */
-const DEFAULTS: Required<Pick<ButtonProperties, "variant" | "size">> = {
-    variant: "default",
-    size: "default",
-};
-
 /** The properties people change in a button's controls and inspector. */
-const PROPERTIES = {
+const BUTTON_PROPERTIES = {
     variant: field
         .enum(VARIANTS)
         .labeled(t.context("label")`Variant`)
@@ -109,7 +108,7 @@ const PROPERTIES = {
         .boolean()
         .labeled(t.context("label")`Loading`)
         .described(t`Shows a spinner in place of the label while its action runs.`)
-        .default(false),
+        .optional(),
     isIconOnly: field
         .boolean()
         .labeled(t.context("label")`Icon only`)
@@ -266,146 +265,153 @@ export type ButtonSize = keyof typeof SIZES;
 /** The corners of a button. */
 export type ButtonShape = keyof typeof SHAPES;
 
-/** The properties of a button, the native button's attributes included. */
-export interface ButtonProperties
-    extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class">, ButtonVariantProperties {
+/** The properties of a button besides its declared ones: its native attributes and its part. */
+export interface ButtonAttributes extends Omit<
+    JSX.ButtonHTMLAttributes<HTMLButtonElement>,
+    "class" | keyof typeof BUTTON_PROPERTIES
+> {
     /** The part's name for styling, `button` by default. */
     readonly "data-slot"?: string;
     /** The StyleX styles applied after the button's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with the button's attributes, such as a link. */
     readonly render?: Render;
-    /** Whether its action runs: it refuses clicks, and shows a spinner in place of its label. */
-    readonly loading?: boolean;
 }
 
-/** The variant and size of a button's styles. */
-export interface ButtonVariantProperties {
-    /** The look, default by default. */
-    readonly variant?: ButtonVariant;
-    /** The height and padding, default by default. */
-    readonly size?: ButtonSize;
-    /** The corners, the control's by default, round as of a chat's send button. */
-    readonly shape?: ButtonShape;
-    /** Whether it shows only its icon, square in its size. */
-    readonly isIconOnly?: boolean;
-}
+/** The look of a button: its variant, size, shape and whether it shows only its icon. */
+type ButtonLook = Pick<
+    DeclaredProperties<typeof BUTTON_PROPERTIES>,
+    "variant" | "size" | "shape" | "isIconOnly"
+>;
 
-/** Return the StyleX styles of a button in a variant and size. */
-export function buttonVariants(options: ButtonVariantProperties): style.Styles {
-    const height = options.size ?? DEFAULTS.size;
-
+/** Return the StyleX styles of a button in its look. */
+function buttonVariants(look: ButtonLook): style.Styles {
     return [
-        SMALL_SIZES.has(height) ? text.xs : text.sm,
+        SMALL_SIZES.has(look.size) ? text.xs : text.sm,
         state.focus,
         state.disabled,
         state.press,
         styles.button,
-        HOVER_VARIANTS.has(options.variant ?? DEFAULTS.variant) && state.hover,
-        variants[options.variant ?? DEFAULTS.variant],
-        sizes[height],
-        options.variant === "link" && styles.flush,
-        options.shape === "round" && styles.round,
-        options.isIconOnly === true && squares[height],
+        HOVER_VARIANTS.has(look.variant) && state.hover,
+        variants[look.variant],
+        sizes[look.size],
+        look.variant === "link" && styles.flush,
+        look.shape === "round" && styles.round,
+        look.isIconOnly && squares[look.size],
     ];
 }
 
-/** Render a native button in a variant and size. */
-export const Button = defineComponent(
-    "button",
-    function Button(properties: ButtonProperties): JSX.Element {
-        // join the button to its neighbours in a button group
-        const join = useJoin();
-        const button = merge(DEFAULTS, properties);
-        const rest = omit(
-            button,
-            "variant",
-            "size",
-            "shape",
-            "isIconOnly",
-            "loading",
-            "disabled",
-            "children",
-        );
-        const isBusy = (): boolean => button.loading === true;
-        const isWaiting = untrack(() => "loading" in properties);
+/** Render a native button in a variant and size, its styles at hand for other elements. */
+export const Button = Object.assign(
+    defineComponent({
+        name: "button",
+        properties: BUTTON_PROPERTIES,
+        render(
+            properties: RenderProperties<ButtonAttributes, typeof BUTTON_PROPERTIES>,
+        ): JSX.Element {
+            // join the button to its neighbours in a button group
+            const join = useJoin();
+            const rest = omit(
+                properties,
+                "variant",
+                "size",
+                "shape",
+                "isIconOnly",
+                "loading",
+                "disabled",
+                "children",
+            );
+            const isBusy = (): boolean => properties.loading === true;
+            const isWaiting = untrack(() => "loading" in properties);
 
-        // show a spinner once its action takes a while, and for a while
-        const { clock } = useEnvironment();
-        const [isSpinning, setSpinning] = createSignal(false, { ownedWrite: true });
-        let timer: number | undefined;
-        let shownAt: number | undefined;
-        if (isWaiting) {
-            createEffect(isBusy, (isRunning) => {
-                // wait until it takes a while, and until it stayed a while
-                clock.clearTimeout(timer);
-                const since = shownAt === undefined ? STAY : clock.now() - shownAt;
-                const wait = isRunning ? WAIT : Math.max(STAY - since, 0);
-                if (isRunning !== untrack(isSpinning)) {
-                    timer = clock.setTimeout(() => {
-                        shownAt = isRunning ? clock.now() : undefined;
-                        setSpinning(isRunning);
-                    }, wait);
-                }
-            });
-            onCleanup(() => clock.clearTimeout(timer));
-        }
-
-        // refuse clicks while its action runs, the focus staying where it is
-        const click = (event: MouseEvent & { readonly currentTarget: HTMLButtonElement }): void => {
-            const told: unknown = button.onClick;
-            if (isBusy()) {
-                event.preventDefault();
-                event.stopPropagation();
-            } else if (typeof told === "function") {
-                Reflect.apply(told, undefined, [event]);
+            // show a spinner once its action takes a while, and for a while
+            const { clock } = useEnvironment();
+            const [isSpinning, setSpinning] = createSignal(false, { ownedWrite: true });
+            let timer: number | undefined;
+            let shownAt: number | undefined;
+            if (isWaiting) {
+                createEffect(isBusy, (isRunning) => {
+                    // wait until it takes a while, and until it stayed a while
+                    clock.clearTimeout(timer);
+                    const since = shownAt === undefined ? STAY : clock.now() - shownAt;
+                    const wait = isRunning ? WAIT : Math.max(STAY - since, 0);
+                    if (isRunning !== untrack(isSpinning)) {
+                        timer = clock.setTimeout(() => {
+                            shownAt = isRunning ? clock.now() : undefined;
+                            setSpinning(isRunning);
+                        }, wait);
+                    }
+                });
+                onCleanup(() => clock.clearTimeout(timer));
             }
-        };
 
-        // mark the part and give it its styles with the caller's last
-        return renderPart(
-            "button",
-            "button",
-            merge(
-                untrack(() => button.render) === undefined ? { type: "button" as const } : {},
-                rest,
-                isWaiting ? { onClick: click } : {},
-            ),
-            () => [buttonVariants(button), isWaiting && styles.busy, join()],
-            {
-                get "data-variant"() {
-                    return button.variant;
-                },
-                get "data-size"() {
-                    return button.size;
-                },
-                get "aria-busy"() {
-                    return isBusy() ? "true" : undefined;
-                },
-                get disabled() {
-                    return button.disabled === true ? true : undefined;
-                },
-                get "aria-disabled"() {
-                    return isBusy() ? "true" : button["aria-disabled"];
-                },
-                get children() {
-                    return isWaiting ? (
-                        <>
-                            <span {...style.attrs(styles.label, isSpinning() && styles.hidden)}>
-                                {button.children}
-                            </span>
-                            <Show when={isSpinning()}>
-                                <span {...style.attrs(styles.spinner)}>
-                                    <Spinner aria-hidden="true" />
+            // refuse clicks while its action runs, the focus staying where it is
+            const click = (
+                event: MouseEvent & { readonly currentTarget: HTMLButtonElement },
+            ): void => {
+                const told: unknown = properties.onClick;
+                if (isBusy()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                } else if (typeof told === "function") {
+                    Reflect.apply(told, undefined, [event]);
+                }
+            };
+
+            // mark the part and give it its styles with the caller's last
+            return renderPart(
+                "button",
+                "button",
+                merge(
+                    untrack(() => properties.render) === undefined
+                        ? { type: "button" as const }
+                        : {},
+                    rest,
+                    isWaiting ? { onClick: click } : {},
+                ),
+                () => [buttonVariants(properties), isWaiting && styles.busy, join()],
+                {
+                    get "data-variant"() {
+                        return properties.variant;
+                    },
+                    get "data-size"() {
+                        return properties.size;
+                    },
+                    get "aria-busy"() {
+                        return isBusy() ? "true" : undefined;
+                    },
+                    get disabled() {
+                        return properties.disabled ? true : undefined;
+                    },
+                    get "aria-disabled"() {
+                        return isBusy() ? "true" : properties["aria-disabled"];
+                    },
+                    get children() {
+                        return isWaiting ? (
+                            <>
+                                <span {...style.attrs(styles.label, isSpinning() && styles.hidden)}>
+                                    {properties.children}
                                 </span>
-                            </Show>
-                        </>
-                    ) : (
-                        button.children
-                    );
+                                <Show when={isSpinning()}>
+                                    <span {...style.attrs(styles.spinner)}>
+                                        <Spinner aria-hidden="true" />
+                                    </span>
+                                </Show>
+                            </>
+                        ) : (
+                            properties.children
+                        );
+                    },
                 },
-            },
-        );
+            );
+        },
+    }),
+    {
+        /** Read the styles of a button, for an element that only looks like one. */
+        styles: (look: Partial<ButtonLook>): style.Styles =>
+            buttonVariants({ ...Button.defaults, ...look }),
     },
-    PROPERTIES,
 );
+
+/** The properties of a button, the native button's attributes included. */
+export type ButtonProperties = ComponentProperties<typeof Button>;

@@ -3,7 +3,7 @@ import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import * as style from "@destack/style";
-import { Button, buttonVariants } from "./index.ts";
+import { Button } from "./index.ts";
 import { classes, markup, render } from "@destack/view/test";
 import { renderPart } from "../part/index.ts";
 
@@ -45,22 +45,6 @@ test("restyle a button when its variant changes", () => {
     expect(markup(container)).toBe(
         '<button data-slot="button" data-variant="destructive" data-size="default" type="button"></button>',
     );
-});
-
-test("style a link like a button of the same variant and size", () => {
-    const { container } = render(() => (
-        <>
-            <Button variant="outline" size="sm" />
-            <a
-                href="/pricing"
-                {...style.attrs(buttonVariants({ variant: "outline", size: "sm" }))}
-            />
-        </>
-    ));
-
-    // the link takes the button's classes exactly
-    const [button, link] = classes(container);
-    expect(link).toBe(button);
 });
 
 test("render a link with the button's part attributes, its native button's attributes left out", () => {

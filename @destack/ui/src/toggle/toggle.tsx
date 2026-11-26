@@ -13,7 +13,11 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createControllableSignal, type JSX, omit } from "@destack/view";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { field } from "@destack/object";
 import { t } from "@destack/locale";
 
@@ -97,19 +101,42 @@ export type ToggleVariant = keyof typeof VARIANTS;
 /** The height and padding of a toggle. */
 export type ToggleSize = keyof typeof SIZES;
 
-/** The variant, size and state of a toggle's styles. */
-export interface ToggleVariantProperties {
-    /** The look, default by default. */
-    readonly variant?: ToggleVariant;
-    /** The height and padding, default by default. */
-    readonly size?: ToggleSize;
+/** The properties people change in a toggle's controls and inspector. */
+const TOGGLE_PROPERTIES = {
+    variant: field
+        .enum(VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`How the toggle shows whether it is on.`)
+        .default("default"),
+    size: field
+        .enum(SIZES)
+        .labeled(t.context("label")`Size`)
+        .described(t`How tall the toggle is, and how much room its label gets.`)
+        .default("default"),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses presses where the setting cannot change now.`)
+        .default(false),
+};
+
+/** The look of a toggle: its variant, its size and whether it is on. */
+export interface ToggleLook {
+    /** The look. */
+    readonly variant: ToggleVariant;
+    /** The height and padding. */
+    readonly size: ToggleSize;
     /** Whether the toggle is on. */
-    readonly pressed?: boolean;
+    readonly pressed: boolean;
 }
 
-/** The properties of a toggle, the native button's attributes included. */
-export interface ToggleProperties
-    extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class">, ToggleVariantProperties {
+/** The properties of a toggle besides its declared ones: its native attributes, state and part. */
+export interface ToggleAttributes extends Omit<
+    JSX.ButtonHTMLAttributes<HTMLButtonElement>,
+    "class" | keyof typeof TOGGLE_PROPERTIES
+> {
+    /** Whether the toggle is on, its owner's state, the toggle's own when absent. */
+    readonly pressed?: boolean;
     /** Whether the toggle starts on when its state is uncontrolled. */
     readonly defaultPressed?: boolean;
     /** Handle the toggle turning on or off. */
@@ -120,11 +147,8 @@ export interface ToggleProperties
     readonly render?: Render;
 }
 
-/** Return the StyleX styles of a toggle in a variant, size and state. */
-export function toggleVariants(options: ToggleVariantProperties): style.Styles {
-    // read the variant, the default one when none is given
-    const variant = options.variant ?? "default";
-
+/** Return the StyleX styles of a toggle in its look. */
+function toggleVariants(look: ToggleLook): style.Styles {
     return [
         text.sm,
         state.focus,
@@ -132,76 +156,72 @@ export function toggleVariants(options: ToggleVariantProperties): style.Styles {
         state.hover,
         state.press,
         styles.toggle,
-        variants[variant],
-        sizes[options.size ?? "default"],
-        variant === "segmented" && segments[options.size ?? "default"],
-        variant !== "default" && options.pressed !== true && styles.off,
-        options.pressed === true && state.on,
-        variant === "segmented" && options.pressed === true && styles.raised,
+        variants[look.variant],
+        sizes[look.size],
+        look.variant === "segmented" && segments[look.size],
+        look.variant !== "default" && !look.pressed && styles.off,
+        look.pressed && state.on,
+        look.variant === "segmented" && look.pressed && styles.raised,
     ];
 }
 
 /** Render a native button that turns on and off, reporting its state through `aria-pressed`. */
-export const Toggle = defineComponent(
-    "toggle",
-    function Toggle(properties: ToggleProperties): JSX.Element {
-        // follow the controlled state, else the toggle's own
-        const rest = omit(
-            properties,
-            "variant",
-            "size",
-            "pressed",
-            "defaultPressed",
-            "onPressedChange",
-        );
-        const [isPressed, setPressed] = createControllableSignal({
-            isControlled: () => properties.pressed !== undefined,
-            value: () => properties.pressed === true,
-            defaultValue: properties.defaultPressed === true,
-            onChange: (isNext) => properties.onPressedChange?.(isNext),
-        });
+export const Toggle = Object.assign(
+    defineComponent({
+        name: "toggle",
+        properties: TOGGLE_PROPERTIES,
+        render(
+            properties: RenderProperties<ToggleAttributes, typeof TOGGLE_PROPERTIES>,
+        ): JSX.Element {
+            // follow the controlled state, else the toggle's own
+            const rest = omit(
+                properties,
+                "variant",
+                "size",
+                "pressed",
+                "defaultPressed",
+                "onPressedChange",
+            );
+            const [isPressed, setPressed] = createControllableSignal({
+                isControlled: () => properties.pressed !== undefined,
+                value: () => properties.pressed === true,
+                defaultValue: properties.defaultPressed === true,
+                onChange: (isNext) => properties.onPressedChange?.(isNext),
+            });
 
-        // mark the part, report its state and flip it
-        return renderPart(
-            "button",
-            "toggle",
-            rest,
-            () =>
-                toggleVariants({
-                    variant: properties.variant ?? "default",
-                    size: properties.size ?? "default",
-                    pressed: isPressed(),
-                }),
-            {
-                type: "button" as const,
-                get "data-pressed"() {
-                    return isPressed() ? "" : undefined;
+            // mark the part, report its state and flip it
+            return renderPart(
+                "button",
+                "toggle",
+                rest,
+                () =>
+                    toggleVariants({
+                        variant: properties.variant,
+                        size: properties.size,
+                        pressed: isPressed(),
+                    }),
+                {
+                    type: "button" as const,
+                    get "data-pressed"() {
+                        return isPressed() ? "" : undefined;
+                    },
+                    get "aria-pressed"() {
+                        return isPressed() ? "true" : "false";
+                    },
+                    onClick: () => {
+                        // flip the state and tell the change handler
+                        setPressed(!isPressed());
+                    },
                 },
-                get "aria-pressed"() {
-                    return isPressed() ? "true" : "false";
-                },
-                onClick: () => {
-                    // flip the state and tell the change handler
-                    setPressed(!isPressed());
-                },
-            },
-        );
-    },
+            );
+        },
+    }),
     {
-        variant: field
-            .enum(VARIANTS)
-            .labeled(t.context("label")`Variant`)
-            .described(t`How the toggle shows whether it is on.`)
-            .default("default"),
-        size: field
-            .enum(SIZES)
-            .labeled(t.context("label")`Size`)
-            .described(t`How tall the toggle is, and how much room its label gets.`)
-            .default("default"),
-        disabled: field
-            .boolean()
-            .labeled(t.context("label")`Disabled`)
-            .described(t`Refuses presses where the setting cannot change now.`)
-            .default(false),
+        /** Read the styles of a toggle, for an element that only looks like one. */
+        styles: (look: Partial<ToggleLook>): style.Styles =>
+            toggleVariants({ ...Toggle.defaults, pressed: false, ...look }),
     },
 );
+
+/** The properties of a toggle, the native button's attributes included. */
+export type ToggleProperties = ComponentProperties<typeof Toggle>;

@@ -7,7 +7,7 @@ import { media } from "@destack/style/media.stylex";
 import { color, size, space } from "@destack/theme/tokens.stylex";
 import { createControllableSignal, For, type JSX, omit, useLocale } from "@destack/view";
 import { type ElementPartProperties, type Render, renderPart } from "../part/index.ts";
-import { buttonVariants, type ButtonSize } from "../button/index.ts";
+import { Button, type ButtonSize } from "../button/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a pagination and its elements. */
@@ -101,7 +101,7 @@ export function PaginationLink(properties: PaginationLinkProperties): JSX.Elemen
         "pagination-link",
         rest,
         () => [
-            buttonVariants({
+            Button.styles({
                 variant: properties.active === true ? "outline" : "ghost",
                 size: properties.size ?? "default",
                 isIconOnly: true,

@@ -21,22 +21,6 @@ export const buttonDelete = defineExample({
     render: renderDelete,
 });
 
-/** A note's toolbar: a primary save, a quiet cancel and an icon-only delete. */
-export const buttonNoteToolbar = defineExample({
-    of: Button,
-    name: "noteToolbar",
-    description: t`A note's toolbar: a primary save, a quiet cancel and an icon-only delete.`,
-    render: () => (
-        <div role="toolbar" aria-label="Note">
-            <Button type="submit">Save</Button>
-            <Button variant="ghost">Cancel</Button>
-            <Button isIconOnly variant="destructive" aria-label="Delete note">
-                <Icon name="trash" />
-            </Button>
-        </div>
-    ),
-});
-
 /** Render a note's save button. */
 function renderSave(properties: PropertiesOf<typeof Button>): JSX.Element {
     return <Button {...properties}>Save</Button>;

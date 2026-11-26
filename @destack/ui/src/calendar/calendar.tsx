@@ -26,7 +26,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
-import { buttonVariants } from "../button/index.ts";
+import { Button } from "../button/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import type { Direction } from "@destack/locale";
 import { PlainDate, TimeZone, type Weekday, Week, WEEK_DAYS, MonthGrid } from "@destack/schema";
@@ -695,32 +695,28 @@ function CalendarHeader(properties: {
 
     return (
         <div data-slot="calendar-header" {...style.attrs(styles.header)}>
-            <button
-                type="button"
+            <Button
+                variant="ghost"
+                isIconOnly
                 aria-label={locale.render(t`Go to the previous month`)}
                 data-slot="calendar-previous"
                 disabled={!properties.canMove(-1)}
                 onClick={() => properties.onMove(-1)}
-                {...style.attrs(
-                    buttonVariants({ variant: "ghost", isIconOnly: true }),
-                    styles.navigation,
-                )}
+                xstyle={styles.navigation}
             >
                 <Icon icon={isRightToLeft() ? caretRight : caretLeft} />
-            </button>
-            <button
-                type="button"
+            </Button>
+            <Button
+                variant="ghost"
+                isIconOnly
                 aria-label={locale.render(t`Go to the next month`)}
                 data-slot="calendar-next"
                 disabled={!properties.canMove(1)}
                 onClick={() => properties.onMove(1)}
-                {...style.attrs(
-                    buttonVariants({ variant: "ghost", isIconOnly: true }),
-                    styles.navigation,
-                )}
+                xstyle={styles.navigation}
             >
                 <Icon icon={isRightToLeft() ? caretLeft : caretRight} />
-            </button>
+            </Button>
         </div>
     );
 }
@@ -750,8 +746,9 @@ function CalendarCell(properties: {
 
     return (
         <td aria-selected={isSelected() ? "true" : undefined} {...style.attrs(styles.cell)}>
-            <button
-                type="button"
+            <Button
+                variant="ghost"
+                isIconOnly
                 tabindex={properties.focus.isActive(properties.day) ? 0 : -1}
                 aria-label={locale.plainDate(properties.day, { dateStyle: "full" })}
                 aria-current={properties.isToday ? "date" : undefined}
@@ -764,18 +761,17 @@ function CalendarCell(properties: {
                 ref={(button) => (element = button)}
                 onFocus={() => properties.focus.focusIn(properties.day)}
                 onClick={() => properties.onSelect(properties.day)}
-                {...style.attrs(
-                    buttonVariants({ variant: "ghost", isIconOnly: true }),
+                xstyle={[
                     state.unframed,
                     styles.day,
                     isOutside() && styles.outside,
                     properties.isToday && styles.today,
                     isSolid() && state.checked,
                     isMiddle() && [state.selected, styles.middle],
-                )}
+                ]}
             >
                 {locale.plainDate(properties.day, { day: "numeric" })}
-            </button>
+            </Button>
         </td>
     );
 }
