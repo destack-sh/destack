@@ -205,7 +205,7 @@ export interface FileSystem {
     readonly chmod: (path: string, mode: number) => Promise<void>;
     /** Open a file. */
     readonly open: (path: string, options: OpenOptions) => Promise<FileHandle>;
-    /** Watch a path, resolving once the changes from then on reach the reader, until aborted. */
+    /** Watch a path until aborted; a host's watcher may miss changes just after it starts. */
     readonly watch: (path: string, options?: WatchOptions) => Promise<AsyncIterable<FileEvent>>;
     /** Find the private directory of the person's runtime files, such as sockets and locks. */
     readonly runtimeDirectory: () => Promise<string>;

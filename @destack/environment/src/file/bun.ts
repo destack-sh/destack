@@ -50,9 +50,6 @@ const SHARED_MODE = 0o077;
 /** The bytes one read of an open file takes, as Node's file streams do: 64 KiB. */
 const CHUNK_BYTES = 64 * 1024;
 
-/** The name prefix of the hidden file a watch writes to learn its host watcher is armed. */
-const WATCH_PROBE_PREFIX = ".destack-watch-";
-
 /** The files of the machine Bun runs on, through Node's file system API. */
 export class BunFileSystem implements FileSystem {
     /** Read a file's bytes. */
@@ -312,27 +309,15 @@ export class BunFileSystem implements FileSystem {
         };
     }
 
-    /** Watch a path, resolving once its host watcher is armed, until the signal aborts. */
+    /** Watch a path until the signal aborts, as the host's watcher reports its changes. */
     async watch(path: string, options: WatchOptions = {}): Promise<AsyncIterable<FileEvent>> {
-        // start the host's watcher, closing it when arming it fails
+        // start the host's watcher, then list the names whose later changes it reports
         const recursive = options.recursive ?? false;
         const watcher = BunFileSystem.#listen(path, recursive, options.signal);
         try {
-            // write a probe and pass the names reported before its own, which the host reports once armed
-            const probe = `${WATCH_PROBE_PREFIX}${crypto.randomUUID()}`;
-            const names = watcher.names[Symbol.asyncIterator]();
-            await this.writeFile(join(path, probe), new Uint8Array());
-            let next = await names.next();
-            while (next.done !== true && next.value !== probe) {
-                next = await names.next();
-            }
-
-            // remove the probe, then list the names whose later changes the armed watcher reports
-            await this.remove(join(path, probe));
             const entries = await this.readDirectory(path, { recursive });
-            const reported = BunFileSystem.#without(probe, names);
 
-            return this.#watched(path, entries, reported, watcher.close);
+            return this.#watched(path, entries, watcher.names, watcher.close);
         } catch (error) {
             watcher.close();
             throw error;
@@ -412,19 +397,6 @@ export class BunFileSystem implements FileSystem {
             yield* this.#classified(path, entries, names);
         } finally {
             close();
-        }
-    }
-
-    /** Read the reported names as they come, leaving out a probe's. */
-    static async *#without(
-        probe: string,
-        names: AsyncIterator<string | null>,
-    ): AsyncIterable<string | null> {
-        // yield each name but the probe's
-        for (let next = await names.next(); next.done !== true; next = await names.next()) {
-            if (next.value !== probe) {
-                yield next.value;
-            }
         }
     }
 
