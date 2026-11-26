@@ -1,0 +1,66 @@
+{
+    "package": "package-01a1f46f-20ef-7348-ac69-dd7b32d5734f",
+    "locale": "fr",
+    "messages": {
+        "p3yp08zrcycw": {
+            "source": "Blue",
+            "context": "option",
+            "translation": "Bleu",
+            "state": "machine"
+        },
+        "2p4cygffd1s6w": {
+            "source": "Brown",
+            "context": "option",
+            "translation": "Marron",
+            "state": "machine"
+        },
+        "39dz0dh81e7wr": {
+            "source": "Cyan",
+            "context": "option",
+            "translation": "Cyan",
+            "state": "machine"
+        },
+        "5a99v9trd4gj": {
+            "source": "Gray",
+            "context": "option",
+            "translation": "Gris",
+            "state": "machine"
+        },
+        "3a6lwsshpk9on": {
+            "source": "Green",
+            "context": "option",
+            "translation": "Vert",
+            "state": "machine"
+        },
+        "3rmvvpb9ro0mu": {
+            "source": "Orange",
+            "context": "option",
+            "translation": "Orange",
+            "state": "machine"
+        },
+        "1fblbb1sawels": {
+            "source": "Pink",
+            "context": "option",
+            "translation": "Rose",
+            "state": "machine"
+        },
+        "2friqu6yy71gu": {
+            "source": "Purple",
+            "context": "option",
+            "translation": "Violet",
+            "state": "machine"
+        },
+        "14jty1vehivsr": {
+            "source": "Red",
+            "context": "option",
+            "translation": "Rouge",
+            "state": "machine"
+        },
+        "2ugjzyqio9xi4": {
+            "source": "Yellow",
+            "context": "option",
+            "translation": "Jaune",
+            "state": "machine"
+        }
+    }
+}

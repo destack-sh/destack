@@ -15,4 +15,7 @@ const color = DEFAULT_HUES[hue]; // #00a2c7
 
 // make it lighter as people see it
 const lighter = Color.parse(color).to("oklch").with("lightness", 80).toString();
+
+// name the hue in the person's language, as a picker offers it
+const { title } = Hue.choices[hue]; // the message "Cyan", "Ciano" in Italian
 ```
