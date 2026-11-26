@@ -172,7 +172,7 @@ async function rewrite(
     files: FileSystem,
 ): Promise<void> {
     for (const [path, catalog] of catalogs) {
-        // take each message's source, context and note from the code, its translation and state as they are
+        // take each message's source, context and note from the code, its translation as it is
         const messages = { ...catalog.messages };
         for (const phrase of phrases) {
             const translation = messages[phrase.id];
@@ -182,7 +182,6 @@ async function rewrite(
                     ...(phrase.context === undefined ? {} : { context: phrase.context }),
                     ...(phrase.note === undefined ? {} : { note: phrase.note }),
                     translation: translation.translation,
-                    state: translation.state,
                 };
             }
         }

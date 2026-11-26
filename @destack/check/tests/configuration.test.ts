@@ -302,13 +302,12 @@ test("accept the findings a package expects and refuse an expectation nothing ma
     expect(applyExpectations([], expectations, directory, ["tests"])).toEqual([]);
 });
 
-/** Write a reviewed translation as a catalog source stores it. */
+/** Write a translation as a catalog source stores it. */
 function entry(source: string, translation: string, context?: "action") {
     return {
         source,
         ...(context === undefined ? {} : { context }),
         translation,
-        state: "reviewed" as const,
     };
 }
 
