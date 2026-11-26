@@ -271,7 +271,7 @@ test("subscribe through Checkout and mirror the paid invoice", async () => {
     const statuses = await deliver(
         stripe.complete(present(session.providerId, "the session's provider identifier")),
     );
-    await finance.entitle();
+    await finance.derive();
     const [settled] = await finance.database
         .select({
             status: checkoutSession.table.status,
@@ -443,7 +443,7 @@ test("invoice metered usage on the renewal draft less included usage", async () 
     await deliver(
         stripe.complete(present(session.providerId, "the session's provider identifier")),
     );
-    await finance.entitle();
+    await finance.derive();
 
     // route 72 requests as a cloud machine would, twice
     const requested = {
@@ -579,7 +579,7 @@ test("move between the default product and Go through Stripe", async () => {
     const { stripe, finance, deliver } = await open();
     const free = await offerFree(finance);
     const go = await offerGo(finance);
-    await finance.entitle();
+    await finance.derive();
     const resetAt = async () => {
         const row = resolved(await finance.resolutions(ids.buyer), calls.reference);
 
@@ -598,7 +598,7 @@ test("move between the default product and Go through Stripe", async () => {
     await deliver(
         stripe.complete(present(session.providerId, "the session's provider identifier")),
     );
-    await finance.entitle();
+    await finance.derive();
     const onGo = await resetAt();
 
     // route 72 requests, then change back to the default product
@@ -622,7 +622,7 @@ test("move between the default product and Go through Stripe", async () => {
     );
     const [canceled] = stripe.list("sub").map((each) => String(each["id"]));
     await deliver(stripe.canceled(present(canceled, "the canceled Stripe subscription")));
-    await finance.entitle();
+    await finance.derive();
 
     // bill the requests and the included usage drawn on them to the next invoice, cancel, and fall back to the default
     expect({

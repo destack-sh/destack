@@ -72,7 +72,7 @@ export const seller = defineObject(
             permissions: {
                 read: through("account", "read"),
                 sell: through("account", "manage"),
-                provide: through("account", "serve"),
+                provide: through("account", "sell"),
             },
             reserved: ["provide"],
         },

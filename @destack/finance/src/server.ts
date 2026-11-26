@@ -1,4 +1,3 @@
-import forgePackage from "@destack/forge/package";
 import { RemoteBuildStore } from "@destack/build/store";
 import type { PackageId } from "@destack/package";
 import registryPackage from "@destack/registry/package";
@@ -11,9 +10,13 @@ import { stripe } from "./declare/connection.ts";
 import { Metering } from "./server/metering.ts";
 import { implementFinance } from "./server/server.ts";
 
+// NOTE #Architecture: a builtin addresses an app's installation by its package name; registry could own it
+/** The address of the home's forge, which serves the registry finance reads releases from. */
+const FORGE_ADDRESS = "@destack/forge";
+
 export * from "./server/index.ts";
 
-/** The finance package's server in a residency home: sellers, prices, subscriptions and usage. */
+/** The finance package's server in the platform's home: sellers, prices, subscriptions, usage. */
 export default implementPackage(financePackage, (context) => {
     // charge buyers through the installation's provider, none for default products alone
     const home = context.scope;
@@ -23,7 +26,7 @@ export default implementPackage(financePackage, (context) => {
             : new StripeProvider({ api: context.resources.get(stripe), home });
 
     // read the packages' published builds from the forge in the home
-    const forge = context.at(forgePackage.name);
+    const forge = context.at(FORGE_ADDRESS);
     const registry = createClient(registryPackage, forge, context.environment);
     const builds = `${forge.url}${registryPackage.mounts.builds.path}`;
     const open = async (packageId: PackageId, named: string) => {

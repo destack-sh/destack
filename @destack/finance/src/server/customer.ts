@@ -12,7 +12,7 @@ import {
     subscription,
     subscriptionItem,
 } from "../object/index.ts";
-import { CustomerEntitlement } from "./entitlement.ts";
+import { CustomerQuota } from "./quota.ts";
 import type { Metering } from "./metering.ts";
 
 /** The subscription an item belongs to. */
@@ -30,7 +30,7 @@ const FEATURE_DEFAULT_PRODUCT: Relation = {
     where: { isDefault: true },
 };
 
-/** Implement customers: announce each account's usage alerts, and derive its entitlements. */
+/** Implement customers: announce each account's usage alerts, and derive its quotas. */
 export function implementCustomer(home: string, metering: Metering): typeof customer {
     return customer.implement({
         methods: {
@@ -45,8 +45,8 @@ export function implementCustomer(home: string, metering: Metering): typeof cust
         },
         controllers: [
             {
-                // derive each replicated account's entitlements
-                name: "entitle",
+                // derive each replicated account's quotas
+                name: "quota",
                 by: ["accountId"],
                 for: { table: account.table, column: "id" },
                 reads: [
@@ -95,8 +95,7 @@ export function implementCustomer(home: string, metering: Metering): typeof cust
                         isListing: true,
                     },
                 ],
-                reconcile: ({ key, store }) =>
-                    new CustomerEntitlement(store, home, metering).derive(key),
+                reconcile: ({ key, store }) => new CustomerQuota(store, home, metering).derive(key),
             },
         ],
     });

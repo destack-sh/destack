@@ -1,7 +1,9 @@
+import { PLAN_PACKAGE } from "@destack/universe/test";
+import { TENANCIES } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import objectPackage from "@destack/object/package";
 import { AccessContext, Caller, principal } from "@destack/access";
-import { account, organization, Residency } from "@destack/account/object";
+import { account, organization, REGION_MERCHANT } from "@destack/account/object";
 import { OPERATOR_EMAIL, type TestPerson } from "@destack/account/test";
 import { reconciliation } from "@destack/db/test";
 import type { Crypto, Clock, Environment } from "@destack/environment";
@@ -47,24 +49,21 @@ import { Feature } from "../feature/index.ts";
 import { describeFeature, describeSku } from "../inspect/index.ts";
 import { usage } from "@destack/stack/object";
 import { type Resolution, Usage, usageLimit } from "../object/index.ts";
-import financePackage, { FINANCE_INSTALLATION } from "../package.ts";
+import financePackage from "../package.ts";
 import { FEATURE_KIND } from "../feature/feature.ts";
 import { SKU_KIND } from "../sku/sku.ts";
 import type { PaymentProvider } from "../provider/index.ts";
 import type { Period } from "../rate/index.ts";
-import { CustomerEntitlement } from "../server/entitlement.ts";
+import { CustomerQuota } from "../server/quota.ts";
 import { Metering } from "../server/metering.ts";
 import { implementFinance } from "../server/server.ts";
 import { Sku } from "../sku/index.ts";
 
-/** The residency whose home finance serves in. */
-const RESIDENCY = "eu";
+/** The region whose home finance serves in. */
+const REGION = "eu";
 
 /** The tag the fixture's releases open at, which answers each package's latest. */
 const RELEASE_TAG = "latest";
-
-/** The tenancies a plan granting dedicated machines lets an account run. */
-const TENANCIES = ["shared", "dedicated", "local"];
 
 /** The origin of the dedicated machines the fixture declares. */
 const DEDICATED_ORIGIN = "https://dedicated.machine.test/";
@@ -137,7 +136,7 @@ const FINANCE: TestPackage = {
     providers: [],
 };
 
-/** The packages the residency's home installs beside its base ones, as its stack does. */
+/** The packages the platform's home installs beside its base ones, as its stack does. */
 const PACKAGES: readonly TestPackage[] = [
     VAULT,
     FORGE,
@@ -150,7 +149,7 @@ const PACKAGES: readonly TestPackage[] = [
 const HOME_TYPES = [...FORGE_HOME_TYPES, connectionPackage, financePackage] as const;
 
 /** The home's stack: finance bound to the platform's Stripe connection and webhook secret. */
-const RESIDENCY_STACK = {
+const PLATFORM_STACK = {
     ...FORGE_HOME_STACK,
     vaults: { ...FORGE_HOME_STACK.vaults, connections: connectionVault.provision() },
     connections: {
@@ -159,10 +158,7 @@ const RESIDENCY_STACK = {
             protocol: { kind: "key", header: "authorization", scheme: "Bearer" } as const,
         },
     },
-    secrets: {
-        ...FORGE_HOME_STACK.secrets,
-        "stripe-webhook": { parent: "connections", name: "stripe-webhook" },
-    },
+    secrets: { "stripe-webhook": { parent: "connections", name: "stripe-webhook" } },
     installations: {
         ...FORGE_HOME_STACK.installations,
         connection: install(
@@ -175,12 +171,12 @@ const RESIDENCY_STACK = {
         finance: install(
             financePackage,
             { stripe: "stripe", "stripe-webhook": "stripe-webhook" },
-            { name: FINANCE_INSTALLATION },
+            { name: REGION_MERCHANT },
         ),
     },
 };
 
-/** The home the fixture's tests copy: forge's residency home with finance and the publisher. */
+/** The home the fixture's tests copy: the platform's home with finance and the publisher. */
 const HOME_OPTIONS = {
     ...TestPackage.options(PACKAGES),
     tables: FORGE_HOME_OPTIONS.tables,
@@ -192,16 +188,16 @@ const HOME_OPTIONS = {
 
 /** What the fixture's world shares: the platform's account. */
 const FinanceWorld = schema.object({
-    /** The platform's account in the residency, whose home is the residency's. */
+    /** The platform's account in the region, whose home is the region's. */
     platform: schema.identifier("account"),
 });
 
 /** What the fixture's world shares. */
 type FinanceWorld = schema.Infer<typeof FinanceWorld>;
 
-/** Finance in the residency's home with Example's buyer and payer, and Carol's shop. */
+/** Finance in the platform's home with Example's buyer and payer, and Carol's shop. */
 export class TestFinance {
-    /** The residency's home serving finance. */
+    /** The platform's home serving finance. */
     readonly space: TestSpace;
     /** The home's object store, as its machine serves it now. */
     #store: ObjectStore;
@@ -209,7 +205,7 @@ export class TestFinance {
     readonly provider: PaymentProvider | undefined;
     /** The telemetry recording the exceptions finance captures, refused at close unless taken. */
     readonly telemetry: TestTelemetry;
-    /** The platform's account in the residency. */
+    /** The platform's account in the region. */
     readonly platform: Identifier<"account">;
     /** The published builds the metering reads, by package and version. */
     readonly #published: Map<string, BuildReader>;
@@ -290,16 +286,16 @@ export class TestFinance {
         return TestSpace.template(HOME_OPTIONS, {
             name: "finance",
             value: FinanceWorld,
-            spaces: [{ residency: RESIDENCY }],
+            spaces: [{ platform: true }],
             write: (home) => TestFinance.#write(home),
         });
     }
 
-    /** Install finance in the residency's home, and create Example, the shop and their spaces. */
+    /** Install finance in the platform's home, and create Example, the shop and their spaces. */
     static async #write(home: TestSpace): Promise<FinanceWorld> {
         // install finance bound to the Stripe connection, with the vault and connections it uses, in one apply
         await home.serve();
-        await home.apply(HOME_TYPES, RESIDENCY_STACK);
+        await home.apply(HOME_TYPES, PLATFORM_STACK);
 
         // sign the people in, alice creating Example paying with its billing account, and carol her shop
         const { universe } = home;
@@ -321,7 +317,7 @@ export class TestFinance {
             name: "Example",
             kind: "business",
             handle: "example-group",
-            residencyId: RESIDENCY,
+            regionId: REGION,
         });
         for (const [id, handle] of [
             [ids.buyer, "example-buyer"],
@@ -334,7 +330,7 @@ export class TestFinance {
                 handle,
                 name: handle,
                 kind: "shared",
-                residencyId: RESIDENCY,
+                regionId: REGION,
             });
         }
         await accounts.organization.update({
@@ -374,7 +370,7 @@ export class TestFinance {
         return { platform: present(platform, "the platform's account").id };
     }
 
-    /** The residency's home, where finance stores its rows. */
+    /** The platform's home, where finance stores its rows. */
     get home(): Identifier<"space"> {
         return this.space.id;
     }
@@ -409,10 +405,13 @@ export class TestFinance {
         accountId: Identifier<"account">,
         count: number,
     ): Promise<Identifier<"machine">[]> {
-        // entitle the account to dedicated tenancy, which declaring its machines requires
-        await this.space.universe.entitle(accountId, "tenancy", {
+        // allow the account every tenancy, as declaring its machines requires dedicated tenancy
+        await this.space.universe.grant(accountId, {
+            packageId: PLAN_PACKAGE,
+            feature: "tenancy",
+            value: [...TENANCIES],
             kind: "static",
-            value: TENANCIES,
+            resource: "tenancy",
         });
         const machines: Identifier<"machine">[] = [];
         for (let index = 0; index < count; index += 1) {
@@ -457,7 +456,7 @@ export class TestFinance {
 
     /** Append an account's uses as the machines measuring them send them, leaving them unrated. */
     async append(payer: string, uses: readonly FinanceUse[]): Promise<void> {
-        // send a space's uses as the residency's machine serving it, and a machine's as the machine itself
+        // send a space's uses as the region's machine serving it, and a machine's as the machine itself
         const now = this.clock.now();
         const payerId = account.identifier(payer);
         for (const [machineId, sent] of Map.groupBy(uses, (use) => use.machine ?? null)) {
@@ -477,14 +476,9 @@ export class TestFinance {
         }
     }
 
-    /** Call as the residency's cloud machine serving its accounts' spaces. */
+    /** Call as the machine serving the spaces placed on it. */
     async #serving(): Promise<Caller> {
-        // act as the machine in its residency's servers
-        const subject = principal.machine.reference(Scope.universe.id, this.space.machine.id);
-        const universe = this.space.universe.storage.database.snapshot();
-        const home = await Residency.require(universe, RESIDENCY);
-
-        return { ...Caller.of(subject), groups: [Residency.servers(home.id)] };
+        return Caller.of(principal.machine.reference(Scope.universe.id, this.space.machine.id));
     }
 
     /** Write a use as the usage append method takes it, identified by its name. */
@@ -503,16 +497,14 @@ export class TestFinance {
         };
     }
 
-    /** Resolve each feature an account's sources grant now, with its metered usage. */
+    /** Resolve each feature an account's grants allow now, with its metered usage. */
     resolutions(scope: string): Promise<Resolution[]> {
         const { home } = this.#implementation;
 
-        return new CustomerEntitlement(this.#store, home, this.#implementation.metering).resolve(
-            scope,
-        );
+        return new CustomerQuota(this.#store, home, this.#implementation.metering).resolve(scope);
     }
 
-    /** Wait until the machine's loop rates the new usage and derives the accounts' entitlements. */
+    /** Wait until the machine's loop rates the new usage and derives the accounts' quotas. */
     async idle(): Promise<void> {
         await this.space.simulation.idle();
     }

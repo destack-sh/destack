@@ -2,11 +2,10 @@ import { installation, build, installationRevision, usage } from "@destack/stack
 import {
     account,
     claim,
-    entitlement,
     key,
     machine,
     organization,
-    residency,
+    region,
     space,
     user,
 } from "@destack/account/object";
@@ -23,12 +22,13 @@ import {
     price,
     product,
     productFeature,
+    quota,
     seller,
     subscription,
     subscriptionItem,
 } from "../object/index.ts";
 
-/** The tables of the residency home's main database that finance uses, with its replicas. */
+/** The tables of the platform home's main database that finance uses, with its replicas. */
 export const homeDatabase = defineDatabase({
     name: "main",
     tables: [
@@ -41,7 +41,7 @@ export const homeDatabase = defineDatabase({
             subscription,
             subscriptionItem,
             checkoutSession,
-            entitlement,
+            quota,
             invoice,
             charge,
             usage,
@@ -59,6 +59,6 @@ export const homeDatabase = defineDatabase({
         space.table,
         machine.table,
         key.table,
-        residency.table,
+        region.table,
     ],
 });

@@ -81,7 +81,7 @@ const Offering = {
 export class Billing {
     /** The payment provider, absent for a home billing through none. */
     readonly provider: PaymentProvider | undefined;
-    /** The home finance stores its rows in, the platform account's home in its residency. */
+    /** The home finance stores its rows in, the platform account's home in its region. */
     readonly home: string;
 
     /** Bill through a provider, or through none, from a home. */

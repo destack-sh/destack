@@ -1,5 +1,5 @@
 import { t } from "@destack/locale";
-import { account, residency } from "@destack/account/object";
+import { claim } from "@destack/account/object";
 import { definePackage } from "@destack/object";
 import { FinanceError } from "./error/error.ts";
 import {
@@ -10,6 +10,7 @@ import {
     price,
     product,
     productFeature,
+    quota,
     seller,
     subscription,
     subscriptionItem,
@@ -17,13 +18,10 @@ import {
 import { stripe } from "./declare/connection.ts";
 import { stripeWebhook, stripeWebhookSecret } from "./declare/webhook.ts";
 
-/** The name the platform stack installs finance under in each residency home. */
-export const FINANCE_INSTALLATION = "finance";
-
 /** The handle stacks install finance by, and clients call its products and prices by. */
 export default definePackage({
     title: t`Finance`,
-    description: t`Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements.`,
+    description: t`Sell products with features, bill accounts for subscriptions and usage, and derive their quotas.`,
     icon: "receipt",
     color: "purple",
     objects: [
@@ -37,11 +35,12 @@ export default definePackage({
         checkoutSession,
         charge,
         invoice,
+        quota,
     ],
     mounts: [stripeWebhook],
     resources: [stripe, stripeWebhookSecret],
     errors: FinanceError,
-    // mirror the provider's billing in its home, write entitlements and serve its residency's accounts
+    // mirror the provider's billing in its home, derive its buyers' quotas and resolve the holders of names
     access: {
         permissions: {
             space: {
@@ -52,12 +51,9 @@ export default definePackage({
                     checkoutSession.permission("provide"),
                     invoice.permission("provide"),
                     charge.permission("provide"),
+                    quota.permission("provide"),
                 ],
-                universe: [
-                    account.permission("entitle"),
-                    account.permission("serve"),
-                    residency.permission("locate"),
-                ],
+                universe: [claim.permission("resolve")],
             },
         },
     },

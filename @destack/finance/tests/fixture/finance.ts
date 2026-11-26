@@ -1,7 +1,8 @@
+import { Entitlement, entitlementShape, quota, type Quota } from "../../src/object/index.ts";
+import { Scope } from "@destack/sync";
 import { DeclarationReference } from "@destack/package/declare";
 import { type Message, t } from "@destack/locale";
 
-import { entitlement, type Entitlement } from "@destack/account/object";
 import { asc, eq } from "@destack/db";
 import { type DatabaseConnection } from "@destack/db/database";
 import { ObjectType } from "@destack/object";
@@ -99,9 +100,9 @@ const RELEASES = [
     [hosting, [domains]],
 ] as const;
 
-/** Finance in the residency's home with Example's buyer and payer accounts and Carol's shop. */
+/** Finance in the platform's home with Example's buyer and payer accounts and Carol's shop. */
 export class Finance {
-    /** The finance fixture in the residency's home. */
+    /** The finance fixture in the platform's home. */
     readonly fixture: TestFinance;
 
     /** Keep a finance fixture. */
@@ -289,7 +290,7 @@ export class Finance {
         return this.fixture.close();
     }
 
-    /** Call a method as a person in the residency's home space, where finance stores its rows. */
+    /** Call a method as a person in the platform's home space, where finance stores its rows. */
     call<Result>(person: Person, call: Call<Result>): Promise<Result> {
         // place the call in the home, and run it on its type
         const object = present(ObjectType.find(this.store.objects, call), Call.label(call));
@@ -318,8 +319,8 @@ export class Finance {
             : this.store.query(caller, call);
     }
 
-    /** Wait until the machine derives every account's entitlements. */
-    entitle(): Promise<void> {
+    /** Wait until the machine derives every account's quotas. */
+    derive(): Promise<void> {
         return this.fixture.idle();
     }
 
@@ -335,13 +336,32 @@ export class Finance {
         );
     }
 
-    /** Read an account's entitlements in a stable order. */
-    async entitlements(scope: Identifier<"account">): Promise<Entitlement[]> {
+    /** Derive an account's plan as its spaces read it, in a stable order. */
+    async entitlements(accountId: Identifier<"account">): Promise<Resolution[]> {
+        const now = this.fixture.environment.clock.now();
+        const replica = {
+            shape: entitlementShape,
+            key: { scope: Scope.universe.id, account: accountId },
+        };
+        const resolutions = await new Entitlement(this.database, accountId, replica).resolve(
+            this.database.snapshot(),
+            now,
+        );
+
+        return resolutions.toSorted(
+            (left, right) =>
+                Text.compare(left.packageId, right.packageId) ||
+                Text.compare(left.feature, right.feature),
+        );
+    }
+
+    /** Read an account's quotas in a stable order. */
+    async quotas(accountId: Identifier<"account">): Promise<Quota[]> {
         return await this.database
             .select()
-            .from(entitlement.table)
-            .where(eq(entitlement.table.scope, scope))
-            .orderBy(asc(entitlement.table.packageId), asc(entitlement.table.feature));
+            .from(quota.table)
+            .where(eq(quota.table.accountId, accountId))
+            .orderBy(asc(quota.table.packageId), asc(quota.table.feature));
     }
 }
 

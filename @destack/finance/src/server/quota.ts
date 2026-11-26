@@ -5,25 +5,25 @@ import { customer, Customer, type Resolution } from "../object/index.ts";
 import { usage } from "@destack/stack/object";
 import type { Metering } from "./metering.ts";
 
-/** Each customer's entitlements, derived again as its usage, subscriptions or defaults change. */
-export class CustomerEntitlement {
+/** Each customer's quotas, derived again as its usage, subscriptions or defaults change. */
+export class CustomerQuota {
     /** The object store deriving as finance's installation. */
     readonly #store: ObjectStore;
-    /** The residency's home, storing the customers whose announcements alert the accounts. */
+    /** The platform's home, storing the customers, their quotas and their announcements. */
     readonly #home: string;
-    /** The metering whose catalogs the entitlements derive from. */
+    /** The metering whose catalogs the quotas derive from. */
     readonly #metering: Metering;
 
-    /** Derive through finance's store in the residency's home, with the metering's catalogs. */
+    /** Derive through finance's store in the platform's home, with the metering's catalogs. */
     constructor(store: ObjectStore, home: string, metering: Metering) {
         this.#store = store;
         this.#home = home;
         this.#metering = metering;
     }
 
-    /** Resolve each feature an account's sources grant now, with its metered usage. */
+    /** Resolve each feature an account's grants allow now, with its metered usage. */
     resolve(scope: string): Promise<Resolution[]> {
-        // read the catalogs, replicas and usage series the account's sources grant from
+        // read the catalogs, replicas and usage series the account's grants read from
         const caller = this.#store.as(customer);
         const releases = this.#metering.reader(this.#store, caller, this.#home);
         const reader = this.#store.database.snapshot();
@@ -38,14 +38,14 @@ export class CustomerEntitlement {
         );
     }
 
-    /** Announce an account's changed usage states, then write its entitlements at the universe. */
+    /** Announce an account's changed usage states, then write its quotas in the home. */
     async derive(scope: string): Promise<void> {
-        // derive the account's entitlements and alerts, comparing them to its replicated ones
+        // derive the account's quota changes and alerts, comparing them to its stored quotas
         const accountId = account.identifier(scope);
         const caller = this.#store.as(customer);
         const reader = this.#store.database.snapshot();
         const resolutions = await this.resolve(scope);
-        const { calls, alerts } = await Customer.derive(accountId, resolutions, reader);
+        const { calls, alerts } = await Customer.derive(accountId, resolutions, reader, this.#home);
 
         // announce the alerts before writing, so no written state skips its announcement
         if (alerts.length > 0) {
@@ -61,12 +61,13 @@ export class CustomerEntitlement {
             );
         }
 
-        // write the changed entitlements at the universe as finance's installation
+        // write the changed quotas in the home as finance's installation
         if (calls.length > 0) {
-            await this.#store.mutate(caller, {
-                id: RequestId.create(this.#store.environment),
-                calls,
-            });
+            await this.#store.mutate(
+                caller,
+                { id: RequestId.create(this.#store.environment), calls },
+                { scope: this.#home },
+            );
         }
     }
 }

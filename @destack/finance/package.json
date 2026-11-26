@@ -3,16 +3,18 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements.",
+    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their quotas.",
     "exports": {
         "./destack.json": "./destack.json",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",
+        "./feature": "./src/feature/index.ts",
         "./object": "./src/object/index.ts",
         "./server": "./src/server.ts",
         "./provider": "./src/provider/index.ts",
         "./provider/stripe": "./src/provider/stripe/index.ts",
         "./test": "./src/test/index.ts",
+        "./test/plan": "./src/test/plan.ts",
         "./package": "./src/package.ts"
     },
     "dependencies": {
@@ -54,9 +56,6 @@
         "@destack/environment": {
             "optional": true
         },
-        "@destack/forge": {
-            "optional": true
-        },
         "@destack/message": {
             "optional": true
         },
@@ -81,6 +80,7 @@
         "@destack/registry": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@types/bun": "1.4.4"
     }
 }

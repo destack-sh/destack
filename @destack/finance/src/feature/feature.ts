@@ -6,7 +6,7 @@ import {
     ENTITLEMENT_RESOURCES,
     type EntitlementResource,
     FEATURE_KINDS,
-} from "@destack/account/object";
+} from "../feature/allowance.ts";
 import { PackageVersion, PackageId, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";

@@ -205,7 +205,13 @@ export const Price = {
             .read(productFeature.table)
             .findMany({ where: { parentId: row.parentId } });
         const grants = features
-            .map(({ packageId, feature, value }) => ({ packageId, feature, value }))
+            .map(({ packageId, feature, value, kind, resource }) => ({
+                packageId,
+                feature,
+                value,
+                kind,
+                resource,
+            }))
             .toSorted((left, right) =>
                 left.packageId === right.packageId
                     ? Text.compare(left.feature, right.feature)

@@ -1,6 +1,6 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { t } from "@destack/locale";
-import { entitlement } from "@destack/account/object";
+import { quota } from "../src/object/index.ts";
 import { asc, eq } from "@destack/db";
 import { announcement } from "@destack/notification/object";
 import { nth, type Identifier, schema, Uuid } from "@destack/schema";
@@ -246,7 +246,7 @@ test("sum a feature's meters per space and announce its states once", async () =
     const { finance, offer } = await open({ start: AFTER_STORING });
     const free = await offerFree(finance);
     await subscribe(finance, offer, [free], { start: START, end: END });
-    await finance.entitle();
+    await finance.derive();
     const within = await resources(finance);
 
     // store 400 bytes in one space after 300, 200 in another, and archive 300 in the first: near
@@ -337,12 +337,12 @@ test("sum a feature's meters per space and announce its states once", async () =
     ]);
 });
 
-test("announce a usage state once when its entitlement is derived again", async () => {
+test("announce a usage state once when its quota is derived again", async () => {
     // store 900 of the free plan's 1000 bytes: near the limit, reading two days into the period
     const { finance, offer } = await open({ start: AFTER_STORING });
     const free = await offerFree(finance);
     await subscribe(finance, offer, [free], { start: START, end: END });
-    await finance.entitle();
+    await finance.derive();
     await append(finance, {
         name: "1",
         space: spaces.notes,
@@ -351,14 +351,12 @@ test("announce a usage state once when its entitlement is derived again", async 
         time: START + DAY,
     });
 
-    // lose the entitlement write at the universe after its near state was announced, then derive again
-    await finance.fixture.space.universe.storage.database.transaction(
+    // lose the quota write in the home after its near state was announced, then derive again
+    await finance.database.transaction(
         async (transaction) =>
-            await transaction
-                .delete(entitlement.table)
-                .where(eq(entitlement.table.scope, ids.buyer)),
+            await transaction.delete(quota.table).where(eq(quota.table.accountId, ids.buyer)),
     );
-    await finance.entitle();
+    await finance.derive();
     const announced = await finance.database
         .select({ key: announcement.table.key })
         .from(announcement.table);
@@ -386,7 +384,7 @@ test("bill an averaged meter by time share and cap its current level", async () 
         ],
     );
     await subscribe(finance, offer, prices, { start: START, end: END });
-    await finance.entitle();
+    await finance.derive();
     const period = { start: START, end: END };
     const read = async () => ({
         capped: await entitled(finance, diskLimit),
@@ -437,7 +435,7 @@ test("rate metered usage against the included usage and spending limit", async (
         ],
     );
     const active = await subscribe(finance, offer, prices, { start: START, end: END });
-    await finance.entitle();
+    await finance.derive();
     const read = () => entitled(finance, calls);
 
     // spend near the included usage, then past it with billing on
@@ -467,7 +465,7 @@ test("rate metered usage against the included usage and spending limit", async (
             spendingLimit: 100,
         }),
     );
-    await finance.entitle();
+    await finance.derive();
     states.push(await read());
     await append(finance, {
         name: "3",

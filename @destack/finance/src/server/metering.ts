@@ -2,7 +2,7 @@ import { DeclarationReference } from "@destack/package/declare";
 import { CallError } from "@destack/object";
 import type { StackPlan } from "@destack/object/server";
 import type { Call } from "@destack/sync";
-import { residency } from "@destack/account/object";
+import { claim } from "@destack/account/object";
 import { AccessContext } from "@destack/access";
 import type { MethodContext } from "@destack/object";
 import type { PackageId } from "@destack/package";
@@ -39,12 +39,10 @@ export class Metering {
         this.#instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
     }
 
-    /** Find each handle's seller to the home's buyers, asking as the installation, for one call. */
+    /** Find the account selling each handle's packages, its holder's payer at the universe. */
     publisher(context: Pick<MethodContext, "query" | "self">): Publisher {
-        return async (handle) => {
-            // ask the universe as the installation, which runs in the space of the residency selling to its buyers
-            return context.query(context.self, residency.call("publisher", { handle }));
-        };
+        return async (handle) =>
+            (await context.query(context.self, claim.call("holder", { handle })))?.payer ?? null;
     }
 
     /** Defer a declaration until the registry here resolves a package's release at the tag. */

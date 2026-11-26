@@ -8,6 +8,7 @@ import { defineObject, field, nested } from "@destack/object";
 import { PackageId, DeclarationName } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
 import type { ReleaseReader } from "../release/reader.ts";
+import { ENTITLEMENT_RESOURCES, FEATURE_KINDS } from "../feature/allowance.ts";
 import { product } from "./product.ts";
 import { type Publisher, Seller } from "./seller.ts";
 import type {} from "@destack/package/import-meta";
@@ -27,6 +28,10 @@ export const productFeature = defineObject(
             feature: field.string(DeclarationName),
             /** A static feature's value or a metered one's limit, unlimited without one. */
             value: field.json(schema.json()).optional(),
+            /** What the feature grants, as its declaration says when the grant is made. */
+            kind: field.enum(FEATURE_KINDS),
+            /** The platform resource the feature allows, absent for a package's own feature. */
+            resource: field.enum(ENTITLEMENT_RESOURCES).optional(),
         },
         constraints: {
             unique: { kind: "index", on: ["parentId", "packageId", "feature"], unique: true },
@@ -50,7 +55,7 @@ export type ProductFeature = Select<typeof productFeature.table>;
 
 /** The features products grant. */
 export const ProductFeature = {
-    /** Require a seller's grant of a feature it publishes on one of its products. */
+    /** Require a seller's grant of a feature it publishes, reading what its declaration grants. */
     async requireGrant(
         grant: {
             readonly parentId: string;
@@ -61,7 +66,7 @@ export const ProductFeature = {
         reader: Pick<Snapshot, "read">,
         releases: ReleaseReader,
         publisher: Publisher,
-    ): Promise<void> {
+    ): Promise<Pick<ProductFeature, "kind" | "resource">> {
         // read the account selling the product
         const sold = await reader
             .read(product.table)
@@ -80,5 +85,7 @@ export const ProductFeature = {
 
         // refuse a value the feature's declaration rejects
         feature.requireGrant(grant.value ?? null);
+
+        return { kind: feature.definition.kind, resource: feature.definition.resource ?? null };
     },
 };

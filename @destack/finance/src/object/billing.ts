@@ -4,5 +4,5 @@ import { through } from "@destack/access";
 export const BILLING_PERMISSIONS = {
     read: through("account", "read"),
     bill: through("account", "bill"),
-    provide: through("account", "serve"),
+    provide: through("account", "sell"),
 };

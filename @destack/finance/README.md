@@ -4,14 +4,14 @@ Sell products with features, bill accounts for subscriptions and usage, and deri
 
 ## Overview
 
-`@destack/finance` is Stripe Billing driven by declarations: features packages sell, products stacks sell, and entitlements derived from subscriptions and usage.
+`@destack/finance` is Stripe Billing driven by declarations: packages declare features, sellers sell products granting them, and entitlements derive from subscriptions and usage.
 
 Packages declare what they sell:
 
 - `defineFeature`: a feature products grant: access, a fixed value, or metered usage up to a limit.
 - `defineSku`: a provider's list price per unit of what a meter measures.
 
-Stacks sell products:
+A seller's stack declares the products it sells:
 
 - `defineCatalog`: products with recurring prices and feature grants.
 
@@ -134,24 +134,30 @@ export const storage = defineSku({
 
 ### Check an entitlement
 
-An account's entitlements are `entitlement` objects of `@destack/account`, one per feature.
+`Entitlement` decides a use of an account's plan over a database replicating it, at each read.
 
 ```ts
-import type accountPackage from "@destack/account/package";
-import type { ClientOf } from "@destack/object/client";
-import type { PackageId } from "@destack/package";
+import { Entitlement, entitlementShape } from "@destack/finance/object";
+import type { DatabaseConnection } from "@destack/db/database";
+import { PackageId } from "@destack/package";
+import type { Identifier } from "@destack/schema";
+import { Scope } from "@destack/sync";
 
-/** Read the account's limit of API calls, absent when unlimited. */
-export async function callLimit(
-    client: ClientOf<typeof accountPackage>,
-    accountId: string,
-    packageId: PackageId,
-) {
-    // read the account's entitlement to the calls feature
-    const where = { packageId, feature: "api.calls" };
-    const { items } = await client.entitlement.list({ accountId, where });
+/** Decide whether an account's plan lets its spaces use the calls feature now. */
+export async function canCall(database: DatabaseConnection, accountId: Identifier<"account">) {
+    // decide the feature's use by the account's grants and quotas
+    const packageId = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
+    const feature = { packageId, name: "api.calls" };
+    const replica = {
+        shape: entitlementShape,
+        key: { scope: Scope.universe.id, account: accountId },
+    };
+    const decision = await new Entitlement(database, accountId, replica).decide(
+        { kind: "feature", feature },
+        Date.now(),
+    );
 
-    return items[0]?.limit;
+    return decision.status === "true";
 }
 ```
 

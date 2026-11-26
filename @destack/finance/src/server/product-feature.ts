@@ -14,23 +14,27 @@ export function implementProductFeature(metering: Metering): typeof productFeatu
             },
         },
         methods: {
-            create: {
-                authorize: (context) =>
-                    ProductFeature.requireGrant(
-                        context.input,
-                        context,
-                        metering.reader(context, context.self, context.scope),
-                        metering.publisher(context),
-                    ),
+            create: async (context, next) => {
+                // record what the feature's declaration grants beside the grant
+                const declared = await ProductFeature.requireGrant(
+                    context.input,
+                    context,
+                    metering.reader(context, context.self, context.scope),
+                    metering.publisher(context),
+                );
+
+                return next(context.with({ input: { ...context.input, ...declared } }));
             },
-            update: {
-                authorize: (context) =>
-                    ProductFeature.requireGrant(
-                        { ...context.target, ...context.input },
-                        context,
-                        metering.reader(context, context.self, context.scope),
-                        metering.publisher(context),
-                    ),
+            update: async (context, next) => {
+                // record it again, as a later release may grant the feature differently
+                const declared = await ProductFeature.requireGrant(
+                    { ...context.target, ...context.input },
+                    context,
+                    metering.reader(context, context.self, context.scope),
+                    metering.publisher(context),
+                );
+
+                return next(context.with({ input: { ...context.input, ...declared } }));
             },
         },
     });

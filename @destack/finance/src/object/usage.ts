@@ -1,6 +1,6 @@
+import { quota } from "./quota.ts";
 import { DeclarationReference } from "@destack/package/declare";
 import { FinanceError } from "../error/error.ts";
-import { entitlement } from "@destack/account/object";
 import { Table } from "@destack/db";
 import { argument, plural, select, t } from "@destack/locale";
 import { defineNotification } from "@destack/notification/declare";
@@ -37,7 +37,7 @@ export const usageLimit = defineNotification({
     name: "usageLimit",
     title: t`Usage limits`,
     description: t`Your account's usage nears or meets its plan's limit or spending limit.`,
-    payload: Table.selectSchema(entitlement.table)
+    payload: Table.selectSchema(quota.table)
         .pick({ feature: true, state: true, limit: true })
         .extend({
             /** The usage of the feature since its last reset. */

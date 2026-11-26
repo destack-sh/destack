@@ -1,4 +1,5 @@
-import type { account, UsageState } from "@destack/account/object";
+import type { account } from "@destack/account/object";
+import type { UsageState } from "../feature/allowance.ts";
 import { FinanceError } from "../error/error.ts";
 import type { Snapshot } from "@destack/db/database";
 import type { IdentifierOf } from "@destack/object";
@@ -18,7 +19,7 @@ import { NEAR_SHARE, Usage, type UsageSeries } from "./usage.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The usage cost a subscription allows in its period, and its cost so far, in minor units. */
-interface Budget {
+export interface Budget {
     /** The cost of the usage so far: its rated charges and its seller's metered prices. */
     readonly spend: number;
     /** The included usage, plus the spending limit when one is set. */
@@ -28,52 +29,55 @@ interface Budget {
 }
 
 /** A subscription item, or a seller's default product, granting an account a product's features. */
-export class Source {
+export class Grant {
     /** The granting subscription item or default product. */
     readonly reference: ObjectReference;
     /** The product's feature grants. */
-    readonly grants: readonly FeatureGrant[];
-    /** When the source was created. */
+    readonly features: readonly FeatureGrant[];
+    /** When the grant was created. */
     readonly grantedAt: number;
     /** The period metered usage resets with. */
     readonly period: Period;
-    /** What the subscription's usage may cost, absent for a default product. */
-    readonly budget: Budget | undefined;
+    /** The granting subscription with its items, absent for a default product. */
+    readonly subscription:
+        | (Subscription & { readonly items: readonly SubscriptionItem[] })
+        | undefined;
 
-    /** Keep a source's grants, period and budget. */
-    constructor(fields: Pick<Source, "reference" | "grants" | "grantedAt" | "period" | "budget">) {
+    /** Keep a grant's features, period and subscription. */
+    constructor(
+        fields: Pick<Grant, "reference" | "features" | "grantedAt" | "period" | "subscription">,
+    ) {
         // keep the fields
         this.reference = fields.reference;
-        this.grants = fields.grants;
+        this.features = fields.features;
         this.grantedAt = fields.grantedAt;
         this.period = fields.period;
-        this.budget = fields.budget;
+        this.subscription = fields.subscription;
     }
 
-    /** List an account's sources: granting subscription items and other sellers' defaults. */
+    /** List an account's grants: granting subscription items and other sellers' defaults. */
     static async list(
         accountId: IdentifierOf<typeof account>,
         now: number,
         reader: Pick<Snapshot, "read">,
-    ): Promise<Source[]> {
-        // read each granting subscription's items with its period and budget
+    ): Promise<Grant[]> {
+        // read each granting subscription's items with its period
         const subscriptions = await Subscription.granting(accountId, reader);
-        const sources: Source[] = [];
+        const listed: Grant[] = [];
         for (const subscribed of subscriptions) {
-            const budget = await readBudget(subscribed, reader);
             const period = {
                 start: subscribed.currentPeriodStart,
                 end: subscribed.currentPeriodEnd,
             };
             for (const item of subscribed.items) {
                 const reference = subscriptionItem.reference(subscribed.scope, item.id);
-                sources.push(
-                    new Source({
+                listed.push(
+                    new Grant({
                         reference,
-                        grants: item.grants,
+                        features: item.grants,
                         grantedAt: item.createdAt,
                         period,
-                        budget,
+                        subscription: subscribed,
                     }),
                 );
             }
@@ -93,39 +97,51 @@ export class Source {
 
             return sellerId === undefined || !subscribed.has(sellerId);
         });
-        const features = Map.groupBy(
+        const byProduct = Map.groupBy(
             await reader.read(productFeature.table).findMany({
                 where: { parentId: { in: unsubscribed.map((row) => row.id) } },
             }),
             (row) => row.parentId,
         );
         for (const row of unsubscribed) {
-            const grants = (features.get(row.id) ?? []).map(({ packageId, feature, value }) => ({
-                packageId,
-                feature,
-                value,
-            }));
-            sources.push(
-                new Source({
+            const features = (byProduct.get(row.id) ?? []).map(
+                ({ packageId, feature, value, kind, resource }) => ({
+                    packageId,
+                    feature,
+                    value,
+                    kind,
+                    resource,
+                }),
+            );
+            listed.push(
+                new Grant({
                     reference: product.reference(row.scope, row.id),
-                    grants,
+                    features,
                     grantedAt: row.createdAt,
                     period: Period.month(now),
-                    budget: undefined,
+                    subscription: undefined,
                 }),
             );
         }
 
-        return sources;
+        return listed;
     }
 
-    /** Allot one of the source's grants to an account, absent once its feature is gone. */
+    /** Read what the grant's usage may cost and has cost, absent for a default product. */
+    budget(reader: Pick<Snapshot, "read">): Promise<Budget | undefined> {
+        return this.subscription === undefined
+            ? Promise.resolve(undefined)
+            : readBudget(this.subscription, reader);
+    }
+
+    /** Allot one of the grant's features to an account, absent once its feature is gone. */
     async allot(
         accountId: IdentifierOf<typeof account>,
         grant: FeatureGrant,
         releases: ReleaseReader,
         events: UsageSeries,
         now: number,
+        budget: Budget | undefined,
     ): Promise<Allotment | undefined> {
         // read the feature's declaration, letting the grant lapse once its package removed it
         const reference = { packageId: grant.packageId, name: grant.feature };
@@ -138,7 +154,7 @@ export class Source {
             feature: grant.feature,
             kind: definition.kind,
             resource: definition.resource ?? null,
-            source: this.reference,
+            grant: this.reference,
             grantedAt: this.grantedAt,
             period: this.period,
         };
@@ -151,7 +167,7 @@ export class Source {
             return { ...granted, ...unmetered, value: grant.value };
         }
 
-        // count the meters' usage within the source's period, or since the start without a reset
+        // count the meters' usage within the grant's period, or since the start without a reset
         const meters = await Promise.all(
             definition.meters.map(async (meter) => releases.meter(meter)),
         );
@@ -165,7 +181,7 @@ export class Source {
             limit,
             usage,
             resetAt: period === undefined ? null : period.end,
-            state: standing(usage, limit, this.budget),
+            state: standing(usage, limit, budget),
         };
     }
 }

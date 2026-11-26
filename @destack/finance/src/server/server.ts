@@ -7,10 +7,10 @@ import { implementProduct } from "./product.ts";
 import { implementProductFeature } from "./product-feature.ts";
 import { implementSeller } from "./seller.ts";
 import { implementSubscription } from "./subscription.ts";
+import { accountsShape } from "@destack/account/object";
+import { Scope } from "@destack/sync";
 import { Billing } from "./billing.ts";
 import type { Metering } from "./metering.ts";
-import { account, entitlementShape } from "@destack/account/object";
-import { Scope } from "@destack/sync";
 import type { ImplementationInput } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { stripeWebhook } from "../declare/webhook.ts";
@@ -58,11 +58,8 @@ export function implementFinance(
                 }),
         },
 
-        // follow each account's entitlements from the universe, which the derivations compare against
-        follows: [
-            entitlementShape.per(account, {
-                key: async (row) => ({ key: { scope: Scope.universe.id, account: row.id } }),
-            }),
-        ],
+        // follow every account and machine from the universe, which billing and quotas authorize by
+        // TODO #Architecture: follow a seller's buyers alone once sellers beside the platform sell, standing their rows on each call
+        follows: [accountsShape.at({ key: { scope: Scope.universe.id } })],
     };
 }

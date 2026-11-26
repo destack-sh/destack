@@ -2,16 +2,9 @@ import { FinanceError } from "../error/error.ts";
 import { through, union } from "@destack/access";
 import { BILLING_PERMISSIONS } from "./billing.ts";
 import { argument, Country, plural, t } from "@destack/locale";
-import {
-    account,
-    entitlement,
-    Account,
-    type Allowance,
-    Entitlement,
-    space,
-    type UsageState,
-    USAGE_STATES,
-} from "@destack/account/object";
+import { account, space } from "@destack/account/object";
+import { type Allowance, type UsageState, USAGE_STATES } from "../feature/allowance.ts";
+import { quota, type Quota } from "./quota.ts";
 import { type Select, Table } from "@destack/db";
 import type { Snapshot } from "@destack/db/database";
 import { type IdentifierOf, type MethodContext, defineObject, field } from "@destack/object";
@@ -20,45 +13,45 @@ import { present, schema, type Identifier } from "@destack/schema";
 import { activity, announcement } from "@destack/notification/object";
 import type { ReleaseReader } from "../release/reader.ts";
 import { Allotment, type Resolution } from "./allotment.ts";
-import { Source } from "./source.ts";
+import { Grant } from "./grant.ts";
 import { usageLimit, type UsageSeries } from "./usage.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The usage states the account's readers of billing hear of. */
 const NOTIFIED: ReadonlySet<UsageState> = new Set(["near", "over", "blocked"]);
 
-/** A usage state of an entitlement that its account's readers of billing hear of, per period. */
+/** A usage state of a quota that its account's readers of billing hear of, per period. */
 const UsageAlert = Object.assign(
-    Table.selectSchema(entitlement.table)
+    Table.selectSchema(quota.table)
         .pick({ packageId: true, feature: true, limit: true })
         .extend({
             /** The usage of the feature since its last reset. */
             usage: schema.number().min(0),
             /** The usage state the readers hear of. */
             state: schema.enum(USAGE_STATES),
-            /** The start of the billing period ending first among the granting sources. */
+            /** The start of the billing period ending first among the grants granting it. */
             periodStart: schema.number(),
         }),
     {
         /** Read the thread of an alert's announcements: its feature in its billing period. */
         thread(
-            alert: Pick<Entitlement, "packageId" | "feature"> & { readonly periodStart: number },
+            alert: Pick<Allowance, "packageId" | "feature"> & { readonly periodStart: number },
         ): string {
-            return `${Entitlement.key(alert)}:${alert.periodStart}`;
+            return `${featureKey(alert)}:${alert.periodStart}`;
         },
 
         /** Read the key announcing an alert's state once in its thread. */
         key(
-            alert: Pick<Entitlement, "packageId" | "feature"> & {
+            alert: Pick<Allowance, "packageId" | "feature"> & {
                 readonly state: UsageState;
                 readonly periodStart: number;
             },
         ): string {
-            return `${Entitlement.key(alert)}:${alert.state}:${alert.periodStart}`;
+            return `${featureKey(alert)}:${alert.state}:${alert.periodStart}`;
         },
     },
 );
-/** A usage state of an entitlement that its account's readers of billing hear of. */
+/** A usage state of a quota that its account's readers of billing hear of. */
 type UsageAlert = schema.Infer<typeof UsageAlert>;
 
 /** The longest name or address line a provider stores. */
@@ -123,8 +116,12 @@ export const customer = defineObject(
         access: {
             permissions: {
                 ...BILLING_PERMISSIONS,
-                // let its residency's servers read too, announcing the account's usage limits on it
-                read: union(through("account", "read"), through("account", "serve")),
+                // let its region's servers read too, announcing the account's usage limits on it
+                read: union(
+                    through("account", "read"),
+                    through("account", "serve"),
+                    through("account", "sell"),
+                ),
             },
             reserved: ["provide"],
         },
@@ -197,7 +194,7 @@ export const Customer = {
         ]);
     },
 
-    /** Resolve each feature an account's sources grant now, with its metered usage. */
+    /** Resolve each feature an account's grants allow now, with its metered usage. */
     async resolve(
         accountId: IdentifierOf<typeof account>,
         releases: ReleaseReader,
@@ -205,59 +202,77 @@ export const Customer = {
         events: UsageSeries,
         now: number,
     ): Promise<Resolution[]> {
-        // allot each source's grant of each feature of its product
+        // allot each feature of each grant
         const allotments: Allotment[] = [];
-        for (const source of await Source.list(accountId, now, reader)) {
-            for (const grant of source.grants) {
-                const allotment = await source.allot(accountId, grant, releases, events, now);
+        for (const grant of await Grant.list(accountId, now, reader)) {
+            const budget = await grant.budget(reader);
+            for (const feature of grant.features) {
+                const allotment = await grant.allot(
+                    accountId,
+                    feature,
+                    releases,
+                    events,
+                    now,
+                    budget,
+                );
                 if (allotment !== undefined) {
                     allotments.push(allotment);
                 }
             }
         }
 
-        // resolve each feature across its sources
-        const grouped = Map.groupBy(allotments, (allotment) => Entitlement.key(allotment));
+        // resolve each feature across its grants
+        const grouped = Map.groupBy(allotments, (allotment) => featureKey(allotment));
 
         return [...grouped.values()].map((granted) => Allotment.resolve(granted));
     },
 
-    /** Derive an account's entitlement changes and usage alerts from its features' resolutions. */
+    /** Derive an account's quota changes and usage alerts from its metered resolutions. */
     async derive(
         accountId: IdentifierOf<typeof account>,
         resolutions: readonly Resolution[],
         reader: Pick<Snapshot, "read">,
+        home: string,
     ): Promise<{ readonly calls: Call[]; readonly alerts: UsageAlert[] }> {
-        // lay out each resolution as an allowance
-        const allowances = resolutions.map((resolved): Allowance => {
-            const { packageId, feature, resource } = resolved;
+        // compare each metered resolution with the account's stored quota of its feature
+        const meters = resolutions.flatMap((resolved) =>
+            resolved.kind === "metered" ? [resolved] : [],
+        );
+        const stored = await reader.read(quota.table).findMany({ where: { accountId } });
+        const quotas = new Map(stored.map((row) => [featureKey(row), row]));
+        const calls: Call[] = [];
+        for (const resolved of meters) {
+            const { packageId, feature, limit, usage, resetAt, state, periodStart } = resolved;
+            const terms = { limit, usage, resetAt, state, periodStart };
+            const row = quotas.get(featureKey(resolved));
+            if (row === undefined) {
+                calls.push(
+                    quota.call("create", {
+                        ...quota.in(home),
+                        accountId,
+                        packageId,
+                        feature,
+                        ...terms,
+                    }),
+                );
+            } else if (!isSameQuota(row, terms)) {
+                calls.push(quota.call("update", { ...quota.target(row), ...terms }));
+            }
+        }
 
-            return { packageId, feature, ...columns(resolved), resource };
-        });
+        // delete the quotas of features no grant meters any more
+        const metered = new Set(meters.map((resolved) => featureKey(resolved)));
+        for (const row of stored) {
+            if (!metered.has(featureKey(row))) {
+                calls.push(quota.call("delete", quota.target(row)));
+            }
+        }
 
-        // entitle the account at its home once its replicated entitlements differ, which the home compares again
-        const stored = await reader
-            .read(entitlement.table)
-            .findMany({ where: { scope: accountId } });
-        const replicated = new Map(stored.map((row) => [Entitlement.key(row), row]));
-        const isOutdated =
-            stored.length !== allowances.length ||
-            allowances.some((wanted) => {
-                const row = replicated.get(Entitlement.key(wanted));
-
-                return row === undefined || !Entitlement.isSame(row, wanted);
-            });
-        const owner = await Account.of(reader, accountId);
-        const calls = isOutdated
-            ? [account.call("entitle", { ...account.target(owner), allowances })]
-            : [];
-
-        // alert each metered usage state the readers hear of, once it differs from the stored one
-        const alerts = resolutions.flatMap((resolved): UsageAlert[] => {
-            // keep a changed metered state the readers hear of
-            const isChanged =
-                replicated.get(Entitlement.key(resolved))?.state !== columns(resolved).state;
-            if (resolved.kind !== "metered" || !isChanged || !NOTIFIED.has(resolved.state)) {
+        // alert each changed usage state the readers hear of
+        const alerts = meters.flatMap((resolved): UsageAlert[] => {
+            // keep a changed state the readers hear of
+            const isChanged = quotas.get(featureKey(resolved))?.state !== resolved.state;
+            if (!isChanged || !NOTIFIED.has(resolved.state)) {
                 return [];
             }
             const { packageId, feature, usage, limit, state, periodStart } = resolved;
@@ -301,24 +316,21 @@ export const Customer = {
     },
 };
 
-/** Lay a resolved grant out in an entitlement's columns. */
-function columns(
-    resolved: Resolution,
-): Pick<Entitlement, "kind" | "value" | "limit" | "resetAt" | "state"> {
-    const unmetered = { limit: null, resetAt: null, state: null };
+/** Key a feature's grant, resolution or quota by its package and name. */
+function featureKey(row: Pick<Allowance, "packageId" | "feature">): string {
+    return `${row.packageId}/${row.feature}`;
+}
 
-    // copy a metered grant's limit, reset and state
-    if (resolved.kind === "metered") {
-        const { limit, resetAt, state } = resolved;
-
-        return { kind: "metered", value: null, limit, resetAt, state };
-    }
-    // copy a static grant's value
-    else if (resolved.kind === "static") {
-        return { ...unmetered, kind: "static", value: resolved.value };
-    }
-    // grant access alone
-    else {
-        return { ...unmetered, kind: "boolean", value: null };
-    }
+/** Report whether a stored quota already holds a resolution's terms. */
+function isSameQuota(
+    row: Quota,
+    terms: Pick<Quota, "limit" | "usage" | "resetAt" | "state" | "periodStart">,
+): boolean {
+    return (
+        row.limit === terms.limit &&
+        row.usage === terms.usage &&
+        row.resetAt === terms.resetAt &&
+        row.state === terms.state &&
+        row.periodStart === terms.periodStart
+    );
 }

@@ -42,7 +42,7 @@ export const product = defineObject(
                     resource({ "archived-at": { isNull: true } }),
                 ),
                 sell: through("account", "manage"),
-                provide: through("account", "serve"),
+                provide: through("account", "sell"),
             },
         },
         traits: [archivable({ by: "sell" })],
