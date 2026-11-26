@@ -9,11 +9,16 @@ export const clusterTags = defineExample({
     of: Cluster,
     name: "tags",
     description: t`A note's tags in a row that wraps at narrow widths.`,
-    render: () => (
-        <Cluster space="2" render={(attributes) => <ul aria-label="Tags" {...attributes} />}>
+    properties: {
+        space: "2",
+    },
+    render: (properties) => (
+        <Cluster {...properties} render={(attributes) => <ul aria-label="Tags" {...attributes} />}>
             {["launch", "planning", "marketing", "q4", "waitlist"].map((tag) => (
                 <li>
-                    <Badge variant="secondary">{tag}</Badge>
+                    <Badge variant="soft" color="gray">
+                        {tag}
+                    </Badge>
                 </li>
             ))}
         </Cluster>

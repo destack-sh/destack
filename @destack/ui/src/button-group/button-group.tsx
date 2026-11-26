@@ -1,4 +1,5 @@
-import type { Axis } from "../position/index.ts";
+import { t } from "@destack/locale";
+import { ORIENTATION } from "../position/index.ts";
 import * as style from "@destack/style";
 import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -6,11 +7,11 @@ import { type JSX, merge, omit, untrack } from "@destack/view";
 import { DivideContext, JoinContext, useJoin } from "../join/index.ts";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-
-/** The orientation of a button group that sets none. */
-const DEFAULTS: Required<Pick<ButtonGroupProperties, "orientation">> = {
-    orientation: "horizontal",
-};
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The styles of a button group and its elements. */
 const styles = style.create({
@@ -52,38 +53,51 @@ const orientations = style.create({
 export type ButtonGroupElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
 
-/** The properties of a button group, the native element's attributes included. */
-export interface ButtonGroupProperties extends ButtonGroupElementProperties {
-    /** The direction, horizontal by default. */
-    readonly orientation?: Axis;
+/** The properties people change in a button group's controls and inspector. */
+const BUTTON_GROUP_PROPERTIES = {
+    orientation: ORIENTATION.described(t`Whether the buttons join in a row or a column.`).default(
+        "horizontal",
+    ),
+};
+
+/** The properties of a button group besides its declared ones: its native attributes. */
+export interface ButtonGroupAttributes extends ButtonGroupElementProperties {
     /** Whether a line sets filled controls apart, false by default. */
     readonly divided?: boolean;
 }
 
 /** Render buttons, inputs and selects joined into one control, or groups of them spaced apart. */
-export function ButtonGroup(properties: ButtonGroupProperties): JSX.Element {
-    const group = merge(DEFAULTS, properties);
-    const rest = omit(group, "orientation", "divided");
+export const ButtonGroup = defineComponent({
+    name: "buttonGroup",
+    properties: BUTTON_GROUP_PROPERTIES,
+    render(
+        properties: RenderProperties<ButtonGroupAttributes, typeof BUTTON_GROUP_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "orientation", "divided");
 
-    return (
-        <JoinContext value={() => group.orientation}>
-            <DivideContext value={untrack(() => group.divided === true)}>
-                {renderPart(
-                    "div",
-                    "button-group",
-                    rest,
-                    () => [styles.group, orientations[group.orientation]],
-                    {
-                        get "data-orientation"() {
-                            return group.orientation;
+        return (
+            <JoinContext value={() => properties.orientation}>
+                <DivideContext value={untrack(() => properties.divided === true)}>
+                    {renderPart(
+                        "div",
+                        "button-group",
+                        rest,
+                        () => [styles.group, orientations[properties.orientation]],
+                        {
+                            get "data-orientation"() {
+                                return properties.orientation;
+                            },
+                            role: "group" as const,
                         },
-                        role: "group" as const,
-                    },
-                )}
-            </DivideContext>
-        </JoinContext>
-    );
-}
+                    )}
+                </DivideContext>
+            </JoinContext>
+        );
+    },
+});
+
+/** The properties of a button group, its native attributes included. */
+export type ButtonGroupProperties = ComponentProperties<typeof ButtonGroup>;
 
 /** Render a label or icon joined to a group's buttons. */
 export function ButtonGroupText(properties: ButtonGroupElementProperties): JSX.Element {

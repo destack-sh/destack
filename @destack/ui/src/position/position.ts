@@ -23,6 +23,22 @@ export const AXES = {
 /** The axis a component runs along, each describing and defaulting it as it lays out. */
 export const ORIENTATION = field.enum(AXES).labeled(t.context("label")`Orientation`);
 
+/** The spacing steps of the theme, which read the same in every language. */
+const SPACES = [
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+] as const satisfies readonly (keyof typeof space)[];
+
+/** The space a layout leaves between its elements, each describing and defaulting it. */
+export const SPACE = field.enum(SPACES).labeled(t.context("label")`Space`);
+
 /** The sides of its anchor an overlay opens on, as a person chooses one. */
 export const SIDES = {
     top: { title: t.context("option")`Top` },

@@ -1,10 +1,18 @@
+import { SPACE } from "../position/index.ts";
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** A cover's least height unless set, the viewport's, and its space between and around elements. */
-const DEFAULTS = { minHeight: "100svh", space: "4", noPad: false } as const;
+const DEFAULTS = { minHeight: "100svh" } as const;
 
 /** The styles of a cover and its centered element. */
 const styles = style.create({
@@ -22,26 +30,45 @@ const styles = style.create({
     },
 });
 
-/** The properties of a cover, the native element's attributes included. */
-export interface CoverProperties
+/** The properties people change in a cover's controls and inspector. */
+const COVER_PROPERTIES = {
+    space: SPACE.described(t`The space between the elements and inside the cover's edges.`).default(
+        "4",
+    ),
+    noPad: field
+        .boolean()
+        .labeled(t.context("label")`No padding`)
+        .described(t`Leaves out the space inside the cover's edges.`)
+        .default(false),
+};
+
+/** The properties of a cover besides its declared ones: its height and attributes. */
+export interface CoverAttributes
     extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style">, ElementPartProperties {
     /** The least height of the cover, any CSS length. */
     readonly minHeight?: string;
-    /** The spacing step between the elements and inside the cover's edges. */
-    readonly space?: keyof typeof space;
-    /** Whether the cover leaves out the space inside its edges. */
-    readonly noPad?: boolean;
 }
 
 /** Fill at least a height, centering one element vertically with others above and below it. */
-export function Cover(properties: CoverProperties): JSX.Element {
-    const cover = merge(DEFAULTS, properties);
+export const Cover = defineComponent({
+    name: "cover",
+    properties: COVER_PROPERTIES,
+    render(properties: RenderProperties<CoverAttributes, typeof COVER_PROPERTIES>): JSX.Element {
+        const cover = merge(DEFAULTS, properties);
 
-    return renderPart("div", "cover", omit(cover, "minHeight", "space", "noPad"), () => [
-        styles.cover,
-        styles.layout(cover.minHeight, space[cover.space], cover.noPad ? "0" : space[cover.space]),
-    ]);
-}
+        return renderPart("div", "cover", omit(cover, "minHeight", "space", "noPad"), () => [
+            styles.cover,
+            styles.layout(
+                cover.minHeight,
+                space[cover.space],
+                cover.noPad ? "0" : space[cover.space],
+            ),
+        ]);
+    },
+});
+
+/** The properties of a cover, its native attributes included. */
+export type CoverProperties = ComponentProperties<typeof Cover>;
 
 /** The properties of a cover's centered element, the native element's attributes included. */
 export type CoverCenterProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &

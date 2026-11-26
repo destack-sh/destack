@@ -22,14 +22,16 @@ test("show every component that declares properties in an example of its own", (
     expect(missing).toEqual([]);
 });
 
-test("label and describe every declared property, and title each of its choices", () => {
-    // read each property as the inspector does
+test("label and describe every declared property, and title each of its choices in words", () => {
+    // read each property as the inspector does, where only choices in words need a title
     const problems = DECLARING.flatMap(([name, component]) =>
         Object.entries(component.properties).flatMap(([key, definition]) => {
             const input = ActionInput.of(key, definition);
             const untitled =
                 input.value.kind === "choice"
-                    ? input.value.choices.filter((choice) => choice.title === undefined)
+                    ? input.value.choices.filter(
+                          (choice) => choice.title === undefined && /\p{L}/u.test(choice.value),
+                      )
                     : [];
 
             return [

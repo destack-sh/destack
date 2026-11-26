@@ -25,8 +25,8 @@ export const centerArticle = defineExample({
     of: Center,
     name: "article",
     description: t`An article centered at a readable line length.`,
-    render: () => (
-        <Center render={(attributes) => <article {...attributes} />}>
+    render: (properties) => (
+        <Center {...properties} render={(attributes) => <article {...attributes} />}>
             <Stack>
                 <h1 {...style.attrs(text["2xl"], styles.title)}>Introducing Destack</h1>
                 <p {...style.attrs(text.base, styles.note)}>
