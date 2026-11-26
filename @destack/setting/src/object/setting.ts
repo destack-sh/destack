@@ -79,7 +79,7 @@ export const setting = defineObject(
     (method) => ({
         /** Resolve a setting's value for a selection with its sources, as git config shows them. */
         resolve: method.query({
-            title: t`Resolve`,
+            title: t.context("action")`Resolve`,
             permission: "read",
             target: "scope",
             input: schema.object({

@@ -5,7 +5,7 @@ import { SettingError } from "./error/error.ts";
 
 /** The handle stores serve setting values through, and clients call them by. */
 export default definePackage({
-    title: t`Settings`,
+    title: t.context("title")`Settings`,
     description: t`Declare, place and resolve scoped settings.`,
     icon: "gear-six",
     color: "purple",
