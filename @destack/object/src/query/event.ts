@@ -102,7 +102,7 @@ export const EventLog = {
         // cut the page, then filter the rows the caller may read
         const page = listing.result(
             read.events.map((event) => kind.row(event)),
-            (row) => EventCursor.parse(row),
+            (row) => EventCursor.parse({ time: row["time"], id: row["id"] }),
         );
         const { rows: items } = await execution.authorization.filter(
             context.object,

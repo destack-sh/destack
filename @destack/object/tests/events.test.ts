@@ -185,11 +185,29 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
                 before: START + 2 * MINUTE,
             }),
         );
+    // page through the visits one at a time, bob's leaving its page empty for alice before her next
+    const paged = async (cursor?: string) =>
+        await store.query(
+            alice,
+            visit.call("list", {
+                spaceId,
+                orderBy: { time: "asc" },
+                limit: 1,
+                ...(cursor === undefined ? {} : { cursor }),
+            }),
+        );
+    const first = await paged();
+    const second = await paged(present(first.cursor, "the first page's cursor"));
+    const third = await paged(present(second.cursor, "the second page's cursor"));
     expect({
         recorded,
         listed: (
             await store.query(alice, visit.call("list", { spaceId, orderBy: { time: "asc" } }))
         ).items.map((item) => item.id),
+        pages: [first, second, third].map((listing) => [
+            listing.items.map((item) => item.id),
+            listing.cursor === null,
+        ]),
         visited: await get("visit-01996ab0-0000-7000-8000-000000000002"),
         other: await refusal(get("visit-01996ab0-0000-7000-8000-000000000003")),
         folded: await fold({ visitorId: users.alice }),
@@ -208,6 +226,11 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
         listed: [
             "visit-01996ab0-0000-7000-8000-000000000001",
             "visit-01996ab0-0000-7000-8000-000000000002",
+        ],
+        pages: [
+            [["visit-01996ab0-0000-7000-8000-000000000001"], false],
+            [[], false],
+            [["visit-01996ab0-0000-7000-8000-000000000002"], true],
         ],
         visited: "about",
         other: [
