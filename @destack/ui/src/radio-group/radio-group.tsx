@@ -1,7 +1,7 @@
-import { state } from "@destack/theme/state";
-import { AXES } from "../position/index.ts";
-import { t } from "@destack/locale";
 import { field } from "@destack/object";
+import { state } from "@destack/theme/state";
+import { ORIENTATION } from "../position/index.ts";
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
@@ -48,11 +48,9 @@ const BESIDE_CONTENT = ":is([data-slot=field]:has(> [data-slot=field-content]) >
 
 /** The properties people change in a radio group's controls and inspector. */
 const RADIO_GROUP_PROPERTIES = {
-    orientation: field
-        .enum(AXES)
-        .labeled(t.context("label")`Orientation`)
-        .described(t`Whether the radios lie in a column or a row.`)
-        .default("vertical"),
+    orientation: ORIENTATION.described(t`Whether the radios lie in a column or a row.`).default(
+        "vertical",
+    ),
     disabled: field
         .boolean()
         .labeled(t.context("label")`Disabled`)

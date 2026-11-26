@@ -109,9 +109,9 @@ export const markerSteps = defineExample({
     name: "steps",
     description: t`What an assistant did for an answer, the last step under way.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Stack space="3">
-            <Marker>
+            <Marker {...properties}>
                 <MarkerIcon>
                     <Icon icon={magnifyingGlassIcon} />
                 </MarkerIcon>
@@ -139,10 +139,12 @@ export const markerAgent = defineExample({
     name: "agent",
     description: t`What an agent thought, ran, failed to run and used, each with its detail.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Stack space="2">
             <Step icon={<Icon icon={brainIcon} />} title="Thought" description="5s">
-                <Marker>The quotes arrive in three currencies, so they need one rate.</Marker>
+                <Marker {...properties}>
+                    The quotes arrive in three currencies, so they need one rate.
+                </Marker>
             </Step>
             <Step
                 icon={<Icon icon={terminalWindowIcon} />}
@@ -221,12 +223,15 @@ export const markerPlan = defineExample({
     name: "plan",
     description: t`The steps an agent plans, and how far it has come.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Step icon={<Icon icon={magnifyingGlassIcon} />} title="Plan" description="1 of 3" isOpen>
             <Stack space="2">
                 <For each={PLAN}>
                     {([title, state]) => (
-                        <Marker status={state === "running" ? "running" : undefined}>
+                        <Marker
+                            {...properties}
+                            status={state === "running" ? "running" : undefined}
+                        >
                             <MarkerIcon>
                                 {state === "running" ? (
                                     <Spinner />
@@ -251,7 +256,7 @@ export const markerLive = defineExample({
     name: "live",
     description: t`An agent's turn as it happens: open while it works, and a summary once done.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         // take a step at a time
         const { clock } = useEnvironment();
         const [done, setDone] = createSignal(0, { ownedWrite: true });
@@ -280,15 +285,15 @@ export const markerLive = defineExample({
         const isOpen = (): boolean => chosen() ?? isWorking();
         const status = (index: number): MarkerStatus | undefined =>
             done() === index ? "running" : undefined;
-        const Row = (properties: { readonly index: number }): JSX.Element => (
-            <Show when={done() >= properties.index}>
-                <Marker status={status(properties.index)} xstyle={styles.arriving}>
+        const Row = (row: { readonly index: number }): JSX.Element => (
+            <Show when={done() >= row.index}>
+                <Marker {...properties} status={status(row.index)} xstyle={styles.arriving}>
                     <MarkerIcon>
-                        <Show when={done() > properties.index} fallback={<Spinner />}>
+                        <Show when={done() > row.index} fallback={<Spinner />}>
                             <Icon icon={checkCircleIcon} />
                         </Show>
                     </MarkerIcon>
-                    <MarkerContent>{LIVE[properties.index]}</MarkerContent>
+                    <MarkerContent>{LIVE[row.index]}</MarkerContent>
                 </Marker>
             </Show>
         );
@@ -348,25 +353,4 @@ export const markerLive = defineExample({
             </Stack>
         );
     },
-});
-
-/** A day, someone joining, and the end of a section. */
-export const markerSeparators = defineExample({
-    of: Marker,
-    name: "separators",
-    description: t`A day and someone joining between two lines, and a row above a line.`,
-    layout: "padded",
-    render: () => (
-        <Stack space="4">
-            <Marker variant="separator">
-                <MarkerContent>Today</MarkerContent>
-            </Marker>
-            <Marker variant="separator">
-                <MarkerContent>Grace joined the conversation</MarkerContent>
-            </Marker>
-            <Marker variant="border">
-                <MarkerContent>Ada renamed the channel to launch</MarkerContent>
-            </Marker>
-        </Stack>
-    ),
 });

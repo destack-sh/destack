@@ -1,11 +1,15 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import { color, radius, size, space, weight, width } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, merge, omit } from "@destack/view";
+import { type JSX, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-
-/** The variant of an empty state's media that sets none. */
-const DEFAULTS: Required<Pick<EmptyMediaProperties, "variant">> = { variant: "default" };
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The styles of an empty state and its elements. */
 const styles = style.create({
@@ -68,17 +72,35 @@ const medias = style.create({
 });
 
 /** How an empty state frames its media: bare, or as an icon on a muted tile. */
-export type EmptyMediaVariant = "default" | "icon";
+export type EmptyMediaVariant = keyof typeof EMPTY_MEDIA_VARIANTS;
 
 /** The properties of an element of an empty state, the native element's attributes included. */
 export type EmptyElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
 
-/** The properties of an empty state's media, the native element's attributes included. */
-export interface EmptyMediaProperties extends EmptyElementProperties {
-    /** The frame, default by default. */
-    readonly variant?: EmptyMediaVariant;
-}
+/** The frames of an empty state's media. */
+const EMPTY_MEDIA_VARIANTS = {
+    default: {
+        title: t.context("option")`Default`,
+        description: t`Bare, as an illustration.`,
+    },
+    icon: {
+        title: t.context("option")`Icon`,
+        description: t`An icon on a muted tile.`,
+    },
+};
+
+/** The properties people change in an empty state's media's controls and inspector. */
+const EMPTY_MEDIA_PROPERTIES = {
+    variant: field
+        .enum(EMPTY_MEDIA_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the media stands bare or as an icon on a tile.`)
+        .default("default"),
+};
+
+/** The properties of an empty state's media besides its declared ones: its native attributes. */
+export interface EmptyMediaAttributes extends EmptyElementProperties {}
 
 /** Render what a list, search or page shows when it has nothing yet. */
 export function Empty(properties: EmptyElementProperties): JSX.Element {
@@ -91,16 +113,30 @@ export function EmptyHeader(properties: EmptyElementProperties): JSX.Element {
 }
 
 /** Render an empty state's icon, avatar or picture. */
-export function EmptyMedia(properties: EmptyMediaProperties): JSX.Element {
-    const media = merge(DEFAULTS, properties);
-    const rest = omit(media, "variant");
+export const EmptyMedia = defineComponent({
+    name: "emptyMedia",
+    properties: EMPTY_MEDIA_PROPERTIES,
+    render(
+        properties: RenderProperties<EmptyMediaAttributes, typeof EMPTY_MEDIA_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "variant");
 
-    return renderPart("div", "empty-media", rest, () => [styles.media, medias[media.variant]], {
-        get "data-variant"() {
-            return media.variant;
-        },
-    });
-}
+        return renderPart(
+            "div",
+            "empty-media",
+            rest,
+            () => [styles.media, medias[properties.variant]],
+            {
+                get "data-variant"() {
+                    return properties.variant;
+                },
+            },
+        );
+    },
+});
+
+/** The properties of an empty state's media, its native attributes included. */
+export type EmptyMediaProperties = ComponentProperties<typeof EmptyMedia>;
 
 /** Render the title of an empty state. */
 export function EmptyTitle(properties: EmptyElementProperties): JSX.Element {

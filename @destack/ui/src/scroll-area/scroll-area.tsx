@@ -1,5 +1,5 @@
-import { t } from "@destack/locale";
 import { field } from "@destack/object";
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
@@ -23,7 +23,7 @@ import {
     renderPart,
     type Render,
 } from "../part/index.ts";
-import { type Axis, Scroll, scrollFade, AXES } from "../position/index.ts";
+import { type Axis, Scroll, scrollFade, AXES, ORIENTATION } from "../position/index.ts";
 import { areaMarker } from "./scroll-area.stylex.ts";
 import {
     type ComponentProperties,
@@ -240,11 +240,9 @@ function StandardBars(properties: { readonly orientation: Axis | "both" }): JSX.
 
 /** The properties people change in a scroll bar's controls and inspector. */
 const SCROLL_AREA_BAR_PROPERTIES = {
-    orientation: field
-        .enum(AXES)
-        .labeled(t.context("label")`Orientation`)
-        .described(t`Whether the bar runs down the side or across the bottom.`)
-        .default("vertical"),
+    orientation: ORIENTATION.described(
+        t`Whether the bar runs down the side or across the bottom.`,
+    ).default("vertical"),
 };
 
 /** The properties of a scroll bar besides its declared ones: its attributes. */

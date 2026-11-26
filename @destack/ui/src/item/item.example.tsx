@@ -13,7 +13,6 @@ import {
     ItemMedia,
     ItemSeparator,
     ItemTitle,
-    itemVariants,
 } from "./item.tsx";
 
 /** The styles of a group of outlined items, set apart. */
@@ -26,9 +25,9 @@ export const itemRecentNotes = defineExample({
     of: Item,
     name: "recentNotes",
     description: t`A notebook's recent notes, one archivable and one opened by a link.`,
-    render: () => (
+    render: (properties) => (
         <ItemGroup aria-label="Recent notes">
-            <Item>
+            <Item {...properties}>
                 <ItemMedia variant="icon">
                     <Icon name="notebook" />
                 </ItemMedia>
@@ -42,7 +41,7 @@ export const itemRecentNotes = defineExample({
             </Item>
             <ItemSeparator />
             <div role="listitem">
-                <a href="/notes/trip" {...style.attrs(itemVariants({ size: "sm" }))}>
+                <a href="/notes/trip" {...style.attrs(Item.styles({ size: "sm" }))}>
                     <ItemContent>
                         <ItemTitle>Trip to Lisbon</ItemTitle>
                     </ItemContent>
@@ -77,7 +76,7 @@ export const itemRecentNotesOutlined = defineExample({
             <div role="listitem">
                 <a
                     href="/notes/trip"
-                    {...style.attrs(itemVariants({ variant: "outline", size: "sm" }))}
+                    {...style.attrs(Item.styles({ variant: "outline", size: "sm" }))}
                 >
                     <ItemContent>
                         <ItemTitle>Trip to Lisbon</ItemTitle>
@@ -85,5 +84,24 @@ export const itemRecentNotesOutlined = defineExample({
                 </a>
             </div>
         </ItemGroup>
+    ),
+});
+
+/** A note's row, its picture framed on its own. */
+export const itemMediaDefault = defineExample({
+    of: ItemMedia,
+    name: "default",
+    description: t`A note's row, its picture framed on its own.`,
+    properties: { variant: "icon" },
+    render: (properties) => (
+        <Item variant="outline">
+            <ItemMedia {...properties}>
+                <Icon name="notebook" />
+            </ItemMedia>
+            <ItemContent>
+                <ItemTitle>Trip to Lisbon</ItemTitle>
+                <ItemDescription>Edited yesterday</ItemDescription>
+            </ItemContent>
+        </Item>
     ),
 });

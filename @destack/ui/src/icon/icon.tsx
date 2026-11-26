@@ -1,15 +1,39 @@
+import { field } from "@destack/object";
+import { type Message, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { type Accessor, createSignal, type JSX } from "@destack/view";
 import { IconBodies, type IconName, type IconWeight } from "@destack/icon";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
-/** The properties of an icon. */
-export interface IconProperties {
+/** The weights an icon draws in, from thinnest to filled. */
+const ICON_WEIGHTS = {
+    thin: { title: t.context("option")`Thin` },
+    light: { title: t.context("option")`Light` },
+    regular: { title: t.context("option")`Regular` },
+    bold: { title: t.context("option")`Bold` },
+    fill: { title: t.context("option")`Fill` },
+    duotone: { title: t.context("option")`Duotone` },
+} satisfies Record<IconWeight, { readonly title: Message }>;
+
+/** The properties people change in an icon's controls and inspector. */
+const ICON_PROPERTIES = {
+    weight: field
+        .enum(ICON_WEIGHTS)
+        .labeled(t.context("label")`Weight`)
+        .described(t`How heavy the icon's strokes are, or whether it is filled.`)
+        .default("regular"),
+};
+
+/** The properties of an icon besides its declared ones: what it draws, its size and name. */
+export interface IconAttributes {
     /** The Phosphor icon to draw, written as a literal so the build passes its bodies as `icon`. */
     readonly name?: IconName;
     /** The bodies to draw, imported from `@destack/icon/phosphor/<name>`. */
     readonly icon?: IconBodies;
-    /** The weight to draw the icon in, regular by default. */
-    readonly weight?: IconWeight;
     /** The width and height as a CSS length or user units, 1em by default. */
     readonly size?: number | string;
     /** The accessible name, which exposes the icon as an image instead of hiding it. */
@@ -24,31 +48,38 @@ const styles = style.create({
 });
 
 /** Draw a Phosphor icon inline in the current text color. */
-export function Icon(properties: IconProperties): JSX.Element {
-    // draw the body of the passed bodies, which the build passes for a literal name
-    const body = (): string => {
-        if (properties.icon === undefined) {
-            throw new TypeError(`icon without bodies: '${properties.name ?? "unnamed"}'`);
-        }
+export const Icon = defineComponent({
+    name: "icon",
+    properties: ICON_PROPERTIES,
+    render(properties: RenderProperties<IconAttributes, typeof ICON_PROPERTIES>): JSX.Element {
+        // draw the body of the passed bodies, which the build passes for a literal name
+        const body = (): string => {
+            if (properties.icon === undefined) {
+                throw new TypeError(`icon without bodies: '${properties.name ?? "unnamed"}'`);
+            }
 
-        return properties.icon[properties.weight ?? "regular"];
-    };
+            return properties.icon[properties.weight];
+        };
 
-    return (
-        <svg
-            viewBox="0 0 256 256"
-            fill="currentColor"
-            width={properties.size ?? "1em"}
-            height={properties.size ?? "1em"}
-            role={properties.label === undefined ? undefined : "img"}
-            aria-label={properties.label}
-            aria-hidden={properties.label === undefined ? "true" : undefined}
-            data-slot="icon"
-            innerHTML={body()}
-            {...style.attrs(styles.icon, properties.xstyle)}
-        />
-    );
-}
+        return (
+            <svg
+                viewBox="0 0 256 256"
+                fill="currentColor"
+                width={properties.size ?? "1em"}
+                height={properties.size ?? "1em"}
+                role={properties.label === undefined ? undefined : "img"}
+                aria-label={properties.label}
+                aria-hidden={properties.label === undefined ? "true" : undefined}
+                data-slot="icon"
+                innerHTML={body()}
+                {...style.attrs(styles.icon, properties.xstyle)}
+            />
+        );
+    },
+});
+
+/** The properties of an icon, what it draws included. */
+export type IconProperties = ComponentProperties<typeof Icon>;
 
 /** The bodies of an icon whose module has not arrived yet. */
 const EMPTY: IconBodies = { thin: "", light: "", regular: "", bold: "", fill: "", duotone: "" };

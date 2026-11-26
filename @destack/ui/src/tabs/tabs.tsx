@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import x from "@destack/icon/phosphor/x";
 import { t } from "@destack/locale";
@@ -37,7 +38,7 @@ import {
     type Render,
     renderPart,
 } from "../part/index.ts";
-import { AXES, Scroll, scrollFade } from "../position/index.ts";
+import { Scroll, scrollFade, ORIENTATION } from "../position/index.ts";
 import {
     TabsContext,
     TabsControl,
@@ -52,7 +53,6 @@ import {
     type RenderProperties,
     defineComponent,
 } from "@destack/view/declare";
-import { field } from "@destack/object";
 
 /** The activation of tabs that set none. */
 const DEFAULTS: Required<Pick<TabsAttributes, "activationMode">> = {
@@ -534,11 +534,9 @@ export type TabsValueProperties<Attributes> = TabsElementProperties<Omit<Attribu
 
 /** The properties people change in tabs's controls and inspector. */
 const TABS_PROPERTIES = {
-    orientation: field
-        .enum(AXES)
-        .labeled(t.context("label")`Orientation`)
-        .described(t`Whether the tabs lie in a row or a column.`)
-        .default("horizontal"),
+    orientation: ORIENTATION.described(t`Whether the tabs lie in a row or a column.`).default(
+        "horizontal",
+    ),
 };
 
 /** Track the selected tab of a list of tabs and their panels. */

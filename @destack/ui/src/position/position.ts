@@ -20,6 +20,9 @@ export const AXES = {
     vertical: { title: t.context("option")`Vertical` },
 };
 
+/** The axis a component runs along, each describing and defaulting it as it lays out. */
+export const ORIENTATION = field.enum(AXES).labeled(t.context("label")`Orientation`);
+
 /** The sides of its anchor an overlay opens on, as a person chooses one. */
 export const SIDES = {
     top: { title: t.context("option")`Top` },

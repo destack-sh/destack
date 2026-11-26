@@ -1,7 +1,7 @@
-import { t } from "@destack/locale";
 import { field } from "@destack/object";
+import { t } from "@destack/locale";
 import { state } from "@destack/theme/state";
-import { AXES } from "../position/index.ts";
+import { ORIENTATION } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -95,11 +95,9 @@ const styles = style.create({
 
 /** The properties people change in an accordion's controls and inspector. */
 const ACCORDION_PROPERTIES = {
-    orientation: field
-        .enum(AXES)
-        .labeled(t.context("label")`Orientation`)
-        .described(t`Whether the sections stack in a column or lie in a row.`)
-        .default("vertical"),
+    orientation: ORIENTATION.described(
+        t`Whether the sections stack in a column or lie in a row.`,
+    ).default("vertical"),
     disabled: field
         .boolean()
         .labeled(t.context("label")`Disabled`)

@@ -8,10 +8,10 @@ export const iconActions = defineExample({
     of: Icon,
     name: "actions",
     description: t`Three actions as icons in the current text color, one bold.`,
-    render: () => (
+    render: (properties) => (
         <Cluster>
-            <Icon name="pencil-simple" label="Edit" size="1.5em" />
-            <Icon name="copy-simple" label="Copy" size="1.5em" />
+            <Icon name="pencil-simple" weight={properties.weight} label="Edit" size="1.5em" />
+            <Icon name="copy-simple" weight={properties.weight} label="Copy" size="1.5em" />
             <Icon name="trash" weight="bold" label="Delete" size="1.5em" />
         </Cluster>
     ),

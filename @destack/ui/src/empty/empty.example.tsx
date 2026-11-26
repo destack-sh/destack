@@ -13,13 +13,14 @@ import {
 
 /** A notebook list with no notebooks yet and the action that creates the first. */
 export const emptyNoNotebooks = defineExample({
-    of: Empty,
+    of: EmptyMedia,
     name: "noNotebooks",
     description: t`A notebook list with no notebooks yet and the action that creates the first.`,
-    render: () => (
+    properties: { variant: "icon" },
+    render: (properties) => (
         <Empty>
             <EmptyHeader>
-                <EmptyMedia variant="icon">
+                <EmptyMedia {...properties}>
                     <Icon name="notebook" />
                 </EmptyMedia>
                 <EmptyTitle>No notebooks yet</EmptyTitle>

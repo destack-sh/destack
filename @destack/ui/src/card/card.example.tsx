@@ -65,8 +65,8 @@ export const cardStoragePlan = defineExample({
     of: Card,
     name: "storagePlan",
     description: t`A storage plan's usage bar, what uses the space, an upgrade and a way to manage it.`,
-    render: () => (
-        <Card xstyle={storage.card}>
+    render: (properties) => (
+        <Card {...properties} xstyle={storage.card}>
             <CardHeader>
                 <CardTitle>Storage</CardTitle>
                 <CardDescription>2 of 5 GB used</CardDescription>
@@ -102,8 +102,8 @@ export const cardNotePreview = defineExample({
     of: Card,
     name: "notePreview",
     description: t`A note's card with its text and two actions in the footer.`,
-    render: () => (
-        <Card>
+    render: (properties) => (
+        <Card {...properties}>
             <CardHeader>
                 <CardTitle>Trip to Lisbon</CardTitle>
                 <CardDescription>Edited yesterday</CardDescription>

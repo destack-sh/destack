@@ -3,15 +3,69 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
+import { createContext, type JSX, omit, useContext } from "@destack/view";
+import {
+    type ComponentProperties,
+    type DeclaredProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
+import { field } from "@destack/object";
+import { t } from "@destack/locale";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
 import { renderPart, type Render } from "../part/index.ts";
 
-/** The variant and size of an item that sets neither. */
-const DEFAULTS: Required<ItemVariantProperties> = { variant: "default", size: "default" };
+/** The looks of an item. */
+const ITEM_VARIANTS = {
+    default: { title: t.context("option")`Default` },
+    outline: { title: t.context("option")`Outline` },
+    muted: { title: t.context("option")`Muted` },
+};
 
-/** The variant of an item's media that sets none. */
-const MEDIA_DEFAULTS: Required<Pick<ItemMediaProperties, "variant">> = { variant: "default" };
+/** The gaps and paddings of an item. */
+const ITEM_SIZES = {
+    default: { title: t.context("option")`Default` },
+    sm: { title: t.context("option")`Small` },
+};
+
+/** The frames of an item's media. */
+const ITEM_MEDIA_VARIANTS = {
+    default: {
+        title: t.context("option")`Default`,
+        description: t`Bare, as an avatar.`,
+    },
+    icon: {
+        title: t.context("option")`Icon`,
+        description: t`An icon on a muted tile.`,
+    },
+    image: {
+        title: t.context("option")`Image`,
+        description: t`A cropped picture.`,
+    },
+};
+
+/** The properties people change in an item's controls and inspector. */
+const ITEM_PROPERTIES = {
+    variant: field
+        .enum(ITEM_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the item stands bare, outlined or on a muted fill.`)
+        .default("default"),
+    size: field
+        .enum(ITEM_SIZES)
+        .labeled(t.context("label")`Size`)
+        .described(t`How much room the item leaves around its content.`)
+        .default("default"),
+};
+
+/** The properties people change in an item's media's controls and inspector. */
+const ITEM_MEDIA_PROPERTIES = {
+    variant: field
+        .enum(ITEM_MEDIA_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`How the media is framed beside the item's content.`)
+        .default("default"),
+};
 
 /** The styles of an item and its elements. */
 const styles = style.create({
@@ -145,13 +199,13 @@ const medias = style.create({
 const ItemGroupContext = createContext(false);
 
 /** The look of an item. */
-export type ItemVariant = "default" | "outline" | "muted";
+export type ItemVariant = keyof typeof ITEM_VARIANTS;
 
 /** The gap and padding of an item. */
-export type ItemSize = "default" | "sm";
+export type ItemSize = keyof typeof ITEM_SIZES;
 
 /** How an item frames its media: bare, as an icon on a muted tile, or as a cropped picture. */
-export type ItemMediaVariant = "default" | "icon" | "image";
+export type ItemMediaVariant = keyof typeof ITEM_MEDIA_VARIANTS;
 
 /** The properties of an element of an item, the native element's attributes included. */
 export type ItemElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivElement>> = Omit<
@@ -164,62 +218,67 @@ export type ItemElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivElement
     readonly render?: Render;
 };
 
-/** The variant and size of an item's styles. */
-export interface ItemVariantProperties {
-    /** The look, default by default. */
-    readonly variant?: ItemVariant;
-    /** The gap and padding, default by default. */
-    readonly size?: ItemSize;
-}
+/** The look of an item: its variant and size. */
+type ItemLook = DeclaredProperties<typeof ITEM_PROPERTIES>;
 
-/** The properties of an item, the native element's attributes included. */
-export interface ItemProperties extends ItemElementProperties, ItemVariantProperties {}
-
-/** The properties of an item's media, the native element's attributes included. */
-export interface ItemMediaProperties extends ItemElementProperties {
-    /** The frame, default by default. */
-    readonly variant?: ItemMediaVariant;
-}
-
-/** Return the StyleX styles of an item in a variant and size, for links that look like items. */
-export function itemVariants(options: ItemVariantProperties): style.Styles {
-    const variant = options.variant ?? DEFAULTS.variant;
-
+/** Return the StyleX styles of an element that looks like an item, a link's included. */
+function itemVariants(look: ItemLook): style.Styles {
     return [
         text.sm,
         state.focus,
         styles.item,
-        variants[variant],
-        links[variant],
-        sizes[options.size ?? DEFAULTS.size],
+        variants[look.variant],
+        links[look.variant],
+        sizes[look.size],
     ];
 }
 
 /** Render a row of media, content and actions, listed as an entry inside a group. */
-export function Item(properties: ItemProperties): JSX.Element {
-    // list the item in its group
-    const isGrouped = useContext(ItemGroupContext);
-    const item = merge(DEFAULTS, properties);
-    const rest = omit(item, "variant", "size");
+export const Item = Object.assign(
+    defineComponent({
+        name: "item",
+        properties: ITEM_PROPERTIES,
+        render(
+            properties: RenderProperties<ItemElementProperties, typeof ITEM_PROPERTIES>,
+        ): JSX.Element {
+            // list the item in its group
+            const isGrouped = useContext(ItemGroupContext);
+            const rest = omit(properties, "variant", "size");
 
-    return renderPart(
-        "div",
-        "item",
-        rest,
-        () => [text.sm, state.focus, styles.item, variants[item.variant], sizes[item.size]],
-        {
-            get "data-variant"() {
-                return item.variant;
-            },
-            get "data-size"() {
-                return item.size;
-            },
-            get role() {
-                return isGrouped ? "listitem" : undefined;
-            },
+            return renderPart(
+                "div",
+                "item",
+                rest,
+                () => [
+                    text.sm,
+                    state.focus,
+                    styles.item,
+                    variants[properties.variant],
+                    sizes[properties.size],
+                ],
+                {
+                    get "data-variant"() {
+                        return properties.variant;
+                    },
+                    get "data-size"() {
+                        return properties.size;
+                    },
+                    get role() {
+                        return isGrouped ? "listitem" : undefined;
+                    },
+                },
+            );
         },
-    );
-}
+    }),
+    {
+        /** Read the styles of an item, for an element that only looks like one, such as a link. */
+        styles: (look: Partial<ItemLook>): style.Styles =>
+            itemVariants({ ...Item.defaults, ...look }),
+    },
+);
+
+/** The properties of an item, the native element's attributes included. */
+export type ItemProperties = ComponentProperties<typeof Item>;
 
 /** Render items as a list. */
 export function ItemGroup(properties: ItemElementProperties): JSX.Element {
@@ -243,16 +302,30 @@ export function ItemSeparator(properties: SeparatorProperties): JSX.Element {
 }
 
 /** Render an item's icon, avatar or picture. */
-export function ItemMedia(properties: ItemMediaProperties): JSX.Element {
-    const figure = merge(MEDIA_DEFAULTS, properties);
-    const rest = omit(figure, "variant");
+export const ItemMedia = defineComponent({
+    name: "itemMedia",
+    properties: ITEM_MEDIA_PROPERTIES,
+    render(
+        properties: RenderProperties<ItemElementProperties, typeof ITEM_MEDIA_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "variant");
 
-    return renderPart("div", "item-media", rest, () => [styles.media, medias[figure.variant]], {
-        get "data-variant"() {
-            return figure.variant;
-        },
-    });
-}
+        return renderPart(
+            "div",
+            "item-media",
+            rest,
+            () => [styles.media, medias[properties.variant]],
+            {
+                get "data-variant"() {
+                    return properties.variant;
+                },
+            },
+        );
+    },
+});
+
+/** The properties of an item's media, the native element's attributes included. */
+export type ItemMediaProperties = ComponentProperties<typeof ItemMedia>;
 
 /** Render the title and description of an item, taking the row's free width. */
 export function ItemContent(properties: ItemElementProperties): JSX.Element {

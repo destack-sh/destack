@@ -1,14 +1,14 @@
-import type { Axis } from "../position/index.ts";
+import { t } from "@destack/locale";
+import { ORIENTATION } from "../position/index.ts";
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 import { type Render, renderPart } from "../part/index.ts";
-
-/** The orientation and role of a separator that sets neither. */
-const DEFAULTS: Required<Pick<SeparatorProperties, "orientation" | "decorative">> = {
-    orientation: "horizontal",
-    decorative: true,
-};
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The line of a separator in each orientation. */
 const orientations = style.create({
@@ -28,10 +28,15 @@ const orientations = style.create({
     },
 });
 
-/** The properties of a separator, the native element's attributes included. */
-export interface SeparatorProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
-    /** The direction, horizontal by default. */
-    readonly orientation?: Axis;
+/** The properties people change in a separator's controls and inspector. */
+const SEPARATOR_PROPERTIES = {
+    orientation: ORIENTATION.described(t`Whether the line runs across or down.`).default(
+        "horizontal",
+    ),
+};
+
+/** The properties of a separator besides its declared ones: its role and attributes. */
+export interface SeparatorAttributes extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** Whether the separator only decorates, hidden from assistive technology, true by default. */
     readonly decorative?: boolean;
     /** The StyleX styles applied after the separator's styles. */
@@ -41,22 +46,31 @@ export interface SeparatorProperties extends Omit<JSX.HTMLAttributes<HTMLDivElem
 }
 
 /** Render a line between content, exposed as a separator unless it only decorates. */
-export function Separator(properties: SeparatorProperties): JSX.Element {
-    // mark the part with its orientation and role over its styles
-    const separator = merge(DEFAULTS, properties);
-    const rest = omit(separator, "orientation", "decorative");
+export const Separator = defineComponent({
+    name: "separator",
+    properties: SEPARATOR_PROPERTIES,
+    render(
+        properties: RenderProperties<SeparatorAttributes, typeof SEPARATOR_PROPERTIES>,
+    ): JSX.Element {
+        // mark the part with its orientation and role over its styles
+        const separator = merge({ decorative: true }, properties);
+        const rest = omit(separator, "orientation", "decorative");
 
-    return renderPart("div", "separator", rest, () => orientations[separator.orientation], {
-        get "data-orientation"() {
-            return separator.orientation;
-        },
-        get role() {
-            return separator.decorative ? "none" : "separator";
-        },
-        get "aria-orientation"() {
-            return !separator.decorative && separator.orientation === "vertical"
-                ? "vertical"
-                : undefined;
-        },
-    });
-}
+        return renderPart("div", "separator", rest, () => orientations[separator.orientation], {
+            get "data-orientation"() {
+                return separator.orientation;
+            },
+            get role() {
+                return separator.decorative ? "none" : "separator";
+            },
+            get "aria-orientation"() {
+                return !separator.decorative && separator.orientation === "vertical"
+                    ? "vertical"
+                    : undefined;
+            },
+        });
+    },
+});
+
+/** The properties of a separator, its native attributes included. */
+export type SeparatorProperties = ComponentProperties<typeof Separator>;

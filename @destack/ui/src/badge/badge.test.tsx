@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import * as style from "@destack/style";
-import { Badge, badgeVariants } from "./index.ts";
+import { Badge } from "./index.ts";
 import { classes, markup, render } from "@destack/view/test";
 
 test("render a span with its variant", () => {
@@ -12,7 +12,7 @@ test("style a link like a badge of the same variant", () => {
     const { container } = render(() => (
         <>
             <Badge variant="outline" />
-            <a href="/tags/draft" {...style.attrs(badgeVariants({ variant: "outline" }))} />
+            <a href="/tags/draft" {...style.attrs(Badge.styles({ variant: "outline" }))} />
         </>
     ));
 

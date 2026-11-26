@@ -1,6 +1,6 @@
 import { field } from "@destack/object";
 import { type Direction, t } from "@destack/locale";
-import { type Axis, AXES } from "../position/index.ts";
+import { type Axis, ORIENTATION } from "../position/index.ts";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import {
@@ -77,11 +77,9 @@ const ToolbarContext = createContext<Accessor<Axis>>(() => "horizontal");
 
 /** The properties people change in a toolbar's controls and inspector. */
 const TOOLBAR_PROPERTIES = {
-    orientation: field
-        .enum(AXES)
-        .labeled(t.context("label")`Orientation`)
-        .described(t`Whether the tools lie in a row or a column.`)
-        .default("horizontal"),
+    orientation: ORIENTATION.described(t`Whether the tools lie in a row or a column.`).default(
+        "horizontal",
+    ),
     disabled: field
         .boolean()
         .labeled(t.context("label")`Disabled`)

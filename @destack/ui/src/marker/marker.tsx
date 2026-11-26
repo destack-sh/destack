@@ -1,19 +1,23 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { state } from "@destack/theme/state";
 import { text } from "@destack/theme/text";
 import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
-import { type Accessor, createContext, type JSX, merge, omit, useContext } from "@destack/view";
+import { type Accessor, createContext, type JSX, omit, useContext } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The light that runs over the words of a status under way. */
 const shimmer = style.keyframes({
     from: { backgroundPosition: "150% 0" },
     to: { backgroundPosition: "-50% 0" },
 });
-
-/** The variant of a marker that sets none. */
-const DEFAULTS = { variant: "default" } as const;
 
 /** The styles of a marker and its parts. */
 const styles = style.create({
@@ -100,53 +104,90 @@ const variants = style.create({
 });
 
 /** The layout of a marker: inline, with a line below, or between two lines. */
-export type MarkerVariant = keyof typeof variants;
+export type MarkerVariant = keyof typeof MARKER_VARIANTS;
 
 /** The work a marker reports: under way, or failed. */
-export type MarkerStatus = "running" | "error";
+export type MarkerStatus = keyof typeof MARKER_STATUSES;
 
 /** The status of the nearest marker. */
 const StatusContext = createContext<Accessor<MarkerStatus | undefined>>(() => undefined);
 
-/** The properties of a marker, the native element's attributes included. */
-export type MarkerProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
-    ElementPartProperties & {
-        /** The layout, inline by default. */
-        readonly variant?: MarkerVariant;
-        /** The work it reports, which its words say too, none by default. */
-        readonly status?: MarkerStatus | undefined;
-    };
+/** The layouts of a marker. */
+const MARKER_VARIANTS = {
+    default: {
+        title: t.context("option")`Default`,
+        description: t`In line with the stream.`,
+    },
+    border: {
+        title: t.context("option")`Border`,
+        description: t`With a line below.`,
+    },
+    separator: {
+        title: t.context("option")`Separator`,
+        description: t`Between two lines, as a day is.`,
+    },
+};
+
+/** The work a marker reports. */
+const MARKER_STATUSES = {
+    running: { title: t.context("option")`Running` },
+    error: { title: t.context("option")`Error` },
+};
+
+/** The properties people change in a marker's controls and inspector. */
+const MARKER_PROPERTIES = {
+    variant: field
+        .enum(MARKER_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the marker sits in line, above a line or between two.`)
+        .default("default"),
+    status: field
+        .enum(MARKER_STATUSES)
+        .labeled(t.context("label")`Status`)
+        .described(t`The work it reports, which its words say too.`)
+        .optional(),
+};
+
+/** The properties of a marker besides its declared ones: its native attributes. */
+export type MarkerAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
+    ElementPartProperties & {};
 
 /** Render a note in a stream, such as a status, a day or someone joining. */
-export function Marker(properties: MarkerProperties): JSX.Element {
-    const marker = merge(DEFAULTS, properties);
-    const rest = omit(properties, "variant", "status");
+export const Marker = defineComponent({
+    name: "marker",
+    properties: MARKER_PROPERTIES,
+    render(properties: RenderProperties<MarkerAttributes, typeof MARKER_PROPERTIES>): JSX.Element {
+        const rest = omit(properties, "variant", "status");
 
-    return (
-        <StatusContext value={() => properties.status}>
-            {renderPart(
-                "div",
-                "marker",
-                rest,
-                () => [
-                    text.sm,
-                    styles.marker,
-                    variants[marker.variant],
-                    marker.render !== undefined && [state.focus, styles.interactive],
-                    properties.status === "error" && styles.error,
-                ],
-                {
-                    get "data-variant"() {
-                        return marker.variant;
+        return (
+            <StatusContext value={() => properties.status}>
+                {renderPart(
+                    "div",
+                    "marker",
+                    rest,
+                    () => [
+                        text.sm,
+                        styles.marker,
+                        variants[properties.variant],
+                        properties.render !== undefined && [state.focus, styles.interactive],
+                        properties.status === "error" && styles.error,
+                    ],
+                    {
+                        get "data-variant"() {
+                            return properties.variant;
+                        },
+                        get "data-status"() {
+                            return properties.status;
+                        },
                     },
-                    get "data-status"() {
-                        return properties.status;
-                    },
-                },
-            )}
-        </StatusContext>
-    );
-}
+                )}
+            </StatusContext>
+        );
+    },
+});
+
+/** The properties of a marker, its native attributes included. */
+export type MarkerProperties = ComponentProperties<typeof Marker>;
 
 /** The properties of a part of a marker, the native element's attributes included. */
 export type MarkerElementProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> &

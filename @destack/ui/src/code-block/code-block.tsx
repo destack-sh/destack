@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import { type Grammar, type LineRange, Source } from "@destack/code";
 import { t } from "@destack/locale";
 import { state } from "@destack/theme/state";
@@ -17,6 +18,11 @@ import {
 } from "@destack/view";
 import { CodeSyntax, CodeTokens, isRenderedAtOnce, onNear } from "../code/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The lines of a chunk, rendered together once they come near the screen, about two screens. */
 const CHUNK_LINES = 80;
@@ -134,20 +140,33 @@ export function CodeBlockTitle(
     return renderPart("figcaption", "code-block-title", properties, styles.title);
 }
 
-/** The properties of a code block's code, the native `pre` element's attributes included. */
-export type CodeBlockContentProperties = CodeBlockElementProperties<
+/** The properties people change in a code block's controls and inspector. */
+const CODE_BLOCK_CONTENT_PROPERTIES = {
+    isNumbered: field
+        .boolean()
+        .labeled(t.context("label")`Line numbers`)
+        .described(t`Shows each line's number beside it.`)
+        .default(false),
+    overflow: field
+        .enum({
+            scroll: { title: t.context("option")`Scroll` },
+            wrap: { title: t.context("option")`Wrap` },
+        })
+        .labeled(t.context("label")`Overflow`)
+        .described(t`Whether long lines scroll sideways or wrap.`)
+        .default("scroll"),
+};
+
+/** The properties of a code block's code besides its declared ones: the code and its lines. */
+export type CodeBlockContentAttributes = CodeBlockElementProperties<
     Omit<JSX.HTMLAttributes<HTMLPreElement>, "onSelectionChange" | "children">
 > & {
-    /** Whether each line shows its number. */
-    readonly isNumbered?: boolean;
     /** The accessible name of the scrolling region, its title when it has one. */
     readonly label?: string;
     /** The code. */
     readonly code: string;
     /** The grammar that colors the code, which shows plain without one. */
     readonly grammar?: Grammar | undefined;
-    /** Whether long lines scroll or wrap, scrolling by default. */
-    readonly overflow?: "scroll" | "wrap";
     /** The number of the first line, for code from within a file, one by default. */
     readonly start?: number;
     /** The lines that stand out, counted from the first as zero. */
@@ -159,41 +178,55 @@ export type CodeBlockContentProperties = CodeBlockElementProperties<
 };
 
 /** Render the lines of some code in its grammar's colors. */
-export function CodeBlockContent(properties: CodeBlockContentProperties): JSX.Element {
-    const locale = useLocale();
-    const rest = omit(
-        properties,
-        "isNumbered",
-        "label",
-        "code",
-        "grammar",
-        "overflow",
-        "start",
-        "marked",
-        "selection",
-        "onSelectionChange",
-    );
+export const CodeBlockContent = defineComponent({
+    name: "codeBlockContent",
+    properties: CODE_BLOCK_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            CodeBlockContentAttributes,
+            typeof CODE_BLOCK_CONTENT_PROPERTIES
+        >,
+    ): JSX.Element {
+        const locale = useLocale();
+        const rest = omit(
+            properties,
+            "isNumbered",
+            "label",
+            "code",
+            "grammar",
+            "overflow",
+            "start",
+            "marked",
+            "selection",
+            "onSelectionChange",
+        );
 
-    return renderPart(
-        "pre",
-        "code-block-content",
-        rest,
-        [text.sm, state.focusInset, styles.content],
-        {
-            dir: "ltr",
-            tabindex: 0,
-            get "aria-label"() {
-                return properties.label ?? locale.render(t.context("title")`Code`);
+        return renderPart(
+            "pre",
+            "code-block-content",
+            rest,
+            [text.sm, state.focusInset, styles.content],
+            {
+                dir: "ltr",
+                tabindex: 0,
+                get "aria-label"() {
+                    return properties.label ?? locale.render(t.context("title")`Code`);
+                },
+                get children() {
+                    return <CodeLines {...properties} />;
+                },
             },
-            get children() {
-                return <CodeLines {...properties} />;
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of a code block's code, the native element's attributes included. */
+export type CodeBlockContentProperties = ComponentProperties<typeof CodeBlockContent>;
 
 /** Render the lines of some code, chunk by chunk as they come near the screen. */
-function CodeLines(properties: CodeBlockContentProperties): JSX.Element {
+function CodeLines(
+    properties: RenderProperties<CodeBlockContentAttributes, typeof CODE_BLOCK_CONTENT_PROPERTIES>,
+): JSX.Element {
     // parse the code as far as its lines show
     const source = createMemo(() => Source.of(properties.code));
     const syntax = new CodeSyntax(source, () => properties.grammar);
@@ -263,7 +296,10 @@ function CodeChunk(properties: {
     /** The code. */
     readonly syntax: CodeSyntax;
     /** What the block shows of each line. */
-    readonly block: CodeBlockContentProperties;
+    readonly block: RenderProperties<
+        CodeBlockContentAttributes,
+        typeof CODE_BLOCK_CONTENT_PROPERTIES
+    >;
 }): JSX.Element {
     // render it once it comes near, and leave it there
     const chunk = untrack(() => properties.chunk);
@@ -304,7 +340,10 @@ function CodeRow(properties: {
     /** The code. */
     readonly syntax: CodeSyntax;
     /** What the block shows of each line. */
-    readonly block: CodeBlockContentProperties;
+    readonly block: RenderProperties<
+        CodeBlockContentAttributes,
+        typeof CODE_BLOCK_CONTENT_PROPERTIES
+    >;
 }): JSX.Element {
     // find whether it stands out
     const { line, block } = untrack(() => ({ line: properties.line, block: properties.block }));
@@ -324,7 +363,7 @@ function CodeRow(properties: {
                 isMarked() && styles.marked,
             )}
         >
-            <Show when={block.isNumbered === true}>
+            <Show when={block.isNumbered}>
                 <span
                     aria-hidden="true"
                     data-line={String(line)}
@@ -338,7 +377,7 @@ function CodeRow(properties: {
                     {String((block.start ?? 1) + line)}
                 </span>
             </Show>
-            <span {...style.attrs(styles.text, block.isNumbered === true && styles.beside)}>
+            <span {...style.attrs(styles.text, block.isNumbered && styles.beside)}>
                 <CodeTokens tokens={tokens()} />
             </span>
         </span>

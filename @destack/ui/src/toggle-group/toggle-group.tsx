@@ -10,10 +10,9 @@ import {
     type RenderProperties,
     defineComponent,
 } from "@destack/view/declare";
-import { field } from "@destack/object";
 import { t } from "@destack/locale";
 import { readChoices, useFieldControl, useFieldValue } from "../field/control.ts";
-import { AXES } from "../position/index.ts";
+import { ORIENTATION } from "../position/index.ts";
 
 /** The group of the nearest toggle group, null outside one. */
 const ToggleGroupContext = createContext<ToggleGroupControl | null>(null);
@@ -95,11 +94,9 @@ export function useToggleGroup(): ToggleGroupControl {
 /** The properties people change in a toggle group's controls and inspector. */
 const TOGGLE_GROUP_PROPERTIES = {
     ...Toggle.properties,
-    orientation: field
-        .enum(AXES)
-        .labeled(t.context("label")`Orientation`)
-        .described(t`Whether the toggles lie in a row or a column.`)
-        .default("horizontal"),
+    orientation: ORIENTATION.described(t`Whether the toggles lie in a row or a column.`).default(
+        "horizontal",
+    ),
 };
 
 /** Render a group of toggles that arrow keys move between, of which a single group has one on. */

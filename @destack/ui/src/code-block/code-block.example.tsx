@@ -64,10 +64,11 @@ export const codeBlockViewPlain = defineExample({
 
 /** Some lines of a file whose selected lines stand out, long ones wrapped. */
 export const codeBlockLines = defineExample({
-    of: CodeBlock,
+    of: CodeBlockContent,
     name: "lines",
     description: t`Some lines of a file, with a marked one and those a person selects by their numbers.`,
-    render: () => {
+    properties: { isNumbered: true, overflow: "wrap" },
+    render: (properties) => {
         const [selection, setSelection] = createSignal<LineRange | undefined>({
             start: 7,
             end: 10,
@@ -80,11 +81,10 @@ export const codeBlockLines = defineExample({
                     <CopyButton value={VIEW} label="Copy the view" isIconOnly size="sm" />
                 </CodeBlockHeader>
                 <CodeBlockContent
+                    {...properties}
                     code={VIEW}
                     grammar={tsx}
-                    isNumbered
                     label="src/view/note.tsx"
-                    overflow="wrap"
                     start={98}
                     marked={[{ start: 13, end: 14 }]}
                     selection={selection()}

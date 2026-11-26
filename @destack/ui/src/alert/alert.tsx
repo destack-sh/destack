@@ -1,12 +1,18 @@
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import { color, radius, space, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import x from "@destack/icon/phosphor/x";
 import { t } from "@destack/locale";
-import { type JSX, merge, omit, useLocale } from "@destack/view";
+import { type JSX, omit, useLocale } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
 import { contentOr, type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The width an alert takes inside a parent sized to its content, which its queries cannot read. */
 const INTRINSIC_WIDTH = "28rem";
@@ -22,9 +28,6 @@ const WITH_ICON = ":is([data-slot=alert]:has(> svg) > *)";
 
 /** The selector of an alert's element when the alert has a title, which the description follows. */
 const TITLED = ":is([data-slot=alert]:has(> [data-slot=alert-title]) > *)";
-
-/** The variant of an alert that sets none. */
-const DEFAULTS: Required<Pick<AlertProperties, "variant">> = { variant: "default" };
 
 /** The styles of an alert and its elements. */
 const styles = style.create({
@@ -125,38 +128,71 @@ const ROLES: Readonly<Record<AlertVariant, "alert" | "status">> = {
 };
 
 /** The look of an alert, by how urgent it is. */
-export type AlertVariant = "default" | "info" | "success" | "warning" | "destructive";
+export type AlertVariant = keyof typeof ALERT_VARIANTS;
 
 /** The properties of an element of an alert, the native element's attributes included. */
 export type AlertElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
 
-/** The properties of an alert, the native element's attributes included. */
-export interface AlertProperties extends AlertElementProperties {
-    /** The look, default by default. */
-    readonly variant?: AlertVariant;
-}
+/** The looks of an alert, from calm to urgent. */
+const ALERT_VARIANTS = {
+    default: { title: t.context("option")`Default` },
+    info: {
+        title: t.context("option")`Info`,
+        description: t`News a person may want to know.`,
+    },
+    success: {
+        title: t.context("option")`Success`,
+        description: t`Work that went well.`,
+    },
+    warning: {
+        title: t.context("option")`Warning`,
+        description: t`Something to look at before it goes wrong.`,
+    },
+    destructive: {
+        title: t.context("option")`Destructive`,
+        description: t`Something that went wrong or cannot be undone.`,
+    },
+};
+
+/** The properties people change in an alert's controls and inspector. */
+const ALERT_PROPERTIES = {
+    variant: field
+        .enum(ALERT_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`How urgent the alert is, which sets its color and how it is announced.`)
+        .default("default"),
+};
+
+/** The properties of an alert besides its declared ones: its native attributes. */
+export interface AlertAttributes extends AlertElementProperties {}
 
 /** Render a message that calls for attention, with an optional leading icon. */
-export function Alert(properties: AlertProperties): JSX.Element {
-    const alert = merge(DEFAULTS, properties);
-    const rest = omit(alert, "variant");
+export const Alert = defineComponent({
+    name: "alert",
+    properties: ALERT_PROPERTIES,
+    render(properties: RenderProperties<AlertAttributes, typeof ALERT_PROPERTIES>): JSX.Element {
+        const rest = omit(properties, "variant");
 
-    return renderPart(
-        "div",
-        "alert",
-        rest,
-        () => [text.sm, styles.alert, variants[alert.variant]],
-        {
-            get "data-variant"() {
-                return alert.variant;
+        return renderPart(
+            "div",
+            "alert",
+            rest,
+            () => [text.sm, styles.alert, variants[properties.variant]],
+            {
+                get "data-variant"() {
+                    return properties.variant;
+                },
+                get role() {
+                    return ROLES[properties.variant];
+                },
             },
-            get role() {
-                return ROLES[alert.variant];
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of an alert, its native attributes included. */
+export type AlertProperties = ComponentProperties<typeof Alert>;
 
 /** Render the title of an alert. */
 export function AlertTitle(properties: AlertElementProperties): JSX.Element {

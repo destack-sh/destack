@@ -15,39 +15,14 @@ export const relativeTimeMoments = defineExample({
     of: RelativeTime,
     name: "moments",
     description: t`Moments near now, and one far off written as a date.`,
-    render: () => {
+    render: (properties) => {
         const { clock } = useEnvironment();
         const now = clock.now();
 
         return (
             <Stack space="2">
                 <For each={MOMENTS}>
-                    {(minutes) => <RelativeTime value={now + minutes * MINUTE} />}
-                </For>
-            </Stack>
-        );
-    },
-});
-
-/** The same moments in the fewest letters, such as beside a message. */
-export const relativeTimeNarrow = defineExample({
-    of: RelativeTime,
-    name: "narrow",
-    description: t`The same moments in the fewest letters, such as beside a message.`,
-    render: () => {
-        const { clock } = useEnvironment();
-        const now = clock.now();
-
-        return (
-            <Stack space="2">
-                <For each={MOMENTS}>
-                    {(minutes) => (
-                        <RelativeTime
-                            value={now + minutes * MINUTE}
-                            length="narrow"
-                            format={{ month: "short", day: "numeric" }}
-                        />
-                    )}
+                    {(minutes) => <RelativeTime {...properties} value={now + minutes * MINUTE} />}
                 </For>
             </Stack>
         );

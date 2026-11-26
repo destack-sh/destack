@@ -1,5 +1,5 @@
-import { AXES } from "../position/index.ts";
 import { field } from "@destack/object";
+import { ORIENTATION } from "../position/index.ts";
 import { type Localization, type NumberFormat, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -80,11 +80,9 @@ const THUMB = {
 
 /** The properties people change in a slider's controls and inspector. */
 const SLIDER_PROPERTIES = {
-    orientation: field
-        .enum(AXES)
-        .labeled(t.context("label")`Orientation`)
-        .described(t`Whether the track runs across or up.`)
-        .default("horizontal"),
+    orientation: ORIENTATION.described(t`Whether the track runs across or up.`).default(
+        "horizontal",
+    ),
     disabled: field
         .boolean()
         .labeled(t.context("label")`Disabled`)
