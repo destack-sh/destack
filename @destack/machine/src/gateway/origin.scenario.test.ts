@@ -28,6 +28,7 @@ import {
 import { createClient, ObjectFileClient, ObjectConnection } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
 import { OriginPath, PackageId, PackageVersion, Sandbox } from "@destack/package";
+import { ImportMap } from "@destack/package/manifest";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
@@ -1738,6 +1739,90 @@ test("serve a library's catalogs and assets at its dependent's origin, and its h
         font: [200, "public, max-age=31536000, immutable", "type"],
         entry: [200, "no-cache"],
         chunk: [200, "public, max-age=31536000, immutable"],
+    });
+});
+
+test("serve a worker's modules below the page's image with their imports resolved through its map, refusing another image", async () => {
+    // install a greeting whose device module imports the widget library and a chunk of its own
+    const { crypto } = testHost();
+    const widgets = await TestViewBuild.of(WIDGETS, {}, {}, crypto);
+    const device =
+        'import { close } from "@example/widgets";\nimport "./chunk/shared-Bq3x9Zk1.js";\n';
+    const greeting = await TestViewBuild.of(
+        GREETING,
+        {
+            greeting: {
+                entrypoint: "browser/greeting.js",
+                stylesheets: [],
+                sandbox: {},
+                presents: [],
+                opens: [],
+                categories: [],
+                audience: "person" as const,
+                packages: [],
+                render: { mode: "client" },
+            },
+        },
+        {
+            files: new Map([
+                ["browser/device.js", new TextEncoder().encode(device)],
+                ["locale/de.json", catalog(GREETING.id, "Willkommen zurück")],
+            ]),
+            dependencies: [widgets],
+        },
+        crypto,
+    );
+    const opened = await openHome();
+    const { world } = opened.computer;
+    await opened.cloud.publish(await world.distribution.image(widgets), world.owner);
+    await install(opened, greeting, "greeting", [widgets]);
+
+    // read the page's image and import map from its document
+    const page = await openPage(opened, {
+        space: opened.address,
+        installation: "greeting",
+        view: "greeting",
+        path: "/",
+    });
+    const address = new URL(header(page.traded, "location"), page.launched.url).href;
+    const document = await (await page.fetch(new Request(address))).text();
+    const context = ViewContext.parse(
+        JSON.parse(
+            nth(present(/id="destack-view">(.*)<\/script>/u.exec(document), "the context"), 1),
+        ),
+    );
+    const map = ImportMap.parse(
+        JSON.parse(
+            nth(present(/<script type="importmap">(.*?)<\/script>/u.exec(document), "the map"), 1),
+        ),
+    );
+    const namespace = `${OriginPath.worker}/${context.build}`;
+
+    // read the device module and a catalog below the image, then the module below another image
+    const read = async (path: string) => {
+        const response = await page.fetch(new Request(new URL(path, address).href));
+
+        return [response.status, response.headers.get("cache-control"), await response.text()];
+    };
+    const module = await read(`${namespace}/browser/device.js`);
+    const catalogued = await read(`${namespace}/locale/de.json`);
+    const stale = await read(`${OriginPath.worker}/${"0".repeat(64)}/browser/device.js`);
+
+    // expect the library's specifier resolved into the namespace, the relative chunk left to resolve in it, the catalog as served
+    const library = present(map.imports["@example/widgets"], "the library's target");
+    expect({ module, catalogued: catalogued.slice(0, 2), stale: stale[0] }).toEqual({
+        module: [
+            200,
+            "no-cache",
+            `import { close } from "${namespace}${library}";\nimport "./chunk/shared-Bq3x9Zk1.js";\n`,
+        ],
+        catalogued: [
+            200,
+            (await page.fetch(new Request(new URL("/locale/de.json", address).href))).headers.get(
+                "cache-control",
+            ),
+        ],
+        stale: 404,
     });
 });
 

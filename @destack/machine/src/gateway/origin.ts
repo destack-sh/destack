@@ -1163,6 +1163,37 @@ export class InstallationOriginServer {
         return Response.json({});
     }
 
+    /** Serve a worker's module below its image, its imports resolved through the image's map. */
+    async #worker(request: Request, url: URL, page: Page, map: ImportMap): Promise<Response> {
+        // refuse an image the page no longer serves, as its worker resolved modules for another
+        const { base } = page.mount;
+        const [image = "", ...path] = InstallationOriginServer.#decoded(url)
+            .slice(`${OriginPath.worker}/`.length)
+            .split("/");
+        if (image !== page.image) {
+            throw MachineError.of("VIEW_NOT_FOUND", `image '${image}' of the views not found`);
+        }
+
+        // serve the file as its own path does, rewriting a module's imports into the namespace
+        const inner = new URL(`${base}/${path.join("/")}${url.search}`, url);
+        const asked = new Request(inner.href, { method: request.method, headers: request.headers });
+        const served = await this.#view(asked, inner, page);
+        const type = served.headers.get("content-type") ?? "";
+        if (!served.ok || !type.startsWith("text/javascript")) {
+            return served;
+        }
+        const namespace = `${base}${OriginPath.worker}/${image}`;
+        const code = await ImportMap.apply(
+            ImportMap.rebase(map, base, namespace),
+            await served.text(),
+            inner.pathname,
+        );
+        const headers = new Headers(served.headers);
+        headers.delete("content-length");
+
+        return new Response(code, { status: served.status, headers });
+    }
+
     /** Serve a file of the installation's build, else the document of the view its path names. */
     async #view(request: Request, url: URL, page: Page): Promise<Response> {
         // answer reads only, as static hosts answer their files and documents
@@ -1179,6 +1210,10 @@ export class InstallationOriginServer {
         const map = await InstallationOriginServer.#memo(this.#maps, `${page.image} ${base}`, () =>
             this.#space.imports(page.image, "browser", prefix),
         );
+        // serve a module of a worker's graph below the image it resolves for, its imports resolved through the image's map
+        if (pathname.startsWith(`${OriginPath.worker}/`)) {
+            return await this.#worker(request, url, page, map);
+        }
         const builds = await InstallationOriginServer.#memo(
             this.#loaded,
             `${page.image} ${base}`,
