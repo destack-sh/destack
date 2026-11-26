@@ -1625,6 +1625,13 @@ export class TestSpace implements AsyncDisposable, TestScope {
         if (installed === undefined) {
             await home.apply([...FORGE_HOME_TYPES], FORGE_HOME_STACK);
         }
+        // keep the stack an earlier serving applied, so the home's next change keeps the forge and its vaults
+        else {
+            home.#stack = {
+                ...StackDocument.of([...FORGE_HOME_TYPES], FORGE_HOME_STACK),
+                ...home.#stack,
+            };
+        }
     }
 
     /** Publish a build in an image hoisted with its builds under a tag, once per image. */
@@ -2337,17 +2344,19 @@ export class TestSpace implements AsyncDisposable, TestScope {
         types: Types,
         collections: StackDocument<Types>,
     ) {
-        // replace the collections given, once the space has its stack
-        this.#stack = { ...this.#stack, ...StackDocument.of(types, collections) };
+        // read the space's stack installation and the release declaring its definition
         await this.simulation.idle();
         const installed = this.as(this.owner.subject).client(stackPackage);
         const listed = await installed.installation.list({ scope: this.id });
         const stack = single(listed.items.filter((entry) => entry.export !== null));
-
-        // record a build of the space's own stack package declaring the definition at its export
         const { space, platform } = this.releases;
         const isPlatform = stack.packageId === PackageManifest.package(platform.manifest).id;
         const exported = present(stack.export, "the stack's export");
+
+        // replace the collections given
+        this.#stack = { ...this.#stack, ...StackDocument.of(types, collections) };
+
+        // record a build of the space's own stack package declaring the definition at its export
         const recorded = await this.recordStack(
             exported,
             this.#stack,
