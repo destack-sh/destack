@@ -1,6 +1,7 @@
-import { defineExample } from "@destack/package/declare";
+import { t } from "@destack/locale";
+import { defineExample, type PropertiesOf } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
-import { createSignal } from "@destack/view";
+import { createSignal, type JSX, omit } from "@destack/view";
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -18,188 +19,135 @@ import {
 } from "./dropdown-menu.tsx";
 
 /** A note's actions behind a button. */
-export const dropdownMenuNoteActions = defineExample({
+export const dropdownMenuDefault = defineExample({
     of: DropdownMenu,
-    name: "note-actions",
-    description: "a note's actions behind a button",
-    render: () => {
-        const [isPinned, setPinned] = createSignal(false);
-
-        return (
-            <DropdownMenu>
-                <DropdownMenuTrigger
-                    render={(attributes) => <Button {...attributes} variant="outline" />}
-                >
-                    Note
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuLabel>Groceries</DropdownMenuLabel>
-                    <DropdownMenuItem>
-                        Rename
-                        <DropdownMenuShortcut>⌘R</DropdownMenuShortcut>
-                    </DropdownMenuItem>
-                    <DropdownMenuCheckboxItem checked={isPinned()} onCheckedChange={setPinned}>
-                        Pinned
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>Move to</DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent>
-                            <DropdownMenuItem>Trips</DropdownMenuItem>
-                            <DropdownMenuItem>Work</DropdownMenuItem>
-                        </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        );
-    },
+    name: "default",
+    description: t`A note's actions behind a button, reporting the action it runs.`,
+    render: (properties) => <NoteMenu {...properties} />,
 });
 
-/** A note's menu with an unavailable item and a submenu, reporting the action it runs. */
-export const dropdownMenuNoteMenu = defineExample({
+/** A note's actions open below their button. */
+export const dropdownMenuOpen = defineExample({
     of: DropdownMenu,
-    name: "note-menu",
-    description:
-        "a note's menu with an unavailable item and a submenu, reporting the action it runs",
-    render: () => {
-        const [action, setAction] = createSignal("");
-
-        return (
-            <>
-                <DropdownMenu>
-                    <DropdownMenuTrigger render={(attributes) => <Button {...attributes} />}>
-                        Note
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onSelect={() => setAction("rename")}>
-                            Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem disabled>Duplicate</DropdownMenuItem>
-                        <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>Move to</DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent>
-                                <DropdownMenuItem onSelect={() => setAction("trips")}>
-                                    Trips
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>Work</DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <output>{action()}</output>
-            </>
-        );
-    },
+    name: "open",
+    description: t`A note's actions open below their button.`,
+    properties: { defaultOpen: true },
+    render: (properties) => <NoteMenu {...properties} />,
 });
 
-/** A note list's view options with every option unavailable, reporting any change it makes. */
-export const dropdownMenuUnavailableOptions = defineExample({
+/** A note's actions with one unavailable. */
+export const dropdownMenuDisabled = defineExample({
     of: DropdownMenu,
-    name: "unavailable-options",
-    description:
-        "a note list's view options with every option unavailable, reporting any change it makes",
-    render: () => {
-        const [changed, setChanged] = createSignal("");
+    name: "disabled",
+    description: t`A note's actions, duplicating it unavailable.`,
+    render: (properties) => <NoteMenu {...properties} isDuplicateDisabled />,
+});
 
-        return (
-            <>
-                <DropdownMenu>
-                    <DropdownMenuTrigger render={(attributes) => <Button {...attributes} />}>
-                        View
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuCheckboxItem
-                            checked={false}
-                            disabled
-                            onCheckedChange={() => setChanged("archived")}
-                        >
-                            Show archived
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuRadioGroup value="title" onValueChange={setChanged}>
-                            <DropdownMenuRadioItem value="date" disabled>
-                                Date
-                            </DropdownMenuRadioItem>
-                        </DropdownMenuRadioGroup>
-                        <DropdownMenuSub>
-                            <DropdownMenuSubTrigger disabled>Move to</DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent>
-                                <DropdownMenuItem>Trips</DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <output>{changed()}</output>
-            </>
-        );
-    },
+/** A note's actions with options that check. */
+export const dropdownMenuCheckable = defineExample({
+    of: DropdownMenu,
+    name: "checkable",
+    description: t`A note's actions with a box that pins it and the order its list sorts by.`,
+    render: (properties) => <NoteMenu {...properties} isCheckable />,
+});
+
+/** A note's actions open beside their button, laid out by the menu's side and alignment. */
+export const dropdownMenuContentDefault = defineExample({
+    of: DropdownMenuContent,
+    name: "default",
+    description: t`A note's actions open beside their button, laid out by the menu's side and alignment.`,
+    render: (properties) => <NoteMenu defaultOpen content={properties} />,
 });
 
 /** A note's menu its owner opens and closes, reporting each request to change it. */
 export const dropdownMenuControlled = defineExample({
     of: DropdownMenu,
     name: "controlled",
-    description: "a note's menu its owner opens and closes, reporting each request to change it",
+    description: t`A note's actions its owner opens and closes, reporting each request to change it.`,
     properties: { open: false },
     render: (properties) => {
         const [requested, setRequested] = createSignal("");
 
         return (
             <>
-                <DropdownMenu {...properties} onOpenChange={(open) => setRequested(String(open))}>
-                    <DropdownMenuTrigger render={(attributes) => <Button {...attributes} />}>
-                        Note
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem>Rename</DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <output>{requested()}</output>
+                <NoteMenu {...properties} onOpenChange={(open) => setRequested(String(open))} />
+                <output aria-label="Requested">{requested()}</output>
             </>
         );
     },
 });
 
-/** A note's actions open below their button. */
-export const dropdownMenuNoteActionsOpen = defineExample({
-    of: DropdownMenu,
-    name: "note-actions-open",
-    description: "a note's actions open below their button",
-    properties: {
-        defaultOpen: true,
+/** Render a note's actions, reporting the action they run, varying an item or the options. */
+function NoteMenu(
+    properties: PropertiesOf<typeof DropdownMenu> & {
+        /** Whether duplicating the note is unavailable. */
+        readonly isDuplicateDisabled?: boolean;
+        /** Whether the menu has options that check. */
+        readonly isCheckable?: boolean;
+        /** The side and alignment of the open menu. */
+        readonly content?: PropertiesOf<typeof DropdownMenuContent>;
     },
-    render: (properties) => {
-        const [isPinned, setPinned] = createSignal(false);
+): JSX.Element {
+    // report the action run, the pin and the order
+    const [action, setAction] = createSignal("");
+    const [isPinned, setPinned] = createSignal(false);
+    const [order, setOrder] = createSignal("edited");
 
-        return (
-            <DropdownMenu {...properties}>
+    return (
+        <>
+            <DropdownMenu {...omit(properties, "isDuplicateDisabled", "isCheckable", "content")}>
                 <DropdownMenuTrigger
                     render={(attributes) => <Button {...attributes} variant="outline" />}
                 >
                     Note
                 </DropdownMenuTrigger>
-                <DropdownMenuContent>
+                <DropdownMenuContent {...properties.content}>
                     <DropdownMenuLabel>Groceries</DropdownMenuLabel>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setAction("rename")}>
                         Rename
-                        <DropdownMenuShortcut>⌘R</DropdownMenuShortcut>
+                        <DropdownMenuShortcut keys="mod+r" />
                     </DropdownMenuItem>
-                    <DropdownMenuCheckboxItem checked={isPinned()} onCheckedChange={setPinned}>
-                        Pinned
-                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuItem
+                        disabled={properties.isDuplicateDisabled === true}
+                        onSelect={() => setAction("duplicate")}
+                    >
+                        Duplicate
+                    </DropdownMenuItem>
                     <DropdownMenuSub>
                         <DropdownMenuSubTrigger>Move to</DropdownMenuSubTrigger>
                         <DropdownMenuSubContent>
-                            <DropdownMenuItem>Trips</DropdownMenuItem>
-                            <DropdownMenuItem>Work</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setAction("trips")}>
+                                Trips
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setAction("work")}>
+                                Work
+                            </DropdownMenuItem>
                         </DropdownMenuSubContent>
                     </DropdownMenuSub>
+                    {properties.isCheckable === true ? (
+                        <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuCheckboxItem
+                                checked={isPinned()}
+                                onCheckedChange={setPinned}
+                            >
+                                Pinned
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuRadioGroup value={order()} onValueChange={setOrder}>
+                                <DropdownMenuRadioItem value="edited">
+                                    Last edited
+                                </DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="title">Title</DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                        </>
+                    ) : undefined}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+                    <DropdownMenuItem variant="destructive" onSelect={() => setAction("delete")}>
+                        Delete
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
-        );
-    },
-});
+            <output aria-label="Action">{action()}</output>
+        </>
+    );
+}

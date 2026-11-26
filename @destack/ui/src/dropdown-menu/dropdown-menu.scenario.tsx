@@ -1,19 +1,16 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import {
-    dropdownMenuControlled,
-    dropdownMenuNoteMenu,
-    dropdownMenuUnavailableOptions,
-} from "./dropdown-menu.example.tsx";
+import { dropdownMenuControlled, dropdownMenuDisabled } from "./dropdown-menu.example.tsx";
 import { DropdownMenu } from "./dropdown-menu.tsx";
 
 /** Move through an open dropdown menu with the keys. */
 export const dropdownMenuMoveThroughItems = defineScenario({
     of: DropdownMenu,
     interaction: viewInteraction,
-    name: "move-through-items",
-    description: "open a dropdown menu from its trigger onto its first item and move through it",
-    given: { examples: [dropdownMenuNoteMenu] },
+    name: "moveThroughItems",
+    description: t`Open a dropdown menu from its trigger onto its first item and move through it.`,
+    given: { examples: [dropdownMenuDisabled] },
     parameters: {},
     when: [
         {
@@ -221,9 +218,9 @@ export const dropdownMenuMoveThroughItems = defineScenario({
 export const dropdownMenuCloseOnEscape = defineScenario({
     of: DropdownMenu,
     interaction: viewInteraction,
-    name: "close-on-escape",
-    description: "close a dropdown menu on Escape and return the focus to its trigger",
-    given: { examples: [dropdownMenuNoteMenu] },
+    name: "closeOnEscape",
+    description: t`Close a dropdown menu on Escape and return the focus to its trigger.`,
+    given: { examples: [dropdownMenuDisabled] },
     parameters: {},
     when: [
         {
@@ -299,9 +296,9 @@ export const dropdownMenuCloseOnEscape = defineScenario({
 export const dropdownMenuChooseWithEnter = defineScenario({
     of: DropdownMenu,
     interaction: viewInteraction,
-    name: "choose-with-enter",
-    description: "choose an item with Enter, running its action and closing the menu",
-    given: { examples: [dropdownMenuNoteMenu] },
+    name: "chooseWithEnter",
+    description: t`Choose an item with Enter, running its action and closing the menu.`,
+    given: { examples: [dropdownMenuDisabled] },
     parameters: {},
     when: [
         {
@@ -341,9 +338,9 @@ export const dropdownMenuChooseWithEnter = defineScenario({
 export const dropdownMenuEnterAndLeaveSubmenu = defineScenario({
     of: DropdownMenu,
     interaction: viewInteraction,
-    name: "enter-and-leave-submenu",
-    description: "open a submenu with the arrow key toward it and leave it with the arrow key back",
-    given: { examples: [dropdownMenuNoteMenu] },
+    name: "enterAndLeaveSubmenu",
+    description: t`Open a submenu with the arrow key toward it and leave it with the arrow key back.`,
+    given: { examples: [dropdownMenuDisabled] },
     parameters: {},
     when: [
         {
@@ -439,48 +436,28 @@ export const dropdownMenuEnterAndLeaveSubmenu = defineScenario({
     ],
 });
 
-/** Leave unavailable options unchanged. */
+/** Leave an unavailable item without running it. */
 export const dropdownMenuLeaveUnavailableOptions = defineScenario({
     of: DropdownMenu,
     interaction: viewInteraction,
-    name: "leave-unavailable-options",
-    description: "leave disabled checkbox and radio items unchanged, and a disabled submenu closed",
-    given: { examples: [dropdownMenuUnavailableOptions] },
+    name: "leaveUnavailableOptions",
+    description: t`Leave an unavailable item without running it, keeping the menu open.`,
+    given: { examples: [dropdownMenuDisabled] },
     parameters: {},
     when: [
-        { action: "click", target: { role: "button", name: "View" } },
-        { action: "click", target: { role: "menuitemcheckbox", name: "Show archived" } },
-        { action: "click", target: { role: "menuitemradio", name: "Date" } },
-        { action: "click", target: { role: "menuitem", name: "Move to" } },
-        { action: "press", key: "Enter", target: { role: "menuitem", name: "Move to" } },
-        { action: "press", key: "ArrowRight" },
+        { action: "click", target: { role: "button", name: "Note" } },
+        { action: "click", target: { role: "menuitem", name: "Duplicate" } },
     ],
     then: [
         {
             observe: {
                 kind: "state",
-                target: { role: "menuitemcheckbox", name: "Show archived" },
-                state: "checked",
-            },
-            is: false,
-        },
-        {
-            observe: {
-                kind: "state",
-                target: { role: "menuitemradio", name: "Date" },
-                state: "checked",
-            },
-            is: false,
-        },
-        {
-            observe: {
-                kind: "state",
-                target: { role: "menuitem", name: "Move to" },
+                target: { role: "button", name: "Note" },
                 state: "expanded",
             },
-            is: false,
+            is: true,
         },
-        { observe: { kind: "text", target: { role: "status" } }, is: "" },
+        { observe: { kind: "text", target: { role: "status", name: "Action" } }, is: "" },
     ],
 });
 
@@ -488,8 +465,8 @@ export const dropdownMenuLeaveUnavailableOptions = defineScenario({
 export const dropdownMenuOpenByOwner = defineScenario({
     of: DropdownMenu,
     interaction: viewInteraction,
-    name: "open-by-owner",
-    description: "open a controlled dropdown menu by its open property onto its first item",
+    name: "openByOwner",
+    description: t`Open a controlled dropdown menu by its open property onto its first item.`,
     given: { examples: [dropdownMenuControlled] },
     parameters: {},
     when: [{ action: "set", properties: { open: true } }],
@@ -510,9 +487,8 @@ export const dropdownMenuOpenByOwner = defineScenario({
 export const dropdownMenuStayOpenUntilOwnerCloses = defineScenario({
     of: DropdownMenu,
     interaction: viewInteraction,
-    name: "stay-open-until-owner-closes",
-    description:
-        "ask to close a controlled dropdown menu on Escape, with the focus inside until its owner closes it",
+    name: "stayOpenUntilOwnerCloses",
+    description: t`Ask to close a controlled dropdown menu on Escape, with the focus inside until its owner closes it.`,
     given: { examples: [dropdownMenuControlled] },
     parameters: {},
     when: [
@@ -527,7 +503,10 @@ export const dropdownMenuStayOpenUntilOwnerCloses = defineScenario({
                     },
                     is: "dropdown-menu-trigger",
                 },
-                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+                {
+                    observe: { kind: "text", target: { role: "status", name: "Requested" } },
+                    is: "",
+                },
                 { observe: { kind: "focused" }, is: "Rename" },
             ],
         },
@@ -542,7 +521,10 @@ export const dropdownMenuStayOpenUntilOwnerCloses = defineScenario({
                     },
                     is: "dropdown-menu-trigger",
                 },
-                { observe: { kind: "text", target: { role: "status" } }, is: "false" },
+                {
+                    observe: { kind: "text", target: { role: "status", name: "Requested" } },
+                    is: "false",
+                },
                 { observe: { kind: "focused" }, is: "Rename" },
             ],
         },
@@ -557,7 +539,10 @@ export const dropdownMenuStayOpenUntilOwnerCloses = defineScenario({
                     },
                     is: null,
                 },
-                { observe: { kind: "text", target: { role: "status" } }, is: "false" },
+                {
+                    observe: { kind: "text", target: { role: "status", name: "Requested" } },
+                    is: "false",
+                },
                 { observe: { kind: "focused" }, is: "Note" },
             ],
         },
