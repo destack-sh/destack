@@ -25,7 +25,7 @@ import type { LocalBuildStore } from "../store/local.ts";
 const MODULE_SUFFIX = ".mjs";
 
 /** The format of a release bundle's cache entry, bumped whenever release bundling changes. */
-const RELEASE_FORMAT = 8;
+const RELEASE_FORMAT = 10;
 
 /** The directory of a bundle's assets, below its browser output's. */
 const ASSET_DIRECTORY = "asset";
@@ -243,48 +243,8 @@ export class ImageBundle {
                 crypto,
             );
         });
-        // read each build of the image once, and each listed module of it, counting the modules
-        const readers = new Map<Digest, Promise<BuildReader>>();
-        const contents = (digest: Digest) => {
-            const reading = readers.get(digest) ?? store.contents(digest);
-            readers.set(digest, reading);
-
-            return reading;
-        };
-        let loaded = 0;
-        const load = async (url: string) => {
-            // read the module's file, absent for a URL naming no listed module
-            loaded += 1;
-            const located = present(resolution.locate(url), `module '${url}'`);
-            const build = await contents(located.build);
-            const file = (await build.has(located.path))
-                ? await build.file(located.path)
-                : undefined;
-
-            return file?.mediaType === MODULE_TYPE
-                ? new TextDecoder().decode(await build.load(file.path))
-                : undefined;
-        };
-
-        // read a file a module names by URL in its build
-        const asset = async (url: string) => {
-            const located = present(resolution.locate(url), `module '${url}'`);
-            const build = await contents(located.build);
-
-            return (await build.has(located.path)) ? await build.load(located.path) : undefined;
-        };
-
-        // read each module's source map beside it in its build
-        const sourceMap = async (url: string) => {
-            // read the map's file, absent for a module without one
-            const located = present(resolution.locate(url), `module '${url}'`);
-            const build = await contents(located.build);
-            const path = `${located.path}.map`;
-
-            return (await build.has(path))
-                ? new TextDecoder().decode(await build.load(path))
-                : undefined;
-        };
+        // read the image's modules, their maps and the files they name
+        const reading = ImageBundle.#reading(resolution, store);
 
         // bundle the kept exports and the views, each from its module
         const kept = Object.fromEntries(
@@ -299,13 +259,11 @@ export class ImageBundle {
         const entries = [...new Set(paths)].map((path) => resolution.url(value.root, path));
         const bundle = await scope.span("destack.bundle.rolldown", {}, async (bundling) => {
             const bundled = await ImageBundle.#bundle(resolution, entries, output, linked, {
-                load,
-                sourceMap,
-                asset,
+                ...reading,
                 root: value.root,
             });
             bundling.setAttributes({
-                "destack.bundle.modules": loaded,
+                "destack.bundle.modules": reading.count(),
                 "destack.bundle.chunks": bundled.chunks.length,
             });
 
@@ -320,6 +278,67 @@ export class ImageBundle {
         await store.cache.set(key, { kind: "build", manifest: bundled });
 
         return await store.putImage(await ImageBundle.#rooted(value, bundled, linked, store));
+    }
+
+    /** Tell whether a build's path holds a module of an output or its map, outside its assets. */
+    static #isModule(path: string, output: PackageOutput): boolean {
+        const below = `${output.directory}/`;
+
+        return (
+            path.startsWith(below) &&
+            !path.startsWith(`${below}${ASSET_DIRECTORY}/`) &&
+            (/\.[cm]?js$/u.test(path) || path.endsWith(".js.map"))
+        );
+    }
+
+    /** Read an image's modules, their maps and the files they name, counting the modules. */
+    static #reading(
+        resolution: ModuleResolution,
+        store: LocalBuildStore,
+    ): Pick<ImageBundleOptions, "load" | "map" | "asset"> & { readonly count: () => number } {
+        // read each build of the image once
+        const readers = new Map<Digest, Promise<BuildReader>>();
+        const contents = (url: string) => {
+            // locate the URL's build, reading it once
+            const located = present(resolution.locate(url), `module '${url}'`);
+            const reading = readers.get(located.build) ?? store.contents(located.build);
+            readers.set(located.build, reading);
+
+            return { reading, path: located.path };
+        };
+        let loaded = 0;
+
+        return {
+            load: async (url) => {
+                // read a module's code, absent for a URL naming no listed module
+                loaded += 1;
+                const { reading, path } = contents(url);
+                const build = await reading;
+                const file = (await build.has(path)) ? await build.file(path) : undefined;
+
+                return file?.mediaType === MODULE_TYPE
+                    ? new TextDecoder().decode(await build.load(file.path))
+                    : undefined;
+            },
+            map: async (url) => {
+                // read a module's source map beside it, absent for a module without one
+                const { reading, path } = contents(url);
+                const build = await reading;
+                const mapped = `${path}.map`;
+
+                return (await build.has(mapped))
+                    ? new TextDecoder().decode(await build.load(mapped))
+                    : undefined;
+            },
+            asset: async (url) => {
+                // read a file a module names by URL
+                const { reading, path } = contents(url);
+                const build = await reading;
+
+                return (await build.has(path)) ? await build.load(path) : undefined;
+            },
+            count: () => loaded,
+        };
     }
 
     /** Root an image at its bundled build, linking the builds its bundle leaves external. */
@@ -368,19 +387,14 @@ export class ImageBundle {
         entries: readonly string[],
         output: PackageOutput,
         linked: Parameters<typeof ImageBundle.release>[2],
-        read: {
-            readonly load: ImageBundleOptions["load"];
-            readonly sourceMap: ImageBundleOptions["map"];
-            readonly asset: ImageBundleOptions["asset"];
-            readonly root: Digest;
-        },
+        read: Pick<ImageBundleOptions, "load" | "map" | "asset"> & { readonly root: Digest },
     ): Promise<ImageBundle> {
-        const { load, sourceMap, asset, root } = read;
+        const { load, map, asset, root } = read;
 
         return ImageBundle.of(resolution, entries, {
             directory: output.directory,
             load,
-            map: sourceMap,
+            map,
             asset,
             external: (url, specifier) => {
                 // leave a module of another shared build, or a subpath a platform unit exports, to that build
@@ -431,15 +445,11 @@ export class ImageBundle {
         requires: Readonly<Record<string, string>>,
         store: LocalBuildStore,
     ): Promise<Digest> {
-        // keep every file the bundle leaves: all but the output's modules and maps, its asset directory whole
+        // keep every file the bundle leaves: all but the output's modules and maps
+        const isReplaced = (path: string) => ImageBundle.#isModule(path, output);
         const { environment } = store;
         const directory = await environment.files.makeTemporaryDirectory("destack-bundle-");
         const written = new BuildDirectory(directory, environment);
-        const below = `${output.directory}/`;
-        const isReplaced = (path: string) =>
-            path.startsWith(below) &&
-            !path.startsWith(`${below}${ASSET_DIRECTORY}/`) &&
-            (/\.[cm]?js$/u.test(path) || path.endsWith(".js.map"));
         for (const file of await root.files()) {
             if (!isReplaced(file.path)) {
                 written.add(file);
@@ -625,19 +635,27 @@ export class ImageBundle {
             [];
         const pending: ESTree.Node[] = [parsed.program];
         for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
+            // read the literal a `new URL(…, import.meta.url)` names, a quoted or a plain template one
             const [first, second] = node.type === "NewExpression" ? node.arguments : [];
+            const literal =
+                first?.type === "Literal" && typeof first.value === "string"
+                    ? first.value
+                    : first?.type === "TemplateLiteral" && first.expressions.length === 0
+                      ? first.quasis[0]?.value.cooked
+                      : undefined;
             const isNamed =
                 node.type === "NewExpression" &&
                 node.callee.type === "Identifier" &&
                 node.callee.name === "URL" &&
-                first?.type === "Literal" &&
-                typeof first.value === "string" &&
+                typeof literal === "string" &&
                 second?.type === "MemberExpression" &&
                 second.object.type === "MetaProperty" &&
                 second.property.type === "Identifier" &&
                 second.property.name === "url";
-            if (isNamed && first?.type === "Literal" && typeof first.value === "string") {
-                const target = new URL(first.value, `file://${url}`).pathname;
+
+            // note the file it names, else look inside it
+            if (isNamed && typeof literal === "string") {
+                const target = new URL(literal, `file://${url}`).pathname;
                 named.push({ start: node.start, end: node.end, target });
             } else {
                 pending.push(...children(node));
