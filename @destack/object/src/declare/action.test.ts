@@ -136,13 +136,15 @@ const task = defineObject(
     }),
 );
 
-test("describe actions by their keys, inputs and template, and read them back from their descriptions", () => {
+test("describe actions by their keys, icons, inputs and template, and read them back from their descriptions", () => {
     // declare an action marking open notes done, one creating notes by a title and one a view handles
     const owner = { package: notes };
     const done = defineAction(
         {
             name: "note.markDone",
             title: t`Mark Done`,
+            icon: "check",
+            description: t`Close the selected open notes.`,
             summary: t`Mark ${argument("notes")} done`,
             category: t`Note`,
             keywords: t`complete, finish`,
@@ -156,7 +158,12 @@ test("describe actions by their keys, inputs and template, and read them back fr
             name: "note.newNote",
             title: t`New Note`,
             keybinding: "mod+n",
-            input: { title: field.string(schema.string()).labeled(t`Title`) },
+            input: {
+                title: field
+                    .string(schema.string())
+                    .labeled(t`Title`, "text-t")
+                    .described(t`The note's heading.`),
+            },
             call: ({ title }) => note.prepare("create", { title }),
         },
         owner,
@@ -183,6 +190,8 @@ test("describe actions by their keys, inputs and template, and read them back fr
                 package: notes,
                 name: "note.markDone",
                 title: t`Mark Done`,
+                icon: "check",
+                description: t`Close the selected open notes.`,
                 summary: t`Mark ${argument("notes")} done`,
                 category: t`Note`,
                 keywords: t`complete, finish`,
@@ -215,7 +224,14 @@ test("describe actions by their keys, inputs and template, and read them back fr
                     method: "create",
                     input: { title: { placeholder: "title" } },
                     inputs: [
-                        { name: "title", label: t`Title`, presence: "required", kind: "text" },
+                        {
+                            name: "title",
+                            label: t`Title`,
+                            presence: "required",
+                            kind: "text",
+                            icon: "text-t",
+                            description: t`The note's heading.`,
+                        },
                     ],
                 },
             },

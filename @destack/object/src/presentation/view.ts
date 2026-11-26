@@ -1,3 +1,4 @@
+import { IconName } from "@destack/icon/name";
 import { Condition, type Moment, OrderBy } from "@destack/db";
 import { Message, t } from "@destack/locale";
 
@@ -14,6 +15,10 @@ const objectView = schema.object({
     name: VIEW_NAME,
     /** The view's title as people read it, such as Board by state. */
     title: Message,
+    /** The icon beside the view's title, such as in a view switcher. */
+    icon: IconName.exactOptional(),
+    /** One sentence on what the view shows. */
+    description: Message.exactOptional(),
     /** The condition the objects shown meet, every object when absent. */
     where: Condition.schema.exactOptional(),
     /** How the objects sort before the layout's own order. */
@@ -61,14 +66,14 @@ export const ObjectView = Object.assign(objectView, {
         } else if (layout.kind === "calendar") {
             return t`Calendar by ${layout.by}`;
         } else if (layout.kind === "tree") {
-            return t`Tree`;
+            return t.context("option")`Tree`;
         } else if (layout.kind === "timeline") {
-            return t`Timeline`;
+            return t.context("option")`Timeline`;
         } else if (layout.kind === "gallery") {
-            return t`Gallery`;
+            return t.context("option")`Gallery`;
         }
 
-        return t`Table`;
+        return t.context("option")`Table`;
     },
 
     /** Extend a list query to read what a view shows, its times bound to a moment. */

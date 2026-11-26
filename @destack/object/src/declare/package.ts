@@ -11,7 +11,8 @@ import type { Declaration, ResourceRequirement } from "@destack/package/declare"
 import { mapValues, Version } from "@destack/schema";
 import type { Message } from "@destack/locale";
 import { Hue } from "@destack/color";
-import { MountPath, Capability, IconName } from "./description.ts";
+import { IconName } from "@destack/icon/name";
+import { MountPath, Capability } from "./description.ts";
 import type { Action } from "./action.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { GrantDeclaration, type Policy } from "@destack/access";
@@ -51,7 +52,7 @@ export interface PackageIdentity {
     /** What the package does, in one sentence, such as under its title when installing it. */
     readonly description: Message;
     /** The Phosphor icon its app's tile draws, such as `calendar-blank`. */
-    readonly icon: string;
+    readonly icon: IconName;
     /** The swatch the stack draws it in, such as on its tile, in traces and in diagrams. */
     readonly color: Hue;
 }

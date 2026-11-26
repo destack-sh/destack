@@ -1,3 +1,4 @@
+import type { IconName } from "@destack/icon/name";
 import { type Localization, type Message, t } from "@destack/locale";
 import { ObjectAppearance } from "../presentation/appearance.ts";
 import { Layout } from "../layout/layout.ts";
@@ -252,11 +253,11 @@ const REQUEST_FIELD = "requestId";
 
 /** The titles of the built-in methods people run on objects from a list. */
 const METHOD_TITLES: Readonly<Partial<Record<MethodKind, Message>>> = {
-    update: t`Edit`,
-    delete: t`Delete`,
-    archive: t`Archive`,
-    unarchive: t`Unarchive`,
-    restore: t`Restore`,
+    update: t.context("action")`Edit`,
+    delete: t.context("action")`Delete`,
+    archive: t.context("action")`Archive`,
+    unarchive: t.context("action")`Unarchive`,
+    restore: t.context("action")`Restore`,
     purge: t`Delete for good`,
 };
 
@@ -538,6 +539,10 @@ export interface ObjectDefinition<
     readonly plural: string;
     /** The type's name as people read it, plural by the objects' count. */
     readonly title: Message<"count">;
+    /** The icon beside the type's name, such as in a sidebar or a picker. */
+    readonly icon?: IconName;
+    /** One sentence on what the objects are, such as when creating one. */
+    readonly description?: Message;
     /** Where the objects live in another package's table, absent to derive the type's table. */
     readonly mapping?: Omit<TableMapping, "policy">;
     /** The scope types the objects live in, any scope when absent. */
@@ -4126,6 +4131,8 @@ type ObjectOptionKeys =
     | "name"
     | "plural"
     | "title"
+    | "icon"
+    | "description"
     | "identity"
     | "mapping"
     | "scope"

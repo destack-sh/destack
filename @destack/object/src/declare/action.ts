@@ -1,3 +1,4 @@
+import type { IconName } from "@destack/icon/name";
 import type { Message, Shortcut } from "@destack/locale";
 import {
     DeclarationName,
@@ -43,6 +44,10 @@ export interface ActionDefinition<
     readonly name: string;
     /** The title menus, the command palette and the command line show. */
     readonly title: Message;
+    /** The icon menus and toolbars show beside the title. */
+    readonly icon?: IconName;
+    /** One sentence on what the action does, which tooltips and the command palette show. */
+    readonly description?: Message;
     /** The sentence for an action with its inputs, such as a confirmation, its title by default. */
     readonly summary?: Message<keyof Inputs & string>;
     /** The group the command palette shows the title under, such as `Git` in `Git: Commit`. */
@@ -73,6 +78,10 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
     readonly name: string;
     /** The title menus, the command palette and the command line show. */
     readonly title: Message;
+    /** The icon menus and toolbars show beside the title, absent for none. */
+    readonly icon: IconName | undefined;
+    /** One sentence on what the action does, absent for none. */
+    readonly description: Message | undefined;
     /** The sentence for an action with its inputs, absent to use the title. */
     readonly summary: Message | undefined;
     /** The group the command palette shows the title under, absent for none. */
@@ -103,6 +112,8 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
         this.package = owner;
         this.name = DeclarationName.parse(definition.name);
         this.title = definition.title;
+        this.icon = definition.icon;
+        this.description = definition.description;
         this.summary = definition.summary;
         this.category = definition.category;
         this.keywords = definition.keywords;
@@ -170,6 +181,8 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
             package: this.package,
             name: this.name,
             title: this.title,
+            ...(this.icon === undefined ? {} : { icon: this.icon }),
+            ...(this.description === undefined ? {} : { description: this.description }),
             ...(this.summary === undefined ? {} : { summary: this.summary }),
             ...(this.category === undefined ? {} : { category: this.category }),
             ...(this.keywords === undefined ? {} : { keywords: this.keywords }),

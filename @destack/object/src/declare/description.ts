@@ -1,3 +1,4 @@
+import { IconName } from "@destack/icon/name";
 import { Message } from "@destack/locale";
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
@@ -125,9 +126,6 @@ export const PACKAGE_EXPORT = "default";
 /** The subpath a package's build exports its server under. */
 export const SERVER_EXPORT = "./server";
 
-/** A Phosphor icon's name, in kebab case such as `calendar-blank`. */
-export const IconName = schema.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
-
 /** A declared package: its identity, the API its objects derive, its mounts and its views. */
 const packageDescription = schema.object({
     /** The package's name as people read it. */
@@ -237,6 +235,10 @@ export const ActionDescription = schema.object({
     name: schema.string().min(1),
     /** The action's title. */
     title: Message,
+    /** The icon beside the title. */
+    icon: IconName.exactOptional(),
+    /** One sentence on what the action does. */
+    description: Message.exactOptional(),
     /** The sentence for the action with its inputs. */
     summary: Message.exactOptional(),
     /** The group the command palette shows the title under. */
