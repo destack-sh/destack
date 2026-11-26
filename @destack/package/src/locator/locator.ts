@@ -27,7 +27,7 @@ const ReleasedManifest = schema.looseObject({
 export interface StampedFunction {
     /** The name of the package exporting it. */
     readonly owner: string;
-    /** Its export path, such as `defineObject` or `Message.context`. */
+    /** Its export path, such as `defineObject` or `t.context`. */
     readonly name: string;
     /** The parameter position where the transform passes the calling module. */
     readonly module: number;

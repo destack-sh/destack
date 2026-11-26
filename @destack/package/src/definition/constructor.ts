@@ -69,7 +69,7 @@ export const Stamp = schema.object({
 /** A function the module transform passes the calling module to. */
 export type Stamp = schema.Infer<typeof Stamp>;
 
-/** The functions receiving the calling module, by export path such as `Message.context`. */
+/** The functions receiving the calling module, by export path such as `t.context`. */
 export const StampMap = schema.record(
     schema.string().regex(/^[A-Za-z][A-Za-z0-9]*(?:\.[A-Za-z][A-Za-z0-9]*)*$/u),
     Stamp,

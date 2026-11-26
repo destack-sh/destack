@@ -33,8 +33,11 @@ export type PackageId = schema.Infer<typeof PackageId>;
 /** The pattern of a dotted declaration name: camelCase words and dots, such as editor.mode. */
 const DOTTED_PATTERN = /^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$/u;
 
-/** A declaration name within a package: kebab-case, or dotted camelCase such as editor.mode. */
-export const DeclarationName = schema
+/** The pattern of a member of a qualified name: one camelCase run, such as historyUnavailable. */
+const MEMBER_PATTERN = /^[a-z][a-zA-Z0-9]*$/u;
+
+/** The schema of a declaration name within a package. */
+const declarationName = schema
     .string()
     .regex(
         new RegExp(
@@ -42,6 +45,32 @@ export const DeclarationName = schema
             "u",
         ),
     );
+
+/** A declaration name within a package: kebab-case, or dotted camelCase such as editor.mode. */
+export const DeclarationName = Object.assign(declarationName, {
+    /** Qualify a member by the identifier of what it shows, as `<shown>.<member>` in camelCase. */
+    qualify(shown: string, member: string): schema.Infer<typeof declarationName> {
+        // require a camelCase member
+        if (!MEMBER_PATTERN.test(member)) {
+            throw new TypeError(
+                `'${member}' is invalid: it must be camelCase, such as historyUnavailable`,
+            );
+        }
+
+        // write the shown identifier in camelCase: Tabs as tabs, notesBoard as it is
+        const owner = `${shown.charAt(0).toLowerCase()}${shown.slice(1)}`;
+
+        // require a valid name, refusing it with the shown identifier it came from
+        const qualified = `${owner}.${member}`;
+        if (!declarationName.safeParse(qualified).success) {
+            throw new TypeError(
+                `'${qualified}' is invalid: it shows '${shown}', whose name is no declaration name`,
+            );
+        }
+
+        return qualified;
+    },
+});
 /** A declaration name within a package. */
 export type DeclarationName = schema.Infer<typeof DeclarationName>;
 

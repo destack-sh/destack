@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { schema } from "@destack/schema";
 import { expect, test } from "vitest";
 import {
@@ -39,7 +40,7 @@ function declare(
         of: createCounter,
         interaction: countInteraction,
         name: "count",
-        description: "count once, then through operations",
+        description: t`Count once, then through operations.`,
         given: { examples: [] },
         parameters,
         when: [{ action: "count" }, ...operations],
@@ -89,9 +90,9 @@ test("refuse invalid operations", () => {
             ]),
         ),
     ]).toEqual([
-        "scenario 'count' is invalid: 'count' names no object and verb",
-        "scenario 'count' is invalid: it repeats 'counter.count' no times",
-        "scenario 'count' is invalid: it names 'counter.count' twice",
+        "scenario 'createCounter.count' is invalid: 'count' names no object and verb",
+        "scenario 'createCounter.count' is invalid: it repeats 'counter.count' no times",
+        "scenario 'createCounter.count' is invalid: it names 'counter.count' twice",
     ]);
 });
 
@@ -143,9 +144,9 @@ test("refuse unknown parameters", () => {
             ),
         ),
     ]).toEqual([
-        "scenario 'count' is invalid: it refers to 'writes', which is none of its parameters",
-        "scenario 'count' is invalid: it names a parameter 'n', the repetition each step takes",
-        "scenario 'count' is invalid: it refers to 'n', which is none of its parameters",
+        "scenario 'createCounter.count' is invalid: it refers to 'writes', which is none of its parameters",
+        "scenario 'createCounter.count' is invalid: it declares a parameter 'n', the repetition each step takes",
+        "scenario 'createCounter.count' is invalid: it refers to 'n', which is none of its parameters",
     ]);
 });
 

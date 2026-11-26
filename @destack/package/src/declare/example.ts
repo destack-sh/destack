@@ -1,4 +1,5 @@
 import { type JsonObject, type JsonValue, schema } from "@destack/schema";
+import { Message } from "../definition/message.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DeclarationName } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
@@ -20,10 +21,10 @@ export type ExampleLayout = "centered" | "padded" | "fullscreen";
 export interface ExampleDefinition<Of, Instance> {
     /** The declaration the example shows, such as a component, a view or an object type. */
     readonly of: Of;
-    /** The state it shows, unique per declaration, such as `history-unavailable`. */
+    /** The state it shows in camelCase, unique per shown declaration, such as `notesEmpty`. */
     readonly name: string;
-    /** One sentence saying what the example shows. */
-    readonly description: string;
+    /** One sentence saying what the example shows, as a message people read in their language. */
+    readonly description: Message;
     /** Where a host puts the example, centred by default. */
     readonly layout?: ExampleLayout;
     /** The property values the example sets, each a JSON value a control can change. */
@@ -58,8 +59,8 @@ export interface Example<
     readonly kind: "example";
     /** The declaration the example shows. */
     readonly of: unknown;
-    /** One sentence saying what the example shows. */
-    readonly description: string;
+    /** One sentence saying what the example shows, as a message people read in their language. */
+    readonly description: Message;
     /** Where a host puts the example. */
     readonly layout: ExampleLayout;
     /** The property values the example sets. */
@@ -78,7 +79,7 @@ export function defineExample<Of, Instance = never>(
     // stamp the package supplied by the module transform and validate the name
     const owner = ModuleMetadata.require(module, "defineExample").package;
     const { of, name, description } = definition;
-    DeclarationName.parse(name);
+    requireQualified("example", name);
     requireDescription("example", name, description);
 
     // require JSON properties
@@ -108,9 +109,20 @@ export function defineExample<Of, Instance = never>(
     });
 }
 
+/** Require a name the module transform qualified by what its declaration shows. */
+export function requireQualified(kind: string, name: string): void {
+    DeclarationName.parse(name);
+    if (!name.includes(".")) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `${kind} '${name}' is invalid: the module transform qualifies its name by what it shows`,
+        );
+    }
+}
+
 /** Require one sentence saying what a declaration shows. */
-export function requireDescription(kind: string, name: string, description: string): void {
-    if (description.trim() === "") {
+export function requireDescription(kind: string, name: string, description: Message): void {
+    if (description.source.trim() === "") {
         throw PackageError.of(
             "DEFINITION_INVALID",
             `${kind} '${name}' is invalid: it needs a description`,
@@ -126,7 +138,7 @@ function isProperties<Of>(properties: object): properties is PropertiesOf<Of> {
 /** The description of an example declaration in the graph. */
 export const ExampleDescription = schema.object({
     /** One sentence saying what the example shows. */
-    description: schema.string().min(1),
+    description: Message,
     /** The property values the example sets, by property. */
     properties: schema.jsonObject(),
     /** The calls bringing objects into the example's state, by scope and type moniker. */

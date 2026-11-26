@@ -4,6 +4,7 @@ import type { ESTree } from "rolldown/utils";
 import { relative, sep } from "node:path";
 import type { DeclarationSite } from "../definition/declaration.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
+import { DeclarationName } from "../definition/package.ts";
 import type { Environment } from "@destack/environment";
 import { canonicalize, Digest, nth, schema, Version } from "@destack/schema";
 import type { TransformCache } from "../build/build.ts";
@@ -23,6 +24,12 @@ const DECLARE = "__destackDeclare";
 
 /** The source of each static import or re-export: one line after a `from` outside a string. */
 const IMPORT_SOURCE = /(?<!["'])\bfrom\s*["']([^"'\n]+)["']/gu;
+
+/** The package declaring the example and scenario constructors. */
+const PACKAGE_NAME = "@destack/package";
+
+/** The constructors whose names the transform qualifies by what their definitions show. */
+const QUALIFIED = new Set(["defineExample", "defineScenario"]);
 
 /** A transform cache entry: the digest of what a module's transform read, and its result. */
 const TransformEntry = schema.object({
@@ -280,8 +287,11 @@ export async function transformModule(
         },
         // append the module to stamped calls that omit it, and record declaration sites
         CallExpression(node) {
-            // append the module
+            // append the module, and qualify an example's or scenario's name by what it shows
             if (stampCall(node, bindings, source)) {
+                isChanged = true;
+            }
+            if (qualifyName(node, bindings, source)) {
                 isChanged = true;
             }
 
@@ -388,6 +398,57 @@ function stampCall(
     else {
         source.appendLeft(node.end - 1, appended);
     }
+
+    return true;
+}
+
+/** Qualify an example's or scenario's literal name by what its `of` shows, reporting success. */
+function qualifyName(
+    node: ESTree.CallExpression,
+    bindings: ReadonlyMap<string, Binding>,
+    source: MagicString,
+): boolean {
+    // take a definition call of the package's examples or scenarios with an object literal
+    const stamped = findStamp(node.callee, bindings);
+    const [definition] = node.arguments;
+    if (
+        stamped?.owner !== PACKAGE_NAME ||
+        !QUALIFIED.has(stamped.name) ||
+        definition?.type !== "ObjectExpression"
+    ) {
+        return false;
+    }
+
+    // read the shown identifier, or a namespace member's name, and the literal name
+    const field = (key: string) =>
+        definition.properties.find(
+            (property) =>
+                property.type === "Property" &&
+                property.key.type === "Identifier" &&
+                property.key.name === key,
+        );
+    const of = field("of");
+    const name = field("name");
+    const shown =
+        of?.type !== "Property"
+            ? undefined
+            : of.value.type === "Identifier"
+              ? of.value.name
+              : of.value.type === "MemberExpression" && of.value.property.type === "Identifier"
+                ? of.value.property.name
+                : undefined;
+    if (
+        shown === undefined ||
+        name?.type !== "Property" ||
+        name.value.type !== "Literal" ||
+        typeof name.value.value !== "string"
+    ) {
+        return false;
+    }
+
+    // write the qualified name over the literal
+    const qualified = DeclarationName.qualify(shown, name.value.value);
+    source.overwrite(name.value.start, name.value.end, JSON.stringify(qualified));
 
     return true;
 }

@@ -143,10 +143,11 @@ An image is `{ root, builds }`: a root build, and one build per package it runs 
 
 ### Declare an example
 
-`defineExample` shows a declaration with given properties.
-Its `layout` places it on a host's stage, after Storybook's `layout` parameter: `"centered"` by default, `"padded"` or `"fullscreen"`.
+`defineExample` shows a declaration with given properties, under the name of what it shows and its member: this one is `badge.many`.
+Its `layout` places it on its page, after Storybook's `layout` parameter: `"centered"` by default, `"padded"` or `"fullscreen"`.
 
 ```ts
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 
 /** A badge with an unread count. */
@@ -155,7 +156,7 @@ const Badge = (properties: { readonly count?: number }) => `${properties.count ?
 export const badgeMany = defineExample({
     of: Badge,
     name: "many",
-    description: "A badge counting many unread notifications.",
+    description: t`A badge counting many unread notifications.`,
     properties: { count: 120 },
     render: Badge,
 });
@@ -190,11 +191,11 @@ export async function readReadme(location: PackageLocation): Promise<string> {
 
 A package's role says how it ships.
 
-| Role      | What it is              |
-| --------- | ----------------------- |
+| Role      | What it is                               |
+| --------- | ---------------------------------------- |
 | `builtin` | runtime-linked it, Destack platform only |
-| `library` | import-bundled |
-| `app`     | installed |
+| `library` | import-bundled                           |
+| `app`     | installed                                |
 
 Builtins and libraries import only builtins and other libraries; apps also get to import other apps' `object`, `declare`, `client`, `setting` and `view`.
 
@@ -229,6 +230,37 @@ Each subpath loads only what its role runs, so a page importing `./client` never
     }
 }
 ```
+
+### Examples and scenarios
+
+An example's or scenario's name is `<shown>.<member>`: the module transform writes the export its `of` shows, in camelCase, before the member its definition gives.
+
+| Definition                              | Name                       |
+| --------------------------------------- | -------------------------- |
+| `of: Tabs, name: "files"`               | `tabs.files`               |
+| `of: PaneGroup, name: "files"`          | `paneGroup.files`          |
+| `of: Tabs, name: "selectWithArrowKeys"` | `tabs.selectWithArrowKeys` |
+
+An example's member is one point of what it shows, from one category, in this order in its module.
+A value a declared property takes is no example of its own: the editor's matrix and inspector lay every value out.
+
+| Category | Member                                                                                   |
+| -------- | ---------------------------------------------------------------------------------------- |
+| default  | `default`, once, first                                                                   |
+| state    | a state no declared property sets: `open`, `expanded`, `controlled`, `invalid`, `failed` |
+| content  | `empty`, `long`, `overflowing`, `many`, `partial`, or what it says: `delete`             |
+| part     | the part's name: `indicator`, `badge`, `submenu`                                         |
+| use      | what the composition is: `files`, `noteToolbar`, `tasks`                                 |
+
+A scenario's member is what happens, verb first, then what it happens to and by what: `<verb>[<object>][With<input>]`.
+
+| Part  | Words                                                                                                                                                                              |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| verb  | `move`, `select`, `open`, `close`, `check`, `expand`, `collapse`, `choose`, `filter`, `type`, `drag`, `drop`, `dismiss`, `scroll`, `jump`, or an operation's verb such as `create` |
+| input | `ArrowKeys`, `Enter`, `Escape`, `Tab`, `Pointer`, `Touch`, `Pen`, `Shortcut`                                                                                                       |
+
+An example's description is a `t` sentence starting with what it shows, then what sets it apart: "A note's tabs, its history tab unavailable."
+A scenario's description is a `t` sentence saying what happens, verb first: "Select tabs as the arrow keys move the focus."
 
 ### README
 

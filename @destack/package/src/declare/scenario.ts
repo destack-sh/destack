@@ -1,10 +1,11 @@
 import { type JsonValue, present, schema } from "@destack/schema";
+import { Message } from "../definition/message.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DeclarationName } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
 import { Moniker } from "../graph/moniker.ts";
 import type { Declaration } from "./declaration.ts";
-import { type Example, requireDescription } from "./example.ts";
+import { type Example, requireDescription, requireQualified } from "./example.ts";
 
 /** What a scenario's steps and observations speak and its examples play in. */
 export interface Interaction<Step = unknown, Observation = unknown, Globals = unknown> {
@@ -260,10 +261,10 @@ export interface ScenarioDefinition<
     readonly of: unknown;
     /** The interaction of the steps and observations, which picks the driver playing them. */
     readonly interaction: Interaction<Step, Observation, Globals>;
-    /** The behaviour it plays, verb first and unique, such as `select-with-arrow-keys`. */
+    /** The behaviour it plays, verb first in camelCase, such as `selectWithArrowKeys`. */
     readonly name: string;
-    /** One sentence saying what the scenario shows. */
-    readonly description: string;
+    /** One sentence saying what the scenario shows, as a message people read in their language. */
+    readonly description: Message;
     /** The examples it starts from and the globals it plays with. */
     readonly given: Given<Instance, Globals>;
     /** The named numbers its steps and observations refer to, none when empty. */
@@ -294,14 +295,14 @@ export function defineScenario<Step, Observation, Globals, Instance>(
     // stamp the package supplied by the module transform and validate the name and description
     const owner = ModuleMetadata.require(module, "defineScenario").package;
     const { of, interaction, name, description, given, parameters } = definition;
-    DeclarationName.parse(name);
+    requireQualified("scenario", name);
     requireDescription("scenario", name, description);
 
     // resolve the references to the parameters in the steps and observations
     if (REPETITION in parameters) {
         throw PackageError.of(
             "DEFINITION_INVALID",
-            `scenario '${name}' is invalid: it names a parameter '${REPETITION}', the repetition each step takes`,
+            `scenario '${name}' is invalid: it declares a parameter '${REPETITION}', the repetition each step takes`,
         );
     }
     const unknown = Reference.names([definition.when, definition.then]).find(
@@ -442,7 +443,7 @@ function requireExamples(name: string, when: readonly unknown[], given: Given): 
 /** The graph description of a scenario, its steps and observations as JSON for its interaction. */
 export const ScenarioDescription = schema.object({
     /** One sentence saying what the scenario shows. */
-    description: schema.string().min(1),
+    description: Message,
     /** The interaction the steps and observations speak, by symbol moniker. */
     interaction: Moniker,
     /** The examples the scenario starts from, by declaration moniker. */
