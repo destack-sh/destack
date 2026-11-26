@@ -15,6 +15,7 @@
         "./channel/socket": "./src/channel/socket.ts",
         "./sqlite": "./src/sqlite/index.ts",
         "./browser": "./src/browser/index.ts",
+        "./channel": "./src/browser/channel.ts",
         "./cloudflare": "./src/cloudflare/index.ts",
         "./cloudflare/durable": "./src/cloudflare/durable.ts",
         "./inspect": "./src/inspect/index.ts",

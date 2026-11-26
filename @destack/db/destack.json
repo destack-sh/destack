@@ -30,6 +30,10 @@
             "runtimes": ["browser"],
             "internal": true
         },
+        "./channel": {
+            "runtimes": ["browser"],
+            "internal": true
+        },
         "./inspect": {
             "runtimes": ["bun", "workerd"],
             "internal": true
