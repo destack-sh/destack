@@ -32,12 +32,12 @@ export const messageChannel = defineExample({
     name: "channel",
     description: t`Two messages of a team's channel, with actions over the one pointed at.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         const { clock } = useEnvironment();
 
         return (
             <Stack space="4">
-                <Message>
+                <Message {...properties}>
                     <MessageAvatar position="top">
                         <Avatar>
                             <AvatarImage src={PICTURES.ada} alt="" />
@@ -74,7 +74,7 @@ export const messageChannel = defineExample({
                         </ToolbarButton>
                     </MessageToolbar>
                 </Message>
-                <Message>
+                <Message {...properties}>
                     <MessageAvatar position="top">
                         <Avatar>
                             <AvatarImage src={PICTURES.grace} alt="" />
@@ -100,9 +100,9 @@ export const messageDirect = defineExample({
     name: "direct",
     description: t`A conversation in bubbles, one's own at the end, with whether it was read.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Stack space="4">
-            <Message>
+            <Message {...properties}>
                 <MessageAvatar>
                     <Avatar>
                         <AvatarImage src={PICTURES.grace} alt="Grace Hopper" />
@@ -111,10 +111,10 @@ export const messageDirect = defineExample({
                 </MessageAvatar>
                 <MessageContent>
                     <BubbleGroup>
-                        <Bubble variant="secondary">
+                        <Bubble variant="soft" color="gray">
                             <BubbleContent>Did the moth survive?</BubbleContent>
                         </Bubble>
-                        <Bubble variant="secondary">
+                        <Bubble variant="soft" color="gray">
                             <BubbleContent>Asking for the logbook.</BubbleContent>
                         </Bubble>
                     </BubbleGroup>
@@ -131,5 +131,63 @@ export const messageDirect = defineExample({
                 </Message>
             </MessageGroup>
         </Stack>
+    ),
+});
+
+/** Grace's picture beside a long bubble, at its top or its tail. */
+export const messageAvatarBeside = defineExample({
+    of: MessageAvatar,
+    name: "beside",
+    description: t`Grace's picture beside a long bubble, at its top or its tail.`,
+    layout: "padded",
+    render: (properties) => (
+        <Message>
+            <MessageAvatar {...properties}>
+                <Avatar>
+                    <AvatarImage src={PICTURES.grace} alt="Grace Hopper" />
+                    <AvatarFallback>GH</AvatarFallback>
+                </Avatar>
+            </MessageAvatar>
+            <MessageContent>
+                <Bubble variant="soft" color="gray">
+                    <BubbleContent>
+                        The relay in panel F stuck again. I taped the moth into the logbook and ran
+                        the whole table a second time to be sure.
+                    </BubbleContent>
+                </Bubble>
+            </MessageContent>
+        </Message>
+    ),
+});
+
+/** Ada's message with its actions in view. */
+export const messageToolbarActions = defineExample({
+    of: MessageToolbar,
+    name: "actions",
+    description: t`Ada's message with its actions in view.`,
+    layout: "padded",
+    properties: {
+        autohide: "never",
+        "aria-label": "Actions",
+    },
+    render: (properties) => (
+        <Message>
+            <MessageContent>
+                <MessageHeader>
+                    <MessageAuthor>Ada Lovelace</MessageAuthor>
+                </MessageHeader>
+                <div>The engine ran the whole table overnight.</div>
+                <MessageFooter>
+                    <MessageToolbar {...properties}>
+                        <ToolbarButton variant="ghost" isIconOnly size="sm" aria-label="React">
+                            <Icon icon={smileyIcon} />
+                        </ToolbarButton>
+                        <ToolbarButton variant="ghost" isIconOnly size="sm" aria-label="Reply">
+                            <Icon icon={arrowBendUpLeftIcon} />
+                        </ToolbarButton>
+                    </MessageToolbar>
+                </MessageFooter>
+            </MessageContent>
+        </Message>
     ),
 });

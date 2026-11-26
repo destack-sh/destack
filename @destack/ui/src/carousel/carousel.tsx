@@ -1,5 +1,6 @@
+import { field } from "@destack/object";
 import { state } from "@destack/theme/state";
-import type { Axis } from "../position/index.ts";
+import { type Axis, ORIENTATION } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
 import arrowDown from "@destack/icon/phosphor/arrow-down";
 import arrowLeft from "@destack/icon/phosphor/arrow-left";
@@ -20,7 +21,6 @@ import {
     For,
     isServer,
     type JSX,
-    merge,
     omit,
     onCleanup,
     useContext,
@@ -36,9 +36,11 @@ import {
     type Render,
 } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
-
-/** The orientation of a carousel that sets none. */
-const DEFAULTS: Required<Pick<CarouselProperties, "orientation">> = { orientation: "horizontal" };
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The carousel of the nearest carousel, null outside one. */
 const CarouselContext = createContext<CarouselControl | null>(null);
@@ -136,7 +138,7 @@ export class CarouselControl {
     /** The number of slides. */
     readonly count: Accessor<number>;
     /** The properties of the carousel, read for its controlled index and change handler. */
-    readonly #properties: CarouselProperties;
+    readonly #properties: RenderProperties<CarouselAttributes, typeof CAROUSEL_PROPERTIES>;
     /** The index of the slide shown, controlled or the carousel's own. */
     readonly index: Accessor<number>;
     /** Whether autoplay moves the slides. */
@@ -155,7 +157,10 @@ export class CarouselControl {
     #isFollowing: boolean;
 
     /** Create a carousel without slides on its first or controlled slide. */
-    constructor(properties: CarouselProperties, orientation: () => Axis) {
+    constructor(
+        properties: RenderProperties<CarouselAttributes, typeof CAROUSEL_PROPERTIES>,
+        orientation: () => Axis,
+    ) {
         // start on the default slide and play when autoplay is set
         const [index, setIndex] = createControllableSignal({
             isControlled: () => properties.index !== undefined,
@@ -202,7 +207,7 @@ export class CarouselControl {
 
     /** Report whether the carousel wraps from its last slide to its first. */
     isLooping(): boolean {
-        return this.#properties.loop === true;
+        return this.#properties.loop;
     }
 
     /** Move to a slide, and tell the change handler. */
@@ -265,16 +270,24 @@ export class CarouselControl {
     }
 }
 
-/** The properties of a carousel, the native element's attributes included. */
-export interface CarouselProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
-    /** The direction the slides line up in, horizontal by default. */
-    readonly orientation?: Axis;
+/** The properties people change in a carousel's controls and inspector. */
+const CAROUSEL_PROPERTIES = {
+    orientation: ORIENTATION.described(t`Whether the slides line up across or down.`).default(
+        "horizontal",
+    ),
+    loop: field
+        .boolean()
+        .labeled(t.context("label")`Loop`)
+        .described(t`Wraps from its last slide to its first and back.`)
+        .default(false),
+};
+
+/** The properties of a carousel besides its declared ones: its slide, autoplay and handlers. */
+export interface CarouselAttributes extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The index of the slide shown, which makes it controlled. */
     readonly index?: number;
     /** The index of the slide shown at first while uncontrolled, the first by default. */
     readonly defaultIndex?: number;
-    /** Whether the carousel wraps from its last slide to its first and back. */
-    readonly loop?: boolean;
     /** The time each slide shows before the next while autoplay runs, in milliseconds. */
     readonly autoplay?: number;
     /** Handle another slide being shown, by a button, a key or a person's scrolling. */
@@ -302,69 +315,83 @@ export function useCarousel(): CarouselControl {
 }
 
 /** Render a region of slides that scroll and snap. */
-export function Carousel(properties: CarouselProperties): JSX.Element {
-    // share one carousel with its slides and buttons
-    const carousel = merge(DEFAULTS, properties);
-    const control = new CarouselControl(properties, () => carousel.orientation);
-    const locale = useLocale();
-    const rest = omit(
-        carousel,
-        "orientation",
-        "index",
-        "defaultIndex",
-        "onIndexChange",
-        "loop",
-        "autoplay",
-        "setApi",
-    );
+export const Carousel = defineComponent({
+    name: "carousel",
+    properties: CAROUSEL_PROPERTIES,
+    render(
+        properties: RenderProperties<CarouselAttributes, typeof CAROUSEL_PROPERTIES>,
+    ): JSX.Element {
+        // share one carousel with its slides and buttons
+        const control = new CarouselControl(properties, () => properties.orientation);
+        const locale = useLocale();
+        const rest = omit(
+            properties,
+            "orientation",
+            "index",
+            "defaultIndex",
+            "onIndexChange",
+            "loop",
+            "autoplay",
+            "setApi",
+        );
 
-    // move to the next slide on each autoplay tick of the page's clock, which a server render has none of
-    const delay = properties.autoplay;
-    if (delay !== undefined && !isServer) {
-        const { clock } = useEnvironment();
-        const timer = clock.setInterval(() => control.tick(), delay);
-        onCleanup(() => clock.clearInterval(timer));
-    }
-    createEffect(
-        () => control.index(),
-        (index) => control.scroll(index),
-    );
-    properties.setApi?.(control.api());
-    const hover = new Hover({
-        onHoverStart: () => control.rest(true),
-        onHoverEnd: () => control.rest(false),
-    });
+        // move to the next slide on each autoplay tick of the page's clock, which a server render has none of
+        const delay = properties.autoplay;
+        if (delay !== undefined && !isServer) {
+            const { clock } = useEnvironment();
+            const timer = clock.setInterval(() => control.tick(), delay);
+            onCleanup(() => clock.clearInterval(timer));
+        }
+        createEffect(
+            () => control.index(),
+            (index) => control.scroll(index),
+        );
+        properties.setApi?.(control.api());
+        const hover = new Hover({
+            onHoverStart: () => control.rest(true),
+            onHoverEnd: () => control.rest(false),
+        });
 
-    return (
-        <CarouselContext value={control}>
-            {renderPart(
-                "div",
-                "carousel",
-                rest,
-                styles.carousel,
-                mergeProperties(hover.attributes(), {
-                    role: "region" as const,
-                    get "aria-roledescription"() {
-                        return locale.render(t.context("title")`carousel`);
-                    },
-                    get "data-orientation"() {
-                        return carousel.orientation;
-                    },
-                    onFocusIn: () => control.rest(true),
-                    onFocusOut: () => control.rest(false),
-                    onKeyDown: (event: KeyboardEvent & { readonly currentTarget: HTMLElement }) => {
-                        // move to the previous or next slide along the reading direction
-                        const step = stepOf(event.key, carousel.orientation, locale.direction);
-                        if (step !== 0) {
-                            event.preventDefault();
-                            control.go(control.index() + step);
-                        }
-                    },
-                }),
-            )}
-        </CarouselContext>
-    );
-}
+        return (
+            <CarouselContext value={control}>
+                {renderPart(
+                    "div",
+                    "carousel",
+                    rest,
+                    styles.carousel,
+                    mergeProperties(hover.attributes(), {
+                        role: "region" as const,
+                        get "aria-roledescription"() {
+                            return locale.render(t.context("title")`carousel`);
+                        },
+                        get "data-orientation"() {
+                            return properties.orientation;
+                        },
+                        onFocusIn: () => control.rest(true),
+                        onFocusOut: () => control.rest(false),
+                        onKeyDown: (
+                            event: KeyboardEvent & { readonly currentTarget: HTMLElement },
+                        ) => {
+                            // move to the previous or next slide along the reading direction
+                            const step = stepOf(
+                                event.key,
+                                properties.orientation,
+                                locale.direction,
+                            );
+                            if (step !== 0) {
+                                event.preventDefault();
+                                control.go(control.index() + step);
+                            }
+                        },
+                    }),
+                )}
+            </CarouselContext>
+        );
+    },
+});
+
+/** The properties of a carousel, its native attributes included. */
+export type CarouselProperties = ComponentProperties<typeof Carousel>;
 
 /** Render the viewport the slides scroll in. */
 export function CarouselContent(

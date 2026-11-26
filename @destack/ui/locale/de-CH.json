@@ -212,6 +212,19 @@
         "3sw97ikc47d7v": {
             "source": "The smallest unit written, below which it is now.",
             "translation": "Die kleinste geschriebene Einheit, darunter heisst es jetzt."
+        },
+        "3ogpzometj3r7": {
+            "source": "A chat's size, or smaller for a comment.",
+            "translation": "Die Grösse eines Chats oder kleiner für einen Kommentar."
+        },
+        "2p372g09v8jb6": {
+            "source": "Whether they float over the message's corner, or stand in its footer.",
+            "translation": "Ob sie über der Ecke der Nachricht schweben oder in ihrer Fusszeile stehen."
+        },
+        "2vip52dpu8w0n": {
+            "source": "Not last",
+            "context": "option",
+            "translation": "Ausser der letzten"
         }
     }
 }

@@ -2112,10 +2112,6 @@
             "source": "Show as a board",
             "translation": "Mostra come bacheca"
         },
-        "2o8x13ajyhdlm": {
-            "source": "Each variant with a message it suits.",
-            "translation": "Ogni variante con un messaggio adatto."
-        },
         "2oembkerp001y": {
             "source": "the last 7 days",
             "translation": "negli ultimi 7 giorni"
@@ -3492,10 +3488,6 @@
             "context": "option",
             "translation": "Nessuna data"
         },
-        "3si1ejfqqp0kp": {
-            "source": "A note with more space between its parts.",
-            "translation": "Una nota con più spazio tra le sue parti."
-        },
         "3t1ro7gmzyuby": {
             "source": "Show 20 lines below the change above",
             "translation": "Mostra 20 righe sotto la modifica precedente"
@@ -4394,10 +4386,6 @@
             "source": "What sent messages answer, over their words, which leads there.",
             "translation": "A cosa rispondono i messaggi inviati, sopra le parole, che porta lì."
         },
-        "r8lchhghn20b": {
-            "source": "A frame raised, filled and drawn by its edge, its buttons beside the text.",
-            "translation": "Una cornice in rilievo, piena e disegnata dal bordo, con i pulsanti accanto al testo."
-        },
         "rdpkvab3yn8y": {
             "source": "System",
             "context": "title",
@@ -4708,10 +4696,6 @@
             "source": "Ascending",
             "context": "option",
             "translation": "Crescente"
-        },
-        "zikzxi8x0806": {
-            "source": "The tags of a task, each tinted in its swatch.",
-            "translation": "Le etichette di un'attività, ciascuna tinta del suo campione."
         },
         "zls0csn0ecb8": {
             "source": "Searching…",
@@ -5651,14 +5635,6 @@
             "source": "How urgent the alert is, which sets its color and how it is announced.",
             "translation": "Quanto è urgente l'avviso, che ne fissa il colore e come viene annunciato."
         },
-        "1jgtwhl33mwd": {
-            "source": "How much the badge stands out.",
-            "translation": "Quanto risalta il badge."
-        },
-        "zsk25ocm1w3o": {
-            "source": "The hue it tints itself in, such as a tag's, the variant's colors when absent.",
-            "translation": "La tinta con cui si colora, come quella di un tag; se assente, i colori della variante."
-        },
         "1t09opustaljk": {
             "source": "Months",
             "context": "label",
@@ -6011,6 +5987,266 @@
         "fa5qqy09m1cy": {
             "source": "Ada's initials with a mark on their corner, as for someone online.",
             "translation": "Le iniziali di Ada con un segno nell'angolo, come per qualcuno online."
+        },
+        "1u3meib2ijxl3": {
+            "source": "The tags of a task, each in its hue's tint.",
+            "translation": "I tag di un'attività, ognuno nella tinta della sua tonalità."
+        },
+        "1wryqygiq9ovn": {
+            "source": "Solid",
+            "context": "option",
+            "translation": "Pieno"
+        },
+        "oe9d1wdd9cwy": {
+            "source": "Filled with its color, for what stands out.",
+            "translation": "Riempito del suo colore, per ciò che risalta."
+        },
+        "270mf43py9o0c": {
+            "source": "Soft",
+            "context": "option",
+            "translation": "Tenue"
+        },
+        "2qv1vne917we5": {
+            "source": "Filled with its color's tint, for a status or a tag.",
+            "translation": "Riempito della tinta del suo colore, per uno stato o un tag."
+        },
+        "3e96egg7aeslb": {
+            "source": "Drawn around in its color, for the least weight.",
+            "translation": "Bordato del suo colore, per il minor peso."
+        },
+        "3oo30b3f0ivvv": {
+            "source": "How the badge is filled in its color.",
+            "translation": "Come il badge è riempito del suo colore."
+        },
+        "2kzbmllvhle32": {
+            "source": "The hue it is drawn in, such as a tag's, the accent when absent.",
+            "translation": "La tonalità in cui è disegnato, come quella di un tag; se assente, quella d'accento."
+        },
+        "54ntodqq61k9": {
+            "source": "Two reactions over the edge of a bubble.",
+            "translation": "Due reazioni sul bordo di una bolla."
+        },
+        "2ty1lgbd86kt7": {
+            "source": "The side of the conversation it stands at.",
+            "translation": "Il lato della conversazione in cui sta."
+        },
+        "2q0lonuwzp2fb": {
+            "source": "The edge they stand over.",
+            "translation": "Il bordo sopra cui stanno."
+        },
+        "1zebvedternzj": {
+            "source": "The end of the edge they stand at.",
+            "translation": "L'estremità del bordo in cui stanno."
+        },
+        "1xy4z66zrq5js": {
+            "source": "Whether the buttons join in a row or a column.",
+            "translation": "Se i pulsanti si uniscono in una riga o in una colonna."
+        },
+        "1l50fcrh62zzg": {
+            "source": "Whether the slides line up across or down.",
+            "translation": "Se le diapositive si allineano in orizzontale o verso il basso."
+        },
+        "akb1p9h5iyml": {
+            "source": "Loop",
+            "context": "label",
+            "translation": "Ciclo"
+        },
+        "2d9fx7o3ur7im": {
+            "source": "Wraps from its last slide to its first and back.",
+            "translation": "Passa dall'ultima diapositiva alla prima e viceversa."
+        },
+        "2ft3mouffe6l1": {
+            "source": "Gutters",
+            "context": "label",
+            "translation": "Margini"
+        },
+        "1tm3jtjvxmirg": {
+            "source": "The space on each side at narrow widths.",
+            "translation": "Lo spazio su ogni lato alle larghezze ridotte."
+        },
+        "3ndsidxifsdru": {
+            "source": "Intrinsic",
+            "context": "label",
+            "translation": "Intrinseco"
+        },
+        "1jmsowjxepxp7": {
+            "source": "Centers the elements inside at their own widths too.",
+            "translation": "Centra anche gli elementi interni alla loro larghezza."
+        },
+        "379hb8hm15399": {
+            "source": "Center text",
+            "context": "label",
+            "translation": "Centra il testo"
+        },
+        "ht6sk2drjv7": {
+            "source": "Centers the text inside too.",
+            "translation": "Centra anche il testo interno."
+        },
+        "2payearnetnjc": {
+            "source": "The space between the elements and between their rows.",
+            "translation": "Lo spazio tra gli elementi e tra le loro righe."
+        },
+        "3av9nkhvniq6c": {
+            "source": "Between",
+            "context": "option",
+            "translation": "Tra"
+        },
+        "3srqxygr9sxl": {
+            "source": "Justify",
+            "context": "label",
+            "translation": "Giustifica"
+        },
+        "2dodawrs7pmdm": {
+            "source": "Where each row's elements sit along it.",
+            "translation": "Dove stanno gli elementi di ogni riga lungo di essa."
+        },
+        "7drclgrwmlf2": {
+            "source": "Where elements of different heights sit within their row.",
+            "translation": "Dove stanno gli elementi di altezze diverse nella loro riga."
+        },
+        "382nuk6eoo6rh": {
+            "source": "A question for an assistant in its frame, with its send button below.",
+            "translation": "Una domanda per un assistente nella sua cornice, con il pulsante di invio sotto."
+        },
+        "mt5ijd6o798h": {
+            "source": "One row with a button to add files beside the text.",
+            "translation": "Una riga con un pulsante per aggiungere file accanto al testo."
+        },
+        "3u32o2wwh1z4o": {
+            "source": "Raised",
+            "context": "option",
+            "translation": "Rialzato"
+        },
+        "e3745rf96p6x": {
+            "source": "Whether the frame is raised from the page, filled, or drawn by its edge.",
+            "translation": "Se la cornice è rialzata dalla pagina, riempita o disegnata dal bordo."
+        },
+        "3ogpzometj3r7": {
+            "source": "A chat's size, or smaller for a comment.",
+            "translation": "La dimensione di una chat, o più piccola per un commento."
+        },
+        "2hb8ius8o1s9v": {
+            "source": "The side of the text it stands at.",
+            "translation": "Il lato del testo in cui sta."
+        },
+        "29k9iutt6y9vz": {
+            "source": "The space between the elements and inside the cover's edges.",
+            "translation": "Lo spazio tra gli elementi e dentro i bordi della copertina."
+        },
+        "268wvr5vbykq9": {
+            "source": "No padding",
+            "context": "label",
+            "translation": "Senza spaziatura"
+        },
+        "3vt03l751vc34": {
+            "source": "Leaves out the space inside the cover's edges.",
+            "translation": "Omette lo spazio dentro i bordi della copertina."
+        },
+        "3byzggfaaf929": {
+            "source": "The space between cells.",
+            "translation": "Lo spazio tra le celle."
+        },
+        "nxu4t69wcc65": {
+            "source": "Grace's picture beside a long bubble, at its top or its tail.",
+            "translation": "La foto di Grace accanto a una bolla lunga, in alto o alla sua coda."
+        },
+        "1ad64rdiae6bd": {
+            "source": "Ada's message with its actions in view.",
+            "translation": "Il messaggio di Ada con le sue azioni in vista."
+        },
+        "1hd99edyansl9": {
+            "source": "Where it stands beside the message, as under a bubble's tail.",
+            "translation": "Dove sta accanto al messaggio, come sotto la coda di una bolla."
+        },
+        "w2grvz38z0la": {
+            "source": "Float",
+            "context": "option",
+            "translation": "Fluttuante"
+        },
+        "13gn771mj09qx": {
+            "source": "Inline",
+            "context": "option",
+            "translation": "In linea"
+        },
+        "7buxtzzoazsm": {
+            "source": "Placement",
+            "context": "label",
+            "translation": "Posizionamento"
+        },
+        "2p372g09v8jb6": {
+            "source": "Whether they float over the message's corner, or stand in its footer.",
+            "translation": "Se fluttuano sopra l'angolo del messaggio o stanno nel suo piè di pagina."
+        },
+        "2pvsj18913z95": {
+            "source": "Always",
+            "context": "option",
+            "translation": "Sempre"
+        },
+        "2vip52dpu8w0n": {
+            "source": "Not last",
+            "context": "option",
+            "translation": "Tranne l'ultimo"
+        },
+        "1n4nkne1t9m9q": {
+            "source": "Never",
+            "context": "option",
+            "translation": "Mai"
+        },
+        "17sj0pwisaz44": {
+            "source": "Autohide",
+            "context": "label",
+            "translation": "Nascondi"
+        },
+        "39qn6a3cl348o": {
+            "source": "Whether they hide until the message is pointed at.",
+            "translation": "Se si nascondono finché non si punta il messaggio."
+        },
+        "1o5rr7zgyx6eb": {
+            "source": "Space",
+            "context": "label",
+            "translation": "Spaziatura"
+        },
+        "259sdserfjtgb": {
+            "source": "The space between the stacked elements.",
+            "translation": "Lo spazio tra gli elementi impilati."
+        },
+        "1iqnh7ijc5g0h": {
+            "source": "Recursive",
+            "context": "label",
+            "translation": "Ricorsivo"
+        },
+        "gh1ph1mmav3w": {
+            "source": "Puts the space between the elements nested inside the stacked ones too.",
+            "translation": "Mette lo spazio anche tra gli elementi annidati in quelli impilati."
+        },
+        "3nspve1cfz90y": {
+            "source": "The space between the elements.",
+            "translation": "Lo spazio tra gli elementi."
+        },
+        "8qxpay67udr6": {
+            "source": "Limit",
+            "context": "label",
+            "translation": "Limite"
+        },
+        "1jtw678yk5tda": {
+            "source": "The most elements in one row, above which they always stack.",
+            "translation": "Il massimo di elementi in una riga, oltre il quale si impilano sempre."
+        },
+        "2r2wh2wb52gmb": {
+            "source": "A booked ferry, confirmed in a soft bubble.",
+            "translation": "Un traghetto prenotato, confermato in una bolla tenue."
+        },
+        "2fub7r3d8k3nb": {
+            "source": "Text alone in its color, as for a long answer.",
+            "translation": "Solo testo nel suo colore, come per una risposta lunga."
+        },
+        "zgc93so2nbxq": {
+            "source": "How the bubble is filled in its color.",
+            "translation": "Come la bolla è riempita del suo colore."
+        },
+        "2902w2rvkginy": {
+            "source": "The hue it is drawn in, the accent when absent.",
+            "translation": "La tonalità in cui è disegnata; se assente, quella d'accento."
         }
     }
 }

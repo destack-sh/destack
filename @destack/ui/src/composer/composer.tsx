@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import arrowUpIcon from "@destack/icon/phosphor/arrow-up";
 import stopIcon from "@destack/icon/phosphor/stop";
 import { Shortcut, t } from "@destack/locale";
@@ -14,6 +15,11 @@ import {
     renderPart,
 } from "../part/index.ts";
 import { Textarea, type TextareaProperties } from "../textarea/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The tallest the text grows before it scrolls. */
 const TALLEST = `calc(48 * ${space[1]})`;
@@ -128,12 +134,6 @@ const frames = style.create({
         backgroundColor: "transparent",
     },
 });
-
-/** The surface of a composer's frame: raised from the page, filled, or drawn by its edge. */
-export type ComposerFrameVariant = keyof typeof frames;
-
-/** The size of a composer's frame: a chat's, or smaller for a comment's. */
-export type ComposerFrameSize = keyof typeof sizes;
 
 /** How a composer is sent by the keys: Enter, Enter with the command key, or not at all. */
 export type ComposerSubmitMode = "enter" | "ctrlEnter" | "none";
@@ -258,51 +258,74 @@ export function Composer(properties: ComposerProperties): JSX.Element {
     );
 }
 
-/** The properties of a composer's frame. */
-export type ComposerFrameProperties = ComposerElementProperties & {
-    /** The surface, raised from the page by default. */
-    readonly variant?: ComposerFrameVariant;
-    /** The size, default by default. */
-    readonly size?: ComposerFrameSize;
+/** The properties people change in a composer frame's controls and inspector. */
+const COMPOSER_FRAME_PROPERTIES = {
+    variant: field
+        .enum({
+            raised: { title: t.context("option")`Raised` },
+            muted: { title: t.context("option")`Muted` },
+            outline: { title: t.context("option")`Outline` },
+        })
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the frame is raised from the page, filled, or drawn by its edge.`)
+        .default("raised"),
+    size: field
+        .enum({
+            default: { title: t.context("option")`Default` },
+            sm: { title: t.context("option")`Small` },
+        })
+        .labeled(t.context("label")`Size`)
+        .described(t`A chat's size, or smaller for a comment.`)
+        .default("default"),
 };
 
 /** Render the frame of a composer around its parts, whose free room goes to the text. */
-export function ComposerFrame(properties: ComposerFrameProperties): JSX.Element {
-    // lay the parts out, and focus the text by a press between them
-    const composer = useComposer();
-    const rest = omit(properties, "variant", "size");
-    const variant = (): ComposerFrameVariant => properties.variant ?? "raised";
-    const frameSize = (): ComposerFrameSize => properties.size ?? "default";
+export const ComposerFrame = defineComponent({
+    name: "composerFrame",
+    properties: COMPOSER_FRAME_PROPERTIES,
+    render(
+        properties: RenderProperties<ComposerElementProperties, typeof COMPOSER_FRAME_PROPERTIES>,
+    ): JSX.Element {
+        // lay the parts out, and focus the text by a press between them
+        const composer = useComposer();
+        const rest = omit(properties, "variant", "size");
 
-    return renderPart(
-        "div",
-        "composer-frame",
-        rest,
-        () => [text.sm, styles.frame, sizes[frameSize()], frames[variant()]],
-        {
-            get "data-size"() {
-                return frameSize();
+        return renderPart(
+            "div",
+            "composer-frame",
+            rest,
+            () => [text.sm, styles.frame, sizes[properties.size], frames[properties.variant]],
+            {
+                get "data-size"() {
+                    return properties.size;
+                },
+                get "data-variant"() {
+                    return properties.variant;
+                },
+                get "data-disabled"() {
+                    return composer.isDisabled() ? "" : undefined;
+                },
+                onPointerDown: (event: PointerEvent & { readonly currentTarget: HTMLElement }) => {
+                    // write by a press between the parts
+                    const { currentTarget, target } = event;
+                    const isFree =
+                        target === currentTarget ||
+                        (target instanceof HTMLElement &&
+                            target.dataset["slot"] === "composer-footer");
+                    if (isFree) {
+                        event.preventDefault();
+                        currentTarget
+                            .querySelector<HTMLElement>("[data-slot=composer-input]")
+                            ?.focus();
+                    }
+                },
             },
-            get "data-variant"() {
-                return variant();
-            },
-            get "data-disabled"() {
-                return composer.isDisabled() ? "" : undefined;
-            },
-            onPointerDown: (event: PointerEvent & { readonly currentTarget: HTMLElement }) => {
-                // write by a press between the parts
-                const { currentTarget, target } = event;
-                const isFree =
-                    target === currentTarget ||
-                    (target instanceof HTMLElement && target.dataset["slot"] === "composer-footer");
-                if (isFree) {
-                    event.preventDefault();
-                    currentTarget.querySelector<HTMLElement>("[data-slot=composer-input]")?.focus();
-                }
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of a composer's frame, its native attributes included. */
+export type ComposerFrameProperties = ComponentProperties<typeof ComposerFrame>;
 
 /** Render the text of a composer, which Enter sends and Shift with Enter breaks. */
 export function ComposerInput(properties: TextareaProperties): JSX.Element {
@@ -336,29 +359,44 @@ export function ComposerFooter(properties: ComposerElementProperties): JSX.Eleme
     return renderPart("div", "composer-footer", properties, styles.footer);
 }
 
-/** The properties of what stands beside the text of a composer. */
-export type ComposerAddonProperties = ComposerElementProperties & {
-    /** The side it stands at, the end by default. */
-    readonly align?: "inline-start" | "inline-end";
+/** The properties people change in a composer addon's controls and inspector. */
+const COMPOSER_ADDON_PROPERTIES = {
+    align: field
+        .enum({
+            "inline-start": { title: t.context("option")`Start` },
+            "inline-end": { title: t.context("option")`End` },
+        })
+        .labeled(t.context("label")`Align`)
+        .described(t`The side of the text it stands at.`)
+        .default("inline-end"),
 };
 
 /** Render what stands beside the text of a composer, as in one that takes one row. */
-export function ComposerAddon(properties: ComposerAddonProperties): JSX.Element {
-    const rest = omit(properties, "align");
-    const isStart = (): boolean => properties.align === "inline-start";
+export const ComposerAddon = defineComponent({
+    name: "composerAddon",
+    properties: COMPOSER_ADDON_PROPERTIES,
+    render(
+        properties: RenderProperties<ComposerElementProperties, typeof COMPOSER_ADDON_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "align");
+        const isStart = (): boolean => properties.align === "inline-start";
 
-    return renderPart(
-        "div",
-        "composer-addon",
-        rest,
-        () => [styles.addon, isStart() ? styles.start : styles.end],
-        {
-            get "data-align"() {
-                return isStart() ? "inline-start" : "inline-end";
+        return renderPart(
+            "div",
+            "composer-addon",
+            rest,
+            () => [styles.addon, isStart() ? styles.start : styles.end],
+            {
+                get "data-align"() {
+                    return properties.align;
+                },
             },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of what stands beside a composer's text, its native attributes included. */
+export type ComposerAddonProperties = ComponentProperties<typeof ComposerAddon>;
 
 /** Render the button that sends a composer, or stops the answer under way. */
 export function ComposerSubmit(properties: ButtonProperties): JSX.Element {

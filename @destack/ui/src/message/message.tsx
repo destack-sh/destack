@@ -1,3 +1,5 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import type { Clock } from "@destack/environment";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
@@ -18,7 +20,6 @@ import {
     createSignal,
     createUniqueId,
     type JSX,
-    merge,
     omit,
     onCleanup,
     untrack,
@@ -28,14 +29,13 @@ import {
 } from "@destack/view";
 import { CollectionBuilder } from "../collection/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
-import { Toolbar, type ToolbarProperties } from "../toolbar/index.ts";
+import { Toolbar, type ToolbarAttributes } from "../toolbar/index.ts";
 import { messageMarker } from "./marker.stylex.ts";
-
-/** The side of a message that sets none. */
-const DEFAULTS = { align: "start" } as const;
-
-/** Where a message's actions stand that set none. */
-const ACTION_DEFAULTS = { placement: "float", autohide: "always" } as const;
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The milliseconds a finger rests before a message shows its actions. */
 const HOLD_DELAY = 500;
@@ -230,8 +230,14 @@ const styles = style.create({
     },
 });
 
-/** The side of a conversation a message stands at: the others' or one's own. */
-export type MessageAlign = "start" | "end";
+/** The sides of a conversation a message stands at: the others' or one's own. */
+export const MESSAGE_ALIGNS = {
+    start: { title: t.context("option")`Start` },
+    end: { title: t.context("option")`End` },
+};
+
+/** The side of a conversation a message stands at. */
+export type MessageAlign = keyof typeof MESSAGE_ALIGNS;
 
 /** The side of the nearest message and its actions, which its parts share. */
 class MessageControl {
@@ -416,76 +422,106 @@ export type MessageElementProperties<Target extends HTMLElement = HTMLDivElement
 > &
     ElementPartProperties;
 
-/** The properties of a message. */
-export type MessageProperties = MessageElementProperties & {
-    /** The side it stands at, the start by default. */
-    readonly align?: MessageAlign;
+/** The properties people change in a message's controls and inspector. */
+const MESSAGE_PROPERTIES = {
+    align: field
+        .enum(MESSAGE_ALIGNS)
+        .labeled(t.context("label")`Align`)
+        .described(t`The side of the conversation it stands at.`)
+        .default("start"),
+};
+
+/** The properties of a message besides its declared ones: its native attributes and its swipe. */
+export type MessageAttributes = MessageElementProperties & {
     /** Handle a finger that pulls it to the side, such as to answer it, off by default. */
     readonly onSwipe?: () => void;
 };
 
 /** Render one message: its avatar beside its header, body and footer. */
-export function Message(properties: MessageProperties): JSX.Element {
-    // show its actions on a long press by a finger, until a press elsewhere
-    const message = merge(DEFAULTS, properties);
-    const rest = omit(properties, "align", "onSwipe");
-    const locale = useLocale();
-    const control = new MessageControl(
-        () => message.align,
-        () => properties.onSwipe,
-        () => locale.direction,
-        useEnvironment().clock,
-    );
-    const distance = (): string =>
-        `${String(locale.direction === "rtl" ? -control.pull() : control.pull())}px`;
+export const Message = defineComponent({
+    name: "message",
+    properties: MESSAGE_PROPERTIES,
+    render(
+        properties: RenderProperties<MessageAttributes, typeof MESSAGE_PROPERTIES>,
+    ): JSX.Element {
+        // show its actions on a long press by a finger, until a press elsewhere
+        const rest = omit(properties, "align", "onSwipe");
+        const locale = useLocale();
+        const control = new MessageControl(
+            () => properties.align,
+            () => properties.onSwipe,
+            () => locale.direction,
+            useEnvironment().clock,
+        );
+        const distance = (): string =>
+            `${String(locale.direction === "rtl" ? -control.pull() : control.pull())}px`;
 
-    return (
-        <MessageContext value={control}>
-            {renderPart(
-                "div",
-                "message",
-                rest,
-                () => [
-                    messageMarker,
-                    text.sm,
-                    styles.message,
-                    message.align === "end" && styles.end,
-                    control.hasActions() && styles.actionable,
-                    properties.onSwipe !== undefined && styles.swipeable,
-                    control.pull() > 0 && styles.pulled(distance()),
-                ],
-                mergeProperties(control.attributes(), {
-                    get "data-align"() {
-                        return message.align;
-                    },
-                    get "data-active"() {
-                        return control.isActive() ? "" : undefined;
-                    },
-                    get "data-swiping"() {
-                        return control.pull() > 0 ? "" : undefined;
-                    },
-                }),
-            )}
-        </MessageContext>
-    );
-}
+        return (
+            <MessageContext value={control}>
+                {renderPart(
+                    "div",
+                    "message",
+                    rest,
+                    () => [
+                        messageMarker,
+                        text.sm,
+                        styles.message,
+                        properties.align === "end" && styles.end,
+                        control.hasActions() && styles.actionable,
+                        properties.onSwipe !== undefined && styles.swipeable,
+                        control.pull() > 0 && styles.pulled(distance()),
+                    ],
+                    mergeProperties(control.attributes(), {
+                        get "data-align"() {
+                            return properties.align;
+                        },
+                        get "data-active"() {
+                            return control.isActive() ? "" : undefined;
+                        },
+                        get "data-swiping"() {
+                            return control.pull() > 0 ? "" : undefined;
+                        },
+                    }),
+                )}
+            </MessageContext>
+        );
+    },
+});
 
-/** The properties of a message's avatar. */
-export type MessageAvatarProperties = MessageElementProperties & {
-    /** Where it stands beside the message, at its end by default, as under a bubble's tail. */
-    readonly position?: "top" | "bottom";
+/** The properties of a message, its native attributes included. */
+export type MessageProperties = ComponentProperties<typeof Message>;
+
+/** The properties people change in a message avatar's controls and inspector. */
+const MESSAGE_AVATAR_PROPERTIES = {
+    position: field
+        .enum({
+            top: { title: t.context("option")`Top` },
+            bottom: { title: t.context("option")`Bottom` },
+        })
+        .labeled(t.context("label")`Position`)
+        .described(t`Where it stands beside the message, as under a bubble's tail.`)
+        .default("bottom"),
 };
 
 /** Render the room of an avatar beside a message, empty for all but one of a group. */
-export function MessageAvatar(properties: MessageAvatarProperties): JSX.Element {
-    const rest = omit(properties, "position");
+export const MessageAvatar = defineComponent({
+    name: "messageAvatar",
+    properties: MESSAGE_AVATAR_PROPERTIES,
+    render(
+        properties: RenderProperties<MessageElementProperties, typeof MESSAGE_AVATAR_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "position");
 
-    return renderPart("div", "message-avatar", rest, () => [
-        text.xs,
-        styles.avatar,
-        properties.position === "top" ? styles.top : styles.bottom,
-    ]);
-}
+        return renderPart("div", "message-avatar", rest, () => [
+            text.xs,
+            styles.avatar,
+            styles[properties.position],
+        ]);
+    },
+});
+
+/** The properties of a message's avatar, its native attributes included. */
+export type MessageAvatarProperties = ComponentProperties<typeof MessageAvatar>;
 
 /** Render the header, the body and the footer of a message below each other. */
 export function MessageContent(properties: MessageElementProperties): JSX.Element {
@@ -523,42 +559,64 @@ export function MessageFooter(properties: MessageElementProperties): JSX.Element
     ]);
 }
 
-/** The properties of a message's actions. */
-export type MessageToolbarProperties = ToolbarProperties & {
-    /** Whether they float over the message's corner, or stand in its footer. */
-    readonly placement?: "float" | "inline";
-    /** Whether they hide until the message is pointed at: always by default, or not its last. */
-    readonly autohide?: "always" | "not-last" | "never";
+/** The properties people change in a message toolbar's controls and inspector. */
+const MESSAGE_TOOLBAR_PROPERTIES = {
+    ...Toolbar.properties,
+    placement: field
+        .enum({
+            float: { title: t.context("option")`Float` },
+            inline: { title: t.context("option")`Inline` },
+        })
+        .labeled(t.context("label")`Placement`)
+        .described(t`Whether they float over the message's corner, or stand in its footer.`)
+        .default("float"),
+    autohide: field
+        .enum({
+            always: { title: t.context("option")`Always` },
+            "not-last": { title: t.context("option")`Not last` },
+            never: { title: t.context("option")`Never` },
+        })
+        .labeled(t.context("label")`Autohide`)
+        .described(t`Whether they hide until the message is pointed at.`)
+        .default("always"),
 };
 
 /** Render a message's actions, shown while it is pointed at, focused or pressed long. */
-export function MessageToolbar(properties: MessageToolbarProperties): JSX.Element {
-    // offer them to a long press
-    const actions = merge(ACTION_DEFAULTS, properties);
-    const align = useMessageAlign();
-    useContext(MessageContext)?.addActions(createUniqueId());
-    const rest = omit(properties, "placement", "autohide", "xstyle");
+export const MessageToolbar = defineComponent({
+    name: "messageToolbar",
+    properties: MESSAGE_TOOLBAR_PROPERTIES,
+    render(
+        properties: RenderProperties<ToolbarAttributes, typeof MESSAGE_TOOLBAR_PROPERTIES>,
+    ): JSX.Element {
+        // offer them to a long press
+        const align = useMessageAlign();
+        useContext(MessageContext)?.addActions(createUniqueId());
+        const rest = omit(properties, "placement", "autohide", "xstyle");
 
-    return (
-        <Toolbar
-            data-slot="message-toolbar"
-            {...rest}
-            xstyle={[
-                actions.autohide !== "never" && styles.actions,
-                actions.autohide === "not-last" && styles.last,
-                actions.placement === "float" && styles.float,
-                actions.placement === "float" && align() === "end" && styles.floatEnd,
-                properties.xstyle,
-            ]}
-        />
-    );
-}
+        return (
+            <Toolbar
+                data-slot="message-toolbar"
+                {...rest}
+                xstyle={[
+                    properties.autohide !== "never" && styles.actions,
+                    properties.autohide === "not-last" && styles.last,
+                    properties.placement === "float" && styles.float,
+                    properties.placement === "float" && align() === "end" && styles.floatEnd,
+                    properties.xstyle,
+                ]}
+            />
+        );
+    },
+});
+
+/** The properties of a message's actions, the toolbar's included. */
+export type MessageToolbarProperties = ComponentProperties<typeof MessageToolbar>;
 
 /** Read the side of the nearest message, the start outside one. */
 export function useMessageAlign(): () => MessageAlign {
     const control = useContext(MessageContext);
 
-    return () => control?.align() ?? DEFAULTS.align;
+    return () => control?.align() ?? Message.defaults.align;
 }
 
 /** Render the messages of one person in a row. */

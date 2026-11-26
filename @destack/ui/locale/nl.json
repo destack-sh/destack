@@ -2112,10 +2112,6 @@
             "source": "Show as a board",
             "translation": "Als bord tonen"
         },
-        "2o8x13ajyhdlm": {
-            "source": "Each variant with a message it suits.",
-            "translation": "Elke variant met een passend bericht."
-        },
         "2oembkerp001y": {
             "source": "the last 7 days",
             "translation": "in de afgelopen 7 dagen"
@@ -3492,10 +3488,6 @@
             "context": "option",
             "translation": "Geen datums"
         },
-        "3si1ejfqqp0kp": {
-            "source": "A note with more space between its parts.",
-            "translation": "Een notitie met meer ruimte tussen de onderdelen."
-        },
         "3t1ro7gmzyuby": {
             "source": "Show 20 lines below the change above",
             "translation": "20 regels onder de vorige wijziging tonen"
@@ -4394,10 +4386,6 @@
             "source": "What sent messages answer, over their words, which leads there.",
             "translation": "Waarop verzonden berichten antwoorden, boven hun woorden, wat erheen leidt."
         },
-        "r8lchhghn20b": {
-            "source": "A frame raised, filled and drawn by its edge, its buttons beside the text.",
-            "translation": "Een kader verhoogd, gevuld en getekend door de rand, de knoppen naast de tekst."
-        },
         "rdpkvab3yn8y": {
             "source": "System",
             "context": "title",
@@ -4708,10 +4696,6 @@
             "source": "Ascending",
             "context": "option",
             "translation": "Oplopend"
-        },
-        "zikzxi8x0806": {
-            "source": "The tags of a task, each tinted in its swatch.",
-            "translation": "De labels van een taak, elk getint in de eigen staal."
         },
         "zls0csn0ecb8": {
             "source": "Searching…",
@@ -5651,14 +5635,6 @@
             "source": "How urgent the alert is, which sets its color and how it is announced.",
             "translation": "Hoe dringend de melding is, wat de kleur en de aankondiging bepaalt."
         },
-        "1jgtwhl33mwd": {
-            "source": "How much the badge stands out.",
-            "translation": "Hoe sterk de badge opvalt."
-        },
-        "zsk25ocm1w3o": {
-            "source": "The hue it tints itself in, such as a tag's, the variant's colors when absent.",
-            "translation": "De tint waarin het kleurt, zoals die van een tag, zonder waarde de kleuren van de variant."
-        },
         "1t09opustaljk": {
             "source": "Months",
             "context": "label",
@@ -6011,6 +5987,266 @@
         "fa5qqy09m1cy": {
             "source": "Ada's initials with a mark on their corner, as for someone online.",
             "translation": "Ada's initialen met een markering in de hoek, zoals voor iemand die online is."
+        },
+        "1u3meib2ijxl3": {
+            "source": "The tags of a task, each in its hue's tint.",
+            "translation": "De tags van een taak, elk in de tint van zijn kleur."
+        },
+        "1wryqygiq9ovn": {
+            "source": "Solid",
+            "context": "option",
+            "translation": "Vol"
+        },
+        "oe9d1wdd9cwy": {
+            "source": "Filled with its color, for what stands out.",
+            "translation": "Gevuld met de kleur, voor wat opvalt."
+        },
+        "270mf43py9o0c": {
+            "source": "Soft",
+            "context": "option",
+            "translation": "Zacht"
+        },
+        "2qv1vne917we5": {
+            "source": "Filled with its color's tint, for a status or a tag.",
+            "translation": "Gevuld met de tint van de kleur, voor een status of een tag."
+        },
+        "3e96egg7aeslb": {
+            "source": "Drawn around in its color, for the least weight.",
+            "translation": "Omlijnd in de kleur, voor het minste gewicht."
+        },
+        "3oo30b3f0ivvv": {
+            "source": "How the badge is filled in its color.",
+            "translation": "Hoe de badge in de kleur gevuld is."
+        },
+        "2kzbmllvhle32": {
+            "source": "The hue it is drawn in, such as a tag's, the accent when absent.",
+            "translation": "De kleur waarin het getekend wordt, zoals die van een tag, zonder waarde het accent."
+        },
+        "54ntodqq61k9": {
+            "source": "Two reactions over the edge of a bubble.",
+            "translation": "Twee reacties over de rand van een ballon."
+        },
+        "2ty1lgbd86kt7": {
+            "source": "The side of the conversation it stands at.",
+            "translation": "De kant van het gesprek waar het staat."
+        },
+        "2q0lonuwzp2fb": {
+            "source": "The edge they stand over.",
+            "translation": "De rand waarover ze staan."
+        },
+        "1zebvedternzj": {
+            "source": "The end of the edge they stand at.",
+            "translation": "Het einde van de rand waar ze staan."
+        },
+        "1xy4z66zrq5js": {
+            "source": "Whether the buttons join in a row or a column.",
+            "translation": "Of de knoppen in een rij of een kolom aansluiten."
+        },
+        "1l50fcrh62zzg": {
+            "source": "Whether the slides line up across or down.",
+            "translation": "Of de dia's dwars of omlaag op een rij staan."
+        },
+        "akb1p9h5iyml": {
+            "source": "Loop",
+            "context": "label",
+            "translation": "Doorlopend"
+        },
+        "2d9fx7o3ur7im": {
+            "source": "Wraps from its last slide to its first and back.",
+            "translation": "Gaat van de laatste dia naar de eerste en terug."
+        },
+        "2ft3mouffe6l1": {
+            "source": "Gutters",
+            "context": "label",
+            "translation": "Marges"
+        },
+        "1tm3jtjvxmirg": {
+            "source": "The space on each side at narrow widths.",
+            "translation": "De ruimte aan elke kant bij smalle breedtes."
+        },
+        "3ndsidxifsdru": {
+            "source": "Intrinsic",
+            "context": "label",
+            "translation": "Eigen breedte"
+        },
+        "1jmsowjxepxp7": {
+            "source": "Centers the elements inside at their own widths too.",
+            "translation": "Centreert ook de elementen erin op hun eigen breedte."
+        },
+        "379hb8hm15399": {
+            "source": "Center text",
+            "context": "label",
+            "translation": "Tekst centreren"
+        },
+        "ht6sk2drjv7": {
+            "source": "Centers the text inside too.",
+            "translation": "Centreert ook de tekst erin."
+        },
+        "2payearnetnjc": {
+            "source": "The space between the elements and between their rows.",
+            "translation": "De ruimte tussen de elementen en tussen hun rijen."
+        },
+        "3av9nkhvniq6c": {
+            "source": "Between",
+            "context": "option",
+            "translation": "Ertussen"
+        },
+        "3srqxygr9sxl": {
+            "source": "Justify",
+            "context": "label",
+            "translation": "Uitvullen"
+        },
+        "2dodawrs7pmdm": {
+            "source": "Where each row's elements sit along it.",
+            "translation": "Waar de elementen van elke rij langs de rij staan."
+        },
+        "7drclgrwmlf2": {
+            "source": "Where elements of different heights sit within their row.",
+            "translation": "Waar elementen van verschillende hoogte in hun rij staan."
+        },
+        "382nuk6eoo6rh": {
+            "source": "A question for an assistant in its frame, with its send button below.",
+            "translation": "Een vraag voor een assistent in het kader, met de verzendknop eronder."
+        },
+        "mt5ijd6o798h": {
+            "source": "One row with a button to add files beside the text.",
+            "translation": "Eén rij met een knop om bestanden toe te voegen naast de tekst."
+        },
+        "3u32o2wwh1z4o": {
+            "source": "Raised",
+            "context": "option",
+            "translation": "Verhoogd"
+        },
+        "e3745rf96p6x": {
+            "source": "Whether the frame is raised from the page, filled, or drawn by its edge.",
+            "translation": "Of het kader van de pagina verhoogd is, gevuld of door de rand getekend."
+        },
+        "3ogpzometj3r7": {
+            "source": "A chat's size, or smaller for a comment.",
+            "translation": "De grootte van een chat, of kleiner voor een opmerking."
+        },
+        "2hb8ius8o1s9v": {
+            "source": "The side of the text it stands at.",
+            "translation": "De kant van de tekst waar het staat."
+        },
+        "29k9iutt6y9vz": {
+            "source": "The space between the elements and inside the cover's edges.",
+            "translation": "De ruimte tussen de elementen en binnen de randen van het vlak."
+        },
+        "268wvr5vbykq9": {
+            "source": "No padding",
+            "context": "label",
+            "translation": "Geen opvulling"
+        },
+        "3vt03l751vc34": {
+            "source": "Leaves out the space inside the cover's edges.",
+            "translation": "Laat de ruimte binnen de randen van het vlak weg."
+        },
+        "3byzggfaaf929": {
+            "source": "The space between cells.",
+            "translation": "De ruimte tussen cellen."
+        },
+        "nxu4t69wcc65": {
+            "source": "Grace's picture beside a long bubble, at its top or its tail.",
+            "translation": "Grace' foto naast een lange ballon, bovenaan of bij de staart."
+        },
+        "1ad64rdiae6bd": {
+            "source": "Ada's message with its actions in view.",
+            "translation": "Ada's bericht met de acties in beeld."
+        },
+        "1hd99edyansl9": {
+            "source": "Where it stands beside the message, as under a bubble's tail.",
+            "translation": "Waar het naast het bericht staat, zoals onder de staart van een ballon."
+        },
+        "w2grvz38z0la": {
+            "source": "Float",
+            "context": "option",
+            "translation": "Zwevend"
+        },
+        "13gn771mj09qx": {
+            "source": "Inline",
+            "context": "option",
+            "translation": "In de regel"
+        },
+        "7buxtzzoazsm": {
+            "source": "Placement",
+            "context": "label",
+            "translation": "Plaatsing"
+        },
+        "2p372g09v8jb6": {
+            "source": "Whether they float over the message's corner, or stand in its footer.",
+            "translation": "Of ze over de hoek van het bericht zweven of in de voettekst staan."
+        },
+        "2pvsj18913z95": {
+            "source": "Always",
+            "context": "option",
+            "translation": "Altijd"
+        },
+        "2vip52dpu8w0n": {
+            "source": "Not last",
+            "context": "option",
+            "translation": "Behalve de laatste"
+        },
+        "1n4nkne1t9m9q": {
+            "source": "Never",
+            "context": "option",
+            "translation": "Nooit"
+        },
+        "17sj0pwisaz44": {
+            "source": "Autohide",
+            "context": "label",
+            "translation": "Verbergen"
+        },
+        "39qn6a3cl348o": {
+            "source": "Whether they hide until the message is pointed at.",
+            "translation": "Of ze verborgen blijven tot naar het bericht gewezen wordt."
+        },
+        "1o5rr7zgyx6eb": {
+            "source": "Space",
+            "context": "label",
+            "translation": "Ruimte"
+        },
+        "259sdserfjtgb": {
+            "source": "The space between the stacked elements.",
+            "translation": "De ruimte tussen de gestapelde elementen."
+        },
+        "1iqnh7ijc5g0h": {
+            "source": "Recursive",
+            "context": "label",
+            "translation": "Recursief"
+        },
+        "gh1ph1mmav3w": {
+            "source": "Puts the space between the elements nested inside the stacked ones too.",
+            "translation": "Zet de ruimte ook tussen de elementen die in de gestapelde genest zijn."
+        },
+        "3nspve1cfz90y": {
+            "source": "The space between the elements.",
+            "translation": "De ruimte tussen de elementen."
+        },
+        "8qxpay67udr6": {
+            "source": "Limit",
+            "context": "label",
+            "translation": "Limiet"
+        },
+        "1jtw678yk5tda": {
+            "source": "The most elements in one row, above which they always stack.",
+            "translation": "Het meeste aantal elementen in één rij, waarboven ze altijd stapelen."
+        },
+        "2r2wh2wb52gmb": {
+            "source": "A booked ferry, confirmed in a soft bubble.",
+            "translation": "Een geboekte veerboot, bevestigd in een zachte ballon."
+        },
+        "2fub7r3d8k3nb": {
+            "source": "Text alone in its color, as for a long answer.",
+            "translation": "Alleen tekst in de kleur, zoals voor een lang antwoord."
+        },
+        "zgc93so2nbxq": {
+            "source": "How the bubble is filled in its color.",
+            "translation": "Hoe de ballon in de kleur gevuld is."
+        },
+        "2902w2rvkginy": {
+            "source": "The hue it is drawn in, the accent when absent.",
+            "translation": "De kleur waarin hij getekend wordt, zonder waarde het accent."
         }
     }
 }

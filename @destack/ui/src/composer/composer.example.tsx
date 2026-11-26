@@ -169,37 +169,43 @@ export const composerDisabled = defineExample({
     ),
 });
 
-/** The surfaces of a frame, and one row with its buttons beside the text. */
-export const composerSurfaces = defineExample({
-    of: Composer,
-    name: "surfaces",
-    description: t`A frame raised, filled and drawn by its edge, its buttons beside the text.`,
+/** A question for an assistant in its frame. */
+export const composerFrameQuestion = defineExample({
+    of: ComposerFrame,
+    name: "question",
+    description: t`A question for an assistant in its frame, with its send button below.`,
     layout: "padded",
-    render: () => (
-        <Stack space="4">
-            <For each={["raised", "muted", "outline"] as const}>
-                {(variant) => (
-                    <Composer onSubmit={() => {}}>
-                        <ComposerFrame variant={variant}>
-                            <ComposerAddon align="inline-start">
-                                <Button
-                                    isIconOnly
-                                    variant="ghost"
+    render: (properties) => (
+        <Composer onSubmit={() => {}}>
+            <ComposerFrame {...properties}>
+                <ComposerInput placeholder="Ask anything" />
+                <ComposerFooter>
+                    <ComposerSubmit />
+                </ComposerFooter>
+            </ComposerFrame>
+        </Composer>
+    ),
+});
 
-                                    shape="round"
-                                    aria-label="Add files"
-                                >
-                                    <Icon icon={plusIcon} />
-                                </Button>
-                            </ComposerAddon>
-                            <ComposerInput placeholder="Ask anything" />
-                            <ComposerAddon align="inline-end">
-                                <ComposerSubmit />
-                            </ComposerAddon>
-                        </ComposerFrame>
-                    </Composer>
-                )}
-            </For>
-        </Stack>
+/** One row with a button to add files beside the text. */
+export const composerAddonFiles = defineExample({
+    of: ComposerAddon,
+    name: "files",
+    description: t`One row with a button to add files beside the text.`,
+    layout: "padded",
+    properties: {
+        align: "inline-start",
+    },
+    render: (properties) => (
+        <Composer onSubmit={() => {}}>
+            <ComposerFrame>
+                <ComposerAddon {...properties}>
+                    <Button isIconOnly variant="ghost" shape="round" aria-label="Add files">
+                        <Icon icon={plusIcon} />
+                    </Button>
+                </ComposerAddon>
+                <ComposerInput placeholder="Ask anything" />
+            </ComposerFrame>
+        </Composer>
     ),
 });
