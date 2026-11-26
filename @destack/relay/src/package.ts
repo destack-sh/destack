@@ -5,7 +5,7 @@ import { RelayError } from "./error/error.ts";
 
 /** The relay each region's managed machine hosts: names and self-hosted machines' tunnels. */
 export default definePackage({
-    title: t`Relay`,
+    title: t.context("title")`Relay`,
     description: t`Relay HTTP requests for Destack names to the machines serving them.`,
     icon: "arrows-left-right",
     color: "brown",
