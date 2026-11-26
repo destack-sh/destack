@@ -22,6 +22,9 @@ import {
     isSubmitted,
     ToggleState,
 } from "../toggle-state/index.ts";
+import { defineComponent } from "@destack/view/declare";
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 
 /** A control beside a label with its help, whose first line it sits on. */
 const BESIDE_CONTENT = ":is([data-slot=field]:has(> [data-slot=field-content]) > *)";
@@ -120,121 +123,147 @@ function useCheckboxField(given: CheckboxProperties): CheckboxProperties {
 }
 
 /** Render a button exposed as a checkbox around its indicator. */
-export function Checkbox(given: CheckboxProperties): JSX.Element {
-    // follow the group around, else edit the value of the field's form
-    const group = useContext(CheckboxGroupContext);
-    const properties = group === null ? useCheckboxField(given) : group.checkbox(given);
+export const Checkbox = defineComponent(
+    "checkbox",
+    function Checkbox(given: CheckboxProperties): JSX.Element {
+        // follow the group around, else edit the value of the field's form
+        const group = useContext(CheckboxGroupContext);
+        const properties = group === null ? useCheckboxField(given) : group.checkbox(given);
 
-    // take the id and state of the nearest field
-    const nearest = useFieldControl();
-    const field = group === null ? nearest : null;
-    const toggle = new ToggleState(properties);
-    const rest = omit(
-        properties,
-        "checked",
-        "defaultChecked",
-        "onCheckedChange",
-        "readOnly",
-        "indeterminate",
-        "parent",
-        "name",
-        "value",
-        "uncheckedValue",
-        "required",
-        "form",
-        "disabled",
-        "children",
-    );
-    const isDisabled = (): boolean => properties.disabled === true || field?.isDisabled() === true;
-    const isInvalid = (): boolean =>
-        field?.isInvalid() === true || properties["aria-invalid"] === "true";
-    const value = (): CheckboxState =>
-        properties.indeterminate === true
-            ? "indeterminate"
-            : toggle.isChecked()
-              ? "checked"
-              : "unchecked";
+        // take the id and state of the nearest fieldControl
+        const nearest = useFieldControl();
+        const fieldControl = group === null ? nearest : null;
+        const toggle = new ToggleState(properties);
+        const rest = omit(
+            properties,
+            "checked",
+            "defaultChecked",
+            "onCheckedChange",
+            "readOnly",
+            "indeterminate",
+            "parent",
+            "name",
+            "value",
+            "uncheckedValue",
+            "required",
+            "form",
+            "disabled",
+            "children",
+        );
+        const isDisabled = (): boolean =>
+            properties.disabled === true || fieldControl?.isDisabled() === true;
+        const isInvalid = (): boolean =>
+            fieldControl?.isInvalid() === true || properties["aria-invalid"] === "true";
+        const value = (): CheckboxState =>
+            properties.indeterminate === true
+                ? "indeterminate"
+                : toggle.isChecked()
+                  ? "checked"
+                  : "unchecked";
 
-    // mark the part, report its state and check it on a click or Space but not Enter
-    return (
-        <CheckboxContext value={{ state: value, isDisabled }}>
-            {renderPart(
-                "button",
-                "checkbox",
-                rest,
-                () => [
-                    state.focus,
-                    state.touch,
-                    state.disabled,
-                    styles.checkbox,
-                    value() !== "unchecked" && styles.checked,
-                    isInvalid() && state.invalid,
-                ],
-                merge(
-                    {
-                        type: "button" as const,
-                        role: "checkbox" as const,
-                        get "aria-checked"() {
-                            return value() === "indeterminate"
-                                ? "mixed"
-                                : value() === "checked"
-                                  ? "true"
-                                  : "false";
+        // mark the part, report its state and check it on a click or Space but not Enter
+        return (
+            <CheckboxContext value={{ state: value, isDisabled }}>
+                {renderPart(
+                    "button",
+                    "checkbox",
+                    rest,
+                    () => [
+                        state.focus,
+                        state.touch,
+                        state.disabled,
+                        styles.checkbox,
+                        value() !== "unchecked" && styles.checked,
+                        isInvalid() && state.invalid,
+                    ],
+                    merge(
+                        {
+                            type: "button" as const,
+                            role: "checkbox" as const,
+                            get "aria-checked"() {
+                                return value() === "indeterminate"
+                                    ? "mixed"
+                                    : value() === "checked"
+                                      ? "true"
+                                      : "false";
+                            },
+                            get "aria-readonly"() {
+                                return properties.readOnly === true ? "true" : undefined;
+                            },
+                            get "data-readonly"() {
+                                return properties.readOnly === true ? "" : undefined;
+                            },
+                            get "aria-required"() {
+                                return properties.required === true ? "true" : undefined;
+                            },
+                            get "data-checked"() {
+                                return value() === "checked" ? "" : undefined;
+                            },
+                            get "data-unchecked"() {
+                                return value() === "unchecked" ? "" : undefined;
+                            },
+                            get "data-indeterminate"() {
+                                return value() === "indeterminate" ? "" : undefined;
+                            },
+                            get "data-disabled"() {
+                                return isDisabled() ? "" : undefined;
+                            },
+                            onClick: () => toggle.set(value() !== "checked"),
+                            onKeyDown: (event: KeyboardEvent) => {
+                                if (event.key === "Enter") {
+                                    event.preventDefault();
+                                }
+                            },
+                            get children() {
+                                return contentOr(properties, () => <CheckboxIndicator />);
+                            },
                         },
-                        get "aria-readonly"() {
-                            return properties.readOnly === true ? "true" : undefined;
+                        fieldControl?.attributes() ?? {},
+                        {
+                            get disabled() {
+                                return isDisabled() ? true : undefined;
+                            },
                         },
-                        get "data-readonly"() {
-                            return properties.readOnly === true ? "" : undefined;
-                        },
-                        get "aria-required"() {
-                            return properties.required === true ? "true" : undefined;
-                        },
-                        get "data-checked"() {
-                            return value() === "checked" ? "" : undefined;
-                        },
-                        get "data-unchecked"() {
-                            return value() === "unchecked" ? "" : undefined;
-                        },
-                        get "data-indeterminate"() {
-                            return value() === "indeterminate" ? "" : undefined;
-                        },
-                        get "data-disabled"() {
-                            return isDisabled() ? "" : undefined;
-                        },
-                        onClick: () => toggle.set(value() !== "checked"),
-                        onKeyDown: (event: KeyboardEvent) => {
-                            if (event.key === "Enter") {
-                                event.preventDefault();
-                            }
-                        },
-                        get children() {
-                            return contentOr(properties, () => <CheckboxIndicator />);
-                        },
-                    },
-                    field?.attributes() ?? {},
-                    {
-                        get disabled() {
-                            return isDisabled() ? true : undefined;
-                        },
-                    },
-                ),
-            )}
-            <Show when={isSubmitted(properties)}>
-                <ToggleInput
-                    name={properties.name}
-                    value={properties.value}
-                    uncheckedValue={properties.uncheckedValue}
-                    required={properties.required}
-                    form={properties.form}
-                    checked={toggle.isChecked()}
-                    disabled={isDisabled()}
-                    onReset={() => toggle.reset()}
-                />
-            </Show>
-        </CheckboxContext>
-    );
-}
+                    ),
+                )}
+                <Show when={isSubmitted(properties)}>
+                    <ToggleInput
+                        name={properties.name}
+                        value={properties.value}
+                        uncheckedValue={properties.uncheckedValue}
+                        required={properties.required}
+                        form={properties.form}
+                        checked={toggle.isChecked()}
+                        disabled={isDisabled()}
+                        onReset={() => toggle.reset()}
+                    />
+                </Show>
+            </CheckboxContext>
+        );
+    },
+    {
+        indeterminate: field
+            .boolean()
+            .labeled(t.context("label")`Indeterminate`)
+            .described(t`Shows a dash, as for a group of which some are checked.`)
+            .default(false),
+        disabled: field
+            .boolean()
+            .labeled(t.context("label")`Disabled`)
+            .described(t`Refuses presses where the setting cannot change now.`)
+            .default(false),
+        readOnly: field
+            .boolean()
+            .labeled(t.context("label")`Read only`)
+            .described(t`Shows the state, which a person cannot change.`)
+            .default(false),
+        required: field
+            .boolean()
+            .labeled(t.context("label")`Required`)
+            .described(t`Asks for it to be checked before its form submits.`)
+            .default(false),
+    },
+);
 
 /** Render the mark of the nearest checkbox. */
 export function CheckboxIndicator(properties: CheckboxIndicatorProperties): JSX.Element {

@@ -15,6 +15,19 @@ import { type JSX, omit } from "@destack/view";
 import { readText, takeText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { useJoin } from "../join/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { defineComponent } from "@destack/view/declare";
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+
+/** The looks of an input: framed, or plain as a title is. */
+const INPUT_VARIANTS = {
+    outline: { title: t.context("option")`Outline`, description: t`A framed field, as in a form.` },
+    plain: {
+        title: t.context("option")`Plain`,
+        description: t`A field without a frame, as in a toolbar or a search bar.`,
+    },
+};
 
 /** The styles of an input and of every control that looks like one. */
 const styles = style.create({
@@ -56,7 +69,7 @@ const styles = style.create({
 });
 
 /** The look of an input: its own frame, or none. */
-export type InputVariant = "outline" | "plain";
+export type InputVariant = keyof typeof INPUT_VARIANTS;
 
 /** The look and state of an input's styles. */
 export interface InputStyleOptions {
@@ -87,30 +100,60 @@ export type InputProperties = Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "c
     };
 
 /** Render a native input, tied to the label, descriptions and state of its field. */
-export function Input(given: InputProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onInput",
-        read: readText,
-        take: takeText,
-    });
+export const Input = defineComponent(
+    "input",
+    function Input(given: InputProperties): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onInput",
+            read: readText,
+            take: takeText,
+        });
 
-    // take the id, descriptions and state of the nearest field
-    const field = useFieldControl();
-    const join = useJoin();
-    const isInvalid = (): boolean =>
-        field?.isInvalid() === true || properties["aria-invalid"] === "true";
+        // take the id, descriptions and state of the nearest fieldControl
+        const fieldControl = useFieldControl();
+        const join = useJoin();
+        const isInvalid = (): boolean =>
+            fieldControl?.isInvalid() === true || properties["aria-invalid"] === "true";
 
-    return renderPart(
-        "input",
-        "input",
-        omit(properties, "variant"),
-        () => [
-            inputStyle({ variant: properties.variant, invalid: isInvalid() }),
-            styles.input,
-            join(),
-        ],
-        field?.attributes(),
-    );
-}
+        return renderPart(
+            "input",
+            "input",
+            omit(properties, "variant"),
+            () => [
+                inputStyle({ variant: properties.variant, invalid: isInvalid() }),
+                styles.input,
+                join(),
+            ],
+            fieldControl?.attributes(),
+        );
+    },
+    {
+        variant: field
+            .enum(INPUT_VARIANTS)
+            .labeled(t.context("label")`Variant`)
+            .described(t`Whether the field shows its frame.`)
+            .default("outline"),
+        placeholder: field
+            .string(schema.string())
+            .labeled(t.context("label")`Placeholder`)
+            .described(t`The hint the field shows while it is empty.`)
+            .optional(),
+        disabled: field
+            .boolean()
+            .labeled(t.context("label")`Disabled`)
+            .described(t`Refuses input where the value cannot change now.`)
+            .default(false),
+        readonly: field
+            .boolean()
+            .labeled(t.context("label")`Read only`)
+            .described(t`Shows the value, which a person can select but not change.`)
+            .default(false),
+        required: field
+            .boolean()
+            .labeled(t.context("label")`Required`)
+            .described(t`Asks for a value before its form submits.`)
+            .default(false),
+    },
+);

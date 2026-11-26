@@ -1,7 +1,8 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { Checkbox } from "./checkbox.tsx";
-import { checkboxAcceptTerms } from "./checkbox.example.tsx";
+import { checkboxDefault } from "./checkbox.example.tsx";
 
 /** The checkbox of the terms example. */
 const terms = { role: "checkbox", name: "Accept the terms" };
@@ -10,9 +11,9 @@ const terms = { role: "checkbox", name: "Accept the terms" };
 export const checkboxCheckWithSpaceAndLabel = defineScenario({
     of: Checkbox,
     interaction: viewInteraction,
-    name: "check-with-space-and-label",
-    description: "check a checkbox with Space and uncheck it by pressing its label",
-    given: { examples: [checkboxAcceptTerms] },
+    name: "checkWithSpaceAndLabel",
+    description: t`Check a checkbox with Space and uncheck it by pressing its label.`,
+    given: { examples: [checkboxDefault] },
     parameters: {},
     when: [
         {

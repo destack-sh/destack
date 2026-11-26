@@ -12,6 +12,9 @@ import { CollectionBuilder } from "../collection/index.ts";
 import { useFieldValue } from "../field/control.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import type { CheckboxProperties } from "./checkbox.tsx";
+import { defineComponent } from "@destack/view/declare";
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 
 /** The styles of a group of checkboxes. */
 const styles = style.create({
@@ -154,34 +157,49 @@ export class CheckboxGroupControl {
 export const CheckboxGroupContext = createContext<CheckboxGroupControl | null>(null);
 
 /** Render a group of checkboxes that share their checked values. */
-export function CheckboxGroup(given: CheckboxGroupProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onValueChange",
-        read: (value) => (Array.isArray(value) ? value.map(String) : []),
-        settles: true,
-    });
-    const control = new CheckboxGroupControl(properties);
-    const rest = omit(
-        properties,
-        "value",
-        "defaultValue",
-        "onValueChange",
-        "allValues",
-        "name",
-        "disabled",
-        "readOnly",
-    );
+export const CheckboxGroup = defineComponent(
+    "checkboxGroup",
+    function CheckboxGroup(given: CheckboxGroupProperties): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: (value) => (Array.isArray(value) ? value.map(String) : []),
+            settles: true,
+        });
+        const control = new CheckboxGroupControl(properties);
+        const rest = omit(
+            properties,
+            "value",
+            "defaultValue",
+            "onValueChange",
+            "allValues",
+            "name",
+            "disabled",
+            "readOnly",
+        );
 
-    return (
-        <CheckboxGroupContext value={control}>
-            {renderPart("div", "checkbox-group", rest, styles.group, {
-                role: "group" as const,
-                get "data-disabled"() {
-                    return properties.disabled === true ? "" : undefined;
-                },
-            })}
-        </CheckboxGroupContext>
-    );
-}
+        return (
+            <CheckboxGroupContext value={control}>
+                {renderPart("div", "checkbox-group", rest, styles.group, {
+                    role: "group" as const,
+                    get "data-disabled"() {
+                        return properties.disabled === true ? "" : undefined;
+                    },
+                })}
+            </CheckboxGroupContext>
+        );
+    },
+    {
+        disabled: field
+            .boolean()
+            .labeled(t.context("label")`Disabled`)
+            .described(t`Refuses presses on every checkbox of the group.`)
+            .default(false),
+        readOnly: field
+            .boolean()
+            .labeled(t.context("label")`Read only`)
+            .described(t`Shows each state, which a person cannot change.`)
+            .default(false),
+    },
+);

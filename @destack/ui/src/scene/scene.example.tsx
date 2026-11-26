@@ -50,7 +50,7 @@ import { gridListGallery } from "../grid-list/grid-list.example.tsx";
 import { hoverCardMention } from "../hover-card/hover-card.example.tsx";
 import { iconActions } from "../icon/icon.example.tsx";
 import { iconPickerProjectIcon } from "../icon-picker/icon-picker.example.tsx";
-import { inputDefault, inputDisabled, inputInvalid } from "../input/input.example.tsx";
+import { inputDefault, inputInvalid } from "../input/input.example.tsx";
 import { inputGroupNoteSearch } from "../input-group/input-group.example.tsx";
 import { otpFieldSignInCode } from "../otp-field/otp-field.example.tsx";
 import { itemRecentNotes } from "../item/item.example.tsx";
@@ -192,7 +192,7 @@ export const sceneControls = defineExample({
         <Wall
             groups={[
                 ["Button", [buttonDefault, buttonDelete]],
-                ["Input", [inputDefault, inputInvalid, inputDisabled]],
+                ["Input", [inputDefault, inputInvalid]],
                 ["Input group", [inputGroupNoteSearch]],
                 ["Textarea", [textareaComment]],
                 ["Select", [selectDefault]],

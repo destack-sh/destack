@@ -1,4 +1,4 @@
-import type { Hue } from "@destack/color";
+import { HUES, type Hue } from "@destack/color";
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
@@ -18,6 +18,16 @@ import {
     useEnvironment,
 } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { defineComponent } from "@destack/view/declare";
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+
+/** The sizes of an avatar. */
+const AVATAR_SIZES = {
+    sm: { title: t.context("option")`Small` },
+    default: { title: t.context("option")`Default` },
+    lg: { title: t.context("option")`Large` },
+};
 
 /** The size of an avatar that sets none. */
 const DEFAULTS: Required<Pick<AvatarProperties, "size">> = { size: "default" };
@@ -124,7 +134,7 @@ export interface AvatarControl {
 }
 
 /** The size of an avatar, from smallest to largest. */
-export type AvatarSize = "sm" | "default" | "lg";
+export type AvatarSize = keyof typeof AVATAR_SIZES;
 
 /** The properties of an element of an avatar, the native element's attributes included. */
 export type AvatarElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
@@ -148,33 +158,50 @@ export interface AvatarImageProperties extends AvatarElementProperties<
 }
 
 /** Render a round picture of a person or organization. */
-export function Avatar(properties: AvatarProperties): JSX.Element {
-    // overlap the avatar in a group at the group's size, and start with its image loading
-    const group = useContext(AvatarGroupContext);
-    const avatar = merge(DEFAULTS, group ?? {}, properties);
-    const rest = omit(avatar, "size", "color");
-    const isGrouped = group !== null;
-    const [status, setStatus] = createSignal<AvatarImageStatus>("loading", { ownedWrite: true });
+export const Avatar = defineComponent(
+    "avatar",
+    function Avatar(properties: AvatarProperties): JSX.Element {
+        // overlap the avatar in a group at the group's size, and start with its image loading
+        const group = useContext(AvatarGroupContext);
+        const avatar = merge(DEFAULTS, group ?? {}, properties);
+        const rest = omit(avatar, "size", "color");
+        const isGrouped = group !== null;
+        const [status, setStatus] = createSignal<AvatarImageStatus>("loading", {
+            ownedWrite: true,
+        });
 
-    return (
-        <AvatarContext value={{ status, setStatus, color: () => avatar.color }}>
-            {renderPart(
-                "span",
-                "avatar",
-                rest,
-                () => [styles.avatar, sizes[avatar.size], isGrouped && styles.grouped],
-                {
-                    get "data-size"() {
-                        return avatar.size;
+        return (
+            <AvatarContext value={{ status, setStatus, color: () => avatar.color }}>
+                {renderPart(
+                    "span",
+                    "avatar",
+                    rest,
+                    () => [styles.avatar, sizes[avatar.size], isGrouped && styles.grouped],
+                    {
+                        get "data-size"() {
+                            return avatar.size;
+                        },
+                        get "data-color"() {
+                            return avatar.color;
+                        },
                     },
-                    get "data-color"() {
-                        return avatar.color;
-                    },
-                },
-            )}
-        </AvatarContext>
-    );
-}
+                )}
+            </AvatarContext>
+        );
+    },
+    {
+        size: field
+            .enum(AVATAR_SIZES)
+            .labeled(t.context("label")`Size`)
+            .described(t`How large the picture or initials show.`)
+            .default("default"),
+        color: field
+            .enum(HUES)
+            .labeled(t.context("label")`Color`)
+            .described(t`The hue the initials show on, where there is no picture.`)
+            .optional(),
+    },
+);
 
 /** Render an avatar's image, hidden until it loads. */
 export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
@@ -259,21 +286,31 @@ export type AvatarGroupProperties = AvatarElementProperties<JSX.HTMLAttributes<H
 };
 
 /** Render avatars overlapping in a row, at one size. */
-export function AvatarGroup(properties: AvatarGroupProperties): JSX.Element {
-    const group = merge(DEFAULTS, properties);
+export const AvatarGroup = defineComponent(
+    "avatarGroup",
+    function AvatarGroup(properties: AvatarGroupProperties): JSX.Element {
+        const group = merge(DEFAULTS, properties);
 
-    return (
-        <AvatarGroupContext
-            value={{
-                get size() {
-                    return group.size;
-                },
-            }}
-        >
-            {renderPart("div", "avatar-group", omit(properties, "size"), styles.group)}
-        </AvatarGroupContext>
-    );
-}
+        return (
+            <AvatarGroupContext
+                value={{
+                    get size() {
+                        return group.size;
+                    },
+                }}
+            >
+                {renderPart("div", "avatar-group", omit(properties, "size"), styles.group)}
+            </AvatarGroupContext>
+        );
+    },
+    {
+        size: field
+            .enum(AVATAR_SIZES)
+            .labeled(t.context("label")`Size`)
+            .described(t`How large each picture or initials show.`)
+            .default("default"),
+    },
+);
 
 /** Render the count of the avatars a group leaves out. */
 export function AvatarGroupCount(

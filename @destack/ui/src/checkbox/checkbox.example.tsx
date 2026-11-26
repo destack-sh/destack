@@ -1,13 +1,14 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Label } from "../label/index.ts";
-import { Checkbox, CheckboxIndicator } from "./checkbox.tsx";
+import { Checkbox } from "./checkbox.tsx";
 import { CheckboxGroup } from "./group.tsx";
 
 /** A checkbox that accepts the terms. */
-export const checkboxAcceptTerms = defineExample({
+export const checkboxDefault = defineExample({
     of: Checkbox,
-    name: "accept-terms",
-    description: "a checkbox that accepts the terms",
+    name: "default",
+    description: t`The box that accepts the terms.`,
     properties: {
         name: "terms",
         required: true,
@@ -20,10 +21,10 @@ export const checkboxAcceptTerms = defineExample({
 });
 
 /** The terms checkbox checked. */
-export const checkboxAcceptTermsChecked = defineExample({
+export const checkboxChecked = defineExample({
     of: Checkbox,
-    name: "accept-terms-checked",
-    description: "the terms checkbox checked",
+    name: "checked",
+    description: t`The terms checkbox checked.`,
     properties: {
         name: "terms",
         required: true,
@@ -36,48 +37,11 @@ export const checkboxAcceptTermsChecked = defineExample({
     ),
 });
 
-/** The terms checkbox unavailable. */
-export const checkboxAcceptTermsDisabled = defineExample({
-    of: Checkbox,
-    name: "accept-terms-disabled",
-    description: "the terms checkbox unavailable",
-    properties: {
-        name: "terms",
-        required: true,
-        disabled: true,
-    },
-    render: (properties) => (
-        <Label>
-            <Checkbox {...properties} /> Accept the terms
-        </Label>
-    ),
-});
-
-/** A select-all box composed from its root and indicator, showing a partial selection. */
-export const checkboxSelectAll = defineExample({
-    of: Checkbox,
-    name: "select-all",
-    description:
-        "a select-all box composed from its root and indicator, showing a partial selection",
-    properties: {
-        indeterminate: true,
-    },
-    render: (properties) => (
-        <Label>
-            <Checkbox {...properties}>
-                <CheckboxIndicator />
-            </Checkbox>{" "}
-            Select all
-        </Label>
-    ),
-});
-
 /** The terms checkbox marked invalid, as a form shows it before the terms are accepted. */
-export const checkboxAcceptTermsInvalid = defineExample({
+export const checkboxInvalid = defineExample({
     of: Checkbox,
-    name: "accept-terms-invalid",
-    description:
-        "the terms checkbox marked invalid, as a form shows it before the terms are accepted",
+    name: "invalid",
+    description: t`The terms checkbox marked invalid, as a form shows it before the terms are accepted.`,
     properties: {
         name: "terms",
         required: true,
@@ -91,10 +55,10 @@ export const checkboxAcceptTermsInvalid = defineExample({
 });
 
 /** Channels a person is told by, with a box for them all and one that stays. */
-export const checkboxGroup = defineExample({
+export const checkboxGroupDefault = defineExample({
     of: CheckboxGroup,
-    name: "group",
-    description: "channels a person is told by, with a box for them all and one that stays",
+    name: "default",
+    description: t`Channels a person is told by, with a box for them all and one that stays.`,
     render: () => (
         <CheckboxGroup aria-label="Tell me by" name="channel" defaultValue={["mail", "app"]}>
             <Label>
@@ -114,10 +78,10 @@ export const checkboxGroup = defineExample({
 });
 
 /** Boxes a person reads but does not change. */
-export const checkboxReadOnly = defineExample({
+export const checkboxGroupReadOnly = defineExample({
     of: CheckboxGroup,
-    name: "read-only",
-    description: "boxes a person reads but does not change",
+    name: "readOnly",
+    description: t`Boxes a person reads but does not change.`,
     render: () => (
         <CheckboxGroup aria-label="Tell me by" defaultValue={["mail"]} readOnly>
             <Label>

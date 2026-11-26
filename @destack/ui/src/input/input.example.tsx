@@ -1,11 +1,12 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Input } from "./input.tsx";
 
 /** A search box that names itself for assistive technology. */
-export const inputSearch = defineExample({
+export const inputDefault = defineExample({
     of: Input,
-    name: "search",
-    description: "a search box that names itself for assistive technology",
+    name: "default",
+    description: t`A search box that names itself for assistive technology.`,
     properties: {
         type: "search",
         name: "query",
@@ -19,7 +20,7 @@ export const inputSearch = defineExample({
 export const inputPlain = defineExample({
     of: Input,
     name: "plain",
-    description: "a title without a frame, as in a dialog it is the first line of",
+    description: t`A title without a frame, as in a dialog it is the first line of.`,
     properties: {
         variant: "plain",
         placeholder: "Task title",
@@ -28,26 +29,11 @@ export const inputPlain = defineExample({
     render: (properties) => <Input {...properties} />,
 });
 
-/** The search box unavailable. */
-export const inputSearchDisabled = defineExample({
-    of: Input,
-    name: "search-disabled",
-    description: "the search box unavailable",
-    properties: {
-        type: "search",
-        name: "query",
-        placeholder: "Search notes",
-        "aria-label": "Search notes",
-        disabled: true,
-    },
-    render: (properties) => <Input {...properties} />,
-});
-
 /** The search box marked invalid. */
-export const inputSearchInvalid = defineExample({
+export const inputInvalid = defineExample({
     of: Input,
-    name: "search-invalid",
-    description: "the search box marked invalid",
+    name: "invalid",
+    description: t`The search box marked invalid.`,
     properties: {
         type: "search",
         name: "query",
