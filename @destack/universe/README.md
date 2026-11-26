@@ -83,16 +83,17 @@ A universe declares its `regions` and its `platform`.
 
 `TestUniverse.open(options)` starts a universe with mail and storage in memory.
 
-| Verb                       | What it does                                                                   |
-| -------------------------- | ------------------------------------------------------------------------------ |
-| `signIn(email)`            | signs a person up or in with a mailed code, on a new client                    |
-| `operator()`               | signs the operator in as an owner of the platform organization                 |
-| `elevate(person)`          | steps a person up with their authenticator, as RFC 9470 does                   |
-| `machine(code)`            | opens a region's managed machine, following the directory                      |
-| `enroll(…)`, `declare(…)`  | enrolls a person's machine, or declares an account's dedicated managed machine |
-| `entitle(…)`, `upgrade(…)` | entitles an account as finance does, or moves a space to another stack         |
-| `given(example, person)`   | makes an example's calls in the person's account                               |
-| `world()`                  | reads the universe's keys and sign-ins, to restore it later                    |
+| Verb                      | What it does                                                                    |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| `signIn(email)`           | signs a person up or in with a mailed code, on a new client                     |
+| `operator()`              | signs the operator in as an owner of the platform organization                  |
+| `elevate(person)`         | steps a person up with their authenticator, as RFC 9470 does                    |
+| `machine(code)`           | opens a region's managed machine, following the directory                       |
+| `enroll(…)`, `declare(…)` | enrolls a person's machine, or declares an account's dedicated managed machine  |
+| `grant(…)`, `quota(…)`    | grants an account a feature, or sets a metered quota, as finance's replica does |
+| `upgrade(…)`              | moves a space to another stack                                                  |
+| `given(example, person)`  | makes an example's calls in the person's account                                |
+| `world()`                 | reads the universe's keys and sign-ins, to restore it later                     |
 
 ## Examples
 

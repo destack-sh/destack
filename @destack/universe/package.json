@@ -20,6 +20,7 @@
         "@destack/build": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/finance": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/identity": "workspace:*",

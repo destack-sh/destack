@@ -12,7 +12,9 @@ import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { OAuthError } from "@destack/account/authentication";
 import { Bookmark } from "@destack/object/client";
-import { Account, claim, Region } from "@destack/account/object";
+import { account, Account, claim, Region } from "@destack/account/object";
+import { Entitlement, financeShape } from "@destack/finance/object";
+import type { EntitlementUse } from "@destack/account/server";
 import registryPackage from "@destack/registry/package";
 import { packageObject } from "@destack/registry/object";
 import { RegistryError } from "@destack/registry/error";
@@ -29,7 +31,7 @@ import { ObjectConnectionHost, Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
 import { PackageVersion, PackageId, PackageRelease } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Digest, present, schema } from "@destack/schema";
+import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { type Publisher, RequestId, Scope } from "@destack/sync";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
@@ -106,7 +108,7 @@ export class Universe implements AsyncDisposable {
         name: "account",
         ...tablesOf({
             packages: UNIVERSE_PACKAGES,
-            follows: [],
+            follows: [financeShape.at({ key: { scope: Scope.universe.id } })],
             tables: [],
         }),
     });
@@ -268,6 +270,30 @@ export class Universe implements AsyncDisposable {
             },
         });
 
+        // decide each account's plan over the rows replicated from the platform's home
+        const { handle } = definition.platform;
+        const entitlement = (accountId: Identifier<"account">) => ({
+            decide: async (use: EntitlementUse) => {
+                // read the plan from the platform's home, where finance sells
+                const platform = present(
+                    await Account.byHandle(database.snapshot(), handle),
+                    "the platform's account",
+                );
+                const key = { scope: Account.home(platform.id) };
+                const plan = new Entitlement(database, accountId, { shape: financeShape, key });
+
+                return await plan.decide(use, clock.now());
+            },
+        });
+
+        // follow those rows from the platform's home
+        const follows = [
+            financeShape.per(account, {
+                key: async (row) =>
+                    row.handle === handle ? { key: { scope: Account.home(row.id) } } : undefined,
+            }),
+        ];
+
         // serve the object, account, setting and universe packages over one store, acting as the universe
         const implementations = [
             objectServer,
@@ -276,9 +302,11 @@ export class Universe implements AsyncDisposable {
                 resolver: new DnsOverHttps((request) => network.fetch(request)),
                 stacks: definition.platform.stacks,
                 signIn: signIn.promise,
+                entitlement,
+                entitlementWatches: Entitlement.watches,
             }),
             settingServer({ after: [] }),
-            implementPackage(universePackage, { objects: applied.objects }),
+            implementPackage(universePackage, { objects: applied.objects, follows }),
         ];
         const store: ObjectStore = new ObjectStore({
             // open the version a value names, else the release the universe runs: the distribution's

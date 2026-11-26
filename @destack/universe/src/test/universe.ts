@@ -1,3 +1,8 @@
+import { PackageId } from "@destack/package";
+import { TestPlan } from "@destack/finance/test/plan";
+import { type FeatureGrant } from "@destack/finance/feature";
+import { financeShape, quota, type Quota } from "@destack/finance/object";
+import { and, eq } from "@destack/db";
 import { UniverseOrigin } from "@destack/account/address";
 import { Bookmark } from "@destack/object/client";
 import { DEVICE_SCOPES, Issuer, MachineKey } from "@destack/account/client";
@@ -7,7 +12,6 @@ import { sudo } from "@destack/account/authentication";
 import {
     authenticatorCode,
     Enrollment,
-    ENTITLED_PACKAGE,
     TestBrowser,
     TestMail,
     OPERATOR_EMAIL,
@@ -25,27 +29,24 @@ import type { Simulation } from "@destack/environment/simulation";
 import { LocalKeyring, MemoryKeychain, PublicKey } from "@destack/identity";
 import {
     Account,
-    type Allowance,
-    Entitlement,
-    entitlement,
-    account,
-    type EntitlementResource,
     type RegionCode,
     machine,
-    REGION_MERCHANT,
     space,
     type StackRelease,
 } from "@destack/account/object";
-import { AccessContext, Caller, InstallationId, principal } from "@destack/access";
-import { CallKey, type FeatureReference, ObjectType, type ProcedureRouter } from "@destack/object";
+import { AccessContext, Caller, principal } from "@destack/access";
+import { CallKey, ObjectType, type ProcedureRouter } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import type { Example } from "@destack/package/declare";
 import { Identifier, present, schema } from "@destack/schema";
-import { RequestId, Scope, type Subject } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import type { UniverseDefinition } from "../universe/definition.ts";
 import { BuildLayer } from "@destack/package/manifest";
 import { Universe, type UniverseOptions, UNIVERSE_PACKAGES } from "../universe/universe.ts";
 import { TestMachine } from "./machine.ts";
+
+/** The package declaring the features a test grants, by resource too. */
+export const PLAN_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000f9");
 
 /** The origin a test universe answers at, which no request leaves the process for. */
 const TEST_ORIGIN = "https://universe.test";
@@ -529,60 +530,48 @@ export class TestUniverse implements AsyncDisposable {
         return Account.home(present(platform, "the platform's account").id);
     }
 
-    /** Read the platform's merchant, the finance installation its home declares. */
-    async #merchant(): Promise<Subject> {
-        // derive the installation the platform home's stack declares under the merchant's name
-        const snapshot = this.storage.database.snapshot();
-        const home = await Scope.object(snapshot, await this.platformHome());
-        const crypto = this.universe.store.environment.crypto;
-        const id = await InstallationId.of(home, REGION_MERCHANT, crypto);
-
-        return principal.installation.reference(home.id, id);
+    /** Grant an account a feature by an active subscription, as the universe replicates it. */
+    async grant(accountId: Identifier<"account">, granted: FeatureGrant): Promise<void> {
+        // stand in for the replica of the platform home's rows
+        const home = await this.platformHome();
+        const followed = { shape: financeShape, key: {}, scope: home };
+        const { database } = this.storage;
+        await TestPlan.grant(database, accountId, granted, followed, home, this.environment);
     }
 
-    /** Entitle an account to a resource or feature as the platform's merchant does. */
-    async entitle(
+    /** Set where an account's metered usage of a feature stands, as finance last derived it. */
+    async quota(
         accountId: Identifier<"account">,
-        granted: EntitlementResource | { readonly feature: FeatureReference },
-        terms: Pick<Entitlement, "kind"> & Partial<Pick<Entitlement, "value" | "limit" | "state">>,
+        terms: Pick<Quota, "packageId" | "feature" | "limit" | "state">,
     ): Promise<void> {
-        // key a resource's entitlement by a test feature of its name
-        const feature =
-            typeof granted === "string"
-                ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
-                : { ...granted.feature, resource: null };
-
-        // act as the platform's merchant, as finance does
-        const { store } = this.universe;
-        const snapshot = this.storage.database.snapshot();
-        const owner = await Account.of(snapshot, accountId);
-        const provider = await this.#merchant();
+        // stand in for the replica of the platform home's quota of the feature, replacing an earlier one
         const now = this.clock.now();
-
-        // replace the one the account has for the feature with one of the terms, keeping the others
-        const stored = await snapshot
-            .read(entitlement.table)
-            .findMany({ where: { scope: accountId } });
-        const allowance: Allowance = {
-            packageId: feature.packageId,
-            feature: feature.name,
-            resource: feature.resource,
-            value: null,
-            limit: null,
-            resetAt: null,
-            state: null,
-            ...terms,
-        };
-        const kept = stored.filter((row) => Entitlement.key(row) !== Entitlement.key(allowance));
-        await store.mutate(AccessContext.of(Caller.of(provider), now), {
-            id: RequestId.create(store.environment),
-            calls: [
-                account.call("entitle", {
-                    ...account.target(owner),
-                    allowances: [...kept.map((row) => Entitlement.allowance(row)), allowance],
-                }),
-            ],
-        });
+        const home = await this.platformHome();
+        await TestPlan.follow(this.storage.database, { shape: financeShape, key: {}, scope: home });
+        const { database } = this.storage;
+        await database.transaction((transaction) =>
+            transaction.log.asReplica(async () => {
+                await transaction
+                    .delete(quota.table)
+                    .where(
+                        and(
+                            eq(quota.table.accountId, accountId),
+                            eq(quota.table.packageId, terms.packageId),
+                            eq(quota.table.feature, terms.feature),
+                        ),
+                    );
+                await transaction.insert(quota.table).values({
+                    id: Identifier.create("quota", this.environment),
+                    scope: home,
+                    accountId,
+                    ...terms,
+                    usage: 0,
+                    periodStart: now,
+                    createdAt: now,
+                    updatedAt: now,
+                });
+            }),
+        );
     }
 
     /** Move a space to another stack as the platform does, which its machine then applies. */
