@@ -9,6 +9,7 @@ import { type MethodBuilder } from "../method/builder.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";
+import { ObjectAppearance } from "../presentation/appearance.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** An invitation to create: its object, the relationship it offers, and why. */
@@ -57,9 +58,21 @@ export const invitation = defineObject(
                 const relationship = { ...offered, object };
                 const store = Execution.store(execution, context);
                 await ObjectPolicy.requireScope(context, relationship, store);
-                await ObjectPolicy.requireObject(object, { deleted: "exclude" }, store);
+                const { type, row } = await ObjectPolicy.requireObject(
+                    object,
+                    { deleted: "exclude" },
+                    store,
+                );
 
-                return Invitation.create({ ...details, relationship }, store.authorization);
+                // capture the object's title, else the identifier people use for it, for the invitee
+                const { title: field } = type.presentation;
+                const stored = field === undefined ? undefined : row[field];
+                const title =
+                    typeof stored === "string" && stored !== ""
+                        ? stored
+                        : ObjectAppearance.identifier(type, row, undefined);
+
+                return Invitation.create({ ...details, title, relationship }, store.authorization);
             },
         }),
         accept: defineMethod<{

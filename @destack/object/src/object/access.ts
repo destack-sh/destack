@@ -18,7 +18,7 @@ import { derivePermissions, type TraitObject, type TraitPolicy } from "../trait/
 import { Casing } from "./name.ts";
 import { AccessName, ObjectReference, ObjectTypeReference, Scope, Subject } from "@destack/sync";
 import { TABLE, type Table } from "@destack/db";
-import { present, schema } from "@destack/schema";
+import { type JsonObject, present, schema } from "@destack/schema";
 import type { MethodContext } from "../method/context.ts";
 import type { Method } from "../method/method.ts";
 import { Page } from "../method/page.ts";
@@ -240,12 +240,12 @@ export const ObjectPolicy = {
         }
     },
 
-    /** Require an object to exist in the store, including or excluding the trash. */
+    /** Read an object the store has, refusing a missing one and, when excluded, a trashed one. */
     async requireObject(
         object: ObjectReference,
         { deleted }: { readonly deleted: "exclude" | "include" },
         execution: StoreExecution,
-    ): Promise<void> {
+    ): Promise<{ readonly type: ObjectType; readonly row: JsonObject }> {
         // read the object through its type's table, refusing a type the store does not serve
         const { store } = execution;
         const key = ObjectTypeReference.key(object);
@@ -261,7 +261,7 @@ export const ObjectPolicy = {
 
         // refuse a missing or trashed object
         const deletedAt: unknown = row?.["deletedAt"];
-        if (row === undefined) {
+        if (row === undefined || type === undefined) {
             throw CallError.http("NOT_FOUND", {
                 message: `${object.type} '${object.id}' not found`,
             });
@@ -271,6 +271,8 @@ export const ObjectPolicy = {
                 `cannot change ${object.type}: it is in the trash`,
             );
         }
+
+        return { type, row: schema.jsonObject().parse(row) };
     },
 
     /** Find the scope object of the call's scope. */

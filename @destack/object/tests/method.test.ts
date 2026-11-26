@@ -373,6 +373,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
         items: [
             Invitation.encode({
                 id: asked.id,
+                title: "Ship the plan",
                 relationship: {
                     object: task.reference(spaceId, created.id),
                     relation: "viewer",
@@ -703,6 +704,7 @@ test("page an object's invitations a full hundred at a time", async () => {
                 invited.map((id) =>
                     Invitation.encode({
                         id: Identifier.create("invitation", environment),
+                        title: "Ship the plan",
                         relationship: {
                             object,
                             relation: "viewer",
