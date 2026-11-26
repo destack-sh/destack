@@ -2,6 +2,7 @@ import { PackageId } from "@destack/package";
 import { type BuildReader, CATALOG_DIRECTORY, PackageManifest } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { LocaleTag } from "../locale/locale.ts";
+import { MESSAGE_CONTEXTS } from "./message.ts";
 
 /** The path of a catalog in a build, capturing a dependency's package and the tag. */
 const CATALOG_PATH = new RegExp(`^${CATALOG_DIRECTORY}/(?:([^/]+)/)?([^/]+)\\.json$`, "u");
@@ -79,3 +80,54 @@ export const Catalog = Object.assign(catalogSchema, {
 
 /** The translations of one package's messages into one locale. */
 export type Catalog = schema.Infer<typeof catalogSchema>;
+
+/** How far a translation has come: drafted by a machine, or reviewed by a person. */
+const TRANSLATION_STATES = ["machine", "reviewed"] as const;
+
+/** One message's translation as a catalog source writes it, with what its translators read. */
+export const Translation = schema.object({
+    /** The message's source text, as MessageFormat 2. */
+    source: schema.string(),
+    /** What the message is where it shows, absent for a sentence or a phrase. */
+    context: schema.enum(MESSAGE_CONTEXTS).exactOptional(),
+    /** The note its writer leaves its translators, absent without one. */
+    note: schema.string().min(1).exactOptional(),
+    /** The translated source, as MessageFormat 2. */
+    translation: schema.string(),
+    /** How far the translation has come. */
+    state: schema.enum(TRANSLATION_STATES),
+});
+/** One message's translation as a catalog source writes it. */
+export type Translation = schema.Infer<typeof Translation>;
+
+/** A catalog as its package writes it, after XLIFF 2 and String Catalogs. */
+const catalogSourceSchema = schema.object({
+    /** The package whose messages the catalog translates. */
+    package: PackageId,
+    /** The locale the catalog translates into. */
+    locale: LocaleTag,
+    /** Each message's translation, by identifier. */
+    messages: schema.record(schema.string().min(1), Translation),
+});
+
+/** A catalog as its package writes it, which a build compiles to the catalog it ships. */
+export const CatalogSource = Object.assign(catalogSourceSchema, {
+    /** Compile a catalog source to the catalog a build ships: each translation, and the drafts. */
+    compile(source: CatalogSource): Catalog {
+        // take each message's translation, and list the ones no person reviewed yet
+        const entries = Object.entries(source.messages);
+        const messages = Object.fromEntries(
+            entries.map(([id, { translation }]) => [id, translation]),
+        );
+        const drafts = entries.filter(([, { state }]) => state === "machine").map(([id]) => id);
+
+        return {
+            package: source.package,
+            locale: source.locale,
+            messages,
+            ...(drafts.length === 0 ? {} : { drafts }),
+        };
+    },
+});
+/** A catalog as its package writes it. */
+export type CatalogSource = schema.Infer<typeof catalogSourceSchema>;

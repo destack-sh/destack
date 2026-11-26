@@ -15,7 +15,8 @@ Packages write messages in their source language:
 
 Translations ship with the package:
 
-- `Catalog`: one package's translations into one locale, in `locale/<tag>.json`.
+- `CatalogSource`: one package's translations into one locale as people write them, in `locale/<tag>.json`.
+- `Catalog`: the same translations as a build compiles and ships them.
 
 Readers render in their locale:
 
@@ -62,9 +63,25 @@ A `Message` is JSON, rendered later by each reader.
 | `source`  | the source text in MessageFormat 2                                  |
 | `values`  | the values of its positional variables                              |
 
+### CatalogSource
+
+A catalog source is a JSON file in a package's `locale` directory, after XLIFF 2 and Apple's String Catalogs: each translation beside what its translators read.
+The check keeps each `source`, `context` and `note` the code's, and `destack fix` writes them.
+
+| Field         | What it is                                              |
+| ------------- | ------------------------------------------------------- |
+| `package`     | the package whose messages it translates                |
+| `locale`      | the locale it translates into, such as `de`             |
+| `messages`    | each message's `Translation`, by `id`                   |
+| `source`      | the message's MessageFormat 2 source                    |
+| `context`     | `action`, `label`, `option` or `title`, absent for none |
+| `note`        | the note for translators, absent for none               |
+| `translation` | the translated MessageFormat 2 source                   |
+| `state`       | `machine` until a person reviews it, then `reviewed`    |
+
 ### Catalog
 
-A catalog is a JSON file in a package's `locale` directory, `locale/<tag>.json` for its own messages and `locale/<package>/<tag>.json` for a dependency's.
+`CatalogSource.compile(source)` writes the catalog a build ships, `locale/<tag>.json` for its own messages and `locale/<package>/<tag>.json` for a dependency's.
 `Catalog.read(reader)` reads every catalog a build ships.
 
 | Field      | What it is                                                     |
@@ -72,7 +89,7 @@ A catalog is a JSON file in a package's `locale` directory, `locale/<tag>.json` 
 | `package`  | the package whose messages it translates                       |
 | `locale`   | the locale it translates into, such as `de`                    |
 | `messages` | the translated MessageFormat 2 source of each message, by `id` |
-| `drafts`   | the identifiers of machine translations no person reviewed yet |
+| `drafts`   | the identifiers of translations still in the `machine` state   |
 
 ### Localization
 
@@ -179,17 +196,20 @@ export function describeInvoice(total: number, due: number, now: number): string
 
 ### Translate a message
 
-A catalog translates each message by its identifier, in MessageFormat 2 with the same variables.
-This is `locale/de.json` for the overview's `archived` message, as a draft.
+A catalog source translates each message by its identifier, in MessageFormat 2 with the same variables.
+This is `locale/de.json` for the overview's `archived` message, as a machine translation.
 
 ```json
 {
     "package": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
     "locale": "de",
     "messages": {
-        "g5cu7a6oiuz6": ".input {$count :number}\n.match $count\none {{{$count} Seite archiviert}}\n* {{{$count} Seiten archiviert}}"
-    },
-    "drafts": ["g5cu7a6oiuz6"]
+        "g5cu7a6oiuz6": {
+            "source": ".input {$count :number}\n.match $count\none {{Archived {$count} page}}\n* {{Archived {$count} pages}}",
+            "translation": ".input {$count :number}\n.match $count\none {{{$count} Seite archiviert}}\n* {{{$count} Seiten archiviert}}",
+            "state": "machine"
+        }
+    }
 }
 ```
 
@@ -206,5 +226,5 @@ Messages are JSON, rendered by each reader.
 | `plural`, `select`             | the same                         | The same.                                                       |
 | `t({ message, context })`      | `` t.context(context)`…` ``      | A tag of its own for each of four contexts, with a note.        |
 | ICU MessageFormat              | MessageFormat 2                  | Rendered by the `messageformat` library.                        |
-| `locales/<locale>/messages.po` | `locale/<tag>.json`              | JSON, with machine translations marked as `drafts`.             |
+| `locales/<locale>/messages.po` | `locale/<tag>.json`              | JSON, each entry with its source, context, note and state.      |
 | `i18n.number`, `i18n.date`     | `Localization.number`, `date`, … | Adds `money` in minor units and `relative` in the largest unit. |
