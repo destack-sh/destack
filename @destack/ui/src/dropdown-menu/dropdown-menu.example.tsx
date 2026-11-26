@@ -35,12 +35,13 @@ export const dropdownMenuOpen = defineExample({
     render: (properties) => <NoteMenu {...properties} />,
 });
 
-/** A note's actions with one unavailable. */
-export const dropdownMenuDisabled = defineExample({
-    of: DropdownMenu,
+/** A note's actions, duplicating it unavailable. */
+export const dropdownMenuItemDisabled = defineExample({
+    of: DropdownMenuItem,
     name: "disabled",
     description: t`A note's actions, duplicating it unavailable.`,
-    render: (properties) => <NoteMenu {...properties} isDuplicateDisabled />,
+    properties: { disabled: true },
+    render: (properties) => <NoteMenu duplicate={properties} />,
 });
 
 /** A note's actions with options that check. */
@@ -80,8 +81,8 @@ export const dropdownMenuControlled = defineExample({
 /** Render a note's actions, reporting the action they run, varying an item or the options. */
 function NoteMenu(
     properties: PropertiesOf<typeof DropdownMenu> & {
-        /** Whether duplicating the note is unavailable. */
-        readonly isDuplicateDisabled?: boolean;
+        /** The properties of the item that duplicates the note. */
+        readonly duplicate?: PropertiesOf<typeof DropdownMenuItem>;
         /** Whether the menu has options that check. */
         readonly isCheckable?: boolean;
         /** The side and alignment of the open menu. */
@@ -95,7 +96,7 @@ function NoteMenu(
 
     return (
         <>
-            <DropdownMenu {...omit(properties, "isDuplicateDisabled", "isCheckable", "content")}>
+            <DropdownMenu {...omit(properties, "duplicate", "isCheckable", "content")}>
                 <DropdownMenuTrigger
                     render={(attributes) => <Button {...attributes} variant="outline" />}
                 >
@@ -108,8 +109,8 @@ function NoteMenu(
                         <DropdownMenuShortcut keys="mod+r" />
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                        disabled={properties.isDuplicateDisabled === true}
                         onSelect={() => setAction("duplicate")}
+                        {...properties.duplicate}
                     >
                         Duplicate
                     </DropdownMenuItem>

@@ -59,8 +59,13 @@ export const checkboxGroupDefault = defineExample({
     of: CheckboxGroup,
     name: "default",
     description: t`Channels a person is told by, with a box for them all and one that stays.`,
-    render: () => (
-        <CheckboxGroup aria-label="Tell me by" name="channel" defaultValue={["mail", "app"]}>
+    render: (properties) => (
+        <CheckboxGroup
+            aria-label="Tell me by"
+            name="channel"
+            defaultValue={["mail", "app"]}
+            {...properties}
+        >
             <Label>
                 <Checkbox parent /> Everything
             </Label>
@@ -72,23 +77,6 @@ export const checkboxGroupDefault = defineExample({
             </Label>
             <Label>
                 <Checkbox value="push" /> Push
-            </Label>
-        </CheckboxGroup>
-    ),
-});
-
-/** Boxes a person reads but does not change. */
-export const checkboxGroupReadOnly = defineExample({
-    of: CheckboxGroup,
-    name: "readOnly",
-    description: t`Boxes a person reads but does not change.`,
-    render: () => (
-        <CheckboxGroup aria-label="Tell me by" defaultValue={["mail"]} readOnly>
-            <Label>
-                <Checkbox value="app" /> In the app
-            </Label>
-            <Label>
-                <Checkbox value="mail" /> Mail
             </Label>
         </CheckboxGroup>
     ),

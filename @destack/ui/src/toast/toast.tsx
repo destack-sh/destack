@@ -48,9 +48,12 @@ import { Hover, Swipe } from "../interaction/index.ts";
 import { LayerStack } from "../layer/index.ts";
 import type { Side } from "../position/index.ts";
 import { type Toast, ToastManager, type ToastType } from "./manager.ts";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { field } from "@destack/object";
-import { schema } from "@destack/schema";
 
 /** The corners and edges a toaster stacks its toasts at. */
 const TOASTER_POSITIONS = {
@@ -86,9 +89,8 @@ const SHRINK = 0.05;
 /** The toasts that stay, which the focus goes to. */
 const STAYING = "[data-slot=toast]:not([data-leaving], [data-limited])";
 
-/** The position and limits of a toaster that sets none. */
-const DEFAULTS: Required<Pick<ToasterProperties, "position" | "duration" | "visibleToasts">> = {
-    position: "bottom-right",
+/** The limits of a toaster that sets none. */
+const DEFAULTS: Required<Pick<ToasterAttributes, "duration" | "visibleToasts">> = {
     duration: DURATION,
     visibleToasts: VISIBLE_TOASTS,
 };
@@ -254,9 +256,7 @@ const positions = style.create({
 export type ToasterPosition = keyof typeof TOASTER_POSITIONS;
 
 /** The properties of a toaster. */
-export interface ToasterProperties {
-    /** The corner or edge the toasts stack in, the bottom right by default. */
-    readonly position?: ToasterPosition;
+export interface ToasterAttributes {
     /** The time each toast shows in milliseconds, 5000 by default and longer with an action. */
     readonly duration?: number;
     /** The most toasts shown at once, 3 by default. */
@@ -369,10 +369,22 @@ class ToastStack {
     }
 }
 
+/** The properties people change in a toaster's controls and inspector. */
+const TOASTER_PROPERTIES = {
+    position: field
+        .enum(TOASTER_POSITIONS)
+        .labeled(t.context("label")`Position`)
+        .described(t`The corner or edge of the screen the toasts stack at.`)
+        .default("bottom-right"),
+};
+
 /** Give a page toasts, drawn in a live region over it that F6 moves the focus to and back. */
-export const Toaster = defineComponent(
-    "toaster",
-    function Toaster(properties: ToasterProperties): JSX.Element {
+export const Toaster = defineComponent({
+    name: "toaster",
+    properties: TOASTER_PROPERTIES,
+    render(
+        properties: RenderProperties<ToasterAttributes, typeof TOASTER_PROPERTIES>,
+    ): JSX.Element {
         // share the toasts with the page
         const toaster = merge(DEFAULTS, properties);
         const locale = useLocale();
@@ -534,24 +546,7 @@ export const Toaster = defineComponent(
             </ToastContext>
         );
     },
-    {
-        position: field
-            .enum(TOASTER_POSITIONS)
-            .labeled(t.context("label")`Position`)
-            .described(t`The corner or edge of the screen the toasts stack at.`)
-            .default("bottom-right"),
-        duration: field
-            .integer(schema.number().int().positive())
-            .labeled(t.context("label")`Duration`)
-            .described(t`How long a toast shows before it goes, in milliseconds.`)
-            .default(DURATION),
-        visibleToasts: field
-            .integer(schema.number().int().positive())
-            .labeled(t.context("label")`Visible toasts`)
-            .described(t`How many toasts show at once before the rest wait.`)
-            .default(VISIBLE_TOASTS),
-    },
-);
+});
 
 /** The focus of a toaster: moved to it with F6, and back to where it was. */
 class ToasterFocus {
@@ -849,3 +844,6 @@ function ToastButtons(properties: {
         </div>
     );
 }
+
+/** The properties of a toaster, its native attributes included. */
+export type ToasterProperties = ComponentProperties<typeof Toaster>;

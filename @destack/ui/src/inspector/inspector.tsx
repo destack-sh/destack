@@ -5,7 +5,6 @@ import { text } from "@destack/theme/text";
 import { color, size, space } from "@destack/theme/tokens.stylex";
 import { createUniqueId, For, type JSX, omit, Show, useLocale } from "@destack/view";
 import { LazyIcon } from "@destack/ui/icon";
-import { defineComponent } from "@destack/view/declare";
 import { renderPart } from "../part/index.ts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import { ValueField } from "../value-field/index.ts";
@@ -52,82 +51,74 @@ export interface InspectorProperties extends Omit<
 }
 
 /** Edit some values side by side, each input in a row of its name and its field. */
-export const Inspector = defineComponent(
-    "inspector",
-    function Inspector(properties: InspectorProperties): JSX.Element {
-        // write each choice of an input in the person's language
-        const locale = useLocale();
-        const rest = omit(properties, "inputs", "values", "onValueChange");
+export function Inspector(properties: InspectorProperties): JSX.Element {
+    // write each choice of an input in the person's language
+    const locale = useLocale();
+    const rest = omit(properties, "inputs", "values", "onValueChange");
 
-        return renderPart("div", "inspector", rest, [text.sm, styles.inspector], {
-            role: "group",
-            get children() {
-                return (
-                    <For each={properties.inputs}>
-                        {(input) => {
-                            // name each field by its label in the person's language, else by its name
-                            const name = () =>
-                                input.label === undefined ? input.name : locale.render(input.label);
-                            const description = () =>
-                                input.description === undefined
-                                    ? undefined
-                                    : locale.render(input.description);
-                            const id = createUniqueId();
-                            const label = (
-                                attributes: JSX.HTMLAttributes<HTMLSpanElement> = {},
-                            ) => (
-                                <span {...attributes} {...style.attrs(styles.label)}>
-                                    <Show when={input.icon}>
-                                        {(icon) => <LazyIcon name={icon()} />}
-                                    </Show>
-                                    <span {...style.attrs(styles.name)}>{name()}</span>
-                                </span>
-                            );
+    return renderPart("div", "inspector", rest, [text.sm, styles.inspector], {
+        role: "group",
+        get children() {
+            return (
+                <For each={properties.inputs}>
+                    {(input) => {
+                        // name each field by its label in the person's language, else by its name
+                        const name = () =>
+                            input.label === undefined ? input.name : locale.render(input.label);
+                        const description = () =>
+                            input.description === undefined
+                                ? undefined
+                                : locale.render(input.description);
+                        const id = createUniqueId();
+                        const label = (attributes: JSX.HTMLAttributes<HTMLSpanElement> = {}) => (
+                            <span {...attributes} {...style.attrs(styles.label)}>
+                                <Show when={input.icon}>
+                                    {(icon) => <LazyIcon name={icon()} />}
+                                </Show>
+                                <span {...style.attrs(styles.name)}>{name()}</span>
+                            </span>
+                        );
 
-                            return (
-                                <>
-                                    {/* Label, telling what the field does when pointed at */}
-                                    <Show when={description()} fallback={label()}>
-                                        {(said) => (
-                                            <>
-                                                <Tooltip>
-                                                    <TooltipTrigger render={label} />
-                                                    <TooltipContent>{said()}</TooltipContent>
-                                                </Tooltip>
-                                                <span id={id} hidden>
-                                                    {said()}
-                                                </span>
-                                            </>
-                                        )}
-                                    </Show>
+                        return (
+                            <>
+                                {/* Label, telling what the field does when pointed at */}
+                                <Show when={description()} fallback={label()}>
+                                    {(said) => (
+                                        <>
+                                            <Tooltip>
+                                                <TooltipTrigger render={label} />
+                                                <TooltipContent>{said()}</TooltipContent>
+                                            </Tooltip>
+                                            <span id={id} hidden>
+                                                {said()}
+                                            </span>
+                                        </>
+                                    )}
+                                </Show>
 
-                                    {/* Field */}
-                                    <ValueField
-                                        aria-label={name()}
-                                        aria-describedby={
-                                            description() === undefined ? undefined : id
-                                        }
-                                        type={input.value}
-                                        choices={
-                                            input.value.kind === "choice"
-                                                ? input.value.choices.map((each) =>
-                                                      Choice.of(each, locale),
-                                                  )
-                                                : undefined
-                                        }
-                                        value={properties.values[input.name]}
-                                        onValueChange={(value) =>
-                                            properties.onValueChange(input.name, value)
-                                        }
-                                        required={input.presence === "required"}
-                                    />
-                                </>
-                            );
-                        }}
-                    </For>
-                );
-            },
-        });
-    },
-    {},
-);
+                                {/* Field */}
+                                <ValueField
+                                    aria-label={name()}
+                                    aria-describedby={description() === undefined ? undefined : id}
+                                    type={input.value}
+                                    choices={
+                                        input.value.kind === "choice"
+                                            ? input.value.choices.map((each) =>
+                                                  Choice.of(each, locale),
+                                              )
+                                            : undefined
+                                    }
+                                    value={properties.values[input.name]}
+                                    onValueChange={(value) =>
+                                        properties.onValueChange(input.name, value)
+                                    }
+                                    required={input.presence === "required"}
+                                />
+                            </>
+                        );
+                    }}
+                </For>
+            );
+        },
+    });
+}

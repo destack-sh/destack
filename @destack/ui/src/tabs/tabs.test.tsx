@@ -1,12 +1,12 @@
 import { expect, test } from "@destack/test";
 import { createSignal, Errored, flush, For, type JSX } from "@destack/view";
 import { markup, render } from "@destack/view/test";
-import { tabsDisabled } from "./tabs.example.tsx";
+import { tabsTriggerDisabled } from "./tabs.example.tsx";
 import { Tabs, TabsClose, TabsIndicator, TabsItem, TabsList, TabsTrigger } from "./tabs.tsx";
 import { type TabsControl, useTabs } from "./index.ts";
 
 test("connect each tab to its panel and show only the selected panel", () => {
-    const frame = render(tabsDisabled).container.querySelector("[data-slot=example]");
+    const frame = render(tabsTriggerDisabled).container.querySelector("[data-slot=example]");
     expect(frame === null ? "" : markup(frame)).toBe(
         '<div data-slot="tabs" data-orientation="horizontal">' +
             '<div data-slot="tabs-list" role="tablist" data-variant="default" data-orientation="horizontal" aria-orientation="horizontal" aria-label="Note"><div role="presentation">' +

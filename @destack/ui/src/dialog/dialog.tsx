@@ -42,7 +42,11 @@ import {
 import { type ElementPartProperties, renderPart, type Render } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import { scrim } from "./scrim.stylex.ts";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { field } from "@destack/object";
 
 /** The widest a dialog grows. */
@@ -246,12 +250,10 @@ export type DialogTriggerProperties<Payload = unknown> = DialogButtonProperties 
     TriggerProperties<Payload, DialogControl<Payload>>;
 
 /** The properties of a dialog's content, the native dialog's attributes included. */
-export interface DialogContentProperties extends Omit<
+export interface DialogContentAttributes extends Omit<
     JSX.DialogHtmlAttributes<HTMLDialogElement>,
     "class" | "onClose"
 > {
-    /** Whether to show a close button in the top corner, true by default. */
-    readonly showCloseButton?: boolean;
     /** The StyleX styles applied after the dialog's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with its attributes, its own by default. */
@@ -276,22 +278,18 @@ export function useDialog(): DialogControl {
 }
 
 /** Hold the open state a dialog's trigger, content and text share. */
-export const Dialog = defineComponent(
-    "dialog",
-    function Dialog<Payload = unknown>(properties: DialogProperties<Payload>): JSX.Element {
-        // take the caller's dialog, else one of its own
-        const control = controlOf(properties, () => new DialogControl<Payload>(properties));
+export function Dialog<Payload = unknown>(properties: DialogProperties<Payload>): JSX.Element {
+    // take the caller's dialog, else one of its own
+    const control = controlOf(properties, () => new DialogControl<Payload>(properties));
 
-        return (
-            <DialogContext value={control}>
-                <OpenContext value={control.isOpen}>
-                    {control.state.render(properties.children)}
-                </OpenContext>
-            </DialogContext>
-        );
-    },
-    {},
-);
+    return (
+        <DialogContext value={control}>
+            <OpenContext value={control.isOpen}>
+                {control.state.render(properties.children)}
+            </OpenContext>
+        </DialogContext>
+    );
+}
 
 /** Render the element that opens its dialog, a button by default. */
 export function DialogTrigger<Payload = unknown>(
@@ -327,10 +325,22 @@ export function DialogClose(properties: DialogButtonProperties): JSX.Element {
     });
 }
 
+/** The properties people change in a dialog's content's controls and inspector. */
+const DIALOG_CONTENT_PROPERTIES = {
+    showCloseButton: field
+        .boolean()
+        .labeled(t.context("label")`Close button`)
+        .described(t`Shows a button in its corner that closes the dialog.`)
+        .default(true),
+};
+
 /** Render the modal dialog, shown in the top layer with the page behind it inert while open. */
-export const DialogContent = defineComponent(
-    "dialogContent",
-    function DialogContent(properties: DialogContentProperties): JSX.Element {
+export const DialogContent = defineComponent({
+    name: "dialogContent",
+    properties: DIALOG_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<DialogContentAttributes, typeof DIALOG_CONTENT_PROPERTIES>,
+    ): JSX.Element {
         // read the dialog and store its element for the effect below
         const control = useDialog();
         const locale = useLocale();
@@ -378,7 +388,7 @@ export const DialogContent = defineComponent(
                         return (
                             <>
                                 {properties.children}
-                                <Show when={properties.showCloseButton !== false}>
+                                <Show when={properties.showCloseButton}>
                                     <Button
                                         isIconOnly
                                         variant="ghost"
@@ -400,14 +410,7 @@ export const DialogContent = defineComponent(
             </TopLayer>
         );
     },
-    {
-        showCloseButton: field
-            .boolean()
-            .labeled(t.context("label")`Close button`)
-            .described(t`Shows a button in its corner that closes the dialog.`)
-            .default(true),
-    },
-);
+});
 
 /** Render the top of a dialog with its title and description. */
 export function DialogHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
@@ -441,3 +444,6 @@ export function DialogDescription(
         id: control.descriptionId,
     });
 }
+
+/** The properties of a dialog's content, its native attributes included. */
+export type DialogContentProperties = ComponentProperties<typeof DialogContent>;

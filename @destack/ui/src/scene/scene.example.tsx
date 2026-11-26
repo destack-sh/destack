@@ -12,7 +12,7 @@ import { avatarDefault, avatarGroupDefault } from "../avatar/avatar.example.tsx"
 import { badgeNoteState } from "../badge/badge.example.tsx";
 import { boardLaunch } from "../board/board.example.tsx";
 import { breadcrumbNoteTrail } from "../breadcrumb/breadcrumb.example.tsx";
-import { buttonDefault, buttonDelete, buttonNoteToolbar } from "../button/button.example.tsx";
+import { buttonDefault, buttonDelete } from "../button/button.example.tsx";
 import { buttonGroupSplitSave } from "../button-group/button-group.example.tsx";
 import { calendarTripDays } from "../calendar/calendar.example.tsx";
 import { cardStoragePlan } from "../card/card.example.tsx";
@@ -218,7 +218,7 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Avatar", [avatarDefault, avatarGroupDefault]],
     ["Badge", [badgeNoteState]],
     ["Breadcrumb", [breadcrumbNoteTrail]],
-    ["Button", [buttonNoteToolbar]],
+    ["Button", [buttonDefault, buttonDelete]],
     ["Button group", [buttonGroupSplitSave]],
     ["Calendar", [calendarTripDays]],
     ["Card", [cardStoragePlan]],

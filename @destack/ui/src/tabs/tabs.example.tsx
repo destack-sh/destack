@@ -1,6 +1,6 @@
 import { t } from "@destack/locale";
 import fileIcon from "@destack/icon/phosphor/file";
-import { defineExample } from "@destack/package/declare";
+import { defineExample, type PropertiesOf } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { width } from "@destack/theme/tokens.stylex";
 import { createSignal, For, type JSX, omit } from "@destack/view";
@@ -66,13 +66,13 @@ export const tabsManual = defineExample({
     render: (properties) => <NoteTabs {...properties} />,
 });
 
-/** A note's tabs with its history unavailable. */
-export const tabsDisabled = defineExample({
-    of: Tabs,
+/** A note's tabs, its history tab unavailable. */
+export const tabsTriggerDisabled = defineExample({
+    of: TabsTrigger,
     name: "disabled",
     description: t`A note's tabs, its history tab unavailable.`,
-    properties: { defaultValue: "edit", activationMode: "automatic" },
-    render: (properties) => <NoteTabs {...properties} isHistoryDisabled />,
+    properties: { disabled: true },
+    render: (properties) => <NoteTabs defaultValue="edit" history={properties} />,
 });
 
 /** A note's tabs with a mark sliding to the selected one. */
@@ -89,14 +89,14 @@ function NoteTabs(
     properties: TabsProperties & {
         /** The properties of the list. */
         readonly list?: Pick<TabsListProperties, "variant" | "sizing">;
-        /** Whether the history tab is unavailable. */
-        readonly isHistoryDisabled?: boolean;
+        /** The properties of the history tab. */
+        readonly history?: PropertiesOf<typeof TabsTrigger>;
         /** Whether a mark slides to the selected tab. */
         readonly hasIndicator?: boolean;
     },
 ): JSX.Element {
     return (
-        <Tabs {...omit(properties, "list", "isHistoryDisabled", "hasIndicator")}>
+        <Tabs {...omit(properties, "list", "history", "hasIndicator")}>
             <TabsList aria-label="Note" {...properties.list}>
                 <TabsTrigger value="edit">
                     <TabsTitle>Edit</TabsTitle>
@@ -104,7 +104,7 @@ function NoteTabs(
                 <TabsTrigger value="preview">
                     <TabsTitle>Preview</TabsTitle>
                 </TabsTrigger>
-                <TabsTrigger value="history" disabled={properties.isHistoryDisabled}>
+                <TabsTrigger value="history" {...properties.history}>
                     <TabsTitle>History</TabsTitle>
                 </TabsTrigger>
                 {properties.hasIndicator === true ? <TabsIndicator /> : undefined}
@@ -121,12 +121,11 @@ export const tabsFiles = defineExample({
     of: Tabs,
     name: "files",
     description: t`The files an editor has open, which close, reorder and end in a menu.`,
-    properties: {},
-    render: () => <Files />,
+    render: (properties) => <Files {...properties} />,
 });
 
 /** Render the open files. */
-function Files(): JSX.Element {
+function Files(properties: TabsProperties): JSX.Element {
     // keep the files in their order
     const [files, setFiles] = createSignal<readonly string[]>([
         "plan.md",
@@ -141,6 +140,7 @@ function Files(): JSX.Element {
         <Tabs
             defaultValue="timeline.tsx"
             onClose={(closed) => setFiles((all) => all.filter((file) => file !== closed))}
+            {...properties}
         >
             <Sortable
                 indicator="gap"

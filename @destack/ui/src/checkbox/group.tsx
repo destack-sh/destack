@@ -11,8 +11,12 @@ import {
 import { CollectionBuilder } from "../collection/index.ts";
 import { useFieldValue } from "../field/control.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-import type { CheckboxProperties } from "./checkbox.tsx";
-import { defineComponent } from "@destack/view/declare";
+import type { Checkbox, CheckboxAttributes } from "./checkbox.tsx";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 
@@ -27,7 +31,7 @@ const styles = style.create({
 });
 
 /** The properties of a group of checkboxes, the native element's attributes included. */
-export type CheckboxGroupProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
+export type CheckboxGroupAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties & {
         /** The values of the checked boxes, which makes the group controlled. */
         readonly value?: readonly string[] | undefined;
@@ -39,16 +43,15 @@ export type CheckboxGroupProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "
         readonly allValues?: readonly string[] | undefined;
         /** The form field name each checked box submits its value under. */
         readonly name?: string | undefined;
-        /** Whether every box ignores the person. */
-        readonly disabled?: boolean | undefined;
-        /** Whether the person reads the boxes but does not change them. */
-        readonly readOnly?: boolean | undefined;
     };
 
 /** The checked values of a group of checkboxes, which its boxes share. */
 export class CheckboxGroupControl {
     /** The group's properties. */
-    readonly #properties: CheckboxGroupProperties;
+    readonly #properties: RenderProperties<
+        CheckboxGroupAttributes,
+        typeof CHECKBOX_GROUP_PROPERTIES
+    >;
     /** The checked values. */
     readonly #values: () => readonly string[];
     /** Replace the checked values and tell the owner. */
@@ -60,7 +63,9 @@ export class CheckboxGroupControl {
     }>;
 
     /** Follow a group's checked values, controlled or its own. */
-    constructor(properties: CheckboxGroupProperties) {
+    constructor(
+        properties: RenderProperties<CheckboxGroupAttributes, typeof CHECKBOX_GROUP_PROPERTIES>,
+    ) {
         // follow the owner's values, else the group's own
         const [values, setValues] = createControllableSignal<readonly string[]>({
             isControlled: () => "value" in properties,
@@ -75,12 +80,14 @@ export class CheckboxGroupControl {
     }
 
     /** Read the properties of a box of the group, those of its parent box included. */
-    checkbox(given: CheckboxProperties): CheckboxProperties {
+    checkbox(
+        given: RenderProperties<CheckboxAttributes, typeof Checkbox.properties>,
+    ): RenderProperties<CheckboxAttributes, typeof Checkbox.properties> {
         // follow its value among the others
         const group = this.#properties;
         const isParent = untrack(() => given.parent === true);
         const value = untrack(() => given.value ?? given.name ?? "");
-        const isDisabled = (): boolean => given.disabled === true || group.disabled === true;
+        const isDisabled = (): boolean => given.disabled === true || group.disabled;
         if (!isParent) {
             this.#boxes.add({ value, isDisabled });
         }
@@ -107,7 +114,7 @@ export class CheckboxGroupControl {
                 return isDisabled();
             },
             get readOnly() {
-                return given.readOnly === true || group.readOnly === true;
+                return given.readOnly === true || group.readOnly;
             },
             onCheckedChange: (checked: boolean) => {
                 given.onCheckedChange?.(checked);
@@ -156,10 +163,27 @@ export class CheckboxGroupControl {
 /** The group of checkboxes around, null outside one. */
 export const CheckboxGroupContext = createContext<CheckboxGroupControl | null>(null);
 
+/** The properties people change in a checkbox group's controls and inspector. */
+const CHECKBOX_GROUP_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses presses on every checkbox of the group.`)
+        .default(false),
+    readOnly: field
+        .boolean()
+        .labeled(t.context("label")`Read only`)
+        .described(t`Shows each state, which a person cannot change.`)
+        .default(false),
+};
+
 /** Render a group of checkboxes that share their checked values. */
-export const CheckboxGroup = defineComponent(
-    "checkboxGroup",
-    function CheckboxGroup(given: CheckboxGroupProperties): JSX.Element {
+export const CheckboxGroup = defineComponent({
+    name: "checkboxGroup",
+    properties: CHECKBOX_GROUP_PROPERTIES,
+    render(
+        given: RenderProperties<CheckboxGroupAttributes, typeof CHECKBOX_GROUP_PROPERTIES>,
+    ): JSX.Element {
         // edit the value of the field's form
         const properties = useFieldValue(given, {
             value: "value",
@@ -184,22 +208,13 @@ export const CheckboxGroup = defineComponent(
                 {renderPart("div", "checkbox-group", rest, styles.group, {
                     role: "group" as const,
                     get "data-disabled"() {
-                        return properties.disabled === true ? "" : undefined;
+                        return properties.disabled ? "" : undefined;
                     },
                 })}
             </CheckboxGroupContext>
         );
     },
-    {
-        disabled: field
-            .boolean()
-            .labeled(t.context("label")`Disabled`)
-            .described(t`Refuses presses on every checkbox of the group.`)
-            .default(false),
-        readOnly: field
-            .boolean()
-            .labeled(t.context("label")`Read only`)
-            .described(t`Shows each state, which a person cannot change.`)
-            .default(false),
-    },
-);
+});
+
+/** The properties of a checkbox group, its native attributes included. */
+export type CheckboxGroupProperties = ComponentProperties<typeof CheckboxGroup>;

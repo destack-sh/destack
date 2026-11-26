@@ -1,7 +1,7 @@
 import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { tabsDisabled, tabsManual } from "./tabs.example.tsx";
+import { tabsTriggerDisabled, tabsManual } from "./tabs.example.tsx";
 import { Tabs } from "./tabs.tsx";
 
 /** Select tabs with the arrow keys. */
@@ -10,7 +10,7 @@ export const tabsSelectWithArrowKeys = defineScenario({
     interaction: viewInteraction,
     name: "selectWithArrowKeys",
     description: t`Select tabs as the arrow keys move the focus, skipping disabled tabs and wrapping.`,
-    given: { examples: [tabsDisabled] },
+    given: { examples: [tabsTriggerDisabled] },
     parameters: {},
     when: [
         {

@@ -24,7 +24,7 @@ import {
     type MenuRadioItemProperties,
     type MenuRootProperties,
 } from "../menu/index.ts";
-import { defineComponent } from "@destack/view/declare";
+import { type RenderProperties, defineComponent } from "@destack/view/declare";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 
@@ -37,15 +37,13 @@ export type DropdownMenuTriggerProperties<Payload = unknown> = ElementPartProper
     };
 
 /** Hold the open state of a menu that a button opens. */
-export const DropdownMenu = defineComponent(
-    "dropdownMenu",
-    function DropdownMenu<Payload = unknown>(properties: MenuRootProperties<Payload>): JSX.Element {
-        const control = controlOf(properties, () => new MenuControl<Payload>(null, properties));
+export function DropdownMenu<Payload = unknown>(
+    properties: MenuRootProperties<Payload>,
+): JSX.Element {
+    const control = controlOf(properties, () => new MenuControl<Payload>(null, properties));
 
-        return <Menu control={control}>{properties.children}</Menu>;
-    },
-    {},
-);
+    return <Menu control={control}>{properties.children}</Menu>;
+}
 
 /** Render the element that opens its menu on click, Enter, Space and the arrows. */
 export function DropdownMenuTrigger<Payload = unknown>(
@@ -97,34 +95,42 @@ export function DropdownMenuTrigger<Payload = unknown>(
     });
 }
 
+/** The properties people change in a dropdown menu's content's controls and inspector. */
+const DROPDOWN_MENU_CONTENT_PROPERTIES = {
+    side: field
+        .enum({
+            top: { title: t.context("option")`Top` },
+            right: { title: t.context("option")`Right` },
+            bottom: { title: t.context("option")`Bottom` },
+            left: { title: t.context("option")`Left` },
+        })
+        .labeled(t.context("label")`Side`)
+        .described(t`The side of its trigger the menu opens on, where it fits.`)
+        .default("bottom"),
+    align: field
+        .enum({
+            start: { title: t.context("option")`Start` },
+            center: { title: t.context("option")`Center` },
+            end: { title: t.context("option")`End` },
+        })
+        .labeled(t.context("label")`Align`)
+        .described(t`Where along its trigger the menu lines up.`)
+        .default("start"),
+};
+
 /** Render the menu beside its trigger. */
-export const DropdownMenuContent = defineComponent(
-    "dropdownMenuContent",
-    function DropdownMenuContent(properties: MenuContentProperties): JSX.Element {
+export const DropdownMenuContent = defineComponent({
+    name: "dropdownMenuContent",
+    properties: DROPDOWN_MENU_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            MenuContentProperties,
+            typeof DROPDOWN_MENU_CONTENT_PROPERTIES
+        >,
+    ): JSX.Element {
         return <MenuContent data-slot="dropdown-menu-content" {...properties} />;
     },
-    {
-        side: field
-            .enum({
-                top: { title: t.context("option")`Top` },
-                right: { title: t.context("option")`Right` },
-                bottom: { title: t.context("option")`Bottom` },
-                left: { title: t.context("option")`Left` },
-            })
-            .labeled(t.context("label")`Side`)
-            .described(t`The side of its trigger the menu opens on, where it fits.`)
-            .default("bottom"),
-        align: field
-            .enum({
-                start: { title: t.context("option")`Start` },
-                center: { title: t.context("option")`Center` },
-                end: { title: t.context("option")`End` },
-            })
-            .labeled(t.context("label")`Align`)
-            .described(t`Where along its trigger the menu lines up.`)
-            .default("start"),
-    },
-);
+});
 
 /** Render a group of related items. */
 export function DropdownMenuGroup(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {
@@ -138,31 +144,36 @@ export function DropdownMenuLabel(
     return <MenuLabel data-slot="dropdown-menu-label" {...properties} />;
 }
 
+/** The properties people change in a dropdown menu item's controls and inspector. */
+const DROPDOWN_MENU_ITEM_PROPERTIES = {
+    variant: field
+        .enum({
+            default: { title: t.context("option")`Default` },
+            destructive: {
+                title: t.context("option")`Destructive`,
+                description: t`An item that deletes or cannot be undone.`,
+            },
+        })
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the item marks a destructive action.`)
+        .default("default"),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses the item where its action cannot run now.`)
+        .default(false),
+};
+
 /** Render an item that runs its action and closes the menu. */
-export const DropdownMenuItem = defineComponent(
-    "dropdownMenuItem",
-    function DropdownMenuItem(properties: MenuItemProperties): JSX.Element {
+export const DropdownMenuItem = defineComponent({
+    name: "dropdownMenuItem",
+    properties: DROPDOWN_MENU_ITEM_PROPERTIES,
+    render(
+        properties: RenderProperties<MenuItemProperties, typeof DROPDOWN_MENU_ITEM_PROPERTIES>,
+    ): JSX.Element {
         return <MenuItem data-slot="dropdown-menu-item" {...properties} />;
     },
-    {
-        variant: field
-            .enum({
-                default: { title: t.context("option")`Default` },
-                destructive: {
-                    title: t.context("option")`Destructive`,
-                    description: t`An item that deletes or cannot be undone.`,
-                },
-            })
-            .labeled(t.context("label")`Variant`)
-            .described(t`Whether the item marks a destructive action.`)
-            .default("default"),
-        disabled: field
-            .boolean()
-            .labeled(t.context("label")`Disabled`)
-            .described(t`Refuses the item where its action cannot run now.`)
-            .default(false),
-    },
-);
+});
 
 /** Render an item that checks and unchecks. */
 export function DropdownMenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.Element {

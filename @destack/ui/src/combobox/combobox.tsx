@@ -27,6 +27,7 @@ import {
 import { AutocompleteContext, AutocompleteControl } from "../autocomplete/index.ts";
 import { badgeVariants } from "../badge/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
+import type { InputProperties } from "../input/index.ts";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../input-group/index.ts";
 import { OpenChange, type OpenProperties, OpenState, TopLayer } from "../layer/index.ts";
 import {
@@ -348,10 +349,7 @@ export function Combobox(given: ComboboxProperties): JSX.Element {
 /** Render the input that filters the list, framed with the button that shows every option. */
 export function ComboboxInput(
     properties: ComboboxElementProperties<
-        Omit<
-            JSX.InputHTMLAttributes<HTMLInputElement>,
-            "value" | "onInput" | "onKeyDown" | "onClick" | "onBlur" | "ref"
-        >
+        Omit<InputProperties, "value" | "onInput" | "onKeyDown" | "onClick" | "onBlur" | "ref">
     >,
 ): JSX.Element {
     // read the combobox and the reader's direction

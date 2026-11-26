@@ -1,7 +1,7 @@
 import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { dropdownMenuControlled, dropdownMenuDisabled } from "./dropdown-menu.example.tsx";
+import { dropdownMenuControlled, dropdownMenuItemDisabled } from "./dropdown-menu.example.tsx";
 import { DropdownMenu } from "./dropdown-menu.tsx";
 
 /** Move through an open dropdown menu with the keys. */
@@ -10,7 +10,7 @@ export const dropdownMenuMoveThroughItems = defineScenario({
     interaction: viewInteraction,
     name: "moveThroughItems",
     description: t`Open a dropdown menu from its trigger onto its first item and move through it.`,
-    given: { examples: [dropdownMenuDisabled] },
+    given: { examples: [dropdownMenuItemDisabled] },
     parameters: {},
     when: [
         {
@@ -220,7 +220,7 @@ export const dropdownMenuCloseOnEscape = defineScenario({
     interaction: viewInteraction,
     name: "closeOnEscape",
     description: t`Close a dropdown menu on Escape and return the focus to its trigger.`,
-    given: { examples: [dropdownMenuDisabled] },
+    given: { examples: [dropdownMenuItemDisabled] },
     parameters: {},
     when: [
         {
@@ -298,7 +298,7 @@ export const dropdownMenuChooseWithEnter = defineScenario({
     interaction: viewInteraction,
     name: "chooseWithEnter",
     description: t`Choose an item with Enter, running its action and closing the menu.`,
-    given: { examples: [dropdownMenuDisabled] },
+    given: { examples: [dropdownMenuItemDisabled] },
     parameters: {},
     when: [
         {
@@ -340,7 +340,7 @@ export const dropdownMenuEnterAndLeaveSubmenu = defineScenario({
     interaction: viewInteraction,
     name: "enterAndLeaveSubmenu",
     description: t`Open a submenu with the arrow key toward it and leave it with the arrow key back.`,
-    given: { examples: [dropdownMenuDisabled] },
+    given: { examples: [dropdownMenuItemDisabled] },
     parameters: {},
     when: [
         {
@@ -442,7 +442,7 @@ export const dropdownMenuLeaveUnavailableOptions = defineScenario({
     interaction: viewInteraction,
     name: "leaveUnavailableOptions",
     description: t`Leave an unavailable item without running it, keeping the menu open.`,
-    given: { examples: [dropdownMenuDisabled] },
+    given: { examples: [dropdownMenuItemDisabled] },
     parameters: {},
     when: [
         { action: "click", target: { role: "button", name: "Note" } },

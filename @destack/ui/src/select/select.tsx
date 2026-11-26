@@ -14,14 +14,32 @@ import { readChoices, useFieldControl, useFieldValue } from "../field/control.ts
 import { inputStyle } from "../input/index.ts";
 import { useJoin } from "../join/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import { schema } from "@destack/schema";
 
 /** The heights of a select. */
-const SELECT_SIZES = ["default", "sm"] as const;
+const SELECT_SIZES = {
+    sm: { title: t.context("option")`Small` },
+    default: { title: t.context("option")`Default` },
+};
 
 /** The looks of a select: framed as an input, or quiet as a toolbar's button. */
-const SELECT_VARIANTS = ["outline", "ghost"] as const;
+const SELECT_VARIANTS = {
+    outline: {
+        title: t.context("option")`Outline`,
+        description: t`A framed select, as in a form.`,
+    },
+    ghost: {
+        title: t.context("option")`Ghost`,
+        description: t`A select without a frame until pointed at, as in a toolbar.`,
+    },
+};
 
 /** The styles of a select, its picker and its options. */
 const styles = style.create({
@@ -94,22 +112,16 @@ const styles = style.create({
 });
 
 /** The height of a select. */
-export type SelectSize = (typeof SELECT_SIZES)[number];
+export type SelectSize = keyof typeof SELECT_SIZES;
 
 /** The look of a select. */
-export type SelectVariant = (typeof SELECT_VARIANTS)[number];
+export type SelectVariant = keyof typeof SELECT_VARIANTS;
 
 /** The properties of a select, the native select's attributes included. */
-export type SelectProperties = Omit<
+export type SelectAttributes = Omit<
     JSX.SelectHTMLAttributes<HTMLSelectElement>,
-    "class" | "value" | "multiple" | "onChange" | "size"
+    "class" | "value" | "multiple" | "onChange" | "size" | "disabled" | "placeholder"
 > & {
-    /** The prompt a single select shows until an option is chosen. */
-    readonly placeholder?: string;
-    /** The height, default by default. */
-    readonly size?: SelectSize;
-    /** The look, outline by default. */
-    readonly variant?: SelectVariant;
     /** The StyleX styles applied after the select's styles. */
     readonly xstyle?: style.Styles;
 } & SelectionProperties;
@@ -120,10 +132,37 @@ export type SelectElementProperties<Attributes> = Omit<Attributes, "class"> & El
 /** The selection of the nearest select, which its options follow, null outside one. */
 const SelectContext = createContext<Selection | null>(null);
 
+/** The properties people change in a select's controls and inspector. */
+const SELECT_PROPERTIES = {
+    size: field
+        .enum(SELECT_SIZES)
+        .labeled(t.context("label")`Size`)
+        .described(t`How tall the select is.`)
+        .default("default"),
+    variant: field
+        .enum(SELECT_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the select shows its frame at rest.`)
+        .default("outline"),
+    placeholder: field
+        .string(schema.string())
+        .labeled(t.context("label")`Placeholder`)
+        .described(t`The hint the select shows until a choice is made.`)
+        .optional(),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses choices where the value cannot change now, as its field does when absent.`,
+        )
+        .optional(),
+};
+
 /** Render a native select whose button and picker take the theme where the browser allows. */
-export const Select = defineComponent(
-    "select",
-    function Select(given: SelectProperties): JSX.Element {
+export const Select = defineComponent({
+    name: "select",
+    properties: SELECT_PROPERTIES,
+    render(given: RenderProperties<SelectAttributes, typeof SELECT_PROPERTIES>): JSX.Element {
         // edit the value of the field's form
         const properties = useFieldValue(given, {
             value: "value",
@@ -133,7 +172,7 @@ export const Select = defineComponent(
         });
 
         // take the id and state of the nearest field
-        const field = useFieldControl();
+        const fieldControl = useFieldControl();
         const join = useJoin();
         const rest = omit(
             properties,
@@ -146,7 +185,7 @@ export const Select = defineComponent(
             "style",
         );
         const isInvalid = (): boolean =>
-            field?.isInvalid() === true || properties["aria-invalid"] === "true";
+            fieldControl?.isInvalid() === true || properties["aria-invalid"] === "true";
 
         // follow the controlled values or the select's own
         const selection = new Selection(properties);
@@ -164,7 +203,7 @@ export const Select = defineComponent(
                 <select
                     data-slot="select"
                     multiple={properties.multiple}
-                    {...field?.attributes()}
+                    {...fieldControl?.attributes()}
                     {...mergeProperties(
                         {
                             ref: (created: HTMLSelectElement) => {
@@ -210,13 +249,7 @@ export const Select = defineComponent(
             </SelectContext>
         );
     },
-    {
-        size: schema.enum(SELECT_SIZES).default("default"),
-        variant: schema.enum(SELECT_VARIANTS).default("outline"),
-        placeholder: schema.string().exactOptional(),
-        disabled: schema.boolean().default(false),
-    },
-);
+});
 
 /** Choose exactly the options of a select whose values are listed, the placeholder when none is. */
 function choose(select: HTMLSelectElement, values: readonly string[]): void {
@@ -293,3 +326,6 @@ export function SelectSeparator(
 ): JSX.Element {
     return renderPart("hr", "select-separator", properties, styles.separator);
 }
+
+/** The properties of a select, its native attributes included. */
+export type SelectProperties = ComponentProperties<typeof Select>;

@@ -10,7 +10,7 @@ import {
     DropdownMenuTrigger,
 } from "./index.ts";
 import { render, stubPopovers } from "@destack/view/test";
-import { dropdownMenuDisabled } from "./dropdown-menu.example.tsx";
+import { dropdownMenuItemDisabled } from "./dropdown-menu.example.tsx";
 
 /** Find the element of a container's first match, refusing none. */
 function find(container: Element, selector: string): HTMLElement {
@@ -51,7 +51,7 @@ test("check items and select radio items, reporting their state", () => {
 
 test("label each menu by the trigger that opens it", () => {
     stubPopovers();
-    const { container } = render(dropdownMenuDisabled);
+    const { container } = render(dropdownMenuItemDisabled);
     const named = [...container.querySelectorAll("[role=menu]")].map(
         (menu) => document.getElementById(menu.getAttribute("aria-labelledby") ?? "")?.textContent,
     );

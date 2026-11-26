@@ -1,5 +1,6 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
+import { omit } from "@destack/view";
 import {
     Select,
     SelectContent,
@@ -66,8 +67,14 @@ export const selectMultiple = defineExample({
     of: Select,
     name: "multiple",
     description: t`The tags of a note, several chosen at once.`,
-    render: () => (
-        <Select name="tags" aria-label="Tags" multiple defaultValue={["travel", "family"]}>
+    render: (properties) => (
+        <Select
+            {...omit(properties, "multiple", "value", "defaultValue", "onValueChange")}
+            name="tags"
+            aria-label="Tags"
+            multiple
+            defaultValue={["travel", "family"]}
+        >
             <SelectItem value="travel">Travel</SelectItem>
             <SelectItem value="food">Food</SelectItem>
             <SelectItem value="family">Family</SelectItem>

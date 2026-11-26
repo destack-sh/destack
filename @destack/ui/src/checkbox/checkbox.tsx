@@ -22,7 +22,11 @@ import {
     isSubmitted,
     ToggleState,
 } from "../toggle-state/index.ts";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 
@@ -84,7 +88,7 @@ interface CheckboxControl {
 const CheckboxContext = createContext<CheckboxControl | null>(null);
 
 /** The properties of a checkbox, the native button's attributes included. */
-export interface CheckboxProperties
+export interface CheckboxAttributes
     extends
         Omit<
             JSX.ButtonHTMLAttributes<HTMLButtonElement>,
@@ -92,8 +96,6 @@ export interface CheckboxProperties
         >,
         ToggleStateProperties,
         ToggleFormProperties {
-    /** Whether the box shows neither checked nor unchecked, such as for a partly selected list. */
-    readonly indeterminate?: boolean;
     /** Whether the box checks every box of its group at once, in between while some are. */
     readonly parent?: boolean;
     /** The StyleX styles applied after the checkbox's styles. */
@@ -113,7 +115,9 @@ export type CheckboxIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLSpanElemen
 };
 
 /** Edit the value of the nearest field's form. */
-function useCheckboxField(given: CheckboxProperties): CheckboxProperties {
+function useCheckboxField(
+    given: RenderProperties<CheckboxAttributes, typeof CHECKBOX_PROPERTIES>,
+): RenderProperties<CheckboxAttributes, typeof CHECKBOX_PROPERTIES> {
     return useFieldValue(given, {
         value: "checked",
         change: "onCheckedChange",
@@ -122,15 +126,42 @@ function useCheckboxField(given: CheckboxProperties): CheckboxProperties {
     });
 }
 
+/** The properties people change in a checkbox's controls and inspector. */
+const CHECKBOX_PROPERTIES = {
+    indeterminate: field
+        .boolean()
+        .labeled(t.context("label")`Indeterminate`)
+        .described(t`Shows a dash, as for a group of which some are checked.`)
+        .default(false),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses presses where the setting cannot change now, as its field or group does when absent.`,
+        )
+        .optional(),
+    readOnly: field
+        .boolean()
+        .labeled(t.context("label")`Read only`)
+        .described(t`Shows the state, which a person cannot change, as its group does when absent.`)
+        .optional(),
+    required: field
+        .boolean()
+        .labeled(t.context("label")`Required`)
+        .described(t`Asks for it to be checked before its form submits.`)
+        .default(false),
+};
+
 /** Render a button exposed as a checkbox around its indicator. */
-export const Checkbox = defineComponent(
-    "checkbox",
-    function Checkbox(given: CheckboxProperties): JSX.Element {
+export const Checkbox = defineComponent({
+    name: "checkbox",
+    properties: CHECKBOX_PROPERTIES,
+    render(given: RenderProperties<CheckboxAttributes, typeof CHECKBOX_PROPERTIES>): JSX.Element {
         // follow the group around, else edit the value of the field's form
         const group = useContext(CheckboxGroupContext);
         const properties = group === null ? useCheckboxField(given) : group.checkbox(given);
 
-        // take the id and state of the nearest fieldControl
+        // take the id and state of the nearest field
         const nearest = useFieldControl();
         const fieldControl = group === null ? nearest : null;
         const toggle = new ToggleState(properties);
@@ -155,7 +186,7 @@ export const Checkbox = defineComponent(
         const isInvalid = (): boolean =>
             fieldControl?.isInvalid() === true || properties["aria-invalid"] === "true";
         const value = (): CheckboxState =>
-            properties.indeterminate === true
+            properties.indeterminate
                 ? "indeterminate"
                 : toggle.isChecked()
                   ? "checked"
@@ -194,7 +225,7 @@ export const Checkbox = defineComponent(
                                 return properties.readOnly === true ? "" : undefined;
                             },
                             get "aria-required"() {
-                                return properties.required === true ? "true" : undefined;
+                                return properties.required ? "true" : undefined;
                             },
                             get "data-checked"() {
                                 return value() === "checked" ? "" : undefined;
@@ -241,29 +272,7 @@ export const Checkbox = defineComponent(
             </CheckboxContext>
         );
     },
-    {
-        indeterminate: field
-            .boolean()
-            .labeled(t.context("label")`Indeterminate`)
-            .described(t`Shows a dash, as for a group of which some are checked.`)
-            .default(false),
-        disabled: field
-            .boolean()
-            .labeled(t.context("label")`Disabled`)
-            .described(t`Refuses presses where the setting cannot change now.`)
-            .default(false),
-        readOnly: field
-            .boolean()
-            .labeled(t.context("label")`Read only`)
-            .described(t`Shows the state, which a person cannot change.`)
-            .default(false),
-        required: field
-            .boolean()
-            .labeled(t.context("label")`Required`)
-            .described(t`Asks for it to be checked before its form submits.`)
-            .default(false),
-    },
-);
+});
 
 /** Render the mark of the nearest checkbox. */
 export function CheckboxIndicator(properties: CheckboxIndicatorProperties): JSX.Element {
@@ -299,3 +308,6 @@ export function CheckboxIndicator(properties: CheckboxIndicatorProperties): JSX.
         </Show>
     );
 }
+
+/** The properties of a checkbox, its native attributes included. */
+export type CheckboxProperties = ComponentProperties<typeof Checkbox>;

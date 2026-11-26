@@ -15,7 +15,11 @@ import { type JSX, omit } from "@destack/view";
 import { readText, takeText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { useJoin } from "../join/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -93,16 +97,48 @@ export function inputStyle(options: InputStyleOptions = {}): style.Styles {
 }
 
 /** The properties of an input, the native input's attributes included. */
-export type InputProperties = Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "class"> &
-    ElementPartProperties & {
-        /** The look, outline by default. */
-        readonly variant?: InputVariant;
-    };
+export type InputAttributes = Omit<
+    JSX.InputHTMLAttributes<HTMLInputElement>,
+    "class" | "placeholder" | "disabled" | "readonly" | "required"
+> &
+    ElementPartProperties;
+
+/** The properties people change in an input's controls and inspector. */
+const INPUT_PROPERTIES = {
+    variant: field
+        .enum(INPUT_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the field shows its frame.`)
+        .default("outline"),
+    placeholder: field
+        .string(schema.string())
+        .labeled(t.context("label")`Placeholder`)
+        .described(t`The hint the field shows while it is empty.`)
+        .optional(),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses input where the value cannot change now, as its field does when absent.`,
+        )
+        .optional(),
+    readonly: field
+        .boolean()
+        .labeled(t.context("label")`Read only`)
+        .described(t`Shows the value, which a person can select but not change.`)
+        .default(false),
+    required: field
+        .boolean()
+        .labeled(t.context("label")`Required`)
+        .described(t`Asks for a value before its form submits.`)
+        .default(false),
+};
 
 /** Render a native input, tied to the label, descriptions and state of its field. */
-export const Input = defineComponent(
-    "input",
-    function Input(given: InputProperties): JSX.Element {
+export const Input = defineComponent({
+    name: "input",
+    properties: INPUT_PROPERTIES,
+    render(given: RenderProperties<InputAttributes, typeof INPUT_PROPERTIES>): JSX.Element {
         // edit the value of the field's form
         const properties = useFieldValue(given, {
             value: "value",
@@ -111,7 +147,7 @@ export const Input = defineComponent(
             take: takeText,
         });
 
-        // take the id, descriptions and state of the nearest fieldControl
+        // take the id, descriptions and state of the nearest field
         const fieldControl = useFieldControl();
         const join = useJoin();
         const isInvalid = (): boolean =>
@@ -129,31 +165,7 @@ export const Input = defineComponent(
             fieldControl?.attributes(),
         );
     },
-    {
-        variant: field
-            .enum(INPUT_VARIANTS)
-            .labeled(t.context("label")`Variant`)
-            .described(t`Whether the field shows its frame.`)
-            .default("outline"),
-        placeholder: field
-            .string(schema.string())
-            .labeled(t.context("label")`Placeholder`)
-            .described(t`The hint the field shows while it is empty.`)
-            .optional(),
-        disabled: field
-            .boolean()
-            .labeled(t.context("label")`Disabled`)
-            .described(t`Refuses input where the value cannot change now.`)
-            .default(false),
-        readonly: field
-            .boolean()
-            .labeled(t.context("label")`Read only`)
-            .described(t`Shows the value, which a person can select but not change.`)
-            .default(false),
-        required: field
-            .boolean()
-            .labeled(t.context("label")`Required`)
-            .described(t`Asks for a value before its form submits.`)
-            .default(false),
-    },
-);
+});
+
+/** The properties of an input, its native attributes included. */
+export type InputProperties = ComponentProperties<typeof Input>;

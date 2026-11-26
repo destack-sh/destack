@@ -28,7 +28,8 @@ import {
     previousTab,
     reopenTab,
 } from "./actions.ts";
-import type { TabsProperties } from "./tabs.tsx";
+import type { RenderProperties } from "@destack/view/declare";
+import type { Tabs, TabsAttributes } from "./tabs.tsx";
 
 /** The tabs of the nearest tabs root, null outside one. */
 export const TabsContext = createContext<TabsControl | null>(null);
@@ -68,8 +69,8 @@ export interface TabsItemControl {
 /** The selected tab, ids and keyboard model of a set of tabs. */
 export class TabsControl {
     /** The properties of the tabs root, read for its controlled state and keyboard model. */
-    readonly properties: Required<Pick<TabsProperties, "orientation" | "activationMode">> &
-        TabsProperties;
+    readonly properties: RenderProperties<TabsAttributes, typeof Tabs.properties> &
+        Required<Pick<TabsAttributes, "activationMode">>;
     /** The selected value, controlled or the root's own. */
     readonly value: Accessor<string | undefined>;
     /** Where the indicator is, undefined without one. */
@@ -87,8 +88,8 @@ export class TabsControl {
 
     /** Create the state of a set of tabs from its root's properties. */
     constructor(
-        properties: Required<Pick<TabsProperties, "orientation" | "activationMode">> &
-            TabsProperties,
+        properties: RenderProperties<TabsAttributes, typeof Tabs.properties> &
+            Required<Pick<TabsAttributes, "activationMode">>,
     ) {
         // start from the default value with no tabs yet
         const [value, setValue] = createControllableSignal({

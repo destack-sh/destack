@@ -37,7 +37,7 @@ import {
     type Render,
     renderPart,
 } from "../part/index.ts";
-import { type Axis, Scroll, scrollFade } from "../position/index.ts";
+import { Scroll, scrollFade } from "../position/index.ts";
 import {
     TabsContext,
     TabsControl,
@@ -47,12 +47,15 @@ import {
     useTabs,
 } from "./control.ts";
 import { itemMarker } from "./tabs.stylex.ts";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { field } from "@destack/object";
 
-/** The orientation and activation of tabs that set neither. */
-const DEFAULTS: Required<Pick<TabsProperties, "orientation" | "activationMode">> = {
-    orientation: "horizontal",
+/** The activation of tabs that set none. */
+const DEFAULTS: Required<Pick<TabsAttributes, "activationMode">> = {
     activationMode: "automatic",
 };
 
@@ -492,7 +495,7 @@ const triggers = style.create({
 });
 
 /** The properties of a tabs root, the native element's attributes included. */
-export interface TabsProperties extends Omit<
+export interface TabsAttributes extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "onClose"
 > {
@@ -512,8 +515,6 @@ export interface TabsProperties extends Omit<
     readonly idPrefix?: string;
     /** Handle a person closing a tab, whose owner then removes it. */
     readonly onClose?: (value: string) => void;
-    /** The direction the tabs line up and the arrow keys move in, horizontal by default. */
-    readonly orientation?: Axis;
     /** Whether focusing a tab selects it or Enter and Space do, automatic by default. */
     readonly activationMode?: TabsActivationMode;
     /** The StyleX styles applied after the root's styles. */
@@ -531,10 +532,23 @@ export type TabsValueProperties<Attributes> = TabsElementProperties<Omit<Attribu
     readonly value: string;
 };
 
-/** Hold the selected tab of a list of tabs and their panels. */
-export const Tabs = defineComponent(
-    "tabs",
-    function Tabs(properties: TabsProperties): JSX.Element {
+/** The properties people change in tabs's controls and inspector. */
+const TABS_PROPERTIES = {
+    orientation: field
+        .enum({
+            horizontal: { title: t.context("option")`Horizontal` },
+            vertical: { title: t.context("option")`Vertical` },
+        })
+        .labeled(t.context("label")`Orientation`)
+        .described(t`Whether the tabs lie in a row or a column.`)
+        .default("horizontal"),
+};
+
+/** Track the selected tab of a list of tabs and their panels. */
+export const Tabs = defineComponent({
+    name: "tabs",
+    properties: TABS_PROPERTIES,
+    render(properties: RenderProperties<TabsAttributes, typeof TABS_PROPERTIES>): JSX.Element {
         // share one set of tabs with the list, tabs and panels
         const tabs = merge(DEFAULTS, properties);
         const locale = useLocale();
@@ -574,46 +588,62 @@ export const Tabs = defineComponent(
             </TabsContext>
         );
     },
-    {
-        orientation: field
-            .enum({
-                horizontal: { title: t.context("option")`Horizontal` },
-                vertical: { title: t.context("option")`Vertical` },
-            })
-            .labeled(t.context("label")`Orientation`)
-            .described(t`Whether the tabs lie in a row or a column.`)
-            .default("horizontal"),
-        activationMode: field
-            .enum({
-                automatic: {
-                    title: t.context("option")`Automatic`,
-                    description: t`The arrow keys show each tab as they reach it.`,
-                },
-                manual: {
-                    title: t.context("option")`Manual`,
-                    description: t`The arrow keys move the focus, and Enter or Space shows the tab.`,
-                },
-            })
-            .labeled(t.context("label")`Activation`)
-            .described(t`When a tab the keys reach shows its panel.`)
-            .default("automatic"),
-    },
-);
+});
 
 /** The properties of a tab list, the native element's attributes included. */
-export interface TabsListProperties extends TabsElementProperties<
-    JSX.HTMLAttributes<HTMLDivElement>
-> {
-    /** The look, tabs on a muted ground by default. */
-    readonly variant?: TabsVariant;
-    /** How wide its items' tabs are, their words by default. */
-    readonly sizing?: TabsSizing;
-}
+export type TabsListAttributes = TabsElementProperties<JSX.HTMLAttributes<HTMLDivElement>>;
+
+/** The properties people change in a tab list's controls and inspector. */
+const TABS_LIST_PROPERTIES = {
+    variant: field
+        .enum({
+            default: {
+                title: t.context("option")`Default`,
+                description: t`Tabs on a track, the shown one raised.`,
+            },
+            line: {
+                title: t.context("option")`Line`,
+                description: t`Tabs over a rule, the shown one underlined.`,
+            },
+            card: {
+                title: t.context("option")`Card`,
+                description: t`Tabs as the tops of cards, the shown one joined to its panel.`,
+            },
+            subtle: {
+                title: t.context("option")`Subtle`,
+                description: t`Quiet tabs, the shown one filled.`,
+            },
+        })
+        .labeled(t.context("label")`Variant`)
+        .described(t`How the tabs set the shown one apart.`)
+        .default("default"),
+    sizing: field
+        .enum({
+            fit: {
+                title: t.context("option")`Fit`,
+                description: t`Each tab as wide as its label.`,
+            },
+            shrink: {
+                title: t.context("option")`Shrink`,
+                description: t`Tabs narrow to fit their list, their labels cut short.`,
+            },
+            fixed: {
+                title: t.context("option")`Fixed`,
+                description: t`Every tab as wide as the others.`,
+            },
+        })
+        .labeled(t.context("label")`Sizing`)
+        .described(t`How wide each tab is.`)
+        .default("fit"),
+};
 
 /** Render the tab list, which arrow keys, Home and End move through. */
-export const TabsList = defineComponent(
-    "tabsList",
-    function TabsList(properties: TabsListProperties): JSX.Element {
+export const TabsList = defineComponent({
+    name: "tabsList",
+    properties: TABS_LIST_PROPERTIES,
+    render(
+        properties: RenderProperties<TabsListAttributes, typeof TABS_LIST_PROPERTIES>,
+    ): JSX.Element {
         // move the focus among the list's tabs, selecting them when activation is automatic
         const control = useTabs();
         const locale = useLocale();
@@ -660,8 +690,8 @@ export const TabsList = defineComponent(
         );
 
         // share the look with the tabs
-        const variant = (): TabsVariant => properties.variant ?? "default";
-        const sizing = (): TabsSizing => properties.sizing ?? "fit";
+        const variant = (): TabsVariant => properties.variant;
+        const sizing = (): TabsSizing => properties.sizing;
 
         // leave the ground to a row of more than tabs
         const isBare = (): boolean => isWhole && variant() === "card";
@@ -721,53 +751,11 @@ export const TabsList = defineComponent(
             </TabsListContext>
         );
     },
-    {
-        variant: field
-            .enum({
-                default: {
-                    title: t.context("option")`Default`,
-                    description: t`Tabs on a track, the shown one raised.`,
-                },
-                line: {
-                    title: t.context("option")`Line`,
-                    description: t`Tabs over a rule, the shown one underlined.`,
-                },
-                card: {
-                    title: t.context("option")`Card`,
-                    description: t`Tabs as the tops of cards, the shown one joined to its panel.`,
-                },
-                subtle: {
-                    title: t.context("option")`Subtle`,
-                    description: t`Quiet tabs, the shown one filled.`,
-                },
-            })
-            .labeled(t.context("label")`Variant`)
-            .described(t`How the tabs set the shown one apart.`)
-            .default("default"),
-        sizing: field
-            .enum({
-                fit: {
-                    title: t.context("option")`Fit`,
-                    description: t`Each tab as wide as its label.`,
-                },
-                shrink: {
-                    title: t.context("option")`Shrink`,
-                    description: t`Tabs narrow to fit their list, their labels cut short.`,
-                },
-                fixed: {
-                    title: t.context("option")`Fixed`,
-                    description: t`Every tab as wide as the others.`,
-                },
-            })
-            .labeled(t.context("label")`Sizing`)
-            .described(t`How wide each tab is.`)
-            .default("fit"),
-    },
-);
+});
 
 /** The properties of a tab, the native button's attributes included. */
-export type TabsTriggerProperties = TabsElementProperties<
-    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "value">
+export type TabsTriggerAttributes = TabsElementProperties<
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "value" | "disabled">
 > & {
     /** The value the tab and its panel stand for, its item's in an item. */
     readonly value?: string;
@@ -980,10 +968,22 @@ export function TabsIndicator(
     );
 }
 
+/** The properties people change in a tab's controls and inspector. */
+const TABS_TRIGGER_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses the focus and presses where the tab cannot show now.`)
+        .default(false),
+};
+
 /** Render a tab that selects its panel on click, or on focus when activation is automatic. */
-export const TabsTrigger = defineComponent(
-    "tabsTrigger",
-    function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
+export const TabsTrigger = defineComponent({
+    name: "tabsTrigger",
+    properties: TABS_TRIGGER_PROPERTIES,
+    render(
+        properties: RenderProperties<TabsTriggerAttributes, typeof TABS_TRIGGER_PROPERTIES>,
+    ): JSX.Element {
         // take its own value, or its item's
         const control = useTabs();
         const { variant, sizing } = useContext(TabsListContext);
@@ -1000,9 +1000,7 @@ export const TabsTrigger = defineComponent(
             key: value,
             text: () => value,
             isDisabled: () =>
-                properties.disabled === true ||
-                entry?.isHidden() === true ||
-                item?.isHidden() === true,
+                properties.disabled || entry?.isHidden() === true || item?.isHidden() === true,
             element: () => element,
         });
         const rest = omit(properties, "value");
@@ -1081,14 +1079,7 @@ export const TabsTrigger = defineComponent(
             </TitleContext>
         );
     },
-    {
-        disabled: field
-            .boolean()
-            .labeled(t.context("label")`Disabled`)
-            .described(t`Refuses the focus and presses where the tab cannot show now.`)
-            .default(false),
-    },
-);
+});
 
 /** Render the words of a tab, cut in their own direction where the tab narrows. */
 export function TabsTitle(
@@ -1134,3 +1125,12 @@ export function TabsContent(
         },
     });
 }
+
+/** The properties of tabs, its native attributes included. */
+export type TabsProperties = ComponentProperties<typeof Tabs>;
+
+/** The properties of a tab list, its native attributes included. */
+export type TabsListProperties = ComponentProperties<typeof TabsList>;
+
+/** The properties of a tab, its native attributes included. */
+export type TabsTriggerProperties = ComponentProperties<typeof TabsTrigger>;

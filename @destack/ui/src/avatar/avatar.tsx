@@ -18,7 +18,11 @@ import {
     useEnvironment,
 } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-import { defineComponent } from "@destack/view/declare";
+import {
+    type ComponentProperties,
+    type RenderProperties,
+    defineComponent,
+} from "@destack/view/declare";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 
@@ -28,9 +32,6 @@ const AVATAR_SIZES = {
     default: { title: t.context("option")`Default` },
     lg: { title: t.context("option")`Large` },
 };
-
-/** The size of an avatar that sets none. */
-const DEFAULTS: Required<Pick<AvatarProperties, "size">> = { size: "default" };
 
 /** The styles of an avatar and its elements. */
 const styles = style.create({
@@ -140,14 +141,7 @@ export type AvatarSize = keyof typeof AVATAR_SIZES;
 export type AvatarElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
 /** The properties of an avatar, the native element's attributes included. */
-export interface AvatarProperties extends AvatarElementProperties<
-    JSX.HTMLAttributes<HTMLSpanElement>
-> {
-    /** The width and height, default by default. */
-    readonly size?: AvatarSize;
-    /** The swatch its fallback fills with, such as a person's, the muted colors when absent. */
-    readonly color?: Hue;
-}
+export type AvatarAttributes = AvatarElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>;
 
 /** The properties of an avatar's image, the native image's attributes included. */
 export interface AvatarImageProperties extends AvatarElementProperties<
@@ -157,13 +151,29 @@ export interface AvatarImageProperties extends AvatarElementProperties<
     readonly onStatusChange?: (status: AvatarImageStatus) => void;
 }
 
+/** The properties people change in an avatar's controls and inspector. */
+const AVATAR_PROPERTIES = {
+    size: field
+        .enum(AVATAR_SIZES)
+        .labeled(t.context("label")`Size`)
+        .described(t`How large the picture or initials show, as large as its group's when absent.`)
+        .optional(),
+    color: field
+        .enum(Hue.choices)
+        .labeled(t.context("label")`Color`)
+        .described(t`The hue the initials show on, where there is no picture.`)
+        .optional(),
+};
+
 /** Render a round picture of a person or organization. */
-export const Avatar = defineComponent(
-    "avatar",
-    function Avatar(properties: AvatarProperties): JSX.Element {
+export const Avatar = defineComponent({
+    name: "avatar",
+    properties: AVATAR_PROPERTIES,
+    render(properties: RenderProperties<AvatarAttributes, typeof AVATAR_PROPERTIES>): JSX.Element {
         // overlap the avatar in a group at the group's size, and start with its image loading
         const group = useContext(AvatarGroupContext);
-        const avatar = merge(DEFAULTS, group ?? {}, properties);
+        const avatar = merge(group ?? {}, properties);
+        const shown = (): AvatarSize => avatar.size ?? "default";
         const rest = omit(avatar, "size", "color");
         const isGrouped = group !== null;
         const [status, setStatus] = createSignal<AvatarImageStatus>("loading", {
@@ -176,10 +186,10 @@ export const Avatar = defineComponent(
                     "span",
                     "avatar",
                     rest,
-                    () => [styles.avatar, sizes[avatar.size], isGrouped && styles.grouped],
+                    () => [styles.avatar, sizes[shown()], isGrouped && styles.grouped],
                     {
                         get "data-size"() {
-                            return avatar.size;
+                            return shown();
                         },
                         get "data-color"() {
                             return avatar.color;
@@ -189,19 +199,7 @@ export const Avatar = defineComponent(
             </AvatarContext>
         );
     },
-    {
-        size: field
-            .enum(AVATAR_SIZES)
-            .labeled(t.context("label")`Size`)
-            .described(t`How large the picture or initials show.`)
-            .default("default"),
-        color: field
-            .enum(Hue.choices)
-            .labeled(t.context("label")`Color`)
-            .described(t`The hue the initials show on, where there is no picture.`)
-            .optional(),
-    },
-);
+});
 
 /** Render an avatar's image, hidden until it loads. */
 export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
@@ -280,22 +278,29 @@ export function AvatarBadge(
 }
 
 /** The properties of an avatar group, the native element's attributes included. */
-export type AvatarGroupProperties = AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>> & {
-    /** The size of the avatars and the count, default by default. */
-    readonly size?: AvatarSize;
+export type AvatarGroupAttributes = AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>;
+
+/** The properties people change in an avatar group's controls and inspector. */
+const AVATAR_GROUP_PROPERTIES = {
+    size: field
+        .enum(AVATAR_SIZES)
+        .labeled(t.context("label")`Size`)
+        .described(t`How large each picture or initials show.`)
+        .default("default"),
 };
 
 /** Render avatars overlapping in a row, at one size. */
-export const AvatarGroup = defineComponent(
-    "avatarGroup",
-    function AvatarGroup(properties: AvatarGroupProperties): JSX.Element {
-        const group = merge(DEFAULTS, properties);
-
+export const AvatarGroup = defineComponent({
+    name: "avatarGroup",
+    properties: AVATAR_GROUP_PROPERTIES,
+    render(
+        properties: RenderProperties<AvatarGroupAttributes, typeof AVATAR_GROUP_PROPERTIES>,
+    ): JSX.Element {
         return (
             <AvatarGroupContext
                 value={{
                     get size() {
-                        return group.size;
+                        return properties.size;
                     },
                 }}
             >
@@ -303,14 +308,7 @@ export const AvatarGroup = defineComponent(
             </AvatarGroupContext>
         );
     },
-    {
-        size: field
-            .enum(AVATAR_SIZES)
-            .labeled(t.context("label")`Size`)
-            .described(t`How large each picture or initials show.`)
-            .default("default"),
-    },
-);
+});
 
 /** Render the count of the avatars a group leaves out. */
 export function AvatarGroupCount(
@@ -351,3 +349,9 @@ export function useAvatar(): AvatarControl {
 
     return avatar;
 }
+
+/** The properties of an avatar, its native attributes included. */
+export type AvatarProperties = ComponentProperties<typeof Avatar>;
+
+/** The properties of an avatar group, its native attributes included. */
+export type AvatarGroupProperties = ComponentProperties<typeof AvatarGroup>;
