@@ -15,7 +15,7 @@ import {
 } from "@destack/package";
 import { Digest, found, type JsonObject, present, schema, Version } from "@destack/schema";
 import { ObjectDescription } from "@destack/object";
-import type { BuildExtension, TransformCache } from "@destack/package/build";
+import type { BuildExtension, DefinitionModule, TransformCache } from "@destack/package/build";
 import { type SourceMapReference } from "@destack/package/source";
 import { MANIFEST_LISTS } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
@@ -42,11 +42,11 @@ import { DomainError } from "@destack/error";
 import { BuildError, extensionFailureOf } from "../error/index.ts";
 import { outputsOf, type PackageBuildOptions, type ModuleOptions } from "./build.ts";
 import { BuildDirectory } from "./directory.ts";
-import { readCatalogs } from "./catalog.ts";
+import { compileCatalogs } from "./catalog.ts";
 import { describeGraph } from "../graph/module.ts";
 import { ExampleDeclaration } from "../graph/example.ts";
 import { ScenarioDeclaration } from "../graph/scenario.ts";
-import { type OutlineModule, Outliner } from "../outline/outline.ts";
+import { type Outline, type OutlineModule, Outliner } from "../outline/outline.ts";
 import { HostCache } from "./host-cache.ts";
 import {
     type BuildRequest,
@@ -88,6 +88,8 @@ interface CompileContext {
     readonly projects: ReadonlyMap<string, Project>;
     /** The package's evaluated declarations. */
     readonly declarations: readonly EvaluatedDeclaration[];
+    /** Read the package's examples and scenarios, each by its name with the module exporting it. */
+    readonly definitions: () => Promise<readonly DefinitionModule[]>;
     /** The extensions of the package's dependency closure. */
     readonly extensions: readonly BuildExtension[];
     /** The directory the build writes into. */
@@ -122,6 +124,16 @@ export class CompilerWorker {
     readonly #outputs = new Map<string, { readonly key: string; readonly output: ModuleOutput }>();
     /** The warm bundles of the package's evaluated entries in development, by generated source. */
     readonly #evaluations = new Map<string, Bundle>();
+    /** The last definitions evaluated, by the transformer's inputs and the modules' digests. */
+    #evaluated:
+        | {
+              readonly key: string;
+              readonly definitions: Promise<{
+                  readonly examples: readonly ExampleDeclaration[];
+                  readonly scenarios: readonly ScenarioDeclaration[];
+              }>;
+          }
+        | undefined;
     /** The cache of packages below stored tree roots, which never change. */
     readonly #stored = new PackageCache();
 
@@ -215,27 +227,8 @@ export class CompilerWorker {
         const transformer = this.#transformer(options, project.packageJson);
         const graphed = DeclarationGraph.read(declared.declarations, declared.relationships);
 
-        // outline each of its modules from their syntax
-        const outliner = new Outliner(this.environment, this.#modules);
-        const files = await Project.files(project.directory, this.environment);
-        const outlines = [];
-        for (const file of files) {
-            outlines.push(await outliner.outline(file));
-        }
-
-        // read its examples, with the properties their modules evaluate, and its scenarios
-        const definitions = outlines.flatMap((outline) => outline.definitions);
-        const read = await Promise.all(
-            definitions
-                .filter((definition) => definition.kind === "example")
-                .map((definition) => ExampleDeclaration.read(definition)),
-        );
-        const examples = await Evaluation.examples(project, read, transformer);
-        const scenarios = await Promise.all(
-            definitions
-                .filter((definition) => definition.kind === "scenario")
-                .map((definition) => ScenarioDeclaration.read(definition)),
-        );
+        // outline its modules, and read its examples and scenarios
+        const { outlines, examples, scenarios } = await this.#definitions(project, transformer);
 
         // describe each module's graph file
         const source = project.packageJson.package;
@@ -249,6 +242,55 @@ export class CompilerWorker {
             examples,
             scenarios,
         });
+    }
+
+    /** Outline a package's modules, and read its examples and scenarios with evaluated names. */
+    async #definitions(
+        project: Project,
+        transformer: ModuleTransformer,
+    ): Promise<{
+        readonly outlines: readonly Outline[];
+        readonly examples: readonly ExampleDeclaration[];
+        readonly scenarios: readonly ScenarioDeclaration[];
+    }> {
+        // outline each of its modules from their syntax
+        const outliner = new Outliner(this.environment, this.#modules);
+        const files = await Project.files(project.directory, this.environment);
+        const outlines = [];
+        for (const file of files) {
+            outlines.push(await outliner.outline(file));
+        }
+
+        // take the definitions evaluated last while neither the stamps nor a module changed, as a build and its index both read them
+        const key = JSON.stringify([
+            project.directory,
+            this.#transformed?.inputs,
+            outlines.map((outline) => [outline.path, outline.digest]),
+        ]);
+        if (this.#evaluated?.key === key) {
+            return { outlines, ...(await this.#evaluated.definitions) };
+        }
+
+        // read its examples and scenarios, with the names and properties their modules evaluate
+        const definitions = outlines.flatMap((outline) => outline.definitions);
+        const read = {
+            examples: await Promise.all(
+                definitions
+                    .filter((definition) => definition.kind === "example")
+                    .map((definition) => ExampleDeclaration.read(definition)),
+            ),
+            scenarios: await Promise.all(
+                definitions
+                    .filter((definition) => definition.kind === "scenario")
+                    .map((definition) => ScenarioDeclaration.read(definition)),
+            ),
+        };
+
+        // evaluate them, for the next reader of the same inputs too
+        const evaluated = Evaluation.definitions(project, read, transformer);
+        this.#evaluated = { key, definitions: evaluated };
+
+        return { outlines, ...(await evaluated) };
     }
 
     /** Evaluate a package's declarations from source, on its dependencies' builds. */
@@ -626,11 +668,32 @@ export class CompilerWorker {
         outputs: Map<string, Pick<OutputBuild, "output" | "inspection" | "npm">>;
         sourceMaps: SourceMapReference[];
     }> {
+        // read the package's examples and scenarios once, when an extension first asks for them
+        const primary = found(projects, CompilerWorker.#primary(planned));
+        const located =
+            (kind: DefinitionModule["kind"]) =>
+            (each: ExampleDeclaration | ScenarioDeclaration): DefinitionModule => ({
+                name: each.name,
+                kind,
+                file: join(primary.directory, each.source.file),
+                export: each.symbol,
+            });
+        let read: Promise<readonly DefinitionModule[]> | undefined;
+        const definitions = async () => {
+            read ??= this.#definitions(primary, transformer).then(({ examples, scenarios }) => [
+                ...examples.map(located("example")),
+                ...scenarios.map(located("scenario")),
+            ]);
+
+            return await read;
+        };
+
         // compile every output at once
         const context = {
             options,
             projects,
             declarations,
+            definitions,
             extensions,
             files,
             cache,
@@ -913,6 +976,7 @@ function createOutput(name: string, output: ModuleOptions, context: CompileConte
         context.mode,
         project,
         declarations,
+        context.definitions,
         context.extensions,
         context.cache,
         context.transformer,
@@ -943,7 +1007,7 @@ async function retain(project: Project, files: BuildDirectory): Promise<void> {
 
     // retain the package's catalogs
     const owner = project.packageJson.package.id;
-    for (const [path, bytes] of await readCatalogs(project.directory, owner, system)) {
+    for (const [path, bytes] of await compileCatalogs(project.directory, owner, system)) {
         files.retain(path, bytes);
     }
 }

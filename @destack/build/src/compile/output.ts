@@ -26,6 +26,7 @@ import {
     type Compilation,
     type CompiledOutput,
     type DeclarationModule,
+    type DefinitionModule,
     HostModuleResolver,
     isHostModule,
     DESTACK_MODULE_SCHEME,
@@ -154,6 +155,8 @@ export class ModuleOutput implements Compilation {
     readonly declarations: readonly DeclarationDescription[];
     /** The module and export of each declaration, by its description. */
     readonly #exported: ReadonlyMap<DeclarationDescription, DeclarationModule>;
+    /** Read the package's examples and scenarios, each by its name with the module exporting it. */
+    readonly definitions: () => Promise<readonly DefinitionModule[]>;
     /** The extensions of the package and its dependencies. */
     readonly extensions: readonly BuildExtension[];
     /** The build's cache of files the extensions' transforms derive. */
@@ -176,6 +179,7 @@ export class ModuleOutput implements Compilation {
         mode: BundleMode,
         project: Project,
         declarations: readonly EvaluatedDeclaration[],
+        definitions: () => Promise<readonly DefinitionModule[]>,
         extensions: readonly BuildExtension[],
         cache: TransformCache,
         transformer: ModuleTransformer,
@@ -192,6 +196,7 @@ export class ModuleOutput implements Compilation {
                 { file: declaration.file, export: declaration.export },
             ]),
         );
+        this.definitions = definitions;
         this.extensions = extensions;
         this.cache = cache;
         this.#transformer = transformer;
@@ -1365,17 +1370,17 @@ function describe(
     }
 }
 
-/** Add an extension's workloads, views and frame to an output, refusing one described twice. */
+/** Add an extension's workloads, views and example page to an output, refusing a duplicate. */
 function merge(output: PackageOutput, described: OutputDescription): void {
     // add the workloads and the views
     mergeSection("workloads", output.workloads, described.workloads);
     mergeSection("views", output.views, described.views);
 
-    // add the frame, refusing a second
-    if (described.frame !== undefined && output.frame !== undefined) {
-        throw BuildError.of("ENTRY_INVALID", "'frame' entry is invalid: it is a duplicate");
-    } else if (described.frame !== undefined) {
-        output.frame = described.frame;
+    // add the example page, refusing a second
+    if (described.example !== undefined && output.example !== undefined) {
+        throw BuildError.of("ENTRY_INVALID", "'example' entry is invalid: it is a duplicate");
+    } else if (described.example !== undefined) {
+        output.example = described.example;
     }
 }
 
