@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { menubarEditorMenus } from "./menubar.example.tsx";
@@ -7,8 +8,8 @@ import { Menubar } from "./menubar.tsx";
 export const menubarMoveAcrossMenus = defineScenario({
     of: Menubar,
     interaction: viewInteraction,
-    name: "move-across-menus",
-    description: "move between a menubar's triggers and cross from one open menu to the next",
+    name: "moveAcrossMenus",
+    description: t`Move between a menubar's triggers and cross from one open menu to the next.`,
     given: { examples: [menubarEditorMenus] },
     parameters: {},
     when: [
@@ -54,7 +55,7 @@ export const menubarMoveAcrossMenus = defineScenario({
         {
             step: { action: "press", key: "ArrowDown" },
             then: [
-                { observe: { kind: "focused" }, is: "New note ⌘N" },
+                { observe: { kind: "focused" }, is: "New note" },
                 {
                     observe: {
                         kind: "name",
@@ -67,7 +68,7 @@ export const menubarMoveAcrossMenus = defineScenario({
         {
             step: { action: "press", key: "ArrowRight" },
             then: [
-                { observe: { kind: "focused" }, is: "Undo ⌘Z" },
+                { observe: { kind: "focused" }, is: "Undo" },
                 {
                     observe: {
                         kind: "name",

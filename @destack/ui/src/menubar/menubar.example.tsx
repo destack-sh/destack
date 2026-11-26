@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import {
     Menubar,
@@ -12,8 +13,8 @@ import {
 /** An editor's File and Edit menus. */
 export const menubarEditorMenus = defineExample({
     of: Menubar,
-    name: "editor-menus",
-    description: "an editor's File and Edit menus",
+    name: "editorMenus",
+    description: t`An editor's File and Edit menus.`,
     properties: {
         "aria-label": "Editor",
     },
@@ -24,7 +25,7 @@ export const menubarEditorMenus = defineExample({
                 <MenubarContent>
                     <MenubarItem>
                         New note
-                        <MenubarShortcut>⌘N</MenubarShortcut>
+                        <MenubarShortcut keys="mod+n" />
                     </MenubarItem>
                     <MenubarSeparator />
                     <MenubarItem>Export</MenubarItem>
@@ -35,7 +36,7 @@ export const menubarEditorMenus = defineExample({
                 <MenubarContent>
                     <MenubarItem>
                         Undo
-                        <MenubarShortcut>⌘Z</MenubarShortcut>
+                        <MenubarShortcut keys="mod+z" />
                     </MenubarItem>
                 </MenubarContent>
             </MenubarMenu>
@@ -46,8 +47,8 @@ export const menubarEditorMenus = defineExample({
 /** The editor's File menu open below its trigger. */
 export const menubarEditorMenusOpen = defineExample({
     of: Menubar,
-    name: "editor-menus-open",
-    description: "the editor's File menu open below its trigger",
+    name: "editorMenusOpen",
+    description: t`The editor's File menu open below its trigger.`,
     properties: {
         "aria-label": "Editor",
     },
@@ -58,7 +59,7 @@ export const menubarEditorMenusOpen = defineExample({
                 <MenubarContent>
                     <MenubarItem>
                         New note
-                        <MenubarShortcut>⌘N</MenubarShortcut>
+                        <MenubarShortcut keys="mod+n" />
                     </MenubarItem>
                     <MenubarSeparator />
                     <MenubarItem>Export</MenubarItem>

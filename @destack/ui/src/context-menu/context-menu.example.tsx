@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -33,8 +34,8 @@ const styles = style.create({
 /** The actions of a note card on right click. */
 export const contextMenuNoteCardActions = defineExample({
     of: ContextMenu,
-    name: "note-card-actions",
-    description: "the actions of a note card on right click",
+    name: "noteCardActions",
+    description: t`The actions of a note card on right click.`,
     render: () => (
         <ContextMenu>
             <ContextMenuTrigger xstyle={[text.sm, styles.card]}>
@@ -43,7 +44,7 @@ export const contextMenuNoteCardActions = defineExample({
             <ContextMenuContent>
                 <ContextMenuItem>
                     Open
-                    <ContextMenuShortcut>↵</ContextMenuShortcut>
+                    <ContextMenuShortcut keys="enter" />
                 </ContextMenuItem>
                 <ContextMenuItem>Duplicate</ContextMenuItem>
                 <ContextMenuSeparator />
@@ -56,8 +57,8 @@ export const contextMenuNoteCardActions = defineExample({
 /** The view options of a notebook on right click: a pin and one sort order. */
 export const contextMenuNotebookView = defineExample({
     of: ContextMenu,
-    name: "notebook-view",
-    description: "the view options of a notebook on right click: a pin and one sort order",
+    name: "notebookView",
+    description: t`The view options of a notebook on right click: a pin and one sort order.`,
     render: () => {
         const [isPinned, setPinned] = createSignal(true);
         const [order, setOrder] = createSignal("edited");

@@ -15,6 +15,7 @@ import {
     MenuRadioItem,
     MenuSeparator,
     MenuShortcut,
+    type MenuShortcutProperties,
     MenuControl,
     MenuSubTrigger,
     useMenu,
@@ -165,9 +166,7 @@ export function ContextMenuSeparator(
 }
 
 /** Render the keyboard shortcut of an item. */
-export function ContextMenuShortcut(
-    properties: MenuElementProperties<HTMLSpanElement>,
-): JSX.Element {
+export function ContextMenuShortcut(properties: MenuShortcutProperties): JSX.Element {
     return <MenuShortcut data-slot="context-menu-shortcut" {...properties} />;
 }
 

@@ -95,6 +95,9 @@ const MenuContext = createContext<MenuControl | null>(null);
 /** The selected value of the nearest radio group of a menu, null outside one. */
 const MenuRadioContext = createContext<MenuRadioControl | null>(null);
 
+/** The item around a shortcut, which takes the shortcut's keys. */
+const MenuItemContext = createContext<MenuItemJoin | null>(null);
+
 /** A shortcut whose item has a check, which pushes both to the end. */
 const BEFORE_CHECK = ":is(:has(~ [data-slot=menu-indicator]))";
 
@@ -571,11 +574,16 @@ export class MenuControl<Payload = unknown> {
             element: () => element,
         });
 
+        // read the keys of the shortcut the item shows
+        const [keys, showKeys] = createSignal<string | undefined>(undefined, { ownedWrite: true });
+
         return {
             ref: (target) => {
                 element = target;
             },
             onFocus: () => this.list.focus.focusIn(key),
+            keys,
+            showKeys,
         };
     }
 
@@ -589,6 +597,10 @@ export class MenuControl<Payload = unknown> {
 export interface MenuItemJoin extends Record<"ref", (element: HTMLElement) => void> {
     /** Follow the focus onto the item. */
     readonly onFocus: () => void;
+    /** The keys of the shortcut the item shows, as `aria-keyshortcuts` writes them. */
+    readonly keys: Accessor<string | undefined>;
+    /** Show the keys of a shortcut in the item, none when absent. */
+    readonly showKeys: (keys: string | undefined) => void;
 }
 
 /** The properties of a top menu's root. */
@@ -613,6 +625,15 @@ export type MenuElementProperties<Target extends HTMLElement> = Omit<
     "class"
 > &
     ElementPartProperties;
+
+/** The properties of an item's shortcut, the native element's attributes included. */
+export interface MenuShortcutProperties extends Omit<
+    MenuElementProperties<HTMLSpanElement>,
+    "children"
+> {
+    /** The keys, as a keybinding writes them, such as `mod+r`. */
+    readonly keys: string;
+}
 
 /** The properties of a menu's content. */
 export interface MenuContentProperties extends MenuElementProperties<HTMLDivElement> {
@@ -750,33 +771,40 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
         onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
     });
 
-    return renderPart(
-        "div",
-        "menu-item",
-        rest,
-        () => [
-            styles.item,
-            properties.variant === "destructive" && styles.destructive,
-            properties.disabled === true && state.inert,
-        ],
-        merge(hover.attributes(), {
-            role: "menuitem" as const,
-            tabindex: -1,
-            ref: item.ref,
-            onFocus: item.onFocus,
-            "data-menu-item": "",
-            get "data-variant"() {
-                return properties.variant ?? "default";
-            },
-            get "aria-disabled"() {
-                return properties.disabled === true ? "true" : undefined;
-            },
-            get "data-disabled"() {
-                return properties.disabled === true ? "" : undefined;
-            },
-            onClick: (event: MouseEvent) => choose(event, control, properties),
-            onKeyDown: activate,
-        }),
+    return (
+        <MenuItemContext value={item}>
+            {renderPart(
+                "div",
+                "menu-item",
+                rest,
+                () => [
+                    styles.item,
+                    properties.variant === "destructive" && styles.destructive,
+                    properties.disabled === true && state.inert,
+                ],
+                merge(hover.attributes(), {
+                    role: "menuitem" as const,
+                    tabindex: -1,
+                    ref: item.ref,
+                    onFocus: item.onFocus,
+                    get "aria-keyshortcuts"() {
+                        return item.keys();
+                    },
+                    "data-menu-item": "",
+                    get "data-variant"() {
+                        return properties.variant ?? "default";
+                    },
+                    get "aria-disabled"() {
+                        return properties.disabled === true ? "true" : undefined;
+                    },
+                    get "data-disabled"() {
+                        return properties.disabled === true ? "" : undefined;
+                    },
+                    onClick: (event: MouseEvent) => choose(event, control, properties),
+                    onKeyDown: activate,
+                }),
+            )}
+        </MenuItemContext>
     );
 }
 
@@ -798,53 +826,60 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
         onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
     });
 
-    return renderPart(
-        "div",
-        "menu-checkbox-item",
-        rest,
-        () => [styles.item, properties.disabled === true && state.inert],
-        mergeProperties(hover.attributes(), {
-            role: "menuitemcheckbox" as const,
-            tabindex: -1,
-            get "aria-checked"() {
-                return properties.checked ? "true" : "false";
-            },
-            get "aria-disabled"() {
-                return properties.disabled === true ? "true" : undefined;
-            },
-            get "data-checked"() {
-                return properties.checked ? "" : undefined;
-            },
-            get "data-unchecked"() {
-                return properties.checked ? undefined : "";
-            },
-            get "data-disabled"() {
-                return properties.disabled === true ? "" : undefined;
-            },
-            "data-menu-item": "" as const,
-            ref: item.ref,
-            onFocus: item.onFocus,
-            onClick: (event: MouseEvent) => {
-                // flip the check of an enabled item and run its action
-                if (properties.disabled !== true) {
-                    properties.onCheckedChange?.(!properties.checked);
-                }
-                choose(event, control, properties);
-            },
-            onKeyDown: (event: PartEvent<KeyboardEvent>) => activate(event),
-            get children() {
-                return (
-                    <>
-                        {properties.children}
-                        <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
-                            <Show when={properties.checked}>
-                                <Icon name="check" />
-                            </Show>
-                        </span>
-                    </>
-                );
-            },
-        }),
+    return (
+        <MenuItemContext value={item}>
+            {renderPart(
+                "div",
+                "menu-checkbox-item",
+                rest,
+                () => [styles.item, properties.disabled === true && state.inert],
+                mergeProperties(hover.attributes(), {
+                    role: "menuitemcheckbox" as const,
+                    tabindex: -1,
+                    get "aria-keyshortcuts"() {
+                        return item.keys();
+                    },
+                    get "aria-checked"() {
+                        return properties.checked ? "true" : "false";
+                    },
+                    get "aria-disabled"() {
+                        return properties.disabled === true ? "true" : undefined;
+                    },
+                    get "data-checked"() {
+                        return properties.checked ? "" : undefined;
+                    },
+                    get "data-unchecked"() {
+                        return properties.checked ? undefined : "";
+                    },
+                    get "data-disabled"() {
+                        return properties.disabled === true ? "" : undefined;
+                    },
+                    "data-menu-item": "" as const,
+                    ref: item.ref,
+                    onFocus: item.onFocus,
+                    onClick: (event: MouseEvent) => {
+                        // flip the check of an enabled item and run its action
+                        if (properties.disabled !== true) {
+                            properties.onCheckedChange?.(!properties.checked);
+                        }
+                        choose(event, control, properties);
+                    },
+                    onKeyDown: (event: PartEvent<KeyboardEvent>) => activate(event),
+                    get children() {
+                        return (
+                            <>
+                                {properties.children}
+                                <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
+                                    <Show when={properties.checked}>
+                                        <Icon name="check" />
+                                    </Show>
+                                </span>
+                            </>
+                        );
+                    },
+                }),
+            )}
+        </MenuItemContext>
     );
 }
 
@@ -878,53 +913,60 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
         onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
     });
 
-    return renderPart(
-        "div",
-        "menu-radio-item",
-        rest,
-        () => [styles.item, properties.disabled === true && state.inert],
-        mergeProperties(hover.attributes(), {
-            role: "menuitemradio" as const,
-            tabindex: -1,
-            get "aria-checked"() {
-                return isChecked() ? "true" : "false";
-            },
-            get "aria-disabled"() {
-                return properties.disabled === true ? "true" : undefined;
-            },
-            get "data-checked"() {
-                return isChecked() ? "" : undefined;
-            },
-            get "data-unchecked"() {
-                return isChecked() ? undefined : "";
-            },
-            get "data-disabled"() {
-                return properties.disabled === true ? "" : undefined;
-            },
-            "data-menu-item": "" as const,
-            ref: item.ref,
-            onFocus: item.onFocus,
-            onClick: (event: MouseEvent) => {
-                // select the value of an enabled item and run its action
-                if (properties.disabled !== true) {
-                    radio.select(properties.value);
-                }
-                choose(event, control, properties);
-            },
-            onKeyDown: (event: PartEvent<KeyboardEvent>) => activate(event),
-            get children() {
-                return (
-                    <>
-                        {properties.children}
-                        <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
-                            <Show when={isChecked()}>
-                                <Icon name="circle" weight="fill" size="0.5em" />
-                            </Show>
-                        </span>
-                    </>
-                );
-            },
-        }),
+    return (
+        <MenuItemContext value={item}>
+            {renderPart(
+                "div",
+                "menu-radio-item",
+                rest,
+                () => [styles.item, properties.disabled === true && state.inert],
+                mergeProperties(hover.attributes(), {
+                    role: "menuitemradio" as const,
+                    tabindex: -1,
+                    get "aria-keyshortcuts"() {
+                        return item.keys();
+                    },
+                    get "aria-checked"() {
+                        return isChecked() ? "true" : "false";
+                    },
+                    get "aria-disabled"() {
+                        return properties.disabled === true ? "true" : undefined;
+                    },
+                    get "data-checked"() {
+                        return isChecked() ? "" : undefined;
+                    },
+                    get "data-unchecked"() {
+                        return isChecked() ? undefined : "";
+                    },
+                    get "data-disabled"() {
+                        return properties.disabled === true ? "" : undefined;
+                    },
+                    "data-menu-item": "" as const,
+                    ref: item.ref,
+                    onFocus: item.onFocus,
+                    onClick: (event: MouseEvent) => {
+                        // select the value of an enabled item and run its action
+                        if (properties.disabled !== true) {
+                            radio.select(properties.value);
+                        }
+                        choose(event, control, properties);
+                    },
+                    onKeyDown: (event: PartEvent<KeyboardEvent>) => activate(event),
+                    get children() {
+                        return (
+                            <>
+                                {properties.children}
+                                <span data-slot="menu-indicator" {...style.attrs(styles.indicator)}>
+                                    <Show when={isChecked()}>
+                                        <Icon name="circle" weight="fill" size="0.5em" />
+                                    </Show>
+                                </span>
+                            </>
+                        );
+                    },
+                }),
+            )}
+        </MenuItemContext>
     );
 }
 
@@ -946,8 +988,29 @@ export function MenuSeparator(properties: MenuElementProperties<HTMLDivElement>)
 }
 
 /** Render the keyboard shortcut of an item at its end. */
-export function MenuShortcut(properties: MenuElementProperties<HTMLSpanElement>): JSX.Element {
-    return renderPart("span", "menu-shortcut", properties, [text.xs, styles.shortcut]);
+export function MenuShortcut(properties: MenuShortcutProperties): JSX.Element {
+    // name the keys on the item around it, and show them for sight alone
+    const item = useContext(MenuItemContext);
+    const isCommand = useCommandPlatform();
+    createEffect(
+        () => Shortcut.aria(properties.keys, isCommand()),
+        (keys) => {
+            item?.showKeys(keys);
+        },
+    );
+
+    return renderPart(
+        "span",
+        "menu-shortcut",
+        omit(properties, "keys"),
+        [text.xs, styles.shortcut],
+        {
+            "aria-hidden": "true",
+            get children() {
+                return Shortcut.format(properties.keys, isCommand());
+            },
+        },
+    );
 }
 
 /** Render the item that opens a submenu on hover, Enter, Space or the arrow key toward it. */
@@ -1138,7 +1201,7 @@ export function MenuAction<Inputs extends ActionInputs>(
     );
     const shortcut = () => (
         <Show when={properties.given === undefined ? keys() : undefined}>
-            {(pressed) => <MenuShortcut>{Shortcut.format(pressed(), isCommand())}</MenuShortcut>}
+            {(pressed) => <MenuShortcut keys={pressed()} />}
         </Show>
     );
 

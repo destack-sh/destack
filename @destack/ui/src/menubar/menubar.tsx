@@ -21,6 +21,7 @@ import {
     MenuRadioItem,
     MenuSeparator,
     MenuShortcut,
+    type MenuShortcutProperties,
     MenuSubTrigger,
     useMenu,
     type MenuCheckboxItemProperties,
@@ -297,7 +298,7 @@ export function MenubarSeparator(properties: MenuElementProperties<HTMLDivElemen
 }
 
 /** Render the keyboard shortcut of an item. */
-export function MenubarShortcut(properties: MenuElementProperties<HTMLSpanElement>): JSX.Element {
+export function MenubarShortcut(properties: MenuShortcutProperties): JSX.Element {
     return <MenuShortcut data-slot="menubar-shortcut" {...properties} />;
 }
 
