@@ -269,10 +269,10 @@ export class Project {
         const vitest = join(dirname(require.resolve("vitest/package.json")), "vitest.mjs");
         const configuration = require.resolve("@destack/test/plan/vitest");
 
-        // run Bun's targets, then Node's
+        // run Bun's targets, then Node's, Bun importing with the development condition vite resolves tests with
         const bun = await this.#vitest(
             this.environment.process.executable,
-            ["--bun"],
+            ["--bun", "--conditions=development"],
             vitest,
             configuration,
             options,
