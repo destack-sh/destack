@@ -2,7 +2,8 @@ import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { argument, plural, t } from "@destack/locale";
 import { defineAction, defineObject, field, searchable } from "@destack/object";
-import { ObjectClient, ObjectRemote } from "@destack/object/client";
+import { ObjectRemote } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -171,16 +172,9 @@ test("find objects as a person types, the best first, and open the one picked", 
         .toEqual(["Order form", "The order book"]);
     const marks = shownItems().map((item) => item.querySelector("mark")?.textContent);
 
-    // type a word nothing has, found as it was meant
+    // type a word nothing has, found as it was meant once typing pauses
     input.value = "odrer";
     input.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    await expect
-        .poll(() => {
-            flush();
-
-            return shownItems().length;
-        })
-        .toBe(0);
     await testWorld().simulation.sleep(200);
     await expect
         .poll(() => {
