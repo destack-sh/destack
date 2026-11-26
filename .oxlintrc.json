@@ -71,6 +71,7 @@
         "destack/error-message-style": "error",
         "destack/exact-optional": "error",
         "destack/jsdoc-sentence": "error",
+        "destack/message-context": "error",
         "destack/method-signature-style": "error",
         "destack/no-class-name": "error",
         "destack/no-import-alias": "error",

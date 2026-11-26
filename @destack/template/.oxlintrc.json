@@ -78,6 +78,7 @@
         "destack/no-inline-config": "error",
         "destack/no-ambient-effect": "error",
         "destack/no-manifest-import": "error",
+        "destack/message-context": "error",
         "destack/no-missing-translations": "off",
         "destack/no-overload-cast": "error",
         "destack/no-partial-assertions": "error",

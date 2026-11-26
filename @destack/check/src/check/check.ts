@@ -92,7 +92,7 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     const result = await lintSources({ ...options, directory, files: sources }, settings, fix);
 
     // require the found messages in their packages' catalogs
-    const translation = { directory, root, settings, selection: sources, files };
+    const translation = { directory, root, settings, selection: sources, files, isFix: fix };
     const translated = await applyTranslations(result.diagnostics, translation);
 
     // accept the findings the workspace's packages expect, and refuse expectations nothing met

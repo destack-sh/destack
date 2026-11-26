@@ -1,8 +1,8 @@
 import type { FileSystem } from "@destack/environment";
-import { Catalog, Message } from "@destack/locale";
+import { CatalogSource, Message, MESSAGE_CONTEXTS, type MessageContext } from "@destack/locale";
 import { join, relative, resolve, sep } from "node:path";
 import type { Diagnostic } from "../diagnostic/index.ts";
-import { CONTEXT_END } from "../lint/no-missing-translations.ts";
+import { MESSAGE_SEPARATOR } from "../lint/no-missing-translations.ts";
 import { type LintSettings, packageOf } from "../lint/package.ts";
 import { isTestFile } from "../lint/word.ts";
 
@@ -24,6 +24,9 @@ const MISSING = "destack(no-missing-translations)";
 /** The code of a translation of no message. */
 const UNUSED = "destack(no-unused-translations)";
 
+/** The code of a translation whose source, context or note differs from its message's. */
+const STALE = "destack(no-stale-translations)";
+
 /** The files of a check whose messages the catalogs translate. */
 export interface TranslationOptions {
     /** The directory the findings' files are relative to. */
@@ -36,6 +39,8 @@ export interface TranslationOptions {
     readonly selection: readonly string[];
     /** The files with the catalogs. */
     readonly files: FileSystem;
+    /** Whether to write the catalogs from the code, dropping the translations of no message. */
+    readonly isFix: boolean;
 }
 
 /** A message a check found in a package's sources. */
@@ -48,8 +53,10 @@ interface Phrase {
     readonly id: string;
     /** Its source text. */
     readonly source: string;
-    /** Its context, empty without one. */
-    readonly context: string;
+    /** Its context, absent for a sentence or a phrase. */
+    readonly context: MessageContext | undefined;
+    /** The note its writer leaves its translators, absent without one. */
+    readonly note: string | undefined;
 }
 
 /** Keep the messages a catalog lacks, and add the translations of no message. */
@@ -67,12 +74,19 @@ export async function applyTranslations(
             const file = resolve(directory, diagnostic.filename);
             const owner = packageOf(file, { destack: settings })?.directory ?? ".";
 
-            // split its context from its source
-            const end = diagnostic.message.indexOf(CONTEXT_END);
-            const context = diagnostic.message.slice(0, end);
-            const source = diagnostic.message.slice(end + 1);
+            // split its context and note from its source
+            const [context = "", note = "", ...rest] = diagnostic.message.split(MESSAGE_SEPARATOR);
+            const source = rest.join(MESSAGE_SEPARATOR);
+            const id = Message.identify(source, context);
 
-            return { diagnostic, owner, source, context, id: Message.identify(source, context) };
+            return {
+                diagnostic,
+                owner,
+                source,
+                context: MESSAGE_CONTEXTS.find((each) => each === context),
+                note: note === "" ? undefined : note,
+                id,
+            };
         });
     const owners = Map.groupBy(messages, ({ owner }) => owner);
 
@@ -83,14 +97,17 @@ export async function applyTranslations(
         const own = owners.get(owner) ?? [];
         const isWhole = isSelected(join(root, owner, SOURCE_DIRECTORY), options);
         if (own.length > 0 || isWhole) {
-            // require each message in each language
+            // require each message in each language, with the code's source, context and note
             const catalogs = await readCatalogs(join(root, owner), files);
             findings.push(...own.flatMap((phrase) => missing(phrase, catalogs)));
 
-            // look for translations of no message once every source was checked
-            if (isWhole) {
-                const used = new Set(own.map(({ id }) => id));
-                findings.push(...unused(used, catalogs, directory));
+            // rewrite each catalog from the code, else refuse what differs from it
+            const used = isWhole ? new Set(own.map(({ id }) => id)) : undefined;
+            if (options.isFix) {
+                await rewrite(own, used, catalogs, files);
+            } else {
+                findings.push(...own.flatMap((phrase) => stale(phrase, catalogs, directory)));
+                findings.push(...(used === undefined ? [] : unused(used, catalogs, directory)));
             }
         }
     }
@@ -101,7 +118,7 @@ export async function applyTranslations(
 /** Refuse a message a language lacks, or a catalog translates with other variables. */
 function missing(
     { diagnostic, id, source, context }: Phrase,
-    catalogs: ReadonlyMap<string, Catalog>,
+    catalogs: ReadonlyMap<string, CatalogSource>,
 ): Diagnostic[] {
     // find the languages without it, and the catalogs that translate it with other variables
     const languages = [...catalogs.values()]
@@ -109,9 +126,9 @@ function missing(
         .map(({ locale }) => locale);
     const variables = variablesOf(source);
     const others = [...catalogs.values()]
-        .filter(({ messages }) => variablesOf(messages[id] ?? source) !== variables)
+        .filter(({ messages }) => variablesOf(messages[id]?.translation ?? source) !== variables)
         .map(({ locale }) => locale);
-    const place = context === "" ? "" : ` in '${context}'`;
+    const place = context === undefined ? "" : ` in '${context}'`;
     const phrase = `'${oneLine(source)}'${place} ('${id}')`;
 
     return [
@@ -122,18 +139,87 @@ function missing(
     ].map((message) => ({ ...diagnostic, message }));
 }
 
+/** Refuse a translation whose source, context or note differs from its message's. */
+function stale(
+    phrase: Phrase,
+    catalogs: ReadonlyMap<string, CatalogSource>,
+    directory: string,
+): Diagnostic[] {
+    return [...catalogs].flatMap(([path, catalog]): Diagnostic[] => {
+        // take a translation that differs from the message
+        const translation = catalog.messages[phrase.id];
+        if (translation === undefined || isCurrent(translation, phrase)) {
+            return [];
+        }
+
+        return [
+            {
+                code: STALE,
+                message: `'${phrase.id}' ('${oneLine(phrase.source)}') differs from its message's source, context or note: run destack fix`,
+                severity: "error",
+                filename: relative(directory, path),
+                labels: [],
+            },
+        ];
+    });
+}
+
+/** Write each catalog's sources, contexts and notes from the code, dropping the unused. */
+async function rewrite(
+    phrases: readonly Phrase[],
+    used: ReadonlySet<string> | undefined,
+    catalogs: ReadonlyMap<string, CatalogSource>,
+    files: FileSystem,
+): Promise<void> {
+    for (const [path, catalog] of catalogs) {
+        // take each message's source, context and note from the code, its translation and state as they are
+        const messages = { ...catalog.messages };
+        for (const phrase of phrases) {
+            const translation = messages[phrase.id];
+            if (translation !== undefined) {
+                messages[phrase.id] = {
+                    source: phrase.source,
+                    ...(phrase.context === undefined ? {} : { context: phrase.context }),
+                    ...(phrase.note === undefined ? {} : { note: phrase.note }),
+                    translation: translation.translation,
+                    state: translation.state,
+                };
+            }
+        }
+
+        // drop the translations of no message, once every source was read
+        const kept = Object.entries(messages).filter(([id]) => used === undefined || used.has(id));
+        const written = { ...catalog, messages: Object.fromEntries(kept) };
+        if (JSON.stringify(written) !== JSON.stringify(catalog)) {
+            await files.writeTextFile(path, `${JSON.stringify(written, null, 4)}\n`);
+        }
+    }
+}
+
+/** Report whether a translation has its message's source, context and note. */
+function isCurrent(
+    translation: CatalogSource["messages"][string],
+    { source, context, note }: Phrase,
+): boolean {
+    return (
+        translation.source === source &&
+        translation.context === context &&
+        translation.note === note
+    );
+}
+
 /** Refuse the translations of no message. */
 function unused(
     used: ReadonlySet<string>,
-    catalogs: ReadonlyMap<string, Catalog>,
+    catalogs: ReadonlyMap<string, CatalogSource>,
     directory: string,
 ): Diagnostic[] {
     return [...catalogs].flatMap(([path, catalog]) =>
         Object.entries(catalog.messages)
             .filter(([id]) => !used.has(id))
-            .map(([id, text]): Diagnostic => ({
+            .map(([id, { source }]): Diagnostic => ({
                 code: UNUSED,
-                message: `'${id}' ('${oneLine(text)}') translates no message: remove it`,
+                message: `'${id}' ('${oneLine(source)}') translates no message: run destack fix`,
                 severity: "error",
                 filename: relative(directory, path),
                 labels: [],
@@ -152,7 +238,7 @@ function oneLine(text: string): string {
 }
 
 /** Report whether a catalog is of a language, which its regions' catalogs fall back to. */
-function isLanguage({ locale }: Catalog): boolean {
+function isLanguage({ locale }: CatalogSource): boolean {
     return new Intl.Locale(locale).region === undefined;
 }
 
@@ -167,7 +253,7 @@ function isSelected(path: string, { directory, selection }: TranslationOptions):
 async function readCatalogs(
     directory: string,
     files: FileSystem,
-): Promise<ReadonlyMap<string, Catalog>> {
+): Promise<ReadonlyMap<string, CatalogSource>> {
     // take a package without catalogs as it is
     const catalogs = join(directory, CATALOG_DIRECTORY);
     if (!(await files.exists(catalogs))) {
@@ -179,9 +265,9 @@ async function readCatalogs(
     const names = entries.map(({ name }) => name).filter((name) => CATALOG_FILE.test(name));
     const paths = names.toSorted().map((name) => join(catalogs, name));
     const pairs = await Promise.all(
-        paths.map(async (path): Promise<[string, Catalog]> => [
+        paths.map(async (path): Promise<[string, CatalogSource]> => [
             path,
-            Catalog.parse(JSON.parse(await files.readTextFile(path))),
+            CatalogSource.parse(JSON.parse(await files.readTextFile(path))),
         ]),
     );
 

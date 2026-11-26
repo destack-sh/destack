@@ -3,11 +3,8 @@ import type { ESTree, Rule } from "@oxlint/plugins";
 import { isPackageFile } from "./package.ts";
 import { isTestFile, isTestKitFile } from "./word.ts";
 
-/** A module whose messages no reader of the package sees: an example or a scenario. */
-const SAMPLE = /\.(?:example|scenario)\.[jt]sx?$/u;
-
-/** The character between a message's context and its source in a finding. */
-export const CONTEXT_END = "\u0000";
+/** The character between a message's context, note and source in a finding. */
+export const MESSAGE_SEPARATOR = "\u0000";
 
 /** Find each message of a package's sources, which the check requires its catalogs to translate. */
 export const noMissingTranslations: Rule = {
@@ -18,15 +15,15 @@ export const noMissingTranslations: Rule = {
         messages: { message: "{{text}}" },
     },
     create(context) {
-        // apply only to a package's own messages, leaving tests and samples their texts
+        // apply to a package's own messages, examples and scenarios included, leaving tests their texts
         const { filename, settings } = context;
-        const isSample = SAMPLE.test(filename) || isTestFile(filename) || isTestKitFile(filename);
-        if (isSample || !isPackageFile(filename, settings)) {
+        const isTest = isTestFile(filename) || isTestKitFile(filename);
+        if (isTest || !isPackageFile(filename, settings)) {
             return {};
         }
 
-        // collect the tags that write messages with their contexts, and the templates of every tag
-        const contexts = new Map([["t", ""]]);
+        // collect the tags that write messages with their contexts and notes, and every tag's templates
+        const contexts = new Map<string, Tagged>([["t", { context: "", note: "" }]]);
         const templates: ESTree.TaggedTemplateExpression[] = [];
 
         return {
@@ -40,39 +37,66 @@ export const noMissingTranslations: Rule = {
                 templates.push(node);
             },
             "Program:exit"() {
-                // report each template of a message by its context and source, as it is identified
+                // report each template of a message by its context, note and source
                 for (const node of templates) {
                     const { tag, quasi } = node;
                     const isNamed = tag.type === "Identifier";
-                    const name = isNamed ? contexts.get(tag.name) : contextOf(tag);
-                    if (name !== undefined) {
-                        const strings = quasi.quasis.map(({ value }) => value.cooked ?? value.raw);
-                        const { source } = Message.template(strings, quasi.expressions.map(partOf));
-                        const text = `${name}${CONTEXT_END}${source}`;
-                        context.report({ node, messageId: "message", data: { text } });
+                    const tagged = isNamed ? contexts.get(tag.name) : contextOf(tag);
+                    if (tagged === undefined) {
+                        continue;
                     }
+                    const strings = quasi.quasis.map(({ value }) => value.cooked ?? value.raw);
+                    const { source } = Message.template(strings, quasi.expressions.map(partOf));
+                    const text = [tagged.context, tagged.note, source].join(MESSAGE_SEPARATOR);
+                    context.report({ node, messageId: "message", data: { text } });
                 }
             },
         };
     },
 };
 
-/** Read the context of a tag's `Message.context(…)`, absent for another expression. */
-function contextOf(expression: ESTree.Expression): string | undefined {
+/** A tag's context and note, each empty without one. */
+interface Tagged {
+    /** The context. */
+    readonly context: string;
+    /** The note. */
+    readonly note: string;
+}
+
+/** Read the context and note of a tag's `t.context(…)`, absent for another expression. */
+function contextOf(expression: ESTree.Expression): Tagged | undefined {
     // take a call of a method
     if (expression.type !== "CallExpression" || expression.callee.type !== "MemberExpression") {
         return undefined;
     }
 
-    // read the context of a `Message.context` call
+    // read the context of a `t.context` call
     const { object, property } = expression.callee;
-    const isMessage = object.type === "Identifier" && object.name === "Message";
+    const isTag = object.type === "Identifier" && object.name === "t";
     const isContext = property.type === "Identifier" && property.name === "context";
-    const [name] = expression.arguments;
+    const [name, options] = expression.arguments;
+    if (!isTag || !isContext || name?.type !== "Literal" || typeof name.value !== "string") {
+        return undefined;
+    }
 
-    return isMessage && isContext && name?.type === "Literal" && typeof name.value === "string"
-        ? name.value
-        : undefined;
+    // read the note of an options literal
+    const note =
+        options?.type === "ObjectExpression"
+            ? options.properties.find(
+                  (entry) =>
+                      entry.type === "Property" &&
+                      entry.key.type === "Identifier" &&
+                      entry.key.name === "note",
+              )
+            : undefined;
+    const text =
+        note?.type === "Property" &&
+        note.value.type === "Literal" &&
+        typeof note.value.value === "string"
+            ? note.value.value
+            : "";
+
+    return { context: name.value, note: text };
 }
 
 /** Read the part of a message an expression is: an argument, a plural, a selection or a value. */

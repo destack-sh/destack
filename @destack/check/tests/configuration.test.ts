@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import type { FileSystem } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
-import { Message } from "@destack/locale";
+import { CatalogSource, Message } from "@destack/locale";
 import { expect, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { testHost } from "@destack/test/host";
@@ -302,14 +302,24 @@ test("accept the findings a package expects and refuse an expectation nothing ma
     expect(applyExpectations([], expectations, directory, ["tests"])).toEqual([]);
 });
 
-test("refuse a message a language lacks or varies, and a translation of no message once all is checked", async () => {
+/** Write a reviewed translation as a catalog source stores it. */
+function entry(source: string, translation: string, context?: "action") {
+    return {
+        source,
+        ...(context === undefined ? {} : { context }),
+        translation,
+        state: "reviewed" as const,
+    };
+}
+
+test("refuse a message a language lacks or varies, a stale translation and an unused one, and fix the stale and unused", async () => {
     // write a package with catalogs of a language, its region and another, and a test's own package
     await using simulation = world();
     const { files } = simulation.environment("test");
     const root = await files.makeTemporaryDirectory("translation-");
     const write = async (
         tag: string,
-        messages: Readonly<Record<string, string>>,
+        messages: Readonly<Record<string, ReturnType<typeof entry>>>,
         directory = "notes",
     ) => {
         await files.mkdir(join(root, directory, "locale"), { recursive: true });
@@ -324,13 +334,17 @@ test("refuse a message a language lacks or varies, and a translation of no messa
         );
     };
     const saved = Message.identify("Saved", "");
-    const menu = Message.identify("Saved", "menu");
+    const menu = Message.identify("Saved", "action");
     const lost = Message.identify("one {{Lost}}\n* {{Lost}}", "");
     const count = Message.identify("{$p0} notes", "");
-    await write("de", { [saved]: "Gespeichert", gone: "Weg", [count]: "{$p0} Notizen" });
-    await write("de-CH", { [saved]: "Gspeicheret" });
-    await write("de", { gone: "Weg" }, "notes/tests/fixture/list");
-    await write("fr", { [count]: "{$p1} notes" });
+    await write("de", {
+        [saved]: entry("Saved", "Gespeichert"),
+        gone: entry("Gone", "Weg"),
+        [count]: entry("{$p0} notes", "{$p0} Notizen"),
+    });
+    await write("de-CH", { [saved]: entry("Saved", "Gspeicheret") });
+    await write("de", { gone: entry("Gone", "Weg") }, "notes/tests/fixture/list");
+    await write("fr", { [count]: entry("{$p1} notes", "{$p1} notes") });
     const settings = {
         packages: [
             { directory: "notes", name: "@example/notes" },
@@ -340,19 +354,19 @@ test("refuse a message a language lacks or varies, and a translation of no messa
         roles: {},
         entrypoints: [],
     };
-    const found = (filename: string, source: string, context = "") => ({
+    const found = (filename: string, source: string, context = "", note = "") => ({
         ...finding(filename, "destack(no-missing-translations)"),
-        message: `${context}\u0000${source}`,
+        message: `${context}\u0000${note}\u0000${source}`,
     });
     const diagnostics = [
         found("notes/src/note.ts", "Saved"),
-        found("notes/src/note.ts", "Saved", "menu"),
+        found("notes/src/note.ts", "Saved", "action"),
         found("notes/src/note.ts", "one {{Lost}}\n* {{Lost}}"),
         found("notes/src/note.ts", "{$p0} notes"),
         found("tasks/src/task.ts", "Done"),
         finding("notes/src/note.ts", "eslint(curly)"),
     ];
-    const apply = async (selection: readonly string[]) =>
+    const apply = async (selection: readonly string[], isFix = false) =>
         (
             await applyTranslations(diagnostics, {
                 directory: root,
@@ -360,25 +374,36 @@ test("refuse a message a language lacks or varies, and a translation of no messa
                 settings,
                 selection,
                 files,
+                isFix,
             })
         ).map(({ code, filename, message }) => `${filename} ${code} ${message}`);
     const missing = [
         "notes/src/note.ts eslint(curly) finding",
         `notes/src/note.ts destack(no-missing-translations) translate 'Saved' ('${saved}') into fr`,
-        `notes/src/note.ts destack(no-missing-translations) translate 'Saved' in 'menu' ('${menu}') into de, fr`,
+        `notes/src/note.ts destack(no-missing-translations) translate 'Saved' in 'action' ('${menu}') into de, fr`,
         `notes/src/note.ts destack(no-missing-translations) translate 'one {{Lost}} * {{Lost}}' ('${lost}') into de, fr`,
         `notes/src/note.ts destack(no-missing-translations) translate '{$p0} notes' ('${count}') with '$p0' in fr`,
     ];
+    const stale = `notes/locale/fr.json destack(no-stale-translations) '${count}' ('{$p0} notes') differs from its message's source, context or note: run destack fix`;
 
-    expect({
-        file: await apply(["notes/src/note.ts"]),
-        all: await apply(["notes/src", "notes/tests", "tasks"]),
-    }).toEqual({
-        file: missing,
+    // refuse what each selection finds, then fix the stale source and the unused translation
+    const file = await apply(["notes/src/note.ts"]);
+    const all = await apply(["notes/src", "notes/tests", "tasks"]);
+    await apply(["notes/src", "notes/tests", "tasks"], true);
+    const fixed = await apply(["notes/src", "notes/tests", "tasks"]);
+    const german = CatalogSource.parse(
+        JSON.parse(await files.readTextFile(join(root, "notes/locale/de.json"))),
+    );
+
+    expect({ file, all, fixed, german: Object.keys(german.messages).toSorted() }).toEqual({
+        file: [...missing, stale],
         all: [
             ...missing,
-            "notes/locale/de.json destack(no-unused-translations) 'gone' ('Weg') translates no message: remove it",
+            stale,
+            "notes/locale/de.json destack(no-unused-translations) 'gone' ('Gone') translates no message: run destack fix",
         ],
+        fixed: missing,
+        german: [count, saved].toSorted(),
     });
 });
 

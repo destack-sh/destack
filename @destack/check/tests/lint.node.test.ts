@@ -955,24 +955,31 @@ tester.run("no-missing-translations", rules["no-missing-translations"], {
         { code: "const text = verbatim`Saved`;", filename: SOURCE, settings: SETTINGS },
         { code: "const text = t`Saved`;", filename: TEST, settings: SETTINGS },
         { code: "const text = t`Saved`;", filename: TEST_KIT, settings: SETTINGS },
-        {
-            code: "const text = t`Saved`;",
-            filename: SOURCE.replace("note.ts", "note.example.ts"),
-            settings: SETTINGS,
-        },
     ],
     invalid: [
+        {
+            code: "const text = t`Saved the note`;",
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [{ message: "\u0000\u0000Saved the note" }],
+        },
+        {
+            code: "const text = t`Saved the note`;",
+            filename: SOURCE.replace("note.ts", "note.example.ts"),
+            settings: SETTINGS,
+            errors: [{ message: "\u0000\u0000Saved the note" }],
+        },
         {
             code: "const text = t`Saved`;",
             filename: SOURCE,
             settings: SETTINGS,
-            errors: [{ message: "\u0000Saved" }],
+            errors: [{ message: "\u0000\u0000Saved" }],
         },
         {
             code: 'const text = t`${name} in ${argument("list")}`;',
             filename: SOURCE,
             settings: SETTINGS,
-            errors: [{ message: "\u0000{$p0} in {$list}" }],
+            errors: [{ message: "\u0000\u0000{$p0} in {$list}" }],
         },
         {
             code: 'const text = t`${plural(count, { one: "# row", other: "# rows" })} selected`;',
@@ -981,7 +988,7 @@ tester.run("no-missing-translations", rules["no-missing-translations"], {
             errors: [
                 {
                     message:
-                        "\u0000.input {$p0 :number}\n.match $p0\none {{{$p0} row selected}}\n* {{{$p0} rows selected}}",
+                        "\u0000\u0000.input {$p0 :number}\n.match $p0\none {{{$p0} row selected}}\n* {{{$p0} rows selected}}",
                 },
             ],
         },
@@ -992,21 +999,47 @@ tester.run("no-missing-translations", rules["no-missing-translations"], {
             errors: [
                 {
                     message:
-                        "\u0000.input {$kind :string}\n.match $kind\nnote {{a note}}\n* {{it}}",
+                        "\u0000\u0000.input {$kind :string}\n.match $kind\nnote {{a note}}\n* {{it}}",
                 },
             ],
         },
         {
-            code: 'const text = Message.context("button")`Save`;',
+            code: 'const text = t.context("action", { note: "Saves the open note" })`Save`;',
             filename: SOURCE,
             settings: SETTINGS,
-            errors: [{ message: "button\u0000Save" }],
+            errors: [{ message: "action\u0000Saves the open note\u0000Save" }],
         },
         {
-            code: 'const text = () => menu`Save`;\nconst menu = Message.context("menu");',
+            code: 'const text = () => menu`Save`;\nconst menu = t.context("action");',
             filename: SOURCE,
             settings: SETTINGS,
-            errors: [{ message: "menu\u0000Save" }],
+            errors: [{ message: "action\u0000\u0000Save" }],
+        },
+    ],
+});
+
+tester.run("message-context", rules["message-context"], {
+    valid: [
+        { code: "const text = t`Saved the note`;", filename: SOURCE, settings: SETTINGS },
+        { code: "const text = t`Saved ${name}`;", filename: SOURCE, settings: SETTINGS },
+        {
+            code: 'const text = t.context("action")`Save`;',
+            filename: SOURCE,
+            settings: SETTINGS,
+        },
+        { code: "const text = t`Saved`;", filename: TEST, settings: SETTINGS },
+    ],
+    invalid: [
+        {
+            code: "const text = t`Saved`;",
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [
+                {
+                    message:
+                        'say what \'Saved\' is where it shows: t.context("action" | "label" | "option" | "title")',
+                },
+            ],
         },
     ],
 });

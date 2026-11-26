@@ -12,6 +12,7 @@ import { noClassName } from "./no-class-name.ts";
 import { noImportAlias } from "./no-import-alias.ts";
 import { noIndexLogic } from "./no-index-logic.ts";
 import { noInlineConfiguration } from "./no-inline-config.ts";
+import { messageContext } from "./message-context.ts";
 import { noMissingTranslations } from "./no-missing-translations.ts";
 import { noManifestImport } from "./no-manifest-import.ts";
 import { noOverloadCast } from "./no-overload-cast.ts";
@@ -59,6 +60,7 @@ export const rules = {
     "no-inline-config": noInlineConfiguration,
     "no-ambient-effect": noAmbientEffect,
     "no-manifest-import": noManifestImport,
+    "message-context": messageContext,
     "no-missing-translations": noMissingTranslations,
     "no-overload-cast": noOverloadCast,
     "no-partial-assertions": noPartialAssertions,
