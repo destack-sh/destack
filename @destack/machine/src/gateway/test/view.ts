@@ -102,6 +102,7 @@ export const TestViewBuild = {
                 description: {
                     name,
                     presents: view.presents,
+                    opens: view.opens,
                     categories: view.categories,
                     audience: view.audience,
                     packages: view.packages,

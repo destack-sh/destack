@@ -4,6 +4,7 @@ import { build, compile, CompileOutput } from "@destack/stack/object";
 import { StackError } from "@destack/stack/error";
 import { Scope, Subject } from "@destack/sync";
 import { recorded } from "@destack/workflow";
+import { implementWorkflow } from "@destack/workflow/server";
 import { Failure } from "@destack/error";
 import type { Space } from "../space/index.ts";
 
@@ -12,7 +13,7 @@ export const BUILD_COMPILE = { name: "build.compile", workflow: compile } as con
 
 /** Serve compiles: each run places its build's compile on a runner and records the outcome. */
 export function implementCompile(space: Space) {
-    return compile.implement({
+    return implementWorkflow(compile, {
         run: async (step, input) => {
             // compile it on a checkout's own machine, else on the space's runner, refusing a release
             const target = build.target({ scope: space.id, id: input.build });
