@@ -16,8 +16,8 @@ const MIRROR_NODE = "npm";
 /** The suffix of a release Bun's cache keeps extracted, as in `zod@4.6.7@@@1`. */
 const CACHED_SUFFIX = "@@@1";
 
-/** The path of a release's tarball below the registry, as in `/zod/-/zod-4.6.7.tgz`. */
-const TARBALL_PATH = /^\/(.+)\/-\/[^/]+-([^/]+)\.tgz$/u;
+/** The path of a release's tarball, its version from a dash and a digit: `/zod/-/zod-4.6.7.tgz`. */
+const TARBALL_PATH = /^\/(.+)\/-\/[^/]+?-(\d[^/]*)\.tgz$/u;
 
 /** The fields of a package file npm clients resolve by before they download. */
 const INSTALL_FIELDS = [
@@ -30,6 +30,9 @@ const INSTALL_FIELDS = [
     "os",
     "cpu",
 ] as const;
+
+/** The version a cached release's package file declares. */
+const CachedRelease = schema.looseObject({ version: schema.string() });
 
 /** The public npm registry as a world sees it: the releases the host's Bun cache holds. */
 export class NpmMirror {
@@ -88,7 +91,8 @@ export class NpmMirror {
     /** List a package's cached releases in npm's abbreviated form, tagging the newest latest. */
     async #packument(name: string): Promise<Response> {
         // answer 404 for a package the cache lacks
-        const versions = await this.#versions(name);
+        const releases = await this.#releases(name);
+        const versions = [...releases.keys()];
         if (versions.length === 0) {
             return new Response(null, { status: 404 });
         }
@@ -96,9 +100,9 @@ export class NpmMirror {
         // list what npm clients resolve by of each release, and where its tarball lies
         const { files } = this.#environment;
         const listed = await Promise.all(
-            versions.map(async (version) => {
+            [...releases].map(async ([version, directory]) => {
                 // read the release's package file and its tarball's address
-                const file = join(this.#directory(name, version), "package.json");
+                const file = join(directory, "package.json");
                 const manifest = schema
                     .looseObject({})
                     .parse(JSON.parse(await files.readTextFile(file)));
@@ -109,7 +113,7 @@ export class NpmMirror {
                 );
                 const base = name.slice(name.lastIndexOf("/") + 1);
                 const tarball = `https://${REGISTRY_HOST}/${name}/-/${base}-${version}.tgz`;
-                const { integrity } = await this.#pack(name, version);
+                const { integrity } = await this.#pack(directory);
 
                 return [
                     version,
@@ -119,8 +123,8 @@ export class NpmMirror {
         );
 
         // tag the newest release latest, a prerelease only when the cache holds no release
-        const releases = versions.filter((version) => !version.includes("-"));
-        const candidates = releases.length === 0 ? versions : releases;
+        const stable = versions.filter((version) => !version.includes("-"));
+        const candidates = stable.length === 0 ? versions : stable;
         const latest = candidates.toSorted(Bun.semver.order).at(-1);
 
         return Response.json({
@@ -133,28 +137,27 @@ export class NpmMirror {
     /** Answer a cached release's tarball, 404 for one the cache lacks. */
     async #tarball(name: string, version: string): Promise<Response> {
         // answer 404 for a release the cache lacks
-        if (!(await this.#environment.files.exists(this.#directory(name, version)))) {
+        const directory = (await this.#releases(name)).get(version);
+        if (directory === undefined) {
             return new Response(null, { status: 404 });
         }
 
-        return new Response((await this.#pack(name, version)).bytes);
+        return new Response((await this.#pack(directory)).bytes);
     }
 
     /** Pack a cached release into a gzipped tarball once, with its integrity. */
     #pack(
-        name: string,
-        version: string,
+        directory: string,
     ): Promise<{ readonly bytes: Uint8Array<ArrayBuffer>; readonly integrity: string }> {
         // take one packed or packing
-        const key = `${name}@${version}`;
-        const known = this.#packed.get(key);
+        const known = this.#packed.get(directory);
         if (known !== undefined) {
             return known;
         }
 
         // pack it once
-        const packing = this.#archive(this.#directory(name, version));
-        this.#packed.set(key, packing);
+        const packing = this.#archive(directory);
+        this.#packed.set(directory, packing);
 
         return packing;
     }
@@ -189,8 +192,8 @@ export class NpmMirror {
         return { bytes, integrity: `sha512-${digest.toBase64()}` };
     }
 
-    /** List the versions of a package the cache holds. */
-    async #versions(name: string): Promise<readonly string[]> {
+    /** Map each release of a package the cache holds to its directory, by its version. */
+    async #releases(name: string): Promise<ReadonlyMap<string, string>> {
         // list the scope's or the cache's entries
         const { files } = this.#environment;
         const slash = name.indexOf("/");
@@ -198,15 +201,19 @@ export class NpmMirror {
         const prefix = `${name.slice(slash + 1)}@`;
         const entries = (await files.exists(parent)) ? await files.readDirectory(parent) : [];
 
-        // take the extracted releases of the package
-        return entries
+        // read each extracted release's version, as Bun names a prerelease's directory by a hash
+        const directories = entries
             .map((entry) => entry.name)
             .filter((entry) => entry.startsWith(prefix) && entry.endsWith(CACHED_SUFFIX))
-            .map((entry) => entry.slice(prefix.length, -CACHED_SUFFIX.length));
-    }
+            .map((entry) => join(parent, entry));
+        const versioned = await Promise.all(
+            directories.map(async (directory) => {
+                const file = await files.readTextFile(join(directory, "package.json"));
 
-    /** Read the directory a cached release lies in. */
-    #directory(name: string, version: string): string {
-        return join(this.#cache, `${name}@${version}${CACHED_SUFFIX}`);
+                return [CachedRelease.parse(JSON.parse(file)).version, directory] as const;
+            }),
+        );
+
+        return new Map(versioned);
     }
 }

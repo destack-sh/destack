@@ -120,9 +120,9 @@ test("hand a space's database to another machine and send its clients there", as
     );
     const placement = { space: spaceId, scope: accountId, machine: ids.machineA, epoch: 1 };
     for (const machine of [ids.machineA, ids.machineB]) {
-        await TestDirectory.publish(universe.database, machine, accountId, null, clock);
+        await TestDirectory.writeMachine(universe.database, machine, accountId, null, clock);
     }
-    await TestDirectory.place(universe.database, placement, clock);
+    await TestDirectory.writePlacement(universe.database, placement, clock);
 
     // write keys to the space as its owner, and record each database's calls
     const events = new Map<DatabaseConnection, EventStore>([
@@ -255,7 +255,7 @@ test("hand a space's database to another machine and send its clients there", as
 
     // promote the rows on the target and refuse writes until the space is located there at the next epoch
     const transferId = Identifier.create("transfer", world);
-    await TestDirectory.place(universe.database, placement, clock, {
+    await TestDirectory.writePlacement(universe.database, placement, clock, {
         target: ids.machineB,
         transferId,
     });

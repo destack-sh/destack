@@ -206,10 +206,10 @@ export class BunRuntime implements Runtime {
                 `the ${specifier} export of ${build.manifest.package.name}`,
             );
 
-            // import a builtin's export as this process's own instance, never a second copy from its build
+            // import a builtin's export as this process's own instance in one real operation, never a second copy
             const shared = BunRuntime.#shared(build.manifest.package.name, specifier);
             if (this.#program.shares(shared)) {
-                return await this.#program.module(shared);
+                return await this.#environment.scheduler.run(() => this.#program.module(shared));
             }
 
             // link the builtins to this process's own and import the export
@@ -358,7 +358,11 @@ export class BunRuntime implements Runtime {
                 ? undefined
                 : BunRuntime.#shared(build.manifest.package.name, exported[0]);
         if (shared !== undefined && this.#program.shares(shared)) {
-            return await BunRuntime.#apply(await this.#program.module(shared), shared, name, input);
+            const module = await this.#environment.scheduler.run(() =>
+                this.#program.module(shared),
+            );
+
+            return await BunRuntime.#apply(module, shared, name, input);
         }
 
         // find the module in the image's tree
