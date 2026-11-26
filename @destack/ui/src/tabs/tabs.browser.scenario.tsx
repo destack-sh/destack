@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { tabsFiles } from "./tabs.example.tsx";
@@ -7,8 +8,8 @@ import { Tabs } from "./tabs.tsx";
 export const tabsPressDraggable = defineScenario({
     of: Tabs,
     interaction: viewInteraction,
-    name: "press-draggable",
-    description: "select a tab that drags by pressing it, and go on by the keys",
+    name: "pressDraggable",
+    description: t`Select a tab that drags by pressing it, and go on by the keys.`,
     given: { examples: [tabsFiles] },
     parameters: {},
     when: [

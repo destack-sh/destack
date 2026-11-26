@@ -1,18 +1,18 @@
 import { expect, test } from "@destack/test";
 import { createSignal, Errored, flush, For, type JSX } from "@destack/view";
 import { markup, render } from "@destack/view/test";
-import { tabsHistoryUnavailable } from "./tabs.example.tsx";
+import { tabsDisabled } from "./tabs.example.tsx";
 import { Tabs, TabsClose, TabsIndicator, TabsItem, TabsList, TabsTrigger } from "./tabs.tsx";
 import { type TabsControl, useTabs } from "./index.ts";
 
 test("connect each tab to its panel and show only the selected panel", () => {
-    const frame = render(tabsHistoryUnavailable).container.querySelector("[data-slot=example]");
+    const frame = render(tabsDisabled).container.querySelector("[data-slot=example]");
     expect(frame === null ? "" : markup(frame)).toBe(
         '<div data-slot="tabs" data-orientation="horizontal">' +
             '<div data-slot="tabs-list" role="tablist" data-variant="default" data-orientation="horizontal" aria-orientation="horizontal" aria-label="Note"><div role="presentation">' +
-            '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-edit" aria-controls="id-1-panel-edit" aria-selected="true" tabindex="0" data-active="" data-value="edit" data-orientation="horizontal">Edit</button>' +
-            '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-preview" aria-controls="id-1-panel-preview" aria-selected="false" tabindex="-1" data-value="preview" data-orientation="horizontal">Preview</button>' +
-            '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-history" aria-controls="id-1-panel-history" aria-selected="false" tabindex="-1" data-value="history" data-orientation="horizontal" disabled="">History</button></div></div>' +
+            '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-edit" aria-controls="id-1-panel-edit" aria-selected="true" tabindex="0" data-active="" data-value="edit" data-orientation="horizontal"><span data-slot="tabs-title" dir="auto">Edit</span></button>' +
+            '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-preview" aria-controls="id-1-panel-preview" aria-selected="false" tabindex="-1" data-value="preview" data-orientation="horizontal"><span data-slot="tabs-title" dir="auto">Preview</span></button>' +
+            '<button data-slot="tabs-trigger" type="button" role="tab" id="id-1-tab-history" aria-controls="id-1-panel-history" aria-selected="false" tabindex="-1" data-value="history" data-orientation="horizontal" disabled=""><span data-slot="tabs-title" dir="auto">History</span></button></div></div>' +
             '<div data-slot="tabs-content" role="tabpanel" id="id-1-panel-edit" aria-labelledby="id-1-tab-edit" tabindex="0" data-orientation="horizontal">Editor</div>' +
             '<div data-slot="tabs-content" role="tabpanel" id="id-1-panel-preview" aria-labelledby="id-1-tab-preview" tabindex="0" hidden="" data-hidden="" data-orientation="horizontal">Rendered</div>' +
             '<div data-slot="tabs-content" role="tabpanel" id="id-1-panel-history" aria-labelledby="id-1-tab-history" tabindex="0" hidden="" data-hidden="" data-orientation="horizontal">Versions</div></div>',

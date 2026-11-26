@@ -47,6 +47,8 @@ import {
     useTabs,
 } from "./control.ts";
 import { itemMarker } from "./tabs.stylex.ts";
+import { defineComponent } from "@destack/view/declare";
+import { field } from "@destack/object";
 
 /** The orientation and activation of tabs that set neither. */
 const DEFAULTS: Required<Pick<TabsProperties, "orientation" | "activationMode">> = {
@@ -151,6 +153,8 @@ const styles = style.create({
     // take the room there is for tabs that share it
     sharing: {
         flexGrow: 1,
+        width: "100%",
+        justifyContent: "flex-start",
     },
     // narrow a tab from the width of its words, at most a few of them
     shrink: {
@@ -174,6 +178,13 @@ const styles = style.create({
         maxWidth: FIXED_WIDTH,
         containerType: "inline-size",
         containerName: "tab",
+    },
+    // narrow a tab without an item from the width of its words, as an item narrows
+    alone: {
+        flexGrow: 0,
+        flexShrink: 1,
+        flexBasis: "auto",
+        minWidth: 0,
     },
     // take the width of a vertical list, whatever the words
     stretch: {
@@ -521,40 +532,73 @@ export type TabsValueProperties<Attributes> = TabsElementProperties<Omit<Attribu
 };
 
 /** Hold the selected tab of a list of tabs and their panels. */
-export function Tabs(properties: TabsProperties): JSX.Element {
-    // share one set of tabs with the list, tabs and panels
-    const tabs = merge(DEFAULTS, properties);
-    const locale = useLocale();
-    const rest = omit(
-        tabs,
-        "value",
-        "defaultValue",
-        "onValueChange",
-        "onClose",
-        "onMove",
-        "reference",
-        "onReopen",
-        "idPrefix",
-        "orientation",
-        "activationMode",
-    );
-    const control = new TabsControl(tabs);
+export const Tabs = defineComponent(
+    "tabs",
+    function Tabs(properties: TabsProperties): JSX.Element {
+        // share one set of tabs with the list, tabs and panels
+        const tabs = merge(DEFAULTS, properties);
+        const locale = useLocale();
+        const rest = omit(
+            tabs,
+            "value",
+            "defaultValue",
+            "onValueChange",
+            "onClose",
+            "onMove",
+            "reference",
+            "onReopen",
+            "idPrefix",
+            "orientation",
+            "activationMode",
+        );
+        const control = new TabsControl(tabs);
 
-    return (
-        <TabsContext value={control}>
-            {renderPart("div", "tabs", rest, () => [styles.tabs, orientations[tabs.orientation]], {
-                get "data-orientation"() {
-                    return tabs.orientation;
+        return (
+            <TabsContext value={control}>
+                {renderPart(
+                    "div",
+                    "tabs",
+                    rest,
+                    () => [styles.tabs, orientations[tabs.orientation]],
+                    {
+                        get "data-orientation"() {
+                            return tabs.orientation;
+                        },
+                        ref: TabsControl.handlers(
+                            () => control,
+                            () => locale.direction,
+                            (value) => properties.reference?.(value),
+                        ),
+                    },
+                )}
+            </TabsContext>
+        );
+    },
+    {
+        orientation: field
+            .enum({
+                horizontal: { title: t.context("option")`Horizontal` },
+                vertical: { title: t.context("option")`Vertical` },
+            })
+            .labeled(t.context("label")`Orientation`)
+            .described(t`Whether the tabs lie in a row or a column.`)
+            .default("horizontal"),
+        activationMode: field
+            .enum({
+                automatic: {
+                    title: t.context("option")`Automatic`,
+                    description: t`The arrow keys show each tab as they reach it.`,
                 },
-                ref: TabsControl.handlers(
-                    () => control,
-                    () => locale.direction,
-                    (value) => properties.reference?.(value),
-                ),
-            })}
-        </TabsContext>
-    );
-}
+                manual: {
+                    title: t.context("option")`Manual`,
+                    description: t`The arrow keys move the focus, and Enter or Space shows the tab.`,
+                },
+            })
+            .labeled(t.context("label")`Activation`)
+            .described(t`When a tab the keys reach shows its panel.`)
+            .default("automatic"),
+    },
+);
 
 /** The properties of a tab list, the native element's attributes included. */
 export interface TabsListProperties extends TabsElementProperties<
@@ -567,114 +611,159 @@ export interface TabsListProperties extends TabsElementProperties<
 }
 
 /** Render the tab list, which arrow keys, Home and End move through. */
-export function TabsList(properties: TabsListProperties): JSX.Element {
-    // move the focus among the list's tabs, selecting them when activation is automatic
-    const control = useTabs();
-    const locale = useLocale();
-    let element: HTMLElement | undefined;
-    const move = (event: KeyboardEvent) => {
-        // leave keys with modifiers to the actions
-        if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
-            return;
-        }
-        const target = control.list.focus.move(event, locale.direction);
-        if (target !== undefined && control.properties.activationMode === "automatic") {
-            control.select(target);
-        }
-    };
-
-    // move the tabs to their places as they open, close and move
-    createLayoutAnimation({
-        elements: () =>
-            control.list.items
-                .items()
-                .flatMap((tab) => control.element(tab.key) ?? tab.element() ?? []),
-        around: () => element,
-    });
-
-    // bring the selected tab into view
-    createEffect(
-        () => {
-            const value = control.value();
-
-            return value === undefined ? undefined : control.element(value);
-        },
-        (selected) => {
-            if (selected !== undefined && element !== undefined) {
-                Scroll.reveal(element, selected);
+export const TabsList = defineComponent(
+    "tabsList",
+    function TabsList(properties: TabsListProperties): JSX.Element {
+        // move the focus among the list's tabs, selecting them when activation is automatic
+        const control = useTabs();
+        const locale = useLocale();
+        let element: HTMLElement | undefined;
+        const move = (event: KeyboardEvent) => {
+            // leave keys with modifiers to the actions
+            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+                return;
             }
-        },
-    );
+            const target = control.list.focus.move(event, locale.direction);
+            if (target !== undefined && control.properties.activationMode === "automatic") {
+                control.select(target);
+            }
+        };
 
-    // show every tab in an overflow, else mark the sides it scrolls to
-    const isWhole = useContext(OverflowContext) !== null;
-    createEffect(
-        () => control.list.items.items().length,
-        () => (element === undefined || isWhole ? undefined : Scroll.follow(element)),
-    );
+        // move the tabs to their places as they open, close and move
+        createLayoutAnimation({
+            elements: () =>
+                control.list.items
+                    .items()
+                    .flatMap((tab) => control.element(tab.key) ?? tab.element() ?? []),
+            around: () => element,
+        });
 
-    // share the look with the tabs
-    const variant = (): TabsVariant => properties.variant ?? "default";
-    const sizing = (): TabsSizing => properties.sizing ?? "fit";
+        // bring the selected tab into view
+        createEffect(
+            () => {
+                const value = control.value();
 
-    // leave the ground to a row of more than tabs
-    const isBare = (): boolean => isWhole && variant() === "card";
+                return value === undefined ? undefined : control.element(value);
+            },
+            (selected) => {
+                if (selected !== undefined && element !== undefined) {
+                    Scroll.reveal(element, selected);
+                }
+            },
+        );
 
-    return (
-        <TabsListContext value={{ variant, sizing }}>
-            {renderPart(
-                "div",
-                "tabs-list",
-                omit(properties, "variant", "sizing", "children"),
-                () => [
-                    styles.list,
-                    !isBare() && variants[variant()],
-                    lists[control.properties.orientation],
-                    isWhole && styles.whole,
-                    sizing() !== "fit" && styles.narrow,
-                    sizing() === "fixed" && styles.sharing,
-                ],
-                {
-                    role: "tablist",
-                    get children() {
-                        return (
-                            <div
-                                role="presentation"
-                                ref={(created) => (element = created)}
-                                {...style.attributes([
-                                    styles.content,
-                                    contents[variant()],
-                                    !isWhole && [
-                                        scrolls[control.properties.orientation],
-                                        scrollFade.sides,
-                                    ],
-                                ])}
-                            >
-                                {properties.children}
-                            </div>
-                        );
+        // show every tab in an overflow, else mark the sides it scrolls to
+        const isWhole = useContext(OverflowContext) !== null;
+        createEffect(
+            () => control.list.items.items().length,
+            () => (element === undefined || isWhole ? undefined : Scroll.follow(element)),
+        );
+
+        // share the look with the tabs
+        const variant = (): TabsVariant => properties.variant ?? "default";
+        const sizing = (): TabsSizing => properties.sizing ?? "fit";
+
+        // leave the ground to a row of more than tabs
+        const isBare = (): boolean => isWhole && variant() === "card";
+
+        return (
+            <TabsListContext value={{ variant, sizing }}>
+                {renderPart(
+                    "div",
+                    "tabs-list",
+                    omit(properties, "variant", "sizing", "children"),
+                    () => [
+                        styles.list,
+                        !isBare() && variants[variant()],
+                        lists[control.properties.orientation],
+                        isWhole && styles.whole,
+                        sizing() !== "fit" && styles.narrow,
+                        sizing() === "fixed" && styles.sharing,
+                    ],
+                    {
+                        role: "tablist",
+                        get children() {
+                            return (
+                                <div
+                                    role="presentation"
+                                    ref={(created) => (element = created)}
+                                    {...style.attributes([
+                                        styles.content,
+                                        contents[variant()],
+                                        !isWhole && [
+                                            scrolls[control.properties.orientation],
+                                            scrollFade.sides,
+                                        ],
+                                    ])}
+                                >
+                                    {properties.children}
+                                </div>
+                            );
+                        },
+                        get "data-variant"() {
+                            return variant();
+                        },
+                        get "data-orientation"() {
+                            return control.properties.orientation;
+                        },
+                        get "aria-orientation"() {
+                            return control.properties.orientation;
+                        },
+                        onKeyDown: move,
+                        onFocusIn: (event) => {
+                            if (element !== undefined && event.target instanceof HTMLElement) {
+                                Scroll.reveal(element, event.target);
+                            }
+                        },
+                        onFocusOut: (event) => control.list.focus.focusOut(event),
                     },
-                    get "data-variant"() {
-                        return variant();
-                    },
-                    get "data-orientation"() {
-                        return control.properties.orientation;
-                    },
-                    get "aria-orientation"() {
-                        return control.properties.orientation;
-                    },
-                    onKeyDown: move,
-                    onFocusIn: (event) => {
-                        if (element !== undefined && event.target instanceof HTMLElement) {
-                            Scroll.reveal(element, event.target);
-                        }
-                    },
-                    onFocusOut: (event) => control.list.focus.focusOut(event),
+                )}
+            </TabsListContext>
+        );
+    },
+    {
+        variant: field
+            .enum({
+                default: {
+                    title: t.context("option")`Default`,
+                    description: t`Tabs on a track, the shown one raised.`,
                 },
-            )}
-        </TabsListContext>
-    );
-}
+                line: {
+                    title: t.context("option")`Line`,
+                    description: t`Tabs over a rule, the shown one underlined.`,
+                },
+                card: {
+                    title: t.context("option")`Card`,
+                    description: t`Tabs as the tops of cards, the shown one joined to its panel.`,
+                },
+                subtle: {
+                    title: t.context("option")`Subtle`,
+                    description: t`Quiet tabs, the shown one filled.`,
+                },
+            })
+            .labeled(t.context("label")`Variant`)
+            .described(t`How the tabs set the shown one apart.`)
+            .default("default"),
+        sizing: field
+            .enum({
+                fit: {
+                    title: t.context("option")`Fit`,
+                    description: t`Each tab as wide as its label.`,
+                },
+                shrink: {
+                    title: t.context("option")`Shrink`,
+                    description: t`Tabs narrow to fit their list, their labels cut short.`,
+                },
+                fixed: {
+                    title: t.context("option")`Fixed`,
+                    description: t`Every tab as wide as the others.`,
+                },
+            })
+            .labeled(t.context("label")`Sizing`)
+            .described(t`How wide each tab is.`)
+            .default("fit"),
+    },
+);
 
 /** The properties of a tab, the native button's attributes included. */
 export type TabsTriggerProperties = TabsElementProperties<
@@ -792,7 +881,7 @@ export function TabsClose(
             type: "button" as const,
             tabindex: -1,
             get "aria-label"() {
-                return locale.render(t`Close`);
+                return locale.render(t.context("action")`Close`);
             },
             get "aria-describedby"() {
                 return control.tabId(item.value);
@@ -892,96 +981,114 @@ export function TabsIndicator(
 }
 
 /** Render a tab that selects its panel on click, or on focus when activation is automatic. */
-export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
-    // take its own value, or its item's
-    const control = useTabs();
-    const { variant, sizing } = useContext(TabsListContext);
-    const item = useContext(TabsItemContext);
-    const value = untrack(() => properties.value) ?? item?.value;
-    if (value === undefined) {
-        throw new TypeError("a tab is invalid: it has neither a value nor an item around it");
-    }
+export const TabsTrigger = defineComponent(
+    "tabsTrigger",
+    function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
+        // take its own value, or its item's
+        const control = useTabs();
+        const { variant, sizing } = useContext(TabsListContext);
+        const item = useContext(TabsItemContext);
+        const value = untrack(() => properties.value) ?? item?.value;
+        if (value === undefined) {
+            throw new TypeError("a tab is invalid: it has neither a value nor an item around it");
+        }
 
-    // join the tabs and read whether this one is selected
-    let element: HTMLElement | undefined;
-    const entry = useOverflowEntry({ kind: "item", element: () => element });
-    control.list.add({
-        key: value,
-        text: () => value,
-        isDisabled: () =>
-            properties.disabled === true || entry?.isHidden() === true || item?.isHidden() === true,
-        element: () => element,
-    });
-    const rest = omit(properties, "value");
-    const isSelected = (): boolean => control.value() === value;
-    const isCut = (): boolean => item !== null && sizing() !== "fit";
+        // join the tabs and read whether this one is selected
+        let element: HTMLElement | undefined;
+        const entry = useOverflowEntry({ kind: "item", element: () => element });
+        control.list.add({
+            key: value,
+            text: () => value,
+            isDisabled: () =>
+                properties.disabled === true ||
+                entry?.isHidden() === true ||
+                item?.isHidden() === true,
+            element: () => element,
+        });
+        const rest = omit(properties, "value");
+        const isSelected = (): boolean => control.value() === value;
+        const isCut = (): boolean => sizing() !== "fit";
 
-    return (
-        <TitleContext value={isCut}>
-            {renderPart(
-                "button",
-                "tabs-trigger",
-                rest,
-                () => [
-                    text.sm,
-                    state.focusInset,
-                    state.disabled,
-                    styles.trigger,
-                    triggers[control.properties.orientation],
-                    item === null ? looks[variant()] : styles.inside,
-                    words[variant()],
-                    item?.isClosable() === true && styles.beside,
-                    isCut() &&
-                        (control.properties.orientation === "vertical" || sizing() === "fixed"
-                            ? [styles.cut, styles.icon]
-                            : styles.cut),
-                    isSelected() && [
-                        item === null && styles.selected,
-                        item === null && control.place() === undefined && marks[variant()],
+        return (
+            <TitleContext value={isCut}>
+                {renderPart(
+                    "button",
+                    "tabs-trigger",
+                    rest,
+                    () => [
+                        text.sm,
+                        state.focusInset,
+                        state.disabled,
+                        styles.trigger,
+                        triggers[control.properties.orientation],
+                        item === null ? looks[variant()] : styles.inside,
+                        words[variant()],
+                        item?.isClosable() === true && styles.beside,
+                        item === null &&
+                            isCut() &&
+                            control.properties.orientation === "horizontal" && [
+                                styles.alone,
+                                sizing() === "fixed" && styles.fixed,
+                            ],
+                        isCut() &&
+                            (control.properties.orientation === "vertical" || sizing() === "fixed"
+                                ? [styles.cut, styles.icon]
+                                : styles.cut),
+                        isSelected() && [
+                            item === null && styles.selected,
+                            item === null && control.place() === undefined && marks[variant()],
+                        ],
                     ],
-                ],
-                {
-                    type: "button" as const,
-                    role: "tab" as const,
-                    get id() {
-                        return control.tabId(value);
+                    {
+                        type: "button" as const,
+                        role: "tab" as const,
+                        get id() {
+                            return control.tabId(value);
+                        },
+                        get "aria-controls"() {
+                            return control.panelId(value);
+                        },
+                        get "aria-selected"() {
+                            return isSelected() ? "true" : "false";
+                        },
+                        get "aria-keyshortcuts"() {
+                            return item?.isClosable() === true ? "Delete" : undefined;
+                        },
+                        get tabindex() {
+                            return control.list.focus.isActive(value) ? 0 : -1;
+                        },
+                        ref: (target: HTMLElement) => {
+                            element = target;
+                        },
+                        get "data-active"() {
+                            return isSelected() ? "" : undefined;
+                        },
+                        get "data-value"() {
+                            return value;
+                        },
+                        get "data-orientation"() {
+                            return control.properties.orientation;
+                        },
+                        onClick: () => control.select(value),
+                        onFocus: () => control.list.focus.focusIn(value),
+                        onKeyDown: (event: PartEvent<KeyboardEvent>) => {
+                            if (event.key === "Delete") {
+                                control.close(value);
+                            }
+                        },
                     },
-                    get "aria-controls"() {
-                        return control.panelId(value);
-                    },
-                    get "aria-selected"() {
-                        return isSelected() ? "true" : "false";
-                    },
-                    get "aria-keyshortcuts"() {
-                        return item?.isClosable() === true ? "Delete" : undefined;
-                    },
-                    get tabindex() {
-                        return control.list.focus.isActive(value) ? 0 : -1;
-                    },
-                    ref: (target: HTMLElement) => {
-                        element = target;
-                    },
-                    get "data-active"() {
-                        return isSelected() ? "" : undefined;
-                    },
-                    get "data-value"() {
-                        return value;
-                    },
-                    get "data-orientation"() {
-                        return control.properties.orientation;
-                    },
-                    onClick: () => control.select(value),
-                    onFocus: () => control.list.focus.focusIn(value),
-                    onKeyDown: (event: PartEvent<KeyboardEvent>) => {
-                        if (event.key === "Delete") {
-                            control.close(value);
-                        }
-                    },
-                },
-            )}
-        </TitleContext>
-    );
-}
+                )}
+            </TitleContext>
+        );
+    },
+    {
+        disabled: field
+            .boolean()
+            .labeled(t.context("label")`Disabled`)
+            .described(t`Refuses the focus and presses where the tab cannot show now.`)
+            .default(false),
+    },
+);
 
 /** Render the words of a tab, cut in their own direction where the tab narrows. */
 export function TabsTitle(

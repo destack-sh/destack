@@ -1,16 +1,16 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { tabsHistoryUnavailable, tabsManualActivation } from "./tabs.example.tsx";
+import { tabsDisabled, tabsManual } from "./tabs.example.tsx";
 import { Tabs } from "./tabs.tsx";
 
 /** Select tabs with the arrow keys. */
 export const tabsSelectWithArrowKeys = defineScenario({
     of: Tabs,
     interaction: viewInteraction,
-    name: "select-with-arrow-keys",
-    description:
-        "select tabs as the arrow keys move the focus, skipping disabled tabs and wrapping",
-    given: { examples: [tabsHistoryUnavailable] },
+    name: "selectWithArrowKeys",
+    description: t`Select tabs as the arrow keys move the focus, skipping disabled tabs and wrapping.`,
+    given: { examples: [tabsDisabled] },
     parameters: {},
     when: [
         {
@@ -71,9 +71,9 @@ export const tabsSelectWithArrowKeys = defineScenario({
 export const tabsMoveWithoutSelecting = defineScenario({
     of: Tabs,
     interaction: viewInteraction,
-    name: "move-without-selecting",
-    description: "move the focus without selecting in manual activation, selecting on click",
-    given: { examples: [tabsManualActivation] },
+    name: "moveWithoutSelecting",
+    description: t`Move the focus without selecting in manual activation, selecting on click.`,
+    given: { examples: [tabsManual] },
     parameters: {},
     when: [
         {

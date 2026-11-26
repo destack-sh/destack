@@ -6,8 +6,8 @@ import { items } from "../action/action.ts";
 /** Close a tab. */
 export const closeTab = defineAction({
     name: "tab.close",
-    title: t`Close`,
-    category: t`Tabs`,
+    title: t.context("action")`Close`,
+    category: t.context("title")`Tabs`,
     keybinding: "mod+w",
     input: { items: items.exactOptional() },
 });
@@ -15,8 +15,8 @@ export const closeTab = defineAction({
 /** Close every tab but one. */
 export const closeOtherTabs = defineAction({
     name: "tab.closeOthers",
-    title: t`Close others`,
-    category: t`Tabs`,
+    title: t.context("action")`Close others`,
+    category: t.context("title")`Tabs`,
     input: { items: items.exactOptional() },
 });
 
@@ -24,15 +24,15 @@ export const closeOtherTabs = defineAction({
 export const closeTabsAfter = defineAction({
     name: "tab.closeAfter",
     title: t`Close those after`,
-    category: t`Tabs`,
+    category: t.context("title")`Tabs`,
     input: { items: items.exactOptional() },
 });
 
 /** Close every tab. */
 export const closeAllTabs = defineAction({
     name: "tab.closeAll",
-    title: t`Close all`,
-    category: t`Tabs`,
+    title: t.context("action")`Close all`,
+    category: t.context("title")`Tabs`,
     input: { items: items.exactOptional() },
 });
 
@@ -40,23 +40,23 @@ export const closeAllTabs = defineAction({
 export const reopenTab = defineAction({
     name: "tab.reopen",
     title: t`Reopen closed tab`,
-    category: t`Tabs`,
+    category: t.context("title")`Tabs`,
     keybinding: "mod+shift+t",
 });
 
 /** Select the next tab. */
 export const nextTab = defineAction({
     name: "tab.next",
-    title: t`Next tab`,
-    category: t`Tabs`,
+    title: t.context("action")`Next tab`,
+    category: t.context("title")`Tabs`,
     keybinding: "mod+alt+right",
 });
 
 /** Select the previous tab. */
 export const previousTab = defineAction({
     name: "tab.previous",
-    title: t`Previous tab`,
-    category: t`Tabs`,
+    title: t.context("action")`Previous tab`,
+    category: t.context("title")`Tabs`,
     keybinding: "mod+alt+left",
 });
 
@@ -64,15 +64,15 @@ export const previousTab = defineAction({
 export const goToTab = defineAction({
     name: "tab.goTo",
     title: t`Go to tab…`,
-    category: t`Tabs`,
+    category: t.context("title")`Tabs`,
     input: { tab: schema.string() },
 });
 
 /** Move a tab one place left. */
 export const moveTabLeft = defineAction({
     name: "tab.moveLeft",
-    title: t`Move left`,
-    category: t`Tabs`,
+    title: t.context("action")`Move left`,
+    category: t.context("title")`Tabs`,
     keybinding: "shift+alt+left",
     input: { items: items.exactOptional() },
 });
@@ -80,8 +80,8 @@ export const moveTabLeft = defineAction({
 /** Move a tab one place right. */
 export const moveTabRight = defineAction({
     name: "tab.moveRight",
-    title: t`Move right`,
-    category: t`Tabs`,
+    title: t.context("action")`Move right`,
+    category: t.context("title")`Tabs`,
     keybinding: "shift+alt+right",
     input: { items: items.exactOptional() },
 });

@@ -94,7 +94,7 @@ export class TabsControl {
         const [value, setValue] = createControllableSignal({
             isControlled: () => properties.value !== undefined,
             value: () => properties.value,
-            defaultValue: properties.defaultValue,
+            defaultValue: untrack(() => properties.defaultValue),
             onChange: (next) => {
                 // tell the change handler of each selected tab
                 if (next !== undefined) {
