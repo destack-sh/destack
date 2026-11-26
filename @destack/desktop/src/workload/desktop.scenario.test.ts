@@ -42,7 +42,7 @@ test("show a person another program signs in after the desktop started, once the
     // run the owner's home in the cloud, and their laptop with the desktop's objects through the relay
     const { home } = await TestComputer.home();
     const { world } = home;
-    const relay = await TestComputer.relay(world);
+    const relay = home.relay();
     const laptop = await TestComputer.open({
         world,
         relay: relay.url,

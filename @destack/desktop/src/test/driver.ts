@@ -62,7 +62,7 @@ export class DesktopDriver implements Driver<DesktopStep, DesktopObservation> {
     static async start(_given: Given): Promise<DesktopDriver> {
         // run the home in the cloud, and the laptop through the relay
         const { home } = await TestComputer.home();
-        const relay = await TestComputer.relay(home.world);
+        const relay = home.relay();
         const laptop = await TestComputer.open({
             world: home.world,
             relay: relay.url,
