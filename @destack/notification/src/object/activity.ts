@@ -104,7 +104,7 @@ export const activity = defineObject(
     },
     (method) => ({
         notify: method.mutation({
-            title: t`Notify`,
+            title: t.context("action")`Notify`,
             permission: "post",
             target: "scope",
             visibility: "installation",
@@ -131,7 +131,7 @@ export const activity = defineObject(
         post: method.create("post", { visibility: "package" }),
         occur: method.update("post", { visibility: "package" }),
         act: method.mutation({
-            title: t`Act`,
+            title: t.context("action")`Act`,
             permission: "read",
             input: schema.object({
                 /** The declared action's name. */

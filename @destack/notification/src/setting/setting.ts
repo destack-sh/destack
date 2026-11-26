@@ -14,7 +14,7 @@ const SUMMARY_COUNT = 12;
 /** When notifications stay quiet, as mobile platforms' focus modes. */
 export const focus = defineSetting({
     name: "focus",
-    title: t`Focus`,
+    title: t.context("title")`Focus`,
     description: t`When notifications wait in the inbox instead of alerting you.`,
     schema: schema.object({
         /** The quiet hours. */
@@ -33,7 +33,7 @@ export const focus = defineSetting({
 /** How a person receives each notification, by its key, as notification channels do. */
 export const preferences = defineSetting({
     name: "preferences",
-    title: t`Notifications`,
+    title: t.context("title")`Notifications`,
     description: t`How each app's notifications reach you.`,
     schema: schema.record(schema.string(), Preference),
     default: {},
@@ -45,7 +45,7 @@ export const preferences = defineSetting({
 /** When the scheduled summary goes out, and on which channels. */
 export const summarySchedule = defineSetting({
     name: "summary",
-    title: t`Scheduled summary`,
+    title: t.context("title")`Scheduled summary`,
     description: t`When notifications set to arrive in a summary are sent, and how.`,
     schema: schema.object({
         /** The times of day it goes out. */

@@ -102,7 +102,7 @@ export const announcement = defineObject(
     },
     (method) => ({
         announce: method.mutation({
-            title: t`Announce`,
+            title: t.context("action")`Announce`,
             permission: "post",
             target: "scope",
             visibility: "installation",
@@ -128,7 +128,11 @@ export const announcement = defineObject(
         }),
         post: method.create("post", { visibility: "package" }),
         replace: method.update("post", { visibility: "package" }),
-        expand: method.mutation({ title: t`Expand`, permission: "expand", visibility: "package" }),
+        expand: method.mutation({
+            title: t.context("action")`Expand`,
+            permission: "expand",
+            visibility: "package",
+        }),
     }),
 );
 

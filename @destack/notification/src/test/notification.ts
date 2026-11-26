@@ -4,7 +4,7 @@ import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { asc, eq } from "@destack/db";
 import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
-import type { LocaleTag } from "@destack/locale";
+import { CatalogSource, type LocaleTag } from "@destack/locale";
 import { type TestMailAnswer, TestMailTransport } from "@destack/mail/test";
 import { mailConnector } from "@destack/mail/transport";
 import { MAIL_PROVIDER, subscribeBrowser, TestMessage, type Browser } from "@destack/message/test";
@@ -249,7 +249,12 @@ export class TestNotification implements AsyncDisposable {
                 description: describeSetting(declared),
             })),
             files: new Map([
-                ["locale/de.json", new TextEncoder().encode(JSON.stringify(germanCatalog))],
+                [
+                    "locale/de.json",
+                    new TextEncoder().encode(
+                        JSON.stringify(CatalogSource.compile(CatalogSource.parse(germanCatalog))),
+                    ),
+                ],
             ]),
         });
     }

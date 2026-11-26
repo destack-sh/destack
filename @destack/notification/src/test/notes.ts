@@ -1,6 +1,6 @@
 import { space, user } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
-import { argument, type Catalog, Message, plural, t } from "@destack/locale";
+import { argument, type Catalog, plural, t } from "@destack/locale";
 import { defineAction, defineObject, definePackage, field, selected } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { testBuild, testIdentity } from "@destack/object/test";
@@ -202,7 +202,7 @@ export const documentHandlers = document.implement({
 });
 
 /** Write a message of the documents' package, which its catalogs translate. */
-const write = Message.context("", { package: NOTES });
+const write = t.withModule({ package: NOTES });
 
 /** The headline of a change. */
 export const changed = write`Document changed`;

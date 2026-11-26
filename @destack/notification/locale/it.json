@@ -2,30 +2,144 @@
     "package": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
     "locale": "it",
     "messages": {
-        "5e9yby7z9xs7": ".input {$count :number}\n.match $count\none {{Attività}}\n* {{Attività}}",
-        "3a1s6bs1r29sq": "Notifica",
-        "dl9fg5poec1p": "Agisci",
-        "201kpf3h9zgvs": ".input {$count :number}\n.match $count\none {{Annuncio}}\n* {{Annunci}}",
-        "1jei56r0iswfc": "Annuncia",
-        "3n6hjvrn4e073": "Espandi",
-        "2dfkaj8neyql0": ".input {$count :number}\n.match $count\none {{Notifica}}\n* {{Notifiche}}",
-        "cmvdkwhll6f0": "Consegna",
-        "2ufyhyttpsr0j": "Segna come letto",
-        "39vr387e8zx4d": "Segna come non letto",
-        "1np1cgw860ey5": "Posticipa",
-        "2lfv05pzntf5b": "Archivia",
-        "owu1gvg05fi6": "Rimuovi dall’archivio",
-        "e9fg17hqk8ds": ".input {$count :number}\n.match $count\none {{Iscrizione}}\n* {{Iscrizioni}}",
-        "34jzqbzm187a1": ".input {$count :number}\n.match $count\none {{Riepilogo}}\n* {{Riepiloghi}}",
-        "2mz1xwt94e5h5": "Invia",
-        "gu13ooczcf55": "Notifiche",
-        "w027yep9y2wp": "Dichiarare notifiche, avvisare i destinatari, seguire oggetti e consegnarle come messaggi.",
-        "2cm4swco3c572": "Consegnare le tue notifiche via e-mail, push e sui tuoi computer",
-        "3bq8i6hm612bg": "Inviare notifiche push ai tuoi browser e dispositivi",
-        "3d3xzrgg4r7k1": "Full immersion",
-        "qa7gimuopaom": "Quando le notifiche restano in arrivo invece di avvisarti.",
-        "2gs46b47gorz5": "Come ti arrivano le notifiche di ogni app.",
-        "2onm05suvsexs": "Quando e come vengono inviate le notifiche raccolte in un riepilogo.",
-        "fp21yr62itna": "Riepilogo programmato"
+        "11lax140tx7yn": {
+            "source": "Mark unread",
+            "context": "action",
+            "translation": "Segna come non letto da qui",
+            "state": "machine"
+        },
+        "1jbmp1vpgkgx4": {
+            "source": "Unarchive",
+            "context": "action",
+            "translation": "Ripristina dall'archivio",
+            "state": "machine"
+        },
+        "1r9aqm7nxl3cz": {
+            "source": "Act",
+            "context": "action",
+            "translation": "Agisci",
+            "state": "machine"
+        },
+        "1t9fvaex8qwc2": {
+            "source": "Announce",
+            "context": "action",
+            "translation": "Annuncia",
+            "state": "machine"
+        },
+        "1yq3aq51qtf59": {
+            "source": "Focus",
+            "context": "title",
+            "translation": "Full immersion",
+            "state": "machine"
+        },
+        "1zk6a1rgkhs21": {
+            "source": "Expand",
+            "context": "action",
+            "translation": "Espandi",
+            "state": "machine"
+        },
+        "201kpf3h9zgvs": {
+            "source": ".input {$count :number}\n.match $count\none {{Announcement}}\n* {{Announcements}}",
+            "translation": ".input {$count :number}\n.match $count\none {{Annuncio}}\n* {{Annunci}}",
+            "state": "machine"
+        },
+        "273trtw5y1myv": {
+            "source": "Send",
+            "context": "action",
+            "translation": "Invia",
+            "state": "machine"
+        },
+        "2cm4swco3c572": {
+            "source": "Deliver your notifications by email, push and on your desktops",
+            "translation": "Consegnare le tue notifiche via e-mail, push e sui tuoi computer",
+            "state": "machine"
+        },
+        "2dfkaj8neyql0": {
+            "source": ".input {$count :number}\n.match $count\none {{Notification}}\n* {{Notifications}}",
+            "translation": ".input {$count :number} .match $count one {{Notifica}} * {{Notifiche}}",
+            "state": "machine"
+        },
+        "2gs46b47gorz5": {
+            "source": "How each app's notifications reach you.",
+            "translation": "Come ti arrivano le notifiche di ogni app.",
+            "state": "machine"
+        },
+        "2onm05suvsexs": {
+            "source": "When notifications set to arrive in a summary are sent, and how.",
+            "translation": "Quando e come vengono inviate le notifiche raccolte in un riepilogo.",
+            "state": "machine"
+        },
+        "2sfu2ta6j6z6t": {
+            "source": "Notifications",
+            "context": "title",
+            "translation": "Notifiche",
+            "state": "machine"
+        },
+        "31sl1zn720dlu": {
+            "source": "Scheduled summary",
+            "context": "title",
+            "translation": "Riepilogo programmato",
+            "state": "machine"
+        },
+        "34jzqbzm187a1": {
+            "source": ".input {$count :number}\n.match $count\none {{Summary}}\n* {{Summaries}}",
+            "translation": ".input {$count :number}\n.match $count\none {{Riepilogo}}\n* {{Riepiloghi}}",
+            "state": "machine"
+        },
+        "3bq8i6hm612bg": {
+            "source": "Send notifications to your browsers and devices as pushes",
+            "translation": "Inviare notifiche push ai tuoi browser e dispositivi",
+            "state": "machine"
+        },
+        "3dejkkn31m3pg": {
+            "source": "Notify",
+            "context": "action",
+            "translation": "Notifica",
+            "state": "machine"
+        },
+        "3o6n579nusnzb": {
+            "source": "Snooze",
+            "context": "action",
+            "translation": "Posticipa",
+            "state": "machine"
+        },
+        "3sh2fgcxn4jom": {
+            "source": "Deliver",
+            "context": "action",
+            "translation": "Consegna",
+            "state": "machine"
+        },
+        "5e9yby7z9xs7": {
+            "source": ".input {$count :number}\n.match $count\none {{Activity}}\n* {{Activities}}",
+            "translation": ".input {$count :number}\n.match $count\none {{Attività}}\n* {{Attività}}",
+            "state": "machine"
+        },
+        "98jouda88jdp": {
+            "source": "Archive",
+            "context": "action",
+            "translation": "Archivia",
+            "state": "machine"
+        },
+        "e9fg17hqk8ds": {
+            "source": ".input {$count :number}\n.match $count\none {{Subscription}}\n* {{Subscriptions}}",
+            "translation": ".input {$count :number}\n.match $count\none {{Iscrizione}}\n* {{Iscrizioni}}",
+            "state": "machine"
+        },
+        "p4h3s0bcztkd": {
+            "source": "Read",
+            "context": "action",
+            "translation": "Leggi",
+            "state": "machine"
+        },
+        "qa7gimuopaom": {
+            "source": "When notifications wait in the inbox instead of alerting you.",
+            "translation": "Quando le notifiche restano in arrivo invece di avvisarti.",
+            "state": "machine"
+        },
+        "w027yep9y2wp": {
+            "source": "Declare notifications, notify recipients, watch objects and deliver them as messages.",
+            "translation": "Dichiarare notifiche, avvisare i destinatari, seguire oggetti e consegnarle come messaggi.",
+            "state": "machine"
+        }
     }
 }

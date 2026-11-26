@@ -13,7 +13,7 @@ import { t } from "@destack/locale";
 
 /** The handle stacks install notifications by, and clients call a space's inbox through. */
 export default definePackage({
-    title: t`Notifications`,
+    title: t.context("title")`Notifications`,
     description: t`Declare notifications, notify recipients, watch objects and deliver them as messages.`,
     icon: "bell",
     color: "purple",

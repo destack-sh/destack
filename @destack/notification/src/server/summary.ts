@@ -80,7 +80,7 @@ async function send(
         const [latest] = included;
         if (latest !== undefined) {
             const content: NotificationContent = {
-                title: locale.render(t`Scheduled summary`),
+                title: locale.render(t.context("title")`Scheduled summary`),
                 body: Activity.summarize(included.map((entry) => entry.activity)).join("\n"),
             };
             const composed = compose(server, to, content, undefined, context.scope);

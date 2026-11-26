@@ -2,30 +2,144 @@
     "package": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
     "locale": "nl",
     "messages": {
-        "5e9yby7z9xs7": ".input {$count :number}\n.match $count\none {{Activiteit}}\n* {{Activiteiten}}",
-        "3a1s6bs1r29sq": "Melden",
-        "dl9fg5poec1p": "Uitvoeren",
-        "201kpf3h9zgvs": ".input {$count :number}\n.match $count\none {{Aankondiging}}\n* {{Aankondigingen}}",
-        "1jei56r0iswfc": "Aankondigen",
-        "3n6hjvrn4e073": "Uitvouwen",
-        "2dfkaj8neyql0": ".input {$count :number}\n.match $count\none {{Melding}}\n* {{Meldingen}}",
-        "cmvdkwhll6f0": "Bezorgen",
-        "2ufyhyttpsr0j": "Markeren als gelezen",
-        "39vr387e8zx4d": "Markeren als ongelezen",
-        "1np1cgw860ey5": "Snoozen",
-        "2lfv05pzntf5b": "Archiveren",
-        "owu1gvg05fi6": "Uit archief halen",
-        "e9fg17hqk8ds": ".input {$count :number}\n.match $count\none {{Abonnement}}\n* {{Abonnementen}}",
-        "34jzqbzm187a1": ".input {$count :number}\n.match $count\none {{Samenvatting}}\n* {{Samenvattingen}}",
-        "2mz1xwt94e5h5": "Verzenden",
-        "gu13ooczcf55": "Meldingen",
-        "w027yep9y2wp": "Meldingen declareren, ontvangers inlichten, objecten volgen en ze als berichten bezorgen.",
-        "2cm4swco3c572": "Je meldingen bezorgen per e-mail, als push en op je computers",
-        "3bq8i6hm612bg": "Meldingen als push naar je browsers en apparaten sturen",
-        "3d3xzrgg4r7k1": "Focus",
-        "qa7gimuopaom": "Wanneer meldingen in de inbox wachten in plaats van je te storen.",
-        "2gs46b47gorz5": "Hoe de meldingen van elke app je bereiken.",
-        "2onm05suvsexs": "Wanneer en hoe meldingen in een samenvatting worden verzonden.",
-        "fp21yr62itna": "Geplande samenvatting"
+        "11lax140tx7yn": {
+            "source": "Mark unread",
+            "context": "action",
+            "translation": "Vanaf hier als ongelezen markeren",
+            "state": "machine"
+        },
+        "1jbmp1vpgkgx4": {
+            "source": "Unarchive",
+            "context": "action",
+            "translation": "Dearchiveren",
+            "state": "machine"
+        },
+        "1r9aqm7nxl3cz": {
+            "source": "Act",
+            "context": "action",
+            "translation": "Uitvoeren",
+            "state": "machine"
+        },
+        "1t9fvaex8qwc2": {
+            "source": "Announce",
+            "context": "action",
+            "translation": "Aankondigen",
+            "state": "machine"
+        },
+        "1yq3aq51qtf59": {
+            "source": "Focus",
+            "context": "title",
+            "translation": "Focus",
+            "state": "machine"
+        },
+        "1zk6a1rgkhs21": {
+            "source": "Expand",
+            "context": "action",
+            "translation": "Uitvouwen",
+            "state": "machine"
+        },
+        "201kpf3h9zgvs": {
+            "source": ".input {$count :number}\n.match $count\none {{Announcement}}\n* {{Announcements}}",
+            "translation": ".input {$count :number}\n.match $count\none {{Aankondiging}}\n* {{Aankondigingen}}",
+            "state": "machine"
+        },
+        "273trtw5y1myv": {
+            "source": "Send",
+            "context": "action",
+            "translation": "Verzenden",
+            "state": "machine"
+        },
+        "2cm4swco3c572": {
+            "source": "Deliver your notifications by email, push and on your desktops",
+            "translation": "Je meldingen bezorgen per e-mail, als push en op je computers",
+            "state": "machine"
+        },
+        "2dfkaj8neyql0": {
+            "source": ".input {$count :number}\n.match $count\none {{Notification}}\n* {{Notifications}}",
+            "translation": ".input {$count :number} .match $count one {{Melding}} * {{Meldingen}}",
+            "state": "machine"
+        },
+        "2gs46b47gorz5": {
+            "source": "How each app's notifications reach you.",
+            "translation": "Hoe de meldingen van elke app je bereiken.",
+            "state": "machine"
+        },
+        "2onm05suvsexs": {
+            "source": "When notifications set to arrive in a summary are sent, and how.",
+            "translation": "Wanneer en hoe meldingen in een samenvatting worden verzonden.",
+            "state": "machine"
+        },
+        "2sfu2ta6j6z6t": {
+            "source": "Notifications",
+            "context": "title",
+            "translation": "Meldingen",
+            "state": "machine"
+        },
+        "31sl1zn720dlu": {
+            "source": "Scheduled summary",
+            "context": "title",
+            "translation": "Geplande samenvatting",
+            "state": "machine"
+        },
+        "34jzqbzm187a1": {
+            "source": ".input {$count :number}\n.match $count\none {{Summary}}\n* {{Summaries}}",
+            "translation": ".input {$count :number}\n.match $count\none {{Samenvatting}}\n* {{Samenvattingen}}",
+            "state": "machine"
+        },
+        "3bq8i6hm612bg": {
+            "source": "Send notifications to your browsers and devices as pushes",
+            "translation": "Meldingen als push naar je browsers en apparaten sturen",
+            "state": "machine"
+        },
+        "3dejkkn31m3pg": {
+            "source": "Notify",
+            "context": "action",
+            "translation": "Melden",
+            "state": "machine"
+        },
+        "3o6n579nusnzb": {
+            "source": "Snooze",
+            "context": "action",
+            "translation": "Sluimeren",
+            "state": "machine"
+        },
+        "3sh2fgcxn4jom": {
+            "source": "Deliver",
+            "context": "action",
+            "translation": "Bezorgen",
+            "state": "machine"
+        },
+        "5e9yby7z9xs7": {
+            "source": ".input {$count :number}\n.match $count\none {{Activity}}\n* {{Activities}}",
+            "translation": ".input {$count :number}\n.match $count\none {{Activiteit}}\n* {{Activiteiten}}",
+            "state": "machine"
+        },
+        "98jouda88jdp": {
+            "source": "Archive",
+            "context": "action",
+            "translation": "Archiveren",
+            "state": "machine"
+        },
+        "e9fg17hqk8ds": {
+            "source": ".input {$count :number}\n.match $count\none {{Subscription}}\n* {{Subscriptions}}",
+            "translation": ".input {$count :number}\n.match $count\none {{Abonnement}}\n* {{Abonnementen}}",
+            "state": "machine"
+        },
+        "p4h3s0bcztkd": {
+            "source": "Read",
+            "context": "action",
+            "translation": "Lezen",
+            "state": "machine"
+        },
+        "qa7gimuopaom": {
+            "source": "When notifications wait in the inbox instead of alerting you.",
+            "translation": "Wanneer meldingen in de inbox wachten in plaats van je te storen.",
+            "state": "machine"
+        },
+        "w027yep9y2wp": {
+            "source": "Declare notifications, notify recipients, watch objects and deliver them as messages.",
+            "translation": "Meldingen declareren, ontvangers inlichten, objecten volgen en ze als berichten bezorgen.",
+            "state": "machine"
+        }
     }
 }

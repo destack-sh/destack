@@ -60,7 +60,11 @@ export const notification = defineObject(
             fields: ["plannedAt", "deliveryAt", "delivered", "summaryAt"],
         }),
         /** Deliver its last occurrence to each destination due now, deferring the others. */
-        deliver: method.mutation({ title: t`Deliver`, permission: "plan", visibility: "package" }),
+        deliver: method.mutation({
+            title: t.context("action")`Deliver`,
+            permission: "plan",
+            visibility: "package",
+        }),
         /** Move every notification waiting for one summary to another, or out of any. */
         reschedule: method.updateMany("plan", {
             visibility: "package",
@@ -69,15 +73,23 @@ export const notification = defineObject(
         }),
 
         /** Mark it read now. */
-        read: method.mutation({ title: t`Read`, permission: "read", inverse: "unread" }),
+        read: method.mutation({
+            title: t.context("action")`Read`,
+            permission: "read",
+            inverse: "unread",
+        }),
         /** Mark it unread. */
-        unread: method.mutation({ title: t`Mark unread`, permission: "read", inverse: "read" }),
+        unread: method.mutation({
+            title: t.context("action")`Mark unread`,
+            permission: "read",
+            inverse: "read",
+        }),
         /** Mark listed notifications read as of a time, each at its revision. */
         readMany: method.updateItems("read", { fields: ["readAt"] }),
 
         /** Defer it until a time in the future. */
         snooze: method.mutation({
-            title: t`Snooze`,
+            title: t.context("action")`Snooze`,
             permission: "read",
             input: schema.object({
                 /** When the snooze ends, in UTC epoch milliseconds. */
@@ -86,9 +98,17 @@ export const notification = defineObject(
         }),
 
         /** Move it out of the inbox until the activity occurs again. */
-        archive: method.mutation({ title: t`Archive`, permission: "read", inverse: "unarchive" }),
+        archive: method.mutation({
+            title: t.context("action")`Archive`,
+            permission: "read",
+            inverse: "unarchive",
+        }),
         /** Move it back into the inbox. */
-        unarchive: method.mutation({ title: t`Unarchive`, permission: "read", inverse: "archive" }),
+        unarchive: method.mutation({
+            title: t.context("action")`Unarchive`,
+            permission: "read",
+            inverse: "archive",
+        }),
     }),
 ).implement({
     methods: {

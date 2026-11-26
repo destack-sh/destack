@@ -35,7 +35,11 @@ export const summary = defineObject(
         findOrCreate: method.create("plan", { visibility: "package", fields: ["at"] }),
         create: false,
         /** Send it to each summary destination of the notifications waiting for it. */
-        send: method.mutation({ title: t`Send`, permission: "plan", visibility: "package" }),
+        send: method.mutation({
+            title: t.context("action")`Send`,
+            permission: "plan",
+            visibility: "package",
+        }),
         update: false,
         delete: false,
     }),
