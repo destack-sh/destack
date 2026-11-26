@@ -553,9 +553,16 @@ export class BunRuntime implements Runtime {
         directories: Pick<BunInstanceLayout, "build">,
         start: WorkloadStart,
     ): Promise<Runner> {
-        // import the entry's hosted workload as an operation, and start it with the build's own runner
+        // link the builtins to this process's own, then import the entry's hosted workload as an operation
         const entry = join(directories.build, InstanceSpec.entry(spec).path);
-        const module: unknown = await this.#environment.scheduler.run(() => import(entry));
+        const imports = await this.#imports(await this.#packages.image(spec.image));
+        const module: unknown = await this.#environment.scheduler.run(async () => {
+            await this.#program.link(imports);
+
+            const imported: unknown = await import(entry);
+
+            return imported;
+        });
         const hosted = BunRuntime.#workload(module, entry);
         const runner = await hosted.start(this.#environment, start, spec.build, (error) =>
             this.#output(spec, `workload failed: ${String(error)}`),
