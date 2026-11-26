@@ -126,9 +126,21 @@ export async function pushSite(
     lease: Lease,
     author: GitAuthor,
 ) {
-    const checkout = await client.checkout.create({ machineId, requestId, directory: "/work/site", source: { kind: "existing" } });
+    const checkout = await client.checkout.create({
+        machineId,
+        requestId,
+        directory: "/work/site",
+        source: { kind: "existing" },
+    });
 
-    return await client.checkout.push({ machineId, id: checkout.id, requestId, lease, of: "tree", author }); // { commit, reference }
+    return await client.checkout.push({
+        machineId,
+        id: checkout.id,
+        requestId,
+        lease,
+        of: "tree",
+        author,
+    }); // { commit, reference }
 }
 ```
 
@@ -154,4 +166,4 @@ A machine converges the spaces placed on it, as a kubelet does with its pods.
 | -------- | ------------- | ---------------------------------------------------------------- |
 | pods     | placed spaces | A space runs its installations in one process over one database. |
 | a node   | a machine     | Also a person's computer, or Cloudflare.                         |
-| services | the gateway   | Routes by deployment version.       |
+| services | the gateway   | Routes by deployment version.                                    |
