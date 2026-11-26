@@ -10,7 +10,7 @@ export type FinanceProvider = schema.Infer<typeof FinanceProvider>;
 /** The finance installation's payment provider, which its stack places. */
 export const provider = defineSetting({
     name: "provider",
-    title: t`Payment provider`,
+    title: t.context("title")`Payment provider`,
     description: t`The payment provider finance charges buyers through.`,
     schema: FinanceProvider,
     default: "none",
@@ -22,7 +22,7 @@ export const provider = defineSetting({
 /** The distribution tag of each package's current release, whose catalog finance sells. */
 export const tag = defineSetting({
     name: "tag",
-    title: t`Release tag`,
+    title: t.context("title")`Release tag`,
     description: t`The distribution tag of the release of each package whose catalog finance sells.`,
     schema: schema.string().min(1),
     default: "latest",

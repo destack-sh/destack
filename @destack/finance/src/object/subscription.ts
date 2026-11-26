@@ -248,21 +248,21 @@ export const subscription = defineObject(
         create: method.create("provide", { visibility: "package" }),
         /** Follow the subscription as the provider bills it: its period, state and items. */
         sync: method.mutation({
-            title: t`Sync`,
+            title: t.context("action")`Sync`,
             permission: "provide",
             visibility: "package",
             input: ProviderSubscription,
         }),
         /** Move the subscription to another product, or cancel it for the default product. */
         change: method.mutation({
-            title: t`Change`,
+            title: t.context("action")`Change`,
             permission: "bill",
             input: Purchasable,
             prepared: PlanChange,
         }),
         /** Close an ended period onto the provider's draft invoice. */
         closePeriod: method.mutation({
-            title: t`Close period`,
+            title: t.context("action")`Close period`,
             permission: "provide",
             visibility: "package",
             input: schema.object({

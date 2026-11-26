@@ -126,7 +126,7 @@ export const charge = defineObject(
     (method) => ({
         create: method.create("provide", { visibility: "package" }),
         rate: method.mutation({
-            title: t`Rate`,
+            title: t.context("action")`Rate`,
             permission: "provide",
             target: "scope",
             visibility: "package",

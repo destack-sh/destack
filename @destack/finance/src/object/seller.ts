@@ -83,7 +83,7 @@ export const seller = defineObject(
         }),
         /** Open the provider's onboarding page for the seller's connected account. */
         onboard: method.mutation({
-            title: t`Onboard`,
+            title: t.context("action")`Onboard`,
             permission: "sell",
             input: schema.object({
                 /** The country the connected account does business from. */

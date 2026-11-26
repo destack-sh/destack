@@ -90,7 +90,7 @@ export const checkoutSession = defineObject(
         }),
         /** Complete the session with its subscription. */
         settle: method.mutation({
-            title: t`Settle`,
+            title: t.context("action")`Settle`,
             permission: "provide",
             visibility: "package",
             input: schema.object({

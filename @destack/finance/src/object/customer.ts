@@ -132,7 +132,7 @@ export const customer = defineObject(
         }),
         /** Announce an account's usage alerts to its readers of billing, each once per period. */
         announce: method.mutation({
-            title: t`Announce`,
+            title: t.context("action")`Announce`,
             permission: "provide",
             target: "scope",
             visibility: "package",
