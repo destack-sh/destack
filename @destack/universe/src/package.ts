@@ -5,7 +5,7 @@ import { UniverseError } from "./error/error.ts";
 
 /** The universe package: the run applying the universe's declaration. */
 export default definePackage({
-    title: t`Universe`,
+    title: t.context("title")`Universe`,
     description: t`Run a universe: the account, object, setting and universe packages over one store at one origin.`,
     icon: "sliders-horizontal",
     color: "brown",

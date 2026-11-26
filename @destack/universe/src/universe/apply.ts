@@ -11,7 +11,7 @@ export const ApplyInput = schema.object({
 /** Apply the universe's declared state step by step: regions, machines and the platform. */
 export const apply = defineWorkflow({
     name: "apply",
-    title: t`Apply`,
+    title: t.context("title")`Apply`,
     scope: "universe",
     input: ApplyInput,
     output: NO_OUTPUT,
