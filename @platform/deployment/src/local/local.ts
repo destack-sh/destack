@@ -2,6 +2,10 @@ import { TelemetryScope } from "@destack/telemetry";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Directory, IssuerCredential, MachineKey, Session } from "@destack/account/client";
+import { Account } from "@destack/account/object";
+import { FORGE_INSTALLATION } from "@destack/forge/client";
+import { Status } from "@destack/object";
+import { installation } from "@destack/stack/object";
 import { LocalBucket } from "@destack/bucket/bun";
 import { S3Server } from "@destack/bucket/s3";
 import { Toolchain } from "@destack/check/toolchain";
@@ -116,6 +120,9 @@ const MACHINE_POLL_MILLISECONDS = 100;
 
 /** How long a started managed machine may take to replicate its enabled status, in milliseconds. */
 const MACHINE_SERVE_MILLISECONDS = 5_000;
+
+/** How long a fresh platform home may take to serve its forge: 5.7 s measured, ten times loaded. */
+const HOME_SERVE_MILLISECONDS = 60_000;
 
 /** The variables of this process the local universe's machine runs with. */
 const INHERITED = [
@@ -502,6 +509,25 @@ export class LocalUniverse {
             );
             const window = environment.clock.timeout(MACHINE_SERVE_MILLISECONDS);
             await machine.machine.health.waitUp(window);
+
+            // wait until the platform's home serves its forge, which publishing calls
+            if (served !== undefined) {
+                const { database } = await machine.machine.space(Account.home(accountId));
+                const isServing = async () => {
+                    const forge = await database
+                        .snapshot()
+                        .read(installation.table)
+                        .findFirst({ where: { name: FORGE_INSTALLATION } });
+
+                    return forge !== undefined && Status.progress(forge) === "current";
+                };
+                const deadline = environment.clock.timeout(HOME_SERVE_MILLISECONDS);
+                if (!(await database.log.waitUntil(isServing, deadline))) {
+                    throw new Error(
+                        `the platform's home did not serve its forge within ${HOME_SERVE_MILLISECONDS} ms`,
+                    );
+                }
+            }
             this.scope.log.info("platform.machine.started", {
                 "platform.machine.name": region.machine.name,
                 "url.full": deployment.machineOrigin(region),
