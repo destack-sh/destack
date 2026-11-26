@@ -608,7 +608,7 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
                         xstyle={styles.sheet}
                     >
                         <SheetTitle xstyle={visuallyHiddenStyle()}>
-                            {locale.render(t`Sidebar`)}
+                            {locale.render(t.context("title")`Sidebar`)}
                         </SheetTitle>
                         <div {...style.attrs(styles.inner)}>{sidebar.children}</div>
                     </SheetContent>
@@ -666,9 +666,10 @@ export function SidebarTrigger(properties: Omit<ButtonProperties, "onClick">): J
 
     return (
         <Button
+            isIconOnly
             variant="ghost"
-            size="icon"
-            aria-label={locale.render(t`Toggle sidebar`)}
+
+            aria-label={locale.render(t.context("action")`Toggle sidebar`)}
             aria-controls={control.id}
             aria-expanded={
                 (control.isMobile() ? control.isMobileOpen() : control.isOpen()) ? "true" : "false"
@@ -746,7 +747,7 @@ export function SidebarRail(
                 type: "button" as const,
                 tabindex: -1,
                 get "aria-label"() {
-                    return locale.render(t`Toggle sidebar`);
+                    return locale.render(t.context("action")`Toggle sidebar`);
                 },
             },
             mergeProperties(move.attributes(), press),
@@ -829,8 +830,9 @@ export function SidebarGroupAction(properties: ButtonProperties): JSX.Element {
 
     return (
         <Button
+            isIconOnly
             variant="ghost"
-            size="icon-sm"
+            size="sm"
             data-slot="sidebar-group-action"
             {...rest}
             xstyle={[styles.groupAction, properties.xstyle]}
@@ -942,8 +944,9 @@ export function SidebarMenuAction(properties: ButtonProperties): JSX.Element {
 
     return (
         <Button
+            isIconOnly
             variant="ghost"
-            size="icon-sm"
+            size="sm"
             data-slot="sidebar-menu-action"
             {...rest}
             xstyle={[styles.menuAction, properties.xstyle]}

@@ -231,10 +231,11 @@ export function EventCalendarPrevious(properties: Omit<ButtonProperties, "onClic
 
     return (
         <Button
+            isIconOnly
             variant="outline"
-            size="icon"
+
             data-slot="event-calendar-previous"
-            aria-label={locale.render(t`Previous`)}
+            aria-label={locale.render(t.context("action")`Previous`)}
             {...properties}
             onClick={() => control.step(-1)}
         >
@@ -256,7 +257,7 @@ export function EventCalendarToday(properties: Omit<ButtonProperties, "onClick">
             xstyle={[styles.tight, properties.xstyle]}
             onClick={() => control.showToday()}
         >
-            {contentOr(properties, () => locale.render(t`Today`))}
+            {contentOr(properties, () => locale.render(t.context("action")`Today`))}
         </Button>
     );
 }
@@ -268,10 +269,11 @@ export function EventCalendarNext(properties: Omit<ButtonProperties, "onClick">)
 
     return (
         <Button
+            isIconOnly
             variant="outline"
-            size="icon"
+
             data-slot="event-calendar-next"
-            aria-label={locale.render(t`Next`)}
+            aria-label={locale.render(t.context("action")`Next`)}
             {...properties}
             onClick={() => control.step(1)}
         >

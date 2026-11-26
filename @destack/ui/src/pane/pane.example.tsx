@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import fileIcon from "@destack/icon/phosphor/file";
 import plusIcon from "@destack/icon/phosphor/plus";
 import { defineExample } from "@destack/package/declare";
@@ -58,7 +59,7 @@ const styles = style.create({
 export const paneEditor = defineExample({
     of: PaneGroup,
     name: "editor",
-    description: "files in panes, which split, merge and keep what is typed in them",
+    description: t`Files in panes, which split, merge and keep what is typed in them.`,
     render: () => <Editor />,
 });
 
@@ -96,7 +97,7 @@ function Editor(): JSX.Element {
 export const paneFiles = defineExample({
     of: PaneGroup,
     name: "files",
-    description: "files in panes, which open and split with files from the desktop",
+    description: t`Files in panes, which open and split with files from the desktop.`,
     render: () => <Files />,
 });
 
@@ -150,7 +151,7 @@ function Files(): JSX.Element {
 export const paneTiles = defineExample({
     of: PaneGroup,
     name: "tiles",
-    description: "a dashboard's views in panes without tabs, which move by their bars",
+    description: t`A dashboard's views in panes without tabs, which move by their bars.`,
     render: () => <Tiles />,
 });
 
@@ -186,7 +187,7 @@ function Tiles(): JSX.Element {
 export const paneCustom = defineExample({
     of: PaneGroup,
     name: "custom",
-    description: "panes with tabs, a look and a button of one's own",
+    description: t`Panes with tabs, a look and a button of one's own.`,
     render: () => <Custom />,
 });
 
@@ -216,8 +217,9 @@ function Custom(): JSX.Element {
                         variant="subtle"
                         end={
                             <Button
+                                isIconOnly
                                 variant="ghost"
-                                size="icon"
+
                                 aria-label="New"
                                 onClick={() => open(pane().id)}
                             >

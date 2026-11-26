@@ -451,7 +451,7 @@ function EditableText(properties: EditableInputProperties): JSX.Element {
         ...control.field?.attributes(),
         "data-slot": "editable-input",
         get "aria-label"() {
-            return control.field === null ? locale.render(t`Text`) : undefined;
+            return control.field === null ? locale.render(t.context("label")`Text`) : undefined;
         },
         get placeholder() {
             return control.properties.placeholder;
@@ -507,10 +507,11 @@ export function EditableTrigger(properties: ButtonProperties): JSX.Element {
     return (
         <Show when={!control.isEdited() && control.isEditable()}>
             <Button
+                isIconOnly
                 data-slot="editable-trigger"
                 variant="ghost"
-                size="icon-sm"
-                aria-label={locale.render(t`Edit`)}
+                size="sm"
+                aria-label={locale.render(t.context("action")`Edit`)}
                 {...mergeProperties({ onClick: () => control.begin() }, properties)}
             >
                 {contentOr(properties, () => (
@@ -529,9 +530,10 @@ export function EditableSubmit(properties: ButtonProperties): JSX.Element {
     return (
         <Show when={control.isEdited()}>
             <Button
+                isIconOnly
                 data-slot="editable-submit"
-                size="icon-sm"
-                aria-label={locale.render(t`Save`)}
+                size="sm"
+                aria-label={locale.render(t.context("action")`Save`)}
                 {...mergeProperties(
                     {
                         onClick: () => {
@@ -558,10 +560,11 @@ export function EditableCancel(properties: ButtonProperties): JSX.Element {
     return (
         <Show when={control.isEdited()}>
             <Button
+                isIconOnly
                 data-slot="editable-cancel"
                 variant="ghost"
-                size="icon-sm"
-                aria-label={locale.render(t`Cancel`)}
+                size="sm"
+                aria-label={locale.render(t.context("action")`Cancel`)}
                 {...mergeProperties(
                     {
                         onClick: () => {

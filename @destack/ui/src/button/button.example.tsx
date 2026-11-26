@@ -2,7 +2,7 @@ import { t } from "@destack/locale";
 import { defineExample, type PropertiesOf } from "@destack/package/declare";
 import { Icon } from "@destack/ui/icon";
 import type { JSX } from "@destack/view";
-import { Button, IconButton } from "./button.tsx";
+import { Button } from "./button.tsx";
 
 /** A save button as its defaults show it. */
 export const buttonDefault = defineExample({
@@ -30,9 +30,9 @@ export const buttonNoteToolbar = defineExample({
         <div role="toolbar" aria-label="Note">
             <Button type="submit">Save</Button>
             <Button variant="ghost">Cancel</Button>
-            <IconButton variant="destructive" aria-label="Delete note">
+            <Button isIconOnly variant="destructive" aria-label="Delete note">
                 <Icon name="trash" />
-            </IconButton>
+            </Button>
         </div>
     ),
 });
@@ -53,26 +53,14 @@ function renderDelete(properties: PropertiesOf<typeof Button>): JSX.Element {
 }
 
 /** A note's delete button showing only its icon. */
-export const iconButtonDefault = defineExample({
-    of: IconButton,
-    name: "default",
+export const buttonIconOnly = defineExample({
+    of: Button,
+    name: "iconOnly",
     description: t`A note's delete button showing only its icon, named for assistive technology.`,
+    properties: { isIconOnly: true },
     render: (properties) => (
-        <IconButton aria-label="Delete note" {...properties}>
+        <Button aria-label="Delete note" {...properties}>
             <Icon name="trash" />
-        </IconButton>
-    ),
-});
-
-/** A message's send button, round. */
-export const iconButtonRound = defineExample({
-    of: IconButton,
-    name: "round",
-    description: t`A message's send button, round.`,
-    properties: { shape: "round" },
-    render: (properties) => (
-        <IconButton aria-label="Send" {...properties}>
-            <Icon name="arrow-up" />
-        </IconButton>
+        </Button>
     ),
 });

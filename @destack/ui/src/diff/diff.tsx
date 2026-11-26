@@ -506,7 +506,11 @@ export function Diff(properties: DiffProperties): JSX.Element {
             {renderPart("section", "diff", rest, [text.sm, styles.diff], {
                 ref: [(element: HTMLElement) => (root = element), ...handlers],
                 get "aria-label"() {
-                    return properties["aria-label"] ?? path() ?? locale.render(t`Changes`);
+                    return (
+                        properties["aria-label"] ??
+                        path() ??
+                        locale.render(t.context("title")`Changes`)
+                    );
                 },
                 get "data-layout"() {
                     return control.isSplit() ? "split" : "unified";
@@ -549,12 +553,12 @@ function DiffHeader(properties: {
             (diff.patch === undefined && diff.after === undefined);
 
         return isAdded
-            ? t`Added`
+            ? t.context("option")`Added`
             : isRemoved
-              ? t`Removed`
+              ? t.context("option")`Removed`
               : previous() === undefined
                 ? undefined
-                : t`Moved`;
+                : t.context("option")`Moved`;
     };
     const squares = (): readonly ("added" | "removed" | "none")[] => {
         // fill the squares by the share of each, at least one for either there is
@@ -579,8 +583,9 @@ function DiffHeader(properties: {
             {...style.attrs(styles.header, !control.isCollapsed() && styles.divided)}
         >
             <Button
+                isIconOnly
                 variant="ghost"
-                size="icon-sm"
+                size="sm"
                 aria-expanded={control.isCollapsed() ? "false" : "true"}
                 aria-label={locale.render(
                     control.isCollapsed() ? t`Show the changes` : t`Hide the changes`,
@@ -603,7 +608,8 @@ function DiffHeader(properties: {
             <CopyButton
                 value={properties.path}
                 label={locale.render(t`Copy the path`)}
-                size="icon-sm"
+                isIconOnly
+                size="sm"
             />
             <Show when={status()}>
                 {(said) => <Badge variant="outline">{locale.render(said())}</Badge>}
@@ -664,10 +670,10 @@ function DiffContent(): JSX.Element {
         const { patch } = diff;
 
         return patch?.isBinary === true
-            ? t`Binary file`
+            ? t.context("option")`Binary file`
             : patch?.status === "renamed"
               ? t`Moved without changes`
-              : t`Nothing changed`;
+              : t.context("option")`Nothing changed`;
     };
     const isEmpty = (): boolean => control.model().difference.changes.length === 0;
 
@@ -720,7 +726,7 @@ function DiffContent(): JSX.Element {
                 <div
                     role="group"
                     tabindex={0}
-                    aria-label={locale.render(t`Lines`)}
+                    aria-label={locale.render(t.context("title")`Lines`)}
                     data-slot="diff-content"
                     onScroll={() => {
                         control.setActive(undefined);
@@ -984,7 +990,9 @@ function DiffKind(properties: {
 
     return kind === "same" ? null : (
         <span {...style.attrs(visuallyHiddenStyle())}>
-            {locale.render(kind === "added" ? t`added` : t`removed`)}
+            {locale.render(
+                kind === "added" ? t.context("option")`added` : t.context("option")`removed`,
+            )}
         </span>
     );
 }
@@ -1041,7 +1049,8 @@ function DiffTools(): JSX.Element {
                                 action={rejectChange}
                                 element={row()}
                                 variant="ghost"
-                                size="icon-sm"
+                                isIconOnly
+                                size="sm"
                                 icon={xIcon}
                             />
                         </Show>
@@ -1050,7 +1059,8 @@ function DiffTools(): JSX.Element {
                                 action={acceptChange}
                                 element={row()}
                                 variant="ghost"
-                                size="icon-sm"
+                                isIconOnly
+                                size="sm"
                                 icon={check}
                             />
                         </Show>
@@ -1118,8 +1128,9 @@ function DiffFoldRow(properties: {
                     <Show when={!fold.isMissing}>
                         <Show when={isLong && fold.position !== "first"}>
                             <Button
+                                isIconOnly
                                 variant="ghost"
-                                size="icon-sm"
+                                size="sm"
                                 aria-label={locale.render(t`Show 20 lines below the change above`)}
                                 onClick={() => control.reveal(fold, "above")}
                             >
@@ -1128,8 +1139,9 @@ function DiffFoldRow(properties: {
                         </Show>
                         <Show when={isLong && fold.position !== "last"}>
                             <Button
+                                isIconOnly
                                 variant="ghost"
-                                size="icon-sm"
+                                size="sm"
                                 aria-label={locale.render(t`Show 20 lines above the next change`)}
                                 onClick={() => control.reveal(fold, "below")}
                             >
@@ -1137,8 +1149,9 @@ function DiffFoldRow(properties: {
                             </Button>
                         </Show>
                         <Button
+                            isIconOnly
                             variant="ghost"
-                            size="icon-sm"
+                            size="sm"
                             aria-label={locale.render(t`Show every line`)}
                             onClick={() => control.reveal(fold, "all")}
                         >

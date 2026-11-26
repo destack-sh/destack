@@ -415,7 +415,7 @@ export function PlayerPlayButton(properties: PlayerButtonProperties): JSX.Elemen
         <ActionButton
             data-slot="player-play-button"
             variant="ghost"
-            size="icon"
+            isIconOnly
             weight="fill"
             icon={icon()}
             {...omit(properties, "xstyle")}
@@ -449,7 +449,7 @@ export function PlayerSeekBar(properties: PlayerElementProperties): JSX.Element 
             return (
                 <>
                     <Slider
-                        aria-label={locale.render(t`Position`)}
+                        aria-label={locale.render(t.context("label")`Position`)}
                         value={[Math.min(control.time(), length())]}
                         max={length() === 0 ? 1 : length()}
                         step={SEEK_GRAIN}
@@ -538,14 +538,14 @@ export function PlayerVolume(properties: PlayerElementProperties): JSX.Element {
                     <ActionButton
                         data-slot="player-mute-button"
                         variant="ghost"
-                        size="icon"
+                        isIconOnly
                         icon={icon()}
                         action={toggleMute}
                         xstyle={styles.icon}
                     />
                     <Slider
                         dir="ltr"
-                        aria-label={locale.render(t`Volume`)}
+                        aria-label={locale.render(t.context("label")`Volume`)}
                         value={[Math.round(volume() * 100)]}
                         step={5}
                         onValueChange={([level = 0]) => control.setVolume(level / 100)}
@@ -572,7 +572,7 @@ export function PlayerSpeed(properties: ButtonProperties): JSX.Element {
                         {...attributes}
                         data-slot="player-speed"
                         variant="ghost"
-                        aria-label={`${locale.render(t`Speed`)} ${factor(control.rate())}`}
+                        aria-label={`${locale.render(t.context("label")`Speed`)} ${factor(control.rate())}`}
                         {...omit(properties, "xstyle", "children")}
                         xstyle={[styles.icon, text.xs, styles.speed, properties.xstyle]}
                     />
@@ -582,7 +582,7 @@ export function PlayerSpeed(properties: ButtonProperties): JSX.Element {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
                 <DropdownMenuRadioGroup
-                    aria-label={locale.render(t`Speed`)}
+                    aria-label={locale.render(t.context("label")`Speed`)}
                     value={String(control.rate())}
                     onValueChange={(rate) => control.setRate(Number(rate))}
                 >
@@ -615,7 +615,7 @@ export function PlayerCaptionsButton(properties: PlayerButtonProperties): JSX.El
                     <ActionButton
                         data-slot="player-captions-button"
                         variant="ghost"
-                        size="icon"
+                        isIconOnly
                         icon={captionsIcon}
                         weight={drawn()}
                         {...omit(properties, "xstyle")}
@@ -628,11 +628,12 @@ export function PlayerCaptionsButton(properties: PlayerButtonProperties): JSX.El
                     <DropdownMenuTrigger
                         render={(attributes) => (
                             <Button
+                                isIconOnly
                                 {...attributes}
                                 data-slot="player-captions-button"
                                 variant="ghost"
-                                size="icon"
-                                aria-label={locale.render(t`Captions`)}
+
+                                aria-label={locale.render(t.context("label")`Captions`)}
                                 xstyle={[styles.icon, properties.xstyle]}
                             />
                         )}
@@ -641,14 +642,14 @@ export function PlayerCaptionsButton(properties: PlayerButtonProperties): JSX.El
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuRadioGroup
-                            aria-label={locale.render(t`Captions`)}
+                            aria-label={locale.render(t.context("label")`Captions`)}
                             value={String(shown())}
                             onValueChange={(place) =>
                                 control.showCaptions(place === "-1" ? undefined : Number(place))
                             }
                         >
                             <DropdownMenuRadioItem value="-1">
-                                {locale.render(t`Off`)}
+                                {locale.render(t.context("option")`Off`)}
                             </DropdownMenuRadioItem>
                             <For each={control.captions()}>
                                 {(caption, place) => (
@@ -674,7 +675,7 @@ export function PlayerPictureInPictureButton(properties: PlayerButtonProperties)
             <ActionButton
                 data-slot="player-picture-in-picture-button"
                 variant="ghost"
-                size="icon"
+                isIconOnly
                 icon={pictureIcon}
                 {...omit(properties, "xstyle")}
                 action={togglePictureInPicture}
@@ -693,7 +694,7 @@ export function PlayerFullscreenButton(properties: PlayerButtonProperties): JSX.
             <ActionButton
                 data-slot="player-fullscreen-button"
                 variant="ghost"
-                size="icon"
+                isIconOnly
                 icon={control.isFullscreen() ? cornersInIcon : cornersOutIcon}
                 {...omit(properties, "xstyle")}
                 action={toggleFullscreen}
@@ -813,7 +814,9 @@ export function Player(properties: PlayerProperties): JSX.Element {
                             role: "region" as const,
                             tabindex: -1,
                             get "aria-label"() {
-                                return properties.title ?? locale.render(t`Player`);
+                                return (
+                                    properties.title ?? locale.render(t.context("title")`Player`)
+                                );
                             },
                         },
                         { ref: handlers },
@@ -1092,7 +1095,8 @@ export function PlayerStartButton(properties: PlayerButtonProperties): JSX.Eleme
                 <ActionButton
                     data-slot="player-start-button"
                     variant="outline"
-                    size="icon-lg"
+                    isIconOnly
+                    size="lg"
                     icon={playIcon}
                     weight="fill"
                     {...omit(properties, "xstyle")}
@@ -1132,7 +1136,7 @@ export function PlayerError(properties: PlayerElementProperties): JSX.Element {
                         <>
                             {locale.render(t`This could not be played.`)}
                             <Button variant="secondary" size="sm" onClick={() => control.retry()}>
-                                {locale.render(t`Try again`)}
+                                {locale.render(t.context("action")`Try again`)}
                             </Button>
                         </>
                     ));
@@ -1151,7 +1155,7 @@ export function PlayerPreviousButton(properties: PlayerButtonProperties): JSX.El
             <ActionButton
                 data-slot="player-previous-button"
                 variant="ghost"
-                size="icon"
+                isIconOnly
                 weight="fill"
                 icon={skipBackIcon}
                 {...omit(properties, "xstyle")}
@@ -1171,7 +1175,7 @@ export function PlayerNextButton(properties: PlayerButtonProperties): JSX.Elemen
             <ActionButton
                 data-slot="player-next-button"
                 variant="ghost"
-                size="icon"
+                isIconOnly
                 weight="fill"
                 icon={skipForwardIcon}
                 {...omit(properties, "xstyle")}

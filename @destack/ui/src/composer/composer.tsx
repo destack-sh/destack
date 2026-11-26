@@ -315,7 +315,7 @@ export function ComposerInput(properties: TextareaProperties): JSX.Element {
             variant="plain"
             data-slot="composer-input"
             rows={1}
-            aria-label={locale.render(t`Message`)}
+            aria-label={locale.render(t.context("label")`Message`)}
             disabled={composer.isDisabled()}
             {...mergeProperties(
                 { onKeyDown: (event: KeyboardEvent) => composer.press(event) },
@@ -366,13 +366,16 @@ export function ComposerSubmit(properties: ButtonProperties): JSX.Element {
     const composer = useComposer();
     const locale = useLocale();
     const label = (): string =>
-        composer.isBusy() ? locale.render(t`Stop`) : locale.render(t`Send`);
+        composer.isBusy()
+            ? locale.render(t.context("action")`Stop`)
+            : locale.render(t.context("action")`Send`);
 
     return (
         <Button
+            isIconOnly
             data-slot="composer-submit"
             type={composer.isBusy() ? "button" : "submit"}
-            size="icon"
+
             shape="round"
             aria-label={label()}
             disabled={composer.isDisabled()}

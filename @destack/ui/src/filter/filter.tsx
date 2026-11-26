@@ -194,7 +194,7 @@ export function Filter(properties: FilterProperties): JSX.Element {
         <FilterContext value={control}>
             {renderPart("div", "filter", rest, styles.filter, {
                 role: "group" as const,
-                "aria-label": locale.render(t`Filter`),
+                "aria-label": locale.render(t.context("title")`Filter`),
                 get children() {
                     return contentOr(properties, () => (
                         <>
@@ -327,7 +327,10 @@ export function FilterField(properties: FilterElementProperties): JSX.Element {
             xstyle={[text.xs, styles.field, properties.xstyle]}
         >
             {contentOr(properties, () => (
-                <Show when={field()} fallback={locale.render(t`Another condition`)}>
+                <Show
+                    when={field()}
+                    fallback={locale.render(t.context("label")`Another condition`)}
+                >
                     {(each) => (
                         <>
                             <ValueIcon kind={each().type.kind} icon={each().icon} />
@@ -557,7 +560,7 @@ export function FilterEditor(properties: {
                     onValueChange={(typed) => field()?.onSearch?.(typed)}
                 />
                 <CommandList>
-                    <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
+                    <CommandEmpty>{locale.render(t.context("title")`No results.`)}</CommandEmpty>
                     <CommandGroup>
                         <For each={choices()}>
                             {(choice) => (
@@ -616,10 +619,11 @@ export function FilterRemove(properties: ButtonProperties): JSX.Element {
 
     return (
         <Button
+            isIconOnly
             data-slot="filter-remove"
             variant="secondary"
-            size="icon-sm"
-            aria-label={locale.render(t`Remove filter`)}
+            size="sm"
+            aria-label={locale.render(t.context("action")`Remove filter`)}
             {...mergeProperties({ onClick: remove }, properties)}
         >
             {contentOr(properties, () => (
@@ -645,7 +649,7 @@ export function FilterAdd(properties: FilterAddProperties): JSX.Element {
     const [typed, setTyped] = createSignal("", { ownedWrite: true });
     const rest = omit(properties, "groups", "children");
     const fields = createMemo(() => Object.entries(control.fields()));
-    const label = (): string => locale.render(t`Filter`);
+    const label = (): string => locale.render(t.context("action")`Filter`);
     let trigger: HTMLElement | undefined;
     if (set === null) {
         handleOnPage(addFilter, { run: () => void setOpen(true) });
@@ -686,11 +690,13 @@ export function FilterAdd(properties: FilterAddProperties): JSX.Element {
             <PopoverContent align="start" xstyle={styles.menu}>
                 <Command aria-label={label()}>
                     <CommandInput
-                        placeholder={locale.render(t`Filter by…`)}
+                        placeholder={locale.render(t.context("label")`Filter by…`)}
                         onValueChange={(next) => void setTyped(next)}
                     />
                     <CommandList>
-                        <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
+                        <CommandEmpty>
+                            {locale.render(t.context("title")`No results.`)}
+                        </CommandEmpty>
                         <CommandGroup>
                             <For each={fields()}>
                                 {([name, field]) => (
@@ -749,11 +755,11 @@ export function FilterAdd(properties: FilterAddProperties): JSX.Element {
                             <CommandGroup>
                                 <CommandItem
                                     value="group"
-                                    keywords={[locale.render(t`Filter group`)]}
+                                    keywords={[locale.render(t.context("title")`Filter group`)]}
                                     onSelect={() => add((id) => control.addSet(id), true)}
                                 >
                                     <Icon icon={groupIcon} />
-                                    {locale.render(t`Filter group`)}
+                                    {locale.render(t.context("title")`Filter group`)}
                                 </CommandItem>
                             </CommandGroup>
                         </Show>
@@ -788,7 +794,9 @@ export function FilterMenu(properties: ButtonProperties): JSX.Element {
                 {contentOr(properties, () => (
                     <>
                         <Icon icon={funnelIcon} />
-                        {count() === 0 ? locale.render(t`Filter`) : countWords(count(), locale)}
+                        {count() === 0
+                            ? locale.render(t.context("action")`Filter`)
+                            : countWords(count(), locale)}
                     </>
                 ))}
             </PopoverTrigger>
@@ -854,7 +862,7 @@ export function FilterClear(properties: ButtonProperties): JSX.Element {
                 size="sm"
                 {...mergeProperties({ onClick: () => control.clear() }, properties)}
             >
-                {contentOr(properties, () => locale.render(t`Clear filters`))}
+                {contentOr(properties, () => locale.render(t.context("action")`Clear filters`))}
             </Button>
         </Show>
     );
@@ -909,7 +917,8 @@ export function FilterMatch(properties: ButtonProperties): JSX.Element {
     const set = useContext(SetContext) ?? (() => control.root());
     const index = useContext(IndexContext);
     const isAll = (): boolean => set().match === "AND";
-    const word = (): string => (isAll() ? locale.render(t`and`) : locale.render(t`or`));
+    const word = (): string =>
+        isAll() ? locale.render(t.context("label")`and`) : locale.render(t.context("label")`or`);
     const words = (): string => {
         // say how all combine beside a list, and before a condition how it joins the others
         if (index !== null) {
@@ -924,7 +933,7 @@ export function FilterMatch(properties: ButtonProperties): JSX.Element {
             when={index === null || index() === 1}
             fallback={
                 <span data-slot="filter-match" {...style.attrs(text.xs, styles.connective)}>
-                    {index?.() === 0 ? locale.render(t`Where`) : word()}
+                    {index?.() === 0 ? locale.render(t.context("label")`Where`) : word()}
                 </span>
             }
         >
@@ -1006,7 +1015,7 @@ function wordsOf(
         .filter((value) => value !== null)
         .map((value) => wordOf(value, choices, field, arity, locale));
     if (words.length === 0) {
-        return locale.render(t`Choose…`);
+        return locale.render(t.context("label")`Choose…`);
     } else if (arity === "range") {
         return words.join(" – ");
     }

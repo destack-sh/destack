@@ -114,7 +114,7 @@ export function ActionBar(properties: ActionBarProperties): JSX.Element {
                             reference: (key) => properties.reference?.(key),
                         }),
                         get "aria-label"() {
-                            return locale.render(t`Actions`);
+                            return locale.render(t.context("title")`Actions`);
                         },
                         get "data-placement"() {
                             return placement();
@@ -167,7 +167,7 @@ export function ActionBarMenu(properties: ButtonProperties): JSX.Element {
                     />
                 )}
             >
-                {contentOr(properties, () => locale.render(t`Actions`))}
+                {contentOr(properties, () => locale.render(t.context("title")`Actions`))}
             </DropdownMenuTrigger>
             <DropdownMenuContent side="top">
                 <MenuActionList />
@@ -185,7 +185,8 @@ export function ActionBarClear(properties: ButtonProperties): JSX.Element {
         <Show when={clear()}>
             {(run) => (
                 <Button
-                    size="icon-sm"
+                    isIconOnly
+                    size="sm"
                     variant="ghost"
                     data-slot="action-bar-clear"
                     aria-label={locale.render(clearSelection.title)}

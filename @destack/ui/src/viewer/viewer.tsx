@@ -471,10 +471,11 @@ export function ViewerClose(properties: ButtonProperties): JSX.Element {
 
     return (
         <Button
+            isIconOnly
             data-slot="viewer-close"
             variant="ghost"
-            size="icon-lg"
-            aria-label={locale.render(t`Close`)}
+            size="lg"
+            aria-label={locale.render(t.context("action")`Close`)}
             {...mergeProperties(
                 {
                     onClick: (event: MouseEvent) =>
@@ -503,7 +504,8 @@ export function ViewerZoomToggle(properties: ViewerButtonProperties): JSX.Elemen
             <ActionButton
                 data-slot="viewer-zoom-toggle"
                 variant="ghost"
-                size="icon-lg"
+                isIconOnly
+                size="lg"
                 icon={viewer.scale.isCloser() ? zoomOutIcon : zoomInIcon}
                 {...omit(properties, "xstyle")}
                 action={toggleZoom}
@@ -546,7 +548,8 @@ export function ViewerDownload(properties: ViewerDownloadProperties): JSX.Elemen
         <ActionButton
             data-slot="viewer-download"
             variant="ghost"
-            size="icon-lg"
+            isIconOnly
+            size="lg"
             icon={downloadIcon}
             {...rest}
             xstyle={[styles.action, properties.xstyle]}
@@ -585,7 +588,8 @@ function ViewerStep(
             <ActionButton
                 data-slot={isNext() ? "viewer-next" : "viewer-previous"}
                 variant="outline"
-                size="icon-lg"
+                isIconOnly
+                size="lg"
                 icon={icon()}
                 weight="bold"
                 {...omit(properties, "step", "xstyle")}

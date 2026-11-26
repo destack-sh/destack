@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { Button } from "../button/index.ts";
 import plusIcon from "@destack/icon/phosphor/plus";
 import arrowElbowUpLeftIcon from "@destack/icon/phosphor/arrow-elbow-up-left";
@@ -25,7 +26,7 @@ const ANSWER = 4_000;
 export const composerAssistant = defineExample({
     of: Composer,
     name: "assistant",
-    description: "a question for an assistant, which a press stops answering",
+    description: t`A question for an assistant, which a press stops answering.`,
     layout: "padded",
     render: () => {
         // answer for a while
@@ -64,7 +65,7 @@ export const composerAssistant = defineExample({
 export const composerReply = defineExample({
     of: Composer,
     name: "reply",
-    description: "an answer to a message, which takes files dropped on it or chosen",
+    description: t`An answer to a message, which takes files dropped on it or chosen.`,
     layout: "padded",
     render: () => {
         const [files, setFiles] = createSignal<readonly File[]>([
@@ -119,8 +120,9 @@ export const composerReply = defineExample({
                             <DropzoneTrigger
                                 render={(attributes) => (
                                     <Button
+                                        isIconOnly
                                         variant="ghost"
-                                        size="icon"
+
                                         shape="round"
                                         {...attributes}
                                         aria-label="Add files"
@@ -143,7 +145,7 @@ export const composerReply = defineExample({
 export const composerDisabled = defineExample({
     of: Composer,
     name: "disabled",
-    description: "a composer that takes nothing, and one that sends by the command key with Enter",
+    description: t`A composer that takes nothing, and one that sends by the command key with Enter.`,
     layout: "padded",
     render: () => (
         <Stack space="4">
@@ -171,7 +173,7 @@ export const composerDisabled = defineExample({
 export const composerSurfaces = defineExample({
     of: Composer,
     name: "surfaces",
-    description: "a frame raised, filled and drawn by its edge, its buttons beside the text",
+    description: t`A frame raised, filled and drawn by its edge, its buttons beside the text.`,
     layout: "padded",
     render: () => (
         <Stack space="4">
@@ -181,8 +183,9 @@ export const composerSurfaces = defineExample({
                         <ComposerFrame variant={variant}>
                             <ComposerAddon align="inline-start">
                                 <Button
+                                    isIconOnly
                                     variant="ghost"
-                                    size="icon"
+
                                     shape="round"
                                     aria-label="Add files"
                                 >

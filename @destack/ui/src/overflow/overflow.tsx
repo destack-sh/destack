@@ -200,10 +200,11 @@ export function OverflowMenuTrigger(properties: ButtonProperties): JSX.Element {
         <DropdownMenuTrigger
             render={(attributes) => (
                 <Button
+                    isIconOnly
                     variant="ghost"
-                    size="icon"
+
                     hidden={around === null}
-                    aria-label={locale.render(t`More`)}
+                    aria-label={locale.render(t.context("action")`More`)}
                     {...mergeProperties(attributes, omit(properties, "xstyle", "children"))}
                     data-slot="overflow-menu-trigger"
                     xstyle={[styles.trigger, properties.xstyle]}

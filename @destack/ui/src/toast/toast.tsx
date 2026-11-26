@@ -48,6 +48,18 @@ import { Hover, Swipe } from "../interaction/index.ts";
 import { LayerStack } from "../layer/index.ts";
 import type { Side } from "../position/index.ts";
 import { type Toast, ToastManager, type ToastType } from "./manager.ts";
+import { defineComponent } from "@destack/view/declare";
+import { schema } from "@destack/schema";
+
+/** The corners and edges a toaster stacks its toasts at. */
+const TOASTER_POSITIONS = [
+    "top-left",
+    "top-center",
+    "top-right",
+    "bottom-left",
+    "bottom-center",
+    "bottom-right",
+] as const;
 
 /** The time a toast shows before it leaves on its own, in milliseconds, as Base UI's. */
 const DURATION = 5000;
@@ -238,13 +250,7 @@ const positions = style.create({
 });
 
 /** The corner or edge of the viewport a toaster stacks its toasts in. */
-export type ToasterPosition =
-    | "top-left"
-    | "top-center"
-    | "top-right"
-    | "bottom-left"
-    | "bottom-center"
-    | "bottom-right";
+export type ToasterPosition = (typeof TOASTER_POSITIONS)[number];
 
 /** The properties of a toaster. */
 export interface ToasterProperties {
@@ -363,167 +369,176 @@ class ToastStack {
 }
 
 /** Give a page toasts, drawn in a live region over it that F6 moves the focus to and back. */
-export function Toaster(properties: ToasterProperties): JSX.Element {
-    // share the toasts with the page
-    const toaster = merge(DEFAULTS, properties);
-    const locale = useLocale();
-    const manager = new ToastManager();
+export const Toaster = defineComponent(
+    "toaster",
+    function Toaster(properties: ToasterProperties): JSX.Element {
+        // share the toasts with the page
+        const toaster = merge(DEFAULTS, properties);
+        const locale = useLocale();
+        const manager = new ToastManager();
 
-    // tell the person of an action that failed, with the reason its error declares
-    handleFailing((action, reason) => {
-        // replace the toast of its last failure
-        const title = locale.render(action.title);
-        manager.error(locale.render(t`“${title}” did not work`), {
-            id: `action-${action.package.id}/${action.name}`,
-            ...(reason === undefined
-                ? {}
-                : { description: `${reason.charAt(0).toUpperCase()}${reason.slice(1)}` }),
+        // tell the person of an action that failed, with the reason its error declares
+        handleFailing((action, reason) => {
+            // replace the toast of its last failure
+            const title = locale.render(action.title);
+            manager.error(locale.render(t`“${title}” did not work`), {
+                id: `action-${action.package.id}/${action.name}`,
+                ...(reason === undefined
+                    ? {}
+                    : { description: `${reason.charAt(0).toUpperCase()}${reason.slice(1)}` }),
+            });
         });
-    });
-    let region: HTMLElement | undefined;
-    let stack: HTMLElement | undefined;
+        let region: HTMLElement | undefined;
+        let stack: HTMLElement | undefined;
 
-    // stand the newest toasts, the ones sliding out beside them
-    const staying = createMemo(() =>
-        manager.toasts().filter((entry) => !manager.leaving().has(entry.id)),
-    );
-    const inView = createMemo(() => staying().slice(0, toaster.visibleToasts));
+        // stand the newest toasts, the ones sliding out beside them
+        const staying = createMemo(() =>
+            manager.toasts().filter((entry) => !manager.leaving().has(entry.id)),
+        );
+        const inView = createMemo(() => staying().slice(0, toaster.visibleToasts));
 
-    // render as many past them, which fade out and come back as newer ones leave
-    const shown = createMemo(() => {
-        const rendered = new Set(staying().slice(0, 2 * toaster.visibleToasts));
+        // render as many past them, which fade out and come back as newer ones leave
+        const shown = createMemo(() => {
+            const rendered = new Set(staying().slice(0, 2 * toaster.visibleToasts));
 
-        return manager
-            .toasts()
-            .filter((entry) => rendered.has(entry) || manager.leaving().has(entry.id));
-    });
-    const standing = new ToastStack(
-        () => inView().map((entry) => entry.id),
-        () => shown().map((entry) => entry.id),
-    );
-    const hover = new Hover({
-        onHoverStart: () => standing.setHovered(true),
-        onHoverEnd: () => standing.setHovered(false),
-    });
+            return manager
+                .toasts()
+                .filter((entry) => rendered.has(entry) || manager.leaving().has(entry.id));
+        });
+        const standing = new ToastStack(
+            () => inView().map((entry) => entry.id),
+            () => shown().map((entry) => entry.id),
+        );
+        const hover = new Hover({
+            onHoverStart: () => standing.setHovered(true),
+            onHoverEnd: () => standing.setHovered(false),
+        });
 
-    // move the focus to the toasts and back with F6
-    const focus = new ToasterFocus(() => region);
+        // move the focus to the toasts and back with F6
+        const focus = new ToasterFocus(() => region);
 
-    // unmount each dismissed toast once it has slid out
-    const { clock } = useEnvironment();
-    createEffect(manager.leaving, (ids, before) => {
-        for (const id of ids) {
-            if (before?.has(id) !== true) {
-                clock.setTimeout(() => manager.remove(id), LEAVING_TIME);
-            }
-        }
-    });
-
-    // show the stack in the top layer while toasts exist, inside the topmost modal while one is open
-    let isShown = false;
-    let home: Comment | undefined;
-    const raise = (top: HTMLElement | undefined) => {
-        // take the stack out of the top layer before moving it
-        if (region === undefined || stack === undefined) {
-            return;
-        }
-        if (isShown) {
-            stack.hidePopover();
-        }
-
-        // place the region where a modal leaves it interactive and announced, else where it rendered
-        if (top !== undefined && region.parentElement !== top) {
-            top.append(region);
-        } else if (top === undefined && home !== undefined && region.nextSibling !== home) {
-            home.before(region);
-        }
-
-        // raise the stack above anything opened since
-        isShown = untrack(manager.toasts).length > 0;
-        if (isShown) {
-            stack.showPopover();
-        }
-        // close a stack that leaves under the pointer, which sends no leave of its own
-        else {
-            standing.setHovered(false);
-            standing.setFocused(false);
-        }
-    };
-    let stop: (() => void) | undefined;
-    onSettled(() => {
-        // mark where the region rendered, and follow the document's modal stack
-        if (region === undefined) {
-            return;
-        }
-        const modals = LayerStack.of(region);
-        home = region.ownerDocument.createComment("toaster");
-        region.after(home);
-        stop = modals.subscribe(raise);
-        raise(modals.top());
-    });
-    onCleanup(() => {
-        // stop following, and take the region out of any modal it moved into
-        stop?.();
-        home?.remove();
-        region?.remove();
-    });
-    createEffect(
-        () => manager.toasts()[0]?.id,
-        () => raise(region === undefined ? undefined : LayerStack.of(region).top()),
-    );
-
-    // stand the newest toast at the edge of the page
-    const edge = () => (toaster.position.startsWith("top") ? "top" : "bottom");
-
-    return (
-        <ToastContext value={manager}>
-            {properties.children}
-            <section
-                ref={(element) => (region = element)}
-                aria-label={locale.render(t`Notifications`)}
-                aria-live="polite"
-                aria-relevant="additions text"
-                aria-atomic="false"
-                tabindex={-1}
-                data-slot="toaster"
-                data-position={toaster.position}
-                onFocusIn={(event) =>
-                    standing.setFocused(
-                        event.target instanceof Element && event.target.matches(":focus-visible"),
-                    )
+        // unmount each dismissed toast once it has slid out
+        const { clock } = useEnvironment();
+        createEffect(manager.leaving, (ids, before) => {
+            for (const id of ids) {
+                if (before?.has(id) !== true) {
+                    clock.setTimeout(() => manager.remove(id), LEAVING_TIME);
                 }
-                onFocusOut={() => standing.setFocused(false)}
-            >
-                <ol
-                    ref={(element) => (stack = element)}
-                    popover="manual"
-                    data-slot="toaster-stack"
-                    data-expanded={standing.isOpen() ? "" : undefined}
-                    {...hover.attributes()}
-                    {...style.attrs(
-                        styles.toaster,
-                        positions[toaster.position],
-                        styles.height(`${String(standing.total())}px`),
-                    )}
+            }
+        });
+
+        // show the stack in the top layer while toasts exist, inside the topmost modal while one is open
+        let isShown = false;
+        let home: Comment | undefined;
+        const raise = (top: HTMLElement | undefined) => {
+            // take the stack out of the top layer before moving it
+            if (region === undefined || stack === undefined) {
+                return;
+            }
+            if (isShown) {
+                stack.hidePopover();
+            }
+
+            // place the region where a modal leaves it interactive and announced, else where it rendered
+            if (top !== undefined && region.parentElement !== top) {
+                top.append(region);
+            } else if (top === undefined && home !== undefined && region.nextSibling !== home) {
+                home.before(region);
+            }
+
+            // raise the stack above anything opened since
+            isShown = untrack(manager.toasts).length > 0;
+            if (isShown) {
+                stack.showPopover();
+            }
+            // close a stack that leaves under the pointer, which sends no leave of its own
+            else {
+                standing.setHovered(false);
+                standing.setFocused(false);
+            }
+        };
+        let stop: (() => void) | undefined;
+        onSettled(() => {
+            // mark where the region rendered, and follow the document's modal stack
+            if (region === undefined) {
+                return;
+            }
+            const modals = LayerStack.of(region);
+            home = region.ownerDocument.createComment("toaster");
+            region.after(home);
+            stop = modals.subscribe(raise);
+            raise(modals.top());
+        });
+        onCleanup(() => {
+            // stop following, and take the region out of any modal it moved into
+            stop?.();
+            home?.remove();
+            region?.remove();
+        });
+        createEffect(
+            () => manager.toasts()[0]?.id,
+            () => raise(region === undefined ? undefined : LayerStack.of(region).top()),
+        );
+
+        // stand the newest toast at the edge of the page
+        const edge = () => (toaster.position.startsWith("top") ? "top" : "bottom");
+
+        return (
+            <ToastContext value={manager}>
+                {properties.children}
+                <section
+                    ref={(element) => (region = element)}
+                    aria-label={locale.render(t.context("title")`Notifications`)}
+                    aria-live="polite"
+                    aria-relevant="additions text"
+                    aria-atomic="false"
+                    tabindex={-1}
+                    data-slot="toaster"
+                    data-position={toaster.position}
+                    onFocusIn={(event) =>
+                        standing.setFocused(
+                            event.target instanceof Element &&
+                                event.target.matches(":focus-visible"),
+                        )
+                    }
+                    onFocusOut={() => standing.setFocused(false)}
                 >
-                    <For each={shown()}>
-                        {(entry) => (
-                            <ToastItem
-                                toast={entry}
-                                manager={manager}
-                                stack={standing}
-                                focus={focus}
-                                duration={toaster.duration}
-                                edge={edge()}
-                                swipe={swipeOf(toaster.position)}
-                            />
+                    <ol
+                        ref={(element) => (stack = element)}
+                        popover="manual"
+                        data-slot="toaster-stack"
+                        data-expanded={standing.isOpen() ? "" : undefined}
+                        {...hover.attributes()}
+                        {...style.attrs(
+                            styles.toaster,
+                            positions[toaster.position],
+                            styles.height(`${String(standing.total())}px`),
                         )}
-                    </For>
-                </ol>
-            </section>
-        </ToastContext>
-    );
-}
+                    >
+                        <For each={shown()}>
+                            {(entry) => (
+                                <ToastItem
+                                    toast={entry}
+                                    manager={manager}
+                                    stack={standing}
+                                    focus={focus}
+                                    duration={toaster.duration}
+                                    edge={edge()}
+                                    swipe={swipeOf(toaster.position)}
+                                />
+                            )}
+                        </For>
+                    </ol>
+                </section>
+            </ToastContext>
+        );
+    },
+    {
+        position: schema.enum(TOASTER_POSITIONS).default("bottom-right"),
+        duration: schema.number().positive().default(DURATION),
+        visibleToasts: schema.number().int().positive().default(VISIBLE_TOASTS),
+    },
+);
 
 /** The focus of a toaster: moved to it with F6, and back to where it was. */
 class ToasterFocus {
@@ -808,9 +823,10 @@ function ToastButtons(properties: {
             </Show>
             <Show when={properties.isLasting}>
                 <Button
+                    isIconOnly
                     variant="ghost"
-                    size="icon-sm"
-                    aria-label={locale.render(t`Close`)}
+                    size="sm"
+                    aria-label={locale.render(t.context("action")`Close`)}
                     data-slot="toast-close"
                     onClick={() => properties.onDismiss()}
                 >

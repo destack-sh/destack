@@ -648,7 +648,8 @@ function TaskHeading(
             ]}
         >
             <Button
-                size="icon-sm"
+                isIconOnly
+                size="sm"
                 variant="ghost"
                 aria-label={properties.label}
                 aria-expanded={properties.isCollapsed ? "false" : "true"}
@@ -672,7 +673,8 @@ function TaskHeading(
                             <ActionButton
                                 action={createTask}
                                 icon={plusIcon}
-                                size="icon-sm"
+                                isIconOnly
+                                size="sm"
                                 variant="ghost"
                             />
                         </span>
@@ -727,7 +729,8 @@ function TaskRow(
             </span>
             <Show when={has("priority")}>
                 <Button
-                    size="icon-sm"
+                    isIconOnly
+                    size="sm"
                     variant="ghost"
                     tabindex={-1}
                     aria-label={choiceOf(PRIORITIES, task().priority).title}
@@ -743,7 +746,8 @@ function TaskRow(
                 </span>
             </Show>
             <Button
-                size="icon-sm"
+                isIconOnly
+                size="sm"
                 variant="ghost"
                 tabindex={-1}
                 aria-label={choiceOf(STATUSES, task().status).title}

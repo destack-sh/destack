@@ -238,7 +238,7 @@ export function NumberFieldInput(
                     },
                     autocomplete: "off",
                     spellcheck: "false" as const,
-                    "aria-roledescription": locale.render(t`Number field`),
+                    "aria-roledescription": locale.render(t.context("title")`Number field`),
                     onKeyDown: keys,
                     onWheel: wheel,
                     onInput: (event: InputEvent & { readonly currentTarget: HTMLInputElement }) =>
@@ -266,7 +266,11 @@ export function NumberFieldIncrement(properties: ButtonProperties): JSX.Element 
     const locale = useLocale();
 
     return (
-        <NumberFieldStepButton {...properties} direction={1} label={locale.render(t`Increase`)} />
+        <NumberFieldStepButton
+            {...properties}
+            direction={1}
+            label={locale.render(t.context("action")`Increase`)}
+        />
     );
 }
 
@@ -275,7 +279,11 @@ export function NumberFieldDecrement(properties: ButtonProperties): JSX.Element 
     const locale = useLocale();
 
     return (
-        <NumberFieldStepButton {...properties} direction={-1} label={locale.render(t`Decrease`)} />
+        <NumberFieldStepButton
+            {...properties}
+            direction={-1}
+            label={locale.render(t.context("action")`Decrease`)}
+        />
     );
 }
 

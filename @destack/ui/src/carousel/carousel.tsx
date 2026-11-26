@@ -345,7 +345,7 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
                 mergeProperties(hover.attributes(), {
                     role: "region" as const,
                     get "aria-roledescription"() {
-                        return locale.render(t`carousel`);
+                        return locale.render(t.context("title")`carousel`);
                     },
                     get "data-orientation"() {
                         return carousel.orientation;
@@ -404,7 +404,7 @@ export function CarouselItem(
         role: "group",
         ref: (created: HTMLElement) => (element = created),
         get "aria-roledescription"() {
-            return locale.render(t`slide`);
+            return locale.render(t.context("title")`slide`);
         },
         get "aria-label"() {
             return locale.render(t`${index() + 1} of ${control.count()}`);
@@ -425,9 +425,10 @@ export function CarouselPrevious(
 
     return (
         <Button
+            isIconOnly
             variant="outline"
-            size="icon"
-            aria-label={locale.render(t`Previous slide`)}
+
+            aria-label={locale.render(t.context("action")`Previous slide`)}
             disabled={!control.isLooping() && control.index() === 0}
             data-slot="carousel-previous"
             {...rest}
@@ -452,9 +453,10 @@ export function CarouselNext(
 
     return (
         <Button
+            isIconOnly
             variant="outline"
-            size="icon"
-            aria-label={locale.render(t`Next slide`)}
+
+            aria-label={locale.render(t.context("action")`Next slide`)}
             disabled={!control.isLooping() && control.index() >= control.count() - 1}
             data-slot="carousel-next"
             {...rest}
@@ -475,8 +477,9 @@ export function CarouselPlay(
 
     return (
         <Button
+            isIconOnly
             variant="outline"
-            size="icon"
+
             aria-label={locale.render(
                 control.isPlaying() ? t`Stop slide rotation` : t`Start slide rotation`,
             )}
@@ -502,7 +505,7 @@ export function CarouselDots(
     return renderPart("div", "carousel-dots", properties, styles.dots, {
         role: "group",
         get "aria-label"() {
-            return locale.render(t`Slides`);
+            return locale.render(t.context("title")`Slides`);
         },
         get children() {
             return (

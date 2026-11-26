@@ -383,7 +383,7 @@ export function CropperSelection(properties: CropperSelectionProperties): JSX.El
                         return control.options.disabled === true ? undefined : 0;
                     },
                     get "aria-label"() {
-                        return locale.render(t`Crop area`);
+                        return locale.render(t.context("title")`Crop area`);
                     },
                     get "aria-description"() {
                         return words();
@@ -474,7 +474,7 @@ export function CropperZoom(
 
     return (
         <Slider
-            aria-label={locale.render(t`Zoom`)}
+            aria-label={locale.render(t.context("label")`Zoom`)}
             step={0.01}
             format={{ style: "percent" }}
             {...properties}
@@ -508,11 +508,14 @@ export function CropperRotate(
 
     return (
         <Button
+            isIconOnly
             data-slot="cropper-rotate"
             variant="ghost"
-            size="icon"
+
             aria-label={locale.render(
-                properties.direction === -1 ? t`Rotate left` : t`Rotate right`,
+                properties.direction === -1
+                    ? t.context("action")`Rotate left`
+                    : t.context("action")`Rotate right`,
             )}
             disabled={control.options.disabled === true}
             {...mergeProperties({ onClick: () => control.rotate(properties.direction) }, rest)}
@@ -543,10 +546,15 @@ export function CropperFlip(
 
     return (
         <Button
+            isIconOnly
             data-slot="cropper-flip"
             variant="ghost"
-            size="icon"
-            aria-label={locale.render(isVertical() ? t`Flip vertically` : t`Flip horizontally`)}
+
+            aria-label={locale.render(
+                isVertical()
+                    ? t.context("action")`Flip vertically`
+                    : t.context("action")`Flip horizontally`,
+            )}
             disabled={control.options.disabled === true}
             {...mergeProperties({ onClick: () => control.flip(properties.axis) }, rest)}
         >

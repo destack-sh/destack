@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import pauseIcon from "@destack/icon/phosphor/pause";
 import playIcon from "@destack/icon/phosphor/play";
 import speakerHighIcon from "@destack/icon/phosphor/speaker-high";
@@ -262,7 +263,7 @@ function Wave(): JSX.Element {
 export const sceneClips = defineExample({
     of: Timeline,
     name: "clips",
-    description: "a film cut from clips, with pictures, sound, a playhead and a loop",
+    description: t`A film cut from clips, with pictures, sound, a playhead and a loop.`,
     layout: "padded",
     render: () => {
         // keep the clips and the loop, and play along it
@@ -274,8 +275,9 @@ export const sceneClips = defineExample({
             <Stack space="3">
                 <Cluster space="2" align="center">
                     <Button
+                        isIconOnly
                         variant="outline"
-                        size="icon"
+
                         aria-label={playback.isPlaying() ? "Pause" : "Play"}
                         onClick={playback.toggle}
                     >
@@ -389,7 +391,7 @@ const NOTES = [
 export const sceneNotes = defineExample({
     of: Timeline,
     name: "notes",
-    description: "a song's notes on a piano's keys in bars and beats, over a volume curve",
+    description: t`A song's notes on a piano's keys in bars and beats, over a volume curve.`,
     layout: "padded",
     render: () => {
         // keep the notes, and play along the song

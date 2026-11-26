@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import arrowLeftIcon from "@destack/icon/phosphor/arrow-left";
 import arrowRightIcon from "@destack/icon/phosphor/arrow-right";
 import circleIcon from "@destack/icon/phosphor/circle";
@@ -124,7 +125,7 @@ const FILES: Groups = {
 export const tabsEditor = defineExample({
     of: Tabs,
     name: "editor",
-    description: "an editor's files in two groups, unsaved, pinned and in preview",
+    description: t`An editor's files in two groups, unsaved, pinned and in preview.`,
     render: () => <Editor />,
 });
 
@@ -224,7 +225,7 @@ function Group(properties: {
                     </For>
                 </SortableContainer>
                 <OverflowMenu />
-                <Button variant="ghost" size="icon" aria-label="New file" onClick={open}>
+                <Button isIconOnly variant="ghost" aria-label="New file" onClick={open}>
                     <Icon icon={plusIcon} />
                 </Button>
             </Overflow>
@@ -371,7 +372,7 @@ const PAGES: readonly Page[] = [
 export const tabsPages = defineExample({
     of: Tabs,
     name: "pages",
-    description: "a workspace's pages along the top of its window, narrowing with the room",
+    description: t`A workspace's pages along the top of its window, narrowing with the room.`,
     render: () => <Pages />,
 });
 
@@ -427,8 +428,9 @@ function Pages(): JSX.Element {
             >
                 <Overflow xstyle={tabsListVariants({ variant: "card" })}>
                     <Button
+                        isIconOnly
                         variant="ghost"
-                        size="icon"
+
                         aria-label="Back"
                         disabled={isFirst()}
                         onClick={() => go(-1)}
@@ -436,8 +438,9 @@ function Pages(): JSX.Element {
                         <Icon icon={back} />
                     </Button>
                     <Button
+                        isIconOnly
                         variant="ghost"
-                        size="icon"
+
                         aria-label="Forward"
                         disabled={isLast()}
                         onClick={() => go(1)}
@@ -471,7 +474,7 @@ function Pages(): JSX.Element {
                         </For>
                     </SortableContainer>
                     <OverflowMenu />
-                    <Button variant="ghost" size="icon" aria-label="New page" onClick={open}>
+                    <Button isIconOnly variant="ghost" aria-label="New page" onClick={open}>
                         <Icon icon={plusIcon} />
                     </Button>
                 </Overflow>
@@ -491,7 +494,7 @@ function Pages(): JSX.Element {
 export const tabsSide = defineExample({
     of: Tabs,
     name: "side",
-    description: "a browser's pages down the side of its window, which collapses to their icons",
+    description: t`A browser's pages down the side of its window, which collapses to their icons.`,
     render: () => <Side />,
 });
 
@@ -568,7 +571,7 @@ function Side(): JSX.Element {
                                 )}
                             </For>
                         </SortableContainer>
-                        <Button variant="ghost" size="icon" aria-label="New page" onClick={open}>
+                        <Button isIconOnly variant="ghost" aria-label="New page" onClick={open}>
                             <Icon icon={plusIcon} />
                         </Button>
                     </Sortable>

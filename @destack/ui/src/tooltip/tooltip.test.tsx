@@ -26,7 +26,7 @@ test("describe a trigger by its tooltip, anchored to it while shown", () => {
     const { container } = render(() => (
         <Tooltip>
             <TooltipTrigger
-                render={(attributes) => <Button {...attributes} size="icon" />}
+                render={(attributes) => <Button isIconOnly {...attributes} />}
                 aria-label="Archive"
             >
                 A
@@ -38,7 +38,7 @@ test("describe a trigger by its tooltip, anchored to it while shown", () => {
     fire(trigger, "focus");
     flush();
     expect(markup(container)).toBe(
-        '<button data-variant="default" data-size="icon" data-slot="tooltip-trigger" type="button" aria-describedby="id-1" aria-label="Archive" data-anchor-name="--id-1" data-popup-open="">A</button>' +
+        '<button data-variant="default" data-size="default" data-slot="tooltip-trigger" type="button" aria-describedby="id-1" aria-label="Archive" data-anchor-name="--id-1" data-popup-open="">A</button>' +
             '<div data-position-anchor="--id-1" data-slot="tooltip-content" id="id-1" popover="hint" role="tooltip" data-side="top" data-align="center" data-open="" data-popover-open="tooltip-trigger">Archive note</div>',
     );
 });

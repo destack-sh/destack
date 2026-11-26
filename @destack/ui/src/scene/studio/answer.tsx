@@ -262,7 +262,8 @@ export function AnswerPicker(properties: {
         <Show when={count() > 1}>
             <Cluster space="1" align="center" role="group" aria-label="Answers">
                 <Button
-                    size="icon-sm"
+                    isIconOnly
+                    size="sm"
                     variant="ghost"
                     aria-label="Previous answer"
                     disabled={properties.message.shown === 0}
@@ -274,7 +275,8 @@ export function AnswerPicker(properties: {
                     {locale.number(properties.message.shown + 1)} / {locale.number(count())}
                 </span>
                 <Button
-                    size="icon-sm"
+                    isIconOnly
+                    size="sm"
                     variant="ghost"
                     aria-label="Next answer"
                     disabled={properties.message.shown === count() - 1}

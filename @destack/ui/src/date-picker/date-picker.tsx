@@ -242,7 +242,7 @@ function DatePickerFields(properties: {
                     }
                 >
                     <DateField
-                        aria-label={locale.render(t`Start date`)}
+                        aria-label={locale.render(t.context("label")`Start date`)}
                         value={range()?.from}
                         onValueChange={(from) =>
                             properties.onValueChange(rangeOf(from, range()?.to ?? end))
@@ -253,7 +253,7 @@ function DatePickerFields(properties: {
                         –
                     </span>
                     <DateField
-                        aria-label={locale.render(t`End date`)}
+                        aria-label={locale.render(t.context("label")`End date`)}
                         value={range()?.to}
                         onValueChange={(to) => {
                             // store the typed end, reporting it once the range has a start
@@ -271,7 +271,13 @@ function DatePickerFields(properties: {
             {/* Calendar button */}
             <PopoverTrigger
                 render={(attributes) => (
-                    <Button {...attributes} variant="ghost" size="icon-sm" xstyle={styles.button} />
+                    <Button
+                        isIconOnly
+                        {...attributes}
+                        variant="ghost"
+                        size="sm"
+                        xstyle={styles.button}
+                    />
                 )}
                 aria-label={locale.render(t`Pick a date`)}
                 data-slot="date-picker-trigger"

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import xIcon from "@destack/icon/phosphor/x";
 import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
@@ -16,7 +17,7 @@ import {
 export const floatingPanelNotes = defineExample({
     of: FloatingPanel,
     name: "notes",
-    description: "a panel of notes, which moves by its header and resizes by its sides",
+    description: t`A panel of notes, which moves by its header and resizes by its sides.`,
     render: () => (
         <FloatingPanel>
             <FloatingPanelTrigger render={(part) => <Button {...part} variant="outline" />}>
@@ -28,7 +29,7 @@ export const floatingPanelNotes = defineExample({
                     <FloatingPanelClose
                         aria-label="Close notes"
                         render={(part) => (
-                            <Button {...part} variant="ghost" size="icon-sm">
+                            <Button isIconOnly {...part} variant="ghost" size="sm">
                                 <Icon icon={xIcon} />
                             </Button>
                         )}

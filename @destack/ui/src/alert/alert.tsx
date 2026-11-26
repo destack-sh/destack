@@ -180,9 +180,10 @@ export function AlertClose(properties: Omit<ButtonProperties, "variant" | "size"
 
     return (
         <Button
+            isIconOnly
             variant="ghost"
-            size="icon-sm"
-            aria-label={locale.render(t`Dismiss`)}
+            size="sm"
+            aria-label={locale.render(t.context("action")`Dismiss`)}
             data-slot="alert-close"
             {...rest}
             xstyle={[styles.close, properties.xstyle]}

@@ -128,7 +128,7 @@ export function Sort(properties: SortProperties): JSX.Element {
         <SortContext value={control}>
             {renderPart("div", "sort", rest, styles.sort, {
                 role: "group" as const,
-                "aria-label": locale.render(t`Sort`),
+                "aria-label": locale.render(t.context("title")`Sort`),
                 get children() {
                     return contentOr(properties, () => <SortMenu />);
                 },
@@ -161,7 +161,7 @@ export function SortList(properties: SortListProperties): JSX.Element {
             >
                 <SortableContainer
                     id="sort"
-                    label={locale.render(t`Sort`)}
+                    label={locale.render(t.context("action")`Sort`)}
                     orientation={orientation()}
                     xstyle={[styles.list, orientation() === "vertical" && styles.vertical]}
                 >
@@ -339,10 +339,11 @@ export function SortRemove(properties: ButtonProperties): JSX.Element {
 
     return (
         <Button
+            isIconOnly
             data-slot="sort-remove"
             variant="secondary"
-            size="icon-sm"
-            aria-label={locale.render(t`Remove sort`)}
+            size="sm"
+            aria-label={locale.render(t.context("action")`Remove sort`)}
             {...mergeProperties({ onClick: remove }, properties)}
         >
             {contentOr(properties, () => (
@@ -385,7 +386,7 @@ export function SortAdd(properties: ButtonProperties): JSX.Element {
                     {contentOr(properties, () => (
                         <>
                             <Icon icon={plusIcon} />
-                            {locale.render(t`Sort`)}
+                            {locale.render(t.context("action")`Sort`)}
                         </>
                     ))}
                 </PopoverTrigger>
@@ -408,10 +409,10 @@ function FieldCommand(properties: {
     const others = createMemo(() => control.others());
 
     return (
-        <Command aria-label={locale.render(t`Sort`)}>
-            <CommandInput placeholder={locale.render(t`Sort by…`)} />
+        <Command aria-label={locale.render(t.context("title")`Sort`)}>
+            <CommandInput placeholder={locale.render(t.context("label")`Sort by…`)} />
             <CommandList>
-                <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
+                <CommandEmpty>{locale.render(t.context("title")`No results.`)}</CommandEmpty>
                 <CommandGroup>
                     <For each={others()}>
                         {(name) => (
@@ -479,7 +480,7 @@ export function SortMenu(properties: ButtonProperties): JSX.Element {
                             <>
                                 <Icon icon={sortIcon} />
                                 {control.keys().length === 0
-                                    ? locale.render(t`Sort`)
+                                    ? locale.render(t.context("action")`Sort`)
                                     : locale.render(
                                           t`${plural(control.keys().length, { one: "# sort", other: "# sorts" })}`,
                                       )}
@@ -529,7 +530,7 @@ export function SortClear(properties: ButtonProperties): JSX.Element {
                 size="sm"
                 {...mergeProperties({ onClick: () => control.clear() }, properties)}
             >
-                {contentOr(properties, () => locale.render(t`Clear sort`))}
+                {contentOr(properties, () => locale.render(t.context("action")`Clear sort`))}
             </Button>
         </Show>
     );

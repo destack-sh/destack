@@ -110,6 +110,11 @@ const PROPERTIES = {
         .labeled(t.context("label")`Loading`)
         .described(t`Shows a spinner in place of the label while its action runs.`)
         .default(false),
+    isIconOnly: field
+        .boolean()
+        .labeled(t.context("label")`Icon only`)
+        .described(t`Shows only the icon, square, named by its label for assistive technology.`)
+        .default(false),
 };
 
 /** How long an action runs before its button shows a spinner, in milliseconds. */
@@ -401,18 +406,6 @@ export const Button = defineComponent(
                 },
             },
         );
-    },
-    PROPERTIES,
-);
-
-/** The properties of a button showing only its icon, named by a label, a tooltip or another. */
-export type IconButtonProperties = ButtonProperties;
-
-/** Render a square native button showing only its icon, in a variant and size. */
-export const IconButton = defineComponent(
-    "iconButton",
-    function IconButton(properties: IconButtonProperties): JSX.Element {
-        return <Button data-slot="icon-button" {...properties} isIconOnly />;
     },
     PROPERTIES,
 );

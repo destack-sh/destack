@@ -132,6 +132,8 @@ import { createGutter, type DataTableGutter } from "./gutter.ts";
 import type { DataTableInstance } from "./table.ts";
 import { Length, Virtualizer } from "../virtualizer/index.ts";
 import { VisuallyHidden, visuallyHiddenStyle } from "../visually-hidden/index.ts";
+import { defineComponent } from "@destack/view/declare";
+import { schema } from "@destack/schema";
 
 /** The page sizes a pagination offers without its own. */
 const PAGE_SIZES: readonly number[] = [10, 20, 50, 100];
@@ -454,321 +456,333 @@ export interface DataTableProperties<
 }
 
 /** Render a table's headers and rows as a grid. */
-export function DataTable<Features extends TableFeatures, Row extends RowData>(
-    properties: DataTableProperties<Features, Row>,
-): JSX.Element {
-    // read the header groups, the rows and the shown columns as the table changes
-    const locale = useLocale();
-    const rest = omit(
-        properties,
-        "table",
-        "empty",
-        "isVirtual",
-        "onCellsChange",
-        "onRowMove",
-        "reference",
-        "gutter",
-        "children",
-    );
-    const headerGroups = createMemo(() => {
-        properties.table.tracked();
-
-        return properties.table.getHeaderGroups();
-    });
-    const rows = createMemo(() => {
-        properties.table.tracked();
-
-        return properties.table.getRowModel().rows;
-    });
-    const leafHeaders = () => headerGroups().at(-1)?.headers ?? [];
-    const columns = createMemo(() => leafHeaders().map((header) => header.column.id), {
-        equals: isSameList,
-    });
-    const width = (): number => Math.max(columns().length, 1);
-
-    // lay the headers and rows out as a grid that edits, copies, pastes and selects blocks
-    const [root, setRoot] = createSignal<HTMLElement | undefined>(undefined, { ownedWrite: true });
-    const isVirtual = untrack(() => properties.isVirtual === true);
-    const gutter = createGutter(root, columns, () => properties.gutter ?? "outside");
-    const control = new DataTableControl({
-        locale: useLocale(),
-        table: untrack(() => properties.table),
-        rows,
-        columns,
-        headers: createMemo(
-            () => headerGroups().map((group) => group.headers.map((header) => header.colSpan)),
-            { equals: (previous, next) => JSON.stringify(previous) === JSON.stringify(next) },
-        ),
-        root,
-        reveal: (row) => {
-            if (isVirtual) {
-                virtualizer.scrollToIndex(row);
-            }
-        },
-        onCellsChange: untrack(() => properties.onCellsChange),
-    });
-
-    // mount the focused and the edited row out of view, as their elements have the focus
-    const persisted = createMemo(
-        () => {
-            const focused = control.focus.current();
-            const ids = new Set([
-                focused?.kind === "body" ? focused.row : undefined,
-                control.edit()?.row,
-            ]);
-
-            return rows().flatMap((row, index) => (ids.has(row.id) ? [index] : []));
-        },
-        { equals: isSameList },
-    );
-
-    // render only the rows in view when the rows have a height
-    const [scroller, setScroller] = createSignal<HTMLElement | undefined>(undefined, {
-        ownedWrite: true,
-    });
-    const rowLength = new Length(() => size[2]);
-    const estimate = createMemo(() => {
-        // estimate every row at the measured row height, a new height laying the rows out again
-        const pixels = rowLength.pixels();
-
-        return () => present(pixels, "the data table's row height");
-    });
-    const virtualizer = new Virtualizer({
-        count: () => rows().length,
-        estimateSize: estimate,
-        scrollElement: scroller,
-        persisted: () => persisted(),
-        isEnabled: () => isVirtual && rowLength.pixels() !== undefined,
-    });
-    const shown = createMemo(() =>
-        !isVirtual
-            ? rows().map((row, index) => ({ row, index }))
-            : virtualizer.items().flatMap((item) => {
-                  const row = rows()[item.index];
-
-                  return row === undefined ? [] : [{ row, index: item.index }];
-              }),
-    );
-    const spacers = () => (isVirtual ? virtualizer.spacers() : { before: 0, after: 0 });
-
-    // announce a refused paste by its text and the column that refused it
-    const refusalText = () => {
-        // say nothing without a refusal
-        const refusal = control.refusal();
-        if (refusal === undefined) {
-            return undefined;
-        }
-
-        // read the column of the refused cell
-        const cell = present(
-            control.cellAt({ kind: "body", row: refusal.row, column: refusal.column }),
-            `the refused cell '${refusal.row}' '${refusal.column}'`,
+export const DataTable = defineComponent(
+    "dataTable",
+    function DataTable<Features extends TableFeatures, Row extends RowData>(
+        properties: DataTableProperties<Features, Row>,
+    ): JSX.Element {
+        // read the header groups, the rows and the shown columns as the table changes
+        const locale = useLocale();
+        const rest = omit(
+            properties,
+            "table",
+            "empty",
+            "isVirtual",
+            "onCellsChange",
+            "onRowMove",
+            "reference",
+            "gutter",
+            "children",
         );
-
-        return locale.render(t`Can't paste “${refusal.text}” into ${labelOf(cell.column)}`);
-    };
-
-    // follow the state, and the slices of it the rows read apart from the cells' selection
-    const tracked: Accessor<DataTableState> = untrack(() => properties.table.tracked);
-    const slices: DataTableSlices = {
-        state: tracked,
-        rowSelection: createMemo(() => tracked().rowSelection),
-        expanded: createMemo(() => tracked().expanded),
-        isArranged: createMemo(() => isArranged(tracked())),
-        changeColumn: (column, run) => control.changeColumn(column, run),
-    };
-
-    // move rows by their handles where the owner takes moves, and columns where the table orders them
-    const isRowOrdered = untrack(() => properties.onRowMove !== undefined);
-    const table: object = untrack(() => properties.table);
-    const isColumnOrdered = isOrderedTable(table);
-    const onMove = (move: SortableMove) => {
-        // hand a row's move to the owner, and place a column in the table's order
-        if (move.container === ROWS) {
-            properties.onRowMove?.({
-                id: idOf(move.id),
-                previous: move.previous === undefined ? undefined : idOf(move.previous),
-                next: move.next === undefined ? undefined : idOf(move.next),
-            });
-        } else if (isOrderedTable(table)) {
-            placeColumn(table, move);
-        }
-    };
-
-    // give the rows a person is on to the actions on them, a row's selection, else the selection
-    const targets = (element: Element | null): readonly string[] => {
-        const id = element?.closest<HTMLElement>("tr[data-row]")?.dataset["row"];
-        const selected = isSelectableTable(table)
-            ? table.getSelectedRowModel().rows.map((row) => row.id)
-            : [];
-
-        return id === undefined || selected.includes(id) ? selected : [id];
-    };
-    const actions = useActions();
-    const giveRows = provideItems({ targets, reference: (row) => properties.reference?.(row) });
-
-    // place each pinned column at its edge, once per change of the pinning or the sizes
-    const pins = createMemo(
-        () => {
+        const headerGroups = createMemo(() => {
             properties.table.tracked();
 
-            return pinsOf(leafHeaders().map((header) => header.column));
-        },
-        { equals: isSamePins },
-    );
+            return properties.table.getHeaderGroups();
+        });
+        const rows = createMemo(() => {
+            properties.table.tracked();
 
-    return renderPart(
-        "div",
-        "data-table",
-        rest,
-        () => [
-            styles.frame,
-            gutter() > 0 && styles.hung(`${String(gutter())}px`),
-            isVirtual && styles.scroller,
-        ],
-        {
-            ref: (element) => {
-                setRoot(element);
-                giveRows(element);
-                setScroller(isVirtual ? element : undefined);
-            },
-            onKeyDown: (event) => keyDown(event, control, locale.direction),
-            onClick: (event) => {
-                // open what the page's menu offers on a row as its grip is clicked
-                const grip =
-                    event.target instanceof Element
-                        ? event.target.closest<HTMLElement>("[data-slot=data-table-row-handle]")
-                        : null;
-                if (grip !== null && actions.has(openMenu.reference, grip)) {
-                    actions.start(openMenu, grip);
+            return properties.table.getRowModel().rows;
+        });
+        const leafHeaders = () => headerGroups().at(-1)?.headers ?? [];
+        const columns = createMemo(() => leafHeaders().map((header) => header.column.id), {
+            equals: isSameList,
+        });
+        const width = (): number => Math.max(columns().length, 1);
+
+        // lay the headers and rows out as a grid that edits, copies, pastes and selects blocks
+        const [root, setRoot] = createSignal<HTMLElement | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const isVirtual = untrack(() => properties.isVirtual === true);
+        const gutter = createGutter(root, columns, () => properties.gutter ?? "outside");
+        const control = new DataTableControl({
+            locale: useLocale(),
+            table: untrack(() => properties.table),
+            rows,
+            columns,
+            headers: createMemo(
+                () => headerGroups().map((group) => group.headers.map((header) => header.colSpan)),
+                { equals: (previous, next) => JSON.stringify(previous) === JSON.stringify(next) },
+            ),
+            root,
+            reveal: (row) => {
+                if (isVirtual) {
+                    virtualizer.scrollToIndex(row);
                 }
             },
-            onCopy: (event) => control.copy(event),
-            onPaste: (event) => control.paste(event),
-            onFocusOut: (event) => control.focus.focusOut(event),
-            get children() {
-                return (
-                    <>
-                        {/* Refused paste */}
-                        <div
-                            role="status"
-                            data-slot="data-table-refusal"
-                            {...style.attrs(visuallyHiddenStyle())}
-                        >
-                            {refusalText()}
-                        </div>
+            onCellsChange: untrack(() => properties.onCellsChange),
+        });
 
-                        {/* Row height */}
-                        <Show when={isVirtual}>{rowLength.render()}</Show>
+        // mount the focused and the edited row out of view, as their elements have the focus
+        const persisted = createMemo(
+            () => {
+                const focused = control.focus.current();
+                const ids = new Set([
+                    focused?.kind === "body" ? focused.row : undefined,
+                    control.edit()?.row,
+                ]);
 
-                        <DataTableContext value={slices}>
-                            <Sortable onMove={onMove} xstyle={styles.sortable}>
-                                <table
-                                    data-slot="table"
-                                    {...style.attrs(tableStyle())}
-                                    role={follow(properties.table.tracked, () =>
-                                        rows().some(isExpandableRow) ? "treegrid" : "grid",
-                                    )}
-                                    aria-multiselectable={
-                                        control.isSelecting() ? "true" : undefined
-                                    }
-                                    aria-rowcount={rows().length + headerGroups().length}
-                                >
-                                    <TableHeader>
-                                        <For each={headerGroups()}>
-                                            {(group, row) => (
-                                                <HeaderRow
-                                                    isOrdered={
-                                                        isColumnOrdered &&
-                                                        row() === headerGroups().length - 1
-                                                    }
-                                                    aria-rowindex={row() + 1}
+                return rows().flatMap((row, index) => (ids.has(row.id) ? [index] : []));
+            },
+            { equals: isSameList },
+        );
+
+        // render only the rows in view when the rows have a height
+        const [scroller, setScroller] = createSignal<HTMLElement | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const rowLength = new Length(() => size[2]);
+        const estimate = createMemo(() => {
+            // estimate every row at the measured row height, a new height laying the rows out again
+            const pixels = rowLength.pixels();
+
+            return () => present(pixels, "the data table's row height");
+        });
+        const virtualizer = new Virtualizer({
+            count: () => rows().length,
+            estimateSize: estimate,
+            scrollElement: scroller,
+            persisted: () => persisted(),
+            isEnabled: () => isVirtual && rowLength.pixels() !== undefined,
+        });
+        const shown = createMemo(() =>
+            !isVirtual
+                ? rows().map((row, index) => ({ row, index }))
+                : virtualizer.items().flatMap((item) => {
+                      const row = rows()[item.index];
+
+                      return row === undefined ? [] : [{ row, index: item.index }];
+                  }),
+        );
+        const spacers = () => (isVirtual ? virtualizer.spacers() : { before: 0, after: 0 });
+
+        // announce a refused paste by its text and the column that refused it
+        const refusalText = () => {
+            // say nothing without a refusal
+            const refusal = control.refusal();
+            if (refusal === undefined) {
+                return undefined;
+            }
+
+            // read the column of the refused cell
+            const cell = present(
+                control.cellAt({ kind: "body", row: refusal.row, column: refusal.column }),
+                `the refused cell '${refusal.row}' '${refusal.column}'`,
+            );
+
+            return locale.render(t`Can't paste “${refusal.text}” into ${labelOf(cell.column)}`);
+        };
+
+        // follow the state, and the slices of it the rows read apart from the cells' selection
+        const tracked: Accessor<DataTableState> = untrack(() => properties.table.tracked);
+        const slices: DataTableSlices = {
+            state: tracked,
+            rowSelection: createMemo(() => tracked().rowSelection),
+            expanded: createMemo(() => tracked().expanded),
+            isArranged: createMemo(() => isArranged(tracked())),
+            changeColumn: (column, run) => control.changeColumn(column, run),
+        };
+
+        // move rows by their handles where the owner takes moves, and columns where the table orders them
+        const isRowOrdered = untrack(() => properties.onRowMove !== undefined);
+        const table: object = untrack(() => properties.table);
+        const isColumnOrdered = isOrderedTable(table);
+        const onMove = (move: SortableMove) => {
+            // hand a row's move to the owner, and place a column in the table's order
+            if (move.container === ROWS) {
+                properties.onRowMove?.({
+                    id: idOf(move.id),
+                    previous: move.previous === undefined ? undefined : idOf(move.previous),
+                    next: move.next === undefined ? undefined : idOf(move.next),
+                });
+            } else if (isOrderedTable(table)) {
+                placeColumn(table, move);
+            }
+        };
+
+        // give the rows a person is on to the actions on them, a row's selection, else the selection
+        const targets = (element: Element | null): readonly string[] => {
+            const id = element?.closest<HTMLElement>("tr[data-row]")?.dataset["row"];
+            const selected = isSelectableTable(table)
+                ? table.getSelectedRowModel().rows.map((row) => row.id)
+                : [];
+
+            return id === undefined || selected.includes(id) ? selected : [id];
+        };
+        const actions = useActions();
+        const giveRows = provideItems({ targets, reference: (row) => properties.reference?.(row) });
+
+        // place each pinned column at its edge, once per change of the pinning or the sizes
+        const pins = createMemo(
+            () => {
+                properties.table.tracked();
+
+                return pinsOf(leafHeaders().map((header) => header.column));
+            },
+            { equals: isSamePins },
+        );
+
+        return renderPart(
+            "div",
+            "data-table",
+            rest,
+            () => [
+                styles.frame,
+                gutter() > 0 && styles.hung(`${String(gutter())}px`),
+                isVirtual && styles.scroller,
+            ],
+            {
+                ref: (element) => {
+                    setRoot(element);
+                    giveRows(element);
+                    setScroller(isVirtual ? element : undefined);
+                },
+                onKeyDown: (event) => keyDown(event, control, locale.direction),
+                onClick: (event) => {
+                    // open what the page's menu offers on a row as its grip is clicked
+                    const grip =
+                        event.target instanceof Element
+                            ? event.target.closest<HTMLElement>("[data-slot=data-table-row-handle]")
+                            : null;
+                    if (grip !== null && actions.has(openMenu.reference, grip)) {
+                        actions.start(openMenu, grip);
+                    }
+                },
+                onCopy: (event) => control.copy(event),
+                onPaste: (event) => control.paste(event),
+                onFocusOut: (event) => control.focus.focusOut(event),
+                get children() {
+                    return (
+                        <>
+                            {/* Refused paste */}
+                            <div
+                                role="status"
+                                data-slot="data-table-refusal"
+                                {...style.attrs(visuallyHiddenStyle())}
+                            >
+                                {refusalText()}
+                            </div>
+
+                            {/* Row height */}
+                            <Show when={isVirtual}>{rowLength.render()}</Show>
+
+                            <DataTableContext value={slices}>
+                                <Sortable onMove={onMove} xstyle={styles.sortable}>
+                                    <table
+                                        data-slot="table"
+                                        {...style.attrs(tableStyle())}
+                                        role={follow(properties.table.tracked, () =>
+                                            rows().some(isExpandableRow) ? "treegrid" : "grid",
+                                        )}
+                                        aria-multiselectable={
+                                            control.isSelecting() ? "true" : undefined
+                                        }
+                                        aria-rowcount={rows().length + headerGroups().length}
+                                    >
+                                        <TableHeader>
+                                            <For each={headerGroups()}>
+                                                {(group, row) => (
+                                                    <HeaderRow
+                                                        isOrdered={
+                                                            isColumnOrdered &&
+                                                            row() === headerGroups().length - 1
+                                                        }
+                                                        aria-rowindex={row() + 1}
+                                                    >
+                                                        <For each={group.headers}>
+                                                            {(header, column) => (
+                                                                <DataTableHeaderCell
+                                                                    control={control}
+                                                                    pins={pins}
+                                                                    header={header}
+                                                                    cell={{
+                                                                        kind: "head",
+                                                                        row: row(),
+                                                                        column: column(),
+                                                                    }}
+                                                                    isOrdered={
+                                                                        isColumnOrdered &&
+                                                                        row() ===
+                                                                            headerGroups().length -
+                                                                                1
+                                                                    }
+                                                                />
+                                                            )}
+                                                        </For>
+                                                    </HeaderRow>
+                                                )}
+                                            </For>
+                                        </TableHeader>
+                                        <BodyRows isOrdered={isRowOrdered}>
+                                            <SpacerRow height={spacers().before} width={width()} />
+                                            <For
+                                                each={shown()}
+                                                keyed={(entry) => entry.row.id}
+                                                fallback={
+                                                    <TableRow>
+                                                        <TableCell
+                                                            colspan={width()}
+                                                            xstyle={styles.empty}
+                                                        >
+                                                            {properties.empty ??
+                                                                locale.render(
+                                                                    t.context("title")`No results.`,
+                                                                )}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                }
+                                            >
+                                                {(entry) => (
+                                                    <BodyRow
+                                                        control={control}
+                                                        pins={pins}
+                                                        row={entry().row}
+                                                        index={
+                                                            headerGroups().length +
+                                                            entry().index +
+                                                            1
+                                                        }
+                                                        isOrdered={isRowOrdered}
+                                                    />
+                                                )}
+                                            </For>
+                                            <SpacerRow height={spacers().after} width={width()} />
+                                        </BodyRows>
+                                        <Show
+                                            when={leafHeaders().some(
+                                                (header) =>
+                                                    metaOf(header.column).summary !== undefined,
+                                            )}
+                                        >
+                                            <TableFooter xstyle={styles.footer}>
+                                                <TableRow
+                                                    data-slot="data-table-summaries"
+                                                    xstyle={styles.row}
                                                 >
-                                                    <For each={group.headers}>
-                                                        {(header, column) => (
-                                                            <DataTableHeaderCell
-                                                                control={control}
+                                                    <For each={leafHeaders()}>
+                                                        {(header) => (
+                                                            <DataTableSummaryCell
                                                                 pins={pins}
-                                                                header={header}
-                                                                cell={{
-                                                                    kind: "head",
-                                                                    row: row(),
-                                                                    column: column(),
-                                                                }}
-                                                                isOrdered={
-                                                                    isColumnOrdered &&
-                                                                    row() ===
-                                                                        headerGroups().length - 1
-                                                                }
+                                                                table={properties.table}
+                                                                column={header.column}
                                                             />
                                                         )}
                                                     </For>
-                                                </HeaderRow>
-                                            )}
-                                        </For>
-                                    </TableHeader>
-                                    <BodyRows isOrdered={isRowOrdered}>
-                                        <SpacerRow height={spacers().before} width={width()} />
-                                        <For
-                                            each={shown()}
-                                            keyed={(entry) => entry.row.id}
-                                            fallback={
-                                                <TableRow>
-                                                    <TableCell
-                                                        colspan={width()}
-                                                        xstyle={styles.empty}
-                                                    >
-                                                        {properties.empty ??
-                                                            locale.render(t`No results.`)}
-                                                    </TableCell>
                                                 </TableRow>
-                                            }
-                                        >
-                                            {(entry) => (
-                                                <BodyRow
-                                                    control={control}
-                                                    pins={pins}
-                                                    row={entry().row}
-                                                    index={
-                                                        headerGroups().length + entry().index + 1
-                                                    }
-                                                    isOrdered={isRowOrdered}
-                                                />
-                                            )}
-                                        </For>
-                                        <SpacerRow height={spacers().after} width={width()} />
-                                    </BodyRows>
-                                    <Show
-                                        when={leafHeaders().some(
-                                            (header) => metaOf(header.column).summary !== undefined,
-                                        )}
-                                    >
-                                        <TableFooter xstyle={styles.footer}>
-                                            <TableRow
-                                                data-slot="data-table-summaries"
-                                                xstyle={styles.row}
-                                            >
-                                                <For each={leafHeaders()}>
-                                                    {(header) => (
-                                                        <DataTableSummaryCell
-                                                            pins={pins}
-                                                            table={properties.table}
-                                                            column={header.column}
-                                                        />
-                                                    )}
-                                                </For>
-                                            </TableRow>
-                                        </TableFooter>
-                                    </Show>
-                                </table>
-                            </Sortable>
-                        </DataTableContext>
-                    </>
-                );
+                                            </TableFooter>
+                                        </Show>
+                                    </table>
+                                </Sortable>
+                            </DataTableContext>
+                        </>
+                    );
+                },
             },
-        },
-    );
-}
+        );
+    },
+    { isVirtual: schema.boolean().default(false) },
+);
 
 /** Render a header cell of a data table, marked with its column's sort. */
 function DataTableHeaderCell<Features extends TableFeatures, Data extends RowData>(properties: {
@@ -1342,9 +1356,10 @@ export function DataTableColumnHeader<Features extends TableFeatures, Row extend
                     <DropdownMenuTrigger
                         render={(attributes) => (
                             <Button
+                                isIconOnly
                                 {...attributes}
                                 variant="ghost"
-                                size="icon-sm"
+                                size="sm"
                                 tabindex={-1}
                                 xstyle={styles.quiet}
                             />
@@ -1590,8 +1605,9 @@ function PageStep(properties: {
 }): JSX.Element {
     return (
         <Button
+            isIconOnly
             variant="outline"
-            size="icon"
+
             aria-label={properties.label}
             disabled={properties.disabled}
             onClick={() => properties.go()}
@@ -1631,7 +1647,7 @@ export function DataTableBulkBar<Features extends TableFeatures, Row extends Row
             reference={(row) => properties.reference?.(row)}
             onClear={() => properties.table.resetRowSelection()}
             placement="inline"
-            aria-label={locale.render(t`Selected rows`)}
+            aria-label={locale.render(t.context("title")`Selected rows`)}
             data-slot="data-table-bulk-bar"
         >
             <ActionBarCount xstyle={styles.count}>
@@ -1673,10 +1689,12 @@ export function DataTableViewOptions<Features extends TableFeatures, Row extends
                 data-slot="data-table-view-options"
             >
                 <Icon icon={slidersHorizontal} />
-                {locale.render(t`View`)}
+                {locale.render(t.context("action")`View`)}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{locale.render(t`Toggle columns`)}</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                    {locale.render(t.context("title")`Toggle columns`)}
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <For each={columns().filter((column) => column.getCanHide())}>
                     {(column) => (
@@ -1754,7 +1772,7 @@ export function expansionColumn<Features extends TableFeatures, Row extends RowD
 function ExpandHeader(): JSX.Element {
     const locale = useLocale();
 
-    return <VisuallyHidden>{locale.render(t`Expand`)}</VisuallyHidden>;
+    return <VisuallyHidden>{locale.render(t.context("action")`Expand`)}</VisuallyHidden>;
 }
 
 /** Render the button that shows and hides a row's sub rows, with what follows it in the cell. */
@@ -1784,11 +1802,16 @@ function RowToggle(properties: {
         >
             <Show when={row.getCanExpand()} fallback={<span {...style.attrs(styles.selection)} />}>
                 <Button
+                    isIconOnly
                     variant="ghost"
-                    size="icon-sm"
+                    size="sm"
                     aria-expanded={isExpanded() ? "true" : "false"}
                     xstyle={styles.expand}
-                    aria-label={locale.render(isExpanded() ? t`Collapse row` : t`Expand row`)}
+                    aria-label={locale.render(
+                        isExpanded()
+                            ? t.context("action")`Collapse row`
+                            : t.context("action")`Expand row`,
+                    )}
                     onClick={() => row.toggleExpanded()}
                 >
                     <span {...style.attrs(indicator.base, isExpanded() && indicator.open)}>
@@ -1826,7 +1849,7 @@ function PageSelection(properties: {
 
     return (
         <Checkbox
-            aria-label={locale.render(t`Select all`)}
+            aria-label={locale.render(t.context("action")`Select all`)}
             checked={isAll()}
             indeterminate={isSome() && !isAll()}
             onCheckedChange={(isSelected) => table.toggleAllPageRowsSelected(isSelected)}
@@ -1855,7 +1878,7 @@ function RowSelection(properties: {
 
     return (
         <Checkbox
-            aria-label={locale.render(t`Select row`)}
+            aria-label={locale.render(t.context("action")`Select row`)}
             checked={isSelected()}
             disabled={!row.getCanSelect()}
             onCheckedChange={(isChecked) => row.toggleSelected(isChecked)}
@@ -2124,7 +2147,7 @@ function HeaderRow(properties: {
         <SortableContainer
             id={COLUMNS}
             orientation="horizontal"
-            label={locale.render(t`Columns`)}
+            label={locale.render(t.context("label")`Columns`)}
             accepts={[COLUMN_TYPE]}
             render={(attributes) => (
                 <TableRow
@@ -2155,7 +2178,7 @@ function BodyRows(properties: {
     return untrack(() => properties.isOrdered) ? (
         <SortableContainer
             id={ROWS}
-            label={locale.render(t`Rows`)}
+            label={locale.render(t.context("label")`Rows`)}
             accepts={[ROW_TYPE]}
             xstyle={styles.unmarked}
             render={(attributes) => <TableBody {...attributes} />}
@@ -2271,7 +2294,7 @@ function summaryText(
     }
     // say a column has no numbers to sum
     else if (numbers.length === 0) {
-        return locale.render(t`No numbers`);
+        return locale.render(t.context("option")`No numbers`);
     }
     // sum, average, or take the smallest or largest number
     else if (summary === "sum") {
@@ -2497,7 +2520,7 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
                 onKeyDown={onKeyDown}
                 onBlur={onBlur}
             >
-                <SelectItem value="">{locale.render(t`None`)}</SelectItem>
+                <SelectItem value="">{locale.render(t.context("option")`None`)}</SelectItem>
                 <For each={editor.options}>
                     {(option) => <SelectItem value={option.value}>{option.label}</SelectItem>}
                 </For>

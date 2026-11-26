@@ -86,11 +86,12 @@ export function QuoteDismiss(properties: ButtonProperties): JSX.Element {
 
     return (
         <Button
+            isIconOnly
             data-slot="quote-dismiss"
             variant="ghost"
-            size="icon-sm"
+            size="sm"
             shape="round"
-            aria-label={locale.render(t`Remove quote`)}
+            aria-label={locale.render(t.context("action")`Remove quote`)}
             {...properties}
             xstyle={[styles.dismiss, properties.xstyle]}
         >

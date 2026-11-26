@@ -195,7 +195,8 @@ export function ConversationPage(properties: {
                                 {properties.conversation.name}
                             </span>
                             <Button
-                                size="icon-sm"
+                                isIconOnly
+                                size="sm"
                                 variant="ghost"
                                 aria-label="Close the thread"
                                 onClick={() => setRoot(undefined)}
@@ -624,7 +625,8 @@ function Write(properties: {
                 />
                 <ComposerFooter>
                     <ComposerSubmit
-                        size="icon-sm"
+                        isIconOnly
+                        size="sm"
                         disabled={!properties.isBusy && words().trim() === ""}
                     />
                 </ComposerFooter>

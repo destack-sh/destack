@@ -520,7 +520,7 @@ export function TagFieldList(
             return control.values().length === 0 ? undefined : ("list" as const);
         },
         get "aria-label"() {
-            return locale.render(t`Tags`);
+            return locale.render(t.context("title")`Tags`);
         },
         get children() {
             return (
@@ -747,7 +747,9 @@ export function TagFieldInput(
                 mergeProperties(control.field?.attributes() ?? {}, {
                     autocomplete: "off" as const,
                     get "aria-label"() {
-                        return control.field === null ? locale.render(t`Add tag`) : undefined;
+                        return control.field === null
+                            ? locale.render(t.context("label")`Add tag`)
+                            : undefined;
                     },
                     enterkeyhint: "done" as const,
                     get "aria-invalid"() {
@@ -793,10 +795,11 @@ export function TagFieldClear(properties: ButtonProperties): JSX.Element {
     return (
         <Show when={control.values().length > 0 && control.isEditable()}>
             <Button
+                isIconOnly
                 data-slot="tag-field-clear"
                 variant="ghost"
-                size="icon-sm"
-                aria-label={locale.render(t`Remove all`)}
+                size="sm"
+                aria-label={locale.render(t.context("action")`Remove all`)}
                 xstyle={styles.clear}
                 {...mergeProperties(
                     {

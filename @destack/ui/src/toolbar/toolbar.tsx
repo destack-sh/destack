@@ -239,7 +239,7 @@ export function ToolbarSeparator(properties: SeparatorProperties): JSX.Element {
     );
 }
 
-/** Render a button of a toolbar, which stays in reach of the keys while it is disabled. */
+/** Render a square button of a toolbar showing its icon, focusable by the keys while disabled. */
 export function ToolbarButton(properties: ButtonProperties): JSX.Element {
     // stay in reach of the keys while disabled
     const rest = omit(properties, "disabled", "onClick");
@@ -250,9 +250,9 @@ export function ToolbarButton(properties: ButtonProperties): JSX.Element {
 
     return (
         <Button
+            isIconOnly
             data-slot="toolbar-button"
             variant="ghost"
-            size="icon"
             {...rest}
             ref={[rest.ref, (created: HTMLElement) => (element = created)]}
             aria-disabled={properties.disabled === true ? "true" : undefined}

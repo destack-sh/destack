@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -33,7 +34,7 @@ const styles = style.create({
 export const numberFieldFormats = defineExample({
     of: NumberField,
     name: "formats",
-    description: "numbers as amounts, shares, measures and counts",
+    description: t`Numbers as amounts, shares, measures and counts.`,
     render: () => (
         <FieldGroup xstyle={styles.wide}>
             <Field>
@@ -76,16 +77,20 @@ export const numberFieldFormats = defineExample({
 export const numberFieldParts = defineExample({
     of: NumberField,
     name: "parts",
-    description: "a number between its buttons, from the parts",
+    description: t`A number between its buttons, from the parts.`,
     render: () => (
         <NumberField defaultValue={100} min={10} max={400} step={10} snapOnStep>
             <InputGroup xstyle={styles.narrow}>
                 <InputGroupAddon>
-                    <NumberFieldDecrement size="icon-sm">−</NumberFieldDecrement>
+                    <NumberFieldDecrement isIconOnly size="sm">
+                        −
+                    </NumberFieldDecrement>
                 </InputGroupAddon>
                 <NumberFieldInput aria-label="Zoom" xstyle={styles.centered} />
                 <InputGroupAddon align="inline-end">
-                    <NumberFieldIncrement size="icon-sm">+</NumberFieldIncrement>
+                    <NumberFieldIncrement isIconOnly size="sm">
+                        +
+                    </NumberFieldIncrement>
                 </InputGroupAddon>
             </InputGroup>
         </NumberField>
@@ -96,7 +101,7 @@ export const numberFieldParts = defineExample({
 export const numberFieldScrub = defineExample({
     of: NumberField,
     name: "scrub",
-    description: "a number its label scrubs, with what it settled on",
+    description: t`A number its label scrubs, with what it settled on.`,
     render: () => {
         const [width, setWidth] = createSignal<number | undefined>(320);
 
@@ -118,7 +123,7 @@ export const numberFieldScrub = defineExample({
 export const numberFieldDisabled = defineExample({
     of: NumberField,
     name: "disabled",
-    description: "a number that takes no input, and one shown alone",
+    description: t`A number that takes no input, and one shown alone.`,
     render: () => (
         <div {...style.attrs(styles.wide)}>
             <NumberField aria-label="Disabled" defaultValue={3} disabled />

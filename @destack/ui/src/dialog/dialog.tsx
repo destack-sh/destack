@@ -42,6 +42,8 @@ import {
 import { type ElementPartProperties, renderPart, type Render } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import { scrim } from "./scrim.stylex.ts";
+import { defineComponent } from "@destack/view/declare";
+import { schema } from "@destack/schema";
 
 /** The widest a dialog grows. */
 const DIALOG_WIDTH = width.dialog;
@@ -274,18 +276,22 @@ export function useDialog(): DialogControl {
 }
 
 /** Hold the open state a dialog's trigger, content and text share. */
-export function Dialog<Payload = unknown>(properties: DialogProperties<Payload>): JSX.Element {
-    // take the caller's dialog, else one of its own
-    const control = controlOf(properties, () => new DialogControl<Payload>(properties));
+export const Dialog = defineComponent(
+    "dialog",
+    function Dialog<Payload = unknown>(properties: DialogProperties<Payload>): JSX.Element {
+        // take the caller's dialog, else one of its own
+        const control = controlOf(properties, () => new DialogControl<Payload>(properties));
 
-    return (
-        <DialogContext value={control}>
-            <OpenContext value={control.isOpen}>
-                {control.state.render(properties.children)}
-            </OpenContext>
-        </DialogContext>
-    );
-}
+        return (
+            <DialogContext value={control}>
+                <OpenContext value={control.isOpen}>
+                    {control.state.render(properties.children)}
+                </OpenContext>
+            </DialogContext>
+        );
+    },
+    {},
+);
 
 /** Render the element that opens its dialog, a button by default. */
 export function DialogTrigger<Payload = unknown>(
@@ -322,75 +328,82 @@ export function DialogClose(properties: DialogButtonProperties): JSX.Element {
 }
 
 /** Render the modal dialog, shown in the top layer with the page behind it inert while open. */
-export function DialogContent(properties: DialogContentProperties): JSX.Element {
-    // read the dialog and store its element for the effect below
-    const control = useDialog();
-    const locale = useLocale();
-    const rest = omit(properties, "showCloseButton", "children");
-    let element: HTMLDialogElement | undefined;
-    onCleanup(() => {
-        // leave the stack when the dialog unmounts open
-        if (element !== undefined) {
-            control.detach(element);
-        }
-    });
-
-    // show or close the dialog element as the state changes
-    createEffect(
-        () => ({ isOpen: control.isOpen(), isModal: control.isModal() }),
-        () => {
-            // wait for the dialog element to mount
+export const DialogContent = defineComponent(
+    "dialogContent",
+    function DialogContent(properties: DialogContentProperties): JSX.Element {
+        // read the dialog and store its element for the effect below
+        const control = useDialog();
+        const locale = useLocale();
+        const rest = omit(properties, "showCloseButton", "children");
+        let element: HTMLDialogElement | undefined;
+        onCleanup(() => {
+            // leave the stack when the dialog unmounts open
             if (element !== undefined) {
-                control.sync(element);
+                control.detach(element);
             }
-        },
-    );
+        });
 
-    return (
-        <TopLayer>
-            {renderPart("dialog", "dialog-content", rest, [styles.content, transition.dialog], {
-                id: control.id,
-                get "data-open"() {
-                    return control.isOpen() ? "" : undefined;
-                },
-                get "data-closed"() {
-                    return control.isOpen() ? undefined : "";
-                },
-                closedby: "any" as const,
-                get "aria-labelledby"() {
-                    return control.isTitled() ? control.titleId : undefined;
-                },
-                get "aria-describedby"() {
-                    return control.isDescribed() ? control.descriptionId : undefined;
-                },
-                ref: (dialog) => (element = dialog),
-                onCancel: (event) => control.request(event),
-                onClose: (event) => control.follow(event.currentTarget),
-                get children() {
-                    return (
-                        <>
-                            {properties.children}
-                            <Show when={properties.showCloseButton !== false}>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    data-slot="dialog-close"
-                                    aria-label={locale.render(t`Close`)}
-                                    onClick={(event) =>
-                                        control.close(new OpenChange("close-press", event))
-                                    }
-                                    xstyle={styles.close}
-                                >
-                                    <Icon name="x" />
-                                </Button>
-                            </Show>
-                        </>
-                    );
-                },
-            })}
-        </TopLayer>
-    );
-}
+        // show or close the dialog element as the state changes
+        createEffect(
+            () => ({ isOpen: control.isOpen(), isModal: control.isModal() }),
+            () => {
+                // wait for the dialog element to mount
+                if (element !== undefined) {
+                    control.sync(element);
+                }
+            },
+        );
+
+        return (
+            <TopLayer>
+                {renderPart("dialog", "dialog-content", rest, [styles.content, transition.dialog], {
+                    id: control.id,
+                    get "data-open"() {
+                        return control.isOpen() ? "" : undefined;
+                    },
+                    get "data-closed"() {
+                        return control.isOpen() ? undefined : "";
+                    },
+                    closedby: "any" as const,
+                    get "aria-labelledby"() {
+                        return control.isTitled() ? control.titleId : undefined;
+                    },
+                    get "aria-describedby"() {
+                        return control.isDescribed() ? control.descriptionId : undefined;
+                    },
+                    ref: (dialog) => (element = dialog),
+                    onCancel: (event) => control.request(event),
+                    onClose: (event) => control.follow(event.currentTarget),
+                    get children() {
+                        return (
+                            <>
+                                {properties.children}
+                                <Show when={properties.showCloseButton !== false}>
+                                    <Button
+                                        isIconOnly
+                                        variant="ghost"
+
+                                        data-slot="dialog-close"
+                                        aria-label={locale.render(t.context("action")`Close`)}
+                                        onClick={(event) =>
+                                            control.close(new OpenChange("close-press", event))
+                                        }
+                                        xstyle={styles.close}
+                                    >
+                                        <Icon name="x" />
+                                    </Button>
+                                </Show>
+                            </>
+                        );
+                    },
+                })}
+            </TopLayer>
+        );
+    },
+    {
+        showCloseButton: schema.boolean().default(true),
+    },
+);
 
 /** Render the top of a dialog with its title and description. */
 export function DialogHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
