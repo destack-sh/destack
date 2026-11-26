@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import {
     Progress,
@@ -11,7 +12,7 @@ import {
 export const progressUpload = defineExample({
     of: Progress,
     name: "upload",
-    description: "an upload two thirds of the way through",
+    description: t`An upload two thirds of the way through.`,
     properties: {
         value: 66,
         max: 100,
@@ -24,7 +25,7 @@ export const progressUpload = defineExample({
 export const progressSync = defineExample({
     of: Progress,
     name: "sync",
-    description: "a sync of unknown length, its indicator sweeping across the bar",
+    description: t`A sync of unknown length, its indicator sweeping across the bar.`,
     properties: {
         "aria-label": "Sync",
     },
@@ -40,8 +41,8 @@ export const progressSync = defineExample({
 /** An upload that finished. */
 export const progressUploadComplete = defineExample({
     of: Progress,
-    name: "upload-complete",
-    description: "an upload that finished",
+    name: "uploadComplete",
+    description: t`An upload that finished.`,
     properties: {
         value: 100,
         max: 100,
@@ -54,7 +55,7 @@ export const progressUploadComplete = defineExample({
 export const progressImport = defineExample({
     of: ProgressValue,
     name: "import",
-    description: "an import counted in rows, with its label and its value above the bar",
+    description: t`An import counted in rows, with its label and its value above the bar.`,
     layout: "padded",
     render: () => (
         <Progress value={1840} max={5200} format={{}}>

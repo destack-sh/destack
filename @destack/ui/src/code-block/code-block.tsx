@@ -183,7 +183,7 @@ export function CodeBlockContent(properties: CodeBlockContentProperties): JSX.El
             dir: "ltr",
             tabindex: 0,
             get "aria-label"() {
-                return properties.label ?? locale.render(t`Code`);
+                return properties.label ?? locale.render(t.context("title")`Code`);
             },
             get children() {
                 return <CodeLines {...properties} />;

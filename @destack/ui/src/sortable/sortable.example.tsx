@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -38,8 +39,7 @@ const TASKS = Array.from({ length: 1000 }, (_, index) => `Task ${String(index + 
 export const sortableChecklist = defineExample({
     of: Sortable,
     name: "checklist",
-    description:
-        "a checklist whose steps a drag or the keyboard reorders, the owner placing each moved step between its new neighbours",
+    description: t`A checklist whose steps a drag or the keyboard reorders, the owner placing each moved step between its new neighbours.`,
     properties: {
         nesting: false,
     },
@@ -73,8 +73,8 @@ export const sortableChecklist = defineExample({
 /** A checklist whose steps stay in their order. */
 export const sortableChecklistFixed = defineExample({
     of: Sortable,
-    name: "checklist-fixed",
-    description: "a checklist whose steps stay in their order",
+    name: "checklistFixed",
+    description: t`A checklist whose steps stay in their order.`,
     render: () => {
         const [steps, setSteps] = createSignal(["Pack", "Check in", "Board"]);
 
@@ -105,7 +105,7 @@ export const sortableChecklistFixed = defineExample({
 export const sortableBoard = defineExample({
     of: Sortable,
     name: "board",
-    description: "a board of two columns whose cards move within and between the columns",
+    description: t`A board of two columns whose cards move within and between the columns.`,
     render: () => (
         <Sortable onMove={() => undefined}>
             <SortableContainer id="todo" label="To do">
@@ -128,9 +128,8 @@ export const sortableBoard = defineExample({
 /** A thousand tasks in a virtual list that mounts only those in view, ordered by drags and keys. */
 export const sortableLongList = defineExample({
     of: Sortable,
-    name: "long-list",
-    description:
-        "a thousand tasks in a virtual list whose rows mount only in view, reordered by drags and keys",
+    name: "longList",
+    description: t`A thousand tasks in a virtual list whose rows mount only in view, reordered by drags and keys.`,
     render: () => {
         // follow the tasks' order
         const [tasks, setTasks] = createSignal(TASKS);

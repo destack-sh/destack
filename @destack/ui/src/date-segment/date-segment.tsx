@@ -562,7 +562,7 @@ export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.El
                                 values={properties.values}
                                 isDisabled={control.isDisabled()}
                                 isReadOnly={properties.readOnly === true}
-                                emptyText={locale.render(t`Empty`)}
+                                emptyText={locale.render(t.context("option")`Empty`)}
                                 onKey={(key) => !control.isDisabled() && control.press(key, kind())}
                                 onBlur={() => control.finish()}
                             />
@@ -578,11 +578,11 @@ export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.El
 /** Write what an empty segment shows: the letters of a date's part, or dashes for a time's. */
 function placeholderOf(kind: DateSegmentKind, locale: Localization): string {
     if (kind === "year") {
-        return locale.render(t`yyyy`);
+        return locale.render(t.context("label")`yyyy`);
     } else if (kind === "month") {
-        return locale.render(t`mm`);
+        return locale.render(t.context("label")`mm`);
     } else if (kind === "day") {
-        return locale.render(t`dd`);
+        return locale.render(t.context("label")`dd`);
     } else {
         return PLACEHOLDER_TIME;
     }

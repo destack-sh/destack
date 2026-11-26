@@ -1,6 +1,6 @@
 import { testHost } from "@destack/test/host";
 import { join } from "node:path";
-import { Catalog, Localization, t } from "@destack/locale";
+import { Catalog, CatalogSource, Localization, t } from "@destack/locale";
 import { LocaleContext } from "@destack/view";
 import { expect, test } from "@destack/test";
 import { Spinner } from "./index.ts";
@@ -9,8 +9,14 @@ import { markup, render } from "@destack/view/test";
 /** The German catalog this package ships of its built-in messages. */
 const GERMAN = Catalog.of(
     "locale/de.json",
-    JSON.parse(
-        await testHost().files.readTextFile(join(import.meta.dirname, "../../locale/de.json")),
+    CatalogSource.compile(
+        CatalogSource.parse(
+            JSON.parse(
+                await testHost().files.readTextFile(
+                    join(import.meta.dirname, "../../locale/de.json"),
+                ),
+            ),
+        ),
     ),
     t`Loading`.package,
 );

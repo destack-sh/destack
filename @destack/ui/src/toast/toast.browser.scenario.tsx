@@ -1,6 +1,7 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { toasterArchiveUndo, toasterMembersDialog } from "./toast.example.tsx";
+import { toasterDefault, toasterInDialog } from "./toast.example.tsx";
 import { Toaster } from "./toast.tsx";
 
 /** The one toast shown. */
@@ -10,9 +11,9 @@ const toast = { css: "[data-slot=toast]:not([data-leaving], [data-limited])" };
 export const toasterSwipeAway = defineScenario({
     of: Toaster,
     interaction: viewInteraction,
-    name: "swipe-away",
-    description: "show a toast, swipe it toward its edge with a finger and see it dismissed",
-    given: { examples: [toasterArchiveUndo], globals: { pointer: "touch" } },
+    name: "swipeAway",
+    description: t`Show a toast, swipe it toward its edge with a finger and see it dismissed.`,
+    given: { examples: [toasterDefault], globals: { pointer: "touch" } },
     parameters: {},
     when: [
         {
@@ -36,9 +37,9 @@ export const toasterSwipeAway = defineScenario({
 export const toasterUndoInDialog = defineScenario({
     of: Toaster,
     interaction: viewInteraction,
-    name: "undo-in-dialog",
-    description: "remove a member in an open dialog, then undo it from the toast above the dialog",
-    given: { examples: [toasterMembersDialog] },
+    name: "undoInDialog",
+    description: t`Remove a member in an open dialog, then undo it from the toast above the dialog.`,
+    given: { examples: [toasterInDialog] },
     parameters: {},
     when: [
         {

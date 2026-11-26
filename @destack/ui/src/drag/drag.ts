@@ -344,7 +344,9 @@ export class Draggable implements DragSource {
                 return isDisabled() ? undefined : "button";
             },
             get "aria-roledescription"(): string | undefined {
-                return isDisabled() ? undefined : manager.locale.render(t`draggable`);
+                return isDisabled()
+                    ? undefined
+                    : manager.locale.render(t.context("title")`draggable`);
             },
             get "aria-describedby"(): string | undefined {
                 return isDisabled() ? undefined : manager.instructionsId;

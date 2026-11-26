@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import {
@@ -14,8 +15,8 @@ import {
 /** The sharing options of a note in a drawer from the bottom. */
 export const drawerShareNote = defineExample({
     of: Drawer,
-    name: "share-note",
-    description: "the sharing options of a note in a drawer from the bottom",
+    name: "shareNote",
+    description: t`The sharing options of a note in a drawer from the bottom.`,
     render: () => (
         <Drawer>
             <DrawerTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
@@ -44,8 +45,8 @@ export const drawerShareNote = defineExample({
 /** The sharing drawer of a note open from the bottom. */
 export const drawerShareNoteOpen = defineExample({
     of: Drawer,
-    name: "share-note-open",
-    description: "the sharing drawer of a note open from the bottom",
+    name: "shareNoteOpen",
+    description: t`The sharing drawer of a note open from the bottom.`,
     properties: {
         defaultOpen: true,
     },
@@ -77,8 +78,8 @@ export const drawerShareNoteOpen = defineExample({
 /** The comments of a note in a drawer that rests at half the screen or all of it. */
 export const drawerNoteComments = defineExample({
     of: Drawer,
-    name: "note-comments",
-    description: "the comments of a note in a drawer that rests at half the screen or all of it",
+    name: "noteComments",
+    description: t`The comments of a note in a drawer that rests at half the screen or all of it.`,
     render: () => (
         <Drawer defaultOpen snapPoints={[0.5, 1]} defaultActiveSnapPoint={0.5}>
             <DrawerTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
@@ -97,8 +98,8 @@ export const drawerNoteComments = defineExample({
 /** A drawer that shares a note, and opens another one over it to pick a person. */
 export const drawerPickPerson = defineExample({
     of: Drawer,
-    name: "pick-person",
-    description: "a drawer that shares a note, and opens another one over it to pick a person",
+    name: "pickPerson",
+    description: t`A drawer that shares a note, and opens another one over it to pick a person.`,
     render: () => (
         <Drawer defaultOpen>
             <DrawerContent>

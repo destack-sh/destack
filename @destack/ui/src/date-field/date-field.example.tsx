@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import type { PlainDate } from "@destack/schema";
 import { createSignal } from "@destack/view";
@@ -8,7 +9,7 @@ import { DateField } from "./date-field.tsx";
 export const dateFieldBirthday = defineExample({
     of: DateField,
     name: "birthday",
-    description: "a date field that types a person's birthday, labelled and described by its field",
+    description: t`A date field that types a person's birthday, labelled and described by its field.`,
     properties: {
         disabled: false,
     },
@@ -29,15 +30,15 @@ export const dateFieldBirthday = defineExample({
 export const dateFieldArchived = defineExample({
     of: DateField,
     name: "archived",
-    description: "a date field with the day a note was archived",
+    description: t`A date field with the day a note was archived.`,
     render: () => <DateField aria-label="Archived" defaultValue={"2026-10-07"} />,
 });
 
 /** The archive date marked invalid. */
 export const dateFieldArchivedInvalid = defineExample({
     of: DateField,
-    name: "archived-invalid",
-    description: "the archive date marked invalid",
+    name: "archivedInvalid",
+    description: t`The archive date marked invalid.`,
     render: () => (
         <DateField aria-label="Archived" aria-invalid="true" defaultValue={"2026-10-07"} />
     ),
@@ -46,7 +47,7 @@ export const dateFieldArchivedInvalid = defineExample({
 /** The archive date unavailable. */
 export const dateFieldArchivedDisabled = defineExample({
     of: DateField,
-    name: "archived-disabled",
-    description: "the archive date unavailable",
+    name: "archivedDisabled",
+    description: t`The archive date unavailable.`,
     render: () => <DateField aria-label="Archived" disabled defaultValue={"2026-10-07"} />,
 });

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { chartBar } from "./chart.example.tsx";
@@ -7,9 +8,8 @@ import { Chart } from "./chart.tsx";
 export const chartMoveBetweenPoints = defineScenario({
     of: Chart,
     interaction: viewInteraction,
-    name: "move-between-points",
-    description:
-        "focus a chart to focus its first point, then move to the next point and back with the arrow keys, each announced in a status",
+    name: "moveBetweenPoints",
+    description: t`Focus a chart to focus its first point, then move to the next point and back with the arrow keys, each announced in a status.`,
     given: { examples: [chartBar] },
     parameters: {},
     when: [

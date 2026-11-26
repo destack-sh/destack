@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
@@ -22,8 +23,7 @@ export const listBoxNotebook = defineExample({
     of: ListBox,
     name: "notebook",
     layout: "padded",
-    description:
-        "the notebook a note files into, one chosen at a time, with an archived one unavailable",
+    description: t`The notebook a note files into, one chosen at a time, with an archived one unavailable.`,
     render: () => {
         const [notebook, setNotebook] = createSignal<string>();
 
@@ -57,7 +57,7 @@ export const listBoxTags = defineExample({
     of: ListBox,
     name: "tags",
     layout: "padded",
-    description: "a note's tags, several chosen at a time",
+    description: t`A note's tags, several chosen at a time.`,
     render: () => (
         <ListBox
             xstyle={styles.list}
@@ -74,8 +74,8 @@ export const listBoxTags = defineExample({
 /** Six labels in a grid of three columns, which every arrow key moves through. */
 export const listBoxLabelGrid = defineExample({
     of: ListBox,
-    name: "label-grid",
-    description: "six labels in a grid of three columns, which every arrow key moves through",
+    name: "labelGrid",
+    description: t`Six labels in a grid of three columns, which every arrow key moves through.`,
     render: () => (
         <ListBox
             aria-label="Label"
@@ -98,7 +98,7 @@ export const listBoxLabelGrid = defineExample({
 export const listBoxEmpty = defineExample({
     of: ListBox,
     name: "empty",
-    description: "a list box without options, showing its empty note",
+    description: t`A list box without options, showing its empty note.`,
     properties: {
         "aria-label": "Notebook",
     },

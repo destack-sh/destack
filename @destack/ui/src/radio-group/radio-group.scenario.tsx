@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { radioGroupListDensity } from "./radio-group.example.tsx";
@@ -7,9 +8,8 @@ import { RadioGroup } from "./radio-group.tsx";
 export const radioGroupCheckWithArrowKeys = defineScenario({
     of: RadioGroup,
     interaction: viewInteraction,
-    name: "check-with-arrow-keys",
-    description:
-        "move the focus to the next or previous radio with the arrow keys, checking it and wrapping at the ends",
+    name: "checkWithArrowKeys",
+    description: t`Move the focus to the next or previous radio with the arrow keys, checking it and wrapping at the ends.`,
     given: { examples: [radioGroupListDensity] },
     parameters: {},
     when: [

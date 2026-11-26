@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/ui/icon";
 import { Button } from "../button/index.ts";
@@ -13,8 +14,8 @@ import {
 /** A notebook list with no notebooks yet and the action that creates the first. */
 export const emptyNoNotebooks = defineExample({
     of: Empty,
-    name: "no-notebooks",
-    description: "a notebook list with no notebooks yet and the action that creates the first",
+    name: "noNotebooks",
+    description: t`A notebook list with no notebooks yet and the action that creates the first.`,
     render: () => (
         <Empty>
             <EmptyHeader>
@@ -34,8 +35,8 @@ export const emptyNoNotebooks = defineExample({
 /** A search that found nothing, with the action that clears it. */
 export const emptySearchNoResults = defineExample({
     of: Empty,
-    name: "search-no-results",
-    description: "a search that found nothing, with the action that clears it",
+    name: "searchNoResults",
+    description: t`A search that found nothing, with the action that clears it.`,
     render: () => (
         <Empty>
             <EmptyHeader>

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 import * as style from "@destack/style";
@@ -70,7 +71,7 @@ interface TripDraft {
 export const formTrip = defineExample({
     of: Form,
     name: "trip",
-    description: "a trip checked by a schema, whose save fails the first time",
+    description: t`A trip checked by a schema, whose save fails the first time.`,
     layout: "padded",
     render: () => {
         // save once, after a failure
@@ -169,7 +170,7 @@ export const formTrip = defineExample({
 export const formGuests = defineExample({
     of: Form,
     name: "guests",
-    description: "a list of guests, each a field of its own",
+    description: t`A list of guests, each a field of its own.`,
     layout: "padded",
     render: () => {
         // keep the guests as they are submitted
@@ -223,7 +224,7 @@ export const formGuests = defineExample({
 export const formConflict = defineExample({
     of: FieldConflict,
     name: "conflict",
-    description: "a title someone else changes while a person edits it",
+    description: t`A title someone else changes while a person edits it.`,
     layout: "padded",
     render: () => {
         // change the title from outside
@@ -262,7 +263,7 @@ export const formConflict = defineExample({
 export const formNative = defineExample({
     of: Field,
     name: "native",
-    description: "a form without a draft, whose fields show what the browser says",
+    description: t`A form without a draft, whose fields show what the browser says.`,
     layout: "padded",
     render: () => (
         <form onSubmit={(event) => event.preventDefault()} {...style.attrs(styles.form)}>
@@ -292,7 +293,7 @@ export const formNative = defineExample({
 export const formDraft = defineExample({
     of: FormGuard,
     name: "draft",
-    description: "a note whose edits outlive the page, and which asks before it is left",
+    description: t`A note whose edits outlive the page, and which asks before it is left.`,
     layout: "padded",
     render: () => {
         // hold a navigation as a router does

@@ -137,7 +137,7 @@ export class PaneDrag {
                 item: pane,
                 type: PANE_TYPE,
                 kind: "move",
-                label: () => locale.render(t`the pane`),
+                label: () => locale.render(t.context("title")`the pane`),
                 element,
                 home: () => ({
                     kind: "side",

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { editablePage } from "./editable.example.tsx";
@@ -14,7 +15,7 @@ export const editableRename = defineScenario({
     of: Editable,
     interaction: viewInteraction,
     name: "rename",
-    description: "change a title by the keys, leave a change, and put an empty one back",
+    description: t`Change a title by the keys, leave a change, and put an empty one back.`,
     given: { examples: [editablePage] },
     parameters: {},
     when: [

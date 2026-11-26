@@ -1,5 +1,5 @@
 import de from "../../locale/de.json" with { type: "json" };
-import { Catalog, Localization } from "@destack/locale";
+import { CatalogSource, Localization } from "@destack/locale";
 import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { createSignal, flush, LocaleContext } from "@destack/view";
@@ -172,7 +172,7 @@ test("take a caller's words, element and refusals in each part", () => {
 });
 
 test("ask for files and refuse one in the person's language", () => {
-    const german = Localization.of("de", [Catalog.parse(de)]);
+    const german = Localization.of("de", [CatalogSource.compile(CatalogSource.parse(de))]);
     const { container } = render(() => (
         <LocaleContext value={german}>
             <Dropzone

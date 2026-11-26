@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { Match, Show, Switch } from "@destack/view";
@@ -71,7 +72,7 @@ const FILES: readonly TripFile[] = [
 export const viewerTrip = defineExample({
     of: Viewer,
     name: "trip",
-    description: "a trip's files, opened large over the page",
+    description: t`A trip's files, opened large over the page.`,
     layout: "padded",
     render: () => {
         const viewer = new ViewerControl({

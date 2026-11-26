@@ -69,7 +69,7 @@ const NOTES: readonly Note[] = ["Lisbon", "Order form", "Margins", "Newsletter"]
 const putOn = defineAction({
     name: "note.putOn",
     title: t`Put on shelf`,
-    category: t`Note`,
+    category: t.context("title")`Note`,
     keybinding: "s",
     input: { items, shelf: field.enum(["Desk", "Archive", "Press"]) },
 });
@@ -77,8 +77,8 @@ const putOn = defineAction({
 /** Put notes in the archive, by two keys in a row. */
 const archive = defineAction({
     name: "note.archive",
-    title: t`Archive`,
-    category: t`Note`,
+    title: t.context("action")`Archive`,
+    category: t.context("title")`Note`,
     keybinding: "g a",
     input: { items },
 });
@@ -87,7 +87,7 @@ const archive = defineAction({
 const take = defineAction({
     name: "note.take",
     title: t`Put on desk`,
-    category: t`Note`,
+    category: t.context("title")`Note`,
     keybinding: "g d",
     input: { items },
 });
@@ -178,7 +178,6 @@ export const actionMenuNotes = defineExample({
     of: ActionMenu,
     name: "notes",
     layout: "padded",
-    description:
-        "notes whose actions show in a menu by right click, a bar, a palette, a list of keys and a hint",
+    description: t`Notes whose actions show in a menu by right click, a bar, a palette, a list of keys and a hint.`,
     render: () => <Notes />,
 });

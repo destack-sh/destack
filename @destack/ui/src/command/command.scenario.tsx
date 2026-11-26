@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import {
@@ -12,9 +13,8 @@ import { Command } from "./command.tsx";
 export const commandMoveHighlightWithArrowKeys = defineScenario({
     of: Command,
     interaction: viewInteraction,
-    name: "move-highlight-with-arrow-keys",
-    description:
-        "move the highlight with the arrow keys past disabled options, stopping at the ends, and choose with Enter",
+    name: "moveHighlightWithArrowKeys",
+    description: t`Move the highlight with the arrow keys past disabled options, stopping at the ends, and choose with Enter.`,
     given: { examples: [commandNoteCommands] },
     parameters: {},
     when: [
@@ -85,8 +85,8 @@ export const commandMoveHighlightWithArrowKeys = defineScenario({
 export const commandFollowControlledHighlight = defineScenario({
     of: Command,
     interaction: viewInteraction,
-    name: "follow-controlled-highlight",
-    description: "follow a controlled highlight and report the value the arrow keys move to",
+    name: "followControlledHighlight",
+    description: t`Follow a controlled highlight and report the value the arrow keys move to.`,
     given: { examples: [commandControlledHighlight] },
     parameters: {},
     when: [
@@ -117,9 +117,8 @@ export const commandFollowControlledHighlight = defineScenario({
 export const commandJumpToEnds = defineScenario({
     of: Command,
     interaction: viewInteraction,
-    name: "jump-to-ends",
-    description:
-        "move the highlight to the last enabled option with End and back to the first with Home",
+    name: "jumpToEnds",
+    description: t`Move the highlight to the last enabled option with End and back to the first with Home.`,
     given: { examples: [commandNoteCommands] },
     parameters: {},
     when: [
@@ -161,7 +160,7 @@ export const commandPages = defineScenario({
     of: Command,
     interaction: viewInteraction,
     name: "pages",
-    description: "open a page from an option, leave it with Backspace, and run a choice on it",
+    description: t`Open a page from an option, leave it with Backspace, and run a choice on it.`,
     given: { examples: [commandTaskActions] },
     parameters: {},
     when: [
@@ -211,9 +210,8 @@ const detail = { css: "[data-slot=command-detail] h3" };
 export const commandDetailFollowsHighlight = defineScenario({
     of: Command,
     interaction: viewInteraction,
-    name: "detail-follows-highlight",
-    description:
-        "show the highlighted entry's detail beside the search's entries as the highlight moves",
+    name: "detailFollowsHighlight",
+    description: t`Show the highlighted entry's detail beside the search's entries as the highlight moves.`,
     given: { examples: [commandSearchDetail] },
     parameters: {},
     when: [

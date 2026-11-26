@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { colorPickerAccent } from "./color-picker.example.tsx";
@@ -11,7 +12,7 @@ export const colorPickerPick = defineScenario({
     of: ColorPicker,
     interaction: viewInteraction,
     name: "pick",
-    description: "press the middle of the area, step by the keys, and type a color",
+    description: t`Press the middle of the area, step by the keys, and type a color.`,
     given: { examples: [colorPickerAccent] },
     parameters: {},
     when: [

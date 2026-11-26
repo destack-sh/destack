@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { ObjectChip } from "./object.tsx";
 
@@ -5,7 +6,7 @@ import { ObjectChip } from "./object.tsx";
 export const objectChipTask = defineExample({
     of: ObjectChip,
     name: "task",
-    description: "a task inline with its icon, title and accent, linking to its page",
+    description: t`A task inline with its icon, title and accent, linking to its page.`,
     render: () => (
         <p>
             Blocked on{" "}
@@ -23,8 +24,8 @@ export const objectChipTask = defineExample({
 /** A task's chip in the purple swatch. */
 export const objectChipTaskPurple = defineExample({
     of: ObjectChip,
-    name: "task-purple",
-    description: "a task's chip in the purple swatch",
+    name: "taskPurple",
+    description: t`A task's chip in the purple swatch.`,
     properties: {
         color: "purple",
     },

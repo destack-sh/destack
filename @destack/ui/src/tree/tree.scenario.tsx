@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { treeWorkExpanded } from "./tree.example.tsx";
@@ -7,8 +8,8 @@ import { Tree } from "./tree.tsx";
 export const treeMoveThroughItems = defineScenario({
     of: Tree,
     interaction: viewInteraction,
-    name: "move-through-items",
-    description: "move through visible items, expand and enter parents, and return to them",
+    name: "moveThroughItems",
+    description: t`Move through visible items, expand and enter parents, and return to them.`,
     given: { examples: [treeWorkExpanded] },
     parameters: {},
     when: [
@@ -201,8 +202,8 @@ export const treeMoveThroughItems = defineScenario({
 export const treeSelectWithEnterAndClick = defineScenario({
     of: Tree,
     interaction: viewInteraction,
-    name: "select-with-enter-and-click",
-    description: "select the focused item with Enter and a clicked item, reporting each",
+    name: "selectWithEnterAndClick",
+    description: t`Select the focused item with Enter and a clicked item, reporting each.`,
     given: { examples: [treeWorkExpanded] },
     parameters: {},
     when: [
@@ -233,8 +234,8 @@ export const treeSelectWithEnterAndClick = defineScenario({
 export const treeIgnoreShortcutLetters = defineScenario({
     of: Tree,
     interaction: viewInteraction,
-    name: "ignore-shortcut-letters",
-    description: "leave the focus in place on a letter typed with a shortcut modifier",
+    name: "ignoreShortcutLetters",
+    description: t`Leave the focus in place on a letter typed with a shortcut modifier.`,
     given: { examples: [treeWorkExpanded] },
     parameters: {},
     when: [

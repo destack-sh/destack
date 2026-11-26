@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { Condition, type JsonCondition, now } from "@destack/db";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
@@ -94,7 +95,7 @@ function tasksAround(today: number) {
 export const filterTasks = defineExample({
     of: Filter,
     name: "tasks",
-    description: "tasks narrowed by what a person filters by, as a query would be",
+    description: t`Tasks narrowed by what a person filters by, as a query would be.`,
     layout: "padded",
     render: () => {
         // match the tasks as the engine does
@@ -128,7 +129,7 @@ export const filterTasks = defineExample({
 export const filterSets = defineExample({
     of: Filter,
     name: "sets",
-    description: "conditions of every kind, with a set of which any holds",
+    description: t`Conditions of every kind, with a set of which any holds.`,
     layout: "padded",
     render: () => (
         <Filter
@@ -155,7 +156,7 @@ export const filterSets = defineExample({
 export const filterBuilder = defineExample({
     of: FilterGroup,
     name: "builder",
-    description: "conditions below each other with how they combine, and all under one button",
+    description: t`Conditions below each other with how they combine, and all under one button.`,
     layout: "padded",
     render: () => (
         <div {...style.attrs(styles.page)}>
@@ -173,7 +174,7 @@ export const filterBuilder = defineExample({
 export const filterParts = defineExample({
     of: FilterItem,
     name: "parts",
-    description: "conditions laid out by an app, without their comparison",
+    description: t`Conditions laid out by an app, without their comparison.`,
     layout: "padded",
     render: () => (
         <Filter fields={FIELDS} defaultValue={{ state: "open", assignee: "Ada" }}>

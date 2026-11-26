@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { carouselTripPhotos } from "./carousel.example.tsx";
@@ -7,8 +8,8 @@ import { Carousel } from "./carousel.tsx";
 export const carouselMoveWithArrowKeys = defineScenario({
     of: Carousel,
     interaction: viewInteraction,
-    name: "move-with-arrow-keys",
-    description: "move to the next and previous slide with the arrow keys, stopping at the ends",
+    name: "moveWithArrowKeys",
+    description: t`Move to the next and previous slide with the arrow keys, stopping at the ends.`,
     given: { examples: [carouselTripPhotos] },
     parameters: {},
     when: [

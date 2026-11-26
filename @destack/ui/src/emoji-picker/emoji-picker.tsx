@@ -83,10 +83,10 @@ const CATEGORIES = [
     { group: 3, label: t`Animals and nature` },
     { group: 4, label: t`Food and drink` },
     { group: 5, label: t`Travel and places` },
-    { group: 6, label: t`Activities` },
-    { group: 7, label: t`Objects` },
-    { group: 8, label: t`Symbols` },
-    { group: 9, label: t`Flags` },
+    { group: 6, label: t.context("title")`Activities` },
+    { group: 7, label: t.context("title")`Objects` },
+    { group: 8, label: t.context("title")`Symbols` },
+    { group: 9, label: t.context("title")`Flags` },
 ] as const;
 
 /** The emoji data of each locale it covers, by language tag, each loaded on first use. */
@@ -337,8 +337,8 @@ export function EmojiPickerSearch(
         <AutocompleteInput
             aria-haspopup="grid"
             data-slot="emoji-picker-search"
-            placeholder={locale.render(t`Search emoji`)}
-            aria-label={locale.render(t`Search emoji`)}
+            placeholder={locale.render(t.context("label")`Search emoji`)}
+            aria-label={locale.render(t.context("label")`Search emoji`)}
             {...rest}
         />
     );
@@ -354,14 +354,14 @@ export function EmojiPickerContent(
     return (
         <GridListViewport data-slot="emoji-picker-content" {...properties}>
             <GridListLoading data-slot="emoji-picker-loading">
-                {locale.render(t`Loading emoji…`)}
+                {locale.render(t.context("option")`Loading emoji…`)}
             </GridListLoading>
             <GridListEmpty data-slot="emoji-picker-empty">
                 {locale.render(t`No emoji found`)}
             </GridListEmpty>
             <GridList
                 control={picker.grid}
-                aria-label={locale.render(t`Emoji`)}
+                aria-label={locale.render(t.context("title")`Emoji`)}
                 data-slot="emoji-picker-list"
                 label={(entry) => entry.label}
             >
@@ -418,7 +418,7 @@ export function EmojiPickerSkinTone(
 
     return (
         <RadioGroup
-            aria-label={locale.render(t`Skin tone`)}
+            aria-label={locale.render(t.context("label")`Skin tone`)}
             data-slot="emoji-picker-skin-tone"
             orientation="horizontal"
             value={picker.skinTone()}

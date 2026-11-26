@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { contextMenuNoteCardActions } from "./context-menu.example.tsx";
@@ -7,8 +8,8 @@ import { ContextMenu } from "./context-menu.tsx";
 export const contextMenuOpenAtPointer = defineScenario({
     of: ContextMenu,
     interaction: viewInteraction,
-    name: "open-at-pointer",
-    description: "open a context menu at the pointer onto its first item",
+    name: "openAtPointer",
+    description: t`Open a context menu at the pointer onto its first item.`,
     given: { examples: [contextMenuNoteCardActions] },
     parameters: {},
     when: [
@@ -28,6 +29,6 @@ export const contextMenuOpenAtPointer = defineScenario({
             observe: { kind: "attribute", target: { role: "menu" }, name: "style" },
             is: "--x-left: 40px; --x-top: 120px;",
         },
-        { observe: { kind: "focused" }, is: "Open ↵" },
+        { observe: { kind: "focused" }, is: "Open" },
     ],
 });

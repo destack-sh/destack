@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import { Field, FieldGroup, FieldLabel } from "../field/index.ts";
@@ -7,7 +8,7 @@ import { DateTimeField } from "./date-time-field.tsx";
 export const dateTimeFieldReminder = defineExample({
     of: DateTimeField,
     name: "reminder",
-    description: "when a note reminds, in a zone",
+    description: t`When a note reminds, in a zone.`,
     render: () => (
         <Field>
             <FieldLabel>Remind at</FieldLabel>
@@ -20,7 +21,7 @@ export const dateTimeFieldReminder = defineExample({
 export const dateTimeFieldBooking = defineExample({
     of: DateTimeField,
     name: "booking",
-    description: "when a booking starts, within its season, in a form that needs it",
+    description: t`When a booking starts, within its season, in a form that needs it.`,
     render: () => (
         <form onSubmit={(event) => event.preventDefault()}>
             <Field>
@@ -45,8 +46,8 @@ export const dateTimeFieldBooking = defineExample({
 /** A moment shown alone, and one that takes no input. */
 export const dateTimeFieldReadOnly = defineExample({
     of: DateTimeField,
-    name: "read-only",
-    description: "a moment shown alone, and one that takes no input",
+    name: "readOnly",
+    description: t`A moment shown alone, and one that takes no input.`,
     render: () => (
         <FieldGroup>
             <DateTimeField

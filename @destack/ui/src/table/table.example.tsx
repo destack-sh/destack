@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { For, useLocale } from "@destack/view";
 import {
@@ -22,7 +23,7 @@ const INVOICES = [
 export const tableInvoices = defineExample({
     of: Table,
     name: "invoices",
-    description: "this month's invoices with amounts in the reader's locale",
+    description: t`This month's invoices with amounts in the reader's locale.`,
     layout: "padded",
     render: () => {
         const locale = useLocale();
@@ -54,8 +55,8 @@ export const tableInvoices = defineExample({
 /** The invoices with their total in the table's footer. */
 export const tableInvoiceTotal = defineExample({
     of: Table,
-    name: "invoice-total",
-    description: "the invoices with their total in the table's footer",
+    name: "invoiceTotal",
+    description: t`The invoices with their total in the table's footer.`,
     layout: "padded",
     render: () => {
         const locale = useLocale();

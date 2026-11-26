@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { size, space } from "@destack/theme/tokens.stylex";
@@ -17,8 +18,8 @@ const styles = style.create({
 /** A list row's avatar and title while the row loads. */
 export const skeletonLoadingRow = defineExample({
     of: Skeleton,
-    name: "loading-row",
-    description: "a list row's avatar and title while the row loads",
+    name: "loadingRow",
+    description: t`A list row's avatar and title while the row loads.`,
     render: () => (
         <div aria-busy="true" {...style.attrs(styles.row)}>
             <Skeleton xstyle={styles.avatar} />
@@ -30,8 +31,8 @@ export const skeletonLoadingRow = defineExample({
 /** A card's title and three lines of text while the card loads. */
 export const skeletonLoadingCard = defineExample({
     of: Skeleton,
-    name: "loading-card",
-    description: "a card's title and three lines of text while the card loads",
+    name: "loadingCard",
+    description: t`A card's title and three lines of text while the card loads.`,
     render: () => (
         <div aria-busy="true" {...style.attrs(styles.card)}>
             <Skeleton xstyle={styles.heading} />

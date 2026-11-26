@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import {
     Combobox,
@@ -13,8 +14,8 @@ import {
 /** A combobox that picks the notebook a note moves to. */
 export const comboboxMoveNote = defineExample({
     of: Combobox,
-    name: "move-note",
-    description: "a combobox that picks the notebook a note moves to",
+    name: "moveNote",
+    description: t`A combobox that picks the notebook a note moves to.`,
     render: () => (
         <Combobox>
             <ComboboxInput aria-label="Notebook" placeholder="Move to notebook" />
@@ -31,8 +32,8 @@ export const comboboxMoveNote = defineExample({
 /** The notebook combobox with its list of options open. */
 export const comboboxMoveNoteOpen = defineExample({
     of: Combobox,
-    name: "move-note-open",
-    description: "the notebook combobox with its list of options open",
+    name: "moveNoteOpen",
+    description: t`The notebook combobox with its list of options open.`,
     properties: {
         defaultOpen: true,
     },
@@ -52,9 +53,8 @@ export const comboboxMoveNoteOpen = defineExample({
 /** A combobox that tags a note, several tags at once and new ones from the typed text. */
 export const comboboxTagNote = defineExample({
     of: Combobox,
-    name: "tag-note",
-    description:
-        "a combobox that tags a note, several tags at once and new ones from the typed text",
+    name: "tagNote",
+    description: t`A combobox that tags a note, several tags at once and new ones from the typed text.`,
     render: () => (
         <Combobox multiple defaultValue={["travel"]}>
             <ComboboxChips />
@@ -72,8 +72,8 @@ export const comboboxTagNote = defineExample({
 /** A combobox that searches people while their matches load. */
 export const comboboxFindPersonLoading = defineExample({
     of: Combobox,
-    name: "find-person-loading",
-    description: "a combobox that searches people while their matches load",
+    name: "findPersonLoading",
+    description: t`A combobox that searches people while their matches load.`,
     properties: {
         filter: null,
         defaultOpen: true,
@@ -91,8 +91,8 @@ export const comboboxFindPersonLoading = defineExample({
 /** The notebook combobox marked invalid. */
 export const comboboxMoveNoteInvalid = defineExample({
     of: Combobox,
-    name: "move-note-invalid",
-    description: "the notebook combobox marked invalid",
+    name: "moveNoteInvalid",
+    description: t`The notebook combobox marked invalid.`,
     render: () => (
         <Combobox>
             <ComboboxInput
@@ -111,8 +111,8 @@ export const comboboxMoveNoteInvalid = defineExample({
 /** The notebook combobox unavailable. */
 export const comboboxMoveNoteDisabled = defineExample({
     of: Combobox,
-    name: "move-note-disabled",
-    description: "the notebook combobox unavailable",
+    name: "moveNoteDisabled",
+    description: t`The notebook combobox unavailable.`,
     render: () => (
         <Combobox>
             <ComboboxInput aria-label="Notebook" placeholder="Move to notebook" disabled />

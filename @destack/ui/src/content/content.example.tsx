@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import type { Root } from "hast";
 import { defineExample } from "@destack/package/declare";
 import { Badge } from "../badge/index.ts";
@@ -47,7 +48,7 @@ function Strong(properties: ContentElementProperties) {
 export const contentNote = defineExample({
     of: Content,
     name: "note",
-    description: "a release note rendered from its tree, its strong words swapped for badges",
+    description: t`A release note rendered from its tree, its strong words swapped for badges.`,
     render: () => (
         <Prose>
             <Content tree={NOTE} components={{ strong: Strong }} />
@@ -84,8 +85,8 @@ const STEPS: Root = {
 /** A setup guide rendered from its tree with the elements the tree has. */
 export const contentSetupSteps = defineExample({
     of: Content,
-    name: "setup-steps",
-    description: "a setup guide rendered from its tree with the elements the tree has",
+    name: "setupSteps",
+    description: t`A setup guide rendered from its tree with the elements the tree has.`,
     render: () => (
         <Prose>
             <Content tree={STEPS} />

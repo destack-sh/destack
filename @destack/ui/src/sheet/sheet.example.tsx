@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import { Checkbox } from "../checkbox/index.ts";
@@ -16,8 +17,8 @@ import {
 /** The filters of a note list in a panel from the right. */
 export const sheetListFilters = defineExample({
     of: Sheet,
-    name: "list-filters",
-    description: "the filters of a note list in a panel from the right",
+    name: "listFilters",
+    description: t`The filters of a note list in a panel from the right.`,
     render: () => (
         <Sheet>
             <SheetTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
@@ -44,8 +45,8 @@ export const sheetListFilters = defineExample({
 /** The filters panel of a note list open from the right. */
 export const sheetListFiltersOpen = defineExample({
     of: Sheet,
-    name: "list-filters-open",
-    description: "the filters panel of a note list open from the right",
+    name: "listFiltersOpen",
+    description: t`The filters panel of a note list open from the right.`,
     properties: {
         defaultOpen: true,
     },

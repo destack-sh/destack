@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For, type JSX, onSettled } from "@destack/view";
 import { Button } from "../button/index.ts";
@@ -16,10 +17,10 @@ import { Toaster, useToast } from "./toast.tsx";
 const MEMBERS = ["Ada Lovelace", "Jonas Weber", "Mia Sørensen"] as const;
 
 /** A button that archives a note with an undo action. */
-export const toasterArchiveUndo = defineExample({
+export const toasterDefault = defineExample({
     of: Toaster,
-    name: "archive-undo",
-    description: "a button that archives a note with an undo action",
+    name: "default",
+    description: t`A button that archives a note with an undo action.`,
     properties: {
         position: "bottom-right",
     },
@@ -34,7 +35,7 @@ export const toasterArchiveUndo = defineExample({
 export const toasterKinds = defineExample({
     of: Toaster,
     name: "kinds",
-    description: "buttons that save, fail and warn, a toast of each kind",
+    description: t`Buttons that save, fail and warn, a toast of each kind.`,
     render: (properties) => (
         <Toaster {...properties}>
             <Kinds />
@@ -43,11 +44,10 @@ export const toasterKinds = defineExample({
 });
 
 /** A lost connection's toast that stays while it retries, then turns into one that it is back. */
-export const toasterReconnecting = defineExample({
+export const toasterLoading = defineExample({
     of: Toaster,
-    name: "reconnecting",
-    description:
-        "a lost connection's toast that stays while it retries, then turns into one that it is back",
+    name: "loading",
+    description: t`A lost connection's toast that stays while it retries, then turns into one that it is back.`,
     render: (properties) => (
         <Toaster {...properties}>
             <Connection />
@@ -56,10 +56,10 @@ export const toasterReconnecting = defineExample({
 });
 
 /** A toast shown with its undo action until someone dismisses it. */
-export const toasterArchiveUndoOpen = defineExample({
+export const toasterOpen = defineExample({
     of: Toaster,
-    name: "archive-undo-open",
-    description: "a toast shown with its undo action until someone dismisses it",
+    name: "open",
+    description: t`A toast shown with its undo action until someone dismisses it.`,
     render: (properties) => (
         <Toaster {...properties}>
             <Archived />
@@ -71,7 +71,7 @@ export const toasterArchiveUndoOpen = defineExample({
 export const toasterStacked = defineExample({
     of: Toaster,
     name: "stacked",
-    description: "three toasts in a stack, with a long error in front",
+    description: t`Three toasts in a stack, with a long error in front.`,
     render: (properties) => (
         <Toaster {...properties}>
             <Stacked />
@@ -80,10 +80,10 @@ export const toasterStacked = defineExample({
 });
 
 /** A members dialog whose removals toast an undo that works while the dialog stays open. */
-export const toasterMembersDialog = defineExample({
+export const toasterInDialog = defineExample({
     of: Toaster,
-    name: "members-dialog",
-    description: "a members dialog whose removals toast an undo that works while it stays open",
+    name: "inDialog",
+    description: t`A members dialog whose removals toast an undo that works while it stays open.`,
     render: (properties) => (
         <Toaster {...properties}>
             <Members />

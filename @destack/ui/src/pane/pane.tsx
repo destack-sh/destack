@@ -256,7 +256,7 @@ export function PaneGroup(properties: PaneGroupProperties): JSX.Element {
                         );
                     },
                     get "aria-label"() {
-                        return locale.render(t`Panes`);
+                        return locale.render(t.context("title")`Panes`);
                     },
                 })}
                 <Show when={!drags.isShared}>
@@ -468,7 +468,7 @@ export function PaneBar(properties: PaneBarProperties): JSX.Element {
                 return float() === undefined ? undefined : ("group" as const);
             },
             get "aria-label"() {
-                return float() === undefined ? undefined : locale.render(t`Move`);
+                return float() === undefined ? undefined : locale.render(t.context("action")`Move`);
             },
             get "data-floating"() {
                 return float() === undefined ? undefined : "";
@@ -662,7 +662,7 @@ function PaneHandle(properties: {
                     : ("horizontal" as const);
             },
             get "aria-label"() {
-                return locale.render(t`Resize`);
+                return locale.render(t.context("action")`Resize`);
             },
             "aria-valuemin": 0,
             "aria-valuemax": 100,

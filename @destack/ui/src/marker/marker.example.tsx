@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import arrowSquareOutIcon from "@destack/icon/phosphor/arrow-square-out";
 import brainIcon from "@destack/icon/phosphor/brain";
 import checkCircleIcon from "@destack/icon/phosphor/check-circle";
@@ -106,7 +107,7 @@ function Step(properties: {
 export const markerSteps = defineExample({
     of: Marker,
     name: "steps",
-    description: "what an assistant did for an answer, the last step under way",
+    description: t`What an assistant did for an answer, the last step under way.`,
     layout: "padded",
     render: () => (
         <Stack space="3">
@@ -136,7 +137,7 @@ export const markerSteps = defineExample({
 export const markerAgent = defineExample({
     of: Marker,
     name: "agent",
-    description: "what an agent thought, ran, failed to run and used, each with its detail",
+    description: t`What an agent thought, ran, failed to run and used, each with its detail.`,
     layout: "padded",
     render: () => (
         <Stack space="2">
@@ -218,7 +219,7 @@ export const markerAgent = defineExample({
 export const markerPlan = defineExample({
     of: Marker,
     name: "plan",
-    description: "the steps an agent plans, and how far it has come",
+    description: t`The steps an agent plans, and how far it has come.`,
     layout: "padded",
     render: () => (
         <Step icon={<Icon icon={magnifyingGlassIcon} />} title="Plan" description="1 of 3" isOpen>
@@ -248,7 +249,7 @@ export const markerPlan = defineExample({
 export const markerLive = defineExample({
     of: Marker,
     name: "live",
-    description: "an agent's turn as it happens: open while it works, and a summary once done",
+    description: t`An agent's turn as it happens: open while it works, and a summary once done.`,
     layout: "padded",
     render: () => {
         // take a step at a time
@@ -353,7 +354,7 @@ export const markerLive = defineExample({
 export const markerSeparators = defineExample({
     of: Marker,
     name: "separators",
-    description: "a day and someone joining between two lines, and a row above a line",
+    description: t`A day and someone joining between two lines, and a row above a line.`,
     layout: "padded",
     render: () => (
         <Stack space="4">

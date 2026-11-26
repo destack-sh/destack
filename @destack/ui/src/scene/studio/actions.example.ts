@@ -8,8 +8,8 @@ import { idsOf, LABELS, PEOPLE, PROJECTS, type Studio, type Task, TODAY } from "
 /** Change the status of tasks. */
 export const setStatus = defineAction({
     name: "task.setStatus",
-    title: t`Change status`,
-    category: t`Task`,
+    title: t.context("action")`Change status`,
+    category: t.context("title")`Task`,
     keybinding: "s",
     input: { tasks: selected(taskType), status: taskStatus },
 });
@@ -17,8 +17,8 @@ export const setStatus = defineAction({
 /** Change the priority of tasks. */
 export const setPriority = defineAction({
     name: "task.setPriority",
-    title: t`Set priority`,
-    category: t`Task`,
+    title: t.context("action")`Set priority`,
+    category: t.context("title")`Task`,
     keybinding: "p",
     input: { tasks: selected(taskType), priority: taskPriority },
 });
@@ -26,8 +26,8 @@ export const setPriority = defineAction({
 /** Assign tasks to a person. */
 export const assign = defineAction({
     name: "task.assign",
-    title: t`Assign to`,
-    category: t`Task`,
+    title: t.context("action")`Assign to`,
+    category: t.context("title")`Task`,
     keybinding: "a",
     input: { tasks: selected(taskType), person: schema.string().nullable() },
 });
@@ -36,7 +36,7 @@ export const assign = defineAction({
 export const assignToMe = defineAction({
     name: "task.assignToMe",
     title: t`Assign to me`,
-    category: t`Task`,
+    category: t.context("title")`Task`,
     keybinding: "i",
     input: { tasks: selected(taskType) },
 });
@@ -44,8 +44,8 @@ export const assignToMe = defineAction({
 /** Add a label to tasks, or take it off. */
 export const toggleLabel = defineAction({
     name: "task.toggleLabel",
-    title: t`Change labels`,
-    category: t`Task`,
+    title: t.context("action")`Change labels`,
+    category: t.context("title")`Task`,
     keybinding: "l",
     isRepeated: true,
     input: { tasks: selected(taskType), label: schema.string() },
@@ -55,7 +55,7 @@ export const toggleLabel = defineAction({
 export const setProject = defineAction({
     name: "task.setProject",
     title: t`Add to project`,
-    category: t`Task`,
+    category: t.context("title")`Task`,
     keybinding: "shift+p",
     input: { tasks: selected(taskType), project: schema.string().nullable() },
 });
@@ -64,7 +64,7 @@ export const setProject = defineAction({
 export const setDue = defineAction({
     name: "task.setDue",
     title: t`Set due date`,
-    category: t`Task`,
+    category: t.context("title")`Task`,
     keybinding: "shift+d",
     input: { tasks: selected(taskType), due: schema.string().nullable() },
 });
@@ -72,16 +72,16 @@ export const setDue = defineAction({
 /** Create a task, with what the group the person is in has. */
 export const createTask = defineAction({
     name: "task.create",
-    title: t`New task`,
-    category: t`Task`,
+    title: t.context("action")`New task`,
+    category: t.context("title")`Task`,
     keybinding: "c",
 });
 
 /** Look at a task without leaving the list. */
 export const peek = defineAction({
     name: "task.peek",
-    title: t`Peek`,
-    category: t`Task`,
+    title: t.context("action")`Peek`,
+    category: t.context("title")`Task`,
     keybinding: "space",
     input: { task: current(taskType) },
 });
@@ -89,8 +89,8 @@ export const peek = defineAction({
 /** Delete tasks. */
 export const deleteTasks = defineAction({
     name: "task.delete",
-    title: t`Delete`,
-    category: t`Task`,
+    title: t.context("action")`Delete`,
+    category: t.context("title")`Task`,
     keybinding: { key: "mod+delete", mac: ["mod+backspace"] },
     isDestructive: true,
     input: { tasks: selected(taskType) },
@@ -100,7 +100,7 @@ export const deleteTasks = defineAction({
 export const toggleLayout = defineAction({
     name: "view.toggleLayout",
     title: t`Show as a board`,
-    category: t`View`,
+    category: t.context("title")`View`,
     keybinding: "shift+b",
 });
 
@@ -108,7 +108,7 @@ export const toggleLayout = defineAction({
 export const goToActive = defineAction({
     name: "studio.goToActive",
     title: t`Go to active tasks`,
-    category: t`Navigation`,
+    category: t.context("title")`Navigation`,
     keybinding: "g a",
 });
 
@@ -116,7 +116,7 @@ export const goToActive = defineAction({
 export const goToBacklog = defineAction({
     name: "studio.goToBacklog",
     title: t`Go to the backlog`,
-    category: t`Navigation`,
+    category: t.context("title")`Navigation`,
     keybinding: "g b",
 });
 
@@ -124,15 +124,15 @@ export const goToBacklog = defineAction({
 export const goToAll = defineAction({
     name: "studio.goToAll",
     title: t`Go to all tasks`,
-    category: t`Navigation`,
+    category: t.context("title")`Navigation`,
     keybinding: "g e",
 });
 
 /** Choose how the view looks. */
 export const showDisplay = defineAction({
     name: "view.display",
-    title: t`Display options`,
-    category: t`View`,
+    title: t.context("action")`Display options`,
+    category: t.context("title")`View`,
     keybinding: "shift+v",
 });
 
@@ -151,8 +151,8 @@ function days() {
 /** Answer a comment. */
 export const answerComment = defineAction({
     name: "comment.answer",
-    title: t`Reply`,
-    category: t`Comment`,
+    title: t.context("action")`Reply`,
+    category: t.context("title")`Comment`,
     keybinding: "r",
     input: { comment: current(commentType) },
 });
@@ -160,16 +160,16 @@ export const answerComment = defineAction({
 /** React to a comment, or take the reaction back. */
 export const reactToComment = defineAction({
     name: "comment.react",
-    title: t`React`,
-    category: t`Comment`,
+    title: t.context("action")`React`,
+    category: t.context("title")`Comment`,
     input: { comment: current(commentType), emoji: schema.string() },
 });
 
 /** Write a comment anew. */
 export const editComment = defineAction({
     name: "comment.edit",
-    title: t`Edit`,
-    category: t`Comment`,
+    title: t.context("action")`Edit`,
+    category: t.context("title")`Comment`,
     keybinding: "e",
     input: { comment: current(commentType) },
 });
@@ -177,16 +177,16 @@ export const editComment = defineAction({
 /** Copy the words of a comment. */
 export const copyComment = defineAction({
     name: "comment.copy",
-    title: t`Copy text`,
-    category: t`Comment`,
+    title: t.context("action")`Copy text`,
+    category: t.context("title")`Comment`,
     input: { comment: current(commentType) },
 });
 
 /** Delete a comment and its replies. */
 export const deleteComment = defineAction({
     name: "comment.delete",
-    title: t`Delete`,
-    category: t`Comment`,
+    title: t.context("action")`Delete`,
+    category: t.context("title")`Comment`,
     keybinding: { key: "delete", mac: ["backspace", "delete"] },
     isDestructive: true,
     input: { comment: current(commentType) },

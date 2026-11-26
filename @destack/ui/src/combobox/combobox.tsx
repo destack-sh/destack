@@ -414,7 +414,7 @@ function ComboboxTrigger(properties: { readonly disabled: boolean }): JSX.Elemen
             type="button"
             tabindex={-1}
             disabled={properties.disabled}
-            aria-label={locale.render(t`Show options`)}
+            aria-label={locale.render(t.context("action")`Show options`)}
             aria-expanded={control.isOpen() ? "true" : "false"}
             aria-controls={control.list.id}
             data-slot="combobox-trigger"

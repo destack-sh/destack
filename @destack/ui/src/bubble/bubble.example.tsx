@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { For } from "@destack/view";
 import { Stack } from "../stack/index.ts";
@@ -18,7 +19,7 @@ const VARIANTS = [
 export const bubbleConversation = defineExample({
     of: Bubble,
     name: "conversation",
-    description: "a conversation between two people, each person's bubbles tight where they meet",
+    description: t`A conversation between two people, each person's bubbles tight where they meet.`,
     layout: "padded",
     render: () => (
         <Stack space="4">
@@ -57,7 +58,7 @@ export const bubbleConversation = defineExample({
 export const bubbleVariants = defineExample({
     of: Bubble,
     name: "variants",
-    description: "each variant with a message it suits",
+    description: t`Each variant with a message it suits.`,
     layout: "padded",
     render: () => (
         <Stack space="3">

@@ -14,15 +14,15 @@ const START = "#000000";
 
 /** What each channel is called. */
 export const CHANNEL_NAMES: Readonly<Record<ColorChannel, Message>> = {
-    red: t`Red`,
-    green: t`Green`,
-    blue: t`Blue`,
-    hue: t`Hue`,
-    saturation: t`Saturation`,
-    lightness: t`Lightness`,
-    brightness: t`Brightness`,
-    chroma: t`Chroma`,
-    alpha: t`Opacity`,
+    red: t.context("label")`Red`,
+    green: t.context("label")`Green`,
+    blue: t.context("label")`Blue`,
+    hue: t.context("label")`Hue`,
+    saturation: t.context("label")`Saturation`,
+    lightness: t.context("label")`Lightness`,
+    brightness: t.context("label")`Brightness`,
+    chroma: t.context("label")`Chroma`,
+    alpha: t.context("label")`Opacity`,
 };
 
 /** The color of a picker, and what it tells its owner. */

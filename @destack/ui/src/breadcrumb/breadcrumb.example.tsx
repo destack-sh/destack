@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import {
     Breadcrumb,
@@ -12,8 +13,8 @@ import {
 /** The trail from a notebook to one of its notes. */
 export const breadcrumbNoteTrail = defineExample({
     of: Breadcrumb,
-    name: "note-trail",
-    description: "the trail from a notebook to one of its notes",
+    name: "noteTrail",
+    description: t`The trail from a notebook to one of its notes.`,
     render: () => (
         <Breadcrumb>
             <BreadcrumbList>
@@ -36,8 +37,8 @@ export const breadcrumbNoteTrail = defineExample({
 /** A long trail with its middle steps left out. */
 export const breadcrumbLongTrail = defineExample({
     of: Breadcrumb,
-    name: "long-trail",
-    description: "a long trail with its middle steps left out",
+    name: "longTrail",
+    description: t`A long trail with its middle steps left out.`,
     render: () => (
         <Breadcrumb>
             <BreadcrumbList>

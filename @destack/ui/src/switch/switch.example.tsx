@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Label } from "../label/index.ts";
 import { Switch, SwitchThumb } from "./switch.tsx";
@@ -6,7 +7,7 @@ import { Switch, SwitchThumb } from "./switch.tsx";
 export const switchNotifications = defineExample({
     of: Switch,
     name: "notifications",
-    description: "a switch that turns notifications on and off",
+    description: t`A switch that turns notifications on and off.`,
     properties: {
         name: "notifications",
         defaultChecked: true,
@@ -21,8 +22,8 @@ export const switchNotifications = defineExample({
 /** The notifications switch unavailable. */
 export const switchNotificationsDisabled = defineExample({
     of: Switch,
-    name: "notifications-disabled",
-    description: "the notifications switch unavailable",
+    name: "notificationsDisabled",
+    description: t`The notifications switch unavailable.`,
     properties: {
         name: "notifications",
         checked: true,
@@ -39,7 +40,7 @@ export const switchNotificationsDisabled = defineExample({
 export const switchComposed = defineExample({
     of: Switch,
     name: "composed",
-    description: "a switch composed from its root and thumb parts",
+    description: t`A switch composed from its root and thumb parts.`,
     properties: {
         name: "airplane-mode",
     },
@@ -57,7 +58,7 @@ export const switchComposed = defineExample({
 export const switchSmall = defineExample({
     of: Switch,
     name: "small",
-    description: "a small switch, and one a person reads but does not flip",
+    description: t`A small switch, and one a person reads but does not flip.`,
     render: () => (
         <div>
             <Label>

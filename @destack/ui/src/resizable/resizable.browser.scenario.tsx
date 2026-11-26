@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { resizablePanelGroupInboxSplit } from "./resizable.example.tsx";
@@ -13,8 +14,8 @@ const group = { css: "[data-slot=resizable-panel-group]" };
 export const resizablePanelGroupMoveToPixelLimits = defineScenario({
     of: ResizablePanelGroup,
     interaction: viewInteraction,
-    name: "move-to-pixel-limits",
-    description: "move a splitter with Home and End to its panel's limits in pixels",
+    name: "moveToPixelLimits",
+    description: t`Move a splitter with Home and End to its panel's limits in pixels.`,
     given: { examples: [resizablePanelGroupInboxSplit] },
     parameters: {},
     when: [
@@ -52,8 +53,8 @@ export const resizablePanelGroupMoveToPixelLimits = defineScenario({
 export const resizablePanelGroupDragBeside = defineScenario({
     of: ResizablePanelGroup,
     interaction: viewInteraction,
-    name: "drag-beside",
-    description: "drag a splitter from a few pixels beside its line",
+    name: "dragBeside",
+    description: t`Drag a splitter from a few pixels beside its line.`,
     given: { examples: [resizablePanelGroupInboxSplit], globals: { locale: "en-US" } },
     parameters: {},
     when: [
@@ -76,8 +77,8 @@ export const resizablePanelGroupDragBeside = defineScenario({
 export const resizablePanelGroupDragRightToLeft = defineScenario({
     of: ResizablePanelGroup,
     interaction: viewInteraction,
-    name: "drag-right-to-left",
-    description: "drag a splitter to the left to widen the panel at the right",
+    name: "dragRightToLeft",
+    description: t`Drag a splitter to the left to widen the panel at the right.`,
     given: { examples: [resizablePanelGroupInboxSplit], globals: { locale: "ar-EG" } },
     parameters: {},
     when: [

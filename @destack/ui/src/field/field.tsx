@@ -420,14 +420,14 @@ export function FieldConflict(properties: FieldConflictProperties): JSX.Element 
                         return (
                             <>
                                 <span>
-                                    {locale.render(t`Changed meanwhile:`)}{" "}
+                                    {locale.render(t.context("title")`Changed meanwhile:`)}{" "}
                                     <b>{write(conflict().value)}</b>
                                 </span>
                                 <Button size="sm" variant="outline" onClick={() => value?.take()}>
-                                    {locale.render(t`Use this`)}
+                                    {locale.render(t.context("action")`Use this`)}
                                 </Button>
                                 <Button size="sm" variant="ghost" onClick={() => value?.keep()}>
-                                    {locale.render(t`Keep mine`)}
+                                    {locale.render(t.context("action")`Keep mine`)}
                                 </Button>
                             </>
                         );

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -23,8 +24,8 @@ const styles = style.create({
 /** A notebook's recent notes, one archivable and one opened by a link. */
 export const itemRecentNotes = defineExample({
     of: Item,
-    name: "recent-notes",
-    description: "a notebook's recent notes, one archivable and one opened by a link",
+    name: "recentNotes",
+    description: t`A notebook's recent notes, one archivable and one opened by a link.`,
     render: () => (
         <ItemGroup aria-label="Recent notes">
             <Item>
@@ -54,8 +55,8 @@ export const itemRecentNotes = defineExample({
 /** Recent notes as outlined items. */
 export const itemRecentNotesOutlined = defineExample({
     of: Item,
-    name: "recent-notes-outlined",
-    description: "recent notes as outlined items",
+    name: "recentNotesOutlined",
+    description: t`Recent notes as outlined items.`,
     properties: {
         variant: "outline",
     },

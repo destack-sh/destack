@@ -66,7 +66,7 @@ export function Breadcrumb(
 
     return renderPart("nav", "breadcrumb", properties, null, {
         get "aria-label"() {
-            return locale.render(t`Breadcrumb`);
+            return locale.render(t.context("title")`Breadcrumb`);
         },
     });
 }
@@ -162,7 +162,9 @@ export function BreadcrumbEllipsis(
             return (
                 <>
                     <Icon name="dots-three" />
-                    <span {...style.attrs(visuallyHiddenStyle())}>{locale.render(t`More`)}</span>
+                    <span {...style.attrs(visuallyHiddenStyle())}>
+                        {locale.render(t.context("title")`More`)}
+                    </span>
                 </>
             );
         },

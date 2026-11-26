@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, space, stroke } from "@destack/theme/tokens.stylex";
 import { defineExample } from "@destack/package/declare";
@@ -159,8 +160,7 @@ function createAssistant(initial: readonly Line[]) {
 export const messageScrollerAssistant = defineExample({
     of: MessageScroller,
     name: "assistant",
-    description:
-        "a conversation with an assistant: a question comes near the top, and its answer grows below it",
+    description: t`A conversation with an assistant: a question comes near the top, and its answer grows below it.`,
     layout: "padded",
     render: () => {
         const assistant = createAssistant(conversation(8));
@@ -268,7 +268,7 @@ function VirtualRows(properties: { readonly lines: readonly Line[] }): JSX.Eleme
 export const messageScrollerVirtual = defineExample({
     of: MessageScroller,
     name: "virtual",
-    description: "ten thousand messages, only those in view in the document",
+    description: t`Ten thousand messages, only those in view in the document.`,
     layout: "padded",
     render: () => {
         const [lines, setLines] = createSignal(conversation(5_000));
@@ -306,8 +306,7 @@ export const messageScrollerVirtual = defineExample({
 export const messageScrollerOutline = defineExample({
     of: MessageScroller,
     name: "outline",
-    description:
-        "a conversation with buttons outside its frame, and a row that loads what came before",
+    description: t`A conversation with buttons outside its frame, and a row that loads what came before.`,
     layout: "padded",
     render: () => {
         const assistant = createAssistant(conversation(20));

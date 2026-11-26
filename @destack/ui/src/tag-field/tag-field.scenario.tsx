@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { tagFieldNote } from "./tag-field.example.tsx";
@@ -14,7 +15,7 @@ export const tagFieldType = defineScenario({
     of: TagField,
     interaction: viewInteraction,
     name: "type",
-    description: "add a tag by Enter, go to it by Backspace, and remove it by another",
+    description: t`Add a tag by Enter, go to it by Backspace, and remove it by another.`,
     given: { examples: [tagFieldNote] },
     parameters: {},
     when: [

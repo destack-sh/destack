@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -32,7 +33,7 @@ const styles = style.create({
 export const loadMoreNotes = defineExample({
     of: LoadMore,
     name: "notes",
-    description: "a list of notes that loads the next page as its end scrolls near",
+    description: t`A list of notes that loads the next page as its end scrolls near.`,
     properties: {
         scrollOffset: 1,
     },
@@ -78,8 +79,8 @@ export const loadMoreNotes = defineExample({
 /** A list of notes while its next page loads. */
 export const loadMoreNotesLoading = defineExample({
     of: LoadMore,
-    name: "notes-loading",
-    description: "a list of notes while its next page loads",
+    name: "notesLoading",
+    description: t`A list of notes while its next page loads.`,
     properties: {
         isLoading: true,
     },

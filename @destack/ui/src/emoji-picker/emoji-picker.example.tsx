@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal } from "@destack/view";
 import {
@@ -13,8 +14,7 @@ import {
 export const emojiPickerReaction = defineExample({
     of: EmojiPicker,
     name: "reaction",
-    description:
-        "a reaction picked from every emoji by category, with a search, the skin tones and a note while nothing matches",
+    description: t`A reaction picked from every emoji by category, with a search, the skin tones and a note while nothing matches.`,
     properties: {
         columns: 9,
     },
@@ -31,8 +31,7 @@ export const emojiPickerReaction = defineExample({
 export const emojiPickerCompact = defineExample({
     of: EmojiPicker,
     name: "compact",
-    description:
-        "a compact picker whose footer shows the active emoji beside a button cycling the skin tone",
+    description: t`A compact picker whose footer shows the active emoji beside a button cycling the skin tone.`,
     render: () => (
         <EmojiPicker columns={7} onEmojiSelect={() => undefined}>
             <EmojiPickerSearch />
@@ -48,8 +47,7 @@ export const emojiPickerCompact = defineExample({
 export const emojiPickerParts = defineExample({
     of: EmojiPicker,
     name: "parts",
-    description:
-        "a picker composed of its search, content and footer, reporting the emoji it picks",
+    description: t`A picker composed of its search, content and footer, reporting the emoji it picks.`,
     render: () => {
         const [picked, setPicked] = createSignal("");
 
@@ -70,7 +68,7 @@ export const emojiPickerParts = defineExample({
 export const emojiPickerEmpty = defineExample({
     of: EmojiPicker,
     name: "empty",
-    description: "a picker whose search finds no emoji, showing its note",
+    description: t`A picker whose search finds no emoji, showing its note.`,
     render: () => (
         <EmojiPicker onEmojiSelect={() => undefined}>
             <EmojiPickerSearch defaultValue="qqqqq" />

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal } from "@destack/view";
 import { ListBox, ListBoxEmpty, ListBoxItem } from "../list-box/index.ts";
@@ -7,8 +8,7 @@ import { Autocomplete, AutocompleteInput } from "./autocomplete.tsx";
 export const autocompleteFruit = defineExample({
     of: Autocomplete,
     name: "fruit",
-    description:
-        "a search over a list box of fruits, reporting the fruit chosen with Enter or a click",
+    description: t`A search over a list box of fruits, reporting the fruit chosen with Enter or a click.`,
     render: () => {
         const [fruit, setFruit] = createSignal("");
 
@@ -32,8 +32,8 @@ export const autocompleteFruit = defineExample({
 /** A search that finds no fruit, showing the list box's empty note. */
 export const autocompleteNoFruit = defineExample({
     of: Autocomplete,
-    name: "no-fruit",
-    description: "a search that finds no fruit, showing the list box's empty note",
+    name: "noFruit",
+    description: t`A search that finds no fruit, showing the list box's empty note.`,
     properties: {
         defaultValue: "kiwi",
     },

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { sidebarNotebooks } from "./sidebar.example.tsx";
@@ -7,8 +8,8 @@ import { Sidebar } from "./sidebar.tsx";
 export const sidebarToggleWithShortcut = defineScenario({
     of: Sidebar,
     interaction: viewInteraction,
-    name: "toggle-with-shortcut",
-    description: "collapse and expand the sidebar with its keys",
+    name: "toggleWithShortcut",
+    description: t`Collapse and expand the sidebar with its keys.`,
     given: { examples: [sidebarNotebooks] },
     parameters: {},
     when: [

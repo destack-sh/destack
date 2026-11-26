@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { EmojiButton } from "../example/emoji.tsx";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For } from "@destack/view";
@@ -24,7 +25,7 @@ function toggled(people: readonly string[], isAdded: boolean): readonly string[]
 export const reactionGroupMessage = defineExample({
     of: ReactionGroup,
     name: "message",
-    description: "the reactions to a message, one's own among them, and a button for more",
+    description: t`The reactions to a message, one's own among them, and a button for more.`,
     render: () => {
         const [reactions, setReactions] = createSignal(REACTIONS);
         const react = (emoji: string, isAdded: boolean): void => {

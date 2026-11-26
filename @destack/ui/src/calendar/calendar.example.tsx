@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { PlainDate } from "@destack/schema";
 import { createSignal, omit } from "@destack/view";
@@ -15,8 +16,8 @@ function isPast(day: PlainDate): boolean {
 /** A calendar that picks the days of a trip, past days disabled. */
 export const calendarTripDays = defineExample({
     of: Calendar,
-    name: "trip-days",
-    description: "a calendar that picks the days of a trip, past days disabled",
+    name: "tripDays",
+    description: t`A calendar that picks the days of a trip, past days disabled.`,
     properties: {
         numberOfMonths: 1,
         showWeekNumber: false,
@@ -40,17 +41,16 @@ export const calendarTripDays = defineExample({
 /** A calendar at the end of October with the thirtieth selected and the fourth as today. */
 export const calendarLateOctober = defineExample({
     of: Calendar,
-    name: "late-october",
-    description:
-        "a calendar at the end of October with the thirtieth selected and the fourth as today",
+    name: "lateOctober",
+    description: t`A calendar at the end of October with the thirtieth selected and the fourth as today.`,
     render: () => <Calendar defaultSelected={"2026-10-30"} today={"2026-10-04"} />,
 });
 
 /** A calendar that picks a stay across two months shown side by side. */
 export const calendarStayTwoMonths = defineExample({
     of: Calendar,
-    name: "stay-two-months",
-    description: "a calendar that picks a stay across two months shown side by side",
+    name: "stayTwoMonths",
+    description: t`A calendar that picks a stay across two months shown side by side.`,
     render: () => (
         <Calendar
             mode="range"
@@ -68,8 +68,7 @@ export const calendarStayTwoMonths = defineExample({
 export const calendarBirthday = defineExample({
     of: Calendar,
     name: "birthday",
-    description:
-        "a birthday calendar with month and year pickers, numbered weeks and no later day than today",
+    description: t`A birthday calendar with month and year pickers, numbered weeks and no later day than today.`,
     render: () => (
         <Calendar
             captionLayout="dropdown"

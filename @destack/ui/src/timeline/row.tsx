@@ -365,7 +365,11 @@ export function TimelineRowToggle(
                         tabindex: -1,
                         onClick: () => control.tree.toggle(key),
                         get "aria-label"() {
-                            return locale.render(isFolded() ? t`Expand` : t`Collapse`);
+                            return locale.render(
+                                isFolded()
+                                    ? t.context("action")`Expand`
+                                    : t.context("action")`Collapse`,
+                            );
                         },
                         get children() {
                             return <DisclosureCaret />;

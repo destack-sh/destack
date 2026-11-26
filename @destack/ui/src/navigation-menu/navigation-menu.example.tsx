@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -42,8 +43,8 @@ function Products(): JSX.Element {
 /** A site's main navigation with a products panel, on its pricing page. */
 export const navigationMenuSiteNavigation = defineExample({
     of: NavigationMenu,
-    name: "site-navigation",
-    description: "a site's main navigation with a products panel, on its pricing page",
+    name: "siteNavigation",
+    description: t`A site's main navigation with a products panel, on its pricing page.`,
     properties: {
         "aria-label": "Main",
     },
@@ -73,8 +74,8 @@ export const navigationMenuSiteNavigation = defineExample({
 /** A site's main navigation with a products panel and a company panel. */
 export const navigationMenuTwoPanels = defineExample({
     of: NavigationMenu,
-    name: "two-panels",
-    description: "a site's main navigation with a products panel and a company panel",
+    name: "twoPanels",
+    description: t`A site's main navigation with a products panel and a company panel.`,
     properties: {
         "aria-label": "Main",
     },
@@ -102,8 +103,8 @@ export const navigationMenuTwoPanels = defineExample({
 /** The site's main navigation with its products panel open. */
 export const navigationMenuProductsOpen = defineExample({
     of: NavigationMenu,
-    name: "products-open",
-    description: "the site's main navigation with its products panel open",
+    name: "productsOpen",
+    description: t`The site's main navigation with its products panel open.`,
     properties: {
         "aria-label": "Main",
         defaultValue: "products",

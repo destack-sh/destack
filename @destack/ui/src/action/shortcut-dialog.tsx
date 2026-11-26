@@ -66,7 +66,7 @@ export function ShortcutDialog(): JSX.Element {
             // take its first keys
             const keys = actions.keybindings(action, isCommand())[0];
             const title = locale.render(action.title);
-            const category = locale.render(action.category ?? t`Other`);
+            const category = locale.render(action.category ?? t.context("title")`Other`);
 
             return keys === undefined || !title.toLowerCase().includes(sought)
                 ? []
@@ -74,7 +74,7 @@ export function ShortcutDialog(): JSX.Element {
         });
 
         // put those of no category last
-        const other = locale.render(t`Other`);
+        const other = locale.render(t.context("title")`Other`);
         const grouped = [...Map.groupBy(rows, ({ category }) => category)];
 
         return grouped.toSorted(([one], [two]) => Number(one === other) - Number(two === other));
@@ -87,8 +87,8 @@ export function ShortcutDialog(): JSX.Element {
                     <DialogTitle>{locale.render(showShortcuts.title)}</DialogTitle>
                 </DialogHeader>
                 <SearchField
-                    aria-label={locale.render(t`Search shortcuts`)}
-                    placeholder={locale.render(t`Search shortcuts`)}
+                    aria-label={locale.render(t.context("label")`Search shortcuts`)}
+                    placeholder={locale.render(t.context("label")`Search shortcuts`)}
                     value={words()}
                     onValueChange={(next) => void setWords(next)}
                 />
@@ -97,7 +97,7 @@ export function ShortcutDialog(): JSX.Element {
                         each={groups()}
                         fallback={
                             <span {...style.attrs(styles.note)}>
-                                {locale.render(t`No results.`)}
+                                {locale.render(t.context("title")`No results.`)}
                             </span>
                         }
                     >

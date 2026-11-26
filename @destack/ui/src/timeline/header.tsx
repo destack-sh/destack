@@ -24,9 +24,9 @@ const MIN_SWEEP = 0.01;
 
 /** The label of each zoom level's preset. */
 const LEVEL_LABELS: Readonly<Record<TimelineZoomLevel, Message>> = {
-    week: t`Week`,
-    month: t`Month`,
-    quarter: t`Quarter`,
+    week: t.context("option")`Week`,
+    month: t.context("option")`Month`,
+    quarter: t.context("option")`Quarter`,
 };
 
 /** The pixels an arrow key resizes the labels' column by. */
@@ -244,7 +244,7 @@ export function TimelineToolbar(properties: TimelinePartProperties): JSX.Element
     return renderPart("div", "timeline-toolbar", rest, styles.toolbar, {
         role: "toolbar" as const,
         get "aria-label"() {
-            return locale.render(t`Timeline`);
+            return locale.render(t.context("title")`Timeline`);
         },
     });
 }
@@ -262,7 +262,7 @@ export function TimelineZoom(
     return (
         <ToggleGroup
             variant="outline"
-            aria-label={locale.render(t`Zoom`)}
+            aria-label={locale.render(t.context("label")`Zoom`)}
             data-slot="timeline-zoom"
             {...properties}
             behavior="replace"
@@ -302,7 +302,7 @@ export function TimelineToday(properties: Omit<ButtonProperties, "onClick">): JS
             {...properties}
             onClick={() => control.window.reveal(control.window.now() ?? clock.now())}
         >
-            {contentOr(properties, () => locale.render(t`Today`))}
+            {contentOr(properties, () => locale.render(t.context("action")`Today`))}
         </Button>
     );
 }

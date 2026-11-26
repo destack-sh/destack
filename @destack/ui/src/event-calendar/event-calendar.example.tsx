@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { TimeZone } from "@destack/schema";
 import { createSignal, omit, Show } from "@destack/view";
@@ -168,8 +169,7 @@ function LaunchCalendar(
 export const eventCalendarLaunch = defineExample({
     of: EventCalendar,
     name: "launch",
-    description:
-        "a team's launch week in a month, week, day and agenda view, events moved and created",
+    description: t`A team's launch week in a month, week, day and agenda view, events moved and created.`,
     layout: "padded",
     properties: {
         dayMaxEvents: 3,
@@ -180,8 +180,8 @@ export const eventCalendarLaunch = defineExample({
 /** A team's launch month, each day with its events. */
 export const eventCalendarLaunchMonth = defineExample({
     of: EventCalendar,
-    name: "launch-month",
-    description: "a team's launch month, each day with its events",
+    name: "launchMonth",
+    description: t`A team's launch month, each day with its events.`,
     layout: "padded",
     properties: {
         dayMaxEvents: 3,
@@ -205,8 +205,8 @@ const SLOTS: readonly CalendarEvent[] = [
 /** A work week with the open slots of a booking page shaded behind the meetings. */
 export const eventCalendarWorkWeek = defineExample({
     of: EventCalendar,
-    name: "work-week",
-    description: "a work week with the open slots of a booking page shaded behind the meetings",
+    name: "workWeek",
+    description: t`A work week with the open slots of a booking page shaded behind the meetings.`,
     layout: "padded",
     properties: {
         weekends: false,
@@ -300,8 +300,7 @@ const TEAM: readonly CalendarEvent[] = [
 export const eventCalendarTeam = defineExample({
     of: EventCalendar,
     name: "team",
-    description:
-        "a team's week with people side by side, calendars listed, two zones and shared free time",
+    description: t`A team's week with people side by side, calendars listed, two zones and shared free time.`,
     layout: "padded",
     properties: {},
     render: (properties) => <TeamCalendar {...properties} />,

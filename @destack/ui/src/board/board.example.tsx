@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { ActionMenu } from "../action/index.ts";
 import * as style from "@destack/style";
 import { defineExample } from "@destack/package/declare";
@@ -232,8 +233,7 @@ function TeamBoard() {
 export const boardLaunch = defineExample({
     of: Board,
     name: "launch",
-    description:
-        "a launch plan in three columns, cards and columns moving by pointer, touch and keys",
+    description: t`A launch plan in three columns, cards and columns moving by pointer, touch and keys.`,
     properties: {
         label: "Launch",
     },
@@ -243,8 +243,8 @@ export const boardLaunch = defineExample({
 /** A launch plan whose cards stay where they are. */
 export const boardLaunchFixedCards = defineExample({
     of: Board,
-    name: "launch-fixed-cards",
-    description: "a launch plan whose cards stay where they are",
+    name: "launchFixedCards",
+    description: t`A launch plan whose cards stay where they are.`,
     render: () => <LaunchBoard label="Launch" isFixed />,
 });
 
@@ -252,7 +252,7 @@ export const boardLaunchFixedCards = defineExample({
 export const boardTeam = defineExample({
     of: Board,
     name: "team",
-    description: "a team's board, a lane per person under the shared columns",
+    description: t`A team's board, a lane per person under the shared columns.`,
     render: () => <TeamBoard />,
 });
 
@@ -313,7 +313,7 @@ function LongBoard() {
 /** A backlog of five hundred cards that mounts only the cards in view. */
 export const boardLongBacklog = defineExample({
     of: Board,
-    name: "long-backlog",
-    description: "a backlog of five hundred cards that mounts only the cards in view",
+    name: "longBacklog",
+    description: t`A backlog of five hundred cards that mounts only the cards in view.`,
     render: () => <LongBoard />,
 });

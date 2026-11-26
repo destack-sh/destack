@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import { Stack } from "./stack.tsx";
@@ -7,7 +8,7 @@ import "./stack.css";
 export const stackNote = defineExample({
     of: Stack,
     name: "note",
-    description: "a note's title, body and action stacked with one space between each",
+    description: t`A note's title, body and action stacked with one space between each.`,
     render: () => (
         <Stack space="3" render={(attributes) => <article {...attributes} />}>
             <h2>Launch plan</h2>
@@ -20,8 +21,8 @@ export const stackNote = defineExample({
 /** A note with more space between its parts. */
 export const stackNoteLoose = defineExample({
     of: Stack,
-    name: "note-loose",
-    description: "a note with more space between its parts",
+    name: "noteLoose",
+    description: t`A note with more space between its parts.`,
     properties: {
         space: "6",
     },

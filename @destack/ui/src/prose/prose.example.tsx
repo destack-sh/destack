@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Prose } from "./prose.tsx";
 import "./prose.css";
@@ -21,7 +22,7 @@ const NOTES = `<p>Sync runs over your space's own database.<sup><a href="#fn-1" 
 export const proseArticle = defineExample({
     of: Prose,
     name: "article",
-    description: "an article with headings, a list, a quotation, code and a table",
+    description: t`An article with headings, a list, a quotation, code and a table.`,
     render: () => <Prose innerHTML={ARTICLE} />,
 });
 
@@ -29,6 +30,6 @@ export const proseArticle = defineExample({
 export const proseNotes = defineExample({
     of: Prose,
     name: "notes",
-    description: "a paragraph with a footnote and a warning alert",
+    description: t`A paragraph with a footnote and a warning alert.`,
     render: () => <Prose innerHTML={NOTES} />,
 });

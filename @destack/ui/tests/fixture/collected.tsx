@@ -1,5 +1,5 @@
 import { carouselTripPhotos } from "../../src/carousel/carousel.example.tsx";
-import { dialogRenameNote } from "../../src/dialog/dialog.example.tsx";
+import { dialogDefault } from "../../src/dialog/dialog.example.tsx";
 import { eventCalendarLaunch } from "../../src/event-calendar/event-calendar.example.tsx";
 import { popoverImageSize } from "../../src/popover/popover.example.tsx";
 import { resizablePanelGroupNotebookSplit } from "../../src/resizable/resizable.example.tsx";
@@ -15,7 +15,7 @@ export function Carousel() {
 
 /** Render a dialog, which reads its description. */
 export function Dialog() {
-    return dialogRenameNote.render?.();
+    return dialogDefault.render?.();
 }
 
 /** Render a calendar, which reads the views its view parts offer. */

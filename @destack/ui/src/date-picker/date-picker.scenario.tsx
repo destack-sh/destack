@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { datePickerTrip } from "./date-picker.example.tsx";
@@ -7,9 +8,8 @@ import { DatePicker } from "./date-picker.tsx";
 export const datePickerFocusDayOnOpen = defineScenario({
     of: DatePicker,
     interaction: viewInteraction,
-    name: "focus-day-on-open",
-    description:
-        "move the focus onto the calendar's focused day, the range's start, as the calendar opens",
+    name: "focusDayOnOpen",
+    description: t`Move the focus onto the calendar's focused day, the range's start, as the calendar opens.`,
     given: { examples: [datePickerTrip], globals: { locale: "en-US" } },
     parameters: {},
     when: [

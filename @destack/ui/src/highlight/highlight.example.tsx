@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { Search } from "@destack/db";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For } from "@destack/view";
@@ -12,7 +13,7 @@ const TITLES = ["Order form", "The order book", "Reorder the shelves", "Le Café
 export const highlightNotes = defineExample({
     of: Highlight,
     name: "notes",
-    description: "the notes a search finds, the best first, with what it matches marked",
+    description: t`The notes a search finds, the best first, with what it matches marked.`,
     render: () => {
         const [text, setText] = createSignal("ord");
         const search = () => Search.of(text());

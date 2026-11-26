@@ -100,11 +100,11 @@ const VIEW_PERIODS: Readonly<
 
 /** The title of each view but the days view, which its count of days titles. */
 const VIEW_TITLES: Readonly<Record<Exclude<EventCalendarView, "days">, Message>> = {
-    day: t`Day`,
-    week: t`Week`,
-    month: t`Month`,
-    year: t`Year`,
-    agenda: t`Agenda`,
+    day: t.context("option")`Day`,
+    week: t.context("option")`Week`,
+    month: t.context("option")`Month`,
+    year: t.context("option")`Year`,
+    agenda: t.context("option")`Agenda`,
 };
 
 /** The color of an event whose calendar sets none. */

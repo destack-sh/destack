@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import arrowElbowUpLeftIcon from "@destack/icon/phosphor/arrow-elbow-up-left";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, Show } from "@destack/view";
@@ -19,7 +20,7 @@ import { Quote, QuoteContent, QuoteDismiss, QuoteIcon } from "./quote.tsx";
 export const quoteMessage = defineExample({
     of: Quote,
     name: "message",
-    description: "what sent messages answer, over their words, which leads there",
+    description: t`What sent messages answer, over their words, which leads there.`,
     layout: "padded",
     render: () => (
         <Stack space="4">
@@ -62,7 +63,7 @@ export const quoteMessage = defineExample({
 export const quoteComposer = defineExample({
     of: Quote,
     name: "composer",
-    description: "what a message being written answers, which can be taken back",
+    description: t`What a message being written answers, which can be taken back.`,
     layout: "padded",
     render: () => {
         const [isQuoted, setQuoted] = createSignal(true);

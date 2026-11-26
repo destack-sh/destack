@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Stack } from "../stack/index.ts";
 import { Meter, MeterLabel, MeterTrack, MeterValue } from "./meter.tsx";
@@ -6,7 +7,7 @@ import { Meter, MeterLabel, MeterTrack, MeterValue } from "./meter.tsx";
 export const meterStorage = defineExample({
     of: Meter,
     name: "storage",
-    description: "storage used in a plan, getting full and nearly full",
+    description: t`Storage used in a plan, getting full and nearly full.`,
     layout: "padded",
     render: () => (
         <Stack space="6">
@@ -32,7 +33,7 @@ export const meterStorage = defineExample({
 export const meterBattery = defineExample({
     of: MeterTrack,
     name: "battery",
-    description: "a battery's charge, good when high, its bar alone",
+    description: t`A battery's charge, good when high, its bar alone.`,
     layout: "padded",
     render: () => (
         <Stack space="4">

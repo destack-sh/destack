@@ -37,7 +37,7 @@ export function Spinner(properties: SpinnerProperties): JSX.Element {
     return renderPart("span", "spinner", properties, styles.spinner, {
         role: "status",
         get "aria-label"() {
-            return locale.render(t`Loading`);
+            return locale.render(t.context("option")`Loading`);
         },
         get children() {
             return <Icon name="circle-notch" />;

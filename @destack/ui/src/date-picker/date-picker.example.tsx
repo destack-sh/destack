@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { PlainDate } from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, omit } from "@destack/view";
@@ -10,8 +11,8 @@ const EXAMPLE_TODAY = "2026-10-04";
 /** A date picker that sets a task's due day. */
 export const datePickerDueDay = defineExample({
     of: DatePicker,
-    name: "due-day",
-    description: "a date picker that sets a task's due day",
+    name: "dueDay",
+    description: t`A date picker that sets a task's due day.`,
     properties: {
         placeholder: "Pick a date",
         "aria-label": "Due date",
@@ -33,9 +34,8 @@ export const datePickerDueDay = defineExample({
 /** A date picker that filters notes by a span. */
 export const datePickerEditedSpan = defineExample({
     of: DatePicker,
-    name: "edited-span",
-    description:
-        "a date picker that filters notes by a span, offering the last week and month beside its calendar",
+    name: "editedSpan",
+    description: t`A date picker that filters notes by a span, offering the last week and month beside its calendar.`,
     render: () => (
         <DatePicker
             today={EXAMPLE_TODAY}
@@ -59,7 +59,7 @@ export const datePickerEditedSpan = defineExample({
 export const datePickerTrip = defineExample({
     of: DatePicker,
     name: "trip",
-    description: "a date picker that types or picks the day a trip starts and ends",
+    description: t`A date picker that types or picks the day a trip starts and ends.`,
     render: () => (
         <DatePicker
             today={EXAMPLE_TODAY}
@@ -76,8 +76,8 @@ export const datePickerTrip = defineExample({
 /** A date picker that marks the days off in a month, counted on its trigger. */
 export const datePickerDaysOff = defineExample({
     of: DatePicker,
-    name: "days-off",
-    description: "a date picker that marks the days off in a month, counted on its trigger",
+    name: "daysOff",
+    description: t`A date picker that marks the days off in a month, counted on its trigger.`,
     render: () => (
         <DatePicker
             today={EXAMPLE_TODAY}
@@ -91,8 +91,8 @@ export const datePickerDaysOff = defineExample({
 /** The due day picker with its calendar open below its fields. */
 export const datePickerDueDayOpen = defineExample({
     of: DatePicker,
-    name: "due-day-open",
-    description: "the due day picker with its calendar open below its fields",
+    name: "dueDayOpen",
+    description: t`The due day picker with its calendar open below its fields.`,
     render: () => (
         <DatePicker
             today={EXAMPLE_TODAY}
@@ -106,8 +106,8 @@ export const datePickerDueDayOpen = defineExample({
 /** A due day in a field that reports the day is missing. */
 export const datePickerDueDayInvalid = defineExample({
     of: DatePicker,
-    name: "due-day-invalid",
-    description: "a due day in a field that reports the day is missing",
+    name: "dueDayInvalid",
+    description: t`A due day in a field that reports the day is missing.`,
     render: () => (
         <Field invalid>
             <FieldLabel>Due date</FieldLabel>
@@ -120,8 +120,8 @@ export const datePickerDueDayInvalid = defineExample({
 /** A due day in a field that takes no input while its form saves. */
 export const datePickerDueDayDisabled = defineExample({
     of: DatePicker,
-    name: "due-day-disabled",
-    description: "a due day in a field that takes no input while its form saves",
+    name: "dueDayDisabled",
+    description: t`A due day in a field that takes no input while its form saves.`,
     render: () => (
         <Field disabled>
             <FieldLabel>Due date</FieldLabel>

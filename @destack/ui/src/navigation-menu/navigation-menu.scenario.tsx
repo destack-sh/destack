@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import {
@@ -10,8 +11,8 @@ import { NavigationMenu } from "./navigation-menu.tsx";
 export const navigationMenuClosePanelOnEscape = defineScenario({
     of: NavigationMenu,
     interaction: viewInteraction,
-    name: "close-panel-on-escape",
-    description: "disclose a navigation menu's panel from its trigger and close it on Escape",
+    name: "closePanelOnEscape",
+    description: t`Disclose a navigation menu's panel from its trigger and close it on Escape.`,
     given: { examples: [navigationMenuSiteNavigation] },
     parameters: {},
     when: [
@@ -88,9 +89,8 @@ export const navigationMenuClosePanelOnEscape = defineScenario({
 export const navigationMenuMoveBetweenEntries = defineScenario({
     of: NavigationMenu,
     interaction: viewInteraction,
-    name: "move-between-entries",
-    description:
-        "move between a navigation menu's top-level entries with left and right, leaving the panel's links out",
+    name: "moveBetweenEntries",
+    description: t`Move between a navigation menu's top-level entries with left and right, leaving the panel's links out.`,
     given: { examples: [navigationMenuSiteNavigation] },
     parameters: {},
     when: [
@@ -141,9 +141,8 @@ export const navigationMenuMoveBetweenEntries = defineScenario({
 export const navigationMenuTabThroughPanel = defineScenario({
     of: NavigationMenu,
     interaction: viewInteraction,
-    name: "tab-through-panel",
-    description:
-        "move Tab from an open trigger into its panel and from the panel's last link on to the next trigger",
+    name: "tabThroughPanel",
+    description: t`Move Tab from an open trigger into its panel and from the panel's last link on to the next trigger.`,
     given: { examples: [navigationMenuTwoPanels] },
     parameters: {},
     when: [

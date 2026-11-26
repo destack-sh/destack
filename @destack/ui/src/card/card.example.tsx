@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -62,9 +63,8 @@ const storage = style.create({
 /** A storage plan's usage bar, what uses the space, an upgrade and a way to manage it. */
 export const cardStoragePlan = defineExample({
     of: Card,
-    name: "storage-plan",
-    description:
-        "a storage plan's usage bar, what uses the space, an upgrade and a way to manage it",
+    name: "storagePlan",
+    description: t`A storage plan's usage bar, what uses the space, an upgrade and a way to manage it.`,
     render: () => (
         <Card xstyle={storage.card}>
             <CardHeader>
@@ -100,8 +100,8 @@ export const cardStoragePlan = defineExample({
 /** A note's card with its text and two actions in the footer. */
 export const cardNotePreview = defineExample({
     of: Card,
-    name: "note-preview",
-    description: "a note's card with its text and two actions in the footer",
+    name: "notePreview",
+    description: t`A note's card with its text and two actions in the footer.`,
     render: () => (
         <Card>
             <CardHeader>
@@ -130,8 +130,8 @@ const styles = style.create({
 /** A space's usage as three small cards, each a figure and its label. */
 export const cardUsageFigures = defineExample({
     of: Card,
-    name: "usage-figures",
-    description: "a space's usage as three small cards, each a figure and its label",
+    name: "usageFigures",
+    description: t`A space's usage as three small cards, each a figure and its label.`,
     layout: "padded",
     properties: {
         size: "sm",

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import checkCircleIcon from "@destack/icon/phosphor/check-circle";
 import tagIcon from "@destack/icon/phosphor/tag";
 import userPlusIcon from "@destack/icon/phosphor/user-plus";
@@ -18,7 +19,7 @@ const HOUR = 3_600_000;
 export const activityTask = defineExample({
     of: Activity,
     name: "task",
-    description: "what happened to a task: small changes, a comment as a card, and its end",
+    description: t`What happened to a task: small changes, a comment as a card, and its end.`,
     layout: "padded",
     render: () => {
         const { clock } = useEnvironment();

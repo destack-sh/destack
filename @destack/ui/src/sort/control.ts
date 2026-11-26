@@ -50,12 +50,12 @@ type DirectionWords = readonly [ascending: Message, descending: Message];
 /** What the directions of a kind of value are called. */
 const WORDS: Readonly<Record<string, DirectionWords>> = {
     text: [t`A to Z`, t`Z to A`],
-    number: [t`Lowest first`, t`Highest first`],
-    time: [t`Oldest first`, t`Newest first`],
+    number: [t.context("option")`Lowest first`, t.context("option")`Highest first`],
+    time: [t.context("option")`Oldest first`, t.context("option")`Newest first`],
 };
 
 /** What the directions of any other value are called. */
-const PLAIN: DirectionWords = [t`Ascending`, t`Descending`];
+const PLAIN: DirectionWords = [t.context("option")`Ascending`, t.context("option")`Descending`];
 
 /** The keys of a sort, which its parts edit. */
 export class SortControl {

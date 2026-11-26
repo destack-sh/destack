@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { EventCalendar } from "./event-calendar.tsx";
@@ -10,8 +11,8 @@ const title = { css: "[data-slot=event-calendar-title] > :first-child" };
 export const eventCalendarMoveDaysWithKeys = defineScenario({
     of: EventCalendar,
     interaction: viewInteraction,
-    name: "move-days-with-keys",
-    description: "move through a month's days with the arrows, and a month on with Page Down",
+    name: "moveDaysWithKeys",
+    description: t`Move through a month's days with the arrows, and a month on with Page Down.`,
     given: { examples: [eventCalendarLaunchMonth] },
     parameters: {},
     when: [
@@ -40,8 +41,8 @@ export const eventCalendarMoveDaysWithKeys = defineScenario({
 export const eventCalendarPageWorkWeeks = defineScenario({
     of: EventCalendar,
     interaction: viewInteraction,
-    name: "page-work-weeks",
-    description: "page a work week to the next, its weekend left out of the title and the columns",
+    name: "pageWorkWeeks",
+    description: t`Page a work week to the next, its weekend left out of the title and the columns.`,
     given: { examples: [eventCalendarWorkWeek] },
     parameters: {},
     when: [

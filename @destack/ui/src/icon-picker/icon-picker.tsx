@@ -33,24 +33,24 @@ const COLUMNS = 9;
 
 /** The categories icons are grouped under, by the first one each belongs to, with their labels. */
 const CATEGORIES = [
-    { key: "arrows", label: t`Arrows` },
-    { key: "brands", label: t`Brands` },
-    { key: "commerce", label: t`Commerce` },
-    { key: "communications", label: t`Communications` },
-    { key: "design", label: t`Design` },
-    { key: "editor", label: t`Editor` },
-    { key: "finances", label: t`Finances` },
-    { key: "games", label: t`Games` },
+    { key: "arrows", label: t.context("title")`Arrows` },
+    { key: "brands", label: t.context("title")`Brands` },
+    { key: "commerce", label: t.context("title")`Commerce` },
+    { key: "communications", label: t.context("title")`Communications` },
+    { key: "design", label: t.context("title")`Design` },
+    { key: "editor", label: t.context("title")`Editor` },
+    { key: "finances", label: t.context("title")`Finances` },
+    { key: "games", label: t.context("title")`Games` },
     { key: "health & wellness", label: t`Health and wellness` },
     { key: "maps & travel", label: t`Maps and travel` },
-    { key: "media", label: t`Media` },
-    { key: "nature", label: t`Nature` },
-    { key: "objects", label: t`Objects` },
-    { key: "office", label: t`Office` },
-    { key: "people", label: t`People` },
-    { key: "system", label: t`System` },
+    { key: "media", label: t.context("title")`Media` },
+    { key: "nature", label: t.context("title")`Nature` },
+    { key: "objects", label: t.context("title")`Objects` },
+    { key: "office", label: t.context("title")`Office` },
+    { key: "people", label: t.context("title")`People` },
+    { key: "system", label: t.context("title")`System` },
     { key: "technology & development", label: t`Technology and development` },
-    { key: "weather", label: t`Weather` },
+    { key: "weather", label: t.context("title")`Weather` },
 ] as const;
 
 /** An icon of the icon set with its categories and the words that find it. */
@@ -183,8 +183,8 @@ export function IconPickerSearch(
         <AutocompleteInput
             aria-haspopup="grid"
             data-slot="icon-picker-search"
-            placeholder={locale.render(t`Search icons`)}
-            aria-label={locale.render(t`Search icons`)}
+            placeholder={locale.render(t.context("label")`Search icons`)}
+            aria-label={locale.render(t.context("label")`Search icons`)}
             {...rest}
         />
     );
@@ -200,14 +200,14 @@ export function IconPickerContent(
     return (
         <GridListViewport data-slot="icon-picker-content" {...properties}>
             <GridListLoading data-slot="icon-picker-loading">
-                {locale.render(t`Loading icons…`)}
+                {locale.render(t.context("option")`Loading icons…`)}
             </GridListLoading>
             <GridListEmpty data-slot="icon-picker-empty">
                 {locale.render(t`No icon found`)}
             </GridListEmpty>
             <GridList
                 control={picker.grid}
-                aria-label={locale.render(t`Icons`)}
+                aria-label={locale.render(t.context("title")`Icons`)}
                 data-slot="icon-picker-list"
                 label={(icon) => icon}
             >

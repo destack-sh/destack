@@ -191,11 +191,11 @@ function PaletteContent(properties: {
                 <CommandList>
                     <CommandEmpty>
                         {control.isPending()
-                            ? locale.render(t`Searching…`)
-                            : locale.render(t`No results.`)}
+                            ? locale.render(t.context("option")`Searching…`)
+                            : locale.render(t.context("title")`No results.`)}
                     </CommandEmpty>
                     <Show when={results().recent.length > 0}>
-                        <CommandGroup heading={locale.render(t`Recent`)}>
+                        <CommandGroup heading={locale.render(t.context("title")`Recent`)}>
                             <For each={results().recent} keyed={(item) => item.id}>
                                 {(item) => <PaletteEntry item={item()} control={control} />}
                             </For>
@@ -238,9 +238,13 @@ function PaletteContent(properties: {
                                 )}
                             </Show>
                             <Show when={item().page !== undefined}>
-                                <CommandHint keys="tab">{locale.render(t`Show`)}</CommandHint>
+                                <CommandHint keys="tab">
+                                    {locale.render(t.context("action")`Show`)}
+                                </CommandHint>
                             </Show>
-                            <CommandHint keys="mod+k">{locale.render(t`Actions`)}</CommandHint>
+                            <CommandHint keys="mod+k">
+                                {locale.render(t.context("title")`Actions`)}
+                            </CommandHint>
                         </>
                     )}
                 </Show>
@@ -339,10 +343,10 @@ function ActionsPanel(properties: {
 
     return (
         <div data-slot="palette-actions" {...style.attrs(styles.panel)}>
-            <Command aria-label={locale.render(t`Actions`)} loop>
+            <Command aria-label={locale.render(t.context("title")`Actions`)} loop>
                 <CommandInput
                     ref={(element) => (search = element)}
-                    placeholder={locale.render(t`Search actions`)}
+                    placeholder={locale.render(t.context("label")`Search actions`)}
                     onKeyDown={(event) => {
                         // close the panel on Escape or Command K, leaving the palette open
                         const isCommand = Shortcut.isCommand(navigator.userAgent);
@@ -353,7 +357,7 @@ function ActionsPanel(properties: {
                     }}
                 />
                 <CommandList>
-                    <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
+                    <CommandEmpty>{locale.render(t.context("title")`No results.`)}</CommandEmpty>
                     <CommandGroup heading={properties.item.title}>
                         <For each={properties.item.actions}>
                             {(action) => (

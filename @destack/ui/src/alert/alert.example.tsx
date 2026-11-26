@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import bell from "@destack/icon/phosphor/bell";
 import checkCircle from "@destack/icon/phosphor/check-circle";
 import info from "@destack/icon/phosphor/info";
@@ -19,8 +20,8 @@ const styles = style.create({
 /** A failed sync with what to do about it. */
 export const alertFailedSync = defineExample({
     of: Alert,
-    name: "failed-sync",
-    description: "a failed sync with what to do about it",
+    name: "failedSync",
+    description: t`A failed sync with what to do about it.`,
     properties: {
         variant: "destructive",
     },
@@ -38,8 +39,8 @@ export const alertFailedSync = defineExample({
 /** The same notice at its default look. */
 export const alertSyncNotice = defineExample({
     of: Alert,
-    name: "sync-notice",
-    description: "the same notice at its default look",
+    name: "syncNotice",
+    description: t`The same notice at its default look.`,
     properties: {
         variant: "default",
     },
@@ -58,7 +59,7 @@ export const alertSyncNotice = defineExample({
 export const alertStatuses = defineExample({
     of: Alert,
     name: "statuses",
-    description: "each status an alert shows, from a plain notice to a failure",
+    description: t`Each status an alert shows, from a plain notice to a failure.`,
     render: () => (
         <Stack xstyle={styles.statuses}>
             <Alert>
@@ -93,7 +94,7 @@ export const alertStatuses = defineExample({
 export const alertRetry = defineExample({
     of: Alert,
     name: "retry",
-    description: "a failed call with a retry, which a person may dismiss",
+    description: t`A failed call with a retry, which a person may dismiss.`,
     properties: {
         variant: "destructive",
     },

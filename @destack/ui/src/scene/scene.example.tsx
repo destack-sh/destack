@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample, type Example } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -7,15 +8,11 @@ import { accordionHelpQuestionsExpanded } from "../accordion/accordion.example.t
 import { alertFailedSync } from "../alert/alert.example.tsx";
 import { alertDialogDeleteNotebook } from "../alert-dialog/alert-dialog.example.tsx";
 import { autocompleteFruit } from "../autocomplete/autocomplete.example.tsx";
-import { avatarNotebookPeople } from "../avatar/avatar.example.tsx";
+import { avatarDefault, avatarGroupDefault } from "../avatar/avatar.example.tsx";
 import { badgeNoteState } from "../badge/badge.example.tsx";
 import { boardLaunch } from "../board/board.example.tsx";
 import { breadcrumbNoteTrail } from "../breadcrumb/breadcrumb.example.tsx";
-import {
-    buttonNoteToolbar,
-    buttonNoteToolbarDisabled,
-    buttonSaveLoading,
-} from "../button/button.example.tsx";
+import { buttonDefault, buttonDelete, buttonNoteToolbar } from "../button/button.example.tsx";
 import { buttonGroupSplitSave } from "../button-group/button-group.example.tsx";
 import { calendarTripDays } from "../calendar/calendar.example.tsx";
 import { cardStoragePlan } from "../card/card.example.tsx";
@@ -23,9 +20,9 @@ import { carouselTripPhotos } from "../carousel/carousel.example.tsx";
 import { centerForm } from "../center/center.example.tsx";
 import { chartBar } from "../chart/chart.example.tsx";
 import {
-    checkboxAcceptTerms,
-    checkboxAcceptTermsChecked,
-    checkboxAcceptTermsInvalid,
+    checkboxDefault,
+    checkboxChecked,
+    checkboxInvalid,
 } from "../checkbox/checkbox.example.tsx";
 import { clusterTags } from "../cluster/cluster.example.tsx";
 import { codeBlockView } from "../code-block/code-block.example.tsx";
@@ -36,12 +33,12 @@ import { commandNoteCommands } from "../command/command.example.tsx";
 import { contentNote } from "../content/content.example.tsx";
 import { contextMenuNoteCardActions } from "../context-menu/context-menu.example.tsx";
 import { coverWelcome } from "../cover/cover.example.tsx";
-import { dataTableNotes } from "../data-table/data-table.example.tsx";
+import { dataTableDefault } from "../data-table/data-table.example.tsx";
 import { dateFieldBirthday } from "../date-field/date-field.example.tsx";
 import { datePickerDueDay } from "../date-picker/date-picker.example.tsx";
-import { dialogRenameNote } from "../dialog/dialog.example.tsx";
+import { dialogDefault } from "../dialog/dialog.example.tsx";
 import { drawerShareNote } from "../drawer/drawer.example.tsx";
-import { dropdownMenuNoteActions } from "../dropdown-menu/dropdown-menu.example.tsx";
+import { dropdownMenuDefault } from "../dropdown-menu/dropdown-menu.example.tsx";
 import { emojiPickerReaction } from "../emoji-picker/emoji-picker.example.tsx";
 import { emptyNoNotebooks } from "../empty/empty.example.tsx";
 import { eventCalendarLaunch } from "../event-calendar/event-calendar.example.tsx";
@@ -53,7 +50,7 @@ import { gridListGallery } from "../grid-list/grid-list.example.tsx";
 import { hoverCardMention } from "../hover-card/hover-card.example.tsx";
 import { iconActions } from "../icon/icon.example.tsx";
 import { iconPickerProjectIcon } from "../icon-picker/icon-picker.example.tsx";
-import { inputSearch, inputSearchDisabled, inputSearchInvalid } from "../input/input.example.tsx";
+import { inputDefault, inputDisabled, inputInvalid } from "../input/input.example.tsx";
 import { inputGroupNoteSearch } from "../input-group/input-group.example.tsx";
 import { otpFieldSignInCode } from "../otp-field/otp-field.example.tsx";
 import { itemRecentNotes } from "../item/item.example.tsx";
@@ -71,7 +68,7 @@ import { proseArticle } from "../prose/prose.example.tsx";
 import { radioGroupListDensity } from "../radio-group/radio-group.example.tsx";
 import { resizablePanelGroupNotebookSplit } from "../resizable/resizable.example.tsx";
 import { scrollAreaNotebookTags } from "../scroll-area/scroll-area.example.tsx";
-import { selectSortOrder } from "../select/select.example.tsx";
+import { selectDefault } from "../select/select.example.tsx";
 import { separatorFooterLinks } from "../separator/separator.example.tsx";
 import { sheetListFilters } from "../sheet/sheet.example.tsx";
 import { sidebarNotebooks } from "../sidebar/sidebar.example.tsx";
@@ -83,11 +80,11 @@ import { stackNote } from "../stack/stack.example.tsx";
 import { switchNotifications } from "../switch/switch.example.tsx";
 import { switcherPlans } from "../switcher/switcher.example.tsx";
 import { tableInvoices } from "../table/table.example.tsx";
-import { tabsEditorPreview } from "../tabs/tabs.example.tsx";
+import { tabsDefault } from "../tabs/tabs.example.tsx";
 import { textareaComment } from "../textarea/textarea.example.tsx";
 import { timeFieldReminder } from "../time-field/time-field.example.tsx";
 import { timelinePlan } from "../timeline/timeline.example.tsx";
-import { toasterArchiveUndo } from "../toast/toast.example.tsx";
+import { toasterDefault } from "../toast/toast.example.tsx";
 import { toggleBoldPressed } from "../toggle/toggle.example.tsx";
 import { toggleGroupParagraphAlignment } from "../toggle-group/toggle-group.example.tsx";
 import { tooltipArchiveButton } from "../tooltip/tooltip.example.tsx";
@@ -189,22 +186,19 @@ function Wall(properties: {
 export const sceneControls = defineExample({
     of: Wall,
     name: "controls",
-    description: "the form controls side by side, at rest and in their states",
+    description: t`The form controls side by side, at rest and in their states.`,
     layout: "padded",
     render: () => (
         <Wall
             groups={[
-                ["Button", [buttonNoteToolbar, buttonNoteToolbarDisabled, buttonSaveLoading]],
-                ["Input", [inputSearch, inputSearchInvalid, inputSearchDisabled]],
+                ["Button", [buttonDefault, buttonDelete]],
+                ["Input", [inputDefault, inputInvalid, inputDisabled]],
                 ["Input group", [inputGroupNoteSearch]],
                 ["Textarea", [textareaComment]],
-                ["Select", [selectSortOrder]],
+                ["Select", [selectDefault]],
                 ["Combobox", [comboboxMoveNote]],
                 ["Date picker", [datePickerDueDay]],
-                [
-                    "Checkbox",
-                    [checkboxAcceptTerms, checkboxAcceptTermsChecked, checkboxAcceptTermsInvalid],
-                ],
+                ["Checkbox", [checkboxDefault, checkboxChecked, checkboxInvalid]],
                 ["Radio group", [radioGroupListDensity]],
                 ["Switch", [switchNotifications]],
                 ["Slider", [sliderFontSize]],
@@ -221,7 +215,7 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Alert", [alertFailedSync]],
     ["Alert dialog", [alertDialogDeleteNotebook]],
     ["Autocomplete", [autocompleteFruit]],
-    ["Avatar", [avatarNotebookPeople]],
+    ["Avatar", [avatarDefault, avatarGroupDefault]],
     ["Badge", [badgeNoteState]],
     ["Breadcrumb", [breadcrumbNoteTrail]],
     ["Button", [buttonNoteToolbar]],
@@ -230,7 +224,7 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Card", [cardStoragePlan]],
     ["Carousel", [carouselTripPhotos]],
     ["Center", [centerForm]],
-    ["Checkbox", [checkboxAcceptTermsChecked]],
+    ["Checkbox", [checkboxChecked]],
     ["Cluster", [clusterTags]],
     ["Code block", [codeBlockView]],
     ["Collapsible", [collapsibleNoteTags]],
@@ -240,9 +234,9 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Context menu", [contextMenuNoteCardActions]],
     ["Date field", [dateFieldBirthday]],
     ["Date picker", [datePickerDueDay]],
-    ["Dialog", [dialogRenameNote]],
+    ["Dialog", [dialogDefault]],
     ["Drawer", [drawerShareNote]],
-    ["Dropdown menu", [dropdownMenuNoteActions]],
+    ["Dropdown menu", [dropdownMenuDefault]],
     ["Emoji picker", [emojiPickerReaction]],
     ["Empty", [emptyNoNotebooks]],
     ["Feed", [feedActivity]],
@@ -252,7 +246,7 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Hover card", [hoverCardMention]],
     ["Icon", [iconActions]],
     ["Icon picker", [iconPickerProjectIcon]],
-    ["Input", [inputSearch]],
+    ["Input", [inputDefault]],
     ["Input group", [inputGroupNoteSearch]],
     ["Input otp", [otpFieldSignInCode]],
     ["Item", [itemRecentNotes]],
@@ -268,7 +262,7 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Progress", [progressUpload]],
     ["Radio group", [radioGroupListDensity]],
     ["Scroll area", [scrollAreaNotebookTags]],
-    ["Select", [selectSortOrder]],
+    ["Select", [selectDefault]],
     ["Separator", [separatorFooterLinks]],
     ["Sheet", [sheetListFilters]],
     ["Skeleton", [skeletonLoadingRow]],
@@ -278,10 +272,10 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Stack", [stackNote]],
     ["Switch", [switchNotifications]],
     ["Switcher", [switcherPlans]],
-    ["Tabs", [tabsEditorPreview]],
+    ["Tabs", [tabsDefault]],
     ["Textarea", [textareaComment]],
     ["Time field", [timeFieldReminder]],
-    ["Toast", [toasterArchiveUndo]],
+    ["Toast", [toasterDefault]],
     ["Toggle", [toggleBoldPressed]],
     ["Toggle group", [toggleGroupParagraphAlignment]],
     ["Tooltip", [tooltipArchiveButton]],
@@ -295,7 +289,7 @@ const VIEWS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Board", [boardLaunch]],
     ["Event calendar", [eventCalendarLaunch]],
     ["Timeline", [timelinePlan]],
-    ["Data table", [dataTableNotes]],
+    ["Data table", [dataTableDefault]],
     ["Chart", [chartBar]],
     ["Table", [tableInvoices]],
     ["Grid list", [gridListGallery]],
@@ -310,8 +304,7 @@ const VIEWS: readonly (readonly [string, readonly Shown[]])[] = [
 export const sceneGarage = defineExample({
     of: Wall,
     name: "garage",
-    description:
-        "every component of the kit in one scene: the components packed in columns, then the views",
+    description: t`Every component of the kit in one scene: the components packed in columns, then the views.`,
     layout: "fullscreen",
     render: () => (
         <div {...style.attrs(styles.garage)}>

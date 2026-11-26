@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { messageScrollerAssistant, messageScrollerOutline } from "./message-scroller.example.tsx";
@@ -17,8 +18,7 @@ export const messageScrollerStream = defineScenario({
     of: MessageScroller,
     interaction: viewInteraction,
     name: "stream",
-    description:
-        "ask, read the answer grow below the question, go up while it is written, and come back",
+    description: t`Ask, read the answer grow below the question, go up while it is written, and come back.`,
     given: { examples: [messageScrollerAssistant] },
     parameters: {},
     when: [
@@ -86,8 +86,7 @@ export const messageScrollerNavigate = defineScenario({
     of: MessageScroller,
     interaction: viewInteraction,
     name: "navigate",
-    description:
-        "jump to a question from outside, go to the start, show earlier messages in place, and step",
+    description: t`Jump to a question from outside, go to the start, show earlier messages in place, and step.`,
     given: { examples: [messageScrollerOutline] },
     parameters: {},
     when: [

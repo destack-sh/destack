@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { sortableLongList } from "./sortable.example.tsx";
@@ -10,9 +11,8 @@ const status = { role: "status" };
 export const sortableStepPastWindow = defineScenario({
     of: Sortable,
     interaction: viewInteraction,
-    name: "step-past-window",
-    description:
-        "lift the first of a thousand tasks and step it past the sixteen rows the list mounts, the list scrolling along",
+    name: "stepPastWindow",
+    description: t`Lift the first of a thousand tasks and step it past the sixteen rows the list mounts, the list scrolling along.`,
     given: { examples: [sortableLongList] },
     parameters: {},
     when: [
@@ -59,9 +59,8 @@ export const sortableStepPastWindow = defineScenario({
 export const sortableCancelPastWindow = defineScenario({
     of: Sortable,
     interaction: viewInteraction,
-    name: "cancel-past-window",
-    description:
-        "lift the first of a thousand tasks, step it past the rows the list mounts, and cancel with Escape",
+    name: "cancelPastWindow",
+    description: t`Lift the first of a thousand tasks, step it past the rows the list mounts, and cancel with Escape.`,
     given: { examples: [sortableLongList] },
     parameters: {},
     when: [
@@ -111,9 +110,8 @@ export const sortableCancelPastWindow = defineScenario({
 export const sortableDragPastWindow = defineScenario({
     of: Sortable,
     interaction: viewInteraction,
-    name: "drag-past-window",
-    description:
-        "press the first of a thousand tasks, wheel the list a hundred rows on, and drop it there",
+    name: "dragPastWindow",
+    description: t`Press the first of a thousand tasks, wheel the list a hundred rows on, and drop it there.`,
     given: { examples: [sortableLongList] },
     parameters: {},
     when: [

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Card, CardDescription, CardHeader, CardTitle } from "../card/index.ts";
 import { Grid } from "./grid.tsx";
@@ -6,7 +7,7 @@ import { Grid } from "./grid.tsx";
 export const gridApps = defineExample({
     of: Grid,
     name: "apps",
-    description: "a space's apps as cards in as many columns as fit",
+    description: t`A space's apps as cards in as many columns as fit.`,
     properties: {
         min: "12rem",
     },
@@ -32,8 +33,8 @@ export const gridApps = defineExample({
 /** A space's apps in wider columns. */
 export const gridAppsWide = defineExample({
     of: Grid,
-    name: "apps-wide",
-    description: "a space's apps in wider columns",
+    name: "appsWide",
+    description: t`A space's apps in wider columns.`,
     properties: {
         min: "16rem",
     },

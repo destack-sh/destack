@@ -310,8 +310,8 @@ function ActionChoices(properties: {
             <CommandList>
                 <CommandEmpty>
                     {found.isPending()
-                        ? locale.render(t`Searching…`)
-                        : locale.render(t`No results.`)}
+                        ? locale.render(t.context("option")`Searching…`)
+                        : locale.render(t.context("title")`No results.`)}
                 </CommandEmpty>
                 <CommandGroup heading={titleOf(found, locale)}>
                     <For each={choices()}>
@@ -330,7 +330,10 @@ function ActionChoices(properties: {
                                             JSON.stringify(choice.value),
                                         )}
                                     >
-                                        <Icon icon={check} label={locale.render(t`Chosen`)} />
+                                        <Icon
+                                            icon={check}
+                                            label={locale.render(t.context("option")`Chosen`)}
+                                        />
                                     </Show>
                                     <Show when={isNumbered()}>
                                         <CommandShortcut keys={String(index() + 1)} />
@@ -380,7 +383,9 @@ function ActionConfirm(properties: {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>{locale.render(t`Cancel`)}</AlertDialogCancel>
+                    <AlertDialogCancel>
+                        {locale.render(t.context("action")`Cancel`)}
+                    </AlertDialogCancel>
                     <AlertDialogAction variant="destructive" onClick={() => answer({})}>
                         {title}
                     </AlertDialogAction>
@@ -453,7 +458,7 @@ function ActionForm(properties: {
                         <DialogClose
                             render={(attributes) => <Button {...attributes} variant="outline" />}
                         >
-                            {locale.render(t`Cancel`)}
+                            {locale.render(t.context("action")`Cancel`)}
                         </DialogClose>
                         <Button type="submit" disabled={!isComplete()}>
                             {locale.render(action.title)}

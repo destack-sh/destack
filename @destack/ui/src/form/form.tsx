@@ -173,13 +173,13 @@ export function FormStatus(properties: FormStatusProperties): JSX.Element {
     const words = (): string => {
         switch (standing()) {
             case "pending":
-                return locale.render(t`Saving…`);
+                return locale.render(t.context("option")`Saving…`);
             case "failed":
-                return locale.render(t`Not saved`);
+                return locale.render(t.context("option")`Not saved`);
             case "edited":
-                return locale.render(t`Unsaved changes`);
+                return locale.render(t.context("option")`Unsaved changes`);
             case "saved":
-                return locale.render(t`Saved`);
+                return locale.render(t.context("option")`Saved`);
             case "clean":
                 return "";
         }
@@ -245,9 +245,11 @@ export function FormGuard(properties: {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel>{locale.render(t`Stay`)}</AlertDialogCancel>
+                    <AlertDialogCancel>
+                        {locale.render(t.context("action")`Stay`)}
+                    </AlertDialogCancel>
                     <AlertDialogAction variant="destructive" onClick={() => blocker.proceed()}>
-                        {locale.render(t`Leave`)}
+                        {locale.render(t.context("action")`Leave`)}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

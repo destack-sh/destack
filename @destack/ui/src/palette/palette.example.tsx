@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import type { IconBodies } from "@destack/icon";
 import archive from "@destack/icon/phosphor/archive";
 import checkSquare from "@destack/icon/phosphor/check-square";
@@ -172,7 +173,7 @@ function rootOf(report: (summary: string) => void): PalettePage {
 export const commandPaletteLaunch = defineExample({
     of: CommandPalette,
     name: "launch",
-    description: "a workspace's palette: tasks with their actions and detail, assigning, and views",
+    description: t`A workspace's palette: tasks with their actions and detail, assigning, and views.`,
     render: () => {
         // open the palette from a button, and show what its last action did
         const [isOpen, setOpen] = createSignal(false);

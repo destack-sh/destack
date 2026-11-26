@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For } from "@destack/view";
 import { SearchField } from "./search-field.tsx";
@@ -9,7 +10,7 @@ const NOTEBOOKS = ["Trips", "Work", "Recipes", "Garden"];
 export const searchFieldNotebooks = defineExample({
     of: SearchField,
     name: "notebooks",
-    description: "a list narrowed by what a person types",
+    description: t`A list narrowed by what a person types.`,
     render: () => {
         const [text, setText] = createSignal("");
         const found = () =>

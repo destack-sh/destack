@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { listBoxLabelGrid, listBoxNotebook } from "./list-box.example.tsx";
@@ -7,9 +8,8 @@ import { ListBox } from "./list-box.tsx";
 export const listBoxMoveAndChoose = defineScenario({
     of: ListBox,
     interaction: viewInteraction,
-    name: "move-and-choose",
-    description:
-        "move the focus with the arrow keys past an unavailable option, stopping at the end, choose with Space, and jump with Home and a typed letter",
+    name: "moveAndChoose",
+    description: t`Move the focus with the arrow keys past an unavailable option, stopping at the end, choose with Space, and jump with Home and a typed letter.`,
     given: { examples: [listBoxNotebook] },
     parameters: {},
     when: [
@@ -86,9 +86,8 @@ export const listBoxMoveAndChoose = defineScenario({
 export const listBoxMoveThroughGrid = defineScenario({
     of: ListBox,
     interaction: viewInteraction,
-    name: "move-through-grid",
-    description:
-        "move the focus along a row and down a column of a grid layout, to the row's end and the grid's start, each option it lands on selected",
+    name: "moveThroughGrid",
+    description: t`Move the focus along a row and down a column of a grid layout, to the row's end and the grid's start, each option it lands on selected.`,
     given: { examples: [listBoxLabelGrid] },
     parameters: {},
     when: [

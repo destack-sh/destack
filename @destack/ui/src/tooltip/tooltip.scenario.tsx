@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { tooltipArchiveButton } from "./tooltip.example.tsx";
@@ -7,8 +8,8 @@ import { Tooltip } from "./tooltip.tsx";
 export const tooltipShowOnFocus = defineScenario({
     of: Tooltip,
     interaction: viewInteraction,
-    name: "show-on-focus",
-    description: "show a tooltip at once while its trigger has the focus and hide it on Escape",
+    name: "showOnFocus",
+    description: t`Show a tooltip at once while its trigger has the focus and hide it on Escape.`,
     given: { examples: [tooltipArchiveButton] },
     parameters: {},
     when: [

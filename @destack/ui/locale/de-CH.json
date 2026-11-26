@@ -2,13 +2,245 @@
     "package": "package-01a1075a-34ee-7343-832f-9faf3e1c456c",
     "locale": "de-CH",
     "messages": {
-        "2c8oe9edp68v1": "Schliessen",
-        "1i41c2w3ppc5x": "«{$p0}» erstellen",
-        "1gmmuqukd7lsf": "«{$p0}» kann nicht in {$p1} eingesetzt werden",
-        "2u92230fz0yqt": "Schliessen",
-        "2u507gay3xurl": "Grösser als {$p0}",
-        "1o6pdeuzb5fwk": "{$p0} ist grösser als {$p1}",
-        "1f1tn6kf52c51": "«{$p0}» hat nicht funktioniert",
-        "3mtyuia6kwmlb": "Vergrössern"
+        "10239irglsn5j": {
+            "source": "Close a dropdown menu on Escape and return the focus to its trigger.",
+            "translation": "Ein Dropdown-Menü mit Escape schliessen und den Fokus an seinen Auslöser zurückgeben.",
+            "state": "machine"
+        },
+        "10bvzzck22hbc": {
+            "source": "Ask to close a controlled dropdown menu on Escape, with the focus inside until its owner closes it.",
+            "translation": "Das Schliessen eines gesteuerten Dropdown-Menüs mit Escape anfragen, mit dem Fokus darin, bis sein Besitzer es schliesst.",
+            "state": "machine"
+        },
+        "10teahnr0ixg1": {
+            "source": "The icons of three pages at the extra large size.",
+            "translation": "Die Symbole dreier Seiten in sehr grosser Grösse.",
+            "state": "machine"
+        },
+        "11czoh83cmrdf": {
+            "source": "Close a modal popover from its close button and hand the focus back to its trigger.",
+            "translation": "Ein modales Popover über seine Schliessen-Schaltfläche schliessen und den Fokus an seinen Auslöser zurückgeben.",
+            "state": "machine"
+        },
+        "13wfrp66e1fqg": {
+            "source": "A panel of notes, which moves by its header and resizes by its sides.",
+            "translation": "Ein Bereich mit Notizen, der sich an seiner Kopfzeile verschieben und an seinen Seiten in der Grösse ändern lässt.",
+            "state": "machine"
+        },
+        "163pogwoaq8je": {
+            "source": "Jump to a question from outside, go to the start, show earlier messages in place, and step.",
+            "translation": "Von aussen zu einer Frage springen, zum Anfang gehen, frühere Nachrichten an Ort und Stelle zeigen und schrittweise gehen.",
+            "state": "machine"
+        },
+        "167lbrorc6hif": {
+            "source": "Open a combobox's list as the person types, choose an option and close it.",
+            "translation": "Die Liste eines Kombinationsfelds beim Tippen öffnen, eine Option wählen und sie schliessen.",
+            "state": "machine"
+        },
+        "17ig45mx0rsia": {
+            "source": "Ada's picture, large.",
+            "translation": "Adas Bild, gross.",
+            "state": "machine"
+        },
+        "1don1gxlmc74u": {
+            "source": "Size",
+            "context": "label",
+            "translation": "Grösse",
+            "state": "machine"
+        },
+        "1f1tn6kf52c51": {
+            "source": "“{$p0}” did not work",
+            "translation": "«{$p0}» hat nicht funktioniert",
+            "state": "machine"
+        },
+        "1gmmuqukd7lsf": {
+            "source": "Can't paste “{$p0}” into {$p1}",
+            "translation": "«{$p0}» kann nicht in {$p1} eingesetzt werden",
+            "state": "machine"
+        },
+        "1i41c2w3ppc5x": {
+            "source": "Create \"{$p0}\"",
+            "translation": "«{$p0}» erstellen",
+            "state": "machine"
+        },
+        "1le46y4rslt8q": {
+            "source": "Search, drill into a page and back, open an entry's actions and close them, then run an entry.",
+            "translation": "Suchen, in eine Seite hinein und zurück gehen, die Aktionen eines Eintrags öffnen und schliessen und dann einen Eintrag ausführen.",
+            "state": "machine"
+        },
+        "1o6pdeuzb5fwk": {
+            "source": "{$p0} is larger than {$p1}",
+            "translation": "{$p0} ist grösser als {$p1}",
+            "state": "machine"
+        },
+        "1ooemwog3e9kq": {
+            "source": "A picker composed of its search, content and footer, reporting the emoji it picks.",
+            "translation": "Eine Auswahl aus Suche, Inhalt und Fusszeile, die das gewählte Emoji meldet.",
+            "state": "machine"
+        },
+        "1t0jrs66wytol": {
+            "source": "Ten thousand readings drawn as dots on a canvas, as large datasets draw.",
+            "translation": "Zehntausend Messwerte als Punkte auf einer Zeichenfläche, wie grosse Datensätze gezeichnet werden.",
+            "state": "machine"
+        },
+        "1y4365m6p0a02": {
+            "source": "Numbers as amounts, shares, measures and counts.",
+            "translation": "Zahlen als Beträge, Anteile, Masse und Anzahlen.",
+            "state": "machine"
+        },
+        "1ygghgiuzxrid": {
+            "source": "A popover titled and described for assistive technology, with a button that closes it.",
+            "translation": "Ein Popover, für assistive Technologien betitelt und beschrieben, mit einer Schaltfläche, die es schliesst.",
+            "state": "machine"
+        },
+        "23e00tmgk4kkc": {
+            "source": "The people sharing a notebook, large.",
+            "translation": "Die Personen, die ein Notizbuch teilen, gross.",
+            "state": "machine"
+        },
+        "26cp87up1qsnf": {
+            "source": "Open a hover card once the pointer rests on its link past the delay, and close it after.",
+            "translation": "Eine Hover-Karte öffnen, sobald der Zeiger über die Verzögerung hinaus auf ihrem Link ruht, und sie danach schliessen.",
+            "state": "machine"
+        },
+        "275pyyxeyqizi": {
+            "source": "A note's card with its text and two actions in the footer.",
+            "translation": "Die Karte einer Notiz mit ihrem Text und zwei Aktionen in der Fusszeile.",
+            "state": "machine"
+        },
+        "2ad47tuqio4hc": {
+            "source": "A trip's files, opened large over the page.",
+            "translation": "Die Dateien einer Reise, gross über der Seite geöffnet.",
+            "state": "machine"
+        },
+        "2bh52o9w70tt1": {
+            "source": "Resize a part by the keys, and turn the image.",
+            "translation": "Einen Ausschnitt mit den Tasten in der Grösse ändern und das Bild drehen.",
+            "state": "machine"
+        },
+        "2cuutlyeyh0m5": {
+            "source": "Disclose a navigation menu's panel from its trigger and close it on Escape.",
+            "translation": "Den Bereich eines Navigationsmenüs über seinen Auslöser aufklappen und mit Escape schliessen.",
+            "state": "machine"
+        },
+        "2j8jnpzdeh51b": {
+            "source": "A conversation with buttons outside its frame, and a row that loads what came before.",
+            "translation": "Ein Gespräch mit Schaltflächen ausserhalb seines Rahmens und einer Zeile, die Früheres lädt.",
+            "state": "machine"
+        },
+        "2jvkpxf33x3px": {
+            "source": "Resize the inspector",
+            "translation": "Grösse des Inspektors ändern",
+            "state": "machine"
+        },
+        "2nczhctu41hwb": {
+            "source": "Close",
+            "context": "action",
+            "translation": "Schliessen",
+            "state": "machine"
+        },
+        "2u507gay3xurl": {
+            "source": "Larger than {$p0}",
+            "translation": "Grösser als {$p0}",
+            "state": "machine"
+        },
+        "2y6hvvikyrl1t": {
+            "source": "The image size popover open beside its trigger.",
+            "translation": "Das Bildgrössen-Popover, neben seinem Auslöser geöffnet.",
+            "state": "machine"
+        },
+        "2yj8lwjujj5vg": {
+            "source": "A popover that edits the size of an image in a note.",
+            "translation": "Ein Popover, das die Grösse eines Bildes in einer Notiz bearbeitet.",
+            "state": "machine"
+        },
+        "34ae83dl5pzw0": {
+            "source": "A calendar at the end of October with the thirtieth selected and the fourth as today.",
+            "translation": "Ein Kalender Ende Oktober, der Dreissigste ausgewählt und der Vierte als heute.",
+            "state": "machine"
+        },
+        "35g43hflijqh1": {
+            "source": "A paragraph with a footnote and a warning alert.",
+            "translation": "Ein Absatz mit einer Fussnote und einer Warnung.",
+            "state": "machine"
+        },
+        "37ahvuhgqy6a1": {
+            "source": "Zoom a plan in with the plus key, pan it with a horizontal wheel, and fit every task again with zero.",
+            "translation": "Einen Plan mit der Plustaste vergrössern, mit einem waagerechten Rad verschieben und mit Null wieder alle Aufgaben einpassen.",
+            "state": "machine"
+        },
+        "3ak8ekoutuq3x": {
+            "source": "Turn a field around, then remove each, which closes the panel.",
+            "translation": "Ein Feld umkehren und dann jedes entfernen, was den Bereich schliesst.",
+            "state": "machine"
+        },
+        "3cb5e8jmbsmnh": {
+            "source": "Choose an item with Enter, running its action and closing the menu.",
+            "translation": "Ein Element mit Eingabe wählen, seine Aktion ausführen und das Menü schliessen.",
+            "state": "machine"
+        },
+        "3ddjbs9vfl0rd": {
+            "source": "A footer whose links a vertical line divides.",
+            "translation": "Eine Fusszeile, deren Links eine senkrechte Linie trennt.",
+            "state": "machine"
+        },
+        "3dezqtsjsaryq": {
+            "source": "Resize the outline",
+            "translation": "Grösse der Gliederung ändern",
+            "state": "machine"
+        },
+        "3pq4idxzld35e": {
+            "source": "Open a combobox's list with the down arrow key and close it with Escape, then clear the input.",
+            "translation": "Die Liste eines Kombinationsfelds mit der Pfeiltaste nach unten öffnen, mit Escape schliessen und dann das Feld leeren.",
+            "state": "machine"
+        },
+        "7rcz2p7nq1cr": {
+            "source": "Dismiss",
+            "context": "action",
+            "translation": "Schliessen",
+            "state": "machine"
+        },
+        "c4mi745m3lc0": {
+            "source": "A slider that sets the font size of a note.",
+            "translation": "Ein Schieberegler, der die Schriftgrösse einer Notiz setzt.",
+            "state": "machine"
+        },
+        "cdh78eondak1": {
+            "source": "Zoom in",
+            "context": "action",
+            "translation": "Vergrössern",
+            "state": "machine"
+        },
+        "f12s27tcmz03": {
+            "source": "The font size slider unavailable.",
+            "translation": "Der Schriftgrössen-Schieberegler, nicht verfügbar.",
+            "state": "machine"
+        },
+        "n0j6dpnt6agd": {
+            "source": "The invoices with their total in the table's footer.",
+            "translation": "Die Rechnungen mit ihrer Summe in der Fusszeile der Tabelle.",
+            "state": "machine"
+        },
+        "oz8dexuronry": {
+            "source": "The files an editor has open, which close, reorder and end in a menu.",
+            "translation": "Die Dateien, die ein Editor offen hat, die sich schliessen, umsortieren und in einem Menü enden.",
+            "state": "machine"
+        },
+        "tvi9yujutnd7": {
+            "source": "A note's actions its owner opens and closes, reporting each request to change it.",
+            "translation": "Die Aktionen einer Notiz, die ihr Besitzer öffnet und schliesst, mit jeder Änderungsanfrage gemeldet.",
+            "state": "machine"
+        },
+        "vpsw1v5yol8r": {
+            "source": "Large",
+            "context": "option",
+            "translation": "Gross",
+            "state": "machine"
+        },
+        "wod2ryjjp023": {
+            "source": "A compact picker whose footer shows the active emoji beside a button cycling the skin tone.",
+            "translation": "Eine kompakte Auswahl, deren Fusszeile das aktive Emoji neben einer Schaltfläche für den Hautton zeigt.",
+            "state": "machine"
+        }
     }
 }

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -49,7 +50,7 @@ const styles = style.create({
 export const sidebarNotebooks = defineExample({
     of: Sidebar,
     name: "notebooks",
-    description: "an app's sidebar of notebooks beside its main content",
+    description: t`An app's sidebar of notebooks beside its main content.`,
     layout: "fullscreen",
     properties: {
         collapsible: "icon",
@@ -92,8 +93,8 @@ export const sidebarNotebooks = defineExample({
 /** An app's sidebar of notebooks collapsed to its icons beside its main content. */
 export const sidebarNotebooksCollapsed = defineExample({
     of: Sidebar,
-    name: "notebooks-collapsed",
-    description: "an app's sidebar of notebooks collapsed to its icons beside its main content",
+    name: "notebooksCollapsed",
+    description: t`An app's sidebar of notebooks collapsed to its icons beside its main content.`,
     layout: "fullscreen",
     properties: {
         collapsible: "icon",

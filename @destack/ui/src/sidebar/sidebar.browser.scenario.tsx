@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { sidebarNotebooks } from "./sidebar.example.tsx";
@@ -13,9 +14,8 @@ const sidebar = { css: "[data-slot=sidebar]" };
 export const sidebarResizeWithRail = defineScenario({
     of: Sidebar,
     interaction: viewInteraction,
-    name: "resize-with-rail",
-    description:
-        "drag the rail to widen the sidebar, drag it past its narrowest to collapse it, and click it open",
+    name: "resizeWithRail",
+    description: t`Drag the rail to widen the sidebar, drag it past its narrowest to collapse it, and click it open.`,
     given: { examples: [sidebarNotebooks] },
     parameters: {},
     when: [

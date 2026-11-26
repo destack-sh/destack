@@ -170,8 +170,8 @@ export class FilterControl {
             ? (field.type.choices ?? []).map((choice) => Choice.of(choice, locale))
             : field?.type.kind === "boolean"
               ? [
-                    { value: true, title: locale.render(t`yes`) },
-                    { value: false, title: locale.render(t`no`) },
+                    { value: true, title: locale.render(t.context("option")`yes`) },
+                    { value: false, title: locale.render(t.context("option")`no`) },
                 ]
               : [];
     }

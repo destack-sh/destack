@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { overflowNarrow, overflowTabs } from "./overflow.example.tsx";
@@ -10,8 +11,8 @@ const more = { css: "[data-slot=overflow-menu-trigger]" };
 export const overflowChooseHidden = defineScenario({
     of: Overflow,
     interaction: viewInteraction,
-    name: "choose-hidden",
-    description: "hide what does not fit, and show what is chosen from the menu in its place",
+    name: "chooseHidden",
+    description: t`Hide what does not fit, and show what is chosen from the menu in its place.`,
     given: { examples: [overflowNarrow] },
     parameters: {},
     when: [
@@ -63,8 +64,8 @@ export const overflowChooseHidden = defineScenario({
 export const overflowShowAll = defineScenario({
     of: Overflow,
     interaction: viewInteraction,
-    name: "show-all",
-    description: "show no menu where everything fits",
+    name: "showAll",
+    description: t`Show no menu where everything fits.`,
     given: { examples: [overflowTabs] },
     parameters: {},
     when: [

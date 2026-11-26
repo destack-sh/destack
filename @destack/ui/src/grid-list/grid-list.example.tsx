@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { RowLayout } from "../gallery/layout.ts";
 import * as style from "@destack/style";
 import { defineExample } from "@destack/package/declare";
@@ -88,16 +89,15 @@ function SymbolGrid(properties: {
 export const gridListSymbols = defineExample({
     of: GridList,
     name: "symbols",
-    description:
-        "math symbols by section in a grid of three columns, which the arrow keys move through and Enter picks from",
+    description: t`Math symbols by section in a grid of three columns, which the arrow keys move through and Enter picks from.`,
     render: () => <SymbolGrid sections={SYMBOLS} />,
 });
 
 /** The symbol grid with two symbols unavailable, which the arrow keys pass over. */
 export const gridListSymbolsDisabled = defineExample({
     of: GridList,
-    name: "symbols-disabled",
-    description: "the symbol grid with two symbols unavailable, which the arrow keys pass over",
+    name: "symbolsDisabled",
+    description: t`The symbol grid with two symbols unavailable, which the arrow keys pass over.`,
     render: () => <SymbolGrid sections={SYMBOLS} unavailable={["infinity", "summation"]} />,
 });
 
@@ -105,7 +105,7 @@ export const gridListSymbolsDisabled = defineExample({
 export const gridListEmpty = defineExample({
     of: GridList,
     name: "empty",
-    description: "a grid list without symbols, showing its empty note",
+    description: t`A grid list without symbols, showing its empty note.`,
     render: () => <SymbolGrid sections={[]} />,
 });
 
@@ -183,8 +183,7 @@ export const gridListGallery = defineExample({
     of: GridList,
     name: "gallery",
     layout: "padded",
-    description:
-        "a press kit as cards with covers, as many to a row as fit, opened by a press and selected with a modifier or Space",
+    description: t`A press kit as cards with covers, as many to a row as fit, opened by a press and selected with a modifier or Space.`,
     render: () => {
         // fit cards at least 220 pixels wide, select several, and report the one opened
         const [opened, setOpened] = createSignal("");
@@ -251,8 +250,7 @@ export const gridListPeople = defineExample({
     of: GridList,
     name: "people",
     layout: "padded",
-    description:
-        "five thousand people in one column under a search field, with only the rows in view in the document",
+    description: t`Five thousand people in one column under a search field, with only the rows in view in the document.`,
     render: () => {
         // filter by the search, one person to a row, and report the one picked
         const [picked, setPicked] = createSignal("");
@@ -343,8 +341,7 @@ export const gridListReading = defineExample({
     of: GridList,
     name: "reading",
     layout: "padded",
-    description:
-        "books in sections whose headings stay in view, moved between them by a drag or by keys",
+    description: t`Books in sections whose headings stay in view, moved between them by a drag or by keys.`,
     render: () => {
         // keep the books in the order and sections a person moves them to
         const [books, setBooks] = createSignal<readonly Book[]>(BOOKS);
@@ -432,8 +429,7 @@ export const gridListPhotos = defineExample({
     of: GridList,
     name: "photos",
     layout: "padded",
-    description:
-        "ten thousand photos in rows that fill the page, only those in view in the document",
+    description: t`Ten thousand photos in rows that fill the page, only those in view in the document.`,
     render: () => {
         // break the photos of each trip into rows, and report the one opened
         const [opened, setOpened] = createSignal("");

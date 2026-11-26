@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { commandPaletteLaunch } from "./palette.example.tsx";
@@ -22,8 +23,7 @@ export const commandPaletteNavigate = defineScenario({
     of: CommandPalette,
     interaction: viewInteraction,
     name: "navigate",
-    description:
-        "search, drill into a page and back, open an entry's actions and close them, then run an entry",
+    description: t`Search, drill into a page and back, open an entry's actions and close them, then run an entry.`,
     given: { examples: [commandPaletteLaunch] },
     parameters: {},
     when: [
@@ -79,7 +79,7 @@ export const commandPaletteSecond = defineScenario({
     of: CommandPalette,
     interaction: viewInteraction,
     name: "second",
-    description: "run an entry's second action by the command key and Enter",
+    description: t`Run an entry's second action by the command key and Enter.`,
     given: { examples: [commandPaletteLaunch] },
     parameters: {},
     when: [

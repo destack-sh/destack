@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import downloadSimple from "@destack/icon/phosphor/download-simple";
 import play from "@destack/icon/phosphor/play";
 import waveform from "@destack/icon/phosphor/waveform";
@@ -77,7 +78,7 @@ const REFUSED = {
 export const fileItemRows = defineExample({
     of: FileItem,
     name: "rows",
-    description: "a trip's files in rows, which open and download",
+    description: t`A trip's files in rows, which open and download.`,
     layout: "padded",
     render: () => (
         <FileItemGroup aria-label="Files">
@@ -106,7 +107,7 @@ export const fileItemRows = defineExample({
 export const fileItemCards = defineExample({
     of: FileItem,
     name: "cards",
-    description: "a trip's photos as cards, which a person opens and removes",
+    description: t`A trip's photos as cards, which a person opens and removes.`,
     layout: "padded",
     render: () => {
         const [photos, setPhotos] = createSignal<readonly (typeof PHOTOS)[number][]>(PHOTOS);
@@ -167,7 +168,7 @@ export const fileItemCards = defineExample({
 export const fileItemParts = defineExample({
     of: FileItem,
     name: "parts",
-    description: "a trip's recordings of other parts: a drawn wave, who sent it and when",
+    description: t`A trip's recordings of other parts: a drawn wave, who sent it and when.`,
     layout: "padded",
     render: () => (
         <FileItemGroup aria-label="Recordings">
@@ -195,7 +196,7 @@ export const fileItemParts = defineExample({
 export const fileItemSending = defineExample({
     of: FileItem,
     name: "sending",
-    description: "a message's files on their way: sent, paused and failed, in rows and as cards",
+    description: t`A message's files on their way: sent, paused and failed, in rows and as cards.`,
     layout: "padded",
     render: () => (
         <Stack space="4">
@@ -229,7 +230,7 @@ export const fileItemSending = defineExample({
 export const fileItemSmall = defineExample({
     of: FileItem,
     name: "small",
-    description: "a draft's files in small, beside its text",
+    description: t`A draft's files in small, beside its text.`,
     layout: "padded",
     render: () => (
         <FileItemGroup aria-label="Files">

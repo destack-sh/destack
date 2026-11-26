@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { ConversationPage } from "./conversation.tsx";
@@ -33,8 +34,8 @@ const MENU = [
 export const chatChannel = defineScenario({
     of: ConversationPage,
     interaction: viewInteraction,
-    name: "channel-by-keys",
-    description: "open a thread by a key, ask the assistant there, quote by a key, open a menu",
+    name: "channelByKeys",
+    description: t`Open a thread by a key, ask the assistant there, quote by a key, open a menu.`,
     given: { examples: [studioChannel] },
     parameters: {},
     when: [
@@ -113,8 +114,8 @@ export const chatChannel = defineScenario({
 export const chatApproval = defineScenario({
     of: ConversationPage,
     interaction: viewInteraction,
-    name: "approve-a-mail",
-    description: "ask the assistant to send a mail, which it asks about first, and let it",
+    name: "approveAMail",
+    description: t`Ask the assistant to send a mail, which it asks about first, and let it.`,
     given: { examples: [studioAssistant] },
     parameters: {},
     when: [

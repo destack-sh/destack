@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { EmojiPicker } from "./emoji-picker.tsx";
@@ -11,7 +12,7 @@ export const emojiPickerSearch = defineScenario({
     of: EmojiPicker,
     interaction: viewInteraction,
     name: "search",
-    description: "narrow the emoji to a search's matches, and show the note once nothing matches",
+    description: t`Narrow the emoji to a search's matches, and show the note once nothing matches.`,
     given: { examples: [emojiPickerReaction] },
     parameters: {},
     when: [

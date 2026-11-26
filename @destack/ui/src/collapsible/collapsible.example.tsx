@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -20,8 +21,8 @@ const TRIGGER = buttonVariants({ variant: "ghost", size: "sm" });
 /** The first tags of a note and the rest on request. */
 export const collapsibleNoteTags = defineExample({
     of: Collapsible,
-    name: "note-tags",
-    description: "the first tags of a note and the rest on request",
+    name: "noteTags",
+    description: t`The first tags of a note and the rest on request.`,
     render: () => (
         <Collapsible>
             <CollapsibleTrigger xstyle={TRIGGER}>travel and 3 more</CollapsibleTrigger>
@@ -35,8 +36,8 @@ export const collapsibleNoteTags = defineExample({
 /** Every tag of a note shown after the request. */
 export const collapsibleNoteTagsExpanded = defineExample({
     of: Collapsible,
-    name: "note-tags-expanded",
-    description: "every tag of a note shown after the request",
+    name: "noteTagsExpanded",
+    description: t`Every tag of a note shown after the request.`,
     properties: {
         open: true,
     },
@@ -53,8 +54,8 @@ export const collapsibleNoteTagsExpanded = defineExample({
 /** The tags of a note whose request for the rest is unavailable. */
 export const collapsibleNoteTagsDisabled = defineExample({
     of: Collapsible,
-    name: "note-tags-disabled",
-    description: "the tags of a note whose request for the rest is unavailable",
+    name: "noteTagsDisabled",
+    description: t`The tags of a note whose request for the rest is unavailable.`,
     properties: {
         disabled: true,
     },

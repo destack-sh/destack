@@ -358,7 +358,7 @@ export function TimelineBody(properties: TimelinePartProperties): JSX.Element {
             {
                 role: "treegrid" as const,
                 get "aria-label"() {
-                    return locale.render(t`Timeline`);
+                    return locale.render(t.context("title")`Timeline`);
                 },
                 get "aria-rowcount"() {
                     return control.tree.rows().length;

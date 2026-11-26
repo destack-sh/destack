@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { HoverCard } from "./hover-card.tsx";
@@ -10,9 +11,8 @@ const profile = { text: "Ada Lovelace" };
 export const hoverCardRestAndLeave = defineScenario({
     of: HoverCard,
     interaction: viewInteraction,
-    name: "rest-and-leave",
-    description:
-        "open a hover card once the pointer rests on its link past the delay, and close it after",
+    name: "restAndLeave",
+    description: t`Open a hover card once the pointer rests on its link past the delay, and close it after.`,
     given: { examples: [hoverCardMention] },
     parameters: {},
     when: [

@@ -88,7 +88,9 @@ export function KbdShortcut(properties: KbdShortcutProperties): JSX.Element {
                 {(stroke, index) => (
                     <>
                         <Show when={index() > 0}>
-                            <span {...style.attrs(styles.then)}>{locale.render(t`then`)}</span>
+                            <span {...style.attrs(styles.then)}>
+                                {locale.render(t.context("label")`then`)}
+                            </span>
                         </Show>
                         <For each={Shortcut.labels(stroke, isCommand())}>
                             {(label) => <Kbd>{label}</Kbd>}

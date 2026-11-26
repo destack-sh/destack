@@ -483,7 +483,9 @@ function RangeEdge(properties: {
             tabindex={0}
             data-slot="timeline-range-edge"
             data-edge={properties.edge}
-            aria-label={locale.render(properties.edge === "start" ? t`Start` : t`End`)}
+            aria-label={locale.render(
+                properties.edge === "start" ? t.context("option")`Start` : t.context("option")`End`,
+            )}
             aria-valuemin={control.window.range().start}
             aria-valuemax={control.window.range().end}
             aria-valuenow={properties.at}

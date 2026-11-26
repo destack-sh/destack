@@ -739,7 +739,9 @@ export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
             disabled={control.properties.disabled}
             aria-label={
                 isRange()
-                    ? locale.render(index() === 0 ? t`Minimum` : t`Maximum`)
+                    ? locale.render(
+                          index() === 0 ? t.context("label")`Minimum` : t.context("label")`Maximum`,
+                      )
                     : control.properties["aria-label"]
             }
             aria-labelledby={isRange() ? undefined : control.properties["aria-labelledby"]}

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { accordionHelpQuestionsDisabled } from "./accordion.example.tsx";
@@ -7,9 +8,8 @@ import { Accordion } from "./accordion.tsx";
 export const accordionMoveBetweenTriggers = defineScenario({
     of: Accordion,
     interaction: viewInteraction,
-    name: "move-between-triggers",
-    description:
-        "move the focus between an accordion's triggers with the arrow keys, Home and End, skipping a disabled one and wrapping",
+    name: "moveBetweenTriggers",
+    description: t`Move the focus between an accordion's triggers with the arrow keys, Home and End, skipping a disabled one and wrapping.`,
     given: { examples: [accordionHelpQuestionsDisabled] },
     parameters: {},
     when: [

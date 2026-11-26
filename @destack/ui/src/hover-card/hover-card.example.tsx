@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./hover-card.tsx";
 
@@ -5,7 +6,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "./hover-card.tsx"
 export const hoverCardMention = defineExample({
     of: HoverCard,
     name: "mention",
-    description: "a person's profile while the pointer rests on a mention",
+    description: t`A person's profile while the pointer rests on a mention.`,
     render: () => (
         <HoverCard>
             <HoverCardTrigger href="/people/ada">@ada</HoverCardTrigger>
@@ -20,8 +21,8 @@ export const hoverCardMention = defineExample({
 /** The mention's profile card open below the mention. */
 export const hoverCardMentionOpen = defineExample({
     of: HoverCard,
-    name: "mention-open",
-    description: "the mention's profile card open below the mention",
+    name: "mentionOpen",
+    description: t`The mention's profile card open below the mention.`,
     properties: {
         defaultOpen: true,
     },

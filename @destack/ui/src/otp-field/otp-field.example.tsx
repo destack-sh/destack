@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, Show } from "@destack/view";
 import { Field, FieldLabel } from "../field/index.ts";
@@ -6,8 +7,8 @@ import { OtpField, OtpFieldGroup, OtpFieldSeparator, OtpFieldSlot } from "./otp-
 /** The six-digit code a sign-in sends, confirmed once all digits are in. */
 export const otpFieldSignInCode = defineExample({
     of: OtpField,
-    name: "sign-in-code",
-    description: "the six-digit code a sign-in sends, confirmed once all digits are in",
+    name: "signInCode",
+    description: t`The six-digit code a sign-in sends, confirmed once all digits are in.`,
     render: () => {
         const [code, setCode] = createSignal<string>();
 
@@ -36,8 +37,8 @@ export const otpFieldSignInCode = defineExample({
 /** The six-digit sign-in code marked invalid. */
 export const otpFieldSignInCodeInvalid = defineExample({
     of: OtpField,
-    name: "sign-in-code-invalid",
-    description: "the six-digit sign-in code marked invalid",
+    name: "signInCodeInvalid",
+    description: t`The six-digit sign-in code marked invalid.`,
     properties: {
         "aria-invalid": "true",
     },
@@ -64,8 +65,8 @@ export const otpFieldSignInCodeInvalid = defineExample({
 /** The six-digit sign-in code unavailable. */
 export const otpFieldSignInCodeDisabled = defineExample({
     of: OtpField,
-    name: "sign-in-code-disabled",
-    description: "the six-digit sign-in code unavailable",
+    name: "signInCodeDisabled",
+    description: t`The six-digit sign-in code unavailable.`,
     properties: {
         disabled: true,
     },

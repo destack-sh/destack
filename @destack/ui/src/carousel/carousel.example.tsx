@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { radius, space } from "@destack/theme/tokens.stylex";
@@ -42,8 +43,8 @@ const styles = style.create({
 /** The photos of a note one at a time. */
 export const carouselTripPhotos = defineExample({
     of: Carousel,
-    name: "trip-photos",
-    description: "the photos of a note one at a time",
+    name: "tripPhotos",
+    description: t`The photos of a note one at a time.`,
     properties: {
         "aria-label": "Photos",
     },
@@ -71,9 +72,8 @@ export const carouselTripPhotos = defineExample({
 /** Trip photos that rotate on their own, with a button that stops them and a dot per photo. */
 export const carouselTripPhotosRotating = defineExample({
     of: Carousel,
-    name: "trip-photos-rotating",
-    description:
-        "trip photos that rotate on their own, with a button that stops them and a dot per photo",
+    name: "tripPhotosRotating",
+    description: t`Trip photos that rotate on their own, with a button that stops them and a dot per photo.`,
     properties: {
         "aria-label": "Trip photos",
         loop: true,

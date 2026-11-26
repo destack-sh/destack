@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import {
@@ -10,9 +11,8 @@ import { ResizablePanelGroup } from "./resizable.tsx";
 export const resizablePanelGroupMoveWithKeys = defineScenario({
     of: ResizablePanelGroup,
     interaction: viewInteraction,
-    name: "move-with-keys",
-    description:
-        "move a splitter by a step with the arrow keys and to its limits with Home and End",
+    name: "moveWithKeys",
+    description: t`Move a splitter by a step with the arrow keys and to its limits with Home and End.`,
     given: { examples: [resizablePanelGroupNotebookSplit] },
     parameters: {},
     when: [
@@ -104,9 +104,8 @@ export const resizablePanelGroupMoveWithKeys = defineScenario({
 export const resizablePanelGroupCollapseWithEnter = defineScenario({
     of: ResizablePanelGroup,
     interaction: viewInteraction,
-    name: "collapse-with-enter",
-    description:
-        "collapse a collapsible panel with Enter on its splitter and restore it to its smallest share",
+    name: "collapseWithEnter",
+    description: t`Collapse a collapsible panel with Enter on its splitter and restore it to its smallest share.`,
     given: { examples: [resizablePanelGroupNotebookCollapsed] },
     parameters: {},
     when: [

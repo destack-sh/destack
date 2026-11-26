@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -62,8 +63,7 @@ const LINES = Array.from({ length: 10_000 }, (_, index) => ({
 export const virtualListLog = defineExample({
     of: VirtualList,
     name: "log",
-    description:
-        "a log of ten thousand lines of two heights, only the ones in view in the document",
+    description: t`A log of ten thousand lines of two heights, only the ones in view in the document.`,
     properties: {
         gap: 0,
         "aria-label": "Log",
@@ -90,7 +90,7 @@ export const virtualListLog = defineExample({
 export const virtualListDays = defineExample({
     of: VirtualList,
     name: "days",
-    description: "a thousand days side by side, scrolled along the inline axis",
+    description: t`A thousand days side by side, scrolled along the inline axis.`,
     render: () => (
         <VirtualList
             each={LINES.slice(0, 1000)}
@@ -107,7 +107,7 @@ export const virtualListDays = defineExample({
 export const virtualListGrid = defineExample({
     of: VirtualList,
     name: "grid",
-    description: "ten thousand cells in four lanes with a gap",
+    description: t`Ten thousand cells in four lanes with a gap.`,
     render: () => (
         <VirtualList each={LINES} lanes={4} gap={4} estimateSize={() => 40} xstyle={styles.list}>
             {(line) => <div {...style.attrs(text.sm, styles.cell)}>Cell {line.id}</div>}

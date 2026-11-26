@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -23,7 +24,7 @@ const styles = style.create({
 export const centerArticle = defineExample({
     of: Center,
     name: "article",
-    description: "an article centered at a readable line length",
+    description: t`An article centered at a readable line length.`,
     render: () => (
         <Center render={(attributes) => <article {...attributes} />}>
             <Stack>
@@ -40,7 +41,7 @@ export const centerArticle = defineExample({
 export const centerForm = defineExample({
     of: Center,
     name: "form",
-    description: "a sign-in form centered at its own width",
+    description: t`A sign-in form centered at its own width.`,
     properties: {
         intrinsic: true,
         max: "24rem",

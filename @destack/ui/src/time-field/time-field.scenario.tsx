@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { timeFieldReminder } from "./time-field.example.tsx";
@@ -7,9 +8,8 @@ import { TimeField } from "./time-field.tsx";
 export const timeFieldChooseDayPeriod = defineScenario({
     of: TimeField,
     interaction: viewInteraction,
-    name: "choose-day-period",
-    description:
-        "type the hour and minute digit by digit and choose the afternoon by its letter on a 12-hour clock",
+    name: "chooseDayPeriod",
+    description: t`Type the hour and minute digit by digit and choose the afternoon by its letter on a 12-hour clock.`,
     given: { examples: [timeFieldReminder], globals: { locale: "en-US" } },
     parameters: {},
     when: [

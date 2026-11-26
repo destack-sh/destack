@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { Patch } from "@destack/code";
 import tsx from "@destack/code/grammar/tsx";
 import typescript from "@destack/code/grammar/typescript";
@@ -46,7 +47,7 @@ Invoices on request.
 export const diffPlans = defineExample({
     of: Diff,
     name: "plans",
-    description: "a pricing page's changes, in one column or side by side",
+    description: t`A pricing page's changes, in one column or side by side.`,
     layout: "padded",
     render: () => {
         const [layout, setLayout] = createSignal<DiffLayout>("unified");
@@ -99,7 +100,7 @@ export function priceOf(plan: Plan, people: number): number {
 export const diffCode = defineExample({
     of: Diff,
     name: "code",
-    description: "a function's changes in its language's colors",
+    description: t`A function's changes in its language's colors.`,
     layout: "padded",
     render: () => (
         <Diff
@@ -197,7 +198,7 @@ export function byTitle(one: Note, other: Note): number {
 export const diffReview = defineExample({
     of: Diff,
     name: "review",
-    description: "a file under review, whose changes are accepted, rejected and commented on",
+    description: t`A file under review, whose changes are accepted, rejected and commented on.`,
     layout: "padded",
     render: () => {
         // reject a change by putting its old lines back
@@ -281,7 +282,7 @@ rename to src/note/name.ts
 export const diffPatch = defineExample({
     of: Diff,
     name: "patch",
-    description: "a moved file's patch, which has only the lines it changes",
+    description: t`A moved file's patch, which has only the lines it changes.`,
     layout: "padded",
     render: () => {
         const [file] = Patch.read(PATCH).files;

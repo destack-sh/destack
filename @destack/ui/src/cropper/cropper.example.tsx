@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { radius, space } from "@destack/theme/tokens.stylex";
@@ -59,7 +60,7 @@ export const cropperProfile = defineExample({
     of: Cropper,
     name: "profile",
     layout: "padded",
-    description: "a profile picture, which moves, zooms and turns below a round frame",
+    description: t`A profile picture, which moves, zooms and turns below a round frame.`,
     render: () => (
         <Cropper fixedCropArea aspectRatio={1} xstyle={styles.cropper}>
             <CropperViewport>
@@ -81,7 +82,7 @@ export const cropperPhoto = defineExample({
     of: Cropper,
     name: "photo",
     layout: "padded",
-    description: "a part of a photo, its sides moved by handles",
+    description: t`A part of a photo, its sides moved by handles.`,
     render: () => (
         <Cropper defaultValue={{ x: 40, y: 30, width: 200, height: 120 }} xstyle={styles.cropper}>
             <CropperViewport>
@@ -103,7 +104,7 @@ export const cropperCover = defineExample({
     of: Cropper,
     name: "cover",
     layout: "padded",
-    description: "a page's cover, whose handles keep its ratio",
+    description: t`A page's cover, whose handles keep its ratio.`,
     render: () => (
         <Cropper aspectRatio={3} xstyle={styles.cropper}>
             <CropperViewport>

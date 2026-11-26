@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Card, CardDescription, CardHeader, CardTitle } from "../card/index.ts";
 import { Switcher } from "./switcher.tsx";
@@ -7,7 +8,7 @@ import "./switcher.css";
 export const switcherPlans = defineExample({
     of: Switcher,
     name: "plans",
-    description: "three plans side by side, stacked once the container is narrower than 40rem",
+    description: t`Three plans side by side, stacked once the container is narrower than 40rem.`,
     properties: {
         threshold: "40rem",
     },
@@ -32,8 +33,8 @@ export const switcherPlans = defineExample({
 /** The plans stacked below a wider threshold. */
 export const switcherPlansStacked = defineExample({
     of: Switcher,
-    name: "plans-stacked",
-    description: "the plans stacked below a wider threshold",
+    name: "plansStacked",
+    description: t`The plans stacked below a wider threshold.`,
     properties: {
         threshold: "60rem",
     },

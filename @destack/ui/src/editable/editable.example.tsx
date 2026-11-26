@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -24,7 +25,7 @@ const styles = style.create({
 export const editablePage = defineExample({
     of: Editable,
     name: "page",
-    description: "a page's title, put back where nothing is left, and what it is about, in lines",
+    description: t`A page's title, put back where nothing is left, and what it is about, in lines.`,
     layout: "padded",
     render: () => (
         <Stack space="3">
@@ -44,7 +45,7 @@ export const editablePage = defineExample({
 export const editableButtons = defineExample({
     of: Editable,
     name: "buttons",
-    description: "a name with buttons that change, keep and leave it, and an empty one",
+    description: t`A name with buttons that change, keep and leave it, and an empty one.`,
     layout: "padded",
     render: () => (
         <Stack space="4">

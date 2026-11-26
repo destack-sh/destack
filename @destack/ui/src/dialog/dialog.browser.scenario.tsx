@@ -1,7 +1,8 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { Dialog } from "./dialog.tsx";
-import { dialogRenameNote } from "./dialog.example.tsx";
+import { dialogDefault } from "./dialog.example.tsx";
 
 /** The rename dialog. */
 const dialog = { role: "dialog", name: "Rename note" };
@@ -10,10 +11,9 @@ const dialog = { role: "dialog", name: "Rename note" };
 export const dialogOpenAndEscape = defineScenario({
     of: Dialog,
     interaction: viewInteraction,
-    name: "open-and-escape",
-    description:
-        "open a dialog from its trigger, dismiss it with Escape and focus the trigger again",
-    given: { examples: [dialogRenameNote] },
+    name: "openAndEscape",
+    description: t`Open a dialog from its trigger, dismiss it with Escape and focus the trigger again.`,
+    given: { examples: [dialogDefault] },
     parameters: {},
     when: [
         {

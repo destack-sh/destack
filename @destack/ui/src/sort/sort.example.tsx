@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import type { OrderBy } from "@destack/db";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
@@ -26,7 +27,7 @@ const FIELDS: SortFields = {
 export const sortTasks = defineExample({
     of: Sort,
     name: "tasks",
-    description: "an order a person edits, as a query takes it",
+    description: t`An order a person edits, as a query takes it.`,
     layout: "padded",
     render: () => {
         const [orderBy, setOrderBy] = createSignal<OrderBy>({ due: "desc", title: "asc" });
@@ -44,7 +45,7 @@ export const sortTasks = defineExample({
 export const sortRow = defineExample({
     of: SortList,
     name: "row",
-    description: "an order beside each other, its fields dragged",
+    description: t`An order beside each other, its fields dragged.`,
     layout: "padded",
     render: () => (
         <Sort fields={FIELDS} defaultValue={{ due: "asc", estimate: "desc" }}>

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -34,8 +35,8 @@ const styles = style.create({
 /** A notebook list beside the open note, the person choosing the split. */
 export const resizablePanelGroupNotebookSplit = defineExample({
     of: ResizablePanelGroup,
-    name: "notebook-split",
-    description: "a notebook list beside the open note, the person choosing the split",
+    name: "notebookSplit",
+    description: t`A notebook list beside the open note, the person choosing the split.`,
     layout: "padded",
     properties: {
         direction: "horizontal",
@@ -58,9 +59,8 @@ export const resizablePanelGroupNotebookSplit = defineExample({
 /** A notebook list collapsed beside the open note, its split saved for the next visit. */
 export const resizablePanelGroupNotebookCollapsed = defineExample({
     of: ResizablePanelGroup,
-    name: "notebook-collapsed",
-    description:
-        "a notebook list collapsed beside the open note, its split saved for the next visit",
+    name: "notebookCollapsed",
+    description: t`A notebook list collapsed beside the open note, its split saved for the next visit.`,
     layout: "padded",
     properties: {
         direction: "horizontal",
@@ -84,8 +84,8 @@ export const resizablePanelGroupNotebookCollapsed = defineExample({
 /** An inbox beside the open message in an 800px split, its list between 240 and 480 pixels. */
 export const resizablePanelGroupInboxSplit = defineExample({
     of: ResizablePanelGroup,
-    name: "inbox-split",
-    description: "an inbox beside the open message, its list between 240 and 480 pixels",
+    name: "inboxSplit",
+    description: t`An inbox beside the open message, its list between 240 and 480 pixels.`,
     layout: "padded",
     properties: {
         direction: "horizontal",

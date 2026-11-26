@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -33,8 +34,8 @@ const styles = style.create({
 /** A slider that sets the font size of a note. */
 export const sliderFontSize = defineExample({
     of: Slider,
-    name: "font-size",
-    description: "a slider that sets the font size of a note",
+    name: "fontSize",
+    description: t`A slider that sets the font size of a note.`,
     properties: {
         name: "size",
         min: 12,
@@ -49,8 +50,8 @@ export const sliderFontSize = defineExample({
 /** The font size slider unavailable. */
 export const sliderFontSizeDisabled = defineExample({
     of: Slider,
-    name: "font-size-disabled",
-    description: "the font size slider unavailable",
+    name: "fontSizeDisabled",
+    description: t`The font size slider unavailable.`,
     render: () => (
         <Slider name="size" min={12} max={24} defaultValue={[16]} aria-label="Font size" disabled />
     ),
@@ -59,8 +60,8 @@ export const sliderFontSizeDisabled = defineExample({
 /** A price range filter with marks at every hundred. */
 export const sliderPriceRange = defineExample({
     of: Slider,
-    name: "price-range",
-    description: "a price range filter with marks at every hundred",
+    name: "priceRange",
+    description: t`A price range filter with marks at every hundred.`,
     render: () => (
         <Slider
             name="price"
@@ -77,16 +78,16 @@ export const sliderPriceRange = defineExample({
 /** A volume slider standing upright. */
 export const sliderVolumeVertical = defineExample({
     of: Slider,
-    name: "volume-vertical",
-    description: "a volume slider standing upright",
+    name: "volumeVertical",
+    description: t`A volume slider standing upright.`,
     render: () => <Slider orientation="vertical" defaultValue={[60]} aria-label="Volume" />,
 });
 
 /** A working-hours range composed from the slider's track, range and thumbs. */
 export const sliderWorkingHours = defineExample({
     of: Slider,
-    name: "working-hours",
-    description: "a working-hours range composed from the slider's track, range and thumbs",
+    name: "workingHours",
+    description: t`A working-hours range composed from the slider's track, range and thumbs.`,
     render: () => (
         <Slider name="hours" min={0} max={24} defaultValue={[9, 17]} aria-label="Working hours">
             <SliderTrack>
@@ -102,7 +103,7 @@ export const sliderWorkingHours = defineExample({
 export const sliderBudget = defineExample({
     of: SliderValue,
     name: "budget",
-    description: "a budget with its values written out, and one a person only reads",
+    description: t`A budget with its values written out, and one a person only reads.`,
     render: () => {
         const [budget, setBudget] = createSignal<readonly number[]>([1200, 3400]);
         const format = { style: "currency", currency: "EUR", maximumFractionDigits: 0 } as const;
@@ -143,7 +144,7 @@ export const sliderBudget = defineExample({
 export const sliderRating = defineExample({
     of: SliderMarks,
     name: "rating",
-    description: "a rating on labelled marks, in halves",
+    description: t`A rating on labelled marks, in halves.`,
     render: () => (
         <div {...style.attrs(styles.stack)}>
             <Field>

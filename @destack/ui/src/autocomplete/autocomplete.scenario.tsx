@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { autocompleteFruit } from "./autocomplete.example.tsx";
@@ -7,9 +8,8 @@ import { Autocomplete } from "./autocomplete.tsx";
 export const autocompleteFilterMoveAndChoose = defineScenario({
     of: Autocomplete,
     interaction: viewInteraction,
-    name: "filter-move-and-choose",
-    description:
-        "filter a list box by the typed text and its keywords, move its focus from the search with the arrow keys, and choose with Enter",
+    name: "filterMoveAndChoose",
+    description: t`Filter a list box by the typed text and its keywords, move its focus from the search with the arrow keys, and choose with Enter.`,
     given: { examples: [autocompleteFruit] },
     parameters: {},
     when: [

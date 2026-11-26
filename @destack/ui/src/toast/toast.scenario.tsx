@@ -1,15 +1,16 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { toasterArchiveUndo } from "./toast.example.tsx";
+import { toasterDefault } from "./toast.example.tsx";
 import { Toaster } from "./toast.tsx";
 
 /** Move the focus to the toasts with their shortcut. */
 export const toasterFocusWithShortcut = defineScenario({
     of: Toaster,
     interaction: viewInteraction,
-    name: "focus-with-shortcut",
-    description: "move the focus to the toasts with F6",
-    given: { examples: [toasterArchiveUndo] },
+    name: "focusWithShortcut",
+    description: t`Move the focus to the toasts with F6.`,
+    given: { examples: [toasterDefault] },
     parameters: {},
     when: [
         {

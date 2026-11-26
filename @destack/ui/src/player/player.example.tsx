@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -64,7 +65,7 @@ const SONGS: readonly Song[] = [
 export const playerFilm = defineExample({
     of: VideoPlayer,
     name: "film",
-    description: "a film with captions",
+    description: t`A film with captions.`,
     layout: "padded",
     render: () => (
         <VideoPlayer
@@ -85,7 +86,7 @@ export const playerFilm = defineExample({
 export const playerFailure = defineExample({
     of: VideoPlayer,
     name: "failure",
-    description: "a film that fails to play",
+    description: t`A film that fails to play.`,
     layout: "padded",
     render: () => (
         <VideoPlayer source="data:video/mp4;base64,AAAA" title="The pass" xstyle={styles.narrow} />
@@ -96,7 +97,7 @@ export const playerFailure = defineExample({
 export const playerVoice = defineExample({
     of: AudioPlayer,
     name: "voice",
-    description: "voice messages, of which one plays at a time",
+    description: t`Voice messages, of which one plays at a time.`,
     layout: "padded",
     render: () => (
         <div {...style.attrs(styles.list)}>
@@ -111,7 +112,7 @@ export const playerVoice = defineExample({
 export const playerAlbum = defineExample({
     of: AudioPlayer,
     name: "album",
-    description: "an album, whose app keeps the list and the song that plays",
+    description: t`An album, whose app keeps the list and the song that plays.`,
     layout: "padded",
     render: () => {
         // keep the song that plays
@@ -148,7 +149,7 @@ function Left() {
 export const playerCard = defineExample({
     of: Player,
     name: "card",
-    description: "a sound in a card, from the parts and one of its own",
+    description: t`A sound in a card, from the parts and one of its own.`,
     layout: "padded",
     render: () => (
         <Player

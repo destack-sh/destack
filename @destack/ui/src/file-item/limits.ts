@@ -48,7 +48,7 @@ export function describeReason(refusal: Refusal, locale: Localization): string {
     } else if (reason === "type") {
         return locale.render(t`Another kind of file`);
     } else if (reason === "folder") {
-        return locale.render(t`A folder`);
+        return locale.render(t.context("option")`A folder`);
     } else if (reason === "size") {
         const most = FileSize.write(limits.size ?? 0, locale.number);
 
@@ -116,13 +116,13 @@ export function describeLimits(
 /** Write a media type, or a range of them, as people call it. */
 function describeType(type: string, locale: Localization): string {
     if (type === "image/*") {
-        return locale.render(t`images`);
+        return locale.render(t.context("option")`images`);
     } else if (type === "video/*") {
-        return locale.render(t`videos`);
+        return locale.render(t.context("option")`videos`);
     } else if (type === "audio/*") {
-        return locale.render(t`audio`);
+        return locale.render(t.context("option")`audio`);
     } else if (type === "text/*") {
-        return locale.render(t`text`);
+        return locale.render(t.context("option")`text`);
     }
     const [, subtype = type] = type.split("/");
 

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -46,8 +47,8 @@ const TAGS = Array.from({ length: 40 }, (_, index) => `tag-${index + 1}`);
 /** A long list of tags in a scrolling region. */
 export const scrollAreaNotebookTags = defineExample({
     of: ScrollArea,
-    name: "notebook-tags",
-    description: "a long list of tags in a scrolling region",
+    name: "notebookTags",
+    description: t`A long list of tags in a scrolling region.`,
     properties: {
         orientation: "vertical",
         "aria-label": "Tags",
@@ -62,8 +63,8 @@ export const scrollAreaNotebookTags = defineExample({
 /** A row of labels wider than its region, scrolling sideways. */
 export const scrollAreaLabelStrip = defineExample({
     of: ScrollArea,
-    name: "label-strip",
-    description: "a row of labels wider than its region, scrolling sideways",
+    name: "labelStrip",
+    description: t`A row of labels wider than its region, scrolling sideways.`,
     properties: {
         orientation: "horizontal",
         "aria-label": "Labels",

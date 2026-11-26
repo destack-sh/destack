@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal } from "@destack/view";
 import {
@@ -123,7 +124,7 @@ function Photos(properties: {
 export const galleryRows = defineExample({
     of: Gallery,
     name: "rows",
-    description: "a trip's photos in rows that fill the page",
+    description: t`A trip's photos in rows that fill the page.`,
     layout: "padded",
     render: () => <Photos layout={new RowLayout({ height: 150 })} count={23} />,
 });
@@ -132,7 +133,7 @@ export const galleryRows = defineExample({
 export const galleryGrid = defineExample({
     of: Gallery,
     name: "grid",
-    description: "a trip's photos as squares",
+    description: t`A trip's photos as squares.`,
     layout: "padded",
     render: () => <Photos layout={new GridLayout({ minimum: 110 })} count={23} />,
 });
@@ -141,7 +142,7 @@ export const galleryGrid = defineExample({
 export const galleryMasonry = defineExample({
     of: Gallery,
     name: "masonry",
-    description: "a trip's photos in columns, each under the shortest",
+    description: t`A trip's photos in columns, each under the shortest.`,
     layout: "padded",
     render: () => <Photos layout={new MasonryLayout({ minimum: 140 })} count={23} />,
 });
@@ -150,7 +151,7 @@ export const galleryMasonry = defineExample({
 export const galleryCollage = defineExample({
     of: Gallery,
     name: "collage",
-    description: "the photos of a message: one to four of them, and the first five of many",
+    description: t`The photos of a message: one to four of them, and the first five of many.`,
     layout: "padded",
     render: () => {
         const [count, setCount] = createSignal(23);

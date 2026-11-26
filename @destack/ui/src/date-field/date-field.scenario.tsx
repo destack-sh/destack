@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { dateFieldArchived, dateFieldBirthday } from "./date-field.example.tsx";
@@ -7,9 +8,8 @@ import { DateField } from "./date-field.tsx";
 export const dateFieldTypeDigits = defineScenario({
     of: DateField,
     interaction: viewInteraction,
-    name: "type-digits",
-    description:
-        "type a date digit by digit, moving on to the next segment once a segment takes no more digits",
+    name: "typeDigits",
+    description: t`Type a date digit by digit, moving on to the next segment once a segment takes no more digits.`,
     given: { examples: [dateFieldBirthday], globals: { locale: "en-US" } },
     parameters: {},
     when: [
@@ -100,9 +100,8 @@ export const dateFieldTypeDigits = defineScenario({
 export const dateFieldStepSegments = defineScenario({
     of: DateField,
     interaction: viewInteraction,
-    name: "step-segments",
-    description:
-        "step a segment with the up and down arrow keys, wrapping at its bounds, move along the segments with the side arrow keys and clear one with Backspace",
+    name: "stepSegments",
+    description: t`Step a segment with the up and down arrow keys, wrapping at its bounds, move along the segments with the side arrow keys and clear one with Backspace.`,
     given: { examples: [dateFieldArchived], globals: { locale: "en-US" } },
     parameters: {},
     when: [

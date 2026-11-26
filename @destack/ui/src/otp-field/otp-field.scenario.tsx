@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { otpFieldSignInCode } from "./otp-field.example.tsx";
@@ -7,8 +8,8 @@ import { OtpField } from "./otp-field.tsx";
 export const otpFieldFillSlots = defineScenario({
     of: OtpField,
     interaction: viewInteraction,
-    name: "fill-slots",
-    description: "show each typed digit in its slot and report the code once every slot has one",
+    name: "fillSlots",
+    description: t`Show each typed digit in its slot and report the code once every slot has one.`,
     given: { examples: [otpFieldSignInCode] },
     parameters: {},
     when: [

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import type { PlainTime } from "@destack/schema";
 import * as style from "@destack/style";
@@ -16,7 +17,7 @@ const styles = style.create({
 export const timeFieldReminder = defineExample({
     of: TimeField,
     name: "reminder",
-    description: "a time field that sets the hour a daily reminder rings",
+    description: t`A time field that sets the hour a daily reminder rings.`,
     render: () => {
         const [time, setTime] = createSignal<PlainTime>("08:30");
 
@@ -32,8 +33,8 @@ export const timeFieldReminder = defineExample({
 /** The reminder time unavailable. */
 export const timeFieldReminderDisabled = defineExample({
     of: TimeField,
-    name: "reminder-disabled",
-    description: "the reminder time unavailable",
+    name: "reminderDisabled",
+    description: t`The reminder time unavailable.`,
     render: () => {
         const [time, setTime] = createSignal<PlainTime>("08:30");
 
@@ -49,9 +50,8 @@ export const timeFieldReminderDisabled = defineExample({
 /** A date picker beside a time field that schedule a note's reminder at a day and time. */
 export const timeFieldBesideDatePicker = defineExample({
     of: TimeField,
-    name: "beside-date-picker",
-    description:
-        "a date picker beside a time field that schedule a note's reminder at a day and time",
+    name: "besideDatePicker",
+    description: t`A date picker beside a time field that schedule a note's reminder at a day and time.`,
     properties: {
         "aria-label": "Remind at",
         defaultValue: "09:00",

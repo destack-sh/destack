@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal } from "@destack/view";
 import { Field, FieldDescription, FieldError, FieldLabel } from "../field/index.ts";
@@ -21,7 +22,7 @@ const REFUSALS: Readonly<Record<TagRefusal, string>> = {
 export const tagFieldNote = defineExample({
     of: TagField,
     name: "note",
-    description: "a note's tags: type, paste, change in place and remove",
+    description: t`A note's tags: type, paste, change in place and remove.`,
     layout: "padded",
     properties: { defaultValue: ["travel", "lisbon", "spring"] },
     render: (properties) => (
@@ -37,7 +38,7 @@ export const tagFieldNote = defineExample({
 export const tagFieldInvite = defineExample({
     of: TagField,
     name: "invite",
-    description: "the people of an invitation, whose addresses are checked, three at most",
+    description: t`The people of an invitation, whose addresses are checked, three at most.`,
     layout: "padded",
     render: () => {
         const [problem, setProblem] = createSignal("");
@@ -67,8 +68,8 @@ export const tagFieldInvite = defineExample({
 /** Tags a person reads, and a field a person cannot use. */
 export const tagFieldReadOnly = defineExample({
     of: TagField,
-    name: "read-only",
-    description: "tags a person reads, and a field a person cannot use",
+    name: "readOnly",
+    description: t`Tags a person reads, and a field a person cannot use.`,
     layout: "padded",
     render: () => (
         <Stack space="4">

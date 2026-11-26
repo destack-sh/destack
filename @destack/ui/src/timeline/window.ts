@@ -408,7 +408,7 @@ export class TimelineWindow {
         }
         // write an item without dates
         else {
-            return this.#locale.render(t`No dates`);
+            return this.#locale.render(t.context("option")`No dates`);
         }
     }
 

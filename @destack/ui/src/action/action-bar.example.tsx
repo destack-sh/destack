@@ -30,10 +30,18 @@ const styles = style.create({
 const NOTES = ["Launch plan", "Price list", "Press note"] as const;
 
 /** Archive the selected notes. */
-const archive = defineAction({ name: "notes.archive", title: t`Archive`, input: { items } });
+const archive = defineAction({
+    name: "notes.archive",
+    title: t.context("action")`Archive`,
+    input: { items },
+});
 
 /** Rename the selected notes. */
-const rename = defineAction({ name: "notes.rename", title: t`Rename`, input: { items } });
+const rename = defineAction({
+    name: "notes.rename",
+    title: t.context("action")`Rename`,
+    input: { items },
+});
 
 /** Render notes a person selects, with the actions on them over their end. */
 function Notes(): JSX.Element {
@@ -86,7 +94,7 @@ function Notes(): JSX.Element {
 export const actionBarNotes = defineExample({
     of: ActionBar,
     name: "notes",
-    description: "the actions on selected notes, over their end while any are selected",
+    description: t`The actions on selected notes, over their end while any are selected.`,
     layout: "padded",
     render: () => <Notes />,
 });

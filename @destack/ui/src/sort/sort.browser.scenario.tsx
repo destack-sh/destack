@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { sortTasks } from "./sort.example.tsx";
@@ -11,7 +12,7 @@ export const sortInPanel = defineScenario({
     of: Sort,
     interaction: viewInteraction,
     name: "panel",
-    description: "turn a field around, then remove each, which closes the panel",
+    description: t`Turn a field around, then remove each, which closes the panel.`,
     given: { examples: [sortTasks] },
     parameters: {},
     when: [

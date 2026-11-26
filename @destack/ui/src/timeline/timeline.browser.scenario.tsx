@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { timelinePlan } from "./timeline.example.tsx";
@@ -16,9 +17,8 @@ const row = { css: "[data-slot=timeline-row][data-key=design]" };
 export const timelineZoomAndPan = defineScenario({
     of: Timeline,
     interaction: viewInteraction,
-    name: "zoom-and-pan",
-    description:
-        "zoom a plan in with the plus key, pan it with a horizontal wheel, and fit every task again with zero",
+    name: "zoomAndPan",
+    description: t`Zoom a plan in with the plus key, pan it with a horizontal wheel, and fit every task again with zero.`,
     given: { examples: [timelinePlan] },
     parameters: {},
     when: [
@@ -41,7 +41,7 @@ export const timelineZoomAndPan = defineScenario({
             then: [
                 {
                     observe: { kind: "texts", target: marks },
-                    is: ["8", "9", "10", "11", "12", "13", "14", "15", "16"],
+                    is: ["8", "9", "10", "11", "12", "13", "14", "15", "16", "17"],
                 },
             ],
         },

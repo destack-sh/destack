@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -91,7 +92,7 @@ function Use(properties: { readonly onUse: (source: string) => void }): JSX.Elem
 export const sceneSettings = defineExample({
     of: Cropper,
     name: "settings",
-    description: "a profile: its picture cropped, its name in place, a color, tags and notices",
+    description: t`A profile: its picture cropped, its name in place, a color, tags and notices.`,
     layout: "padded",
     render: () => {
         // keep the picture and the color

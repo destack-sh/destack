@@ -1695,13 +1695,13 @@ export function BoardHiddenList(
             {renderPart("div", "board-hidden-list", rest, [text.sm, styles.hiddenList], {
                 role: "group" as const,
                 get "aria-label"() {
-                    return locale.render(t`Hidden columns`);
+                    return locale.render(t.context("title")`Hidden columns`);
                 },
                 get children() {
                     return (
                         <>
                             <span {...style.attrs(styles.hiddenTitle)}>
-                                {locale.render(t`Hidden`)}
+                                {locale.render(t.context("option")`Hidden`)}
                             </span>
                             <For each={hidden()}>
                                 {(column) => {
@@ -2264,7 +2264,7 @@ export function BoardComposer(properties: BoardComposerProperties): JSX.Element 
                                     return contentOr(properties, () => (
                                         <>
                                             <Icon icon={plus} />
-                                            {locale.render(t`New`)}
+                                            {locale.render(t.context("action")`New`)}
                                         </>
                                     ));
                                 },

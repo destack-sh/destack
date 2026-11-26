@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { popoverRenameModal } from "./popover.example.tsx";
@@ -7,9 +8,8 @@ import { Popover } from "./popover.tsx";
 export const popoverRefocusTriggerOnClose = defineScenario({
     of: Popover,
     interaction: viewInteraction,
-    name: "refocus-trigger-on-close",
-    description:
-        "close a modal popover from its close button and hand the focus back to its trigger",
+    name: "refocusTriggerOnClose",
+    description: t`Close a modal popover from its close button and hand the focus back to its trigger.`,
     given: { examples: [popoverRenameModal] },
     parameters: {},
     when: [

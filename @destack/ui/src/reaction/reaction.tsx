@@ -64,7 +64,7 @@ export function ReactionGroup(properties: ToolbarProperties): JSX.Element {
     return (
         <Toolbar
             data-slot="reaction-group"
-            aria-label={locale.render(t`Reactions`)}
+            aria-label={locale.render(t.context("title")`Reactions`)}
             {...properties}
             xstyle={[styles.reactions, properties.xstyle]}
         />

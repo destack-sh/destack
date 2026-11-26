@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { gridListReading } from "./grid-list.example.tsx";
@@ -13,8 +14,8 @@ const preview = { css: "[data-slot=drag-preview]" };
 export const gridListDragBetweenSections = defineScenario({
     of: GridList,
     interaction: viewInteraction,
-    name: "drag-between-sections",
-    description: "press a row, drag it onto another section's heading, and drop it there",
+    name: "dragBetweenSections",
+    description: t`Press a row, drag it onto another section's heading, and drop it there.`,
     given: { examples: [gridListReading] },
     parameters: {},
     when: [

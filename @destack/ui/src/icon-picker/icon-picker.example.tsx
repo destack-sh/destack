@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import {
     IconPicker,
@@ -9,9 +10,8 @@ import {
 /** A project's icon picked from the icon set by category. */
 export const iconPickerProjectIcon = defineExample({
     of: IconPicker,
-    name: "project-icon",
-    description:
-        "a project's icon picked from the icon set by category, with a search, the active icon's name and a note while nothing matches",
+    name: "projectIcon",
+    description: t`A project's icon picked from the icon set by category, with a search, the active icon's name and a note while nothing matches.`,
     properties: {
         columns: 9,
     },
@@ -28,7 +28,7 @@ export const iconPickerProjectIcon = defineExample({
 export const iconPickerEmpty = defineExample({
     of: IconPicker,
     name: "empty",
-    description: "a picker whose search finds no icon, showing its note",
+    description: t`A picker whose search finds no icon, showing its note.`,
     render: () => (
         <IconPicker onIconSelect={() => undefined}>
             <IconPickerSearch defaultValue="qqqqq" />

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { filterTasks } from "./filter.example.tsx";
@@ -11,8 +12,7 @@ export const filterByKeyboard = defineScenario({
     of: Filter,
     interaction: viewInteraction,
     name: "keyboard",
-    description:
-        "add a value by its name, then a text by its field, and remove both by the keyboard",
+    description: t`Add a value by its name, then a text by its field, and remove both by the keyboard.`,
     given: { examples: [filterTasks] },
     parameters: {},
     when: [

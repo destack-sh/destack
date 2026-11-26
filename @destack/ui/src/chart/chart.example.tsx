@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -70,7 +71,7 @@ const READINGS = Array.from({ length: 10_000 }, (_, at) => ({
 export const chartLine = defineExample({
     of: Chart,
     name: "line",
-    description: "a line per notebook of the notes written each month, with a tooltip and a legend",
+    description: t`A line per notebook of the notes written each month, with a tooltip and a legend.`,
     layout: "padded",
     render: () => (
         <Chart
@@ -100,7 +101,7 @@ export const chartLine = defineExample({
 export const chartCanvas = defineExample({
     of: Chart,
     name: "canvas",
-    description: "ten thousand readings drawn as dots on a canvas, as large datasets draw",
+    description: t`Ten thousand readings drawn as dots on a canvas, as large datasets draw.`,
     layout: "padded",
     render: () => (
         <Chart
@@ -121,7 +122,7 @@ export const chartCanvas = defineExample({
 export const chartArea = defineExample({
     of: Chart,
     name: "area",
-    description: "the notes written each month in the work notebook as a filled area",
+    description: t`The notes written each month in the work notebook as a filled area.`,
     layout: "padded",
     render: () => (
         <Chart
@@ -147,7 +148,7 @@ export const chartArea = defineExample({
 export const chartBar = defineExample({
     of: Chart,
     name: "bar",
-    description: "a bar per notebook of the notes in it",
+    description: t`A bar per notebook of the notes in it.`,
     layout: "padded",
     properties: {
         height: 240,
@@ -173,7 +174,7 @@ export const chartBar = defineExample({
 export const chartScatter = defineExample({
     of: Chart,
     name: "scatter",
-    description: "a dot per note of its length against its edits",
+    description: t`A dot per note of its length against its edits.`,
     layout: "padded",
     render: () => (
         <Chart
@@ -195,7 +196,7 @@ export const chartScatter = defineExample({
 export const chartPie = defineExample({
     of: Chart,
     name: "pie",
-    description: "a donut of the share of notes in each notebook",
+    description: t`A donut of the share of notes in each notebook.`,
     layout: "padded",
     render: () => (
         <Chart
@@ -267,8 +268,7 @@ const card = style.create({
 export const chartCard = defineExample({
     of: Chart,
     name: "card",
-    description:
-        "a card of the notes written this month: the figure, its change and the months before",
+    description: t`A card of the notes written this month: the figure, its change and the months before.`,
     render: () => (
         <Card xstyle={card.card}>
             <CardHeader>
@@ -307,8 +307,8 @@ export const chartCard = defineExample({
 /** The notes written each month, stacked by notebook, with a legend. */
 export const chartStackedBar = defineExample({
     of: Chart,
-    name: "stacked-bar",
-    description: "the notes written each month, stacked by notebook, with a legend",
+    name: "stackedBar",
+    description: t`The notes written each month, stacked by notebook, with a legend.`,
     layout: "padded",
     render: () => (
         <Chart
@@ -341,8 +341,8 @@ const TOTAL = NOTEBOOKS.reduce((sum, notebook) => sum + notebook.notes, 0);
 /** A donut of the share of each notebook, its total of notes in the middle. */
 export const chartDonutTotal = defineExample({
     of: Chart,
-    name: "donut-total",
-    description: "a donut of the share of each notebook, its total of notes in the middle",
+    name: "donutTotal",
+    description: t`A donut of the share of each notebook, its total of notes in the middle.`,
     render: () => (
         <div {...style.attrs(card.donut)}>
             <Chart

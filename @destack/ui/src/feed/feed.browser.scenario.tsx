@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { feedConversation } from "./feed.example.tsx";
@@ -10,9 +11,8 @@ const feed = { css: "[data-slot=feed]" };
 export const feedReadConversation = defineScenario({
     of: Feed,
     interaction: viewInteraction,
-    name: "read-conversation",
-    description:
-        "open a conversation at its newest message, load older ones without losing the place, and follow a new message only from the end",
+    name: "readConversation",
+    description: t`Open a conversation at its newest message, load older ones without losing the place, and follow a new message only from the end.`,
     given: { examples: [feedConversation] },
     parameters: {},
     when: [

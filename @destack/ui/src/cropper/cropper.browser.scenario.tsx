@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { cropperPhoto, cropperProfile } from "./cropper.example.tsx";
@@ -14,7 +15,7 @@ export const cropperResize = defineScenario({
     of: Cropper,
     interaction: viewInteraction,
     name: "resize",
-    description: "resize a part by the keys, and turn the image",
+    description: t`Resize a part by the keys, and turn the image.`,
     given: { examples: [cropperPhoto] },
     parameters: {},
     when: [
@@ -38,7 +39,7 @@ export const cropperZoom = defineScenario({
     of: Cropper,
     interaction: viewInteraction,
     name: "zoom",
-    description: "zoom a picture below its frame by the keys, as far as it goes",
+    description: t`Zoom a picture below its frame by the keys, as far as it goes.`,
     given: { examples: [cropperProfile] },
     parameters: {},
     when: [

@@ -1,11 +1,12 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { ColorSwatchPicker, ColorSwatchPickerItem } from "./color-swatch-picker.tsx";
 
 /** A project's color chosen from every swatch, cyan checked. */
 export const colorSwatchPickerProjectColor = defineExample({
     of: ColorSwatchPicker,
-    name: "project-color",
-    description: "a project's color chosen from every swatch, cyan checked",
+    name: "projectColor",
+    description: t`A project's color chosen from every swatch, cyan checked.`,
     properties: {
         defaultValue: "cyan",
         "aria-label": "Project color",
@@ -16,8 +17,8 @@ export const colorSwatchPickerProjectColor = defineExample({
 /** A label's color chosen from three swatches the caller lays out. */
 export const colorSwatchPickerLabelColor = defineExample({
     of: ColorSwatchPicker,
-    name: "label-color",
-    description: "a label's color chosen from three swatches the caller lays out",
+    name: "labelColor",
+    description: t`A label's color chosen from three swatches the caller lays out.`,
     properties: {
         name: "color",
         defaultValue: "purple",
@@ -35,8 +36,8 @@ export const colorSwatchPickerLabelColor = defineExample({
 /** A project's color before one is chosen. */
 export const colorSwatchPickerProjectColorUnset = defineExample({
     of: ColorSwatchPicker,
-    name: "project-color-unset",
-    description: "a project's color before one is chosen",
+    name: "projectColorUnset",
+    description: t`A project's color before one is chosen.`,
     properties: {
         "aria-label": "Project color",
     },

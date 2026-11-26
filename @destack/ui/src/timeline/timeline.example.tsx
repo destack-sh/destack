@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import warningCircleIcon from "@destack/icon/phosphor/warning-circle";
 import { defineExample } from "@destack/package/declare";
 import { Duration, Schedule, ScheduleLink, ScheduleLinkType, TimeZone } from "@destack/schema";
@@ -79,7 +80,7 @@ const TRACE: readonly TimelineItem[] = RUN.map((each) => Step.item(each));
 export const timelineTrace = defineExample({
     of: Timeline,
     name: "trace",
-    description: "an agent's run: each step's kind, time and tokens, and the one that failed",
+    description: t`An agent's run: each step's kind, time and tokens, and the one that failed.`,
     layout: "padded",
     properties: {
         axis: "offset",
@@ -202,7 +203,7 @@ const SPANS: readonly TimelineItem[] = [
 export const timelineRequest = defineExample({
     of: Timeline,
     name: "request",
-    description: "a request's spans as the timeline draws them without children",
+    description: t`A request's spans as the timeline draws them without children.`,
     layout: "padded",
     properties: {
         axis: "offset",
@@ -292,7 +293,7 @@ function placed(items: readonly TimelineItem[], move: TimelineRowMove): Timeline
 export const timelinePlan = defineExample({
     of: Timeline,
     name: "plan",
-    description: "a launch plan of linked tasks that move and stretch along the days",
+    description: t`A launch plan of linked tasks that move and stretch along the days.`,
     layout: "padded",
     render: () => {
         // save the tasks where people leave them, and the links they draw and remove
@@ -524,7 +525,7 @@ const TEAM: readonly TimelineItem[] = [
 export const timelineTeam = defineExample({
     of: Timeline,
     name: "team",
-    description: "a team's week, each person a row, tasks moved in time and between people",
+    description: t`A team's week, each person a row, tasks moved in time and between people.`,
     layout: "padded",
     render: () => {
         const [items, setItems] = createSignal<readonly TimelineItem[]>(TEAM);

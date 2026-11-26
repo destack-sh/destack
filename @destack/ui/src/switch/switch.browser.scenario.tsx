@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { Switch } from "./switch.tsx";
@@ -10,8 +11,8 @@ const notifications = { role: "switch", name: "Notifications" };
 export const switchToggleWithSpaceAndPress = defineScenario({
     of: Switch,
     interaction: viewInteraction,
-    name: "toggle-with-space-and-press",
-    description: "turn a switch off with Space and back on with a press",
+    name: "toggleWithSpaceAndPress",
+    description: t`Turn a switch off with Space and back on with a press.`,
     given: { examples: [switchNotifications] },
     parameters: {},
     when: [

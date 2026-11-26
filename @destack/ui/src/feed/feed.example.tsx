@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -62,7 +63,7 @@ export const feedActivity = defineExample({
     of: Feed,
     layout: "padded",
     name: "activity",
-    description: "a space's activity that loads later entries as its end scrolls near",
+    description: t`A space's activity that loads later entries as its end scrolls near.`,
     properties: {
         "aria-label": "Activity",
     },
@@ -102,8 +103,7 @@ export const feedConversation = defineExample({
     of: Feed,
     layout: "padded",
     name: "conversation",
-    description:
-        "a conversation that starts at its newest message, loads older ones above and follows new ones",
+    description: t`A conversation that starts at its newest message, loads older ones above and follows new ones.`,
     render: () => {
         // start with the newest page, numbered so that older messages come lower
         const { clock } = useEnvironment();

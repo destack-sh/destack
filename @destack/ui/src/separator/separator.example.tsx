@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -12,8 +13,8 @@ const styles = style.create({
 /** A footer whose links a vertical line divides. */
 export const separatorFooterLinks = defineExample({
     of: Separator,
-    name: "footer-links",
-    description: "a footer whose links a vertical line divides",
+    name: "footerLinks",
+    description: t`A footer whose links a vertical line divides.`,
     properties: {
         orientation: "vertical",
     },
@@ -30,7 +31,7 @@ export const separatorFooterLinks = defineExample({
 export const separatorSections = defineExample({
     of: Separator,
     name: "sections",
-    description: "two sections of a settings page that a horizontal line divides",
+    description: t`Two sections of a settings page that a horizontal line divides.`,
     properties: {
         orientation: "horizontal",
     },

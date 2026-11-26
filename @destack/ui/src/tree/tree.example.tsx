@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal } from "@destack/view";
 import { Tree, TreeItem } from "./tree.tsx";
@@ -6,7 +7,7 @@ import { Tree, TreeItem } from "./tree.tsx";
 export const treeNotebooks = defineExample({
     of: Tree,
     name: "notebooks",
-    description: "notebooks and their notes as a tree, opening a note on selection",
+    description: t`Notebooks and their notes as a tree, opening a note on selection.`,
     render: () => {
         const [note, setNote] = createSignal<string>();
 
@@ -25,9 +26,8 @@ export const treeNotebooks = defineExample({
 /** Notebooks as a tree with trips collapsed and work expanded. */
 export const treeWorkExpanded = defineExample({
     of: Tree,
-    name: "work-expanded",
-    description:
-        "notebooks as a tree with trips collapsed and work expanded, reporting the item a person selects",
+    name: "workExpanded",
+    description: t`Notebooks as a tree with trips collapsed and work expanded, reporting the item a person selects.`,
     render: () => {
         const [selected, setSelected] = createSignal("");
 
@@ -52,8 +52,8 @@ export const treeWorkExpanded = defineExample({
 /** Notebooks as a tree with the Lisbon note selected inside its expanded notebook. */
 export const treeLisbonSelected = defineExample({
     of: Tree,
-    name: "lisbon-selected",
-    description: "notebooks as a tree with the Lisbon note selected inside its expanded notebook",
+    name: "lisbonSelected",
+    description: t`Notebooks as a tree with the Lisbon note selected inside its expanded notebook.`,
     properties: {
         "aria-label": "Notebooks",
         defaultValue: "lisbon",

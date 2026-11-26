@@ -1,11 +1,12 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { DataList, DataListItem, DataListLabel, DataListValue } from "./data-list.tsx";
 
 /** An error's details beside their labels, to read out to support. */
 export const dataListErrorDetails = defineExample({
     of: DataList,
-    name: "error-details",
-    description: "an error's details beside their labels, to read out to support",
+    name: "errorDetails",
+    description: t`An error's details beside their labels, to read out to support.`,
     properties: {
         orientation: "horizontal",
     },
@@ -30,8 +31,8 @@ export const dataListErrorDetails = defineExample({
 /** A note's properties, each label above its value. */
 export const dataListNoteProperties = defineExample({
     of: DataList,
-    name: "note-properties",
-    description: "a note's properties, each label above its value",
+    name: "noteProperties",
+    description: t`A note's properties, each label above its value.`,
     properties: {
         orientation: "vertical",
     },

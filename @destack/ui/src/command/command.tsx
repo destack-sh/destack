@@ -521,7 +521,8 @@ export function CommandInput(
                 merge(
                     {
                         "aria-label":
-                            untrack(() => properties.placeholder) ?? locale.render(t`Search`),
+                            untrack(() => properties.placeholder) ??
+                            locale.render(t.context("label")`Search`),
                     },
                     mergeProperties(omit(search, "onKeyDown"), back),
                 ),
@@ -699,7 +700,7 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
                 ]}
             >
                 <DialogTitle xstyle={visuallyHiddenStyle()}>
-                    {properties.title ?? locale.render(t`Command palette`)}
+                    {properties.title ?? locale.render(t.context("title")`Command palette`)}
                 </DialogTitle>
                 <DialogDescription xstyle={visuallyHiddenStyle()}>
                     {properties.description ?? locale.render(t`Search for a command to run`)}

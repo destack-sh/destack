@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { boardLaunch, boardLongBacklog } from "./board.example.tsx";
@@ -22,9 +23,8 @@ const status = { role: "status" };
 export const boardDragAcrossColumns = defineScenario({
     of: Board,
     interaction: viewInteraction,
-    name: "drag-across-columns",
-    description:
-        "press a card, drag it into another column with its copy in sight, and drop it there",
+    name: "dragAcrossColumns",
+    description: t`Press a card, drag it into another column with its copy in sight, and drop it there.`,
     given: { examples: [boardLaunch] },
     parameters: {},
     when: [
@@ -60,9 +60,8 @@ export const boardDragAcrossColumns = defineScenario({
 export const boardDragAcrossColumnsByPen = defineScenario({
     of: Board,
     interaction: viewInteraction,
-    name: "drag-across-columns-by-pen",
-    description:
-        "press a card with a pen, drag it into another column with its copy in sight, and drop it there",
+    name: "dragAcrossColumnsByPen",
+    description: t`Press a card with a pen, drag it into another column with its copy in sight, and drop it there.`,
     given: { examples: [boardLaunch], globals: { pointer: "pen" } },
     parameters: {},
     when: [
@@ -98,8 +97,8 @@ export const boardDragAcrossColumnsByPen = defineScenario({
 export const boardLongPressAndDragAcrossColumns = defineScenario({
     of: Board,
     interaction: viewInteraction,
-    name: "long-press-and-drag-across-columns",
-    description: "long-press a card until it lifts, drag it into another column and drop it there",
+    name: "longPressAndDragAcrossColumns",
+    description: t`Long-press a card until it lifts, drag it into another column and drop it there.`,
     given: { examples: [boardLaunch], globals: { pointer: "touch" } },
     parameters: {},
     when: [
@@ -135,9 +134,8 @@ const nextCards = {
 export const boardWalkLongColumn = defineScenario({
     of: Board,
     interaction: viewInteraction,
-    name: "walk-long-column",
-    description:
-        "jump to the end of a backlog that mounts only the cards in view, then move its last card across",
+    name: "walkLongColumn",
+    description: t`Jump to the end of a backlog that mounts only the cards in view, then move its last card across.`,
     given: { examples: [boardLongBacklog] },
     parameters: {},
     when: [

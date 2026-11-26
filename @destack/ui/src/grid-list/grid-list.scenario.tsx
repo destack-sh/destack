@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { gridListSymbols } from "./grid-list.example.tsx";
@@ -7,9 +8,8 @@ import { GridList } from "./grid-list.tsx";
 export const gridListMoveAndPick = defineScenario({
     of: GridList,
     interaction: viewInteraction,
-    name: "move-and-pick",
-    description:
-        "focus a cell and move along its row, down a column across a section's heading and to the row's end, and pick it with Enter",
+    name: "moveAndPick",
+    description: t`Focus a cell and move along its row, down a column across a section's heading and to the row's end, and pick it with Enter.`,
     given: { examples: [gridListSymbols] },
     parameters: {},
     when: [

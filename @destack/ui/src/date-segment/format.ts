@@ -96,14 +96,14 @@ export class DateFormat implements DateSegmentFormat<PlainDate> {
     name(kind: DateSegmentKind): string {
         // the year
         if (kind === "year") {
-            return this.#locale.render(t`Year`);
+            return this.#locale.render(t.context("label")`Year`);
         }
         // the month
         else if (kind === "month") {
-            return this.#locale.render(t`Month`);
+            return this.#locale.render(t.context("label")`Month`);
         }
 
-        return this.#locale.render(t`Day`);
+        return this.#locale.render(t.context("label")`Day`);
     }
 
     /** Read today's year, month or day. */
@@ -244,14 +244,14 @@ export class TimeFormat implements DateSegmentFormat<PlainTime> {
     name(kind: DateSegmentKind): string {
         // the hour
         if (kind === "hour") {
-            return this.#locale.render(t`Hour`);
+            return this.#locale.render(t.context("label")`Hour`);
         }
         // the minute
         else if (kind === "minute") {
-            return this.#locale.render(t`Minute`);
+            return this.#locale.render(t.context("label")`Minute`);
         }
 
-        return this.#locale.render(t`AM/PM`);
+        return this.#locale.render(t.context("label")`AM/PM`);
     }
 
     /** Read the hour, minute or day period on an environment's clock in its time zone. */

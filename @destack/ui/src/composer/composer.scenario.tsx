@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { composerReply } from "./composer.example.tsx";
@@ -7,8 +8,8 @@ import { Composer } from "./composer.tsx";
 export const composerTakeBack = defineScenario({
     of: Composer,
     interaction: viewInteraction,
-    name: "take-back",
-    description: "take back what a reply answers and the file it brings",
+    name: "takeBack",
+    description: t`Take back what a reply answers and the file it brings.`,
     given: { examples: [composerReply] },
     parameters: {},
     when: [

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import {
     Pagination,
@@ -13,8 +14,8 @@ import {
 /** The pages of a long note list, on its second page. */
 export const paginationSecondPage = defineExample({
     of: Pagination,
-    name: "second-page",
-    description: "the pages of a long note list, on its second page",
+    name: "secondPage",
+    description: t`The pages of a long note list, on its second page.`,
     render: () => (
         <Pagination>
             <PaginationContent>
@@ -43,8 +44,8 @@ export const paginationSecondPage = defineExample({
 /** The pages of a long search, the sixth current. */
 export const paginationSearchPages = defineExample({
     of: PaginationRange,
-    name: "search-pages",
-    description: "the pages of a long search, the sixth current",
+    name: "searchPages",
+    description: t`The pages of a long search, the sixth current.`,
     render: () => (
         <Pagination>
             <PaginationRange count={20} defaultPage={6} href={(page) => `?page=${page}`} />
@@ -55,8 +56,8 @@ export const paginationSearchPages = defineExample({
 /** The first page of a search, with no way back. */
 export const paginationFirstPageDisabled = defineExample({
     of: Pagination,
-    name: "first-page-disabled",
-    description: "the first page of a search, with no way back",
+    name: "firstPageDisabled",
+    description: t`The first page of a search, with no way back.`,
     render: () => (
         <Pagination>
             <PaginationRange count={20} defaultPage={1} href={(page) => `?page=${page}`} />

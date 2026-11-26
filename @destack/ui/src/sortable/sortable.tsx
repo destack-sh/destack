@@ -989,7 +989,7 @@ export function SortableContainer(properties: SortableContainerProperties): JSX.
                     ? properties.target(element)
                     : element,
             orientation: () => properties.orientation ?? "vertical",
-            label: () => properties.label ?? locale.render(t`the list`),
+            label: () => properties.label ?? locale.render(t.context("title")`the list`),
             accepts: () => properties.accepts ?? [DEFAULT_TYPE],
             height: () => properties.height ?? 0,
             allows: (item) => properties.allows?.(item) !== false,
@@ -1111,7 +1111,9 @@ export function SortableItem(properties: SortableItemProperties): JSX.Element {
             element: () => children ?? element,
             orientation: () => "vertical",
             label: () =>
-                properties.label ?? element?.textContent?.trim() ?? locale.render(t`the item`),
+                properties.label ??
+                element?.textContent?.trim() ??
+                locale.render(t.context("title")`the item`),
             accepts: () => [type],
             height: () => 0,
             allows: () => true,
@@ -1200,7 +1202,7 @@ export function SortableHandle(properties: SortableHandleProperties): JSX.Elemen
     const handle = mergeProperties(
         {
             type: "button" as const,
-            "aria-label": locale.render(t`Move`),
+            "aria-label": locale.render(t.context("action")`Move`),
             "data-slot": "sortable-handle",
             get "aria-pressed"(): "true" | "false" {
                 return isDragging() ? "true" : "false";

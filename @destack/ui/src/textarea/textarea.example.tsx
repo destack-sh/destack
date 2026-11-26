@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Textarea } from "./textarea.tsx";
 
@@ -5,7 +6,7 @@ import { Textarea } from "./textarea.tsx";
 export const textareaComment = defineExample({
     of: Textarea,
     name: "comment",
-    description: "a comment box that grows with what the person writes",
+    description: t`A comment box that grows with what the person writes.`,
     properties: {
         name: "comment",
         placeholder: "Add a comment",
@@ -17,8 +18,8 @@ export const textareaComment = defineExample({
 /** The comment box unavailable. */
 export const textareaCommentDisabled = defineExample({
     of: Textarea,
-    name: "comment-disabled",
-    description: "the comment box unavailable",
+    name: "commentDisabled",
+    description: t`The comment box unavailable.`,
     properties: {
         name: "comment",
         placeholder: "Add a comment",
@@ -31,8 +32,8 @@ export const textareaCommentDisabled = defineExample({
 /** The comment box marked invalid. */
 export const textareaCommentInvalid = defineExample({
     of: Textarea,
-    name: "comment-invalid",
-    description: "the comment box marked invalid",
+    name: "commentInvalid",
+    description: t`The comment box marked invalid.`,
     properties: {
         name: "comment",
         placeholder: "Add a comment",

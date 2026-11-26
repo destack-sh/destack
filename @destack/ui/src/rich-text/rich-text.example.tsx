@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import typescript from "@destack/code/grammar/typescript";
 import { Markdown } from "@destack/object/markdown";
 import { defineExample } from "@destack/package/declare";
@@ -80,7 +81,7 @@ function grammarOf(language: string) {
 export const richTextAnswer = defineExample({
     of: RichText,
     name: "answer",
-    description: "an answer with every block, read from Markdown",
+    description: t`An answer with every block, read from Markdown.`,
     render: () => <RichText blocks={Markdown.parse(ANSWER)} grammar={grammarOf} />,
 });
 
@@ -155,7 +156,7 @@ function Streamed(): JSX.Element {
 export const richTextStreamed = defineExample({
     of: RichText,
     name: "streamed",
-    description: "an answer as an agent writes it, its finished blocks staying as they are",
+    description: t`An answer as an agent writes it, its finished blocks staying as they are.`,
     render: () => <Streamed />,
 });
 
@@ -215,7 +216,7 @@ function Conversation(): JSX.Element {
 export const richTextConversation = defineExample({
     of: RichText,
     name: "conversation",
-    description: "a long answer in a conversation, which follows it to its end",
+    description: t`A long answer in a conversation, which follows it to its end.`,
     layout: "padded",
     render: () => <Conversation />,
 });

@@ -5,21 +5,25 @@ import { Scope } from "@destack/sync";
 
 /** Where a task stands. */
 export const taskStatus = field.enum({
-    review: { title: t`In review`, icon: "circle-half-tilt", color: "green" },
-    doing: { title: t`In progress`, icon: "circle-half", color: "yellow" },
-    todo: { title: t`To do`, icon: "circle", color: "gray" },
-    backlog: { title: t`Backlog`, icon: "circle-dashed", color: "gray" },
-    done: { title: t`Done`, icon: "check-circle", color: "blue" },
-    canceled: { title: t`Canceled`, icon: "x-circle", color: "gray" },
+    review: {
+        title: t.context("option")`In review`,
+        icon: "circle-half-tilt",
+        color: "green",
+    },
+    doing: { title: t.context("option")`In progress`, icon: "circle-half", color: "yellow" },
+    todo: { title: t.context("option")`To do`, icon: "circle", color: "gray" },
+    backlog: { title: t.context("option")`Backlog`, icon: "circle-dashed", color: "gray" },
+    done: { title: t.context("option")`Done`, icon: "check-circle", color: "blue" },
+    canceled: { title: t.context("option")`Canceled`, icon: "x-circle", color: "gray" },
 });
 
 /** How pressing a task is. */
 export const taskPriority = field.enum({
-    urgent: { title: t`Urgent`, icon: "warning", color: "orange" },
-    high: { title: t`High`, icon: "cell-signal-full" },
-    medium: { title: t`Medium`, icon: "cell-signal-medium" },
-    low: { title: t`Low`, icon: "cell-signal-low" },
-    none: { title: t`No priority`, icon: "dots-three" },
+    urgent: { title: t.context("option")`Urgent`, icon: "warning", color: "orange" },
+    high: { title: t.context("option")`High`, icon: "cell-signal-full" },
+    medium: { title: t.context("option")`Medium`, icon: "cell-signal-medium" },
+    low: { title: t.context("option")`Low`, icon: "cell-signal-low" },
+    none: { title: t.context("option")`No priority`, icon: "dots-three" },
 });
 
 /** The studio, which has tasks. */

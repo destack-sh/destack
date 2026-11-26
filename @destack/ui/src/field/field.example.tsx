@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -40,8 +41,8 @@ const styles = style.create({
 export const fieldNotebookForm = defineExample({
     of: Field,
     layout: "padded",
-    name: "notebook-form",
-    description: "a notebook form whose name field reports an error until it has a value",
+    name: "notebookForm",
+    description: t`A notebook form whose name field reports an error until it has a value.`,
     render: () => {
         const [name, setName] = createSignal("");
         const error = (): string | undefined => (name() === "" ? "Enter a name" : undefined);
@@ -75,8 +76,8 @@ export const fieldNotebookForm = defineExample({
 export const fieldNotebookFormDisabled = defineExample({
     of: Field,
     layout: "padded",
-    name: "notebook-form-disabled",
-    description: "a notebook form unavailable while it saves",
+    name: "notebookFormDisabled",
+    description: t`A notebook form unavailable while it saves.`,
     properties: {
         disabled: true,
     },
@@ -112,8 +113,8 @@ export const fieldNotebookFormDisabled = defineExample({
 /** An event's settings: every control with its label, its help and its error. */
 export const fieldEventForm = defineExample({
     of: Field,
-    name: "event-form",
-    description: "an event's settings: every control with its label, its help and its error",
+    name: "eventForm",
+    description: t`An event's settings: every control with its label, its help and its error.`,
     layout: "padded",
     render: () => {
         // refuse an event without seats

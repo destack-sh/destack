@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import arrowClockwise from "@destack/icon/phosphor/arrow-clockwise";
 import compass from "@destack/icon/phosphor/compass";
 import house from "@destack/icon/phosphor/house";
@@ -51,7 +52,7 @@ const styles = style.create({
 export const coverWelcome = defineExample({
     of: Cover,
     name: "welcome",
-    description: "a welcome screen with its heading centered and its actions at the bottom",
+    description: t`A welcome screen with its heading centered and its actions at the bottom.`,
     layout: "fullscreen",
     properties: {
         minHeight: "32rem",
@@ -75,8 +76,8 @@ export const coverWelcome = defineExample({
 /** A page that was not found, with the way back home. */
 export const coverNotFound = defineExample({
     of: Cover,
-    name: "not-found",
-    description: "a page that was not found, with the way back home",
+    name: "notFound",
+    description: t`A page that was not found, with the way back home.`,
     layout: "fullscreen",
     properties: {
         minHeight: "28rem",
@@ -110,7 +111,7 @@ export const coverNotFound = defineExample({
 export const coverForbidden = defineExample({
     of: Cover,
     name: "forbidden",
-    description: "a page the person may not open, with a way to sign in as someone else",
+    description: t`A page the person may not open, with a way to sign in as someone else.`,
     layout: "fullscreen",
     properties: {
         minHeight: "28rem",
@@ -144,8 +145,7 @@ export const coverForbidden = defineExample({
 export const coverError = defineExample({
     of: Cover,
     name: "error",
-    description:
-        "a page that failed, with its code and request id to report and a way to try again",
+    description: t`A page that failed, with its code and request id to report and a way to try again.`,
     layout: "fullscreen",
     properties: {
         minHeight: "32rem",
@@ -192,7 +192,7 @@ export const coverError = defineExample({
 export const coverOffline = defineExample({
     of: Cover,
     name: "offline",
-    description: "a page that cannot load while the device is offline, retrying once it reconnects",
+    description: t`A page that cannot load while the device is offline, retrying once it reconnects.`,
     layout: "fullscreen",
     properties: {
         minHeight: "28rem",

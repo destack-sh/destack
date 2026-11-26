@@ -146,7 +146,7 @@ export function ActionPalette(properties: ActionPaletteProperties): JSX.Element 
             actions: [
                 {
                     id: "open",
-                    title: locale.render(t`Open`),
+                    title: locale.render(t.context("title")`Open`),
                     run: () => properties.objects?.onOpen(ObjectReference.parse(choice.value)),
                 },
             ],
@@ -155,11 +155,11 @@ export function ActionPalette(properties: ActionPaletteProperties): JSX.Element 
 
     // keep one page, its groups changing with the owner's, so a title alone ranks nothing anew
     const shared: readonly PaletteGroup[] = [
-        { id: "actions", title: locale.render(t`Actions`), items },
+        { id: "actions", title: locale.render(t.context("title")`Actions`), items },
         {
             id: "objects",
             get title() {
-                return titleOf(found, locale) ?? locale.render(t`Results`);
+                return titleOf(found, locale) ?? locale.render(t.context("title")`Results`);
             },
             items: objects,
             text: found.text,

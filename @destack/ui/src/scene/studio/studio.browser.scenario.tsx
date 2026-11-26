@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { studioTasks } from "./studio.example.tsx";
@@ -39,9 +40,8 @@ const picker = { css: "dialog[open] [data-slot=command-input]" };
 export const studioWorkByKeys = defineScenario({
     of: Tasks,
     interaction: viewInteraction,
-    name: "work-by-keys",
-    description:
-        "create a task, set its status by a digit, peek, select two and assign them, and undo",
+    name: "workByKeys",
+    description: t`Create a task, set its status by a digit, peek, select two and assign them, and undo.`,
     given: { examples: [studioTasks] },
     parameters: {},
     when: [

@@ -27,12 +27,12 @@ const DAY = 86_400_000;
 
 /** The spans of time a person filters by. */
 export const FILTER_SPANS: readonly FilterSpan[] = [
-    { name: "today", title: t`today`, unit: "day", start: 0, end: 1 },
-    { name: "yesterday", title: t`yesterday`, unit: "day", start: -1, end: 0 },
-    { name: "tomorrow", title: t`tomorrow`, unit: "day", start: 1, end: 2 },
-    { name: "this-week", title: t`this week`, unit: "week", start: 0, end: 7 },
-    { name: "last-week", title: t`last week`, unit: "week", start: -7, end: 0 },
-    { name: "next-week", title: t`next week`, unit: "week", start: 7, end: 14 },
+    { name: "today", title: t.context("option")`today`, unit: "day", start: 0, end: 1 },
+    { name: "yesterday", title: t.context("option")`yesterday`, unit: "day", start: -1, end: 0 },
+    { name: "tomorrow", title: t.context("option")`tomorrow`, unit: "day", start: 1, end: 2 },
+    { name: "this-week", title: t.context("option")`this week`, unit: "week", start: 0, end: 7 },
+    { name: "last-week", title: t.context("option")`last week`, unit: "week", start: -7, end: 0 },
+    { name: "next-week", title: t.context("option")`next week`, unit: "week", start: 7, end: 14 },
     { name: "last-7-days", title: t`the last 7 days`, unit: "day", start: -6, end: 1 },
     { name: "next-7-days", title: t`the next 7 days`, unit: "day", start: 0, end: 8 },
     { name: "last-30-days", title: t`the last 30 days`, unit: "day", start: -29, end: 1 },
@@ -207,7 +207,8 @@ function contained(value: Scalar): Scalar | undefined {
 /** Compare with a value, or with any of several. */
 const IS = matching(
     "is",
-    (locale, count) => (count > 1 ? locale.render(t`is any of`) : locale.render(t`is`)),
+    (locale, count) =>
+        count > 1 ? locale.render(t`is any of`) : locale.render(t.context("option")`is`),
     "eq",
     "in",
 );
@@ -216,14 +217,19 @@ const IS = matching(
 const IS_NOT = negating(
     matching(
         "is-not",
-        (locale, count) => (count > 1 ? locale.render(t`is none of`) : locale.render(t`is not`)),
+        (locale, count) =>
+            count > 1 ? locale.render(t`is none of`) : locale.render(t.context("option")`is not`),
         "ne",
         "notIn",
     ),
 );
 
 /** Find a missing value. */
-const IS_EMPTY = present("is-empty", (locale) => locale.render(t`is empty`), "isNull");
+const IS_EMPTY = present(
+    "is-empty",
+    (locale) => locale.render(t.context("option")`is empty`),
+    "isNull",
+);
 
 /** Find a value that is there. */
 const IS_PRESENT = present("is-present", (locale) => locale.render(t`is not empty`), "isNotNull");
@@ -232,7 +238,7 @@ const IS_PRESENT = present("is-present", (locale) => locale.render(t`is not empt
 const BETWEEN: FilterOperatorDefinition = {
     name: "between",
     arity: "range",
-    title: (locale) => locale.render(t`is between`),
+    title: (locale) => locale.render(t.context("option")`is between`),
     write: ([start, end]) =>
         isScalar(start) && isScalar(end) ? { gte: start, lte: end } : undefined,
     read: (comparison) => {
@@ -248,7 +254,7 @@ const BETWEEN: FilterOperatorDefinition = {
 const WITHIN: FilterOperatorDefinition = {
     name: "within",
     arity: "span",
-    title: (locale) => locale.render(t`is`),
+    title: (locale) => locale.render(t.context("option")`is`),
     write: ([name]) => {
         const span = FILTER_SPANS.find((each) => each.name === name);
 
@@ -273,7 +279,13 @@ function writeSpan({ start, end, unit }: FilterSpan): JsonCondition {
 /** How a field of each kind compares, in the order a menu lists them, the first the default. */
 export const FILTER_OPERATORS: Readonly<Record<string, readonly FilterOperatorDefinition[]>> = {
     text: [
-        comparing("contains", (locale) => locale.render(t`contains`), "ilike", contains, contained),
+        comparing(
+            "contains",
+            (locale) => locale.render(t.context("option")`contains`),
+            "ilike",
+            contains,
+            contained,
+        ),
         negating(
             comparing(
                 "contains-not",
@@ -283,16 +295,20 @@ export const FILTER_OPERATORS: Readonly<Record<string, readonly FilterOperatorDe
                 contained,
             ),
         ),
-        comparing("is", (locale) => locale.render(t`is`), "eq"),
-        negating(comparing("is-not", (locale) => locale.render(t`is not`), "ne")),
-        comparing("starts", (locale) => locale.render(t`starts with`), "startsWith"),
-        comparing("ends", (locale) => locale.render(t`ends with`), "endsWith"),
+        comparing("is", (locale) => locale.render(t.context("option")`is`), "eq"),
+        negating(comparing("is-not", (locale) => locale.render(t.context("option")`is not`), "ne")),
+        comparing(
+            "starts",
+            (locale) => locale.render(t.context("option")`starts with`),
+            "startsWith",
+        ),
+        comparing("ends", (locale) => locale.render(t.context("option")`ends with`), "endsWith"),
         IS_EMPTY,
         IS_PRESENT,
     ],
     number: [
-        comparing("is", (locale) => locale.render(t`is`), "eq"),
-        negating(comparing("is-not", (locale) => locale.render(t`is not`), "ne")),
+        comparing("is", (locale) => locale.render(t.context("option")`is`), "eq"),
+        negating(comparing("is-not", (locale) => locale.render(t.context("option")`is not`), "ne")),
         comparing("above", (locale) => locale.render(t`is more than`), "gt"),
         comparing("least", (locale) => locale.render(t`is at least`), "gte"),
         comparing("below", (locale) => locale.render(t`is less than`), "lt"),
@@ -303,15 +319,15 @@ export const FILTER_OPERATORS: Readonly<Record<string, readonly FilterOperatorDe
     ],
     time: [
         WITHIN,
-        comparing("before", (locale) => locale.render(t`is before`), "lt"),
-        comparing("after", (locale) => locale.render(t`is after`), "gt"),
+        comparing("before", (locale) => locale.render(t.context("option")`is before`), "lt"),
+        comparing("after", (locale) => locale.render(t.context("option")`is after`), "gt"),
         comparing("since", (locale) => locale.render(t`is on or after`), "gte"),
         comparing("until", (locale) => locale.render(t`is on or before`), "lte"),
         BETWEEN,
         IS_EMPTY,
         IS_PRESENT,
     ],
-    boolean: [comparing("is", (locale) => locale.render(t`is`), "eq")],
+    boolean: [comparing("is", (locale) => locale.render(t.context("option")`is`), "eq")],
     choice: [IS, IS_NOT, IS_EMPTY, IS_PRESENT],
     person: [IS, IS_NOT, IS_EMPTY, IS_PRESENT],
     object: [IS, IS_NOT, IS_EMPTY, IS_PRESENT],

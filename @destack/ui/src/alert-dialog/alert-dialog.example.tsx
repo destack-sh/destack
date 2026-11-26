@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import { createSignal, Show } from "@destack/view";
@@ -16,8 +17,8 @@ import {
 /** A confirmation before a notebook and its notes are deleted. */
 export const alertDialogDeleteNotebook = defineExample({
     of: AlertDialog,
-    name: "delete-notebook",
-    description: "a confirmation before a notebook and its notes are deleted",
+    name: "deleteNotebook",
+    description: t`A confirmation before a notebook and its notes are deleted.`,
     render: () => {
         const [isDeleted, setDeleted] = createSignal(false);
 
@@ -55,8 +56,8 @@ export const alertDialogDeleteNotebook = defineExample({
 /** The confirmation to delete a notebook open over the page. */
 export const alertDialogDeleteNotebookOpen = defineExample({
     of: AlertDialog,
-    name: "delete-notebook-open",
-    description: "the confirmation to delete a notebook open over the page",
+    name: "deleteNotebookOpen",
+    description: t`The confirmation to delete a notebook open over the page.`,
     properties: {
         defaultOpen: true,
     },

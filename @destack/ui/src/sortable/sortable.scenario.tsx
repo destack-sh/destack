@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { sortableBoard, sortableChecklist } from "./sortable.example.tsx";
@@ -7,9 +8,8 @@ import { Sortable } from "./sortable.tsx";
 export const sortableReorderWithKeys = defineScenario({
     of: Sortable,
     interaction: viewInteraction,
-    name: "reorder-with-keys",
-    description:
-        "lift an item from its handle with Space, move it down with the arrow keys and drop it with Space, announcing each step",
+    name: "reorderWithKeys",
+    description: t`Lift an item from its handle with Space, move it down with the arrow keys and drop it with Space, announcing each step.`,
     given: { examples: [sortableChecklist] },
     parameters: {},
     when: [
@@ -82,8 +82,8 @@ export const sortableReorderWithKeys = defineScenario({
 export const sortableCancelWithEscape = defineScenario({
     of: Sortable,
     interaction: viewInteraction,
-    name: "cancel-with-escape",
-    description: "lift an item with Enter, move it up and put it back where it was with Escape",
+    name: "cancelWithEscape",
+    description: t`Lift an item with Enter, move it up and put it back where it was with Escape.`,
     given: { examples: [sortableChecklist] },
     parameters: {},
     when: [
@@ -171,8 +171,8 @@ export const sortableCancelWithEscape = defineScenario({
 export const sortableMoveAcrossColumns = defineScenario({
     of: Sortable,
     interaction: viewInteraction,
-    name: "move-across-columns",
-    description: "move a lifted card into the column beside its own with the cross arrow key",
+    name: "moveAcrossColumns",
+    description: t`Move a lifted card into the column beside its own with the cross arrow key.`,
     given: { examples: [sortableBoard] },
     parameters: {},
     when: [

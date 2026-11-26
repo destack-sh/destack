@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { comboboxMoveNote, comboboxTagNote } from "./combobox.example.tsx";
@@ -7,8 +8,8 @@ import { Combobox } from "./combobox.tsx";
 export const comboboxTypeAndChooseOption = defineScenario({
     of: Combobox,
     interaction: viewInteraction,
-    name: "type-and-choose-option",
-    description: "open a combobox's list as the person types, choose an option and close it",
+    name: "typeAndChooseOption",
+    description: t`Open a combobox's list as the person types, choose an option and close it.`,
     given: { examples: [comboboxMoveNote] },
     parameters: {},
     when: [
@@ -74,9 +75,8 @@ export const comboboxTypeAndChooseOption = defineScenario({
 export const comboboxCloseAndClearOnEscape = defineScenario({
     of: Combobox,
     interaction: viewInteraction,
-    name: "close-and-clear-on-escape",
-    description:
-        "open a combobox's list with the down arrow key and close it with Escape, then clear the input",
+    name: "closeAndClearOnEscape",
+    description: t`Open a combobox's list with the down arrow key and close it with Escape, then clear the input.`,
     given: { examples: [comboboxMoveNote] },
     parameters: {},
     when: [
@@ -172,9 +172,8 @@ export const comboboxCloseAndClearOnEscape = defineScenario({
 export const comboboxChooseSeveralAndDropLast = defineScenario({
     of: Combobox,
     interaction: viewInteraction,
-    name: "choose-several-and-drop-last",
-    description:
-        "add tags to a multiple combobox with Enter, its list open, and drop the last chip with Backspace from the empty input",
+    name: "chooseSeveralAndDropLast",
+    description: t`Add tags to a multiple combobox with Enter, its list open, and drop the last chip with Backspace from the empty input.`,
     given: { examples: [comboboxTagNote] },
     parameters: {},
     when: [
@@ -236,8 +235,8 @@ export const comboboxChooseSeveralAndDropLast = defineScenario({
 export const comboboxCreateFromText = defineScenario({
     of: Combobox,
     interaction: viewInteraction,
-    name: "create-from-text",
-    description: "offer to create an option from text no option has, and choose it with Enter",
+    name: "createFromText",
+    description: t`Offer to create an option from text no option has, and choose it with Enter.`,
     given: { examples: [comboboxTagNote] },
     parameters: {},
     when: [

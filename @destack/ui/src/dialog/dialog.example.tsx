@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import { Field, FieldLabel } from "../field/index.ts";
@@ -14,10 +15,10 @@ import {
 } from "./dialog.tsx";
 
 /** A dialog that renames a note from a form. */
-export const dialogRenameNote = defineExample({
+export const dialogDefault = defineExample({
     of: Dialog,
-    name: "rename-note",
-    description: "a dialog that renames a note from a form",
+    name: "default",
+    description: t`A dialog that renames a note from a form.`,
     render: () => (
         <Dialog>
             <DialogTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
@@ -50,10 +51,10 @@ export const dialogRenameNote = defineExample({
 });
 
 /** The rename dialog open over the page. */
-export const dialogRenameNoteOpen = defineExample({
+export const dialogOpen = defineExample({
     of: Dialog,
-    name: "rename-note-open",
-    description: "the rename dialog open over the page",
+    name: "open",
+    description: t`The rename dialog open over the page.`,
     properties: {
         defaultOpen: true,
     },

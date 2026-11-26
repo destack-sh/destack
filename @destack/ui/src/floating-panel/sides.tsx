@@ -91,7 +91,7 @@ function Side(properties: {
                 role: isLast ? ("button" as const) : ("presentation" as const),
                 tabindex: isLast ? 0 : undefined,
                 get "aria-label"() {
-                    return isLast ? locale.render(t`Resize`) : undefined;
+                    return isLast ? locale.render(t.context("action")`Resize`) : undefined;
                 },
             })}
             {...style.attributes([state.focus, styles.side, sides[side]])}

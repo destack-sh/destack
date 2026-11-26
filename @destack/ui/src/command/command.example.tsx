@@ -1,4 +1,4 @@
-import { Shortcut } from "@destack/locale";
+import { Shortcut, t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { color, space, stroke, weight } from "@destack/theme/tokens.stylex";
@@ -41,8 +41,8 @@ const STATUSES = ["Backlog", "Doing", "Review", "Done"] as const;
 /** A command palette that opens with ⌘K and runs note actions. */
 export const commandDialogNoteActions = defineExample({
     of: CommandDialog,
-    name: "note-actions",
-    description: "a command palette that opens with ⌘K and runs note actions",
+    name: "noteActions",
+    description: t`A command palette that opens with ⌘K and runs note actions.`,
     render: () => {
         const [isOpen, setOpen] = createSignal(false);
 
@@ -80,9 +80,8 @@ export const commandDialogNoteActions = defineExample({
 /** A list of note and settings commands with an unavailable one, reporting the command it runs. */
 export const commandNoteCommands = defineExample({
     of: Command,
-    name: "note-commands",
-    description:
-        "a list of note and settings commands with an unavailable one, reporting the command it runs",
+    name: "noteCommands",
+    description: t`A list of note and settings commands with an unavailable one, reporting the command it runs.`,
     properties: {
         "aria-label": "Commands",
     },
@@ -119,9 +118,8 @@ export const commandNoteCommands = defineExample({
 /** A command list whose owner sets the highlight, reporting the option the arrow keys ask for. */
 export const commandControlledHighlight = defineExample({
     of: Command,
-    name: "controlled-highlight",
-    description:
-        "a command list whose owner controls the highlight, reporting the option the arrow keys ask for",
+    name: "controlledHighlight",
+    description: t`A command list whose owner controls the highlight, reporting the option the arrow keys ask for.`,
     properties: { value: "Appearance" },
     render: (properties) => {
         const [requested, setRequested] = createSignal("");
@@ -144,8 +142,8 @@ export const commandControlledHighlight = defineExample({
 /** The note and settings commands whose search finds none, showing the empty note. */
 export const commandNoteCommandsNoResults = defineExample({
     of: Command,
-    name: "note-commands-no-results",
-    description: "the note and settings commands whose search finds none, showing the empty note",
+    name: "noteCommandsNoResults",
+    description: t`The note and settings commands whose search finds none, showing the empty note.`,
     properties: {
         "aria-label": "Commands",
     },
@@ -166,8 +164,8 @@ export const commandNoteCommandsNoResults = defineExample({
 /** A command list whose owner loads the matching commands, showing their loading. */
 export const commandPeopleLoading = defineExample({
     of: Command,
-    name: "people-loading",
-    description: "a command list whose owner loads the matching commands, showing their loading",
+    name: "peopleLoading",
+    description: t`A command list whose owner loads the matching commands, showing their loading.`,
     properties: {
         "aria-label": "People",
         shouldFilter: false,
@@ -185,8 +183,8 @@ export const commandPeopleLoading = defineExample({
 /** The command palette open over the page, its first command highlighted. */
 export const commandDialogNoteActionsOpen = defineExample({
     of: CommandDialog,
-    name: "note-actions-open",
-    description: "the command palette open over the page, its first command highlighted",
+    name: "noteActionsOpen",
+    description: t`The command palette open over the page, its first command highlighted.`,
     properties: {
         defaultOpen: true,
     },
@@ -269,8 +267,8 @@ function TaskActions(properties: { readonly onRun: (summary: string) => void }):
 /** The actions on a task, assigning it and moving it on pages that Backspace leaves. */
 export const commandTaskActions = defineExample({
     of: Command,
-    name: "task-actions",
-    description: "the actions on a task, assigning it and moving it on pages that Backspace leaves",
+    name: "taskActions",
+    description: t`The actions on a task, assigning it and moving it on pages that Backspace leaves.`,
     properties: {
         "aria-label": "Task actions",
     },
@@ -401,9 +399,8 @@ const searchStyles = style.create({
 /** A space's search: groups, the highlighted entry's detail and keys. */
 export const commandSearchDetail = defineExample({
     of: Command,
-    name: "search-detail",
-    description:
-        "a space's search: recent, actions and views, the highlighted entry's detail and keys",
+    name: "searchDetail",
+    description: t`A space's search: recent, actions and views, the highlighted entry's detail and keys.`,
     properties: {
         "aria-label": "Search",
     },

@@ -97,7 +97,9 @@ export function MenuActionList(): JSX.Element {
                         }
                     >
                         <Menu>
-                            <MenuSubTrigger>{locale.render(t`Move`)}</MenuSubTrigger>
+                            <MenuSubTrigger>
+                                {locale.render(t.context("action")`Move`)}
+                            </MenuSubTrigger>
                             <MenuContent side="right" align="start">
                                 <For each={group}>{(action) => <MenuAction action={action} />}</For>
                             </MenuContent>

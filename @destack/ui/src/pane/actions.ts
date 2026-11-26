@@ -9,8 +9,8 @@ export const currentPane = defineVariable({ name: "pane", value: schema.string()
 /** Open the selected tab again in a pane on the right. */
 export const splitRight = defineAction({
     name: "pane.splitRight",
-    title: t`Split right`,
-    category: t`Panes`,
+    title: t.context("action")`Split right`,
+    category: t.context("title")`Panes`,
     keybinding: "mod+\\",
     input: { items: items.exactOptional() },
 });
@@ -18,8 +18,8 @@ export const splitRight = defineAction({
 /** Open the selected tab again in a pane below. */
 export const splitDown = defineAction({
     name: "pane.splitDown",
-    title: t`Split down`,
-    category: t`Panes`,
+    title: t.context("action")`Split down`,
+    category: t.context("title")`Panes`,
     keybinding: "mod+shift+\\",
     input: { items: items.exactOptional() },
 });
@@ -27,16 +27,16 @@ export const splitDown = defineAction({
 /** Move a tab to another pane, or to one of its own. */
 export const moveTabTo = defineAction({
     name: "pane.moveTabTo",
-    title: t`Move to…`,
-    category: t`Panes`,
+    title: t.context("action")`Move to…`,
+    category: t.context("title")`Panes`,
     input: { items: items.exactOptional(), place: schema.string() },
 });
 
 /** Float the selected tab over the panes. */
 export const floatTab = defineAction({
     name: "pane.floatTab",
-    title: t`Float`,
-    category: t`Panes`,
+    title: t.context("action")`Float`,
+    category: t.context("title")`Panes`,
     input: { items: items.exactOptional() },
 });
 
@@ -44,15 +44,15 @@ export const floatTab = defineAction({
 export const openWindow = defineAction({
     name: "pane.openWindow",
     title: t`Move to a new window`,
-    category: t`Panes`,
+    category: t.context("title")`Panes`,
     input: { items: items.exactOptional() },
 });
 
 /** Put a floating pane beside the others. */
 export const dockPane = defineAction({
     name: "pane.dockPane",
-    title: t`Dock`,
-    category: t`Panes`,
+    title: t.context("action")`Dock`,
+    category: t.context("title")`Panes`,
     input: { pane: currentPane.exactOptional() },
 });
 
@@ -60,7 +60,7 @@ export const dockPane = defineAction({
 export const focusPaneLeft = defineAction({
     name: "pane.focusLeft",
     title: t`Go to the pane on the left`,
-    category: t`Panes`,
+    category: t.context("title")`Panes`,
     keybinding: "mod+alt+shift+left",
 });
 
@@ -68,7 +68,7 @@ export const focusPaneLeft = defineAction({
 export const focusPaneRight = defineAction({
     name: "pane.focusRight",
     title: t`Go to the pane on the right`,
-    category: t`Panes`,
+    category: t.context("title")`Panes`,
     keybinding: "mod+alt+shift+right",
 });
 
@@ -76,7 +76,7 @@ export const focusPaneRight = defineAction({
 export const focusPaneUp = defineAction({
     name: "pane.focusUp",
     title: t`Go to the pane above`,
-    category: t`Panes`,
+    category: t.context("title")`Panes`,
     keybinding: "mod+alt+shift+up",
 });
 
@@ -84,7 +84,7 @@ export const focusPaneUp = defineAction({
 export const focusPaneDown = defineAction({
     name: "pane.focusDown",
     title: t`Go to the pane below`,
-    category: t`Panes`,
+    category: t.context("title")`Panes`,
     keybinding: "mod+alt+shift+down",
 });
 
@@ -92,7 +92,7 @@ export const focusPaneDown = defineAction({
 export const maximizePane = defineAction({
     name: "pane.maximize",
     title: t`Maximize the pane`,
-    category: t`Panes`,
+    category: t.context("title")`Panes`,
     keybinding: "mod+shift+enter",
     input: { pane: currentPane.exactOptional() },
 });
@@ -101,7 +101,7 @@ export const maximizePane = defineAction({
 export const closePane = defineAction({
     name: "pane.close",
     title: t`Close the pane`,
-    category: t`Panes`,
+    category: t.context("title")`Panes`,
     input: { pane: currentPane.exactOptional() },
 });
 
@@ -109,6 +109,6 @@ export const closePane = defineAction({
 export const evenPanes = defineAction({
     name: "pane.even",
     title: t`Even out the panes`,
-    category: t`Panes`,
+    category: t.context("title")`Panes`,
     input: { pane: currentPane.exactOptional() },
 });

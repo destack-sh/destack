@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { creating } from "@destack/object";
 import * as style from "@destack/style";
 import { defineExample } from "@destack/package/declare";
@@ -172,7 +173,7 @@ function Harbour(properties: {
 export const studioTasks = defineExample({
     of: Harbour,
     name: "tasks",
-    description: "the studio's tasks: rows under their statuses, moved, set and filtered",
+    description: t`The studio's tasks: rows under their statuses, moved, set and filtered.`,
     layout: "fullscreen",
     render: () => <Harbour tasks={48} />,
 });
@@ -181,7 +182,7 @@ export const studioTasks = defineExample({
 export const studioLong = defineExample({
     of: Harbour,
     name: "long",
-    description: "two thousand tasks, only those in view in the document",
+    description: t`Two thousand tasks, only those in view in the document.`,
     layout: "fullscreen",
     render: () => <Harbour tasks={2000} />,
 });
@@ -190,7 +191,7 @@ export const studioLong = defineExample({
 export const studioChannel = defineExample({
     of: Harbour,
     name: "channel",
-    description: "the studio at a channel: what its members said, with threads and the unread",
+    description: t`The studio at a channel: what its members said, with threads and the unread.`,
     layout: "fullscreen",
     render: () => <Harbour tasks={48} place="printing" />,
 });
@@ -199,7 +200,7 @@ export const studioChannel = defineExample({
 export const studioAssistant = defineExample({
     of: Harbour,
     name: "assistant",
-    description: "the studio at a chat with the assistant, which works, asks and answers",
+    description: t`The studio at a chat with the assistant, which works, asks and answers.`,
     layout: "fullscreen",
     render: () => <Harbour tasks={48} place="new" />,
 });
@@ -208,7 +209,7 @@ export const studioAssistant = defineExample({
 export const studioArchive = defineExample({
     of: Harbour,
     name: "archive",
-    description: "a channel with ten thousand messages, the last of them drawn",
+    description: t`A channel with ten thousand messages, the last of them drawn.`,
     layout: "fullscreen",
     render: () => <Harbour tasks={2000} place="archive" />,
 });

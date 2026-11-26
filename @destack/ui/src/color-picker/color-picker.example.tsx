@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { HUES } from "@destack/color";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
@@ -31,7 +32,7 @@ const styles = style.create({
 export const colorPickerAccent = defineExample({
     of: ColorPicker,
     name: "accent",
-    description: "a color's area, hue and text",
+    description: t`A color's area, hue and text.`,
     properties: { defaultValue: "#f76b15" },
     render: (properties) => <ColorPicker {...properties} />,
 });
@@ -40,7 +41,7 @@ export const colorPickerAccent = defineExample({
 export const colorPickerLabel = defineExample({
     of: ColorPicker,
     name: "label",
-    description: "a label's color in a popover, with its opacity, presets and the screen's colors",
+    description: t`A label's color in a popover, with its opacity, presets and the screen's colors.`,
     render: () => {
         const [color, setColor] = createSignal("#0090ff");
 
@@ -79,7 +80,7 @@ export const colorPickerLabel = defineExample({
 export const colorPickerPerceived = defineExample({
     of: ColorPicker,
     name: "perceived",
-    description: "a color as people see it: lightness and chroma, the hue, and each as a number",
+    description: t`A color as people see it: lightness and chroma, the hue, and each as a number.`,
     render: () => (
         <ColorPicker defaultValue="oklch(69% 0.19 45)" format="oklch">
             <ColorArea colorSpace="oklch" />
@@ -98,7 +99,7 @@ export const colorPickerPerceived = defineExample({
 export const colorPickerChannels = defineExample({
     of: ColorPicker,
     name: "channels",
-    description: "red, green and blue as sliders, and a picker a person cannot use",
+    description: t`Red, green and blue as sliders, and a picker a person cannot use.`,
     render: () => (
         <Cluster space="6">
             <ColorPicker defaultValue="#30a46c">

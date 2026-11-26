@@ -6,8 +6,8 @@ import { messageType } from "./object.example.ts";
 /** React to a message, or take the reaction back. */
 export const reactToMessage = defineAction({
     name: "message.react",
-    title: t`React`,
-    category: t`Message`,
+    title: t.context("action")`React`,
+    category: t.context("title")`Message`,
     input: { message: current(messageType), emoji: schema.string() },
 });
 
@@ -15,7 +15,7 @@ export const reactToMessage = defineAction({
 export const replyInThread = defineAction({
     name: "message.thread",
     title: t`Reply in thread`,
-    category: t`Message`,
+    category: t.context("title")`Message`,
     keybinding: "t",
     input: { message: current(messageType) },
 });
@@ -23,8 +23,8 @@ export const replyInThread = defineAction({
 /** Answer a message with its words over the answer. */
 export const quoteMessage = defineAction({
     name: "message.quote",
-    title: t`Quote`,
-    category: t`Message`,
+    title: t.context("action")`Quote`,
+    category: t.context("title")`Message`,
     keybinding: "q",
     input: { message: current(messageType) },
 });
@@ -32,8 +32,8 @@ export const quoteMessage = defineAction({
 /** Write a message anew. */
 export const editMessage = defineAction({
     name: "message.edit",
-    title: t`Edit`,
-    category: t`Message`,
+    title: t.context("action")`Edit`,
+    category: t.context("title")`Message`,
     keybinding: "e",
     input: { message: current(messageType) },
 });
@@ -41,8 +41,8 @@ export const editMessage = defineAction({
 /** Copy the words of a message. */
 export const copyMessage = defineAction({
     name: "message.copy",
-    title: t`Copy text`,
-    category: t`Message`,
+    title: t.context("action")`Copy text`,
+    category: t.context("title")`Message`,
     keybinding: "c",
     input: { message: current(messageType) },
 });
@@ -50,8 +50,8 @@ export const copyMessage = defineAction({
 /** Pin a message to its conversation. */
 export const pinMessage = defineAction({
     name: "message.pin",
-    title: t`Pin`,
-    category: t`Message`,
+    title: t.context("action")`Pin`,
+    category: t.context("title")`Message`,
     keybinding: "p",
     input: { message: current(messageType) },
 });
@@ -60,7 +60,7 @@ export const pinMessage = defineAction({
 export const markUnread = defineAction({
     name: "message.markUnread",
     title: t`Mark unread from here`,
-    category: t`Message`,
+    category: t.context("title")`Message`,
     keybinding: "u",
     input: { message: current(messageType) },
 });
@@ -68,8 +68,8 @@ export const markUnread = defineAction({
 /** Delete a message and its thread. */
 export const deleteMessage = defineAction({
     name: "message.delete",
-    title: t`Delete`,
-    category: t`Message`,
+    title: t.context("action")`Delete`,
+    category: t.context("title")`Message`,
     keybinding: { key: "delete", mac: ["backspace", "delete"] },
     isDestructive: true,
     input: { message: current(messageType) },
@@ -78,8 +78,8 @@ export const deleteMessage = defineAction({
 /** Answer a question once more. */
 export const retryAnswer = defineAction({
     name: "answer.retry",
-    title: t`Try again`,
-    category: t`Message`,
+    title: t.context("action")`Try again`,
+    category: t.context("title")`Message`,
     keybinding: "r",
     input: { message: current(messageType) },
 });
@@ -87,7 +87,7 @@ export const retryAnswer = defineAction({
 /** Start a conversation with the assistant. */
 export const newChat = defineAction({
     name: "chat.create",
-    title: t`New chat`,
-    category: t`Chat`,
+    title: t.context("action")`New chat`,
+    category: t.context("title")`Chat`,
     keybinding: "shift+n",
 });

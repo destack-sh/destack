@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Field, FieldError, FieldLabel } from "../field/index.ts";
 import { PasswordField } from "./password-field.tsx";
@@ -5,8 +6,8 @@ import { PasswordField } from "./password-field.tsx";
 /** A password a person gives. */
 export const passwordFieldSignIn = defineExample({
     of: PasswordField,
-    name: "sign-in",
-    description: "a password a person gives",
+    name: "signIn",
+    description: t`A password a person gives.`,
     render: () => (
         <Field>
             <FieldLabel>Password</FieldLabel>
@@ -19,7 +20,7 @@ export const passwordFieldSignIn = defineExample({
 export const passwordFieldInvalid = defineExample({
     of: PasswordField,
     name: "invalid",
-    description: "a secret that is refused",
+    description: t`A secret that is refused.`,
     render: () => (
         <Field data-invalid="true">
             <FieldLabel>Token</FieldLabel>

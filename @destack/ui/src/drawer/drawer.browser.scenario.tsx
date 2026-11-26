@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { drawerShareNoteOpen } from "./drawer.example.tsx";
@@ -10,8 +11,8 @@ const content = { css: "[data-slot=drawer-content]" };
 export const drawerSwipeClosed = defineScenario({
     of: Drawer,
     interaction: viewInteraction,
-    name: "swipe-closed",
-    description: "swipe an open drawer toward its edge with a finger and see it closed",
+    name: "swipeClosed",
+    description: t`Swipe an open drawer toward its edge with a finger and see it closed.`,
     given: { examples: [drawerShareNoteOpen], globals: { pointer: "touch" } },
     parameters: {},
     when: [

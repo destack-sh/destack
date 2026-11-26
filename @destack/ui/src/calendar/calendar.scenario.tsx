@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { calendarLateOctober } from "./calendar.example.tsx";
@@ -7,9 +8,8 @@ import { Calendar } from "./calendar.tsx";
 export const calendarMoveFocusedDay = defineScenario({
     of: Calendar,
     interaction: viewInteraction,
-    name: "move-focused-day",
-    description:
-        "move the focused day with arrows, Home, End, Page Up and Page Down, crossing months",
+    name: "moveFocusedDay",
+    description: t`Move the focused day with arrows, Home, End, Page Up and Page Down, crossing months.`,
     given: { examples: [calendarLateOctober], globals: { locale: "de-AT" } },
     parameters: {},
     when: [
