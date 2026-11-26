@@ -15,8 +15,6 @@ const catalogSchema = schema.object({
     locale: LocaleTag,
     /** The translated source of each message, by identifier. */
     messages: schema.record(schema.string().min(1), schema.string()),
-    /** The identifiers of machine-translated messages no person reviewed yet. */
-    drafts: schema.array(schema.string().min(1)).exactOptional(),
 });
 
 /** The translations of one package's messages into one locale. */
@@ -81,9 +79,6 @@ export const Catalog = Object.assign(catalogSchema, {
 /** The translations of one package's messages into one locale. */
 export type Catalog = schema.Infer<typeof catalogSchema>;
 
-/** How far a translation has come: drafted by a machine, or reviewed by a person. */
-const TRANSLATION_STATES = ["machine", "reviewed"] as const;
-
 /** One message's translation as a catalog source writes it, with what its translators read. */
 export const Translation = schema.object({
     /** The message's source text, as MessageFormat 2. */
@@ -94,8 +89,6 @@ export const Translation = schema.object({
     note: schema.string().min(1).exactOptional(),
     /** The translated source, as MessageFormat 2. */
     translation: schema.string(),
-    /** How far the translation has come. */
-    state: schema.enum(TRANSLATION_STATES),
 });
 /** One message's translation as a catalog source writes it. */
 export type Translation = schema.Infer<typeof Translation>;
@@ -112,21 +105,14 @@ const catalogSourceSchema = schema.object({
 
 /** A catalog as its package writes it, which a build compiles to the catalog it ships. */
 export const CatalogSource = Object.assign(catalogSourceSchema, {
-    /** Compile a catalog source to the catalog a build ships: each translation, and the drafts. */
+    /** Compile a catalog source to the catalog a build ships: each message's translation. */
     compile(source: CatalogSource): Catalog {
-        // take each message's translation, and list the ones no person reviewed yet
-        const entries = Object.entries(source.messages);
+        // take each message's translation by its identifier
         const messages = Object.fromEntries(
-            entries.map(([id, { translation }]) => [id, translation]),
+            Object.entries(source.messages).map(([id, { translation }]) => [id, translation]),
         );
-        const drafts = entries.filter(([, { state }]) => state === "machine").map(([id]) => id);
 
-        return {
-            package: source.package,
-            locale: source.locale,
-            messages,
-            ...(drafts.length === 0 ? {} : { drafts }),
-        };
+        return { package: source.package, locale: source.locale, messages };
     },
 });
 /** A catalog as its package writes it. */
