@@ -40,7 +40,7 @@ import { PackageJson, type PackageId, type Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { type PackageOutput, type PackageChunk } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
-import { baselinePlugin, modulePlugin } from "@destack/package/vite";
+import { baselinePlugin, contextPlugin, modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
 import { type Runtime } from "@destack/package/runtime";
 import { type Project } from "../source/index.ts";
@@ -667,14 +667,18 @@ export class ModuleOutput implements Compilation {
             },
             plugins: [
                 // refuse module scripts referenced as assets, and run the browser baseline first in each entry
-                ...(project.runtime === "browser" ? [moduleScriptPlugin(), baselinePlugin()] : []),
+                ...(project.runtime === "browser"
+                    ? [moduleScriptPlugin(), baselinePlugin(), contextPlugin()]
+                    : []),
                 ...this.#packagePlugins(compiled, facades, input, locations),
                 ...plugins,
                 modulePlugin(this.#transformer),
             ],
             // give worker bundles their modules' metadata and the browser baseline too
             // NOTE #Incomplete: a warm rebuild leaves a worker stale when a module it shares with the page changes
-            worker: { plugins: () => [modulePlugin(this.#transformer), baselinePlugin()] },
+            worker: {
+                plugins: () => [modulePlugin(this.#transformer), baselinePlugin(), contextPlugin()],
+            },
             build: {
                 emitAssets: true,
                 // emit the files Vite names itself, such as a worker's, in the output's asset directory
