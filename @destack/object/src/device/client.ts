@@ -4,12 +4,10 @@ import type { ActionInputs } from "../declare/variable.ts";
 import type { Place } from "../declare/place.ts";
 import type { ActionContext } from "../declare/template.ts";
 import { ObjectNode } from "../client/node.ts";
-import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
-import { TelemetryScope } from "@destack/telemetry";
-import type { Localization } from "@destack/locale";
-import type { Choice } from "../presentation/choice.ts";
 import { TextSpan } from "../sequence/index.ts";
 import { chunk } from "../text/table.ts";
+import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
+import { TelemetryScope } from "@destack/telemetry";
 import { ObjectError } from "../error/error.ts";
 import {
     FindOptions,
@@ -26,9 +24,8 @@ import {
     Row,
     type Scalar,
     Expression,
-    type JsonCondition,
-    Search,
     declareState,
+    Search,
 } from "@destack/db";
 import { type DatabaseConnection, Transaction } from "@destack/db/database";
 import {
@@ -49,6 +46,7 @@ import type { ObjectRemote } from "../replica/remote.ts";
 import type { ObjectConnection } from "../replica/connection.ts";
 import { Replay } from "../audit/replay.ts";
 import { decisionTables } from "@destack/access";
+import { Observable } from "../client/observable.ts";
 import { RetryPolicy, type Clock, type Environment } from "@destack/environment";
 import * as sync from "@destack/sync";
 import * as syncDataflow from "@destack/sync/dataflow";
@@ -70,7 +68,6 @@ import type { NestedItem } from "../query/item.ts";
 import { RelationGraph } from "../query/query.ts";
 import { TextPresenter } from "../client/presenter.ts";
 import {
-    Query,
     RelationalQuery,
     ObjectQueryBuilder,
     type LiveItems,
@@ -97,8 +94,8 @@ import type {
     ObjectMutators,
     ObjectQueries,
     Reader,
-    Hit,
     SearchOptions,
+    SearchResult,
     Submission,
     UnionEntry,
     UnionOptions,
@@ -121,9 +118,6 @@ const LOCAL_LOG_RETENTION = { minutes: 1 } as const;
 
 /** A digit, which a word of an identifier or a date has. */
 const DIGIT = /\p{Nd}/u;
-
-/** Read a query on this device alone, closed long before the store would follow it. */
-const DEVICE_ONLY: SubscribeOptions = { after: { hours: 1 } };
 
 /** Milliseconds per second: the monotonic clock reads milliseconds, durations record seconds. */
 const MILLISECONDS = 1000;
@@ -1121,7 +1115,6 @@ export class ObjectClient<
         const subscribed = this.#subscribe(
             split,
             AbortSignal.any([closed.signal, this.#closing.signal]),
-            options.after,
         );
         this.#subscriptions.add(subscribed);
 
@@ -1150,6 +1143,113 @@ export class ObjectClient<
                 }
             },
         };
+    }
+
+    /** Search the objects of some types live, the best and newest first, all for an empty text. */
+    search(text: string, options: SearchOptions): LiveQuery<SearchResult> {
+        // search the text as it is
+        const search = RelationalQuery.presented(this.#search(text, options), (result) => ({
+            ...result,
+            isCorrected: false,
+        }));
+        if (options.typos !== "correct") {
+            return search;
+        }
+
+        // search as someone most likely meant while the text itself finds nothing
+        return RelationalQuery.either(
+            search,
+            ({ hits }) => hits.length === 0,
+            async () => {
+                const meant = await this.#meant(text, options);
+
+                return meant === undefined
+                    ? undefined
+                    : RelationalQuery.presented(this.#search(meant, options), (result) => ({
+                          ...result,
+                          isCorrected: true,
+                      }));
+            },
+        );
+    }
+
+    /** Search the objects of some types by a text as it is. */
+    #search(text: string, options: SearchOptions): LiveQuery<Omit<SearchResult, "isCorrected">> {
+        // match the words of each type's objects, scored by the columns it searches
+        const search = Search.of(text);
+        const where = search.isEmpty ? {} : { SEARCH: search.words.join(" ") };
+        const members = Object.fromEntries(
+            options.types.map((type) => [
+                type.key,
+                this.queryType(type).findMany({
+                    where: { AND: [options.where ?? {}, where] },
+                    extras: { relevance: relevanceOf(type, search), changed: changedOf(type) },
+                }),
+            ]),
+        );
+        const byKey = new Map(options.types.map((type) => [type.key, type]));
+        const union = this.union(members, {
+            orderBy: { relevance: "desc", changed: "desc" },
+            limit: options.limit,
+        });
+
+        return RelationalQuery.presented(union, (entries) => ({
+            text,
+            hits: entries.map(({ name, row: read }) => {
+                // reference the object
+                const type = found(byKey, name);
+                const { relevance, changed: _changed, ...row } = JsonValue.object(read);
+                const excerpt = excerptOf(type, search, row);
+
+                return {
+                    type,
+                    reference: type.reference(this.scope, schema.string().parse(row["id"])),
+                    row,
+                    relevance: schema.number().parse(relevance),
+                    ...(excerpt === undefined ? {} : { excerpt }),
+                };
+            }),
+        }));
+    }
+
+    /** Read what someone most likely meant by a text that finds nothing on this device. */
+    async #meant(text: string, options: SearchOptions): Promise<string | undefined> {
+        // replace each word by the closest of the types' indexes, leaving out one like none
+        const tables = options.types.flatMap((type) => [
+            type.table,
+            ...(type.text.length === 0 ? [] : [chunk]),
+        ]);
+        const indexes = [...new Set(tables)].flatMap((table) => table[TABLE].fullText ?? []);
+        const { words } = Search.of(text);
+        const closest = await Promise.all(
+            words.map(async (word, index) => {
+                // keep a word with a digit, such as an identifier's or a date's
+                if (DIGIT.test(word)) {
+                    return word;
+                }
+                const terms = await Promise.all(
+                    indexes.map((each) => each.terms(this.database, word)),
+                );
+
+                return Search.closest(word, terms.flat(), index === words.length - 1);
+            }),
+        );
+
+        // leave out the last other words until the rest finds something on this device
+        let kept = closest.filter((word) => word !== undefined);
+        while (kept.length > 0) {
+            const meant = kept.join(" ");
+            const live = this.#search(meant, { ...options, limit: 1 });
+            const { hits } = await live.read();
+            await live.close();
+            if (hits.length > 0) {
+                return meant === words.join(" ") ? undefined : meant;
+            }
+            const last = kept.findLastIndex((word) => !DIGIT.test(word));
+            kept = last === -1 ? [] : kept.toSpliced(last, 1);
+        }
+
+        return undefined;
     }
 
     /** Read a scope and the scopes above it, nearest first, from the replica's access rows. */
@@ -1219,28 +1319,17 @@ export class ObjectClient<
         await this.#outbox.outcome(id, this.party);
     }
 
-    /** Query the union of several queries in one order and limit, with each entry's member. */
+    /** Follow a live union of several queries in one order and limit, with each entry's member. */
     union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
         members: Members,
         options: UnionOptions<MemberItem<Members>>,
-    ): Query<readonly UnionEntry<Members>[]> {
-        // refuse members ordering or limiting themselves
+    ): LiveQuery<readonly UnionEntry<Members>[]> {
+        // refuse members ordering or limiting themselves, and follow each in the union's order and limit
         for (const [name, member] of Object.entries(members)) {
             if (member.options.orderBy !== undefined || member.options.limit !== undefined) {
                 throw new TypeError(`union member '${name}' cannot order or limit itself`);
             }
         }
-
-        return new Query((subscribed) => this.#union(members, options, subscribed));
-    }
-
-    /** Follow a union live, each member in the union's order and limit. */
-    #union<const Members extends Readonly<Record<string, RelationalQuery<readonly object[]>>>>(
-        members: Members,
-        options: UnionOptions<MemberItem<Members>>,
-        subscribed: SubscribeOptions,
-    ): LiveQuery<readonly UnionEntry<Members>[]> {
-        // follow each member
         const orderBy = OrderBy.schema.parse(options.orderBy);
         const followed = Object.entries(members).map(([name, member]) => ({
             name,
@@ -1249,7 +1338,7 @@ export class ObjectClient<
             live: this.#live(
                 member.object,
                 { ...member.options, orderBy, limit: options.limit },
-                subscribed,
+                options.ttl === undefined ? {} : { ttl: options.ttl },
             ),
         }));
         const byName = new Map(followed.map((member) => [member.name, member]));
@@ -1276,130 +1365,20 @@ export class ObjectClient<
             });
         };
 
-        return Query.combined(
-            followed.map(({ live }) => live),
-            merge,
-        );
-    }
-
-    /** Search the objects of some types, the best and newest first, all for a text of no words. */
-    search(text: string, options: SearchOptions): Query<SearchResult> {
-        // search the text as it is
-        const search = this.#search(text, options).map((result) => ({
-            ...result,
-            isCorrected: false,
-        }));
-        if (options.typos !== "correct") {
-            return search;
-        }
-
-        // search as someone most likely meant while the text itself finds nothing
-        return new Query((subscribed) =>
-            Query.either(
-                search.subscribe(subscribed),
-                ({ hits }) => hits.length === 0,
-                async (signal) => {
-                    // wait as long as the store would
-                    const { after } = subscribed;
-                    if (after !== undefined) {
-                        await this.environment.clock.sleep(Duration.milliseconds(after), signal);
-                    }
-                    const meant = await this.#meant(text, options);
-
-                    return meant === undefined
-                        ? undefined
-                        : this.#search(meant, options)
-                              .map((result) => ({ ...result, isCorrected: true }))
-                              .subscribe(subscribed);
-                },
-            ),
-        );
-    }
-
-    /** Search the objects of some types by a text as it is. */
-    #search(text: string, options: SearchOptions): Query<Omit<SearchResult, "isCorrected">> {
-        // match the words of each type's objects, scored by the columns it searches
-        const search = Search.of(text);
-        const where = search.isEmpty ? {} : { SEARCH: search.words.join(" ") };
-        const members = Object.fromEntries(
-            options.types.map((type) => [
-                type.key,
-                this.queryType(type).findMany({
-                    where: { AND: [options.where ?? {}, where] },
-                    extras: { relevance: relevanceOf(type, search), changed: changedOf(type) },
-                }),
-            ]),
-        );
-        const byKey = new Map(options.types.map((type) => [type.key, type]));
-
-        return this.union(members, {
-            orderBy: { relevance: "desc", changed: "desc" },
-            limit: options.limit,
-        }).map((entries) => ({
-            text,
-            hits: entries.map(({ name, row: read }) => {
-                // reference the object
-                const type = found(byKey, name);
-                const { relevance, changed: _changed, ...row } = JsonValue.object(read);
-                const excerpt = excerptOf(type, search, row);
-
-                return {
-                    type,
-                    reference: type.reference(this.scope, schema.string().parse(row["id"])),
-                    row,
-                    relevance: schema.number().parse(relevance),
-                    ...(excerpt === undefined ? {} : { excerpt }),
-                };
-            }),
-        }));
-    }
-
-    /** Read what someone most likely meant by a text that finds nothing on this device. */
-    async #meant(text: string, options: SearchOptions): Promise<string | undefined> {
-        // replace each word by the closest of the types' indexes, leaving out one like none
-        const tables = options.types.flatMap((type) => [
-            type.table,
-            ...(type.text.length === 0 ? [] : [chunk]),
-        ]);
-        const indexes = [...new Set(tables)].flatMap((table) => table[TABLE].fullText ?? []);
-        const { words } = Search.of(text);
-        const closest = await Promise.all(
-            words.map(async (word, index) => {
-                // keep a word with a digit, such as an identifier's or a date's
-                if (DIGIT.test(word)) {
-                    return word;
-                }
-                const terms = await Promise.all(
-                    indexes.map((each) => each.terms(this.database, word)),
-                );
-
-                return Search.closest(word, terms.flat(), index === words.length - 1);
-            }),
-        );
-
-        // leave out the last other words until the rest finds something on this device
-        let kept = closest.filter((word) => word !== undefined);
-        while (kept.length > 0) {
-            const meant = kept.join(" ");
-            const live = this.#search(meant, { ...options, limit: 1 }).subscribe(DEVICE_ONLY);
-            const { hits } = await live.read();
-            await live.close();
-            if (hits.length > 0) {
-                return meant === words.join(" ") ? undefined : meant;
-            }
-            const last = kept.findLastIndex((word) => !DIGIT.test(word));
-            kept = last === -1 ? [] : kept.toSpliced(last, 1);
-        }
-
-        return undefined;
-    }
-
-    /** Read a hit as a choice in a locale, as it looks now. */
-    choice({ type, reference, row, excerpt }: Hit, localization: Localization): Choice {
         return {
-            value: reference,
-            ...type.appearance(row, this.context().moment, localization),
-            ...(excerpt === undefined ? {} : { excerpt }),
+            // wait for the members only once asked, leaving no derived promise unobserved
+            get ready() {
+                return Promise.all(followed.map(({ live }) => live.ready)).then(() => {});
+            },
+            read: async () => merge(await Promise.all(followed.map(({ live }) => live.read()))),
+            watch: (signal) =>
+                Observable.latest(
+                    followed.map(({ live }) => live.watch(signal)),
+                    merge,
+                ),
+            close: async () => {
+                await Promise.all(followed.map(({ live }) => live.close()));
+            },
         };
     }
 
@@ -1599,27 +1578,6 @@ export class ObjectClient<
         }
     }
 
-    /** Follow a key after a while, reporting whether the query was still open then. */
-    async #followAfter(
-        follow: OnDemandFollow<{ readonly query: ObjectQuery }>,
-        at: FollowKey<{ readonly query: ObjectQuery }>,
-        after: Duration | undefined,
-        signal: AbortSignal,
-    ): Promise<boolean> {
-        // wait until the query closes, or the while passed
-        if (after !== undefined) {
-            await this.environment.clock
-                .sleep(Duration.milliseconds(after), signal)
-                .catch(() => undefined);
-            if (signal.aborted) {
-                return false;
-            }
-        }
-        await this.#follow(follow, at);
-
-        return true;
-    }
-
     /** Follow a key for the client's live queries, counting the queries following it. */
     async #follow(
         follow: OnDemandFollow<{ readonly query: ObjectQuery }>,
@@ -1659,23 +1617,20 @@ export class ObjectClient<
         }
     }
 
-    /** Follow a storage query, after a while when given one, and the lookups its rows key. */
-    #subscribe(split: StorageQuery, signal: AbortSignal, after?: Duration): Subscription {
-        // name a local query, or a followed one
+    /** Follow a storage query and the lookups its rows key. */
+    #subscribe(split: StorageQuery, signal: AbortSignal): Subscription {
+        // name a local query, or follow a followed one
         const follow = this.#follows.get(split.object.storage);
         const at = { key: { scope: this.#readScope(split.object), query: split.query } };
-        const isFollowed =
+        const named =
             follow === undefined
-                ? Promise.resolve(false)
-                : this.#followAfter(follow, at, after, signal);
-        const name = async () =>
-            follow === undefined
-                ? await ObjectClient.#queryName(split.query, this.environment.crypto)
-                : nth(Object.keys(follow.shape.keyed([{ query: split.query }])), 0);
-        const named = after === undefined ? isFollowed.then(name) : name();
+                ? ObjectClient.#queryName(split.query, this.environment.crypto)
+                : this.#follow(follow, at).then(() =>
+                      nth(Object.keys(follow.shape.keyed([{ query: split.query }])), 0),
+                  );
 
         // read a local query at once, or wait until the store's replica follows it
-        const replicated = isFollowed.then(async () => {
+        const replicated = named.then(async () => {
             if (follow !== undefined) {
                 await this.database.log.waitUntil(
                     () => follow.shape.isSynced(this.database, at.key),
@@ -1686,7 +1641,7 @@ export class ObjectClient<
         const lookups = new Map<Lookup, LookupSubscription>();
         if (split.lookups.length === 0) {
             const unfollow = async (ttl: Duration | "forever" | undefined) => {
-                if (follow !== undefined && (await isFollowed)) {
+                if (follow !== undefined) {
                     await this.#unfollow(follow, at, ttl);
                 }
             };
@@ -1713,8 +1668,8 @@ export class ObjectClient<
             ready: Promise.race([ready, done.then(() => replicated)]),
             done,
             unfollow: async (ttl) => {
-                // unfollow the query's key once followed, and its lookups'
-                if (follow !== undefined && (await isFollowed)) {
+                // unfollow the query's key and its lookups'
+                if (follow !== undefined) {
                     await this.#unfollow(follow, at, ttl);
                 }
                 for (const { subscribed } of lookups.values()) {

@@ -1,5 +1,5 @@
 import { Caller } from "@destack/access";
-import { type Channel, Table, typedChannel } from "@destack/db";
+import { type Channel, Condition, Table, typedChannel } from "@destack/db";
 import { type Environment, untilAborted } from "@destack/environment";
 import { Failure } from "@destack/error";
 import {
@@ -14,11 +14,23 @@ import * as sync from "@destack/sync";
 import type { Subject } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
 import { traceCalls } from "../procedure/telemetry.ts";
-import type { LiveQuery, MutationContext, Submission, Writer } from "../client/access.ts";
+import type {
+    LiveQuery,
+    MutationContext,
+    SearchOptions,
+    SearchResult,
+    Submission,
+    Writer,
+} from "../client/access.ts";
 import { undoEntry } from "../client/undo.ts";
 import { Method } from "../method/method.ts";
 import type { ObjectNode } from "../client/node.ts";
-import type { LiveItems, SubscribeOptions, Subscriber } from "../client/query.ts";
+import {
+    type LiveItems,
+    RelationalQuery,
+    type SubscribeOptions,
+    type Subscriber,
+} from "../client/query.ts";
 import { ObjectType } from "../object/object.ts";
 import { RelationGraph } from "../query/query.ts";
 import type { ObjectRemote, Push } from "./remote.ts";
@@ -32,6 +44,25 @@ const READ = {
 };
 
 /** The fields of a call of an object type's method. */
+/** An object type as the channel refers to it. */
+const TYPE = schema.object({ package: schema.string(), object: schema.string() });
+
+/** A search's hits as the channel sends them, each type by reference. */
+const SEARCH_RESULT = schema.object({
+    text: schema.string(),
+    isCorrected: schema.boolean(),
+    hits: schema.array(
+        schema.object({
+            type: TYPE,
+            reference: sync.ObjectReference,
+            row: schema.jsonObject(),
+            relevance: schema.number(),
+            excerpt: schema.string().exactOptional(),
+        }),
+    ),
+});
+
+/** A call of an object type's method as the channel sends it. */
 const CALL = {
     package: schema.string(),
     object: schema.string(),
@@ -65,6 +96,15 @@ const Send = schema.discriminatedUnion("verb", [
     // a node's reads and writes, answered by the serving node's client of the scope
     schema.object({ verb: schema.literal("rows"), ...READ }),
     schema.object({ verb: schema.literal("results"), ...READ }),
+    schema.object({
+        verb: schema.literal("search"),
+        scope: schema.string(),
+        text: schema.string(),
+        types: schema.array(TYPE),
+        limit: schema.number(),
+        where: Condition.schema.exactOptional(),
+        typos: schema.enum(["correct", "keep"]).exactOptional(),
+    }),
     schema.object({ verb: schema.literal("mutate"), scope: schema.string(), ...CALL }),
     schema.object({
         verb: schema.literal("mutation"),
@@ -327,10 +367,12 @@ export class ChannelRemote implements ObjectRemote {
         return {
             rows: (object, query, options): LiveItems => ({
                 query: compile(object, query),
-                ...this.#live("rows", scope, object, query, options, (value) => items.parse(value)),
+                ...this.#live(ChannelRemote.#read("rows", scope, object, query, options), (value) =>
+                    items.parse(value),
+                ),
             }),
             results: (object, query, options) =>
-                this.#live("results", scope, object, query, options, (value) =>
+                this.#live(ChannelRemote.#read("results", scope, object, query, options), (value) =>
                     groups.parse(value),
                 ),
         };
@@ -563,40 +605,77 @@ export class ChannelRemote implements ObjectRemote {
         );
     }
 
-    /** Follow a query at the node, keeping its latest value and waking each watch on a new one. */
-    #live<Value>(
+    /** Search some object types of one scope at the node, its hits' types read back here. */
+    search(
+        scope: string,
+        objects: readonly ObjectType[],
+        text: string,
+        options: SearchOptions,
+    ): LiveQuery<SearchResult> {
+        // refer to each type by package and name
+        const { types, limit, where, typos } = options;
+        const send: Send = {
+            verb: "search",
+            scope,
+            text,
+            types: types.map((type) => ({ package: type.package.id, object: type.name })),
+            limit,
+            ...(where === undefined ? {} : { where }),
+            ...(typos === undefined ? {} : { typos }),
+        };
+
+        // read each hit's type back among the node's types
+        return this.#live(send, (value) => {
+            const result = SEARCH_RESULT.parse(value);
+            const hits = result.hits.map((hit) => ({
+                ...hit,
+                type: ChannelRemote.#type(objects, hit.type.package, hit.type.object),
+            }));
+
+            return { ...result, hits };
+        });
+    }
+
+    /** Describe a read of one object type at the node. */
+    static #read(
         verb: "rows" | "results",
         scope: string,
         object: ObjectType,
         query: Omit<ObjectQuery, "object" | "package">,
         options: SubscribeOptions,
-        parse: (value: unknown) => Value,
-    ): LiveQuery<Value> {
-        // take each value the node sends, the first making the query ready
-        const closing = new AbortController();
-        const first = Promise.withResolvers<void>();
-        let latest: { readonly value: Value } | undefined;
-        let changed = Promise.withResolvers<void>();
+    ): Send {
         const whole = ObjectQuery.parse({
             object: object.name,
             package: object.package.id,
             ...query,
         });
-        const ttl = options.ttl === undefined ? {} : { ttl: options.ttl };
-        const sent = this.#send(
-            { verb, scope, query: whole, ...ttl },
-            {
-                signal: closing.signal,
-                value: (value) => {
-                    // keep the value and wake the watches
-                    latest = { value: parse(value) };
-                    first.resolve();
-                    const woken = changed;
-                    changed = Promise.withResolvers<void>();
-                    woken.resolve();
-                },
+
+        return {
+            verb,
+            scope,
+            query: whole,
+            ...(options.ttl === undefined ? {} : { ttl: options.ttl }),
+        };
+    }
+
+    /** Follow a send at the node, keeping its latest value and waking each watch on a new one. */
+    #live<Value>(send: Send, parse: (value: unknown) => Value): LiveQuery<Value> {
+        // take each value the node sends, the first making the query ready
+        const closing = new AbortController();
+        const first = Promise.withResolvers<void>();
+        let latest: { readonly value: Value } | undefined;
+        let changed = Promise.withResolvers<void>();
+        const sent = this.#send(send, {
+            signal: closing.signal,
+            value: (value) => {
+                // keep the value and wake the watches
+                latest = { value: parse(value) };
+                first.resolve();
+                const woken = changed;
+                changed = Promise.withResolvers<void>();
+                woken.resolve();
             },
-        );
+        });
 
         // fail readiness when the node refuses the query, unless closed
         sent.catch((error: unknown) => {
@@ -763,14 +842,13 @@ export class ChannelRemote implements ObjectRemote {
                 channel.notify({ kind: "answer", to, id, value: null });
             }
             // stream a read's values from the scope's node until abandoned
-            else if (send.verb === "rows" || send.verb === "results") {
+            else if (send.verb === "rows" || send.verb === "results" || send.verb === "search") {
                 const party = follows.get(to) ?? new Set();
                 follows.set(to, party);
                 await ChannelRemote.#follow(
                     channel,
                     frame,
-                    send,
-                    await nodes(send.scope),
+                    ChannelRemote.#followed(send, await nodes(send.scope)),
                     party,
                     signal,
                 ).finally(() => {
@@ -896,20 +974,12 @@ export class ChannelRemote implements ObjectRemote {
     static async #follow(
         channel: Channel<Frame>,
         frame: Extract<Frame, { readonly kind: "send" }>,
-        send: Extract<Send, { readonly verb: "rows" | "results" }>,
-        node: ObjectNode,
+        live: LiveQuery<unknown>,
         party: Set<() => Promise<void>>,
         signal: AbortSignal,
     ): Promise<void> {
-        // follow the query on the node, as long as its party keeps it
+        // follow the read on the node, as long as its party keeps it
         const { from: to, id } = frame;
-        const { object: name, package: packageId, ...query } = send.query;
-        const object = ChannelRemote.#object(node, packageId, name);
-        const options = send.ttl === undefined ? {} : { ttl: send.ttl };
-        const live =
-            send.verb === "rows"
-                ? node.subscriber.rows(object, query, options)
-                : node.subscriber.results(object, query, options);
         const refresh = async () => {
             channel.notify({ kind: "value", to, id, value: await live.read() });
         };
@@ -926,11 +996,48 @@ export class ChannelRemote implements ObjectRemote {
         }
     }
 
+    /** Follow a read on a node, its values as the channel sends them. */
+    static #followed(
+        send: Extract<Send, { readonly verb: "rows" | "results" | "search" }>,
+        node: ObjectNode,
+    ): LiveQuery<unknown> {
+        // search the named types, sending each hit's type by reference
+        if (send.verb === "search") {
+            const { scope: _scope, verb: _verb, text, types, ...options } = send;
+            const searched = node.search(text, {
+                ...options,
+                types: types.map((type) => ChannelRemote.#object(node, type.package, type.object)),
+            });
+
+            return RelationalQuery.presented(searched, (result) =>
+                SEARCH_RESULT.parse({
+                    ...result,
+                    hits: result.hits.map((hit) => ({
+                        ...hit,
+                        type: { package: hit.type.package.id, object: hit.type.name },
+                    })),
+                }),
+            );
+        }
+
+        // follow a read of one object type
+        const { object: name, package: packageId, ...query } = send.query;
+        const object = ChannelRemote.#object(node, packageId, name);
+        const options = send.ttl === undefined ? {} : { ttl: send.ttl };
+
+        return send.verb === "rows"
+            ? node.subscriber.rows(object, query, options)
+            : node.subscriber.results(object, query, options);
+    }
+
     /** Find a node's object type by package and name, refusing one it lacks. */
     static #object(node: ObjectNode, packageId: string, name: string): ObjectType {
-        const object = node.objects.find(
-            (type) => type.package.id === packageId && type.name === name,
-        );
+        return ChannelRemote.#type(node.objects, packageId, name);
+    }
+
+    /** Find an object type among some by package and name, refusing one they lack. */
+    static #type(objects: readonly ObjectType[], packageId: string, name: string): ObjectType {
+        const object = objects.find((type) => type.package.id === packageId && type.name === name);
         if (object === undefined) {
             throw new TypeError(`the node has no object '${name}'`);
         }

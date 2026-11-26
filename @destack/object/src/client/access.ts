@@ -1,6 +1,6 @@
-import type { OrderBy, Row } from "@destack/db";
+import type { JsonCondition, OrderBy, Row } from "@destack/db";
 import type { Duration, JsonObject } from "@destack/schema";
-import type { Item } from "@destack/sync";
+import type { Item, ObjectReference } from "@destack/sync";
 import type * as syncDataflow from "@destack/sync/dataflow";
 import type { BranchChange } from "../branch/index.ts";
 import type { CallableName, MethodInput, MethodOutput, MutationName } from "../method/procedure.ts";
@@ -115,6 +115,42 @@ export interface UnionOptions<Read = Row> {
     readonly limit: number;
     /** How long the closed union stays followed. */
     readonly ttl?: Duration;
+}
+
+/** What a search looks for. */
+export interface SearchOptions {
+    /** The searchable types whose objects it finds. */
+    readonly types: readonly ObjectType[];
+    /** The most objects it finds. */
+    readonly limit: number;
+    /** The condition the objects meet, any by default. */
+    readonly where?: JsonCondition;
+    /** What becomes of a text that finds nothing, kept as it is by default. */
+    readonly typos?: "correct" | "keep";
+}
+
+/** What a search finds. */
+export interface SearchResult {
+    /** The text it found them by: the one given, else what that most likely meant. */
+    readonly text: string;
+    /** Whether that is another text than the one given. */
+    readonly isCorrected: boolean;
+    /** The objects, the best and newest first. */
+    readonly hits: readonly Hit[];
+}
+
+/** An object a search finds. */
+export interface Hit {
+    /** The object's type. */
+    readonly type: ObjectType;
+    /** The object. */
+    readonly reference: ObjectReference;
+    /** The object's row, which shows its title and icon. */
+    readonly row: JsonObject;
+    /** How relevant it is, as `Search.relevance` scores it. */
+    readonly relevance: number;
+    /** The passage of its long text the search matched, absent where none did. */
+    readonly excerpt?: string;
 }
 
 /** The items of a union's members, whose shared fields the union orders by. */

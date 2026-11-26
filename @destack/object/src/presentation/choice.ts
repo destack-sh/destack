@@ -1,6 +1,8 @@
 import type { Hue } from "@destack/color";
 import type { Localization } from "@destack/locale";
+import type { Moment } from "@destack/db";
 import type { JsonValue } from "@destack/schema";
+import type { Hit } from "../client/access.ts";
 import type { FieldChoice } from "../field/choice.ts";
 import type { Icon } from "../trait/presentable.ts";
 
@@ -33,6 +35,19 @@ export const Choice = {
             ...(icon === undefined ? {} : { icon: { icon } }),
             ...(color === undefined ? {} : { color }),
             ...(description === undefined ? {} : { description: localization.render(description) }),
+        };
+    },
+
+    /** Read a search's hit as a choice in a locale, as it looks at a moment. */
+    hit(
+        { type, reference, row, excerpt }: Hit,
+        moment: Moment,
+        localization: Localization,
+    ): Choice {
+        return {
+            value: reference,
+            ...type.appearance(row, moment, localization),
+            ...(excerpt === undefined ? {} : { excerpt }),
         };
     },
 };

@@ -306,12 +306,10 @@ test("follow the newest notebooks and notes as one feed", async () => {
 
     // follow notebooks and notes together, newest first, three at most
     const { query } = device.client.of({ notebook, note });
-    const activity = device.client
-        .union(
-            { notebooks: query.notebook.findMany(), notes: query.note.findMany() },
-            { orderBy: { createdAt: "desc" }, limit: 3 },
-        )
-        .subscribe();
+    const activity = device.client.union(
+        { notebooks: query.notebook.findMany(), notes: query.note.findMany() },
+        { orderBy: { createdAt: "desc" }, limit: 3 },
+    );
     const controller = new AbortController();
     const watched = activity.watch(controller.signal);
     const next = async () => {
@@ -582,39 +580,6 @@ test("describe what a client's replica has, the queries it follows and what wait
         1,
         { pending: 0, executed: 0, rejected: 0 },
     ]);
-});
-
-test("read the device at once and follow at the store only after a while", async () => {
-    await using simulation = new Simulation({
-        world: testWorldOptions(),
-        seed: 1,
-        start: Date.UTC(2026, 9, 1),
-    });
-    const { openDevice } = await serveNotes({ simulation });
-    const device = await openDevice(users.alice, []);
-    await device.client.mutate(notebook).create({ name: "Home" }).predicted;
-    const follow = () =>
-        device.client.query.notebook.findMany({}).subscribe({ after: { seconds: 1 } });
-    const followed = async () => (await device.client.inspect()).followed.length;
-
-    // close a query within the while, and leave another open past it
-    const closed = follow();
-    const names = (await closed.read()).map(({ name }) => name);
-    const before = await followed();
-    await closed.close();
-    const open = follow();
-    await simulation.jump(simulation.clock.now() + 500);
-    const within = await followed();
-    await simulation.jump(simulation.clock.now() + 500);
-    await expect.poll(followed).toBe(1);
-    await open.close();
-
-    expect({ names, before, within, after: await followed() }).toEqual({
-        names: ["Home"],
-        before: 0,
-        within: 0,
-        after: 0,
-    });
 });
 
 test("watch a query reusing each unchanged row as the same object after another row changes", async () => {

@@ -1048,25 +1048,23 @@ export async function readAnswer(pieces: AsyncIterable<string>) {
 }
 ```
 
-### Search a client's objects
+### Search a node's objects
 
-`client.search` finds the searchable objects of some types, the most relevant and newest first, and follows them live.
+`node.search` finds the searchable objects of some types, the most relevant and newest first, and follows them live.
 With `typos: "correct"` a text that finds nothing is searched as it was most likely meant, which the result tells.
 
 ```ts
 import type { ObjectType } from "@destack/object";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectNode } from "@destack/object/client";
 
-/** Print the ten best matches as they change, followed at the store once 150 ms passed. */
+/** Print the ten best matches as they change. */
 export async function printMatches(
-    client: ObjectClient,
+    node: ObjectNode,
     types: readonly ObjectType[],
     text: string,
     signal: AbortSignal,
 ) {
-    const live = client
-        .search(text, { types, limit: 10, typos: "correct" })
-        .subscribe({ after: { milliseconds: 150 } });
+    const live = node.search(text, { types, limit: 10, typos: "correct" });
     for await (const { text: found, isCorrected, hits } of live.watch(signal)) {
         console.log(isCorrected ? `results for ${found}` : "results");
         console.log(hits.map(({ reference, row }) => [reference.id, row["title"]]));

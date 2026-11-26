@@ -6,7 +6,8 @@ import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testSimulation } from "../src/test/index.ts";
-import { ObjectClient, ObjectRemote } from "../src/client/index.ts";
+import { ObjectRemote } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import { defineObject, field, RICH_TEXT, searchable } from "../src/index.ts";
 import { space } from "../src/test/space.ts";
 
@@ -124,7 +125,7 @@ test("search a client's rows live, as they are added and renamed", async () => {
     await ordered.close();
 
     // search both types, as they are added
-    const found = client.search("ord", { types: [note, task], limit: 3 }).subscribe();
+    const found = client.search("ord", { types: [note, task], limit: 3 });
     const hits = async () =>
         (await found.read()).hits.map(({ type, row }) => [type.name, row["title"]]);
     await client.mutate(task).create({ title: "Ord" }).predicted;
@@ -132,15 +133,13 @@ test("search a client's rows live, as they are added and renamed", async () => {
     await client.mutate(note).create({ title: "ORD" }).predicted;
     const bothAfter = await hits();
     await found.close();
-    const blank = client.search(" ", { types: [task], limit: 3 }).subscribe();
+    const blank = client.search(" ", { types: [task], limit: 3 });
     const every = (await blank.read()).hits.map(({ reference }) => reference.type);
     await blank.close();
 
     // search as meant where the text finds nothing, until something has it
     const texts = async (text: string) => {
-        const search = client
-            .search(text, { types: [note, task], limit: 3, typos: "correct" })
-            .subscribe();
+        const search = client.search(text, { types: [note, task], limit: 3, typos: "correct" });
         const result = await search.read();
         await search.close();
 
@@ -154,9 +153,7 @@ test("search a client's rows live, as they are added and renamed", async () => {
         digit: await texts("order 194"),
         none: await texts("zebra"),
     };
-    const typo = client
-        .search("odrer", { types: [note, task], limit: 3, typos: "correct" })
-        .subscribe();
+    const typo = client.search("odrer", { types: [note, task], limit: 3, typos: "correct" });
     const stopping = new AbortController();
     const watched = typo.watch(stopping.signal);
     const nextText = async () => {
@@ -174,7 +171,7 @@ test("search a client's rows live, as they are added and renamed", async () => {
     followed.push(await texts("odrer"));
     stopping.abort();
     await typo.close();
-    const kept = client.search("ordr", { types: [note, task], limit: 3 }).subscribe();
+    const kept = client.search("ordr", { types: [note, task], limit: 3 });
     expect({ meant, followed, kept: await kept.read() }).toEqual({
         meant: {
             typo: ["order", true, 3],
@@ -257,7 +254,7 @@ test("search a client's rich text by what a person reads", async () => {
         ],
     }).predicted;
     const found = async (text: string) => {
-        const live = client.search(text, { types: [page], limit: 5 }).subscribe();
+        const live = client.search(text, { types: [page], limit: 5 });
         const hits = (await live.read()).hits.map(({ row, excerpt }) => [row["title"], excerpt]);
         await live.close();
 

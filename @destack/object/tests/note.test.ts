@@ -484,6 +484,14 @@ test("share one device between tabs, letting a closed tab's queries lapse, handi
     await travel.confirmed;
     expect((await alice.notebook.get({ spaceId, id })).name).toBe("Travel");
 
+    // search through the second tab, each hit's type read back as the tab's own
+    const searched = second.search(" ", { types: [notebook], limit: 5 });
+    const { hits } = await searched.read();
+    await searched.close();
+    expect(hits.map((hit) => [hit.type === notebook, hit.reference, hit.row["name"]])).toEqual([
+        [true, notebook.reference(spaceId, id), "Travel"],
+    ]);
+
     // follow a tab's query at the device while the tab reads it, and let it lapse once the tab closes
     const followed = async () =>
         (await present(served, "the served device").client.inspect()).followed

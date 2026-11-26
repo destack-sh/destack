@@ -8,10 +8,13 @@ import type { ActionContext } from "../declare/template.ts";
 import type { ActionInputs } from "../declare/variable.ts";
 import type { ObjectType, PermissionOf } from "../object/object.ts";
 import type {
+    LiveQuery,
     MutationContext,
     Mutator,
     ObjectAccess,
     ObjectQueries,
+    SearchOptions,
+    SearchResult,
     Submission,
 } from "./access.ts";
 import type { ObjectQueryBuilder, Subscriber } from "./query.ts";
@@ -67,6 +70,8 @@ export interface ObjectNode<
         type: ObjectType,
         reference: ObjectReference,
     ) => Promise<JsonObject | undefined>;
+    /** Search the objects of some types live, the best and newest first. */
+    readonly search: (text: string, options: SearchOptions) => LiveQuery<SearchResult>;
     /** Follow one text field of an object as an editor edits it. */
     readonly text: (object: ObjectType, id: string, field: string) => TextDocument;
     /** Read a scope and the scopes above it, nearest first, from the node's access rows. */

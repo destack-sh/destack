@@ -5,11 +5,14 @@ import type {} from "@destack/environment/browser";
 import { type ObjectReference, RequestId, type Subject } from "@destack/sync";
 import { ObjectError } from "../error/index.ts";
 import {
+    type LiveQuery,
     type MutationContext,
     type Mutator,
     type ObjectAccess,
     type ObjectMutators,
     type ObjectQueries,
+    type SearchOptions,
+    type SearchResult,
     type Submission,
 } from "./access.ts";
 import { ObjectNode } from "./node.ts";
@@ -138,6 +141,11 @@ export class BrowserTab<
         object: Object,
     ): ObjectQueryBuilder<Object, Objects[keyof Objects]> {
         return new ObjectQueryBuilder(this.subscriber, object);
+    }
+
+    /** Search the objects of some of the tab's types live at the device. */
+    search(text: string, options: SearchOptions): LiveQuery<SearchResult> {
+        return this.#remote.search(this.scope, this.objects, text, options);
     }
 
     /** Call an object type's mutating methods, one mutation per call. */
