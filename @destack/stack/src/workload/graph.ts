@@ -136,7 +136,6 @@ export class BuildGraph {
                     packageId: shipped.package,
                     locale: shipped.locale,
                     messages: shipped.messages,
-                    ...(shipped.drafts === undefined ? {} : { drafts: shipped.drafts }),
                 };
             }),
         );

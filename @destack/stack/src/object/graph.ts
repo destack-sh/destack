@@ -118,8 +118,6 @@ export const catalog = defineObject({
         locale: field.string(LocaleTag),
         /** The translated source of each message, by identifier. */
         messages: field.json(schema.record(schema.string().min(1), schema.string())),
-        /** The machine-translated messages no person reviewed yet, absent for none. */
-        drafts: field.json(schema.array(schema.string().min(1))).optional(),
     },
     access: {
         permissions: { read: through("build", "read") },
