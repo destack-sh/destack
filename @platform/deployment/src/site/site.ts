@@ -37,6 +37,7 @@ export async function deploySite(
     // build the platform's releases, and the site's image in the same store
     await using platform = await PlatformBuild.build(CHECKOUT, environment, {
         version: releaseVersion(environment),
+        inputs: "pinned",
     });
     const { store } = platform;
     const image = await siteImage(platform);

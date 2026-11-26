@@ -50,6 +50,7 @@ export class Cloudflare {
         // declare the universe over the record with the checkout's releases
         await using build = await PlatformBuild.build(CHECKOUT, environment, {
             version: releaseVersion(environment),
+            inputs: "pinned",
         });
         const definition = deployment.definition(operator, custody, build);
 

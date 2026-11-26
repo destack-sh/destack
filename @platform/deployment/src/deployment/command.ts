@@ -99,6 +99,7 @@ export async function publishPlatform(
     const commit = await readReleaseCommit(CHECKOUT, environment);
     await using build = await PlatformBuild.build(CHECKOUT, environment, {
         version: releaseVersion(environment),
+        inputs: "pinned",
     });
     await build.publish(session, deployment.universe.origin, deployment.tag, {
         commit,
@@ -114,6 +115,7 @@ export async function buildPlatform(
     none("platform build", arguments_);
     await using _build = await PlatformBuild.build(CHECKOUT, environment, {
         version: releaseVersion(environment),
+        inputs: "pinned",
     });
 }
 

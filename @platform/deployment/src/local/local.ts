@@ -310,7 +310,7 @@ export class LocalUniverse {
         const build = stack.use(
             await PlatformBuild.build(CHECKOUT, environment, {
                 version: releaseVersion(environment),
-                isUnreleased: true,
+                inputs: "checkout",
             }),
         );
 
@@ -371,7 +371,10 @@ export class LocalUniverse {
 
         // build the checkout's releases at the version the forge releases next, as a deploy's prepare reads it
         const version = await PlatformBuild.next(session, deployment.universe.origin, environment);
-        await using build = await PlatformBuild.build(CHECKOUT, environment, { version });
+        await using build = await PlatformBuild.build(CHECKOUT, environment, {
+            version,
+            inputs: "pinned",
+        });
 
         // publish them at the checkout's commit, pointing latest
         await build.publish(session, deployment.universe.origin, deployment.tag, {
