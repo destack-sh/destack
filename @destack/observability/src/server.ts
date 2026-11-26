@@ -22,12 +22,13 @@ import {
 } from "./object/index.ts";
 import { OtlpIntake } from "./otlp/intake.ts";
 import observabilityPackage from "./package.ts";
+import { implementWorkflow } from "@destack/workflow/server";
 
 /** The fields deciding what an alert rule's calls do and when, which their editor authors. */
 const AUTHORED_FIELDS = ["condition", "actions", "interval", "pending", "noData"] as const;
 
 /** The responses to fired alerts: their rules' calls, each waiting on any approval it needs. */
-const responses = respond.implement({
+const responses = implementWorkflow(respond, {
     run: async (step, input, run) => {
         // read the alert and its rule, and make the rule's calls
         const fired = await step.query(

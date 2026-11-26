@@ -38,7 +38,8 @@ import {
 } from "@destack/schema";
 import { installation } from "@destack/stack/object";
 import { ObjectReference, ObjectTypeReference, RequestId } from "@destack/sync";
-import type { Step, WaitOf } from "@destack/workflow";
+import type { WaitOf } from "@destack/workflow";
+import type { Step } from "@destack/workflow/server";
 import { ObservabilityError } from "../error/error.ts";
 import {
     alert,
