@@ -64,6 +64,7 @@ export const space = defineObject(
             tenancy: field.enum(TENANCIES).optional(),
         },
         indexes: { name: { on: ["name"], across: () => account, renamed: "former" } },
+        presentable: { card: ["name", "tenancy"] },
         // keep each change, as the tracked objects read through a space decide their past reads by it
         retention: "history",
         constraints: {

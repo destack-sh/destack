@@ -350,7 +350,7 @@ test("sign a person in with a mailed code as a new client, refusing a wrong code
     });
 });
 
-test("sign a new person up with a mailed code and their handle, refusing a new email without one", async () => {
+test("sign a new person up with a mailed code and their handle, refusing a new email without one or with a taken one", async () => {
     await using accounts = await TestAccount.open();
     const { nativeClient, logins } = await native(accounts);
     const email = "bea@example.com";
@@ -368,17 +368,27 @@ test("sign a new person up with a mailed code and their handle, refusing a new e
     );
     await (await nativeClient.startEmail(email, signUp)).verify(await accounts.code());
 
+    // refuse another new email signing up with the same handle
+    const taken = await refusal(
+        (await nativeClient.startEmail("ben@example.com", signUp)).verify(await accounts.code()),
+    );
+
     // read the login and the personal account the sign-up created together
     const signedIn = await logins.query.login.findFirst();
     const personal = await accounts.database
         .select({ scope: account.table.scope, kind: account.table.kind })
         .from(account.table)
         .where(eq(account.table.handle, "bea"));
-    expect({ refused, personal }).toEqual({
+    expect({ refused, taken, personal }).toEqual({
         refused: [
             "BAD_REQUEST",
             "GRANT_INVALID",
             `the token endpoint refused the request: invalid_grant: email '${email}' is invalid: nobody signed up with it, so sign up with a handle`,
+        ],
+        taken: [
+            "BAD_REQUEST",
+            "REQUEST_INVALID",
+            "the token endpoint refused the request: invalid_request: handle 'bea' is invalid: it is taken, so choose another",
         ],
         personal: [{ scope: present(signedIn, "the login").subjectId, kind: "personal" }],
     });

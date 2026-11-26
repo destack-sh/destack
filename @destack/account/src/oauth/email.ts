@@ -203,10 +203,20 @@ async function signUp(
     }
 
     // create the person and their personal account as the browser's sign-up does, the code proving the email
-    const created = await context.internalAdapter.createUser(
-        { email: request.email.toLowerCase(), emailVerified: true, ...values.data },
-        { method: "email-otp" },
-    );
+    const created = await context.internalAdapter
+        .createUser(
+            { email: request.email.toLowerCase(), emailVerified: true, ...values.data },
+            { method: "email-otp" },
+        )
+        .catch((error: unknown) => {
+            // refuse a handle another person or organization has
+            throw isAPIError(error) && error.body?.code === "HANDLE_EXISTS"
+                ? OAuthError.of(
+                      "REQUEST_INVALID",
+                      `handle '${values.data.handle}' is invalid: it is taken, so choose another`,
+                  )
+                : error;
+        });
     const person = await database
         .snapshot()
         .read(user.table)
