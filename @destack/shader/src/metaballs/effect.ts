@@ -1,8 +1,13 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
 import { NOISE_TEXTURE } from "../shader/noise.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the metaballs. */
 export const METABALLS_MAX_COLOR_COUNT = 8;
@@ -107,36 +112,34 @@ void main() {
 }
 `;
 
-/** The options of the metaballs, beside its sizing. */
-export interface MetaballsOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** Up to 8 base colors, applied to the balls in order. */
-    readonly colors?: readonly ShaderColor[];
-    /** The number of balls, fractional values shrink the last ball, from 1 to 20. */
-    readonly count?: number;
-    /** The size of the balls, from 0 to 1. */
-    readonly size?: number;
-}
-
-/** The properties of the metaballs, the shader's included. */
-export interface MetaballsProperties
-    extends MetaballsOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default metaballs. */
-export const METABALLS_DEFAULTS: Required<MetaballsOptions> = {
-    ...OBJECT_SIZING,
-    scale: 1,
-    speed: 1,
-    frame: 0,
-    colorBack: "#000000",
-    colors: ["#6e33cc", "#ff5500", "#ffc105", "#ffc800", "#f585ff"],
-    count: 10,
-    size: 0.83,
+/** The properties people change in the metaballs's controls and inspector. */
+export const METABALLS_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(1),
+    ...SIZING_PROPERTIES,
+    colorBack: COLOR_BACK.default("#000000"),
+    colors: field
+        .colors({ minimum: 1, maximum: METABALLS_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#6e33cc", "#ff5500", "#ffc105", "#ffc800", "#f585ff"]),
+    count: field
+        .number(schema.number().min(1).max(20))
+        .labeled(t.context("label")`Count`)
+        .described(t`How many balls there are, a fraction shrinking the last one.`)
+        .default(10),
+    size: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Size`)
+        .described(t`The size of the balls.`)
+        .default(0.83),
 };
 
+/** The options of the metaballs, each with its value. */
+export type MetaballsOptions = DeclaredProperties<typeof METABALLS_PROPERTIES>;
+
 /** Write metaballs options as the fragment shader's uniforms. */
-export function metaballsUniforms(options: Required<MetaballsOptions>): ShaderValues {
+export function metaballsUniforms(options: MetaballsOptions): ShaderValues {
     return {
         u_colorBack: options.colorBack,
         u_colors: options.colors,

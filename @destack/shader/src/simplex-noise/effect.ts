@@ -1,7 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { PATTERN_SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { SOFTNESS } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { PATTERN_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the simplex noise. */
 export const SIMPLEX_NOISE_MAX_COLOR_COUNT = 10;
@@ -85,33 +90,30 @@ void main() {
 }
 `;
 
-/** The options of the simplex noise, beside its sizing. */
-export interface SimplexNoiseOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** Up to 10 base colors. */
-    readonly colors?: readonly ShaderColor[];
-    /** The number of extra colors between base colors, from 1 to 10. */
-    readonly stepsPerColor?: number;
-    /** The color transition sharpness, from 0 to 1. */
-    readonly softness?: number;
-}
-
-/** The properties of the simplex noise, the shader's included. */
-export interface SimplexNoiseProperties
-    extends SimplexNoiseOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default simplex noise. */
-export const SIMPLEX_NOISE_DEFAULTS: Required<SimplexNoiseOptions> = {
-    ...PATTERN_SIZING,
-    scale: 0.6,
-    speed: 0.5,
-    frame: 0,
-    colors: ["#4449CF", "#FFD1E0", "#F94446", "#FFD36B", "#FFFFFF"],
-    stepsPerColor: 2,
-    softness: 0,
+/** The properties people change in the simplex noise's controls and inspector. */
+export const SIMPLEX_NOISE_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(0.5),
+    ...PATTERN_SIZING_PROPERTIES,
+    scale: PATTERN_SIZING_PROPERTIES.scale.default(0.6),
+    colors: field
+        .colors({ minimum: 1, maximum: SIMPLEX_NOISE_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#4449CF", "#FFD1E0", "#F94446", "#FFD36B", "#FFFFFF"]),
+    stepsPerColor: field
+        .integer(schema.number().int().min(1).max(10))
+        .labeled(t.context("label")`Steps per color`)
+        .described(t`How many colors lie between each two given ones.`)
+        .default(2),
+    softness: SOFTNESS.default(0),
 };
 
+/** The options of the simplex noise, each with its value. */
+export type SimplexNoiseOptions = DeclaredProperties<typeof SIMPLEX_NOISE_PROPERTIES>;
+
 /** Write simplex noise options as the fragment shader's uniforms. */
-export function simplexNoiseUniforms(options: Required<SimplexNoiseOptions>): ShaderValues {
+export function simplexNoiseUniforms(options: SimplexNoiseOptions): ShaderValues {
     return {
         u_colors: options.colors,
         u_colorsCount: options.colors.length,

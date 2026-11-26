@@ -1,24 +1,42 @@
-import { type JSX, merge, omit } from "@destack/view";
-import { Shader } from "../shader/shader.tsx";
+import { type JSX, omit } from "@destack/view";
+import { Shader, type ShaderProperties } from "../shader/shader.tsx";
 import { SIZING_KEYS } from "../shader/sizing.ts";
 import {
-    SIMPLEX_NOISE_DEFAULTS,
     SIMPLEX_NOISE_FRAGMENT,
-    type SimplexNoiseProperties,
+    SIMPLEX_NOISE_PROPERTIES,
     simplexNoiseUniforms,
 } from "./effect.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
+
+/** The properties of the simplex noise besides its declared ones: the shader's own. */
+export type SimplexNoiseAttributes = Omit<
+    ShaderProperties,
+    "fragmentShader" | "uniforms" | "speed" | "frame"
+>;
 
 /** Draw the simplex noise. */
-export function SimplexNoise(properties: SimplexNoiseProperties): JSX.Element {
-    // fill unset options from the defaults and pass the rest to the shader
-    const options = merge(SIMPLEX_NOISE_DEFAULTS, properties);
-    const rest = omit(options, ...SIZING_KEYS, "colors", "stepsPerColor", "softness");
+export const SimplexNoise = defineComponent({
+    name: "simplexNoise",
+    properties: SIMPLEX_NOISE_PROPERTIES,
+    render(
+        properties: RenderProperties<SimplexNoiseAttributes, typeof SIMPLEX_NOISE_PROPERTIES>,
+    ): JSX.Element {
+        // pass what the shader takes besides the effect's properties
+        const rest = omit(properties, ...SIZING_KEYS, "colors", "stepsPerColor", "softness");
 
-    return (
-        <Shader
-            fragmentShader={SIMPLEX_NOISE_FRAGMENT}
-            uniforms={simplexNoiseUniforms(options)}
-            {...rest}
-        />
-    );
-}
+        return (
+            <Shader
+                fragmentShader={SIMPLEX_NOISE_FRAGMENT}
+                uniforms={simplexNoiseUniforms(properties)}
+                {...rest}
+            />
+        );
+    },
+});
+
+/** The properties of the simplex noise, the shader's included. */
+export type SimplexNoiseProperties = ComponentProperties<typeof SimplexNoise>;

@@ -1,7 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK, COLOR_HIGHLIGHT } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { TRANSPARENT_PIXEL, type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { TRANSPARENT_PIXEL, type ShaderValues } from "../shader/value.ts";
 
 /** The fragment shader of the water. */
 export const WATER_FRAGMENT = `#version 300 es
@@ -116,51 +121,54 @@ void main() {
 }
 `;
 
-/** The options of the water, beside its sizing. */
-export interface WaterOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The optional source image texture. */
+/** The properties people change in the water's controls and inspector. */
+export const WATER_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(1),
+    ...SIZING_PROPERTIES,
+    scale: SIZING_PROPERTIES.scale.default(0.8),
+    colorBack: COLOR_BACK.default("#909090"),
+    colorHighlight: COLOR_HIGHLIGHT.default("#ffffff"),
+    highlights: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Highlights`)
+        .described(t`The highlights along the light patterns.`)
+        .default(0.07),
+    layering: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Layering`)
+        .described(t`How strongly a second layer of light bends the image.`)
+        .default(0.5),
+    edges: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Edges`)
+        .described(t`How much the water bends the image's edges.`)
+        .default(0.8),
+    waves: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Waves`)
+        .described(t`The extra bending of noise.`)
+        .default(0.3),
+    caustic: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Caustic`)
+        .described(t`How strongly the light patterns bend the image.`)
+        .default(0.1),
+    size: field
+        .number(schema.number().min(0.01).max(7))
+        .labeled(t.context("label")`Size`)
+        .described(t`The size of the pattern within the image.`)
+        .default(1),
+};
+
+/** The options of the water, each with its value. */
+export type WaterOptions = DeclaredProperties<typeof WATER_PROPERTIES> & {
+    /** The image it draws over, none for its background alone. */
     readonly image?: string | HTMLImageElement | null;
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** The highlight color, needs highlights > 0. */
-    readonly colorHighlight?: ShaderColor;
-    /** The coloring added over image or background along the caustic shape, from 0 to 1. */
-    readonly highlights?: number;
-    /** The power of the second layer of caustic distortion, from 0 to 1. */
-    readonly layering?: number;
-    /** The caustic distortion power on the image edges, from 0 to 1. */
-    readonly edges?: number;
-    /** The additional distortion based on simplex noise, independent from caustic, from 0 to 1. */
-    readonly waves?: number;
-    /** The power of caustic distortion, needs image, from 0 to 1. */
-    readonly caustic?: number;
-    /** The pattern scale relative to the image, from 0.01 to 7. */
-    readonly size?: number;
-}
-
-/** The properties of the water, the shader's included. */
-export interface WaterProperties
-    extends WaterOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default water. */
-export const WATER_DEFAULTS: Required<WaterOptions> = {
-    image: null,
-    ...OBJECT_SIZING,
-    scale: 0.8,
-    speed: 1,
-    frame: 0,
-    colorBack: "#909090",
-    colorHighlight: "#ffffff",
-    highlights: 0.07,
-    layering: 0.5,
-    edges: 0.8,
-    waves: 0.3,
-    caustic: 0.1,
-    size: 1,
 };
 
 /** Write water options as the fragment shader's uniforms. */
-export function waterUniforms(options: Required<WaterOptions>): ShaderValues {
+export function waterUniforms(options: WaterOptions): ShaderValues {
     return {
         u_image: { image: options.image ?? TRANSPARENT_PIXEL },
         u_colorBack: options.colorBack,

@@ -1,0 +1,1838 @@
+{
+    "package": "package-01a1138b-c73c-7e27-8fdb-447090a18b9a",
+    "locale": "es",
+    "messages": {
+        "330oo16ho23m5": {
+            "source": "Dithering in the default look.",
+            "translation": "Tramado con el aspecto predeterminado."
+        },
+        "3afxdylj8h2ui": {
+            "source": "Dithering in the sine wave look.",
+            "translation": "Tramado con el aspecto «onda sinusoidal»."
+        },
+        "tminjiknqe41": {
+            "source": "Dithering in the bugs look.",
+            "translation": "Tramado con el aspecto «bichos»."
+        },
+        "36yjtc0q934a8": {
+            "source": "Dithering in the ripple look.",
+            "translation": "Tramado con el aspecto «ondulación»."
+        },
+        "hbzrl0urxl77": {
+            "source": "Dithering in the swirl look.",
+            "translation": "Tramado con el aspecto «remolino»."
+        },
+        "3eqi0n7kyyeoo": {
+            "source": "Dithering in the warp look.",
+            "translation": "Tramado con el aspecto «deformación»."
+        },
+        "28wzxch4k0pia": {
+            "source": "Simplex",
+            "context": "option",
+            "translation": "Simplex"
+        },
+        "afc91d11qmiq": {
+            "source": "Warp",
+            "context": "option",
+            "translation": "Deformación"
+        },
+        "3e4yvueua14g": {
+            "source": "Dots",
+            "context": "option",
+            "translation": "Puntos"
+        },
+        "agcf693andh1": {
+            "source": "Wave",
+            "context": "option",
+            "translation": "Onda"
+        },
+        "2cirecesi3uie": {
+            "source": "Ripple",
+            "context": "option",
+            "translation": "Ondulación"
+        },
+        "14s4dfub0t3ez": {
+            "source": "Swirl",
+            "context": "option",
+            "translation": "Remolino"
+        },
+        "38oek3j4os6f5": {
+            "source": "Sphere",
+            "context": "option",
+            "translation": "Esfera"
+        },
+        "awit3q8fkrub": {
+            "source": "Random",
+            "context": "option",
+            "translation": "Aleatorio"
+        },
+        "rcvcehsxwimq": {
+            "source": "2×2",
+            "context": "option",
+            "translation": "2×2"
+        },
+        "3lpopeb2wexz6": {
+            "source": "4×4",
+            "context": "option",
+            "translation": "4×4"
+        },
+        "b52fx5kpkxw2": {
+            "source": "8×8",
+            "context": "option",
+            "translation": "8×8"
+        },
+        "1mt8u6c9nyf2o": {
+            "source": "Shape",
+            "context": "label",
+            "translation": "Forma"
+        },
+        "1lbtrcfpuri2d": {
+            "source": "The pattern the dots draw.",
+            "translation": "El patrón que dibujan los puntos."
+        },
+        "2rcw0jcncuswv": {
+            "source": "Type",
+            "context": "label",
+            "translation": "Tipo"
+        },
+        "3c5cvqsmbxc88": {
+            "source": "The matrix that orders the dots.",
+            "translation": "La matriz que ordena los puntos."
+        },
+        "25kjqyzutgdo": {
+            "source": "Dot grid in the default look.",
+            "translation": "Cuadrícula de puntos con el aspecto predeterminado."
+        },
+        "27p5yolkmsn5s": {
+            "source": "Dot grid in the triangles look.",
+            "translation": "Cuadrícula de puntos con el aspecto «triángulos»."
+        },
+        "3hac3f4ziajrf": {
+            "source": "Dot grid in the tree line look.",
+            "translation": "Cuadrícula de puntos con el aspecto «línea de árboles»."
+        },
+        "2o82aww247ohb": {
+            "source": "Dot grid in the wallpaper look.",
+            "translation": "Cuadrícula de puntos con el aspecto «papel pintado»."
+        },
+        "1b9cfbitpzsls": {
+            "source": "Circle",
+            "context": "option",
+            "translation": "Círculo"
+        },
+        "rkke8jpkxbs": {
+            "source": "Diamond",
+            "context": "option",
+            "translation": "Rombo"
+        },
+        "232rqoij36ly3": {
+            "source": "Square",
+            "context": "option",
+            "translation": "Cuadrado"
+        },
+        "1679h9r39atvs": {
+            "source": "Triangle",
+            "context": "option",
+            "translation": "Triángulo"
+        },
+        "2g7t3g6vmh6hq": {
+            "source": "Fill",
+            "context": "label",
+            "translation": "Relleno"
+        },
+        "374516fteqczp": {
+            "source": "The color inside each shape.",
+            "translation": "El color dentro de cada forma."
+        },
+        "3tl8iob20iftz": {
+            "source": "Stroke",
+            "context": "label",
+            "translation": "Trazo"
+        },
+        "1q7wdv82i9whc": {
+            "source": "The color of each shape's outline.",
+            "translation": "El color del contorno de cada forma."
+        },
+        "1don1gxlmc74u": {
+            "source": "Size",
+            "context": "label",
+            "translation": "Tamaño"
+        },
+        "379xbkrnr8v9i": {
+            "source": "The size of each shape, in pixels.",
+            "translation": "El tamaño de cada forma, en píxeles."
+        },
+        "blugi6hmcwgf": {
+            "source": "Horizontal gap",
+            "context": "label",
+            "translation": "Espacio horizontal"
+        },
+        "25jknwjcgoyb5": {
+            "source": "The space between columns, in pixels.",
+            "translation": "El espacio entre columnas, en píxeles."
+        },
+        "2kh3y8u03fewt": {
+            "source": "Vertical gap",
+            "context": "label",
+            "translation": "Espacio vertical"
+        },
+        "36myx64cpuu7z": {
+            "source": "The space between rows, in pixels.",
+            "translation": "El espacio entre filas, en píxeles."
+        },
+        "1ecpwjmp4vw8v": {
+            "source": "Stroke width",
+            "context": "label",
+            "translation": "Grosor del trazo"
+        },
+        "26uer68fmh2vb": {
+            "source": "The width of each shape's outline, in pixels.",
+            "translation": "El grosor del contorno de cada forma, en píxeles."
+        },
+        "3h2lr38ppsn1n": {
+            "source": "Size variation",
+            "context": "label",
+            "translation": "Variación de tamaño"
+        },
+        "2lril4zkinig1": {
+            "source": "How much the size of each shape varies.",
+            "translation": "Cuánto varía el tamaño de cada forma."
+        },
+        "nlx3m9rvb89": {
+            "source": "Opacity variation",
+            "context": "label",
+            "translation": "Variación de opacidad"
+        },
+        "2mebx1k48dl1n": {
+            "source": "How much the opacity of each shape varies.",
+            "translation": "Cuánto varía la opacidad de cada forma."
+        },
+        "15233kiig6l1w": {
+            "source": "The shape of each dot.",
+            "translation": "La forma de cada punto."
+        },
+        "25tisudw08i0n": {
+            "source": "Lines",
+            "context": "option",
+            "translation": "Líneas"
+        },
+        "1trsgmuyz9gam": {
+            "source": "Irregular lines",
+            "context": "option",
+            "translation": "Líneas irregulares"
+        },
+        "1o8a1fdre9uqc": {
+            "source": "Zigzag",
+            "context": "option",
+            "translation": "Zigzag"
+        },
+        "crl7wgdha44u": {
+            "source": "Pattern",
+            "context": "option",
+            "translation": "Patrón"
+        },
+        "34g5gjr812u8h": {
+            "source": "Prism",
+            "context": "option",
+            "translation": "Prisma"
+        },
+        "1kc7ld5g4x1sw": {
+            "source": "Lens",
+            "context": "option",
+            "translation": "Lente"
+        },
+        "curuertgg462": {
+            "source": "Contour",
+            "context": "option",
+            "translation": "Contorno"
+        },
+        "1uogwnbzts6p2": {
+            "source": "Cascade",
+            "context": "option",
+            "translation": "Cascada"
+        },
+        "9tq5wu7mpcub": {
+            "source": "Flat",
+            "context": "option",
+            "translation": "Plano"
+        },
+        "3l43f1t7vvky7": {
+            "source": "Shadow",
+            "context": "label",
+            "translation": "Sombra"
+        },
+        "2azbcxpj4507e": {
+            "source": "The color of the shadows.",
+            "translation": "El color de las sombras."
+        },
+        "1l95ncpffocqc": {
+            "source": "Shadows",
+            "context": "label",
+            "translation": "Sombras"
+        },
+        "5dxdbxe9t5xr": {
+            "source": "The shading along the glass shape.",
+            "translation": "El sombreado a lo largo de la forma del vidrio."
+        },
+        "1mnhx8a6dsr9x": {
+            "source": "The size of the glass grid.",
+            "translation": "El tamaño de la cuadrícula de vidrio."
+        },
+        "1nag7hbfipyby": {
+            "source": "Angle",
+            "context": "label",
+            "translation": "Ángulo"
+        },
+        "2olnp3xdlf8lz": {
+            "source": "The direction of the grid, in degrees.",
+            "translation": "La dirección de la cuadrícula, en grados."
+        },
+        "1vod2pgzm13dx": {
+            "source": "Distortion shape",
+            "context": "label",
+            "translation": "Forma de distorsión"
+        },
+        "2yjmnipu3e7v7": {
+            "source": "The shape each stripe of glass bends the image in.",
+            "translation": "La forma en que cada franja de vidrio curva la imagen."
+        },
+        "2obz85e359ppu": {
+            "source": "Highlights",
+            "context": "label",
+            "translation": "Brillos"
+        },
+        "r6aj34ch0v7x": {
+            "source": "The thin highlights along the glass shape.",
+            "translation": "Los brillos finos a lo largo de la forma del vidrio."
+        },
+        "kv1s96gqfl9k": {
+            "source": "The pattern of the glass grid.",
+            "translation": "El patrón de la cuadrícula de vidrio."
+        },
+        "1i7rqy6venzgw": {
+            "source": "Distortion",
+            "context": "label",
+            "translation": "Distorsión"
+        },
+        "1apuim7bvj1fx": {
+            "source": "How strongly each stripe bends the image.",
+            "translation": "Con qué fuerza cada franja curva la imagen."
+        },
+        "l6hr9vh1vd2l": {
+            "source": "Shift",
+            "context": "label",
+            "translation": "Desfase"
+        },
+        "tgtnxwvnifhc": {
+            "source": "How far the image moves against the grid.",
+            "translation": "Cuánto se desplaza la imagen contra la cuadrícula."
+        },
+        "35d8g10rtxl8y": {
+            "source": "Blur",
+            "context": "label",
+            "translation": "Desenfoque"
+        },
+        "2ovvkz9lyazbf": {
+            "source": "How much the glass blurs the image.",
+            "translation": "Cuánto desenfoca el vidrio la imagen."
+        },
+        "37xayammvzw77": {
+            "source": "Edges",
+            "context": "label",
+            "translation": "Bordes"
+        },
+        "3tdf2yk6mbuum": {
+            "source": "How much the glass bends and softens the image's edges.",
+            "translation": "Cuánto curva y suaviza el vidrio los bordes de la imagen."
+        },
+        "1fy7c1s0ak8ys": {
+            "source": "Stretch",
+            "context": "label",
+            "translation": "Estiramiento"
+        },
+        "13qcl0ls2ew44": {
+            "source": "The extra bending along the grid lines.",
+            "translation": "La curvatura adicional a lo largo de las líneas de la cuadrícula."
+        },
+        "11mda3fnhzwtp": {
+            "source": "Fluted glass in the default look.",
+            "translation": "Vidrio acanalado con el aspecto predeterminado."
+        },
+        "2m5qj1mkhnacm": {
+            "source": "Fluted glass in the waves look.",
+            "translation": "Vidrio acanalado con el aspecto «ondas»."
+        },
+        "10b2w36ra5570": {
+            "source": "Fluted glass in the abstract look.",
+            "translation": "Vidrio acanalado con el aspecto «abstracto»."
+        },
+        "19v3nunm1mctw": {
+            "source": "Fluted glass in the folds look.",
+            "translation": "Vidrio acanalado con el aspecto «pliegues»."
+        },
+        "225aprsdn8gb1": {
+            "source": "Bloom color",
+            "context": "label",
+            "translation": "Color del resplandor"
+        },
+        "2d944f26m8jjl": {
+            "source": "The color blended over the rays.",
+            "translation": "El color mezclado sobre los rayos."
+        },
+        "wky2f9ao32jj": {
+            "source": "Colors",
+            "context": "label",
+            "translation": "Colores"
+        },
+        "3rgwg7btnkrjp": {
+            "source": "The colors the effect blends, in order.",
+            "translation": "Los colores que mezcla el efecto, en orden."
+        },
+        "x1v1x4eqvgu1": {
+            "source": "Density",
+            "context": "label",
+            "translation": "Densidad"
+        },
+        "2sgnfts051n9n": {
+            "source": "How many rays there are.",
+            "translation": "Cuántos rayos hay."
+        },
+        "241buxl9hknkj": {
+            "source": "Spottiness",
+            "context": "label",
+            "translation": "Moteado"
+        },
+        "j54nvyou38tf": {
+            "source": "How short and spotty the rays are.",
+            "translation": "Qué tan cortos y moteados son los rayos."
+        },
+        "1hqhw3pe63wuf": {
+            "source": "Glow intensity",
+            "context": "label",
+            "translation": "Intensidad del brillo"
+        },
+        "1jkb9rf4frkmb": {
+            "source": "The brightness of the glow in the center.",
+            "translation": "El brillo del resplandor en el centro."
+        },
+        "xkiwnjf44rrr": {
+            "source": "Glow size",
+            "context": "label",
+            "translation": "Tamaño del brillo"
+        },
+        "3ijt1zncgmgx5": {
+            "source": "The size of the glow in the center.",
+            "translation": "El tamaño del resplandor en el centro."
+        },
+        "2k75ktmegjnd0": {
+            "source": "Intensity",
+            "context": "label",
+            "translation": "Intensidad"
+        },
+        "qg80clgfgmy2": {
+            "source": "How strongly the rays show.",
+            "translation": "Con qué fuerza se ven los rayos."
+        },
+        "259mng6qz1dem": {
+            "source": "Bloom",
+            "context": "label",
+            "translation": "Resplandor"
+        },
+        "fes4rhw1ga2e": {
+            "source": "How strongly the bloom color blends over the rays.",
+            "translation": "Con qué fuerza el color del resplandor se mezcla sobre los rayos."
+        },
+        "1o6ulazjjf882": {
+            "source": "God rays in the default look.",
+            "translation": "Rayos de luz con el aspecto predeterminado."
+        },
+        "3v95yl9zazp8x": {
+            "source": "God rays in the warp look.",
+            "translation": "Rayos de luz con el aspecto «deformación»."
+        },
+        "13ymiqimmae1a": {
+            "source": "God rays in the linear look.",
+            "translation": "Rayos de luz con el aspecto «lineal»."
+        },
+        "1wpxu8uvclatv": {
+            "source": "God rays in the ether look.",
+            "translation": "Rayos de luz con el aspecto «éter»."
+        },
+        "2s43i4g9vc50b": {
+            "source": "Truchet",
+            "context": "option",
+            "translation": "Truchet"
+        },
+        "2astawmvv04c6": {
+            "source": "Corners",
+            "context": "option",
+            "translation": "Esquinas"
+        },
+        "p1cjeewfgsxb": {
+            "source": "Blob",
+            "context": "option",
+            "translation": "Mancha"
+        },
+        "3rhbrmz9n864n": {
+            "source": "How much the color bands bend.",
+            "translation": "Cuánto se curvan las bandas de color."
+        },
+        "3k8fg2eah9moj": {
+            "source": "Noise",
+            "context": "label",
+            "translation": "Ruido"
+        },
+        "3uv7vabfufydk": {
+            "source": "The grain over the gradient.",
+            "translation": "El grano sobre el degradado."
+        },
+        "32n79t30ngrvt": {
+            "source": "The shape of the gradient.",
+            "translation": "La forma del degradado."
+        },
+        "b49wgtts56ks": {
+            "source": "Grain gradient in the default look.",
+            "translation": "Degradado granulado con el aspecto predeterminado."
+        },
+        "66iohijxnk40": {
+            "source": "Grain gradient in the wave look.",
+            "translation": "Degradado granulado con el aspecto «onda»."
+        },
+        "wc9arxxbhrz5": {
+            "source": "Grain gradient in the dots look.",
+            "translation": "Degradado granulado con el aspecto «puntos»."
+        },
+        "m5pq7grz15ai": {
+            "source": "Grain gradient in the truchet look.",
+            "translation": "Degradado granulado con el aspecto «Truchet»."
+        },
+        "2tkzekh6vfvr7": {
+            "source": "Grain gradient in the ripple look.",
+            "translation": "Degradado granulado con el aspecto «ondulación»."
+        },
+        "3dub4ylywawva": {
+            "source": "Grain gradient in the blob look.",
+            "translation": "Degradado granulado con el aspecto «mancha»."
+        },
+        "222ofpzeirsvc": {
+            "source": "Ink",
+            "context": "option",
+            "translation": "Tinta"
+        },
+        "5eh1zubq923s": {
+            "source": "Sharp",
+            "context": "option",
+            "translation": "Nítido"
+        },
+        "1kkev4tvpbpws": {
+            "source": "Cyan",
+            "context": "label",
+            "translation": "Cian"
+        },
+        "2tt68sng5rcyp": {
+            "source": "The cyan ink.",
+            "translation": "La tinta cian."
+        },
+        "302sabhppnp32": {
+            "source": "Magenta",
+            "context": "label",
+            "translation": "Magenta"
+        },
+        "no7jjzqw50ed": {
+            "source": "The magenta ink.",
+            "translation": "La tinta magenta."
+        },
+        "dx4qosxnjdj7": {
+            "source": "Yellow",
+            "context": "label",
+            "translation": "Amarillo"
+        },
+        "qqdo7xizd0k4": {
+            "source": "The yellow ink.",
+            "translation": "La tinta amarilla."
+        },
+        "2f5pqdetndg2m": {
+            "source": "Black",
+            "context": "label",
+            "translation": "Negro"
+        },
+        "3iqlv4hb6ciz9": {
+            "source": "The black ink.",
+            "translation": "La tinta negra."
+        },
+        "fstbat9gub9g": {
+            "source": "The size of each halftone cell.",
+            "translation": "El tamaño de cada celda de semitono."
+        },
+        "38qlwbju8t3ip": {
+            "source": "Contrast",
+            "context": "label",
+            "translation": "Contraste"
+        },
+        "2l6r4f5ttivqv": {
+            "source": "The contrast of the image.",
+            "translation": "El contraste de la imagen."
+        },
+        "a9pwwkgibngc": {
+            "source": "Softness",
+            "context": "label",
+            "translation": "Suavidad"
+        },
+        "36qaq3yrmwp32": {
+            "source": "How soft the edges of the dots are.",
+            "translation": "Qué tan suaves son los bordes de los puntos."
+        },
+        "291ym4v5exd09": {
+            "source": "Edge grain",
+            "context": "label",
+            "translation": "Grano de bordes"
+        },
+        "2vgptuv8a0rg3": {
+            "source": "The grain that changes the size of the dots.",
+            "translation": "El grano que cambia el tamaño de los puntos."
+        },
+        "1x5anwprnga3h": {
+            "source": "Grid noise",
+            "context": "label",
+            "translation": "Ruido de cuadrícula"
+        },
+        "pra0qvjgcgi3": {
+            "source": "How much noise moves the dots and the colors they read.",
+            "translation": "Cuánto mueve el ruido los puntos y los colores que leen."
+        },
+        "mjrepqhsjio0": {
+            "source": "Cyan flood",
+            "context": "label",
+            "translation": "Relleno cian"
+        },
+        "56nofd2efy9p": {
+            "source": "How much every cyan dot grows.",
+            "translation": "Cuánto crece cada punto cian."
+        },
+        "32xcvlbuca1im": {
+            "source": "Magenta flood",
+            "context": "label",
+            "translation": "Relleno magenta"
+        },
+        "33rq191stmurn": {
+            "source": "How much every magenta dot grows.",
+            "translation": "Cuánto crece cada punto magenta."
+        },
+        "268gvs2pxuqfz": {
+            "source": "Yellow flood",
+            "context": "label",
+            "translation": "Relleno amarillo"
+        },
+        "2sdpese9qjo4w": {
+            "source": "How much every yellow dot grows.",
+            "translation": "Cuánto crece cada punto amarillo."
+        },
+        "1ulsl2dplya6m": {
+            "source": "Black flood",
+            "context": "label",
+            "translation": "Relleno negro"
+        },
+        "nbbu2fl9twdb": {
+            "source": "How much every black dot grows.",
+            "translation": "Cuánto crece cada punto negro."
+        },
+        "tmrxxgwzvdjb": {
+            "source": "Cyan gain",
+            "context": "label",
+            "translation": "Ganancia cian"
+        },
+        "1s9wep39a1odm": {
+            "source": "How much cyan dots grow with their ink.",
+            "translation": "Cuánto crecen los puntos cian con su tinta."
+        },
+        "38yypfuu78xst": {
+            "source": "Magenta gain",
+            "context": "label",
+            "translation": "Ganancia magenta"
+        },
+        "2v3qfpiq75l0a": {
+            "source": "How much magenta dots grow with their ink.",
+            "translation": "Cuánto crecen los puntos magenta con su tinta."
+        },
+        "2jyp675e9c3b6": {
+            "source": "Yellow gain",
+            "context": "label",
+            "translation": "Ganancia amarilla"
+        },
+        "3mr2o4l3hs8h5": {
+            "source": "How much yellow dots grow with their ink.",
+            "translation": "Cuánto crecen los puntos amarillos con su tinta."
+        },
+        "e4tkpn4eyqgt": {
+            "source": "Black gain",
+            "context": "label",
+            "translation": "Ganancia negra"
+        },
+        "2fj4zsw5nv07a": {
+            "source": "How much black dots grow with their ink.",
+            "translation": "Cuánto crecen los puntos negros con su tinta."
+        },
+        "1uhh5cgjf5rfr": {
+            "source": "The look of the dots.",
+            "translation": "El aspecto de los puntos."
+        },
+        "2g0e00s99t01q": {
+            "source": "CMYK halftone in the default look.",
+            "translation": "Semitono CMYK con el aspecto predeterminado."
+        },
+        "pvun8jree2vd": {
+            "source": "CMYK halftone in the drops look.",
+            "translation": "Semitono CMYK con el aspecto «gotas»."
+        },
+        "oz2bhvhpwkos": {
+            "source": "CMYK halftone in the newspaper look.",
+            "translation": "Semitono CMYK con el aspecto «periódico»."
+        },
+        "2gjyr0kn23ci1": {
+            "source": "CMYK halftone in the vintage look.",
+            "translation": "Semitono CMYK con el aspecto «vintage»."
+        },
+        "2vrnjsivv7uxo": {
+            "source": "Classic",
+            "context": "option",
+            "translation": "Clásico"
+        },
+        "1qrqe5q3731sl": {
+            "source": "Gooey",
+            "context": "option",
+            "translation": "Viscoso"
+        },
+        "1i720x4t43sef": {
+            "source": "Holes",
+            "context": "option",
+            "translation": "Agujeros"
+        },
+        "270mf43py9o0c": {
+            "source": "Soft",
+            "context": "option",
+            "translation": "Suave"
+        },
+        "3vld2zz6x0rmt": {
+            "source": "Hexagonal",
+            "context": "option",
+            "translation": "Hexagonal"
+        },
+        "385kv5annb51w": {
+            "source": "The size of the grid within the image.",
+            "translation": "El tamaño de la cuadrícula dentro de la imagen."
+        },
+        "8b4st0smjnf9": {
+            "source": "Radius",
+            "context": "label",
+            "translation": "Radio"
+        },
+        "1tbhhbykrny7k": {
+            "source": "The largest dot within its cell.",
+            "translation": "El punto más grande dentro de su celda."
+        },
+        "3j8c1f6nw9fpw": {
+            "source": "The grain that roughens the edges of the dots.",
+            "translation": "El grano que vuelve ásperos los bordes de los puntos."
+        },
+        "237s7xf2268yz": {
+            "source": "Grid",
+            "context": "label",
+            "translation": "Cuadrícula"
+        },
+        "3hbdtn23xfpvs": {
+            "source": "The grid the dots lie on.",
+            "translation": "La cuadrícula sobre la que están los puntos."
+        },
+        "3mzazw9c1ghbc": {
+            "source": "Halftone dots in the default look.",
+            "translation": "Puntos de semitono con el aspecto predeterminado."
+        },
+        "3lcgamf47iwvq": {
+            "source": "Halftone dots in the led screen look.",
+            "translation": "Puntos de semitono con el aspecto «pantalla LED»."
+        },
+        "1lph9kgfomval": {
+            "source": "Halftone dots in the mosaic look.",
+            "translation": "Puntos de semitono con el aspecto «mosaico»."
+        },
+        "33i35phx487hp": {
+            "source": "Halftone dots in the round and square look.",
+            "translation": "Puntos de semitono con el aspecto «redondo y cuadrado»."
+        },
+        "23q0cx31hsgix": {
+            "source": "Color steps",
+            "context": "label",
+            "translation": "Pasos de color"
+        },
+        "11ws2wjcyhjhe": {
+            "source": "How many colors the dots use.",
+            "translation": "Cuántos colores usan los puntos."
+        },
+        "2ah2rasf7etxy": {
+            "source": "Image dithering in the default look.",
+            "translation": "Tramado de imagen con el aspecto predeterminado."
+        },
+        "1dwr7a2p3nwnb": {
+            "source": "Image dithering in the retro look.",
+            "translation": "Tramado de imagen con el aspecto «retro»."
+        },
+        "3tqgl3tk5rz2h": {
+            "source": "Image dithering in the noise look.",
+            "translation": "Tramado de imagen con el aspecto «ruido»."
+        },
+        "2nv6b7htz9xpu": {
+            "source": "Image dithering in the natural look.",
+            "translation": "Tramado de imagen con el aspecto «natural»."
+        },
+        "2hd6nsgnksi9f": {
+            "source": "How strongly organic noise bends the gradient.",
+            "translation": "Con qué fuerza el ruido orgánico curva el degradado."
+        },
+        "2mh3ly99aryli": {
+            "source": "Swirl",
+            "context": "label",
+            "translation": "Remolino"
+        },
+        "30v38aknopz4k": {
+            "source": "How strongly the gradient swirls.",
+            "translation": "Con qué fuerza gira el degradado."
+        },
+        "3o4v90thozmvc": {
+            "source": "Mesh gradient in the default look.",
+            "translation": "Degradado de malla con el aspecto predeterminado."
+        },
+        "1vbg1qb2svmzb": {
+            "source": "Mesh gradient in the purple look.",
+            "translation": "Degradado de malla con el aspecto «morado»."
+        },
+        "4b49o343977u": {
+            "source": "Mesh gradient in the beach look.",
+            "translation": "Degradado de malla con el aspecto «playa»."
+        },
+        "2nlizzspk5z8h": {
+            "source": "Mesh gradient in the ink look.",
+            "translation": "Degradado de malla con el aspecto «tinta»."
+        },
+        "25jxy02h4pfvi": {
+            "source": "Count",
+            "context": "label",
+            "translation": "Cantidad"
+        },
+        "3sxwdzdkiqdr9": {
+            "source": "How many balls there are, a fraction shrinking the last one.",
+            "translation": "Cuántas bolas hay; una fracción encoge la última."
+        },
+        "37h9mp3laskqd": {
+            "source": "The size of the balls.",
+            "translation": "El tamaño de las bolas."
+        },
+        "l2o7bp9jgdtm": {
+            "source": "Metaballs in the default look.",
+            "translation": "Metabolas con el aspecto predeterminado."
+        },
+        "3gt8qr41ongjd": {
+            "source": "Metaballs in the ink drops look.",
+            "translation": "Metabolas con el aspecto «gotas de tinta»."
+        },
+        "3ctkzqabngxzj": {
+            "source": "Metaballs in the background look.",
+            "translation": "Metabolas con el aspecto «fondo»."
+        },
+        "2jdoy4dm399fq": {
+            "source": "Metaballs in the solar look.",
+            "translation": "Metabolas con el aspecto «solar»."
+        },
+        "ksifq8e4wnyj": {
+            "source": "Background",
+            "context": "label",
+            "translation": "Fondo"
+        },
+        "52q2igxsikqp": {
+            "source": "The color behind the paper sheet.",
+            "translation": "El color detrás de la hoja de papel."
+        },
+        "ttrwruxuvgdv": {
+            "source": "Paper",
+            "context": "label",
+            "translation": "Papel"
+        },
+        "2nr6ruepaouiy": {
+            "source": "The color of the paper sheet.",
+            "translation": "El color de la hoja de papel."
+        },
+        "oibq7rtpvvu6": {
+            "source": "The color of the patterns on the paper.",
+            "translation": "El color de los patrones sobre el papel."
+        },
+        "3vuuuzcdxad7m": {
+            "source": "Blending",
+            "context": "label",
+            "translation": "Fusión"
+        },
+        "dq57xxfoxuxh": {
+            "source": "How much the image blends into the paper.",
+            "translation": "Cuánto se funde la imagen con el papel."
+        },
+        "1irudgep2pzbj": {
+            "source": "How much the image bends with the paper.",
+            "translation": "Cuánto se curva la imagen con el papel."
+        },
+        "2po2n4lcjzq3l": {
+            "source": "Clip",
+            "context": "label",
+            "translation": "Recortar"
+        },
+        "m0pj01itgooh": {
+            "source": "Cuts the paper to the image's frame.",
+            "translation": "Recorta el papel al marco de la imagen."
+        },
+        "ji3ptod2c7pl": {
+            "source": "The direction the light comes from, in degrees.",
+            "translation": "La dirección de la que viene la luz, en grados."
+        },
+        "1xk7m5lgtme56": {
+            "source": "Seed",
+            "context": "label",
+            "translation": "Semilla"
+        },
+        "3ouadjayr73af": {
+            "source": "The seed of every pattern on the paper.",
+            "translation": "La semilla de cada patrón del papel."
+        },
+        "2gqw96q45epm3": {
+            "source": "Roughness",
+            "context": "label",
+            "translation": "Rugosidad"
+        },
+        "3qcije55prtcn": {
+            "source": "The fine grain across the paper.",
+            "translation": "El grano fino por el papel."
+        },
+        "cytf6l3a8j40": {
+            "source": "Roughness size",
+            "context": "label",
+            "translation": "Tamaño de la rugosidad"
+        },
+        "ipdyy3nipi3o": {
+            "source": "The size of the fine grain.",
+            "translation": "El tamaño del grano fino."
+        },
+        "ka4vc8z27a5w": {
+            "source": "Roughness rows",
+            "context": "label",
+            "translation": "Filas de rugosidad"
+        },
+        "3ecfxr5fm11dc": {
+            "source": "How much the fine grain lines up in rows.",
+            "translation": "Cuánto se alinea el grano fino en filas."
+        },
+        "2zwpofl3i070z": {
+            "source": "Fiber",
+            "context": "label",
+            "translation": "Fibra"
+        },
+        "15uc4dgulko5w": {
+            "source": "The curly threads across the paper.",
+            "translation": "Los hilos rizados por el papel."
+        },
+        "ckn7t0mkf93s": {
+            "source": "Fiber size",
+            "context": "label",
+            "translation": "Tamaño de fibra"
+        },
+        "3qqpabdzslotw": {
+            "source": "The size of the threads.",
+            "translation": "El tamaño de los hilos."
+        },
+        "2swq9dp98fnxx": {
+            "source": "Folds",
+            "context": "label",
+            "translation": "Pliegues"
+        },
+        "18wnu674h00e2": {
+            "source": "The straight folds across the paper.",
+            "translation": "Los pliegues rectos por el papel."
+        },
+        "96ku6abtl8rd": {
+            "source": "Vertical fold size",
+            "context": "label",
+            "translation": "Tamaño de pliegues verticales"
+        },
+        "2cm351gama3b3": {
+            "source": "The size of the vertical folds.",
+            "translation": "El tamaño de los pliegues verticales."
+        },
+        "27bdefuwbel4v": {
+            "source": "Horizontal fold size",
+            "context": "label",
+            "translation": "Tamaño de pliegues horizontales"
+        },
+        "3ici01ls3411d": {
+            "source": "The size of the horizontal folds.",
+            "translation": "El tamaño de los pliegues horizontales."
+        },
+        "2s5n606scvq7v": {
+            "source": "Vertical fold offset",
+            "context": "label",
+            "translation": "Desplazamiento de pliegues verticales"
+        },
+        "u9p945i86kis": {
+            "source": "How far the vertical folds move across the paper.",
+            "translation": "Cuánto se desplazan los pliegues verticales por el papel."
+        },
+        "3r7z1nxxhf5hl": {
+            "source": "Horizontal fold offset",
+            "context": "label",
+            "translation": "Desplazamiento de pliegues horizontales"
+        },
+        "3krj3w7nwacti": {
+            "source": "How far the horizontal folds move across the paper.",
+            "translation": "Cuánto se desplazan los pliegues horizontales por el papel."
+        },
+        "175omsoqslniu": {
+            "source": "Wrinkles",
+            "context": "label",
+            "translation": "Arrugas finas"
+        },
+        "pegup249q0ny": {
+            "source": "The crumpled facets across the paper.",
+            "translation": "Las facetas arrugadas por el papel."
+        },
+        "1gqvtxuya32sy": {
+            "source": "Wrinkle size",
+            "context": "label",
+            "translation": "Tamaño de las arrugas"
+        },
+        "1ydywomrd5bb5": {
+            "source": "The size of the facets.",
+            "translation": "El tamaño de las facetas."
+        },
+        "3rq0fii6rpdwg": {
+            "source": "Crumples",
+            "context": "label",
+            "translation": "Arrugas"
+        },
+        "29rw5of1ymhj3": {
+            "source": "The irregular fold lines across the paper.",
+            "translation": "Las líneas de pliegue irregulares por el papel."
+        },
+        "1c54d981bt6nk": {
+            "source": "Crumple count",
+            "context": "label",
+            "translation": "Cantidad de arrugas"
+        },
+        "b17fz6phjkmr": {
+            "source": "How many facets the fold lines make.",
+            "translation": "Cuántas facetas forman las líneas de pliegue."
+        },
+        "2vu9fi6sss9lj": {
+            "source": "Drops",
+            "context": "label",
+            "translation": "Gotas"
+        },
+        "jha8yr8vozo0": {
+            "source": "The speckles across the paper.",
+            "translation": "Las motas por el papel."
+        },
+        "1dow32f66n2u2": {
+            "source": "Paper texture in the default look.",
+            "translation": "Textura de papel con el aspecto predeterminado."
+        },
+        "2ialmac3d5q4y": {
+            "source": "Paper texture in the creased look.",
+            "translation": "Textura de papel con el aspecto «arrugado»."
+        },
+        "ojrqckltk8x8": {
+            "source": "Paper texture in the spread look.",
+            "translation": "Textura de papel con el aspecto «extendido»."
+        },
+        "39bmzkduho284": {
+            "source": "Paper texture in the flat look.",
+            "translation": "Textura de papel con el aspecto «plano»."
+        },
+        "1yoamv6nuuypc": {
+            "source": "Octaves",
+            "context": "label",
+            "translation": "Octavas"
+        },
+        "37zsgdmkcclth": {
+            "source": "How many layers of noise add detail.",
+            "translation": "Cuántas capas de ruido añaden detalle."
+        },
+        "1d9fwl6lxbsyy": {
+            "source": "Persistence",
+            "context": "label",
+            "translation": "Persistencia"
+        },
+        "3i30kg6j15w4d": {
+            "source": "How much each layer of noise adds.",
+            "translation": "Cuánto añade cada capa de ruido."
+        },
+        "2c5w5ld22zs4z": {
+            "source": "Lacunarity",
+            "context": "label",
+            "translation": "Lacunaridad"
+        },
+        "p3r058pm0u67": {
+            "source": "How much finer each layer of noise is.",
+            "translation": "Cuánto más fina es cada capa de ruido."
+        },
+        "ji0xpim8zq4j": {
+            "source": "Perlin noise in the default look.",
+            "translation": "Ruido Perlin con el aspecto predeterminado."
+        },
+        "2my8a2wxxs63l": {
+            "source": "Perlin noise in the pixel water look.",
+            "translation": "Ruido Perlin con el aspecto «agua pixelada»."
+        },
+        "r4l3b2fzu2k6": {
+            "source": "Perlin noise in the moss look.",
+            "translation": "Ruido Perlin con el aspecto «musgo»."
+        },
+        "328ylks6cpesm": {
+            "source": "Perlin noise in the worms look.",
+            "translation": "Ruido Perlin con el aspecto «gusanos»."
+        },
+        "1e2ne3jtx0pzs": {
+            "source": "Canvas",
+            "context": "option",
+            "translation": "Lienzo"
+        },
+        "3puksd44x4iey": {
+            "source": "Roundness",
+            "context": "label",
+            "translation": "Redondez"
+        },
+        "q5pgm4akorkq": {
+            "source": "The radius of the border's corners.",
+            "translation": "El radio de las esquinas del borde."
+        },
+        "25xcihfpr5a3z": {
+            "source": "Thickness",
+            "context": "label",
+            "translation": "Grosor"
+        },
+        "28oueom61syhw": {
+            "source": "The width of the border.",
+            "translation": "El grosor del borde."
+        },
+        "27oiitgt6zd8g": {
+            "source": "Aspect ratio",
+            "context": "label",
+            "translation": "Relación de aspecto"
+        },
+        "3bftjlw1elutu": {
+            "source": "Whether the border follows the canvas or stays square.",
+            "translation": "Si el borde sigue al lienzo o se mantiene cuadrado."
+        },
+        "2fwyg91cso8g9": {
+            "source": "How soft the border's edge is.",
+            "translation": "Qué tan suave es el borde del contorno."
+        },
+        "1sbq17dr5xh0f": {
+            "source": "The thickness of each color spot.",
+            "translation": "El grosor de cada mancha de color."
+        },
+        "22xdi9ftav7mb": {
+            "source": "How much the spots glow.",
+            "translation": "Cuánto brillan las manchas."
+        },
+        "2fm774ts2z6x0": {
+            "source": "Spots",
+            "context": "label",
+            "translation": "Manchas"
+        },
+        "2epvsnovoctn1": {
+            "source": "How many spots each color adds.",
+            "translation": "Cuántas manchas añade cada color."
+        },
+        "3gp7k639pmuf8": {
+            "source": "Spot size",
+            "context": "label",
+            "translation": "Tamaño de mancha"
+        },
+        "2wagf3oz2hn6l": {
+            "source": "The angular size of each spot.",
+            "translation": "El tamaño angular de cada mancha."
+        },
+        "1x9aprzxos9tc": {
+            "source": "Pulse",
+            "context": "label",
+            "translation": "Pulso"
+        },
+        "zwrr0ywiiz3o": {
+            "source": "How strongly the border pulses.",
+            "translation": "Con qué fuerza late el borde."
+        },
+        "37nsykg077e5k": {
+            "source": "Smoke",
+            "context": "label",
+            "translation": "Humo"
+        },
+        "3i4ugf5uedar1": {
+            "source": "The noisy smoke around the border.",
+            "translation": "El humo ruidoso alrededor del borde."
+        },
+        "3n2w74wy235nt": {
+            "source": "Smoke size",
+            "context": "label",
+            "translation": "Tamaño del humo"
+        },
+        "2r54d0nmpf3bo": {
+            "source": "The size of the smoke.",
+            "translation": "El tamaño del humo."
+        },
+        "3atdhp93k9hgv": {
+            "source": "Pulsing border in the default look.",
+            "translation": "Borde pulsante con el aspecto predeterminado."
+        },
+        "2vput4t35er60": {
+            "source": "Pulsing border in the circle look.",
+            "translation": "Borde pulsante con el aspecto «círculo»."
+        },
+        "7e5p3ritm87p": {
+            "source": "Pulsing border in the northern lights look.",
+            "translation": "Borde pulsante con el aspecto «aurora boreal»."
+        },
+        "2bcxi9c9o6uzf": {
+            "source": "Pulsing border in the solid line look.",
+            "translation": "Borde pulsante con el aspecto «línea continua»."
+        },
+        "1c28puhso2s9t": {
+            "source": "The color behind the effect.",
+            "translation": "El color detrás del efecto."
+        },
+        "2h1142hhv54fi": {
+            "source": "Foreground",
+            "context": "label",
+            "translation": "Primer plano"
+        },
+        "1u51omvutmhuz": {
+            "source": "The color the effect draws in.",
+            "translation": "El color con el que dibuja el efecto."
+        },
+        "3t2horo0iwbdg": {
+            "source": "The size of each dot, in pixels.",
+            "translation": "El tamaño de cada punto, en píxeles."
+        },
+        "1uiocostj8sl1": {
+            "source": "Highlight",
+            "context": "label",
+            "translation": "Brillo"
+        },
+        "4myyfoe1dk68": {
+            "source": "The color of the highlights.",
+            "translation": "El color de los brillos."
+        },
+        "2184x5fwcnh7w": {
+            "source": "Left margin",
+            "context": "label",
+            "translation": "Margen izquierdo"
+        },
+        "33a98ny3oq746": {
+            "source": "The space between the left edge and the effect.",
+            "translation": "El espacio entre el borde izquierdo y el efecto."
+        },
+        "77w8cgg65atz": {
+            "source": "Right margin",
+            "context": "label",
+            "translation": "Margen derecho"
+        },
+        "1iikcvkcbv84d": {
+            "source": "The space between the right edge and the effect.",
+            "translation": "El espacio entre el borde derecho y el efecto."
+        },
+        "3csfhxk701ihw": {
+            "source": "Top margin",
+            "context": "label",
+            "translation": "Margen superior"
+        },
+        "20y0fypw92182": {
+            "source": "The space between the top edge and the effect.",
+            "translation": "El espacio entre el borde superior y el efecto."
+        },
+        "16fzgpnhlvk7a": {
+            "source": "Bottom margin",
+            "context": "label",
+            "translation": "Margen inferior"
+        },
+        "28zaehgaypz4c": {
+            "source": "The space between the bottom edge and the effect.",
+            "translation": "El espacio entre el borde inferior y el efecto."
+        },
+        "bv947t562rjx": {
+            "source": "The grain that roughens the edges of shapes.",
+            "translation": "El grano que vuelve ásperos los bordes de las formas."
+        },
+        "3usyt5tvda0yy": {
+            "source": "Grain overlay",
+            "context": "label",
+            "translation": "Grano superpuesto"
+        },
+        "1nf9jq639q3j2": {
+            "source": "The black and white grain over the result.",
+            "translation": "El grano en blanco y negro sobre el resultado."
+        },
+        "kdliisa6gvq1": {
+            "source": "How smoothly the colors blend, from a hard edge to a smooth gradient.",
+            "translation": "Qué tan suave es la mezcla de colores, de un borde duro a un degradado suave."
+        },
+        "1qhe3dfq1l1eb": {
+            "source": "Grain size",
+            "context": "label",
+            "translation": "Tamaño del grano"
+        },
+        "1o08qsjkaz1x6": {
+            "source": "The size of the grain.",
+            "translation": "El tamaño del grano."
+        },
+        "uu3lbmncjy94": {
+            "source": "Original colors",
+            "context": "label",
+            "translation": "Colores originales"
+        },
+        "35il5yaddq2il": {
+            "source": "Draws with the image's own colors in place of the foreground.",
+            "translation": "Dibuja con los colores propios de la imagen en lugar del primer plano."
+        },
+        "2khziesrfw0uu": {
+            "source": "Inverted",
+            "context": "label",
+            "translation": "Invertido"
+        },
+        "18uglb90g3jy7": {
+            "source": "Inverts the image's lightness.",
+            "translation": "Invierte la luminosidad de la imagen."
+        },
+        "1v95f7tjfnn95": {
+            "source": "Proportion",
+            "context": "label",
+            "translation": "Proporción"
+        },
+        "ani2hunqhxho": {
+            "source": "Where the colors meet, an even split in the middle.",
+            "translation": "Dónde se encuentran los colores; en el medio, un reparto parejo."
+        },
+        "119rn832igw1t": {
+            "source": "Mixing",
+            "context": "label",
+            "translation": "Mezcla"
+        },
+        "2olfe16tucogg": {
+            "source": "How the colors blend, from hard stripes to a smooth gradient.",
+            "translation": "Cómo se mezclan los colores, de franjas duras a un degradado suave."
+        },
+        "q60yix6i37z8": {
+            "source": "A custom fragment shader drawing a glow in the theme's accent color.",
+            "translation": "Un fragment shader propio que dibuja un brillo en el color de acento del tema."
+        },
+        "14ayx280ia6xe": {
+            "source": "Speed",
+            "context": "label",
+            "translation": "Velocidad"
+        },
+        "112kuqwi25ll": {
+            "source": "How fast its time runs, held still at zero and under reduced motion.",
+            "translation": "Qué tan rápido corre su tiempo, detenido en cero y con movimiento reducido."
+        },
+        "oxotnp1qnb0s": {
+            "source": "Frame",
+            "context": "label",
+            "translation": "Fotograma"
+        },
+        "dydts22qs4wk": {
+            "source": "The time it draws, in milliseconds.",
+            "translation": "El tiempo que dibuja, en milisegundos."
+        },
+        "2wnoxz4rderjy": {
+            "source": "None",
+            "context": "option",
+            "translation": "Ninguno"
+        },
+        "29zyi2ku1h1qp": {
+            "source": "At its world size.",
+            "translation": "A su tamaño de mundo."
+        },
+        "3fnd35ftutz6s": {
+            "source": "Contain",
+            "context": "option",
+            "translation": "Contener"
+        },
+        "qcz4921xsbnm": {
+            "source": "Inside the canvas.",
+            "translation": "Dentro del lienzo."
+        },
+        "1bx6p53ckcdgn": {
+            "source": "Cover",
+            "context": "option",
+            "translation": "Cubrir"
+        },
+        "3pgrmp1jtbfgf": {
+            "source": "Covering the canvas.",
+            "translation": "Cubriendo el lienzo."
+        },
+        "2rcr3qokq951q": {
+            "source": "Fit",
+            "context": "label",
+            "translation": "Ajuste"
+        },
+        "77j4fffyavj0": {
+            "source": "How the graphic fits its canvas.",
+            "translation": "Cómo se ajusta el gráfico a su lienzo."
+        },
+        "3htgk3x40y5vr": {
+            "source": "Scale",
+            "context": "label",
+            "translation": "Escala"
+        },
+        "1emck2pveg46h": {
+            "source": "The zoom of the graphic.",
+            "translation": "El zoom del gráfico."
+        },
+        "13ugtxte49ei1": {
+            "source": "Rotation",
+            "context": "label",
+            "translation": "Rotación"
+        },
+        "1kpggxj3z6lzi": {
+            "source": "The rotation of the graphic, in degrees.",
+            "translation": "La rotación del gráfico, en grados."
+        },
+        "3il8siz73p6lr": {
+            "source": "Horizontal origin",
+            "context": "label",
+            "translation": "Origen horizontal"
+        },
+        "1hnj63bgn4wr5": {
+            "source": "The point across the canvas the world size anchors to.",
+            "translation": "El punto a lo ancho del lienzo al que se ancla el tamaño de mundo."
+        },
+        "31z2582fdyuc5": {
+            "source": "Vertical origin",
+            "context": "label",
+            "translation": "Origen vertical"
+        },
+        "27ry48wujdagw": {
+            "source": "The point down the canvas the world size anchors to.",
+            "translation": "El punto a lo alto del lienzo al que se ancla el tamaño de mundo."
+        },
+        "uwm8885268x6": {
+            "source": "Horizontal offset",
+            "context": "label",
+            "translation": "Desplazamiento horizontal"
+        },
+        "3431thpfhqevv": {
+            "source": "How far the graphic's center moves across.",
+            "translation": "Cuánto se desplaza el centro del gráfico en horizontal."
+        },
+        "3goluirnw9aug": {
+            "source": "Vertical offset",
+            "context": "label",
+            "translation": "Desplazamiento vertical"
+        },
+        "2frn9rbl2tw04": {
+            "source": "How far the graphic's center moves down.",
+            "translation": "Cuánto se desplaza el centro del gráfico hacia abajo."
+        },
+        "38znmwsiyt0o1": {
+            "source": "World width",
+            "context": "label",
+            "translation": "Ancho de mundo"
+        },
+        "31sdqp97rr9nl": {
+            "source": "The width of the graphic before it fits the canvas, in pixels, the canvas's at zero.",
+            "translation": "El ancho del gráfico antes de ajustarse al lienzo, en píxeles; en cero, el del lienzo."
+        },
+        "2d7ys7qqmm7e8": {
+            "source": "World height",
+            "context": "label",
+            "translation": "Altura de mundo"
+        },
+        "2hz1b75tg6u6o": {
+            "source": "The height of the graphic before it fits the canvas, in pixels, the canvas's at zero.",
+            "translation": "La altura del gráfico antes de ajustarse al lienzo, en píxeles; en cero, la del lienzo."
+        },
+        "xgsfak1hkkb2": {
+            "source": "Steps per color",
+            "context": "label",
+            "translation": "Pasos por color"
+        },
+        "14gewsaumgyir": {
+            "source": "How many colors lie between each two given ones.",
+            "translation": "Cuántos colores hay entre cada dos dados."
+        },
+        "s2swtkbgbqix": {
+            "source": "Simplex noise in the default look.",
+            "translation": "Ruido simplex con el aspecto predeterminado."
+        },
+        "334b2ixb6g509": {
+            "source": "Simplex noise in the bubblegum look.",
+            "translation": "Ruido simplex con el aspecto «chicle»."
+        },
+        "20351xkhbdwol": {
+            "source": "Simplex noise in the spots look.",
+            "translation": "Ruido simplex con el aspecto «manchas»."
+        },
+        "1t4ktggik2bxe": {
+            "source": "Simplex noise in the first contact look.",
+            "translation": "Ruido simplex con el aspecto «primer contacto»."
+        },
+        "1lkagnlcuaaqt": {
+            "source": "Positions",
+            "context": "label",
+            "translation": "Posiciones"
+        },
+        "1aqgnehwcbovh": {
+            "source": "The seed that places the color spots.",
+            "translation": "La semilla que coloca las manchas de color."
+        },
+        "351d7oo75t28k": {
+            "source": "Horizontal wave",
+            "context": "label",
+            "translation": "Onda horizontal"
+        },
+        "1o1bvudihnd3t": {
+            "source": "How strongly a wave bends the colors across.",
+            "translation": "Con qué fuerza una onda curva los colores en horizontal."
+        },
+        "szpl9xfxq77c": {
+            "source": "Horizontal wave shift",
+            "context": "label",
+            "translation": "Desfase de la onda horizontal"
+        },
+        "hpjrasdbyanf": {
+            "source": "The phase of the wave across.",
+            "translation": "La fase de la onda horizontal."
+        },
+        "2kl6yy9ap0fbu": {
+            "source": "Vertical wave",
+            "context": "label",
+            "translation": "Onda vertical"
+        },
+        "1p3yj6gc5xfvu": {
+            "source": "How strongly a wave bends the colors down.",
+            "translation": "Con qué fuerza una onda curva los colores hacia abajo."
+        },
+        "1uj5yav17oz8u": {
+            "source": "Vertical wave shift",
+            "context": "label",
+            "translation": "Desfase de la onda vertical"
+        },
+        "oggesl6loq6s": {
+            "source": "The phase of the wave down.",
+            "translation": "La fase de la onda vertical."
+        },
+        "t99pop4jb34o": {
+            "source": "Static mesh gradient in the default look.",
+            "translation": "Degradado de malla estático con el aspecto predeterminado."
+        },
+        "3u165f6k4cb0q": {
+            "source": "Static mesh gradient in the sea look.",
+            "translation": "Degradado de malla estático con el aspecto «mar»."
+        },
+        "gy08459tbwpa": {
+            "source": "Static mesh gradient in the sixties look.",
+            "translation": "Degradado de malla estático con el aspecto «años sesenta»."
+        },
+        "2dym3t1vahtrf": {
+            "source": "Static mesh gradient in the sunset look.",
+            "translation": "Degradado de malla estático con el aspecto «atardecer»."
+        },
+        "3gx8y9743ukyt": {
+            "source": "The size of the gradient.",
+            "translation": "El tamaño del degradado."
+        },
+        "3u55z7qp80lnv": {
+            "source": "Focal distance",
+            "context": "label",
+            "translation": "Distancia focal"
+        },
+        "2o31a09jbyckl": {
+            "source": "How far the focal point lies from the center.",
+            "translation": "A qué distancia del centro está el punto focal."
+        },
+        "1gnnkuri905hf": {
+            "source": "Focal angle",
+            "context": "label",
+            "translation": "Ángulo focal"
+        },
+        "30wmhq1k2h5go": {
+            "source": "The direction of the focal point, in degrees.",
+            "translation": "La dirección del punto focal, en grados."
+        },
+        "n2islc15mq77": {
+            "source": "Falloff",
+            "context": "label",
+            "translation": "Atenuación"
+        },
+        "18kur9cy4fe57": {
+            "source": "How the colors spread from the center.",
+            "translation": "Cómo se reparten los colores desde el centro."
+        },
+        "zchln1n9otlw": {
+            "source": "How strongly the circles bend.",
+            "translation": "Con qué fuerza se curvan los círculos."
+        },
+        "2xgcyr0yub0xg": {
+            "source": "Distortion shift",
+            "context": "label",
+            "translation": "Desfase de distorsión"
+        },
+        "mey6u1sikehy": {
+            "source": "The phase of the bending.",
+            "translation": "La fase de la curvatura."
+        },
+        "9l7cdg49y3vy": {
+            "source": "Distortion frequency",
+            "context": "label",
+            "translation": "Frecuencia de distorsión"
+        },
+        "xdlashu80xy": {
+            "source": "How often the circles bend.",
+            "translation": "Con qué frecuencia se curvan los círculos."
+        },
+        "rgggyoayy8ji": {
+            "source": "Static radial gradient in the default look.",
+            "translation": "Degradado radial estático con el aspecto predeterminado."
+        },
+        "3tj182gy0lxs8": {
+            "source": "Static radial gradient in the cross section look.",
+            "translation": "Degradado radial estático con el aspecto «sección transversal»."
+        },
+        "2uyxj55evqx8": {
+            "source": "Static radial gradient in the radial look.",
+            "translation": "Degradado radial estático con el aspecto «radial»."
+        },
+        "1ziin3j0ruikh": {
+            "source": "Static radial gradient in the lo fi look.",
+            "translation": "Degradado radial estático con el aspecto «lo-fi»."
+        },
+        "r5kyvaexsxy1": {
+            "source": "Glow color",
+            "context": "label",
+            "translation": "Color del brillo"
+        },
+        "26kocz9s8t6wh": {
+            "source": "The color of the glow inside each cell.",
+            "translation": "El color del brillo dentro de cada celda."
+        },
+        "1mrqlo1pe6jui": {
+            "source": "Gap color",
+            "context": "label",
+            "translation": "Color de huecos"
+        },
+        "1rqej1yk5xchz": {
+            "source": "The color of the gaps between cells.",
+            "translation": "El color de los huecos entre celdas."
+        },
+        "26w28yvu4nfh2": {
+            "source": "How far noise moves the center of each cell.",
+            "translation": "Cuánto mueve el ruido el centro de cada celda."
+        },
+        "2n158dkk1jau1": {
+            "source": "Gap",
+            "context": "label",
+            "translation": "Hueco"
+        },
+        "3gzl89guoh88q": {
+            "source": "The width of the gaps between cells.",
+            "translation": "El ancho de los huecos entre celdas."
+        },
+        "1b7ncgish78aa": {
+            "source": "Glow",
+            "context": "label",
+            "translation": "Brillo"
+        },
+        "280s43g1hon5q": {
+            "source": "How strongly each cell glows inside.",
+            "translation": "Con qué fuerza brilla cada celda por dentro."
+        },
+        "q3x6s0cm68yr": {
+            "source": "Voronoi in the default look.",
+            "translation": "Voronoi con el aspecto predeterminado."
+        },
+        "ketth9r269r7": {
+            "source": "Voronoi in the cells look.",
+            "translation": "Voronoi con el aspecto «celdas»."
+        },
+        "1k7q60v3lb7rp": {
+            "source": "Voronoi in the bubbles look.",
+            "translation": "Voronoi con el aspecto «burbujas»."
+        },
+        "1tf8ze3myeq7d": {
+            "source": "Voronoi in the lights look.",
+            "translation": "Voronoi con el aspecto «luces»."
+        },
+        "pwdry1p7lxdx": {
+            "source": "Checks",
+            "context": "option",
+            "translation": "Cuadros"
+        },
+        "17r1x9snop2gi": {
+            "source": "Stripes",
+            "context": "option",
+            "translation": "Rayas"
+        },
+        "18ha6vib96d35": {
+            "source": "Edge",
+            "context": "option",
+            "translation": "Borde"
+        },
+        "2vd2vow270beg": {
+            "source": "How strongly noise bends the pattern.",
+            "translation": "Con qué fuerza el ruido curva el patrón."
+        },
+        "1xb94c1m96vje": {
+            "source": "How strongly the pattern swirls.",
+            "translation": "Con qué fuerza gira el patrón."
+        },
+        "rodgi1l04583": {
+            "source": "Swirl passes",
+            "context": "label",
+            "translation": "Pasadas de remolino"
+        },
+        "27yybteygtgix": {
+            "source": "How many swirls lie over each other.",
+            "translation": "Cuántos remolinos se superponen."
+        },
+        "107v55sxre1d": {
+            "source": "Pattern scale",
+            "context": "label",
+            "translation": "Escala del patrón"
+        },
+        "21mh9jk32yyuw": {
+            "source": "The size of the base pattern.",
+            "translation": "El tamaño del patrón base."
+        },
+        "20njaejosvhfl": {
+            "source": "The base pattern.",
+            "translation": "El patrón base."
+        },
+        "2vmqa327ssr89": {
+            "source": "Warp in the default look.",
+            "translation": "Deformación con el aspecto predeterminado."
+        },
+        "18buddmdoeob": {
+            "source": "Warp in the cauldron pot look.",
+            "translation": "Deformación con el aspecto «caldero»."
+        },
+        "jytiwaf92bck": {
+            "source": "Warp in the live ink look.",
+            "translation": "Deformación con el aspecto «tinta viva»."
+        },
+        "c0sd9j43lzj2": {
+            "source": "Warp in the kelp look.",
+            "translation": "Deformación con el aspecto «algas»."
+        },
+        "1rfe6f1tyllvj": {
+            "source": "Warp in the nectar look.",
+            "translation": "Deformación con el aspecto «néctar»."
+        },
+        "2t7f3vei39161": {
+            "source": "Warp in the passion look.",
+            "translation": "Deformación con el aspecto «pasión»."
+        },
+        "q7yqvsqb5sbq": {
+            "source": "The highlights along the light patterns.",
+            "translation": "Los brillos a lo largo de los patrones de luz."
+        },
+        "1rleyhi42u8o0": {
+            "source": "Layering",
+            "context": "label",
+            "translation": "Capas"
+        },
+        "3ai7em1hg1eww": {
+            "source": "How strongly a second layer of light bends the image.",
+            "translation": "Con qué fuerza una segunda capa de luz curva la imagen."
+        },
+        "fk43vs3hzdu8": {
+            "source": "How much the water bends the image's edges.",
+            "translation": "Cuánto curva el agua los bordes de la imagen."
+        },
+        "faz0ha10hebb": {
+            "source": "Waves",
+            "context": "label",
+            "translation": "Ondas"
+        },
+        "3c71rdrojisg6": {
+            "source": "The extra bending of noise.",
+            "translation": "La curvatura adicional del ruido."
+        },
+        "19w64ydcixk69": {
+            "source": "Caustic",
+            "context": "label",
+            "translation": "Cáustica"
+        },
+        "19gtr7qty2rmc": {
+            "source": "How strongly the light patterns bend the image.",
+            "translation": "Con qué fuerza los patrones de luz curvan la imagen."
+        },
+        "2mv9018jv2uck": {
+            "source": "The size of the pattern within the image.",
+            "translation": "El tamaño del patrón dentro de la imagen."
+        },
+        "h26yk4ena3d0": {
+            "source": "Water in the default look.",
+            "translation": "Agua con el aspecto predeterminado."
+        },
+        "2l4dkrm1jqkcb": {
+            "source": "Water in the abstract look.",
+            "translation": "Agua con el aspecto «abstracto»."
+        },
+        "2slpfl9sasfax": {
+            "source": "Water in the streaming look.",
+            "translation": "Agua con el aspecto «corriente»."
+        },
+        "2ue7nlvwidrda": {
+            "source": "Water in the slow mo look.",
+            "translation": "Agua con el aspecto «cámara lenta»."
+        },
+        "c32g6n1qgk5v": {
+            "source": "The shape of the lines, from straight to sharp.",
+            "translation": "La forma de las líneas, de rectas a afiladas."
+        },
+        "1lt2ub5vboce7": {
+            "source": "Frequency",
+            "context": "label",
+            "translation": "Frecuencia"
+        },
+        "1214zfrqajlb5": {
+            "source": "How often the waves repeat.",
+            "translation": "Con qué frecuencia se repiten las ondas."
+        },
+        "1iesmktj0rqs0": {
+            "source": "Amplitude",
+            "context": "label",
+            "translation": "Amplitud"
+        },
+        "tkoctc35s0yp": {
+            "source": "How tall the waves are.",
+            "translation": "Qué altura tienen las ondas."
+        },
+        "1f136kg9vzkv8": {
+            "source": "Spacing",
+            "context": "label",
+            "translation": "Espaciado"
+        },
+        "1ypfsyat2d4yx": {
+            "source": "The space between two lines.",
+            "translation": "El espacio entre dos líneas."
+        },
+        "2i92aghe8nzgb": {
+            "source": "Waves in the default look.",
+            "translation": "Ondas con el aspecto predeterminado."
+        },
+        "22k881uf158ay": {
+            "source": "Waves in the groovy look.",
+            "translation": "Ondas con el aspecto «groovy»."
+        },
+        "2vh97jw6tii6y": {
+            "source": "Waves in the tangled up look.",
+            "translation": "Ondas con el aspecto «enredado»."
+        },
+        "z5tz23rnfk38": {
+            "source": "Waves in the ride the wave look.",
+            "translation": "Ondas con el aspecto «cabalgar la ola»."
+        }
+    }
+}

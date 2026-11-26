@@ -1,7 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK, GRAIN_MIXER, GRAIN_OVERLAY, MIXING } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the static radial gradient. */
 export const STATIC_RADIAL_GRADIENT_MAX_COLOR_COUNT = 10;
@@ -179,63 +184,63 @@ void main() {
 }
 `;
 
-/** The options of the static radial gradient, beside its sizing. */
-export interface StaticRadialGradientOptions
-    extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** Up to 10 gradient colors. */
-    readonly colors?: readonly ShaderColor[];
-    /** The size of the shape, from 0 to 3. */
-    readonly radius?: number;
-    /** The distance of the focal point from center, from 0 to 3. */
-    readonly focalDistance?: number;
-    /** The angle of the focal point in degrees, needs focalDistance > 0, from 0 to 360. */
-    readonly focalAngle?: number;
-    /** The gradient decay, 0 = equal color distribution, from -1 to 1. */
-    readonly falloff?: number;
-    /** The blending behavior, 0 = hard stripes, 1 = smooth gradient, from 0 to 1. */
-    readonly mixing?: number;
-    /** The strength of radial distortion, from 0 to 1. */
-    readonly distortion?: number;
-    /** The radial distortion offset, needs distortion > 0, from -1 to 1. */
-    readonly distortionShift?: number;
-    /** The radial distortion frequency, needs distortion > 0, from 0 to 20. */
-    readonly distortionFreq?: number;
-    /** The strength of grain distortion applied to shape edges, from 0 to 1. */
-    readonly grainMixer?: number;
-    /** The post-processing black/white grain overlay, from 0 to 1. */
-    readonly grainOverlay?: number;
-}
-
-/** The properties of the static radial gradient, the shader's included. */
-export interface StaticRadialGradientProperties
-    extends StaticRadialGradientOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default static radial gradient. */
-export const STATIC_RADIAL_GRADIENT_DEFAULTS: Required<StaticRadialGradientOptions> = {
-    ...OBJECT_SIZING,
-    scale: 1,
-    speed: 0,
-    frame: 0,
-    colorBack: "#000000",
-    colors: ["#00bbff", "#00ffe1", "#ffffff"],
-    radius: 0.8,
-    focalDistance: 0.99,
-    focalAngle: 0,
-    falloff: 0.24,
-    mixing: 0.5,
-    distortion: 0.0,
-    distortionShift: 0,
-    distortionFreq: 12,
-    grainMixer: 0.0,
-    grainOverlay: 0.0,
+/** The properties people change in the static radial gradient's controls and inspector. */
+export const STATIC_RADIAL_GRADIENT_PROPERTIES = {
+    ...Shader.properties,
+    ...SIZING_PROPERTIES,
+    colorBack: COLOR_BACK.default("#000000"),
+    colors: field
+        .colors({ minimum: 1, maximum: STATIC_RADIAL_GRADIENT_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#00bbff", "#00ffe1", "#ffffff"]),
+    radius: field
+        .number(schema.number().min(0).max(3))
+        .labeled(t.context("label")`Radius`)
+        .described(t`The size of the gradient.`)
+        .default(0.8),
+    focalDistance: field
+        .number(schema.number().min(0).max(3))
+        .labeled(t.context("label")`Focal distance`)
+        .described(t`How far the focal point lies from the center.`)
+        .default(0.99),
+    focalAngle: field
+        .number(schema.number().min(0).max(360))
+        .labeled(t.context("label")`Focal angle`)
+        .described(t`The direction of the focal point, in degrees.`)
+        .default(0),
+    falloff: field
+        .number(schema.number().min(-1).max(1))
+        .labeled(t.context("label")`Falloff`)
+        .described(t`How the colors spread from the center.`)
+        .default(0.24),
+    mixing: MIXING.default(0.5),
+    distortion: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Distortion`)
+        .described(t`How strongly the circles bend.`)
+        .default(0.0),
+    distortionShift: field
+        .number(schema.number().min(-1).max(1))
+        .labeled(t.context("label")`Distortion shift`)
+        .described(t`The phase of the bending.`)
+        .default(0),
+    distortionFreq: field
+        .number(schema.number().min(0).max(20))
+        .labeled(t.context("label")`Distortion frequency`)
+        .described(t`How often the circles bend.`)
+        .default(12),
+    grainMixer: GRAIN_MIXER.default(0.0),
+    grainOverlay: GRAIN_OVERLAY.default(0.0),
 };
 
+/** The options of the static radial gradient, each with its value. */
+export type StaticRadialGradientOptions = DeclaredProperties<
+    typeof STATIC_RADIAL_GRADIENT_PROPERTIES
+>;
+
 /** Write static radial gradient options as the fragment shader's uniforms. */
-export function staticRadialGradientUniforms(
-    options: Required<StaticRadialGradientOptions>,
-): ShaderValues {
+export function staticRadialGradientUniforms(options: StaticRadialGradientOptions): ShaderValues {
     return {
         u_colorBack: options.colorBack,
         u_colors: options.colors,

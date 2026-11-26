@@ -1,24 +1,38 @@
-import { type JSX, merge, omit } from "@destack/view";
-import { Shader } from "../shader/shader.tsx";
+import { type JSX, omit } from "@destack/view";
+import { Shader, type ShaderProperties } from "../shader/shader.tsx";
 import { SIZING_KEYS } from "../shader/sizing.ts";
+import { METABALLS_FRAGMENT, METABALLS_PROPERTIES, metaballsUniforms } from "./effect.ts";
 import {
-    METABALLS_DEFAULTS,
-    METABALLS_FRAGMENT,
-    type MetaballsProperties,
-    metaballsUniforms,
-} from "./effect.ts";
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
+
+/** The properties of the metaballs besides its declared ones: the shader's own. */
+export type MetaballsAttributes = Omit<
+    ShaderProperties,
+    "fragmentShader" | "uniforms" | "speed" | "frame"
+>;
 
 /** Draw the metaballs. */
-export function Metaballs(properties: MetaballsProperties): JSX.Element {
-    // fill unset options from the defaults and pass the rest to the shader
-    const options = merge(METABALLS_DEFAULTS, properties);
-    const rest = omit(options, ...SIZING_KEYS, "colorBack", "colors", "count", "size");
+export const Metaballs = defineComponent({
+    name: "metaballs",
+    properties: METABALLS_PROPERTIES,
+    render(
+        properties: RenderProperties<MetaballsAttributes, typeof METABALLS_PROPERTIES>,
+    ): JSX.Element {
+        // pass what the shader takes besides the effect's properties
+        const rest = omit(properties, ...SIZING_KEYS, "colorBack", "colors", "count", "size");
 
-    return (
-        <Shader
-            fragmentShader={METABALLS_FRAGMENT}
-            uniforms={metaballsUniforms(options)}
-            {...rest}
-        />
-    );
-}
+        return (
+            <Shader
+                fragmentShader={METABALLS_FRAGMENT}
+                uniforms={metaballsUniforms(properties)}
+                {...rest}
+            />
+        );
+    },
+});
+
+/** The properties of the metaballs, the shader's included. */
+export type MetaballsProperties = ComponentProperties<typeof Metaballs>;

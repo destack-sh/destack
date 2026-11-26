@@ -1,10 +1,30 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import {
+    COLOR_BACK,
+    COLOR_HIGHLIGHT,
+    GRAIN_MIXER,
+    GRAIN_OVERLAY,
+    MARGIN_PROPERTIES,
+} from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { TRANSPARENT_PIXEL, type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { TRANSPARENT_PIXEL, type ShaderValues } from "../shader/value.ts";
 
-/** A gridshape of the fluted glass. */
-export type FlutedGlassGridShape = "lines" | "linesIrregular" | "wave" | "zigzag" | "pattern";
+/** The grid shapes of the fluted glass, as a person picks one. */
+const FLUTED_GLASS_GRID_SHAPE_CHOICES = {
+    lines: { title: t.context("option")`Lines` },
+    linesIrregular: { title: t.context("option")`Irregular lines` },
+    wave: { title: t.context("option")`Wave` },
+    zigzag: { title: t.context("option")`Zigzag` },
+    pattern: { title: t.context("option")`Pattern` },
+};
+
+/** A grid shape of the fluted glass. */
+export type FlutedGlassGridShape = keyof typeof FLUTED_GLASS_GRID_SHAPE_CHOICES;
 
 /** The number the fragment shader reads for each gridshape. */
 export const FLUTED_GLASS_GRID_SHAPES: Readonly<Record<FlutedGlassGridShape, number>> = {
@@ -15,8 +35,17 @@ export const FLUTED_GLASS_GRID_SHAPES: Readonly<Record<FlutedGlassGridShape, num
     pattern: 5,
 };
 
-/** A distortionshape of the fluted glass. */
-export type FlutedGlassDistortionShape = "prism" | "lens" | "contour" | "cascade" | "flat";
+/** The distortion shapes of the fluted glass, as a person picks one. */
+const FLUTED_GLASS_DISTORTION_SHAPE_CHOICES = {
+    prism: { title: t.context("option")`Prism` },
+    lens: { title: t.context("option")`Lens` },
+    contour: { title: t.context("option")`Contour` },
+    cascade: { title: t.context("option")`Cascade` },
+    flat: { title: t.context("option")`Flat` },
+};
+
+/** A distortion shape of the fluted glass. */
+export type FlutedGlassDistortionShape = keyof typeof FLUTED_GLASS_DISTORTION_SHAPE_CHOICES;
 
 /** The number the fragment shader reads for each distortionshape. */
 export const FLUTED_GLASS_DISTORTION_SHAPES: Readonly<Record<FlutedGlassDistortionShape, number>> =
@@ -358,90 +387,86 @@ void main() {
 }
 `;
 
-/** The options of the fluted glass, beside its sizing. */
-export interface FlutedGlassOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The source image texture. */
+/** The properties people change in the fluted glass's controls and inspector. */
+export const FLUTED_GLASS_PROPERTIES = {
+    ...Shader.properties,
+    ...SIZING_PROPERTIES,
+    fit: SIZING_PROPERTIES.fit.default("cover"),
+    colorBack: COLOR_BACK.default("#00000000"),
+    colorShadow: field
+        .color()
+        .labeled(t.context("label")`Shadow`)
+        .described(t`The color of the shadows.`)
+        .default("#000000"),
+    colorHighlight: COLOR_HIGHLIGHT.default("#ffffff"),
+    shadows: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Shadows`)
+        .described(t`The shading along the glass shape.`)
+        .default(0.25),
+    size: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Size`)
+        .described(t`The size of the glass grid.`)
+        .default(0.5),
+    angle: field
+        .number(schema.number().min(0).max(180))
+        .labeled(t.context("label")`Angle`)
+        .described(t`The direction of the grid, in degrees.`)
+        .default(0),
+    distortionShape: field
+        .enum(FLUTED_GLASS_DISTORTION_SHAPE_CHOICES)
+        .labeled(t.context("label")`Distortion shape`)
+        .described(t`The shape each stripe of glass bends the image in.`)
+        .default("prism"),
+    highlights: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Highlights`)
+        .described(t`The thin highlights along the glass shape.`)
+        .default(0.1),
+    shape: field
+        .enum(FLUTED_GLASS_GRID_SHAPE_CHOICES)
+        .labeled(t.context("label")`Shape`)
+        .described(t`The pattern of the glass grid.`)
+        .default("lines"),
+    distortion: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Distortion`)
+        .described(t`How strongly each stripe bends the image.`)
+        .default(0.5),
+    shift: field
+        .number(schema.number().min(-1).max(1))
+        .labeled(t.context("label")`Shift`)
+        .described(t`How far the image moves against the grid.`)
+        .default(0),
+    blur: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Blur`)
+        .described(t`How much the glass blurs the image.`)
+        .default(0),
+    edges: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Edges`)
+        .described(t`How much the glass bends and softens the image's edges.`)
+        .default(0.25),
+    stretch: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Stretch`)
+        .described(t`The extra bending along the grid lines.`)
+        .default(0),
+    ...MARGIN_PROPERTIES,
+    grainMixer: GRAIN_MIXER.default(0),
+    grainOverlay: GRAIN_OVERLAY.default(0),
+};
+
+/** The options of the fluted glass, each with its value. */
+export type FlutedGlassOptions = DeclaredProperties<typeof FLUTED_GLASS_PROPERTIES> & {
+    /** The image it draws over, none for its background alone. */
     readonly image?: string | HTMLImageElement | null;
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** The shadows color, needs shadows > 0. */
-    readonly colorShadow?: ShaderColor;
-    /** The highlights color, needs highlights > 0. */
-    readonly colorHighlight?: ShaderColor;
-    /** The color gradient over image and background along the distortion shape, from 0 to 1. */
-    readonly shadows?: number;
-    /** The size of the distortion shape grid, from 0 to 1. */
-    readonly size?: number;
-    /** The direction of the grid relative to the image in degrees, from 0 to 180. */
-    readonly angle?: number;
-    /** The shape of distortion. */
-    readonly distortionShape?: FlutedGlassDistortionShape;
-    /** The thin strokes along the distortion shape, from 0 to 1. */
-    readonly highlights?: number;
-    /** The grid shape. */
-    readonly shape?: FlutedGlassGridShape;
-    /** The power of distortion applied within each stripe, from 0 to 1. */
-    readonly distortion?: number;
-    /** The texture shift in direction opposite to the grid, needs distortion > 0, from -1 to 1. */
-    readonly shift?: number;
-    /** The one-directional blur over the image and extra blur around edges, from 0 to 1. */
-    readonly blur?: number;
-    /** The glass distortion and softness on the image edges, from 0 to 1. */
-    readonly edges?: number;
-    /** The extra distortion along the grid lines, from 0 to 1. */
-    readonly stretch?: number;
-    /** The margin. */
-    readonly margin?: number;
-    /** The distance from the left edge to the effect, from 0 to 1. */
-    readonly marginLeft?: number;
-    /** The distance from the right edge to the effect, from 0 to 1. */
-    readonly marginRight?: number;
-    /** The distance from the top edge to the effect, from 0 to 1. */
-    readonly marginTop?: number;
-    /** The distance from the bottom edge to the effect, from 0 to 1. */
-    readonly marginBottom?: number;
-    /** The strength of grain distortion on shape edges, from 0 to 1. */
-    readonly grainMixer?: number;
-    /** The post-processing black/white grain overlay, from 0 to 1. */
-    readonly grainOverlay?: number;
-}
-
-/** The properties of the fluted glass, the shader's included. */
-export interface FlutedGlassProperties
-    extends FlutedGlassOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default fluted glass. */
-export const FLUTED_GLASS_DEFAULTS: Required<FlutedGlassOptions> = {
-    image: null,
-    ...OBJECT_SIZING,
-    fit: "cover",
-    speed: 0,
-    frame: 0,
-    colorBack: "#00000000",
-    colorShadow: "#000000",
-    colorHighlight: "#ffffff",
-    shadows: 0.25,
-    size: 0.5,
-    angle: 0,
-    distortionShape: "prism",
-    highlights: 0.1,
-    shape: "lines",
-    distortion: 0.5,
-    shift: 0,
-    blur: 0,
-    edges: 0.25,
-    stretch: 0,
-    margin: 0,
-    marginLeft: 0,
-    marginRight: 0,
-    marginTop: 0,
-    marginBottom: 0,
-    grainMixer: 0,
-    grainOverlay: 0,
 };
 
 /** Write fluted glass options as the fragment shader's uniforms. */
-export function flutedGlassUniforms(options: Required<FlutedGlassOptions>): ShaderValues {
+export function flutedGlassUniforms(options: FlutedGlassOptions): ShaderValues {
     return {
         u_image: { image: options.image ?? TRANSPARENT_PIXEL },
         u_colorBack: options.colorBack,

@@ -1,7 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { PATTERN_SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK, COLOR_FRONT, PROPORTION, SOFTNESS } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { PATTERN_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The fragment shader of the waves. */
 export const WAVES_FRAGMENT = `#version 300 es
@@ -60,48 +65,42 @@ void main() {
 }
 `;
 
-/** The options of the waves, beside its sizing. */
-export interface WavesOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The foreground color. */
-    readonly colorFront?: ShaderColor;
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** The line shape, from 0 to 3. */
-    readonly shape?: number;
-    /** The wave frequency, needs amplitude > 0, from 0 to 2. */
-    readonly frequency?: number;
-    /** The wave amplitude, at frequency = 0 it only shifts the lines, from 0 to 1. */
-    readonly amplitude?: number;
-    /** The space between every two wavy lines, from 0 to 2. */
-    readonly spacing?: number;
-    /** The blend point between front and back colors, 0.5 = equal distribution, from 0 to 1. */
-    readonly proportion?: number;
-    /** The color transition sharpness, 0 = hard edge, 1 = smooth gradient, from 0 to 1. */
-    readonly softness?: number;
-}
-
-/** The properties of the waves, the shader's included. */
-export interface WavesProperties
-    extends WavesOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default waves. */
-export const WAVES_DEFAULTS: Required<WavesOptions> = {
-    speed: 0,
-    frame: 0,
-    ...PATTERN_SIZING,
-    scale: 0.6,
-    colorFront: "#ffbb00",
-    colorBack: "#000000",
-    shape: 0,
-    frequency: 0.5,
-    amplitude: 0.5,
-    spacing: 1.2,
-    proportion: 0.1,
-    softness: 0,
+/** The properties people change in the waves's controls and inspector. */
+export const WAVES_PROPERTIES = {
+    ...Shader.properties,
+    ...PATTERN_SIZING_PROPERTIES,
+    scale: PATTERN_SIZING_PROPERTIES.scale.default(0.6),
+    colorFront: COLOR_FRONT.default("#ffbb00"),
+    colorBack: COLOR_BACK.default("#000000"),
+    shape: field
+        .number(schema.number().min(0).max(3))
+        .labeled(t.context("label")`Shape`)
+        .described(t`The shape of the lines, from straight to sharp.`)
+        .default(0),
+    frequency: field
+        .number(schema.number().min(0).max(2))
+        .labeled(t.context("label")`Frequency`)
+        .described(t`How often the waves repeat.`)
+        .default(0.5),
+    amplitude: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Amplitude`)
+        .described(t`How tall the waves are.`)
+        .default(0.5),
+    spacing: field
+        .number(schema.number().min(0).max(2))
+        .labeled(t.context("label")`Spacing`)
+        .described(t`The space between two lines.`)
+        .default(1.2),
+    proportion: PROPORTION.default(0.1),
+    softness: SOFTNESS.default(0),
 };
 
+/** The options of the waves, each with its value. */
+export type WavesOptions = DeclaredProperties<typeof WAVES_PROPERTIES>;
+
 /** Write waves options as the fragment shader's uniforms. */
-export function wavesUniforms(options: Required<WavesOptions>): ShaderValues {
+export function wavesUniforms(options: WavesOptions): ShaderValues {
     return {
         u_colorFront: options.colorFront,
         u_colorBack: options.colorBack,

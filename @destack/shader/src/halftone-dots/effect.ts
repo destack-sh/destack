@@ -1,10 +1,30 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import {
+    COLOR_BACK,
+    COLOR_FRONT,
+    GRAIN_OVERLAY,
+    GRAIN_SIZE,
+    INVERTED,
+    ORIGINAL_COLORS,
+} from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { TRANSPARENT_PIXEL, type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { TRANSPARENT_PIXEL, type ShaderValues } from "../shader/value.ts";
+
+/** The types of the halftone dots, as a person picks one. */
+const HALFTONE_DOTS_TYPE_CHOICES = {
+    classic: { title: t.context("option")`Classic` },
+    gooey: { title: t.context("option")`Gooey` },
+    holes: { title: t.context("option")`Holes` },
+    soft: { title: t.context("option")`Soft` },
+};
 
 /** A type of the halftone dots. */
-export type HalftoneDotsType = "classic" | "gooey" | "holes" | "soft";
+export type HalftoneDotsType = keyof typeof HALFTONE_DOTS_TYPE_CHOICES;
 
 /** The number the fragment shader reads for each type. */
 export const HALFTONE_DOTS_TYPES: Readonly<Record<HalftoneDotsType, number>> = {
@@ -14,8 +34,14 @@ export const HALFTONE_DOTS_TYPES: Readonly<Record<HalftoneDotsType, number>> = {
     soft: 3,
 };
 
+/** The grids of the halftone dots, as a person picks one. */
+const HALFTONE_DOTS_GRID_CHOICES = {
+    square: { title: t.context("option")`Square` },
+    hex: { title: t.context("option")`Hexagonal` },
+};
+
 /** A grid of the halftone dots. */
-export type HalftoneDotsGrid = "square" | "hex";
+export type HalftoneDotsGrid = keyof typeof HALFTONE_DOTS_GRID_CHOICES;
 
 /** The number the fragment shader reads for each grid. */
 export const HALFTONE_DOTS_GRIDS: Readonly<Record<HalftoneDotsGrid, number>> = {
@@ -322,63 +348,57 @@ void main() {
 }
 `;
 
-/** The options of the halftone dots, beside its sizing. */
-export interface HalftoneDotsOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The source image texture. */
+/** The properties people change in the halftone dots's controls and inspector. */
+export const HALFTONE_DOTS_PROPERTIES = {
+    ...Shader.properties,
+    ...SIZING_PROPERTIES,
+    fit: SIZING_PROPERTIES.fit.default("cover"),
+    colorBack: COLOR_BACK.default("#f2f1e8"),
+    colorFront: COLOR_FRONT.default("#2b2b2b"),
+    size: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Size`)
+        .described(t`The size of the grid within the image.`)
+        .default(0.5),
+    radius: field
+        .number(schema.number().min(0).max(2))
+        .labeled(t.context("label")`Radius`)
+        .described(t`The largest dot within its cell.`)
+        .default(1.25),
+    contrast: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Contrast`)
+        .described(t`The contrast of the image.`)
+        .default(0.4),
+    originalColors: ORIGINAL_COLORS.default(false),
+    inverted: INVERTED.default(false),
+    grainMixer: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Edge grain`)
+        .described(t`The grain that roughens the edges of the dots.`)
+        .default(0.2),
+    grainOverlay: GRAIN_OVERLAY.default(0.2),
+    grainSize: GRAIN_SIZE.default(0.5),
+    grid: field
+        .enum(HALFTONE_DOTS_GRID_CHOICES)
+        .labeled(t.context("label")`Grid`)
+        .described(t`The grid the dots lie on.`)
+        .default("hex"),
+    type: field
+        .enum(HALFTONE_DOTS_TYPE_CHOICES)
+        .labeled(t.context("label")`Type`)
+        .described(t`The look of the dots.`)
+        .default("gooey"),
+};
+
+/** The options of the halftone dots, each with its value. */
+export type HalftoneDotsOptions = DeclaredProperties<typeof HALFTONE_DOTS_PROPERTIES> & {
+    /** The image it draws over, none for its background alone. */
     readonly image?: string | HTMLImageElement | null;
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** The foreground color, needs originalColors off. */
-    readonly colorFront?: ShaderColor;
-    /** The grid size relative to the image box, from 0 to 1. */
-    readonly size?: number;
-    /** The maximum dot size relative to grid cell, from 0 to 2. */
-    readonly radius?: number;
-    /** The contrast applied to the sampled image, from 0 to 1. */
-    readonly contrast?: number;
-    /** Use sampled image's original colors instead of colorFront. */
-    readonly originalColors?: boolean;
-    /** Inverts the image luminance, doesn't affect the color scheme, needs contrast > 0. */
-    readonly inverted?: boolean;
-    /** The strength of grain distortion applied to shape edges, from 0 to 1. */
-    readonly grainMixer?: number;
-    /** The post-processing black/white grain overlay, from 0 to 1. */
-    readonly grainOverlay?: number;
-    /** The scale of both grain distortion and grain overlay, from 0 to 1. */
-    readonly grainSize?: number;
-    /** The grid type. */
-    readonly grid?: HalftoneDotsGrid;
-    /** The dot style. */
-    readonly type?: HalftoneDotsType;
-}
-
-/** The properties of the halftone dots, the shader's included. */
-export interface HalftoneDotsProperties
-    extends HalftoneDotsOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default halftone dots. */
-export const HALFTONE_DOTS_DEFAULTS: Required<HalftoneDotsOptions> = {
-    image: null,
-    ...OBJECT_SIZING,
-    fit: "cover",
-    speed: 0,
-    frame: 0,
-    colorBack: "#f2f1e8",
-    colorFront: "#2b2b2b",
-    size: 0.5,
-    radius: 1.25,
-    contrast: 0.4,
-    originalColors: false,
-    inverted: false,
-    grainMixer: 0.2,
-    grainOverlay: 0.2,
-    grainSize: 0.5,
-    grid: "hex",
-    type: "gooey",
 };
 
 /** Write halftone dots options as the fragment shader's uniforms. */
-export function halftoneDotsUniforms(options: Required<HalftoneDotsOptions>): ShaderValues {
+export function halftoneDotsUniforms(options: HalftoneDotsOptions): ShaderValues {
     return {
         u_image: { image: options.image ?? TRANSPARENT_PIXEL },
         u_colorFront: options.colorFront,

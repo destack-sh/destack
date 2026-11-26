@@ -1,8 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { PATTERN_SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
 import { glsl } from "../glsl/glsl.ts";
 import { NOISE_TEXTURE } from "../shader/noise.ts";
-import { PATTERN_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the voronoi. */
 export const VORONOI_MAX_COLOR_COUNT = 5;
@@ -133,45 +137,54 @@ void main() {
 }
 `;
 
-/** The options of the voronoi, beside its sizing. */
-export interface VoronoiOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** Up to 5 base cell colors. */
-    readonly colors?: readonly ShaderColor[];
-    /** The number of extra colors between base colors, from 1 to 3. */
-    readonly stepsPerColor?: number;
-    /** The color tint for radial inner shadow inside cells, needs glow > 0. */
-    readonly colorGlow?: ShaderColor;
-    /** The color used for cell borders/gaps. */
-    readonly colorGap?: ShaderColor;
-    /** The strength of noise-driven displacement of cell centers, from 0 to 0.5. */
-    readonly distortion?: number;
-    /** The width of the border/gap between cells, from 0 to 0.1. */
-    readonly gap?: number;
-    /** The strength of the radial inner shadow inside cells, from 0 to 1. */
-    readonly glow?: number;
-}
-
-/** The properties of the voronoi, the shader's included. */
-export interface VoronoiProperties
-    extends VoronoiOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default voronoi. */
-export const VORONOI_DEFAULTS: Required<VoronoiOptions> = {
-    ...PATTERN_SIZING,
-    speed: 0.5,
-    frame: 0,
-    colors: ["#ff8247", "#ffe53d"],
-    stepsPerColor: 3,
-    colorGlow: "#ffffff",
-    colorGap: "#2e0000",
-    distortion: 0.4,
-    gap: 0.04,
-    glow: 0,
-    scale: 0.5,
+/** The properties people change in the voronoi's controls and inspector. */
+export const VORONOI_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(0.5),
+    ...PATTERN_SIZING_PROPERTIES,
+    scale: PATTERN_SIZING_PROPERTIES.scale.default(0.5),
+    colors: field
+        .colors({ minimum: 1, maximum: VORONOI_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#ff8247", "#ffe53d"]),
+    stepsPerColor: field
+        .integer(schema.number().int().min(1).max(3))
+        .labeled(t.context("label")`Steps per color`)
+        .described(t`How many colors lie between each two given ones.`)
+        .default(3),
+    colorGlow: field
+        .color()
+        .labeled(t.context("label")`Glow color`)
+        .described(t`The color of the glow inside each cell.`)
+        .default("#ffffff"),
+    colorGap: field
+        .color()
+        .labeled(t.context("label")`Gap color`)
+        .described(t`The color of the gaps between cells.`)
+        .default("#2e0000"),
+    distortion: field
+        .number(schema.number().min(0).max(0.5))
+        .labeled(t.context("label")`Distortion`)
+        .described(t`How far noise moves the center of each cell.`)
+        .default(0.4),
+    gap: field
+        .number(schema.number().min(0).max(0.1))
+        .labeled(t.context("label")`Gap`)
+        .described(t`The width of the gaps between cells.`)
+        .default(0.04),
+    glow: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Glow`)
+        .described(t`How strongly each cell glows inside.`)
+        .default(0),
 };
 
+/** The options of the voronoi, each with its value. */
+export type VoronoiOptions = DeclaredProperties<typeof VORONOI_PROPERTIES>;
+
 /** Write voronoi options as the fragment shader's uniforms. */
-export function voronoiUniforms(options: Required<VoronoiOptions>): ShaderValues {
+export function voronoiUniforms(options: VoronoiOptions): ShaderValues {
     return {
         u_colors: options.colors,
         u_colorsCount: options.colors.length,

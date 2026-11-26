@@ -1,8 +1,13 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK, MARGIN_PROPERTIES } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
 import { NOISE_TEXTURE } from "../shader/noise.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the pulsing border. */
 export const PULSING_BORDER_MAX_COLOR_COUNT = 5;
@@ -10,8 +15,14 @@ export const PULSING_BORDER_MAX_COLOR_COUNT = 5;
 /** The most spots in the pulsing border. */
 export const PULSING_BORDER_MAX_SPOTS = 4;
 
-/** A aspectratio of the pulsing border. */
-export type PulsingBorderAspectRatio = "auto" | "square";
+/** The aspect ratios of the pulsing border, as a person picks one. */
+const PULSING_BORDER_ASPECT_RATIO_CHOICES = {
+    auto: { title: t.context("option")`Canvas` },
+    square: { title: t.context("option")`Square` },
+};
+
+/** An aspect ratio of the pulsing border. */
+export type PulsingBorderAspectRatio = keyof typeof PULSING_BORDER_ASPECT_RATIO_CHOICES;
 
 /** The number the fragment shader reads for each aspectratio. */
 export const PULSING_BORDER_ASPECT_RATIOS: Readonly<Record<PulsingBorderAspectRatio, number>> = {
@@ -239,78 +250,81 @@ void main() {
   fragColor = vec4(color, opacity);
 }`;
 
-/** The options of the pulsing border, beside its sizing. */
-export interface PulsingBorderOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** Up to 5 spot colors. */
-    readonly colors?: readonly ShaderColor[];
-    /** The border radius, from 0 to 1. */
-    readonly roundness?: number;
-    /** The border base width, from 0 to 1. */
-    readonly thickness?: number;
-    /** The margin. */
-    readonly margin?: number;
-    /** The distance from the left edge to the effect, from 0 to 1. */
-    readonly marginLeft?: number;
-    /** The distance from the right edge to the effect, from 0 to 1. */
-    readonly marginRight?: number;
-    /** The distance from the top edge to the effect, from 0 to 1. */
-    readonly marginTop?: number;
-    /** The distance from the bottom edge to the effect, from 0 to 1. */
-    readonly marginBottom?: number;
-    /** The aspect ratio mode. */
-    readonly aspectRatio?: PulsingBorderAspectRatio;
-    /** The border edge sharpness, 0 = hard edge, 1 = smooth gradient, from 0 to 1. */
-    readonly softness?: number;
-    /** The thickness of individual color spots, from 0 to 1. */
-    readonly intensity?: number;
-    /** The power of glow, 0 = normal blending, 1 = additive blending, from 0 to 1. */
-    readonly bloom?: number;
-    /** The number of spots added for each color, from 1 to 4. */
-    readonly spots?: number;
-    /** The angular size of spots, from 0 to 1. */
-    readonly spotSize?: number;
-    /** The optional pulsing animation intensity, from 0 to 1. */
-    readonly pulse?: number;
-    /** The optional noisy shape extending the border, from 0 to 1. */
-    readonly smoke?: number;
-    /** The size of the smoke effect, needs smoke > 0, from 0 to 1. */
-    readonly smokeSize?: number;
-}
-
-/** The properties of the pulsing border, the shader's included. */
-export interface PulsingBorderProperties
-    extends PulsingBorderOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default pulsing border. */
-export const PULSING_BORDER_DEFAULTS: Required<PulsingBorderOptions> = {
-    ...OBJECT_SIZING,
-    speed: 1,
-    frame: 0,
-    scale: 0.6,
-    colorBack: "#000000",
-    colors: ["#0dc1fd", "#d915ef", "#ff3f2ecc"],
-    roundness: 0.25,
-    thickness: 0.1,
-    margin: 0,
-    marginLeft: 0,
-    marginRight: 0,
-    marginTop: 0,
-    marginBottom: 0,
-    aspectRatio: "auto",
-    softness: 0.75,
-    intensity: 0.2,
-    bloom: 0.25,
-    spots: 4,
-    spotSize: 0.5,
-    pulse: 0.25,
-    smoke: 0.3,
-    smokeSize: 0.6,
+/** The properties people change in the pulsing border's controls and inspector. */
+export const PULSING_BORDER_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(1),
+    ...SIZING_PROPERTIES,
+    scale: SIZING_PROPERTIES.scale.default(0.6),
+    colorBack: COLOR_BACK.default("#000000"),
+    colors: field
+        .colors({ minimum: 1, maximum: PULSING_BORDER_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#0dc1fd", "#d915ef", "#ff3f2ecc"]),
+    roundness: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Roundness`)
+        .described(t`The radius of the border's corners.`)
+        .default(0.25),
+    thickness: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Thickness`)
+        .described(t`The width of the border.`)
+        .default(0.1),
+    ...MARGIN_PROPERTIES,
+    aspectRatio: field
+        .enum(PULSING_BORDER_ASPECT_RATIO_CHOICES)
+        .labeled(t.context("label")`Aspect ratio`)
+        .described(t`Whether the border follows the canvas or stays square.`)
+        .default("auto"),
+    softness: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Softness`)
+        .described(t`How soft the border's edge is.`)
+        .default(0.75),
+    intensity: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Intensity`)
+        .described(t`The thickness of each color spot.`)
+        .default(0.2),
+    bloom: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Bloom`)
+        .described(t`How much the spots glow.`)
+        .default(0.25),
+    spots: field
+        .integer(schema.number().int().min(1).max(4))
+        .labeled(t.context("label")`Spots`)
+        .described(t`How many spots each color adds.`)
+        .default(4),
+    spotSize: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Spot size`)
+        .described(t`The angular size of each spot.`)
+        .default(0.5),
+    pulse: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Pulse`)
+        .described(t`How strongly the border pulses.`)
+        .default(0.25),
+    smoke: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Smoke`)
+        .described(t`The noisy smoke around the border.`)
+        .default(0.3),
+    smokeSize: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Smoke size`)
+        .described(t`The size of the smoke.`)
+        .default(0.6),
 };
 
+/** The options of the pulsing border, each with its value. */
+export type PulsingBorderOptions = DeclaredProperties<typeof PULSING_BORDER_PROPERTIES>;
+
 /** Write pulsing border options as the fragment shader's uniforms. */
-export function pulsingBorderUniforms(options: Required<PulsingBorderOptions>): ShaderValues {
+export function pulsingBorderUniforms(options: PulsingBorderOptions): ShaderValues {
     return {
         u_colorBack: options.colorBack,
         u_colors: options.colors,

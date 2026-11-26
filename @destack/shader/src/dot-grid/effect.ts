@@ -1,10 +1,23 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { PATTERN_SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { PATTERN_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
+
+/** The shapes of the dot grid, as a person picks one. */
+const DOT_GRID_SHAPE_CHOICES = {
+    circle: { title: t.context("option")`Circle` },
+    diamond: { title: t.context("option")`Diamond` },
+    square: { title: t.context("option")`Square` },
+    triangle: { title: t.context("option")`Triangle` },
+};
 
 /** A shape of the dot grid. */
-export type DotGridShape = "circle" | "diamond" | "square" | "triangle";
+export type DotGridShape = keyof typeof DOT_GRID_SHAPE_CHOICES;
 
 /** The number the fragment shader reads for each shape. */
 export const DOT_GRID_SHAPES: Readonly<Record<DotGridShape, number>> = {
@@ -108,53 +121,63 @@ void main() {
 }
 `;
 
-/** The options of the dot grid, beside its sizing. */
-export interface DotGridOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** The shape fill color. */
-    readonly colorFill?: ShaderColor;
-    /** The shape stroke color, needs strokeWidth > 0. */
-    readonly colorStroke?: ShaderColor;
-    /** The size. */
-    readonly size?: number;
-    /** The pattern horizontal spacing in pixels, from 2 to 500. */
-    readonly gapX?: number;
-    /** The pattern vertical spacing in pixels, from 2 to 500. */
-    readonly gapY?: number;
-    /** The outline stroke width in pixels, needs colorStroke alpha > 0, from 0 to 50. */
-    readonly strokeWidth?: number;
-    /** The random variation in shape size, from 0 to 1. */
-    readonly sizeRange?: number;
-    /** The random variation in shape opacity, from 0 to 1. */
-    readonly opacityRange?: number;
-    /** The shape type. */
-    readonly shape?: DotGridShape;
-}
-
-/** The properties of the dot grid, the shader's included. */
-export interface DotGridProperties
-    extends DotGridOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default dot grid. */
-export const DOT_GRID_DEFAULTS: Required<DotGridOptions> = {
-    speed: 0,
-    frame: 0,
-    ...PATTERN_SIZING,
-    colorBack: "#000000",
-    colorFill: "#ffffff",
-    colorStroke: "#ffaa00",
-    size: 2,
-    gapX: 32,
-    gapY: 32,
-    strokeWidth: 0,
-    sizeRange: 0,
-    opacityRange: 0,
-    shape: "circle",
+/** The properties people change in the dot grid's controls and inspector. */
+export const DOT_GRID_PROPERTIES = {
+    ...Shader.properties,
+    ...PATTERN_SIZING_PROPERTIES,
+    colorBack: COLOR_BACK.default("#000000"),
+    colorFill: field
+        .color()
+        .labeled(t.context("label")`Fill`)
+        .described(t`The color inside each shape.`)
+        .default("#ffffff"),
+    colorStroke: field
+        .color()
+        .labeled(t.context("label")`Stroke`)
+        .described(t`The color of each shape's outline.`)
+        .default("#ffaa00"),
+    size: field
+        .number(schema.number().min(0))
+        .labeled(t.context("label")`Size`)
+        .described(t`The size of each shape, in pixels.`)
+        .default(2),
+    gapX: field
+        .number(schema.number().min(2).max(500))
+        .labeled(t.context("label")`Horizontal gap`)
+        .described(t`The space between columns, in pixels.`)
+        .default(32),
+    gapY: field
+        .number(schema.number().min(2).max(500))
+        .labeled(t.context("label")`Vertical gap`)
+        .described(t`The space between rows, in pixels.`)
+        .default(32),
+    strokeWidth: field
+        .number(schema.number().min(0).max(50))
+        .labeled(t.context("label")`Stroke width`)
+        .described(t`The width of each shape's outline, in pixels.`)
+        .default(0),
+    sizeRange: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Size variation`)
+        .described(t`How much the size of each shape varies.`)
+        .default(0),
+    opacityRange: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Opacity variation`)
+        .described(t`How much the opacity of each shape varies.`)
+        .default(0),
+    shape: field
+        .enum(DOT_GRID_SHAPE_CHOICES)
+        .labeled(t.context("label")`Shape`)
+        .described(t`The shape of each dot.`)
+        .default("circle"),
 };
 
+/** The options of the dot grid, each with its value. */
+export type DotGridOptions = DeclaredProperties<typeof DOT_GRID_PROPERTIES>;
+
 /** Write dot grid options as the fragment shader's uniforms. */
-export function dotGridUniforms(options: Required<DotGridOptions>): ShaderValues {
+export function dotGridUniforms(options: DotGridOptions): ShaderValues {
     return {
         u_colorBack: options.colorBack,
         u_colorFill: options.colorFill,

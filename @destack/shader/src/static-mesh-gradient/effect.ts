@@ -1,7 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { GRAIN_MIXER, GRAIN_OVERLAY, MIXING } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the static mesh gradient. */
 export const STATIC_MESH_GRADIENT_MAX_COLOR_COUNT = 10;
@@ -123,54 +128,51 @@ void main() {
 }
 `;
 
-/** The options of the static mesh gradient, beside its sizing. */
-export interface StaticMeshGradientOptions
-    extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** Up to 10 gradient colors. */
-    readonly colors?: readonly ShaderColor[];
-    /** The color spots placement seed, from 0 to 100. */
-    readonly positions?: number;
-    /** The strength of sine wave distortion along X axis, from 0 to 1. */
-    readonly waveX?: number;
-    /** The phase offset applied to the X-axis wave, needs waveX > 0, from 0 to 1. */
-    readonly waveXShift?: number;
-    /** The strength of sine wave distortion along Y axis, from 0 to 1. */
-    readonly waveY?: number;
-    /** The phase offset applied to the Y-axis wave, needs waveY > 0, from 0 to 1. */
-    readonly waveYShift?: number;
-    /** The blending behavior, 0 = hard stripes, 0.5 = smooth, 1 = gradual blend, from 0 to 1. */
-    readonly mixing?: number;
-    /** The strength of grain distortion applied to shape edges, from 0 to 1. */
-    readonly grainMixer?: number;
-    /** The post-processing black/white grain overlay, from 0 to 1. */
-    readonly grainOverlay?: number;
-}
-
-/** The properties of the static mesh gradient, the shader's included. */
-export interface StaticMeshGradientProperties
-    extends StaticMeshGradientOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default static mesh gradient. */
-export const STATIC_MESH_GRADIENT_DEFAULTS: Required<StaticMeshGradientOptions> = {
-    ...OBJECT_SIZING,
-    rotation: 270,
-    speed: 0,
-    frame: 0,
-    colors: ["#ffad0a", "#6200ff", "#e2a3ff", "#ff99fd"],
-    positions: 2,
-    waveX: 1.0,
-    waveXShift: 0.6,
-    waveY: 1.0,
-    waveYShift: 0.21,
-    mixing: 0.93,
-    grainMixer: 0.0,
-    grainOverlay: 0.0,
+/** The properties people change in the static mesh gradient's controls and inspector. */
+export const STATIC_MESH_GRADIENT_PROPERTIES = {
+    ...Shader.properties,
+    ...SIZING_PROPERTIES,
+    rotation: SIZING_PROPERTIES.rotation.default(270),
+    colors: field
+        .colors({ minimum: 1, maximum: STATIC_MESH_GRADIENT_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#ffad0a", "#6200ff", "#e2a3ff", "#ff99fd"]),
+    positions: field
+        .number(schema.number().min(0).max(100))
+        .labeled(t.context("label")`Positions`)
+        .described(t`The seed that places the color spots.`)
+        .default(2),
+    waveX: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Horizontal wave`)
+        .described(t`How strongly a wave bends the colors across.`)
+        .default(1.0),
+    waveXShift: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Horizontal wave shift`)
+        .described(t`The phase of the wave across.`)
+        .default(0.6),
+    waveY: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Vertical wave`)
+        .described(t`How strongly a wave bends the colors down.`)
+        .default(1.0),
+    waveYShift: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Vertical wave shift`)
+        .described(t`The phase of the wave down.`)
+        .default(0.21),
+    mixing: MIXING.default(0.93),
+    grainMixer: GRAIN_MIXER.default(0.0),
+    grainOverlay: GRAIN_OVERLAY.default(0.0),
 };
 
+/** The options of the static mesh gradient, each with its value. */
+export type StaticMeshGradientOptions = DeclaredProperties<typeof STATIC_MESH_GRADIENT_PROPERTIES>;
+
 /** Write static mesh gradient options as the fragment shader's uniforms. */
-export function staticMeshGradientUniforms(
-    options: Required<StaticMeshGradientOptions>,
-): ShaderValues {
+export function staticMeshGradientUniforms(options: StaticMeshGradientOptions): ShaderValues {
     return {
         u_colors: options.colors,
         u_colorsCount: options.colors.length,

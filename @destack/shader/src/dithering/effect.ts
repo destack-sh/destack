@@ -1,10 +1,25 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { PATTERN_SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK, COLOR_FRONT, DOT_SIZE } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { PATTERN_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
+
+/** The shapes of the dithering, as a person picks one. */
+const DITHERING_SHAPE_CHOICES = {
+    simplex: { title: t.context("option")`Simplex` },
+    warp: { title: t.context("option")`Warp` },
+    dots: { title: t.context("option")`Dots` },
+    wave: { title: t.context("option")`Wave` },
+    ripple: { title: t.context("option")`Ripple` },
+    swirl: { title: t.context("option")`Swirl` },
+    sphere: { title: t.context("option")`Sphere` },
+};
 
 /** A shape of the dithering. */
-export type DitheringShape = "simplex" | "warp" | "dots" | "wave" | "ripple" | "swirl" | "sphere";
+export type DitheringShape = keyof typeof DITHERING_SHAPE_CHOICES;
 
 /** The number the fragment shader reads for each shape. */
 export const DITHERING_SHAPES: Readonly<Record<DitheringShape, number>> = {
@@ -17,8 +32,16 @@ export const DITHERING_SHAPES: Readonly<Record<DitheringShape, number>> = {
     sphere: 7,
 };
 
+/** The types of the dithering, as a person picks one. */
+const DITHERING_TYPE_CHOICES = {
+    random: { title: t.context("option")`Random` },
+    "2x2": { title: t.context("option")`2×2` },
+    "4x4": { title: t.context("option")`4×4` },
+    "8x8": { title: t.context("option")`8×8` },
+};
+
 /** A type of the dithering. */
-export type DitheringType = "random" | "2x2" | "4x4" | "8x8";
+export type DitheringType = keyof typeof DITHERING_TYPE_CHOICES;
 
 /** The number the fragment shader reads for each type. */
 export const DITHERING_TYPES: Readonly<Record<DitheringType, number>> = {
@@ -270,39 +293,32 @@ void main() {
 }
 `;
 
-/** The options of the dithering, beside its sizing. */
-export interface DitheringOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** The foreground (ink) color. */
-    readonly colorFront?: ShaderColor;
-    /** The shape pattern type. */
-    readonly shape?: DitheringShape;
-    /** The dithering type. */
-    readonly type?: DitheringType;
-    /** The size. */
-    readonly size?: number;
-}
-
-/** The properties of the dithering, the shader's included. */
-export interface DitheringProperties
-    extends DitheringOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default dithering. */
-export const DITHERING_DEFAULTS: Required<DitheringOptions> = {
-    ...PATTERN_SIZING,
-    speed: 1,
-    frame: 0,
-    scale: 0.6,
-    colorBack: "#000000",
-    colorFront: "#00b2ff",
-    shape: "sphere",
-    type: "4x4",
-    size: 2,
+/** The properties people change in the dithering's controls and inspector. */
+export const DITHERING_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(1),
+    ...PATTERN_SIZING_PROPERTIES,
+    scale: PATTERN_SIZING_PROPERTIES.scale.default(0.6),
+    colorBack: COLOR_BACK.default("#000000"),
+    colorFront: COLOR_FRONT.default("#00b2ff"),
+    shape: field
+        .enum(DITHERING_SHAPE_CHOICES)
+        .labeled(t.context("label")`Shape`)
+        .described(t`The pattern the dots draw.`)
+        .default("sphere"),
+    type: field
+        .enum(DITHERING_TYPE_CHOICES)
+        .labeled(t.context("label")`Type`)
+        .described(t`The matrix that orders the dots.`)
+        .default("4x4"),
+    size: DOT_SIZE.default(2),
 };
 
+/** The options of the dithering, each with its value. */
+export type DitheringOptions = DeclaredProperties<typeof DITHERING_PROPERTIES>;
+
 /** Write dithering options as the fragment shader's uniforms. */
-export function ditheringUniforms(options: Required<DitheringOptions>): ShaderValues {
+export function ditheringUniforms(options: DitheringOptions): ShaderValues {
     return {
         u_colorBack: options.colorBack,
         u_colorFront: options.colorFront,

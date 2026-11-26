@@ -1,8 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
 import { glsl } from "../glsl/glsl.ts";
 import { NOISE_TEXTURE } from "../shader/noise.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { TRANSPARENT_PIXEL, type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { TRANSPARENT_PIXEL, type ShaderValues } from "../shader/value.ts";
 
 /** The most crumples in the paper texture. */
 export const PAPER_TEXTURE_MAX_CRUMPLE_COUNT = 15;
@@ -521,97 +525,136 @@ void main() {
 }
 `;
 
-/** The options of the paper texture, beside its sizing. */
-export interface PaperTextureOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The optional source image texture. */
+/** The properties people change in the paper texture's controls and inspector. */
+export const PAPER_TEXTURE_PROPERTIES = {
+    ...Shader.properties,
+    ...SIZING_PROPERTIES,
+    scale: SIZING_PROPERTIES.scale.default(0.9),
+    colorBack: field
+        .color()
+        .labeled(t.context("label")`Background`)
+        .described(t`The color behind the paper sheet.`)
+        .default("#d3d2ab"),
+    colorPaper: field
+        .color()
+        .labeled(t.context("label")`Paper`)
+        .described(t`The color of the paper sheet.`)
+        .default("#ffffff"),
+    colorShadow: field
+        .color()
+        .labeled(t.context("label")`Shadow`)
+        .described(t`The color of the patterns on the paper.`)
+        .default("#cccccc"),
+    blending: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Blending`)
+        .described(t`How much the image blends into the paper.`)
+        .default(1),
+    distortion: field
+        .number(schema.number().min(-1).max(1))
+        .labeled(t.context("label")`Distortion`)
+        .described(t`How much the image bends with the paper.`)
+        .default(0.75),
+    clip: field
+        .boolean()
+        .labeled(t.context("label")`Clip`)
+        .described(t`Cuts the paper to the image's frame.`)
+        .default(false),
+    angle: field
+        .number(schema.number().min(0).max(360))
+        .labeled(t.context("label")`Angle`)
+        .described(t`The direction the light comes from, in degrees.`)
+        .default(300),
+    seed: field
+        .number(schema.number().min(0).max(1000))
+        .labeled(t.context("label")`Seed`)
+        .described(t`The seed of every pattern on the paper.`)
+        .default(4),
+    roughness: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Roughness`)
+        .described(t`The fine grain across the paper.`)
+        .default(0.4),
+    roughnessSize: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Roughness size`)
+        .described(t`The size of the fine grain.`)
+        .default(0.5),
+    roughnessRows: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Roughness rows`)
+        .described(t`How much the fine grain lines up in rows.`)
+        .default(0),
+    fiber: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Fiber`)
+        .described(t`The curly threads across the paper.`)
+        .default(0.4),
+    fiberSize: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Fiber size`)
+        .described(t`The size of the threads.`)
+        .default(0.5),
+    folds: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Folds`)
+        .described(t`The straight folds across the paper.`)
+        .default(0.5),
+    foldSizeX: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Vertical fold size`)
+        .described(t`The size of the vertical folds.`)
+        .default(1),
+    foldSizeY: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Horizontal fold size`)
+        .described(t`The size of the horizontal folds.`)
+        .default(1),
+    foldOffsetX: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Vertical fold offset`)
+        .described(t`How far the vertical folds move across the paper.`)
+        .default(0),
+    foldOffsetY: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Horizontal fold offset`)
+        .described(t`How far the horizontal folds move across the paper.`)
+        .default(0),
+    wrinkles: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Wrinkles`)
+        .described(t`The crumpled facets across the paper.`)
+        .default(1),
+    wrinkleSize: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Wrinkle size`)
+        .described(t`The size of the facets.`)
+        .default(0.65),
+    crumples: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Crumples`)
+        .described(t`The irregular fold lines across the paper.`)
+        .default(0),
+    crumpleCount: field
+        .integer(schema.number().int().min(2).max(15))
+        .labeled(t.context("label")`Crumple count`)
+        .described(t`How many facets the fold lines make.`)
+        .default(6),
+    drops: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Drops`)
+        .described(t`The speckles across the paper.`)
+        .default(0.4),
+};
+
+/** The options of the paper texture, each with its value. */
+export type PaperTextureOptions = DeclaredProperties<typeof PAPER_TEXTURE_PROPERTIES> & {
+    /** The image it draws over, none for its background alone. */
     readonly image?: string | HTMLImageElement | null;
-    /** The color behind the paper sheet. */
-    readonly colorBack?: ShaderColor;
-    /** The color of the paper sheet. */
-    readonly colorPaper?: ShaderColor;
-    /** The color of the patterns over the paper sheet. */
-    readonly colorShadow?: ShaderColor;
-    /** The amount of image-to-paper blending, needs image, from 0 to 1. */
-    readonly blending?: number;
-    /** How much the image bends with the paper surface, needs image, from -1 to 1. */
-    readonly distortion?: number;
-    /** Cuts the paper sheet to the image frame, needs image. */
-    readonly clip?: boolean;
-    /** The direction the surface is lit from, in degrees from 0 to 360. */
-    readonly angle?: number;
-    /** The seed applied to every pattern, from 0 to 1000. */
-    readonly seed?: number;
-    /** The fine grain covering the surface evenly, from 0 to 1. */
-    readonly roughness?: number;
-    /** The scale of the roughness grain, needs roughness > 0, from 0 to 1. */
-    readonly roughnessSize?: number;
-    /** Lines the roughness up into stripes, from 0 to 1. */
-    readonly roughnessRows?: number;
-    /** The curly thread-like noise covering the surface evenly, from 0 to 1. */
-    readonly fiber?: number;
-    /** The scale of the fiber noise, needs fiber > 0, from 0 to 1. */
-    readonly fiberSize?: number;
-    /** The straight vertical and horizontal folds that make ridges and valleys, from 0 to 1. */
-    readonly folds?: number;
-    /** The size of the vertical folds, needs folds > 0, from 0 to 1. */
-    readonly foldSizeX?: number;
-    /** The size of the horizontal folds, needs folds > 0, from 0 to 1. */
-    readonly foldSizeY?: number;
-    /** Shifts the vertical folds across the surface, needs folds > 0, from 0 to 1. */
-    readonly foldOffsetX?: number;
-    /** Shifts the horizontal folds across the surface, needs folds > 0, from 0 to 1. */
-    readonly foldOffsetY?: number;
-    /** The crumple-like facets repeating across the surface, from 0 to 1. */
-    readonly wrinkles?: number;
-    /** The scale of the wrinkle facets, needs wrinkles > 0, from 0 to 1. */
-    readonly wrinkleSize?: number;
-    /** A set of irregular folding lines, from 0 to 1. */
-    readonly crumples?: number;
-    /** The number of facets in the crumple field, needs crumples > 0, from 2 to 15. */
-    readonly crumpleCount?: number;
-    /** The visibility of the speckle pattern, from 0 to 1. */
-    readonly drops?: number;
-}
-
-/** The properties of the paper texture, the shader's included. */
-export interface PaperTextureProperties
-    extends PaperTextureOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default paper texture. */
-export const PAPER_TEXTURE_DEFAULTS: Required<PaperTextureOptions> = {
-    image: null,
-    ...OBJECT_SIZING,
-    fit: "contain",
-    scale: 0.9,
-    speed: 0,
-    frame: 0,
-    colorBack: "#d3d2ab",
-    colorPaper: "#ffffff",
-    colorShadow: "#cccccc",
-    blending: 1,
-    distortion: 0.75,
-    clip: false,
-    angle: 300,
-    seed: 4,
-    roughness: 0.4,
-    roughnessSize: 0.5,
-    roughnessRows: 0,
-    fiber: 0.4,
-    fiberSize: 0.5,
-    folds: 0.5,
-    foldSizeX: 1,
-    foldSizeY: 1,
-    foldOffsetX: 0,
-    foldOffsetY: 0,
-    wrinkles: 1,
-    wrinkleSize: 0.65,
-    crumples: 0,
-    crumpleCount: 6,
-    drops: 0.4,
 };
 
 /** Write paper texture options as the fragment shader's uniforms. */
-export function paperTextureUniforms(options: Required<PaperTextureOptions>): ShaderValues {
+export function paperTextureUniforms(options: PaperTextureOptions): ShaderValues {
     return {
         u_image: { image: options.image ?? TRANSPARENT_PIXEL },
         u_isImage: options.image !== null,

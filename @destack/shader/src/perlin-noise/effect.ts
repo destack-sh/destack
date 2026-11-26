@@ -1,7 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { PATTERN_SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK, COLOR_FRONT, PROPORTION, SOFTNESS } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { PATTERN_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The fragment shader of the perlin noise. */
 export const PERLIN_NOISE_FRAGMENT = `#version 300 es
@@ -161,44 +166,37 @@ void main() {
 }
 `;
 
-/** The options of the perlin noise, beside its sizing. */
-export interface PerlinNoiseOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** The foreground color. */
-    readonly colorFront?: ShaderColor;
-    /** The blend point between two colors, 0.5 = equal distribution, from 0 to 1. */
-    readonly proportion?: number;
-    /** The color transition sharpness, 0 = hard edge, 1 = smooth gradient, from 0 to 1. */
-    readonly softness?: number;
-    /** The perlin noise octaves number, more octaves for more detailed patterns, from 1 to 8. */
-    readonly octaveCount?: number;
-    /** The roughness, falloff between octaves, needs octaveCount > 1, from 0.3 to 1. */
-    readonly persistence?: number;
-    /** The frequency step, from 1.5 to 10. */
-    readonly lacunarity?: number;
-}
-
-/** The properties of the perlin noise, the shader's included. */
-export interface PerlinNoiseProperties
-    extends PerlinNoiseOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default perlin noise. */
-export const PERLIN_NOISE_DEFAULTS: Required<PerlinNoiseOptions> = {
-    ...PATTERN_SIZING,
-    speed: 0.5,
-    frame: 0,
-    colorBack: "#632ad5",
-    colorFront: "#fccff7",
-    proportion: 0.35,
-    softness: 0.1,
-    octaveCount: 1,
-    persistence: 1,
-    lacunarity: 1.5,
+/** The properties people change in the perlin noise's controls and inspector. */
+export const PERLIN_NOISE_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(0.5),
+    ...PATTERN_SIZING_PROPERTIES,
+    colorBack: COLOR_BACK.default("#632ad5"),
+    colorFront: COLOR_FRONT.default("#fccff7"),
+    proportion: PROPORTION.default(0.35),
+    softness: SOFTNESS.default(0.1),
+    octaveCount: field
+        .integer(schema.number().int().min(1).max(8))
+        .labeled(t.context("label")`Octaves`)
+        .described(t`How many layers of noise add detail.`)
+        .default(1),
+    persistence: field
+        .number(schema.number().min(0.3).max(1))
+        .labeled(t.context("label")`Persistence`)
+        .described(t`How much each layer of noise adds.`)
+        .default(1),
+    lacunarity: field
+        .number(schema.number().min(1.5).max(10))
+        .labeled(t.context("label")`Lacunarity`)
+        .described(t`How much finer each layer of noise is.`)
+        .default(1.5),
 };
 
+/** The options of the perlin noise, each with its value. */
+export type PerlinNoiseOptions = DeclaredProperties<typeof PERLIN_NOISE_PROPERTIES>;
+
 /** Write perlin noise options as the fragment shader's uniforms. */
-export function perlinNoiseUniforms(options: Required<PerlinNoiseOptions>): ShaderValues {
+export function perlinNoiseUniforms(options: PerlinNoiseOptions): ShaderValues {
     return {
         u_colorBack: options.colorBack,
         u_colorFront: options.colorFront,

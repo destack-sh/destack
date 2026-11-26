@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING, PATTERN_SIZING } from "../shader/sizing.ts";
 
-import { DITHERING_DEFAULTS } from "./effect.ts";
 import { Dithering } from "./dithering.tsx";
 
 /** The size every example draws at. */
@@ -16,7 +14,6 @@ export const ditheringDefault = defineExample({
     of: Dithering,
     name: "default",
     description: t`Dithering in the default look.`,
-    properties: DITHERING_DEFAULTS,
     render: (properties) => <Dithering {...properties} xstyle={styles.canvas} />,
 });
 
@@ -26,7 +23,6 @@ export const ditheringSineWave = defineExample({
     name: "sineWave",
     description: t`Dithering in the sine wave look.`,
     properties: {
-        ...PATTERN_SIZING,
         speed: 1,
         frame: 0,
         colorBack: "#730d54",
@@ -45,7 +41,6 @@ export const ditheringBugs = defineExample({
     name: "bugs",
     description: t`Dithering in the bugs look.`,
     properties: {
-        ...PATTERN_SIZING,
         speed: 1,
         frame: 0,
         colorBack: "#000000",
@@ -63,7 +58,7 @@ export const ditheringRipple = defineExample({
     name: "ripple",
     description: t`Dithering in the ripple look.`,
     properties: {
-        ...OBJECT_SIZING,
+        fit: "contain",
         speed: 1,
         frame: 0,
         colorBack: "#603520",
@@ -81,7 +76,7 @@ export const ditheringSwirl = defineExample({
     name: "swirl",
     description: t`Dithering in the swirl look.`,
     properties: {
-        ...OBJECT_SIZING,
+        fit: "contain",
         speed: 1,
         frame: 0,
         colorBack: "#00000000",
@@ -99,7 +94,7 @@ export const ditheringWarp = defineExample({
     name: "warp",
     description: t`Dithering in the warp look.`,
     properties: {
-        ...OBJECT_SIZING,
+        fit: "contain",
         speed: 1,
         frame: 0,
         colorBack: "#301c2a",

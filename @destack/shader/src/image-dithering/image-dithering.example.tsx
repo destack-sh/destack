@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING } from "../shader/sizing.ts";
 import { SAMPLE_IMAGE } from "../shader/sample.ts";
-import { IMAGE_DITHERING_DEFAULTS } from "./effect.ts";
 import { ImageDithering } from "./image-dithering.tsx";
 
 /** The size every example draws at. */
@@ -16,8 +14,9 @@ export const imageDitheringDefault = defineExample({
     of: ImageDithering,
     name: "default",
     description: t`Image dithering in the default look.`,
-    properties: { ...IMAGE_DITHERING_DEFAULTS, image: SAMPLE_IMAGE },
-    render: (properties) => <ImageDithering {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <ImageDithering {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The image dithering in the retro look. */
@@ -26,7 +25,6 @@ export const imageDitheringRetro = defineExample({
     name: "retro",
     description: t`Image dithering in the retro look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         speed: 0,
         frame: 0,
@@ -38,9 +36,10 @@ export const imageDitheringRetro = defineExample({
         colorSteps: 1,
         originalColors: true,
         inverted: false,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <ImageDithering {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <ImageDithering {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The image dithering in the noise look. */
@@ -49,7 +48,6 @@ export const imageDitheringNoise = defineExample({
     name: "noise",
     description: t`Image dithering in the noise look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         speed: 0,
         frame: 0,
@@ -61,9 +59,10 @@ export const imageDitheringNoise = defineExample({
         colorSteps: 1,
         originalColors: false,
         inverted: false,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <ImageDithering {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <ImageDithering {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The image dithering in the natural look. */
@@ -72,7 +71,6 @@ export const imageDitheringNatural = defineExample({
     name: "natural",
     description: t`Image dithering in the natural look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         speed: 0,
         frame: 0,
@@ -84,7 +82,8 @@ export const imageDitheringNatural = defineExample({
         colorSteps: 5,
         originalColors: true,
         inverted: false,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <ImageDithering {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <ImageDithering {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });

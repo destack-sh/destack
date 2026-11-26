@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING } from "../shader/sizing.ts";
 
-import { PULSING_BORDER_DEFAULTS } from "./effect.ts";
 import { PulsingBorder } from "./pulsing-border.tsx";
 
 /** The size every example draws at. */
@@ -16,7 +14,6 @@ export const pulsingBorderDefault = defineExample({
     of: PulsingBorder,
     name: "default",
     description: t`Pulsing border in the default look.`,
-    properties: PULSING_BORDER_DEFAULTS,
     render: (properties) => <PulsingBorder {...properties} xstyle={styles.canvas} />,
 });
 
@@ -26,7 +23,6 @@ export const pulsingBorderCircle = defineExample({
     name: "circle",
     description: t`Pulsing border in the circle look.`,
     properties: {
-        ...OBJECT_SIZING,
         aspectRatio: "square",
         scale: 0.6,
         speed: 1,
@@ -34,7 +30,6 @@ export const pulsingBorderCircle = defineExample({
         colorBack: "#000000",
         colors: ["#0dc1fd", "#d915ef", "#ff3f2ecc"],
         roundness: 1,
-        margin: 0,
         marginLeft: 0,
         marginRight: 0,
         marginTop: 0,
@@ -58,7 +53,6 @@ export const pulsingBorderNorthernLights = defineExample({
     name: "northernLights",
     description: t`Pulsing border in the northern lights look.`,
     properties: {
-        ...OBJECT_SIZING,
         speed: 0.18,
         scale: 1.1,
         frame: 0,
@@ -67,7 +61,6 @@ export const pulsingBorderNorthernLights = defineExample({
         roundness: 0,
         thickness: 1,
         softness: 1,
-        margin: 0,
         marginLeft: 0,
         marginRight: 0,
         marginTop: 0,
@@ -90,14 +83,12 @@ export const pulsingBorderSolidLine = defineExample({
     name: "solidLine",
     description: t`Pulsing border in the solid line look.`,
     properties: {
-        ...OBJECT_SIZING,
         speed: 1,
         frame: 0,
         colors: ["#81ADEC"],
         colorBack: "#00000000",
         roundness: 0,
         thickness: 0.05,
-        margin: 0,
         marginLeft: 0,
         marginRight: 0,
         marginTop: 0,

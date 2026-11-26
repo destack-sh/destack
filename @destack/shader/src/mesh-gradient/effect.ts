@@ -1,7 +1,12 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { GRAIN_MIXER, GRAIN_OVERLAY } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the mesh gradient. */
 export const MESH_GRADIENT_MAX_COLOR_COUNT = 10;
@@ -123,38 +128,35 @@ void main() {
 }
 `;
 
-/** The options of the mesh gradient, beside its sizing. */
-export interface MeshGradientOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** Up to 10 color spots. */
-    readonly colors?: readonly ShaderColor[];
-    /** The power of organic noise distortion, from 0 to 1. */
-    readonly distortion?: number;
-    /** The power of vortex distortion, from 0 to 1. */
-    readonly swirl?: number;
-    /** The strength of grain distortion applied to shape edges, from 0 to 1. */
-    readonly grainMixer?: number;
-    /** The post-processing black/white grain overlay, from 0 to 1. */
-    readonly grainOverlay?: number;
-}
-
-/** The properties of the mesh gradient, the shader's included. */
-export interface MeshGradientProperties
-    extends MeshGradientOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default mesh gradient. */
-export const MESH_GRADIENT_DEFAULTS: Required<MeshGradientOptions> = {
-    ...OBJECT_SIZING,
-    speed: 1,
-    frame: 0,
-    colors: ["#e0eaff", "#241d9a", "#f75092", "#9f50d3"],
-    distortion: 0.8,
-    swirl: 0.1,
-    grainMixer: 0,
-    grainOverlay: 0,
+/** The properties people change in the mesh gradient's controls and inspector. */
+export const MESH_GRADIENT_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(1),
+    ...SIZING_PROPERTIES,
+    colors: field
+        .colors({ minimum: 1, maximum: MESH_GRADIENT_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#e0eaff", "#241d9a", "#f75092", "#9f50d3"]),
+    distortion: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Distortion`)
+        .described(t`How strongly organic noise bends the gradient.`)
+        .default(0.8),
+    swirl: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Swirl`)
+        .described(t`How strongly the gradient swirls.`)
+        .default(0.1),
+    grainMixer: GRAIN_MIXER.default(0),
+    grainOverlay: GRAIN_OVERLAY.default(0),
 };
 
+/** The options of the mesh gradient, each with its value. */
+export type MeshGradientOptions = DeclaredProperties<typeof MESH_GRADIENT_PROPERTIES>;
+
 /** Write mesh gradient options as the fragment shader's uniforms. */
-export function meshGradientUniforms(options: Required<MeshGradientOptions>): ShaderValues {
+export function meshGradientUniforms(options: MeshGradientOptions): ShaderValues {
     return {
         u_colors: options.colors,
         u_colorsCount: options.colors.length,

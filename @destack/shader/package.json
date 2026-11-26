@@ -32,7 +32,9 @@
     "dependencies": {
         "@destack/error": "workspace:*",
         "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/view": "workspace:*"
     },

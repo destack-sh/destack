@@ -1,11 +1,23 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK, GRAIN_OVERLAY, GRAIN_SIZE } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
 import { NOISE_TEXTURE } from "../shader/noise.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { TRANSPARENT_PIXEL, type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { TRANSPARENT_PIXEL, type ShaderValues } from "../shader/value.ts";
 
-/** A type of the halftone cmyk. */
-export type HalftoneCmykType = "dots" | "ink" | "sharp";
+/** The types of the CMYK halftone, as a person picks one. */
+const HALFTONE_CMYK_TYPE_CHOICES = {
+    dots: { title: t.context("option")`Dots` },
+    ink: { title: t.context("option")`Ink` },
+    sharp: { title: t.context("option")`Sharp` },
+};
+
+/** A type of the CMYK halftone. */
+export type HalftoneCmykType = keyof typeof HALFTONE_CMYK_TYPE_CHOICES;
 
 /** The number the fragment shader reads for each type. */
 export const HALFTONE_CMYK_TYPES: Readonly<Record<HalftoneCmykType, number>> = {
@@ -14,7 +26,7 @@ export const HALFTONE_CMYK_TYPES: Readonly<Record<HalftoneCmykType, number>> = {
     sharp: 2,
 };
 
-/** The fragment shader of the halftone cmyk. */
+/** The fragment shader of the CMYK halftone. */
 export const HALFTONE_CMYK_FRAGMENT = `#version 300 es
 precision mediump float;
 
@@ -294,91 +306,114 @@ void main() {
 }
 `;
 
-/** The options of the halftone cmyk, beside its sizing. */
-export interface HalftoneCmykOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The source image texture. */
-    readonly image?: string | HTMLImageElement | null;
-    /** The background (paper) color. */
-    readonly colorBack?: ShaderColor;
-    /** The cyan ink color. */
-    readonly colorC?: ShaderColor;
-    /** The magenta ink color. */
-    readonly colorM?: ShaderColor;
-    /** The yellow ink color. */
-    readonly colorY?: ShaderColor;
-    /** The black ink color. */
-    readonly colorK?: ShaderColor;
-    /** The halftone cell size, from 0 to 1. */
-    readonly size?: number;
-    /** The image contrast adjustment, from 0 to 2. */
-    readonly contrast?: number;
-    /** The edge softness of dots, from 0 to 1. */
-    readonly softness?: number;
-    /** The size of grain texture for both grain and overlay, from 0 to 1. */
-    readonly grainSize?: number;
-    /** The strength of grain affecting dot size, from 0 to 1. */
-    readonly grainMixer?: number;
-    /** The strength of grain overlay on final output, from 0 to 1. */
-    readonly grainOverlay?: number;
-    /** The strength of smooth noise on dot positions and color sampling, from 0 to 1. */
-    readonly gridNoise?: number;
-    /** The flat cyan dot size adjustment applied uniformly, needs colorC alpha > 0, from 0 to 1. */
-    readonly floodC?: number;
-    /** The flat magenta dot size adjustment applied uniformly, from 0 to 1. */
-    readonly floodM?: number;
-    /** The flat yellow dot size adjustment applied uniformly, from 0 to 1. */
-    readonly floodY?: number;
-    /** The flat black dot size adjustment applied uniformly, from 0 to 1. */
-    readonly floodK?: number;
-    /** The proportional cyan dot size gain, from -1 to 1. */
-    readonly gainC?: number;
-    /** The proportional magenta dot size gain, from -1 to 1. */
-    readonly gainM?: number;
-    /** The proportional yellow dot size gain, from -1 to 1. */
-    readonly gainY?: number;
-    /** The proportional black dot size gain, from -1 to 1. */
-    readonly gainK?: number;
-    /** The dot shape style. */
-    readonly type?: HalftoneCmykType;
-}
-
-/** The properties of the halftone cmyk, the shader's included. */
-export interface HalftoneCmykProperties
-    extends HalftoneCmykOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default halftone cmyk. */
-export const HALFTONE_CMYK_DEFAULTS: Required<HalftoneCmykOptions> = {
-    image: null,
-    ...OBJECT_SIZING,
-    scale: 1,
-    fit: "cover",
-    speed: 0,
-    frame: 0,
-    colorBack: "#fbfaf5",
-    colorC: "#00b4ff",
-    colorM: "#fc519f",
-    colorY: "#ffd800",
-    colorK: "#231f20",
-    size: 0.2,
-    contrast: 1,
-    softness: 1,
-    grainSize: 0.5,
-    grainMixer: 0,
-    grainOverlay: 0,
-    gridNoise: 0.2,
-    floodC: 0.15,
-    floodM: 0,
-    floodY: 0,
-    floodK: 0,
-    gainC: 0.3,
-    gainM: 0,
-    gainY: 0.2,
-    gainK: 0,
-    type: "ink",
+/** The properties people change in the CMYK halftone's controls and inspector. */
+export const HALFTONE_CMYK_PROPERTIES = {
+    ...Shader.properties,
+    ...SIZING_PROPERTIES,
+    fit: SIZING_PROPERTIES.fit.default("cover"),
+    colorBack: COLOR_BACK.default("#fbfaf5"),
+    colorC: field
+        .color()
+        .labeled(t.context("label")`Cyan`)
+        .described(t`The cyan ink.`)
+        .default("#00b4ff"),
+    colorM: field
+        .color()
+        .labeled(t.context("label")`Magenta`)
+        .described(t`The magenta ink.`)
+        .default("#fc519f"),
+    colorY: field
+        .color()
+        .labeled(t.context("label")`Yellow`)
+        .described(t`The yellow ink.`)
+        .default("#ffd800"),
+    colorK: field
+        .color()
+        .labeled(t.context("label")`Black`)
+        .described(t`The black ink.`)
+        .default("#231f20"),
+    size: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Size`)
+        .described(t`The size of each halftone cell.`)
+        .default(0.2),
+    contrast: field
+        .number(schema.number().min(0).max(2))
+        .labeled(t.context("label")`Contrast`)
+        .described(t`The contrast of the image.`)
+        .default(1),
+    softness: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Softness`)
+        .described(t`How soft the edges of the dots are.`)
+        .default(1),
+    grainSize: GRAIN_SIZE.default(0.5),
+    grainMixer: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Edge grain`)
+        .described(t`The grain that changes the size of the dots.`)
+        .default(0),
+    grainOverlay: GRAIN_OVERLAY.default(0),
+    gridNoise: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Grid noise`)
+        .described(t`How much noise moves the dots and the colors they read.`)
+        .default(0.2),
+    floodC: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Cyan flood`)
+        .described(t`How much every cyan dot grows.`)
+        .default(0.15),
+    floodM: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Magenta flood`)
+        .described(t`How much every magenta dot grows.`)
+        .default(0),
+    floodY: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Yellow flood`)
+        .described(t`How much every yellow dot grows.`)
+        .default(0),
+    floodK: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Black flood`)
+        .described(t`How much every black dot grows.`)
+        .default(0),
+    gainC: field
+        .number(schema.number().min(-1).max(1))
+        .labeled(t.context("label")`Cyan gain`)
+        .described(t`How much cyan dots grow with their ink.`)
+        .default(0.3),
+    gainM: field
+        .number(schema.number().min(-1).max(1))
+        .labeled(t.context("label")`Magenta gain`)
+        .described(t`How much magenta dots grow with their ink.`)
+        .default(0),
+    gainY: field
+        .number(schema.number().min(-1).max(1))
+        .labeled(t.context("label")`Yellow gain`)
+        .described(t`How much yellow dots grow with their ink.`)
+        .default(0.2),
+    gainK: field
+        .number(schema.number().min(-1).max(1))
+        .labeled(t.context("label")`Black gain`)
+        .described(t`How much black dots grow with their ink.`)
+        .default(0),
+    type: field
+        .enum(HALFTONE_CMYK_TYPE_CHOICES)
+        .labeled(t.context("label")`Type`)
+        .described(t`The look of the dots.`)
+        .default("ink"),
 };
 
-/** Write halftone cmyk options as the fragment shader's uniforms. */
-export function halftoneCmykUniforms(options: Required<HalftoneCmykOptions>): ShaderValues {
+/** The options of the CMYK halftone, each with its value. */
+export type HalftoneCmykOptions = DeclaredProperties<typeof HALFTONE_CMYK_PROPERTIES> & {
+    /** The image it draws over, none for its background alone. */
+    readonly image?: string | HTMLImageElement | null;
+};
+
+/** Write CMYK halftone options as the fragment shader's uniforms. */
+export function halftoneCmykUniforms(options: HalftoneCmykOptions): ShaderValues {
     return {
         u_image: { image: options.image ?? TRANSPARENT_PIXEL },
         u_noiseTexture: NOISE_TEXTURE,

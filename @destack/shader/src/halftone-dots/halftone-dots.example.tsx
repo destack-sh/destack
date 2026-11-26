@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING } from "../shader/sizing.ts";
 import { SAMPLE_IMAGE } from "../shader/sample.ts";
-import { HALFTONE_DOTS_DEFAULTS } from "./effect.ts";
 import { HalftoneDots } from "./halftone-dots.tsx";
 
 /** The size every example draws at. */
@@ -16,8 +14,9 @@ export const halftoneDotsDefault = defineExample({
     of: HalftoneDots,
     name: "default",
     description: t`Halftone dots in the default look.`,
-    properties: { ...HALFTONE_DOTS_DEFAULTS, image: SAMPLE_IMAGE },
-    render: (properties) => <HalftoneDots {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <HalftoneDots {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The halftone dots in the led screen look. */
@@ -26,7 +25,6 @@ export const halftoneDotsLedScreen = defineExample({
     name: "ledScreen",
     description: t`Halftone dots in the led screen look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         speed: 0,
         frame: 0,
@@ -42,9 +40,10 @@ export const halftoneDotsLedScreen = defineExample({
         grainSize: 0.5,
         grid: "square",
         type: "soft",
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <HalftoneDots {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <HalftoneDots {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The halftone dots in the mosaic look. */
@@ -53,7 +52,6 @@ export const halftoneDotsMosaic = defineExample({
     name: "mosaic",
     description: t`Halftone dots in the mosaic look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         speed: 0,
         frame: 0,
@@ -69,9 +67,10 @@ export const halftoneDotsMosaic = defineExample({
         grainSize: 0.5,
         grid: "hex",
         type: "classic",
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <HalftoneDots {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <HalftoneDots {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The halftone dots in the round and square look. */
@@ -80,7 +79,6 @@ export const halftoneDotsRoundAndSquare = defineExample({
     name: "roundAndSquare",
     description: t`Halftone dots in the round and square look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         speed: 0,
         frame: 0,
@@ -96,7 +94,8 @@ export const halftoneDotsRoundAndSquare = defineExample({
         grainSize: 0.5,
         grid: "square",
         type: "holes",
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <HalftoneDots {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <HalftoneDots {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });

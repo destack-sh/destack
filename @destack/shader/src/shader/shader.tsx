@@ -1,3 +1,6 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
 import * as style from "@destack/style";
 import type { Environment } from "@destack/environment";
 import {
@@ -19,6 +22,11 @@ import { createReducedMotion } from "@destack/view/motion";
 import { ShaderMount, type ShaderResolution } from "../mount/mount.ts";
 import { type ColorCache, resolveValues, type ShaderValues } from "./value.ts";
 import { ShaderError, type ShaderFailure } from "../error/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The device preferences a theme's colors follow. */
 const THEME_QUERIES = ["(prefers-color-scheme: dark)", "(prefers-contrast: more)"];
@@ -41,8 +49,22 @@ const styles = style.create({
     },
 });
 
-/** The properties of a shader, the native element's attributes included. */
-export interface ShaderProperties extends Omit<
+/** The properties people change in a shader's controls and inspector. */
+const SHADER_PROPERTIES = {
+    speed: field
+        .number(schema.number().min(0).max(20))
+        .labeled(t.context("label")`Speed`)
+        .described(t`How fast its time runs, held still at zero and under reduced motion.`)
+        .default(0),
+    frame: field
+        .number(schema.number().min(0))
+        .labeled(t.context("label")`Frame`)
+        .described(t`The time it draws, in milliseconds.`)
+        .default(0),
+};
+
+/** The properties of a shader besides its declared ones: its code, uniforms and element. */
+export interface ShaderAttributes extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "style"
 > {
@@ -50,10 +72,6 @@ export interface ShaderProperties extends Omit<
     readonly fragmentShader: string;
     /** The uniforms by GLSL name: numbers, vectors, CSS colors and theme tokens, or images. */
     readonly uniforms: ShaderValues;
-    /** The speed of animation time, 0 to hold one frame; held still under reduced motion. */
-    readonly speed?: number;
-    /** The animation time to draw, in milliseconds. */
-    readonly frame?: number;
     /** The least pixel ratio to render at, 2 by default. */
     readonly minPixelRatio?: number;
     /** The most device pixels to render. */
@@ -77,190 +95,195 @@ export interface ShaderProperties extends Omit<
 }
 
 /** Draw a fragment shader behind its content, colored by theme tokens. */
-export function Shader(properties: ShaderProperties): JSX.Element {
-    // hold the canvas, the running mount, the failure and the device preferences
-    const rest = omit(
-        properties,
-        "fragmentShader",
-        "uniforms",
-        "speed",
-        "frame",
-        "minPixelRatio",
-        "maxPixelCount",
-        "resolution",
-        "mipmaps",
-        "children",
-        "fallback",
-        "onFailure",
-        "onMount",
-        "xstyle",
-        "style",
-    );
-    const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>(undefined, {
-        ownedWrite: true,
-    });
-    const [mount, setMount] = createSignal<ShaderMount | undefined>(undefined, {
-        ownedWrite: true,
-    });
-    const [failure, setFailure] = createSignal<ShaderFailure | undefined>(undefined, {
-        ownedWrite: true,
-    });
-    const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
+export const Shader = defineComponent({
+    name: "shader",
+    properties: SHADER_PROPERTIES,
+    render(properties: RenderProperties<ShaderAttributes, typeof SHADER_PROPERTIES>): JSX.Element {
+        // hold the canvas, the running mount, the failure and the device preferences
+        const rest = omit(
+            properties,
+            "fragmentShader",
+            "uniforms",
+            "speed",
+            "frame",
+            "minPixelRatio",
+            "maxPixelCount",
+            "resolution",
+            "mipmaps",
+            "children",
+            "fallback",
+            "onFailure",
+            "onMount",
+            "xstyle",
+            "style",
+        );
+        const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const [mount, setMount] = createSignal<ShaderMount | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const [failure, setFailure] = createSignal<ShaderFailure | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
 
-    // stop the theme reads with the shader
-    const stopping = new AbortController();
-    onCleanup(() => stopping.abort());
+        // stop the theme reads with the shader
+        const stopping = new AbortController();
+        onCleanup(() => stopping.abort());
 
-    // follow the theme in the page alone
-    const environment = isServer ? undefined : useEnvironment();
-    const preferences = THEME_QUERIES.map((query) => createMediaQuery(query));
-    if (environment !== undefined) {
-        followTheme(canvas, environment, stopping.signal, () => setMutations((count) => count + 1));
-    }
-    const theme = createMemo(() => [mutations(), ...preferences.map((matches) => matches())]);
+        // follow the theme in the page alone
+        const environment = isServer ? undefined : useEnvironment();
+        const preferences = THEME_QUERIES.map((query) => createMediaQuery(query));
+        if (environment !== undefined) {
+            followTheme(canvas, environment, stopping.signal, () =>
+                setMutations((count) => count + 1),
+            );
+        }
+        const theme = createMemo(() => [mutations(), ...preferences.map((matches) => matches())]);
 
-    // hold still where the theme's motion scale, the person's motion setting, reads zero
-    const isStill = createReducedMotion(canvas);
+        // hold still where the theme's motion scale, the person's motion setting, reads zero
+        const isStill = createReducedMotion(canvas);
 
-    // keep the colors computed for the current theme, so animated values skip the style pass
-    let colors: ColorCache = new Map();
-    let colorTheme: unknown;
+        // keep the colors computed for the current theme, so animated values skip the style pass
+        let colors: ColorCache = new Map();
+        let colorTheme: unknown;
 
-    // build the mount for each canvas and fragment shader
-    createEffect(
-        () => ({ element: canvas(), fragment: properties.fragmentShader }),
-        ({ element, fragment }) => {
-            if (element === undefined || environment === undefined) {
-                return undefined;
-            }
-            // build from the uniforms of the moment, which the next effect keeps current
-            let isCurrent = true;
-            void resolveValues(
-                untrack(() => properties.uniforms),
-                element,
-                colors,
-            ).then((uniforms) => {
-                // drop a build a newer one replaced
-                if (!isCurrent) {
-                    return;
+        // build the mount for each canvas and fragment shader
+        createEffect(
+            () => ({ element: canvas(), fragment: properties.fragmentShader }),
+            ({ element, fragment }) => {
+                if (element === undefined || environment === undefined) {
+                    return undefined;
                 }
-                try {
-                    const built = new ShaderMount(
-                        element,
-                        fragment,
-                        uniforms,
-                        {
-                            speed: isStill() ? 0 : (properties.speed ?? 0),
-                            frame: properties.frame ?? 0,
-                            minPixelRatio: properties.minPixelRatio,
-                            maxPixelCount: properties.maxPixelCount,
-                            resolution: properties.resolution,
-                            mipmaps: properties.mipmaps,
-                        },
-                        environment.display,
-                    );
-                    setMount(built);
-                    properties.onMount?.(built);
-                } catch (error) {
-                    // show the fallback where this browser cannot draw the shader
-                    if (
-                        ShaderError.is(error, "WEBGL_UNSUPPORTED") ||
-                        ShaderError.is(error, "COMPILE_INVALID") ||
-                        ShaderError.is(error, "LINK_INVALID")
-                    ) {
-                        setFailure(error);
-                        properties.onFailure?.(error);
+                // build from the uniforms of the moment, which the next effect keeps current
+                let isCurrent = true;
+                void resolveValues(
+                    untrack(() => properties.uniforms),
+                    element,
+                    colors,
+                ).then((uniforms) => {
+                    // drop a build a newer one replaced
+                    if (!isCurrent) {
+                        return;
                     }
-                    // rethrow every other failure
-                    else {
-                        throw error;
+                    try {
+                        const built = new ShaderMount(
+                            element,
+                            fragment,
+                            uniforms,
+                            {
+                                speed: isStill() ? 0 : properties.speed,
+                                frame: properties.frame,
+                                minPixelRatio: properties.minPixelRatio,
+                                maxPixelCount: properties.maxPixelCount,
+                                resolution: properties.resolution,
+                                mipmaps: properties.mipmaps,
+                            },
+                            environment.display,
+                        );
+                        setMount(built);
+                        properties.onMount?.(built);
+                    } catch (error) {
+                        // show the fallback where this browser cannot draw the shader
+                        if (
+                            ShaderError.is(error, "WEBGL_UNSUPPORTED") ||
+                            ShaderError.is(error, "COMPILE_INVALID") ||
+                            ShaderError.is(error, "LINK_INVALID")
+                        ) {
+                            setFailure(error);
+                            properties.onFailure?.(error);
+                        }
+                        // rethrow every other failure
+                        else {
+                            throw error;
+                        }
                     }
+                });
+
+                return () => {
+                    isCurrent = false;
+                    mount()?.dispose();
+                    setMount(undefined);
+                };
+            },
+        );
+
+        // set the uniforms again as they or the theme's colors change, keeping only the newest
+        createEffect(
+            () => ({ running: mount(), uniforms: properties.uniforms, theme: theme() }),
+            ({ running, uniforms, theme: current }) => {
+                if (running === undefined) {
+                    return undefined;
                 }
-            });
 
-            return () => {
-                isCurrent = false;
-                mount()?.dispose();
-                setMount(undefined);
-            };
-        },
-    );
-
-    // set the uniforms again as they or the theme's colors change, keeping only the newest
-    createEffect(
-        () => ({ running: mount(), uniforms: properties.uniforms, theme: theme() }),
-        ({ running, uniforms, theme: current }) => {
-            if (running === undefined) {
-                return undefined;
-            }
-
-            // compute the colors again only once the theme changes, as the values change every frame
-            if (current !== colorTheme) {
-                colors = new Map();
-                colorTheme = current;
-            }
-            let isCurrent = true;
-            void resolveValues(uniforms, running.canvas, colors).then((resolved) => {
-                if (isCurrent) {
-                    running.setUniforms(resolved);
+                // compute the colors again only once the theme changes, as the values change every frame
+                if (current !== colorTheme) {
+                    colors = new Map();
+                    colorTheme = current;
                 }
-            });
+                let isCurrent = true;
+                void resolveValues(uniforms, running.canvas, colors).then((resolved) => {
+                    if (isCurrent) {
+                        running.setUniforms(resolved);
+                    }
+                });
 
-            return () => {
-                isCurrent = false;
-            };
-        },
-    );
+                return () => {
+                    isCurrent = false;
+                };
+            },
+        );
 
-    // follow the speed, the frame and the resolution limits
-    createEffect(
-        () => ({ running: mount(), speed: isStill() ? 0 : (properties.speed ?? 0) }),
-        ({ running, speed }) => running?.setSpeed(speed),
-    );
-    createEffect(
-        () => ({ running: mount(), frame: properties.frame }),
-        ({ running, frame }) => {
-            if (frame !== undefined) {
-                running?.setFrame(frame);
-            }
-        },
-    );
-    createEffect(
-        () => ({ running: mount(), limit: properties.maxPixelCount }),
-        ({ running, limit }) => {
-            if (limit !== undefined) {
-                running?.setMaxPixelCount(limit);
-            }
-        },
-    );
-    createEffect(
-        () => ({ running: mount(), ratio: properties.minPixelRatio }),
-        ({ running, ratio }) => {
-            if (ratio !== undefined) {
-                running?.setMinPixelRatio(ratio);
-            }
-        },
-    );
+        // follow the speed, the frame and the resolution limits
+        createEffect(
+            () => ({ running: mount(), speed: isStill() ? 0 : properties.speed }),
+            ({ running, speed }) => running?.setSpeed(speed),
+        );
+        createEffect(
+            () => ({ running: mount(), frame: properties.frame }),
+            ({ running, frame }) => running?.setFrame(frame),
+        );
+        createEffect(
+            () => ({ running: mount(), limit: properties.maxPixelCount }),
+            ({ running, limit }) => {
+                if (limit !== undefined) {
+                    running?.setMaxPixelCount(limit);
+                }
+            },
+        );
+        createEffect(
+            () => ({ running: mount(), ratio: properties.minPixelRatio }),
+            ({ running, ratio }) => {
+                if (ratio !== undefined) {
+                    running?.setMinPixelRatio(ratio);
+                }
+            },
+        );
 
-    return (
-        <div
-            data-slot="shader"
-            data-state={failure() === undefined ? "drawing" : "fallback"}
-            {...rest}
-            {...style.attributes([styles.shader, properties.xstyle], properties.style)}
-        >
-            <Show when={failure() === undefined} fallback={properties.fallback}>
-                <canvas
-                    data-slot="shader-canvas"
-                    aria-hidden="true"
-                    ref={(element) => setCanvas(element)}
-                    {...style.attrs(styles.canvas)}
-                />
-            </Show>
-            {properties.children}
-        </div>
-    );
-}
+        return (
+            <div
+                data-slot="shader"
+                data-state={failure() === undefined ? "drawing" : "fallback"}
+                {...rest}
+                {...style.attributes([styles.shader, properties.xstyle], properties.style)}
+            >
+                <Show when={failure() === undefined} fallback={properties.fallback}>
+                    <canvas
+                        data-slot="shader-canvas"
+                        aria-hidden="true"
+                        ref={(element) => setCanvas(element)}
+                        {...style.attrs(styles.canvas)}
+                    />
+                </Show>
+                {properties.children}
+            </div>
+        );
+    },
+});
+
+/** The properties of a shader, the native element's attributes included. */
+export type ShaderProperties = ComponentProperties<typeof Shader>;
 
 /** Count each settled burst of changes above the canvas, once the browser painted it. */
 function followTheme(

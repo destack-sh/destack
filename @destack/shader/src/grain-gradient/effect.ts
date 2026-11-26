@@ -1,21 +1,30 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK, SOFTNESS } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
 import { NOISE_TEXTURE } from "../shader/noise.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the grain gradient. */
 export const GRAIN_GRADIENT_MAX_COLOR_COUNT = 7;
 
+/** The shapes of the grain gradient, as a person picks one. */
+const GRAIN_GRADIENT_SHAPE_CHOICES = {
+    wave: { title: t.context("option")`Wave` },
+    dots: { title: t.context("option")`Dots` },
+    truchet: { title: t.context("option")`Truchet` },
+    corners: { title: t.context("option")`Corners` },
+    ripple: { title: t.context("option")`Ripple` },
+    blob: { title: t.context("option")`Blob` },
+    sphere: { title: t.context("option")`Sphere` },
+};
+
 /** A shape of the grain gradient. */
-export type GrainGradientShape =
-    | "wave"
-    | "dots"
-    | "truchet"
-    | "corners"
-    | "ripple"
-    | "blob"
-    | "sphere";
+export type GrainGradientShape = keyof typeof GRAIN_GRADIENT_SHAPE_CHOICES;
 
 /** The number the fragment shader reads for each shape. */
 export const GRAIN_GRADIENT_SHAPES: Readonly<Record<GrainGradientShape, number>> = {
@@ -298,41 +307,40 @@ void main() {
 }
 `;
 
-/** The options of the grain gradient, beside its sizing. */
-export interface GrainGradientOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** Up to 7 gradient colors. */
-    readonly colors?: readonly ShaderColor[];
-    /** The color transition sharpness, 0 = hard edge, 1 = smooth gradient, from 0 to 1. */
-    readonly softness?: number;
-    /** The distortion between color bands, from 0 to 1. */
-    readonly intensity?: number;
-    /** The grainy noise overlay, from 0 to 1. */
-    readonly noise?: number;
-    /** The shape type. */
-    readonly shape?: GrainGradientShape;
-}
-
-/** The properties of the grain gradient, the shader's included. */
-export interface GrainGradientProperties
-    extends GrainGradientOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default grain gradient. */
-export const GRAIN_GRADIENT_DEFAULTS: Required<GrainGradientOptions> = {
-    ...OBJECT_SIZING,
-    speed: 1,
-    frame: 0,
-    colorBack: "#000000",
-    colors: ["#7300ff", "#eba8ff", "#00bfff", "#2a00ff"],
-    softness: 0.5,
-    intensity: 0.5,
-    noise: 0.25,
-    shape: "corners",
+/** The properties people change in the grain gradient's controls and inspector. */
+export const GRAIN_GRADIENT_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(1),
+    ...SIZING_PROPERTIES,
+    colorBack: COLOR_BACK.default("#000000"),
+    colors: field
+        .colors({ minimum: 1, maximum: GRAIN_GRADIENT_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#7300ff", "#eba8ff", "#00bfff", "#2a00ff"]),
+    softness: SOFTNESS.default(0.5),
+    intensity: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Intensity`)
+        .described(t`How much the color bands bend.`)
+        .default(0.5),
+    noise: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Noise`)
+        .described(t`The grain over the gradient.`)
+        .default(0.25),
+    shape: field
+        .enum(GRAIN_GRADIENT_SHAPE_CHOICES)
+        .labeled(t.context("label")`Shape`)
+        .described(t`The shape of the gradient.`)
+        .default("corners"),
 };
 
+/** The options of the grain gradient, each with its value. */
+export type GrainGradientOptions = DeclaredProperties<typeof GRAIN_GRADIENT_PROPERTIES>;
+
 /** Write grain gradient options as the fragment shader's uniforms. */
-export function grainGradientUniforms(options: Required<GrainGradientOptions>): ShaderValues {
+export function grainGradientUniforms(options: GrainGradientOptions): ShaderValues {
     return {
         u_colorBack: options.colorBack,
         u_colors: options.colors,

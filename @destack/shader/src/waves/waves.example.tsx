@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { PATTERN_SIZING } from "../shader/sizing.ts";
 
-import { WAVES_DEFAULTS } from "./effect.ts";
 import { Waves } from "./waves.tsx";
 
 /** The size every example draws at. */
@@ -16,7 +14,6 @@ export const wavesDefault = defineExample({
     of: Waves,
     name: "default",
     description: t`Waves in the default look.`,
-    properties: WAVES_DEFAULTS,
     render: (properties) => <Waves {...properties} xstyle={styles.canvas} />,
 });
 
@@ -26,7 +23,6 @@ export const wavesGroovy = defineExample({
     name: "groovy",
     description: t`Waves in the groovy look.`,
     properties: {
-        ...PATTERN_SIZING,
         scale: 5,
         rotation: 90,
         colorFront: "#fcfcee",
@@ -47,7 +43,6 @@ export const wavesTangledUp = defineExample({
     name: "tangledUp",
     description: t`Waves in the tangled up look.`,
     properties: {
-        ...PATTERN_SIZING,
         scale: 0.5,
         rotation: 0,
         colorFront: "#133a41",
@@ -68,7 +63,6 @@ export const wavesRideTheWave = defineExample({
     name: "rideTheWave",
     description: t`Waves in the ride the wave look.`,
     properties: {
-        ...PATTERN_SIZING,
         scale: 1.7,
         rotation: 0,
         colorFront: "#fdffe6",

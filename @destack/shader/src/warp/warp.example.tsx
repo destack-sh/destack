@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { PATTERN_SIZING } from "../shader/sizing.ts";
 
-import { WARP_DEFAULTS } from "./effect.ts";
 import { Warp } from "./warp.tsx";
 
 /** The size every example draws at. */
@@ -16,7 +14,6 @@ export const warpDefault = defineExample({
     of: Warp,
     name: "default",
     description: t`Warp in the default look.`,
-    properties: WARP_DEFAULTS,
     render: (properties) => <Warp {...properties} xstyle={styles.canvas} />,
 });
 
@@ -26,7 +23,6 @@ export const warpCauldronPot = defineExample({
     name: "cauldronPot",
     description: t`Warp in the cauldron pot look.`,
     properties: {
-        ...PATTERN_SIZING,
         scale: 0.9,
         rotation: 160,
         speed: 10,
@@ -49,7 +45,6 @@ export const warpLiveInk = defineExample({
     name: "liveInk",
     description: t`Warp in the live ink look.`,
     properties: {
-        ...PATTERN_SIZING,
         scale: 1.2,
         rotation: 44,
         offsetY: -0.3,
@@ -73,7 +68,6 @@ export const warpKelp = defineExample({
     name: "kelp",
     description: t`Warp in the kelp look.`,
     properties: {
-        ...PATTERN_SIZING,
         scale: 0.8,
         rotation: 50,
         speed: 20,
@@ -96,7 +90,6 @@ export const warpNectar = defineExample({
     name: "nectar",
     description: t`Warp in the nectar look.`,
     properties: {
-        ...PATTERN_SIZING,
         scale: 2,
         offsetY: 0.6,
         rotation: 0,
@@ -120,7 +113,6 @@ export const warpPassion = defineExample({
     name: "passion",
     description: t`Warp in the passion look.`,
     properties: {
-        ...PATTERN_SIZING,
         scale: 2.5,
         rotation: 1.35,
         speed: 3,

@@ -1,0 +1,1838 @@
+{
+    "package": "package-01a1138b-c73c-7e27-8fdb-447090a18b9a",
+    "locale": "nl",
+    "messages": {
+        "330oo16ho23m5": {
+            "source": "Dithering in the default look.",
+            "translation": "Dithering in de standaardstijl."
+        },
+        "3afxdylj8h2ui": {
+            "source": "Dithering in the sine wave look.",
+            "translation": "Dithering in de stijl ‘sinusgolf’."
+        },
+        "tminjiknqe41": {
+            "source": "Dithering in the bugs look.",
+            "translation": "Dithering in de stijl ‘kevers’."
+        },
+        "36yjtc0q934a8": {
+            "source": "Dithering in the ripple look.",
+            "translation": "Dithering in de stijl ‘rimpeling’."
+        },
+        "hbzrl0urxl77": {
+            "source": "Dithering in the swirl look.",
+            "translation": "Dithering in de stijl ‘werveling’."
+        },
+        "3eqi0n7kyyeoo": {
+            "source": "Dithering in the warp look.",
+            "translation": "Dithering in de stijl ‘vervorming’."
+        },
+        "28wzxch4k0pia": {
+            "source": "Simplex",
+            "context": "option",
+            "translation": "Simplex"
+        },
+        "afc91d11qmiq": {
+            "source": "Warp",
+            "context": "option",
+            "translation": "Vervorming"
+        },
+        "3e4yvueua14g": {
+            "source": "Dots",
+            "context": "option",
+            "translation": "Stippen"
+        },
+        "agcf693andh1": {
+            "source": "Wave",
+            "context": "option",
+            "translation": "Golf"
+        },
+        "2cirecesi3uie": {
+            "source": "Ripple",
+            "context": "option",
+            "translation": "Rimpeling"
+        },
+        "14s4dfub0t3ez": {
+            "source": "Swirl",
+            "context": "option",
+            "translation": "Werveling"
+        },
+        "38oek3j4os6f5": {
+            "source": "Sphere",
+            "context": "option",
+            "translation": "Bol"
+        },
+        "awit3q8fkrub": {
+            "source": "Random",
+            "context": "option",
+            "translation": "Willekeurig"
+        },
+        "rcvcehsxwimq": {
+            "source": "2×2",
+            "context": "option",
+            "translation": "2×2"
+        },
+        "3lpopeb2wexz6": {
+            "source": "4×4",
+            "context": "option",
+            "translation": "4×4"
+        },
+        "b52fx5kpkxw2": {
+            "source": "8×8",
+            "context": "option",
+            "translation": "8×8"
+        },
+        "1mt8u6c9nyf2o": {
+            "source": "Shape",
+            "context": "label",
+            "translation": "Vorm"
+        },
+        "1lbtrcfpuri2d": {
+            "source": "The pattern the dots draw.",
+            "translation": "Het patroon dat de stippen tekenen."
+        },
+        "2rcw0jcncuswv": {
+            "source": "Type",
+            "context": "label",
+            "translation": "Type"
+        },
+        "3c5cvqsmbxc88": {
+            "source": "The matrix that orders the dots.",
+            "translation": "De matrix die de stippen ordent."
+        },
+        "25kjqyzutgdo": {
+            "source": "Dot grid in the default look.",
+            "translation": "Puntenraster in de standaardstijl."
+        },
+        "27p5yolkmsn5s": {
+            "source": "Dot grid in the triangles look.",
+            "translation": "Puntenraster in de stijl ‘driehoeken’."
+        },
+        "3hac3f4ziajrf": {
+            "source": "Dot grid in the tree line look.",
+            "translation": "Puntenraster in de stijl ‘bomenrij’."
+        },
+        "2o82aww247ohb": {
+            "source": "Dot grid in the wallpaper look.",
+            "translation": "Puntenraster in de stijl ‘behang’."
+        },
+        "1b9cfbitpzsls": {
+            "source": "Circle",
+            "context": "option",
+            "translation": "Cirkel"
+        },
+        "rkke8jpkxbs": {
+            "source": "Diamond",
+            "context": "option",
+            "translation": "Ruit"
+        },
+        "232rqoij36ly3": {
+            "source": "Square",
+            "context": "option",
+            "translation": "Vierkant"
+        },
+        "1679h9r39atvs": {
+            "source": "Triangle",
+            "context": "option",
+            "translation": "Driehoek"
+        },
+        "2g7t3g6vmh6hq": {
+            "source": "Fill",
+            "context": "label",
+            "translation": "Vulling"
+        },
+        "374516fteqczp": {
+            "source": "The color inside each shape.",
+            "translation": "De kleur binnen elke vorm."
+        },
+        "3tl8iob20iftz": {
+            "source": "Stroke",
+            "context": "label",
+            "translation": "Omlijning"
+        },
+        "1q7wdv82i9whc": {
+            "source": "The color of each shape's outline.",
+            "translation": "De kleur van de omlijning van elke vorm."
+        },
+        "1don1gxlmc74u": {
+            "source": "Size",
+            "context": "label",
+            "translation": "Grootte"
+        },
+        "379xbkrnr8v9i": {
+            "source": "The size of each shape, in pixels.",
+            "translation": "De grootte van elke vorm, in pixels."
+        },
+        "blugi6hmcwgf": {
+            "source": "Horizontal gap",
+            "context": "label",
+            "translation": "Horizontale tussenruimte"
+        },
+        "25jknwjcgoyb5": {
+            "source": "The space between columns, in pixels.",
+            "translation": "De ruimte tussen kolommen, in pixels."
+        },
+        "2kh3y8u03fewt": {
+            "source": "Vertical gap",
+            "context": "label",
+            "translation": "Verticale tussenruimte"
+        },
+        "36myx64cpuu7z": {
+            "source": "The space between rows, in pixels.",
+            "translation": "De ruimte tussen rijen, in pixels."
+        },
+        "1ecpwjmp4vw8v": {
+            "source": "Stroke width",
+            "context": "label",
+            "translation": "Omlijningsbreedte"
+        },
+        "26uer68fmh2vb": {
+            "source": "The width of each shape's outline, in pixels.",
+            "translation": "De breedte van de omlijning van elke vorm, in pixels."
+        },
+        "3h2lr38ppsn1n": {
+            "source": "Size variation",
+            "context": "label",
+            "translation": "Groottevariatie"
+        },
+        "2lril4zkinig1": {
+            "source": "How much the size of each shape varies.",
+            "translation": "Hoeveel de grootte van elke vorm varieert."
+        },
+        "nlx3m9rvb89": {
+            "source": "Opacity variation",
+            "context": "label",
+            "translation": "Dekkingsvariatie"
+        },
+        "2mebx1k48dl1n": {
+            "source": "How much the opacity of each shape varies.",
+            "translation": "Hoeveel de dekking van elke vorm varieert."
+        },
+        "15233kiig6l1w": {
+            "source": "The shape of each dot.",
+            "translation": "De vorm van elke stip."
+        },
+        "25tisudw08i0n": {
+            "source": "Lines",
+            "context": "option",
+            "translation": "Lijnen"
+        },
+        "1trsgmuyz9gam": {
+            "source": "Irregular lines",
+            "context": "option",
+            "translation": "Onregelmatige lijnen"
+        },
+        "1o8a1fdre9uqc": {
+            "source": "Zigzag",
+            "context": "option",
+            "translation": "Zigzag"
+        },
+        "crl7wgdha44u": {
+            "source": "Pattern",
+            "context": "option",
+            "translation": "Patroon"
+        },
+        "34g5gjr812u8h": {
+            "source": "Prism",
+            "context": "option",
+            "translation": "Prisma"
+        },
+        "1kc7ld5g4x1sw": {
+            "source": "Lens",
+            "context": "option",
+            "translation": "Lens"
+        },
+        "curuertgg462": {
+            "source": "Contour",
+            "context": "option",
+            "translation": "Contour"
+        },
+        "1uogwnbzts6p2": {
+            "source": "Cascade",
+            "context": "option",
+            "translation": "Cascade"
+        },
+        "9tq5wu7mpcub": {
+            "source": "Flat",
+            "context": "option",
+            "translation": "Vlak"
+        },
+        "3l43f1t7vvky7": {
+            "source": "Shadow",
+            "context": "label",
+            "translation": "Schaduw"
+        },
+        "2azbcxpj4507e": {
+            "source": "The color of the shadows.",
+            "translation": "De kleur van de schaduwen."
+        },
+        "1l95ncpffocqc": {
+            "source": "Shadows",
+            "context": "label",
+            "translation": "Schaduwen"
+        },
+        "5dxdbxe9t5xr": {
+            "source": "The shading along the glass shape.",
+            "translation": "De schaduw langs de glasvorm."
+        },
+        "1mnhx8a6dsr9x": {
+            "source": "The size of the glass grid.",
+            "translation": "De grootte van het glasraster."
+        },
+        "1nag7hbfipyby": {
+            "source": "Angle",
+            "context": "label",
+            "translation": "Hoek"
+        },
+        "2olnp3xdlf8lz": {
+            "source": "The direction of the grid, in degrees.",
+            "translation": "De richting van het raster, in graden."
+        },
+        "1vod2pgzm13dx": {
+            "source": "Distortion shape",
+            "context": "label",
+            "translation": "Vervormingsvorm"
+        },
+        "2yjmnipu3e7v7": {
+            "source": "The shape each stripe of glass bends the image in.",
+            "translation": "De vorm waarin elke glasstreep de afbeelding buigt."
+        },
+        "2obz85e359ppu": {
+            "source": "Highlights",
+            "context": "label",
+            "translation": "Highlights"
+        },
+        "r6aj34ch0v7x": {
+            "source": "The thin highlights along the glass shape.",
+            "translation": "De dunne highlights langs de glasvorm."
+        },
+        "kv1s96gqfl9k": {
+            "source": "The pattern of the glass grid.",
+            "translation": "Het patroon van het glasraster."
+        },
+        "1i7rqy6venzgw": {
+            "source": "Distortion",
+            "context": "label",
+            "translation": "Vervorming"
+        },
+        "1apuim7bvj1fx": {
+            "source": "How strongly each stripe bends the image.",
+            "translation": "Hoe sterk elke streep de afbeelding buigt."
+        },
+        "l6hr9vh1vd2l": {
+            "source": "Shift",
+            "context": "label",
+            "translation": "Verschuiving"
+        },
+        "tgtnxwvnifhc": {
+            "source": "How far the image moves against the grid.",
+            "translation": "Hoe ver de afbeelding tegen het raster verschuift."
+        },
+        "35d8g10rtxl8y": {
+            "source": "Blur",
+            "context": "label",
+            "translation": "Vervaging"
+        },
+        "2ovvkz9lyazbf": {
+            "source": "How much the glass blurs the image.",
+            "translation": "Hoeveel het glas de afbeelding vervaagt."
+        },
+        "37xayammvzw77": {
+            "source": "Edges",
+            "context": "label",
+            "translation": "Randen"
+        },
+        "3tdf2yk6mbuum": {
+            "source": "How much the glass bends and softens the image's edges.",
+            "translation": "Hoeveel het glas de randen van de afbeelding buigt en verzacht."
+        },
+        "1fy7c1s0ak8ys": {
+            "source": "Stretch",
+            "context": "label",
+            "translation": "Rekking"
+        },
+        "13qcl0ls2ew44": {
+            "source": "The extra bending along the grid lines.",
+            "translation": "De extra buiging langs de rasterlijnen."
+        },
+        "11mda3fnhzwtp": {
+            "source": "Fluted glass in the default look.",
+            "translation": "Geribbeld glas in de standaardstijl."
+        },
+        "2m5qj1mkhnacm": {
+            "source": "Fluted glass in the waves look.",
+            "translation": "Geribbeld glas in de stijl ‘golven’."
+        },
+        "10b2w36ra5570": {
+            "source": "Fluted glass in the abstract look.",
+            "translation": "Geribbeld glas in de stijl ‘abstract’."
+        },
+        "19v3nunm1mctw": {
+            "source": "Fluted glass in the folds look.",
+            "translation": "Geribbeld glas in de stijl ‘vouwen’."
+        },
+        "225aprsdn8gb1": {
+            "source": "Bloom color",
+            "context": "label",
+            "translation": "Gloedkleur"
+        },
+        "2d944f26m8jjl": {
+            "source": "The color blended over the rays.",
+            "translation": "De kleur die over de stralen wordt gemengd."
+        },
+        "wky2f9ao32jj": {
+            "source": "Colors",
+            "context": "label",
+            "translation": "Kleuren"
+        },
+        "3rgwg7btnkrjp": {
+            "source": "The colors the effect blends, in order.",
+            "translation": "De kleuren die het effect mengt, op volgorde."
+        },
+        "x1v1x4eqvgu1": {
+            "source": "Density",
+            "context": "label",
+            "translation": "Dichtheid"
+        },
+        "2sgnfts051n9n": {
+            "source": "How many rays there are.",
+            "translation": "Hoeveel stralen er zijn."
+        },
+        "241buxl9hknkj": {
+            "source": "Spottiness",
+            "context": "label",
+            "translation": "Vlekkerigheid"
+        },
+        "j54nvyou38tf": {
+            "source": "How short and spotty the rays are.",
+            "translation": "Hoe kort en vlekkerig de stralen zijn."
+        },
+        "1hqhw3pe63wuf": {
+            "source": "Glow intensity",
+            "context": "label",
+            "translation": "Gloedsterkte"
+        },
+        "1jkb9rf4frkmb": {
+            "source": "The brightness of the glow in the center.",
+            "translation": "De helderheid van de gloed in het midden."
+        },
+        "xkiwnjf44rrr": {
+            "source": "Glow size",
+            "context": "label",
+            "translation": "Gloedgrootte"
+        },
+        "3ijt1zncgmgx5": {
+            "source": "The size of the glow in the center.",
+            "translation": "De grootte van de gloed in het midden."
+        },
+        "2k75ktmegjnd0": {
+            "source": "Intensity",
+            "context": "label",
+            "translation": "Intensiteit"
+        },
+        "qg80clgfgmy2": {
+            "source": "How strongly the rays show.",
+            "translation": "Hoe sterk de stralen zichtbaar zijn."
+        },
+        "259mng6qz1dem": {
+            "source": "Bloom",
+            "context": "label",
+            "translation": "Gloed"
+        },
+        "fes4rhw1ga2e": {
+            "source": "How strongly the bloom color blends over the rays.",
+            "translation": "Hoe sterk de gloedkleur over de stralen mengt."
+        },
+        "1o6ulazjjf882": {
+            "source": "God rays in the default look.",
+            "translation": "Lichtstralen in de standaardstijl."
+        },
+        "3v95yl9zazp8x": {
+            "source": "God rays in the warp look.",
+            "translation": "Lichtstralen in de stijl ‘vervorming’."
+        },
+        "13ymiqimmae1a": {
+            "source": "God rays in the linear look.",
+            "translation": "Lichtstralen in de stijl ‘lineair’."
+        },
+        "1wpxu8uvclatv": {
+            "source": "God rays in the ether look.",
+            "translation": "Lichtstralen in de stijl ‘ether’."
+        },
+        "2s43i4g9vc50b": {
+            "source": "Truchet",
+            "context": "option",
+            "translation": "Truchet"
+        },
+        "2astawmvv04c6": {
+            "source": "Corners",
+            "context": "option",
+            "translation": "Hoeken"
+        },
+        "p1cjeewfgsxb": {
+            "source": "Blob",
+            "context": "option",
+            "translation": "Vlek"
+        },
+        "3rhbrmz9n864n": {
+            "source": "How much the color bands bend.",
+            "translation": "Hoeveel de kleurbanden buigen."
+        },
+        "3k8fg2eah9moj": {
+            "source": "Noise",
+            "context": "label",
+            "translation": "Ruis"
+        },
+        "3uv7vabfufydk": {
+            "source": "The grain over the gradient.",
+            "translation": "De korrel over het verloop."
+        },
+        "32n79t30ngrvt": {
+            "source": "The shape of the gradient.",
+            "translation": "De vorm van het verloop."
+        },
+        "b49wgtts56ks": {
+            "source": "Grain gradient in the default look.",
+            "translation": "Korrelig verloop in de standaardstijl."
+        },
+        "66iohijxnk40": {
+            "source": "Grain gradient in the wave look.",
+            "translation": "Korrelig verloop in de stijl ‘golf’."
+        },
+        "wc9arxxbhrz5": {
+            "source": "Grain gradient in the dots look.",
+            "translation": "Korrelig verloop in de stijl ‘stippen’."
+        },
+        "m5pq7grz15ai": {
+            "source": "Grain gradient in the truchet look.",
+            "translation": "Korrelig verloop in de stijl ‘Truchet’."
+        },
+        "2tkzekh6vfvr7": {
+            "source": "Grain gradient in the ripple look.",
+            "translation": "Korrelig verloop in de stijl ‘rimpeling’."
+        },
+        "3dub4ylywawva": {
+            "source": "Grain gradient in the blob look.",
+            "translation": "Korrelig verloop in de stijl ‘vlek’."
+        },
+        "222ofpzeirsvc": {
+            "source": "Ink",
+            "context": "option",
+            "translation": "Inkt"
+        },
+        "5eh1zubq923s": {
+            "source": "Sharp",
+            "context": "option",
+            "translation": "Scherp"
+        },
+        "1kkev4tvpbpws": {
+            "source": "Cyan",
+            "context": "label",
+            "translation": "Cyaan"
+        },
+        "2tt68sng5rcyp": {
+            "source": "The cyan ink.",
+            "translation": "De cyaan inkt."
+        },
+        "302sabhppnp32": {
+            "source": "Magenta",
+            "context": "label",
+            "translation": "Magenta"
+        },
+        "no7jjzqw50ed": {
+            "source": "The magenta ink.",
+            "translation": "De magenta inkt."
+        },
+        "dx4qosxnjdj7": {
+            "source": "Yellow",
+            "context": "label",
+            "translation": "Geel"
+        },
+        "qqdo7xizd0k4": {
+            "source": "The yellow ink.",
+            "translation": "De gele inkt."
+        },
+        "2f5pqdetndg2m": {
+            "source": "Black",
+            "context": "label",
+            "translation": "Zwart"
+        },
+        "3iqlv4hb6ciz9": {
+            "source": "The black ink.",
+            "translation": "De zwarte inkt."
+        },
+        "fstbat9gub9g": {
+            "source": "The size of each halftone cell.",
+            "translation": "De grootte van elke rastercel."
+        },
+        "38qlwbju8t3ip": {
+            "source": "Contrast",
+            "context": "label",
+            "translation": "Contrast"
+        },
+        "2l6r4f5ttivqv": {
+            "source": "The contrast of the image.",
+            "translation": "Het contrast van de afbeelding."
+        },
+        "a9pwwkgibngc": {
+            "source": "Softness",
+            "context": "label",
+            "translation": "Zachtheid"
+        },
+        "36qaq3yrmwp32": {
+            "source": "How soft the edges of the dots are.",
+            "translation": "Hoe zacht de randen van de stippen zijn."
+        },
+        "291ym4v5exd09": {
+            "source": "Edge grain",
+            "context": "label",
+            "translation": "Randkorrel"
+        },
+        "2vgptuv8a0rg3": {
+            "source": "The grain that changes the size of the dots.",
+            "translation": "De korrel die de grootte van de stippen verandert."
+        },
+        "1x5anwprnga3h": {
+            "source": "Grid noise",
+            "context": "label",
+            "translation": "Rasterruis"
+        },
+        "pra0qvjgcgi3": {
+            "source": "How much noise moves the dots and the colors they read.",
+            "translation": "Hoeveel ruis de stippen en hun gelezen kleuren verplaatst."
+        },
+        "mjrepqhsjio0": {
+            "source": "Cyan flood",
+            "context": "label",
+            "translation": "Cyaan vlak"
+        },
+        "56nofd2efy9p": {
+            "source": "How much every cyan dot grows.",
+            "translation": "Hoeveel elke cyaan stip groeit."
+        },
+        "32xcvlbuca1im": {
+            "source": "Magenta flood",
+            "context": "label",
+            "translation": "Magenta vlak"
+        },
+        "33rq191stmurn": {
+            "source": "How much every magenta dot grows.",
+            "translation": "Hoeveel elke magenta stip groeit."
+        },
+        "268gvs2pxuqfz": {
+            "source": "Yellow flood",
+            "context": "label",
+            "translation": "Geel vlak"
+        },
+        "2sdpese9qjo4w": {
+            "source": "How much every yellow dot grows.",
+            "translation": "Hoeveel elke gele stip groeit."
+        },
+        "1ulsl2dplya6m": {
+            "source": "Black flood",
+            "context": "label",
+            "translation": "Zwart vlak"
+        },
+        "nbbu2fl9twdb": {
+            "source": "How much every black dot grows.",
+            "translation": "Hoeveel elke zwarte stip groeit."
+        },
+        "tmrxxgwzvdjb": {
+            "source": "Cyan gain",
+            "context": "label",
+            "translation": "Cyaantoename"
+        },
+        "1s9wep39a1odm": {
+            "source": "How much cyan dots grow with their ink.",
+            "translation": "Hoeveel cyaan stippen groeien met hun inkt."
+        },
+        "38yypfuu78xst": {
+            "source": "Magenta gain",
+            "context": "label",
+            "translation": "Magentatoename"
+        },
+        "2v3qfpiq75l0a": {
+            "source": "How much magenta dots grow with their ink.",
+            "translation": "Hoeveel magenta stippen groeien met hun inkt."
+        },
+        "2jyp675e9c3b6": {
+            "source": "Yellow gain",
+            "context": "label",
+            "translation": "Geeltoename"
+        },
+        "3mr2o4l3hs8h5": {
+            "source": "How much yellow dots grow with their ink.",
+            "translation": "Hoeveel gele stippen groeien met hun inkt."
+        },
+        "e4tkpn4eyqgt": {
+            "source": "Black gain",
+            "context": "label",
+            "translation": "Zwarttoename"
+        },
+        "2fj4zsw5nv07a": {
+            "source": "How much black dots grow with their ink.",
+            "translation": "Hoeveel zwarte stippen groeien met hun inkt."
+        },
+        "1uhh5cgjf5rfr": {
+            "source": "The look of the dots.",
+            "translation": "Het uiterlijk van de stippen."
+        },
+        "2g0e00s99t01q": {
+            "source": "CMYK halftone in the default look.",
+            "translation": "CMYK-raster in de standaardstijl."
+        },
+        "pvun8jree2vd": {
+            "source": "CMYK halftone in the drops look.",
+            "translation": "CMYK-raster in de stijl ‘druppels’."
+        },
+        "oz2bhvhpwkos": {
+            "source": "CMYK halftone in the newspaper look.",
+            "translation": "CMYK-raster in de stijl ‘krant’."
+        },
+        "2gjyr0kn23ci1": {
+            "source": "CMYK halftone in the vintage look.",
+            "translation": "CMYK-raster in de stijl ‘vintage’."
+        },
+        "2vrnjsivv7uxo": {
+            "source": "Classic",
+            "context": "option",
+            "translation": "Klassiek"
+        },
+        "1qrqe5q3731sl": {
+            "source": "Gooey",
+            "context": "option",
+            "translation": "Stroperig"
+        },
+        "1i720x4t43sef": {
+            "source": "Holes",
+            "context": "option",
+            "translation": "Gaten"
+        },
+        "270mf43py9o0c": {
+            "source": "Soft",
+            "context": "option",
+            "translation": "Zacht"
+        },
+        "3vld2zz6x0rmt": {
+            "source": "Hexagonal",
+            "context": "option",
+            "translation": "Zeshoekig"
+        },
+        "385kv5annb51w": {
+            "source": "The size of the grid within the image.",
+            "translation": "De grootte van het raster binnen de afbeelding."
+        },
+        "8b4st0smjnf9": {
+            "source": "Radius",
+            "context": "label",
+            "translation": "Straal"
+        },
+        "1tbhhbykrny7k": {
+            "source": "The largest dot within its cell.",
+            "translation": "De grootste stip binnen de cel."
+        },
+        "3j8c1f6nw9fpw": {
+            "source": "The grain that roughens the edges of the dots.",
+            "translation": "De korrel die de randen van de stippen ruw maakt."
+        },
+        "237s7xf2268yz": {
+            "source": "Grid",
+            "context": "label",
+            "translation": "Raster"
+        },
+        "3hbdtn23xfpvs": {
+            "source": "The grid the dots lie on.",
+            "translation": "Het raster waarop de stippen liggen."
+        },
+        "3mzazw9c1ghbc": {
+            "source": "Halftone dots in the default look.",
+            "translation": "Rasterpunten in de standaardstijl."
+        },
+        "3lcgamf47iwvq": {
+            "source": "Halftone dots in the led screen look.",
+            "translation": "Rasterpunten in de stijl ‘ledscherm’."
+        },
+        "1lph9kgfomval": {
+            "source": "Halftone dots in the mosaic look.",
+            "translation": "Rasterpunten in de stijl ‘mozaïek’."
+        },
+        "33i35phx487hp": {
+            "source": "Halftone dots in the round and square look.",
+            "translation": "Rasterpunten in de stijl ‘rond en vierkant’."
+        },
+        "23q0cx31hsgix": {
+            "source": "Color steps",
+            "context": "label",
+            "translation": "Kleurstappen"
+        },
+        "11ws2wjcyhjhe": {
+            "source": "How many colors the dots use.",
+            "translation": "Hoeveel kleuren de stippen gebruiken."
+        },
+        "2ah2rasf7etxy": {
+            "source": "Image dithering in the default look.",
+            "translation": "Beelddithering in de standaardstijl."
+        },
+        "1dwr7a2p3nwnb": {
+            "source": "Image dithering in the retro look.",
+            "translation": "Beelddithering in de stijl ‘retro’."
+        },
+        "3tqgl3tk5rz2h": {
+            "source": "Image dithering in the noise look.",
+            "translation": "Beelddithering in de stijl ‘ruis’."
+        },
+        "2nv6b7htz9xpu": {
+            "source": "Image dithering in the natural look.",
+            "translation": "Beelddithering in de stijl ‘natuurlijk’."
+        },
+        "2hd6nsgnksi9f": {
+            "source": "How strongly organic noise bends the gradient.",
+            "translation": "Hoe sterk organische ruis het verloop buigt."
+        },
+        "2mh3ly99aryli": {
+            "source": "Swirl",
+            "context": "label",
+            "translation": "Werveling"
+        },
+        "30v38aknopz4k": {
+            "source": "How strongly the gradient swirls.",
+            "translation": "Hoe sterk het verloop wervelt."
+        },
+        "3o4v90thozmvc": {
+            "source": "Mesh gradient in the default look.",
+            "translation": "Meshverloop in de standaardstijl."
+        },
+        "1vbg1qb2svmzb": {
+            "source": "Mesh gradient in the purple look.",
+            "translation": "Meshverloop in de stijl ‘paars’."
+        },
+        "4b49o343977u": {
+            "source": "Mesh gradient in the beach look.",
+            "translation": "Meshverloop in de stijl ‘strand’."
+        },
+        "2nlizzspk5z8h": {
+            "source": "Mesh gradient in the ink look.",
+            "translation": "Meshverloop in de stijl ‘inkt’."
+        },
+        "25jxy02h4pfvi": {
+            "source": "Count",
+            "context": "label",
+            "translation": "Aantal"
+        },
+        "3sxwdzdkiqdr9": {
+            "source": "How many balls there are, a fraction shrinking the last one.",
+            "translation": "Hoeveel ballen er zijn, een breuk verkleint de laatste."
+        },
+        "37h9mp3laskqd": {
+            "source": "The size of the balls.",
+            "translation": "De grootte van de ballen."
+        },
+        "l2o7bp9jgdtm": {
+            "source": "Metaballs in the default look.",
+            "translation": "Metaballen in de standaardstijl."
+        },
+        "3gt8qr41ongjd": {
+            "source": "Metaballs in the ink drops look.",
+            "translation": "Metaballen in de stijl ‘inktdruppels’."
+        },
+        "3ctkzqabngxzj": {
+            "source": "Metaballs in the background look.",
+            "translation": "Metaballen in de stijl ‘achtergrond’."
+        },
+        "2jdoy4dm399fq": {
+            "source": "Metaballs in the solar look.",
+            "translation": "Metaballen in de stijl ‘zonne’."
+        },
+        "ksifq8e4wnyj": {
+            "source": "Background",
+            "context": "label",
+            "translation": "Achtergrond"
+        },
+        "52q2igxsikqp": {
+            "source": "The color behind the paper sheet.",
+            "translation": "De kleur achter het vel papier."
+        },
+        "ttrwruxuvgdv": {
+            "source": "Paper",
+            "context": "label",
+            "translation": "Papier"
+        },
+        "2nr6ruepaouiy": {
+            "source": "The color of the paper sheet.",
+            "translation": "De kleur van het vel papier."
+        },
+        "oibq7rtpvvu6": {
+            "source": "The color of the patterns on the paper.",
+            "translation": "De kleur van de patronen op het papier."
+        },
+        "3vuuuzcdxad7m": {
+            "source": "Blending",
+            "context": "label",
+            "translation": "Menging"
+        },
+        "dq57xxfoxuxh": {
+            "source": "How much the image blends into the paper.",
+            "translation": "Hoeveel de afbeelding in het papier overgaat."
+        },
+        "1irudgep2pzbj": {
+            "source": "How much the image bends with the paper.",
+            "translation": "Hoeveel de afbeelding met het papier buigt."
+        },
+        "2po2n4lcjzq3l": {
+            "source": "Clip",
+            "context": "label",
+            "translation": "Bijsnijden"
+        },
+        "m0pj01itgooh": {
+            "source": "Cuts the paper to the image's frame.",
+            "translation": "Snijdt het papier bij tot het kader van de afbeelding."
+        },
+        "ji3ptod2c7pl": {
+            "source": "The direction the light comes from, in degrees.",
+            "translation": "De richting waaruit het licht komt, in graden."
+        },
+        "1xk7m5lgtme56": {
+            "source": "Seed",
+            "context": "label",
+            "translation": "Seed"
+        },
+        "3ouadjayr73af": {
+            "source": "The seed of every pattern on the paper.",
+            "translation": "De seed van elk patroon op het papier."
+        },
+        "2gqw96q45epm3": {
+            "source": "Roughness",
+            "context": "label",
+            "translation": "Ruwheid"
+        },
+        "3qcije55prtcn": {
+            "source": "The fine grain across the paper.",
+            "translation": "De fijne korrel over het papier."
+        },
+        "cytf6l3a8j40": {
+            "source": "Roughness size",
+            "context": "label",
+            "translation": "Ruwheidsgrootte"
+        },
+        "ipdyy3nipi3o": {
+            "source": "The size of the fine grain.",
+            "translation": "De grootte van de fijne korrel."
+        },
+        "ka4vc8z27a5w": {
+            "source": "Roughness rows",
+            "context": "label",
+            "translation": "Ruwheidsrijen"
+        },
+        "3ecfxr5fm11dc": {
+            "source": "How much the fine grain lines up in rows.",
+            "translation": "Hoeveel de fijne korrel in rijen staat."
+        },
+        "2zwpofl3i070z": {
+            "source": "Fiber",
+            "context": "label",
+            "translation": "Vezels"
+        },
+        "15uc4dgulko5w": {
+            "source": "The curly threads across the paper.",
+            "translation": "De gekrulde draden over het papier."
+        },
+        "ckn7t0mkf93s": {
+            "source": "Fiber size",
+            "context": "label",
+            "translation": "Vezelgrootte"
+        },
+        "3qqpabdzslotw": {
+            "source": "The size of the threads.",
+            "translation": "De grootte van de draden."
+        },
+        "2swq9dp98fnxx": {
+            "source": "Folds",
+            "context": "label",
+            "translation": "Vouwen"
+        },
+        "18wnu674h00e2": {
+            "source": "The straight folds across the paper.",
+            "translation": "De rechte vouwen over het papier."
+        },
+        "96ku6abtl8rd": {
+            "source": "Vertical fold size",
+            "context": "label",
+            "translation": "Grootte verticale vouwen"
+        },
+        "2cm351gama3b3": {
+            "source": "The size of the vertical folds.",
+            "translation": "De grootte van de verticale vouwen."
+        },
+        "27bdefuwbel4v": {
+            "source": "Horizontal fold size",
+            "context": "label",
+            "translation": "Grootte horizontale vouwen"
+        },
+        "3ici01ls3411d": {
+            "source": "The size of the horizontal folds.",
+            "translation": "De grootte van de horizontale vouwen."
+        },
+        "2s5n606scvq7v": {
+            "source": "Vertical fold offset",
+            "context": "label",
+            "translation": "Verschuiving verticale vouwen"
+        },
+        "u9p945i86kis": {
+            "source": "How far the vertical folds move across the paper.",
+            "translation": "Hoe ver de verticale vouwen over het papier verschuiven."
+        },
+        "3r7z1nxxhf5hl": {
+            "source": "Horizontal fold offset",
+            "context": "label",
+            "translation": "Verschuiving horizontale vouwen"
+        },
+        "3krj3w7nwacti": {
+            "source": "How far the horizontal folds move across the paper.",
+            "translation": "Hoe ver de horizontale vouwen over het papier verschuiven."
+        },
+        "175omsoqslniu": {
+            "source": "Wrinkles",
+            "context": "label",
+            "translation": "Rimpels"
+        },
+        "pegup249q0ny": {
+            "source": "The crumpled facets across the paper.",
+            "translation": "De gekreukte facetten over het papier."
+        },
+        "1gqvtxuya32sy": {
+            "source": "Wrinkle size",
+            "context": "label",
+            "translation": "Rimpelgrootte"
+        },
+        "1ydywomrd5bb5": {
+            "source": "The size of the facets.",
+            "translation": "De grootte van de facetten."
+        },
+        "3rq0fii6rpdwg": {
+            "source": "Crumples",
+            "context": "label",
+            "translation": "Kreukels"
+        },
+        "29rw5of1ymhj3": {
+            "source": "The irregular fold lines across the paper.",
+            "translation": "De onregelmatige vouwlijnen over het papier."
+        },
+        "1c54d981bt6nk": {
+            "source": "Crumple count",
+            "context": "label",
+            "translation": "Aantal kreukels"
+        },
+        "b17fz6phjkmr": {
+            "source": "How many facets the fold lines make.",
+            "translation": "Hoeveel facetten de vouwlijnen vormen."
+        },
+        "2vu9fi6sss9lj": {
+            "source": "Drops",
+            "context": "label",
+            "translation": "Druppels"
+        },
+        "jha8yr8vozo0": {
+            "source": "The speckles across the paper.",
+            "translation": "De spikkels over het papier."
+        },
+        "1dow32f66n2u2": {
+            "source": "Paper texture in the default look.",
+            "translation": "Papiertextuur in de standaardstijl."
+        },
+        "2ialmac3d5q4y": {
+            "source": "Paper texture in the creased look.",
+            "translation": "Papiertextuur in de stijl ‘gekreukt’."
+        },
+        "ojrqckltk8x8": {
+            "source": "Paper texture in the spread look.",
+            "translation": "Papiertextuur in de stijl ‘uitgespreid’."
+        },
+        "39bmzkduho284": {
+            "source": "Paper texture in the flat look.",
+            "translation": "Papiertextuur in de stijl ‘vlak’."
+        },
+        "1yoamv6nuuypc": {
+            "source": "Octaves",
+            "context": "label",
+            "translation": "Octaven"
+        },
+        "37zsgdmkcclth": {
+            "source": "How many layers of noise add detail.",
+            "translation": "Hoeveel lagen ruis detail toevoegen."
+        },
+        "1d9fwl6lxbsyy": {
+            "source": "Persistence",
+            "context": "label",
+            "translation": "Persistentie"
+        },
+        "3i30kg6j15w4d": {
+            "source": "How much each layer of noise adds.",
+            "translation": "Hoeveel elke laag ruis toevoegt."
+        },
+        "2c5w5ld22zs4z": {
+            "source": "Lacunarity",
+            "context": "label",
+            "translation": "Lacunariteit"
+        },
+        "p3r058pm0u67": {
+            "source": "How much finer each layer of noise is.",
+            "translation": "Hoeveel fijner elke laag ruis is."
+        },
+        "ji0xpim8zq4j": {
+            "source": "Perlin noise in the default look.",
+            "translation": "Perlinruis in de standaardstijl."
+        },
+        "2my8a2wxxs63l": {
+            "source": "Perlin noise in the pixel water look.",
+            "translation": "Perlinruis in de stijl ‘pixelwater’."
+        },
+        "r4l3b2fzu2k6": {
+            "source": "Perlin noise in the moss look.",
+            "translation": "Perlinruis in de stijl ‘mos’."
+        },
+        "328ylks6cpesm": {
+            "source": "Perlin noise in the worms look.",
+            "translation": "Perlinruis in de stijl ‘wormen’."
+        },
+        "1e2ne3jtx0pzs": {
+            "source": "Canvas",
+            "context": "option",
+            "translation": "Canvas"
+        },
+        "3puksd44x4iey": {
+            "source": "Roundness",
+            "context": "label",
+            "translation": "Ronding"
+        },
+        "q5pgm4akorkq": {
+            "source": "The radius of the border's corners.",
+            "translation": "De straal van de hoeken van de rand."
+        },
+        "25xcihfpr5a3z": {
+            "source": "Thickness",
+            "context": "label",
+            "translation": "Dikte"
+        },
+        "28oueom61syhw": {
+            "source": "The width of the border.",
+            "translation": "De breedte van de rand."
+        },
+        "27oiitgt6zd8g": {
+            "source": "Aspect ratio",
+            "context": "label",
+            "translation": "Beeldverhouding"
+        },
+        "3bftjlw1elutu": {
+            "source": "Whether the border follows the canvas or stays square.",
+            "translation": "Of de rand het canvas volgt of vierkant blijft."
+        },
+        "2fwyg91cso8g9": {
+            "source": "How soft the border's edge is.",
+            "translation": "Hoe zacht de rand van de lijst is."
+        },
+        "1sbq17dr5xh0f": {
+            "source": "The thickness of each color spot.",
+            "translation": "De dikte van elke kleurvlek."
+        },
+        "22xdi9ftav7mb": {
+            "source": "How much the spots glow.",
+            "translation": "Hoeveel de vlekken gloeien."
+        },
+        "2fm774ts2z6x0": {
+            "source": "Spots",
+            "context": "label",
+            "translation": "Vlekken"
+        },
+        "2epvsnovoctn1": {
+            "source": "How many spots each color adds.",
+            "translation": "Hoeveel vlekken elke kleur toevoegt."
+        },
+        "3gp7k639pmuf8": {
+            "source": "Spot size",
+            "context": "label",
+            "translation": "Vlekgrootte"
+        },
+        "2wagf3oz2hn6l": {
+            "source": "The angular size of each spot.",
+            "translation": "De hoekgrootte van elke vlek."
+        },
+        "1x9aprzxos9tc": {
+            "source": "Pulse",
+            "context": "label",
+            "translation": "Puls"
+        },
+        "zwrr0ywiiz3o": {
+            "source": "How strongly the border pulses.",
+            "translation": "Hoe sterk de rand pulseert."
+        },
+        "37nsykg077e5k": {
+            "source": "Smoke",
+            "context": "label",
+            "translation": "Rook"
+        },
+        "3i4ugf5uedar1": {
+            "source": "The noisy smoke around the border.",
+            "translation": "De ruizige rook rond de rand."
+        },
+        "3n2w74wy235nt": {
+            "source": "Smoke size",
+            "context": "label",
+            "translation": "Rookgrootte"
+        },
+        "2r54d0nmpf3bo": {
+            "source": "The size of the smoke.",
+            "translation": "De grootte van de rook."
+        },
+        "3atdhp93k9hgv": {
+            "source": "Pulsing border in the default look.",
+            "translation": "Pulserende rand in de standaardstijl."
+        },
+        "2vput4t35er60": {
+            "source": "Pulsing border in the circle look.",
+            "translation": "Pulserende rand in de stijl ‘cirkel’."
+        },
+        "7e5p3ritm87p": {
+            "source": "Pulsing border in the northern lights look.",
+            "translation": "Pulserende rand in de stijl ‘noorderlicht’."
+        },
+        "2bcxi9c9o6uzf": {
+            "source": "Pulsing border in the solid line look.",
+            "translation": "Pulserende rand in de stijl ‘doorgetrokken lijn’."
+        },
+        "1c28puhso2s9t": {
+            "source": "The color behind the effect.",
+            "translation": "De kleur achter het effect."
+        },
+        "2h1142hhv54fi": {
+            "source": "Foreground",
+            "context": "label",
+            "translation": "Voorgrond"
+        },
+        "1u51omvutmhuz": {
+            "source": "The color the effect draws in.",
+            "translation": "De kleur waarin het effect tekent."
+        },
+        "3t2horo0iwbdg": {
+            "source": "The size of each dot, in pixels.",
+            "translation": "De grootte van elke stip, in pixels."
+        },
+        "1uiocostj8sl1": {
+            "source": "Highlight",
+            "context": "label",
+            "translation": "Highlight"
+        },
+        "4myyfoe1dk68": {
+            "source": "The color of the highlights.",
+            "translation": "De kleur van de highlights."
+        },
+        "2184x5fwcnh7w": {
+            "source": "Left margin",
+            "context": "label",
+            "translation": "Linkermarge"
+        },
+        "33a98ny3oq746": {
+            "source": "The space between the left edge and the effect.",
+            "translation": "De ruimte tussen de linkerrand en het effect."
+        },
+        "77w8cgg65atz": {
+            "source": "Right margin",
+            "context": "label",
+            "translation": "Rechtermarge"
+        },
+        "1iikcvkcbv84d": {
+            "source": "The space between the right edge and the effect.",
+            "translation": "De ruimte tussen de rechterrand en het effect."
+        },
+        "3csfhxk701ihw": {
+            "source": "Top margin",
+            "context": "label",
+            "translation": "Bovenmarge"
+        },
+        "20y0fypw92182": {
+            "source": "The space between the top edge and the effect.",
+            "translation": "De ruimte tussen de bovenrand en het effect."
+        },
+        "16fzgpnhlvk7a": {
+            "source": "Bottom margin",
+            "context": "label",
+            "translation": "Ondermarge"
+        },
+        "28zaehgaypz4c": {
+            "source": "The space between the bottom edge and the effect.",
+            "translation": "De ruimte tussen de onderrand en het effect."
+        },
+        "bv947t562rjx": {
+            "source": "The grain that roughens the edges of shapes.",
+            "translation": "De korrel die de randen van vormen ruw maakt."
+        },
+        "3usyt5tvda0yy": {
+            "source": "Grain overlay",
+            "context": "label",
+            "translation": "Korrel erover"
+        },
+        "1nf9jq639q3j2": {
+            "source": "The black and white grain over the result.",
+            "translation": "De zwart-witte korrel over het resultaat."
+        },
+        "kdliisa6gvq1": {
+            "source": "How smoothly the colors blend, from a hard edge to a smooth gradient.",
+            "translation": "Hoe zacht de kleuren mengen, van een harde rand tot een zacht verloop."
+        },
+        "1qhe3dfq1l1eb": {
+            "source": "Grain size",
+            "context": "label",
+            "translation": "Korrelgrootte"
+        },
+        "1o08qsjkaz1x6": {
+            "source": "The size of the grain.",
+            "translation": "De grootte van de korrel."
+        },
+        "uu3lbmncjy94": {
+            "source": "Original colors",
+            "context": "label",
+            "translation": "Originele kleuren"
+        },
+        "35il5yaddq2il": {
+            "source": "Draws with the image's own colors in place of the foreground.",
+            "translation": "Tekent met de eigen kleuren van de afbeelding in plaats van de voorgrond."
+        },
+        "2khziesrfw0uu": {
+            "source": "Inverted",
+            "context": "label",
+            "translation": "Omgekeerd"
+        },
+        "18uglb90g3jy7": {
+            "source": "Inverts the image's lightness.",
+            "translation": "Keert de helderheid van de afbeelding om."
+        },
+        "1v95f7tjfnn95": {
+            "source": "Proportion",
+            "context": "label",
+            "translation": "Verhouding"
+        },
+        "ani2hunqhxho": {
+            "source": "Where the colors meet, an even split in the middle.",
+            "translation": "Waar de kleuren elkaar raken, een gelijke verdeling in het midden."
+        },
+        "119rn832igw1t": {
+            "source": "Mixing",
+            "context": "label",
+            "translation": "Menging"
+        },
+        "2olfe16tucogg": {
+            "source": "How the colors blend, from hard stripes to a smooth gradient.",
+            "translation": "Hoe de kleuren mengen, van harde strepen tot een zacht verloop."
+        },
+        "q60yix6i37z8": {
+            "source": "A custom fragment shader drawing a glow in the theme's accent color.",
+            "translation": "Een eigen fragment-shader die een gloed in de accentkleur van het thema tekent."
+        },
+        "14ayx280ia6xe": {
+            "source": "Speed",
+            "context": "label",
+            "translation": "Snelheid"
+        },
+        "112kuqwi25ll": {
+            "source": "How fast its time runs, held still at zero and under reduced motion.",
+            "translation": "Hoe snel de tijd loopt, stil bij nul en bij verminderde beweging."
+        },
+        "oxotnp1qnb0s": {
+            "source": "Frame",
+            "context": "label",
+            "translation": "Frame"
+        },
+        "dydts22qs4wk": {
+            "source": "The time it draws, in milliseconds.",
+            "translation": "De tijd die het tekent, in milliseconden."
+        },
+        "2wnoxz4rderjy": {
+            "source": "None",
+            "context": "option",
+            "translation": "Geen"
+        },
+        "29zyi2ku1h1qp": {
+            "source": "At its world size.",
+            "translation": "Op de wereldgrootte."
+        },
+        "3fnd35ftutz6s": {
+            "source": "Contain",
+            "context": "option",
+            "translation": "Inpassen"
+        },
+        "qcz4921xsbnm": {
+            "source": "Inside the canvas.",
+            "translation": "Binnen het canvas."
+        },
+        "1bx6p53ckcdgn": {
+            "source": "Cover",
+            "context": "option",
+            "translation": "Vullen"
+        },
+        "3pgrmp1jtbfgf": {
+            "source": "Covering the canvas.",
+            "translation": "Het canvas vullend."
+        },
+        "2rcr3qokq951q": {
+            "source": "Fit",
+            "context": "label",
+            "translation": "Passing"
+        },
+        "77j4fffyavj0": {
+            "source": "How the graphic fits its canvas.",
+            "translation": "Hoe de afbeelding in het canvas past."
+        },
+        "3htgk3x40y5vr": {
+            "source": "Scale",
+            "context": "label",
+            "translation": "Schaal"
+        },
+        "1emck2pveg46h": {
+            "source": "The zoom of the graphic.",
+            "translation": "De zoom van de afbeelding."
+        },
+        "13ugtxte49ei1": {
+            "source": "Rotation",
+            "context": "label",
+            "translation": "Rotatie"
+        },
+        "1kpggxj3z6lzi": {
+            "source": "The rotation of the graphic, in degrees.",
+            "translation": "De rotatie van de afbeelding, in graden."
+        },
+        "3il8siz73p6lr": {
+            "source": "Horizontal origin",
+            "context": "label",
+            "translation": "Horizontale oorsprong"
+        },
+        "1hnj63bgn4wr5": {
+            "source": "The point across the canvas the world size anchors to.",
+            "translation": "Het punt over de breedte van het canvas waaraan de wereldgrootte verankerd is."
+        },
+        "31z2582fdyuc5": {
+            "source": "Vertical origin",
+            "context": "label",
+            "translation": "Verticale oorsprong"
+        },
+        "27ry48wujdagw": {
+            "source": "The point down the canvas the world size anchors to.",
+            "translation": "Het punt over de hoogte van het canvas waaraan de wereldgrootte verankerd is."
+        },
+        "uwm8885268x6": {
+            "source": "Horizontal offset",
+            "context": "label",
+            "translation": "Horizontale verschuiving"
+        },
+        "3431thpfhqevv": {
+            "source": "How far the graphic's center moves across.",
+            "translation": "Hoe ver het midden van de afbeelding horizontaal verschuift."
+        },
+        "3goluirnw9aug": {
+            "source": "Vertical offset",
+            "context": "label",
+            "translation": "Verticale verschuiving"
+        },
+        "2frn9rbl2tw04": {
+            "source": "How far the graphic's center moves down.",
+            "translation": "Hoe ver het midden van de afbeelding omlaag verschuift."
+        },
+        "38znmwsiyt0o1": {
+            "source": "World width",
+            "context": "label",
+            "translation": "Wereldbreedte"
+        },
+        "31sdqp97rr9nl": {
+            "source": "The width of the graphic before it fits the canvas, in pixels, the canvas's at zero.",
+            "translation": "De breedte van de afbeelding voordat die in het canvas past, in pixels, bij nul die van het canvas."
+        },
+        "2d7ys7qqmm7e8": {
+            "source": "World height",
+            "context": "label",
+            "translation": "Wereldhoogte"
+        },
+        "2hz1b75tg6u6o": {
+            "source": "The height of the graphic before it fits the canvas, in pixels, the canvas's at zero.",
+            "translation": "De hoogte van de afbeelding voordat die in het canvas past, in pixels, bij nul die van het canvas."
+        },
+        "xgsfak1hkkb2": {
+            "source": "Steps per color",
+            "context": "label",
+            "translation": "Stappen per kleur"
+        },
+        "14gewsaumgyir": {
+            "source": "How many colors lie between each two given ones.",
+            "translation": "Hoeveel kleuren er tussen elke twee gegeven kleuren liggen."
+        },
+        "s2swtkbgbqix": {
+            "source": "Simplex noise in the default look.",
+            "translation": "Simplexruis in de standaardstijl."
+        },
+        "334b2ixb6g509": {
+            "source": "Simplex noise in the bubblegum look.",
+            "translation": "Simplexruis in de stijl ‘kauwgom’."
+        },
+        "20351xkhbdwol": {
+            "source": "Simplex noise in the spots look.",
+            "translation": "Simplexruis in de stijl ‘vlekken’."
+        },
+        "1t4ktggik2bxe": {
+            "source": "Simplex noise in the first contact look.",
+            "translation": "Simplexruis in de stijl ‘eerste contact’."
+        },
+        "1lkagnlcuaaqt": {
+            "source": "Positions",
+            "context": "label",
+            "translation": "Posities"
+        },
+        "1aqgnehwcbovh": {
+            "source": "The seed that places the color spots.",
+            "translation": "De seed die de kleurvlekken plaatst."
+        },
+        "351d7oo75t28k": {
+            "source": "Horizontal wave",
+            "context": "label",
+            "translation": "Horizontale golf"
+        },
+        "1o1bvudihnd3t": {
+            "source": "How strongly a wave bends the colors across.",
+            "translation": "Hoe sterk een golf de kleuren horizontaal buigt."
+        },
+        "szpl9xfxq77c": {
+            "source": "Horizontal wave shift",
+            "context": "label",
+            "translation": "Verschuiving horizontale golf"
+        },
+        "hpjrasdbyanf": {
+            "source": "The phase of the wave across.",
+            "translation": "De fase van de horizontale golf."
+        },
+        "2kl6yy9ap0fbu": {
+            "source": "Vertical wave",
+            "context": "label",
+            "translation": "Verticale golf"
+        },
+        "1p3yj6gc5xfvu": {
+            "source": "How strongly a wave bends the colors down.",
+            "translation": "Hoe sterk een golf de kleuren omlaag buigt."
+        },
+        "1uj5yav17oz8u": {
+            "source": "Vertical wave shift",
+            "context": "label",
+            "translation": "Verschuiving verticale golf"
+        },
+        "oggesl6loq6s": {
+            "source": "The phase of the wave down.",
+            "translation": "De fase van de verticale golf."
+        },
+        "t99pop4jb34o": {
+            "source": "Static mesh gradient in the default look.",
+            "translation": "Statisch meshverloop in de standaardstijl."
+        },
+        "3u165f6k4cb0q": {
+            "source": "Static mesh gradient in the sea look.",
+            "translation": "Statisch meshverloop in de stijl ‘zee’."
+        },
+        "gy08459tbwpa": {
+            "source": "Static mesh gradient in the sixties look.",
+            "translation": "Statisch meshverloop in de stijl ‘jaren zestig’."
+        },
+        "2dym3t1vahtrf": {
+            "source": "Static mesh gradient in the sunset look.",
+            "translation": "Statisch meshverloop in de stijl ‘zonsondergang’."
+        },
+        "3gx8y9743ukyt": {
+            "source": "The size of the gradient.",
+            "translation": "De grootte van het verloop."
+        },
+        "3u55z7qp80lnv": {
+            "source": "Focal distance",
+            "context": "label",
+            "translation": "Brandpuntafstand"
+        },
+        "2o31a09jbyckl": {
+            "source": "How far the focal point lies from the center.",
+            "translation": "Hoe ver het brandpunt van het midden ligt."
+        },
+        "1gnnkuri905hf": {
+            "source": "Focal angle",
+            "context": "label",
+            "translation": "Brandpunthoek"
+        },
+        "30wmhq1k2h5go": {
+            "source": "The direction of the focal point, in degrees.",
+            "translation": "De richting van het brandpunt, in graden."
+        },
+        "n2islc15mq77": {
+            "source": "Falloff",
+            "context": "label",
+            "translation": "Afname"
+        },
+        "18kur9cy4fe57": {
+            "source": "How the colors spread from the center.",
+            "translation": "Hoe de kleuren zich vanuit het midden spreiden."
+        },
+        "zchln1n9otlw": {
+            "source": "How strongly the circles bend.",
+            "translation": "Hoe sterk de cirkels buigen."
+        },
+        "2xgcyr0yub0xg": {
+            "source": "Distortion shift",
+            "context": "label",
+            "translation": "Vervormingsverschuiving"
+        },
+        "mey6u1sikehy": {
+            "source": "The phase of the bending.",
+            "translation": "De fase van de buiging."
+        },
+        "9l7cdg49y3vy": {
+            "source": "Distortion frequency",
+            "context": "label",
+            "translation": "Vervormingsfrequentie"
+        },
+        "xdlashu80xy": {
+            "source": "How often the circles bend.",
+            "translation": "Hoe vaak de cirkels buigen."
+        },
+        "rgggyoayy8ji": {
+            "source": "Static radial gradient in the default look.",
+            "translation": "Statisch radiaal verloop in de standaardstijl."
+        },
+        "3tj182gy0lxs8": {
+            "source": "Static radial gradient in the cross section look.",
+            "translation": "Statisch radiaal verloop in de stijl ‘doorsnede’."
+        },
+        "2uyxj55evqx8": {
+            "source": "Static radial gradient in the radial look.",
+            "translation": "Statisch radiaal verloop in de stijl ‘radiaal’."
+        },
+        "1ziin3j0ruikh": {
+            "source": "Static radial gradient in the lo fi look.",
+            "translation": "Statisch radiaal verloop in de stijl ‘lo-fi’."
+        },
+        "r5kyvaexsxy1": {
+            "source": "Glow color",
+            "context": "label",
+            "translation": "Gloedkleur"
+        },
+        "26kocz9s8t6wh": {
+            "source": "The color of the glow inside each cell.",
+            "translation": "De kleur van de gloed in elke cel."
+        },
+        "1mrqlo1pe6jui": {
+            "source": "Gap color",
+            "context": "label",
+            "translation": "Kleur van tussenruimte"
+        },
+        "1rqej1yk5xchz": {
+            "source": "The color of the gaps between cells.",
+            "translation": "De kleur van de ruimte tussen cellen."
+        },
+        "26w28yvu4nfh2": {
+            "source": "How far noise moves the center of each cell.",
+            "translation": "Hoe ver ruis het midden van elke cel verplaatst."
+        },
+        "2n158dkk1jau1": {
+            "source": "Gap",
+            "context": "label",
+            "translation": "Tussenruimte"
+        },
+        "3gzl89guoh88q": {
+            "source": "The width of the gaps between cells.",
+            "translation": "De breedte van de ruimte tussen cellen."
+        },
+        "1b7ncgish78aa": {
+            "source": "Glow",
+            "context": "label",
+            "translation": "Gloed"
+        },
+        "280s43g1hon5q": {
+            "source": "How strongly each cell glows inside.",
+            "translation": "Hoe sterk elke cel van binnen gloeit."
+        },
+        "q3x6s0cm68yr": {
+            "source": "Voronoi in the default look.",
+            "translation": "Voronoi in de standaardstijl."
+        },
+        "ketth9r269r7": {
+            "source": "Voronoi in the cells look.",
+            "translation": "Voronoi in de stijl ‘cellen’."
+        },
+        "1k7q60v3lb7rp": {
+            "source": "Voronoi in the bubbles look.",
+            "translation": "Voronoi in de stijl ‘bellen’."
+        },
+        "1tf8ze3myeq7d": {
+            "source": "Voronoi in the lights look.",
+            "translation": "Voronoi in de stijl ‘lichten’."
+        },
+        "pwdry1p7lxdx": {
+            "source": "Checks",
+            "context": "option",
+            "translation": "Ruiten"
+        },
+        "17r1x9snop2gi": {
+            "source": "Stripes",
+            "context": "option",
+            "translation": "Strepen"
+        },
+        "18ha6vib96d35": {
+            "source": "Edge",
+            "context": "option",
+            "translation": "Rand"
+        },
+        "2vd2vow270beg": {
+            "source": "How strongly noise bends the pattern.",
+            "translation": "Hoe sterk ruis het patroon buigt."
+        },
+        "1xb94c1m96vje": {
+            "source": "How strongly the pattern swirls.",
+            "translation": "Hoe sterk het patroon wervelt."
+        },
+        "rodgi1l04583": {
+            "source": "Swirl passes",
+            "context": "label",
+            "translation": "Wervelrondes"
+        },
+        "27yybteygtgix": {
+            "source": "How many swirls lie over each other.",
+            "translation": "Hoeveel wervels over elkaar liggen."
+        },
+        "107v55sxre1d": {
+            "source": "Pattern scale",
+            "context": "label",
+            "translation": "Patroonschaal"
+        },
+        "21mh9jk32yyuw": {
+            "source": "The size of the base pattern.",
+            "translation": "De grootte van het basispatroon."
+        },
+        "20njaejosvhfl": {
+            "source": "The base pattern.",
+            "translation": "Het basispatroon."
+        },
+        "2vmqa327ssr89": {
+            "source": "Warp in the default look.",
+            "translation": "Vervorming in de standaardstijl."
+        },
+        "18buddmdoeob": {
+            "source": "Warp in the cauldron pot look.",
+            "translation": "Vervorming in de stijl ‘ketel’."
+        },
+        "jytiwaf92bck": {
+            "source": "Warp in the live ink look.",
+            "translation": "Vervorming in de stijl ‘levende inkt’."
+        },
+        "c0sd9j43lzj2": {
+            "source": "Warp in the kelp look.",
+            "translation": "Vervorming in de stijl ‘kelp’."
+        },
+        "1rfe6f1tyllvj": {
+            "source": "Warp in the nectar look.",
+            "translation": "Vervorming in de stijl ‘nectar’."
+        },
+        "2t7f3vei39161": {
+            "source": "Warp in the passion look.",
+            "translation": "Vervorming in de stijl ‘passie’."
+        },
+        "q7yqvsqb5sbq": {
+            "source": "The highlights along the light patterns.",
+            "translation": "De highlights langs de lichtpatronen."
+        },
+        "1rleyhi42u8o0": {
+            "source": "Layering",
+            "context": "label",
+            "translation": "Gelaagdheid"
+        },
+        "3ai7em1hg1eww": {
+            "source": "How strongly a second layer of light bends the image.",
+            "translation": "Hoe sterk een tweede laag licht de afbeelding buigt."
+        },
+        "fk43vs3hzdu8": {
+            "source": "How much the water bends the image's edges.",
+            "translation": "Hoeveel het water de randen van de afbeelding buigt."
+        },
+        "faz0ha10hebb": {
+            "source": "Waves",
+            "context": "label",
+            "translation": "Golven"
+        },
+        "3c71rdrojisg6": {
+            "source": "The extra bending of noise.",
+            "translation": "De extra buiging door ruis."
+        },
+        "19w64ydcixk69": {
+            "source": "Caustic",
+            "context": "label",
+            "translation": "Caustiek"
+        },
+        "19gtr7qty2rmc": {
+            "source": "How strongly the light patterns bend the image.",
+            "translation": "Hoe sterk de lichtpatronen de afbeelding buigen."
+        },
+        "2mv9018jv2uck": {
+            "source": "The size of the pattern within the image.",
+            "translation": "De grootte van het patroon binnen de afbeelding."
+        },
+        "h26yk4ena3d0": {
+            "source": "Water in the default look.",
+            "translation": "Water in de standaardstijl."
+        },
+        "2l4dkrm1jqkcb": {
+            "source": "Water in the abstract look.",
+            "translation": "Water in de stijl ‘abstract’."
+        },
+        "2slpfl9sasfax": {
+            "source": "Water in the streaming look.",
+            "translation": "Water in de stijl ‘stromend’."
+        },
+        "2ue7nlvwidrda": {
+            "source": "Water in the slow mo look.",
+            "translation": "Water in de stijl ‘slow motion’."
+        },
+        "c32g6n1qgk5v": {
+            "source": "The shape of the lines, from straight to sharp.",
+            "translation": "De vorm van de lijnen, van recht tot scherp."
+        },
+        "1lt2ub5vboce7": {
+            "source": "Frequency",
+            "context": "label",
+            "translation": "Frequentie"
+        },
+        "1214zfrqajlb5": {
+            "source": "How often the waves repeat.",
+            "translation": "Hoe vaak de golven herhalen."
+        },
+        "1iesmktj0rqs0": {
+            "source": "Amplitude",
+            "context": "label",
+            "translation": "Amplitude"
+        },
+        "tkoctc35s0yp": {
+            "source": "How tall the waves are.",
+            "translation": "Hoe hoog de golven zijn."
+        },
+        "1f136kg9vzkv8": {
+            "source": "Spacing",
+            "context": "label",
+            "translation": "Tussenruimte"
+        },
+        "1ypfsyat2d4yx": {
+            "source": "The space between two lines.",
+            "translation": "De ruimte tussen twee lijnen."
+        },
+        "2i92aghe8nzgb": {
+            "source": "Waves in the default look.",
+            "translation": "Golven in de standaardstijl."
+        },
+        "22k881uf158ay": {
+            "source": "Waves in the groovy look.",
+            "translation": "Golven in de stijl ‘groovy’."
+        },
+        "2vh97jw6tii6y": {
+            "source": "Waves in the tangled up look.",
+            "translation": "Golven in de stijl ‘verward’."
+        },
+        "z5tz23rnfk38": {
+            "source": "Waves in the ride the wave look.",
+            "translation": "Golven in de stijl ‘op de golf’."
+        }
+    }
+}

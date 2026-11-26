@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING } from "../shader/sizing.ts";
 
-import { STATIC_RADIAL_GRADIENT_DEFAULTS } from "./effect.ts";
 import { StaticRadialGradient } from "./static-radial-gradient.tsx";
 
 /** The size every example draws at. */
@@ -16,7 +14,6 @@ export const staticRadialGradientDefault = defineExample({
     of: StaticRadialGradient,
     name: "default",
     description: t`Static radial gradient in the default look.`,
-    properties: STATIC_RADIAL_GRADIENT_DEFAULTS,
     render: (properties) => <StaticRadialGradient {...properties} xstyle={styles.canvas} />,
 });
 
@@ -26,7 +23,6 @@ export const staticRadialGradientCrossSection = defineExample({
     name: "crossSection",
     description: t`Static radial gradient in the cross section look.`,
     properties: {
-        ...OBJECT_SIZING,
         scale: 1,
         speed: 0,
         frame: 0,
@@ -52,7 +48,6 @@ export const staticRadialGradientRadial = defineExample({
     name: "radial",
     description: t`Static radial gradient in the radial look.`,
     properties: {
-        ...OBJECT_SIZING,
         scale: 1,
         speed: 0,
         frame: 0,
@@ -78,7 +73,6 @@ export const staticRadialGradientLoFi = defineExample({
     name: "loFi",
     description: t`Static radial gradient in the lo fi look.`,
     properties: {
-        ...OBJECT_SIZING,
         speed: 0,
         frame: 0,
         colorBack: "#2e1f27",

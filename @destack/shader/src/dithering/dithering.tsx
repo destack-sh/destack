@@ -1,24 +1,46 @@
-import { type JSX, merge, omit } from "@destack/view";
-import { Shader } from "../shader/shader.tsx";
+import { type JSX, omit } from "@destack/view";
+import { Shader, type ShaderProperties } from "../shader/shader.tsx";
 import { SIZING_KEYS } from "../shader/sizing.ts";
+import { DITHERING_FRAGMENT, DITHERING_PROPERTIES, ditheringUniforms } from "./effect.ts";
 import {
-    DITHERING_DEFAULTS,
-    DITHERING_FRAGMENT,
-    type DitheringProperties,
-    ditheringUniforms,
-} from "./effect.ts";
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
+
+/** The properties of the dithering besides its declared ones: the shader's own. */
+export type DitheringAttributes = Omit<
+    ShaderProperties,
+    "fragmentShader" | "uniforms" | "speed" | "frame"
+>;
 
 /** Draw the dithering. */
-export function Dithering(properties: DitheringProperties): JSX.Element {
-    // fill unset options from the defaults and pass the rest to the shader
-    const options = merge(DITHERING_DEFAULTS, properties);
-    const rest = omit(options, ...SIZING_KEYS, "colorBack", "colorFront", "shape", "type", "size");
+export const Dithering = defineComponent({
+    name: "dithering",
+    properties: DITHERING_PROPERTIES,
+    render(
+        properties: RenderProperties<DitheringAttributes, typeof DITHERING_PROPERTIES>,
+    ): JSX.Element {
+        // pass what the shader takes besides the effect's properties
+        const rest = omit(
+            properties,
+            ...SIZING_KEYS,
+            "colorBack",
+            "colorFront",
+            "shape",
+            "type",
+            "size",
+        );
 
-    return (
-        <Shader
-            fragmentShader={DITHERING_FRAGMENT}
-            uniforms={ditheringUniforms(options)}
-            {...rest}
-        />
-    );
-}
+        return (
+            <Shader
+                fragmentShader={DITHERING_FRAGMENT}
+                uniforms={ditheringUniforms(properties)}
+                {...rest}
+            />
+        );
+    },
+});
+
+/** The properties of the dithering, the shader's included. */
+export type DitheringProperties = ComponentProperties<typeof Dithering>;

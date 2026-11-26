@@ -1,8 +1,13 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { COLOR_BACK } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
 import { NOISE_TEXTURE } from "../shader/noise.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the god rays. */
 export const GOD_RAYS_MAX_COLOR_COUNT = 5;
@@ -127,52 +132,60 @@ void main() {
 }
 `;
 
-/** The options of the god rays, beside its sizing. */
-export interface GodRaysOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The background color. */
-    readonly colorBack?: ShaderColor;
-    /** The color overlay blended with the rays, needs bloom > 0. */
-    readonly colorBloom?: ShaderColor;
-    /** Up to 5 ray colors. */
-    readonly colors?: readonly ShaderColor[];
-    /** The number of rays, from 0 to 1. */
-    readonly density?: number;
-    /** The length of the rays, higher = more spots/shorter rays, from 0 to 1. */
-    readonly spotty?: number;
-    /** The brightness/intensity of the central glow, needs midSize > 0, from 0 to 1. */
-    readonly midIntensity?: number;
-    /** The size of the circular glow shape in the center, needs midIntensity > 0, from 0 to 1. */
-    readonly midSize?: number;
-    /** The visibility/strength of the rays, from 0 to 1. */
-    readonly intensity?: number;
-    /** The strength of the bloom or overlay effect, from 0 to 1. */
-    readonly bloom?: number;
-}
-
-/** The properties of the god rays, the shader's included. */
-export interface GodRaysProperties
-    extends GodRaysOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default god rays. */
-export const GOD_RAYS_DEFAULTS: Required<GodRaysOptions> = {
-    ...OBJECT_SIZING,
-    offsetX: 0,
-    offsetY: -0.55,
-    colorBack: "#000000",
-    colorBloom: "#0000ff",
-    colors: ["#a600ff6e", "#6200fff0", "#ffffff", "#33fff5"],
-    density: 0.3,
-    spotty: 0.3,
-    midIntensity: 0.4,
-    midSize: 0.2,
-    intensity: 0.8,
-    bloom: 0.4,
-    speed: 0.75,
-    frame: 0,
+/** The properties people change in the god rays's controls and inspector. */
+export const GOD_RAYS_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(0.75),
+    ...SIZING_PROPERTIES,
+    offsetY: SIZING_PROPERTIES.offsetY.default(-0.55),
+    colorBack: COLOR_BACK.default("#000000"),
+    colorBloom: field
+        .color()
+        .labeled(t.context("label")`Bloom color`)
+        .described(t`The color blended over the rays.`)
+        .default("#0000ff"),
+    colors: field
+        .colors({ minimum: 1, maximum: GOD_RAYS_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#a600ff6e", "#6200fff0", "#ffffff", "#33fff5"]),
+    density: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Density`)
+        .described(t`How many rays there are.`)
+        .default(0.3),
+    spotty: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Spottiness`)
+        .described(t`How short and spotty the rays are.`)
+        .default(0.3),
+    midIntensity: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Glow intensity`)
+        .described(t`The brightness of the glow in the center.`)
+        .default(0.4),
+    midSize: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Glow size`)
+        .described(t`The size of the glow in the center.`)
+        .default(0.2),
+    intensity: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Intensity`)
+        .described(t`How strongly the rays show.`)
+        .default(0.8),
+    bloom: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Bloom`)
+        .described(t`How strongly the bloom color blends over the rays.`)
+        .default(0.4),
 };
 
+/** The options of the god rays, each with its value. */
+export type GodRaysOptions = DeclaredProperties<typeof GOD_RAYS_PROPERTIES>;
+
 /** Write god rays options as the fragment shader's uniforms. */
-export function godRaysUniforms(options: Required<GodRaysOptions>): ShaderValues {
+export function godRaysUniforms(options: GodRaysOptions): ShaderValues {
     return {
         u_colorBloom: options.colorBloom,
         u_colorBack: options.colorBack,

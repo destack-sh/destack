@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING, PATTERN_SIZING } from "../shader/sizing.ts";
 
-import { GRAIN_GRADIENT_DEFAULTS } from "./effect.ts";
 import { GrainGradient } from "./grain-gradient.tsx";
 
 /** The size every example draws at. */
@@ -16,7 +14,6 @@ export const grainGradientDefault = defineExample({
     of: GrainGradient,
     name: "default",
     description: t`Grain gradient in the default look.`,
-    properties: GRAIN_GRADIENT_DEFAULTS,
     render: (properties) => <GrainGradient {...properties} xstyle={styles.canvas} />,
 });
 
@@ -26,7 +23,7 @@ export const grainGradientWave = defineExample({
     name: "wave",
     description: t`Grain gradient in the wave look.`,
     properties: {
-        ...PATTERN_SIZING,
+        fit: "none",
         speed: 1,
         frame: 0,
         colorBack: "#000a0f",
@@ -45,7 +42,7 @@ export const grainGradientDots = defineExample({
     name: "dots",
     description: t`Grain gradient in the dots look.`,
     properties: {
-        ...PATTERN_SIZING,
+        fit: "none",
         scale: 0.6,
         speed: 1,
         frame: 0,
@@ -65,7 +62,7 @@ export const grainGradientTruchet = defineExample({
     name: "truchet",
     description: t`Grain gradient in the truchet look.`,
     properties: {
-        ...PATTERN_SIZING,
+        fit: "none",
         speed: 1,
         frame: 0,
         colorBack: "#0a0000",
@@ -84,7 +81,6 @@ export const grainGradientRipple = defineExample({
     name: "ripple",
     description: t`Grain gradient in the ripple look.`,
     properties: {
-        ...OBJECT_SIZING,
         scale: 0.5,
         speed: 1,
         frame: 0,
@@ -104,7 +100,6 @@ export const grainGradientBlob = defineExample({
     name: "blob",
     description: t`Grain gradient in the blob look.`,
     properties: {
-        ...OBJECT_SIZING,
         scale: 1.3,
         speed: 1,
         frame: 0,

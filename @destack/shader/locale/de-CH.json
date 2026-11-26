@@ -1,0 +1,179 @@
+{
+    "package": "package-01a1138b-c73c-7e27-8fdb-447090a18b9a",
+    "locale": "de-CH",
+    "messages": {
+        "1don1gxlmc74u": {
+            "source": "Size",
+            "context": "label",
+            "translation": "Grösse"
+        },
+        "379xbkrnr8v9i": {
+            "source": "The size of each shape, in pixels.",
+            "translation": "Die Grösse jeder Form, in Pixeln."
+        },
+        "3h2lr38ppsn1n": {
+            "source": "Size variation",
+            "context": "label",
+            "translation": "Grössenschwankung"
+        },
+        "2lril4zkinig1": {
+            "source": "How much the size of each shape varies.",
+            "translation": "Wie stark die Grösse jeder Form schwankt."
+        },
+        "1trsgmuyz9gam": {
+            "source": "Irregular lines",
+            "context": "option",
+            "translation": "Unregelmässige Linien"
+        },
+        "1mnhx8a6dsr9x": {
+            "source": "The size of the glass grid.",
+            "translation": "Die Grösse des Glasrasters."
+        },
+        "xkiwnjf44rrr": {
+            "source": "Glow size",
+            "context": "label",
+            "translation": "Leuchtgrösse"
+        },
+        "3ijt1zncgmgx5": {
+            "source": "The size of the glow in the center.",
+            "translation": "Die Grösse des Leuchtens in der Mitte."
+        },
+        "fstbat9gub9g": {
+            "source": "The size of each halftone cell.",
+            "translation": "Die Grösse jeder Rasterzelle."
+        },
+        "2vgptuv8a0rg3": {
+            "source": "The grain that changes the size of the dots.",
+            "translation": "Die Körnung, die die Grösse der Punkte ändert."
+        },
+        "385kv5annb51w": {
+            "source": "The size of the grid within the image.",
+            "translation": "Die Grösse des Rasters innerhalb des Bilds."
+        },
+        "1tbhhbykrny7k": {
+            "source": "The largest dot within its cell.",
+            "translation": "Der grösste Punkt innerhalb seiner Zelle."
+        },
+        "37h9mp3laskqd": {
+            "source": "The size of the balls.",
+            "translation": "Die Grösse der Kugeln."
+        },
+        "cytf6l3a8j40": {
+            "source": "Roughness size",
+            "context": "label",
+            "translation": "Rauheitsgrösse"
+        },
+        "ipdyy3nipi3o": {
+            "source": "The size of the fine grain.",
+            "translation": "Die Grösse der feinen Körnung."
+        },
+        "ckn7t0mkf93s": {
+            "source": "Fiber size",
+            "context": "label",
+            "translation": "Fasergrösse"
+        },
+        "3qqpabdzslotw": {
+            "source": "The size of the threads.",
+            "translation": "Die Grösse der Fäden."
+        },
+        "96ku6abtl8rd": {
+            "source": "Vertical fold size",
+            "context": "label",
+            "translation": "Grösse der senkrechten Falten"
+        },
+        "2cm351gama3b3": {
+            "source": "The size of the vertical folds.",
+            "translation": "Die Grösse der senkrechten Falten."
+        },
+        "27bdefuwbel4v": {
+            "source": "Horizontal fold size",
+            "context": "label",
+            "translation": "Grösse der waagrechten Falten"
+        },
+        "3ici01ls3411d": {
+            "source": "The size of the horizontal folds.",
+            "translation": "Die Grösse der waagrechten Falten."
+        },
+        "1gqvtxuya32sy": {
+            "source": "Wrinkle size",
+            "context": "label",
+            "translation": "Faltengrösse"
+        },
+        "1ydywomrd5bb5": {
+            "source": "The size of the facets.",
+            "translation": "Die Grösse der Facetten."
+        },
+        "29rw5of1ymhj3": {
+            "source": "The irregular fold lines across the paper.",
+            "translation": "Die unregelmässigen Faltlinien auf dem Papier."
+        },
+        "3gp7k639pmuf8": {
+            "source": "Spot size",
+            "context": "label",
+            "translation": "Fleckgrösse"
+        },
+        "2wagf3oz2hn6l": {
+            "source": "The angular size of each spot.",
+            "translation": "Die Winkelgrösse jedes Flecks."
+        },
+        "3n2w74wy235nt": {
+            "source": "Smoke size",
+            "context": "label",
+            "translation": "Rauchgrösse"
+        },
+        "2r54d0nmpf3bo": {
+            "source": "The size of the smoke.",
+            "translation": "Die Grösse des Rauchs."
+        },
+        "3t2horo0iwbdg": {
+            "source": "The size of each dot, in pixels.",
+            "translation": "Die Grösse jedes Punkts, in Pixeln."
+        },
+        "1nf9jq639q3j2": {
+            "source": "The black and white grain over the result.",
+            "translation": "Die schwarz-weisse Körnung über dem Ergebnis."
+        },
+        "1qhe3dfq1l1eb": {
+            "source": "Grain size",
+            "context": "label",
+            "translation": "Körnungsgrösse"
+        },
+        "1o08qsjkaz1x6": {
+            "source": "The size of the grain.",
+            "translation": "Die Grösse der Körnung."
+        },
+        "ani2hunqhxho": {
+            "source": "Where the colors meet, an even split in the middle.",
+            "translation": "Wo sich die Farben treffen, eine gleichmässige Teilung in der Mitte."
+        },
+        "29zyi2ku1h1qp": {
+            "source": "At its world size.",
+            "translation": "In seiner Weltgrösse."
+        },
+        "1hnj63bgn4wr5": {
+            "source": "The point across the canvas the world size anchors to.",
+            "translation": "Der Punkt auf der Leinwand in der Breite, an dem die Weltgrösse verankert ist."
+        },
+        "27ry48wujdagw": {
+            "source": "The point down the canvas the world size anchors to.",
+            "translation": "Der Punkt auf der Leinwand in der Höhe, an dem die Weltgrösse verankert ist."
+        },
+        "3gx8y9743ukyt": {
+            "source": "The size of the gradient.",
+            "translation": "Die Grösse des Verlaufs."
+        },
+        "107v55sxre1d": {
+            "source": "Pattern scale",
+            "context": "label",
+            "translation": "Mustergrösse"
+        },
+        "21mh9jk32yyuw": {
+            "source": "The size of the base pattern.",
+            "translation": "Die Grösse des Grundmusters."
+        },
+        "2mv9018jv2uck": {
+            "source": "The size of the pattern within the image.",
+            "translation": "Die Grösse des Musters innerhalb des Bilds."
+        }
+    }
+}

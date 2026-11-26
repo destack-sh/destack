@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING } from "../shader/sizing.ts";
 import { SAMPLE_IMAGE } from "../shader/sample.ts";
-import { PAPER_TEXTURE_DEFAULTS } from "./effect.ts";
 import { PaperTexture } from "./paper-texture.tsx";
 
 /** The size every example draws at. */
@@ -16,8 +14,9 @@ export const paperTextureDefault = defineExample({
     of: PaperTexture,
     name: "default",
     description: t`Paper texture in the default look.`,
-    properties: { ...PAPER_TEXTURE_DEFAULTS, image: SAMPLE_IMAGE },
-    render: (properties) => <PaperTexture {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <PaperTexture {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The paper texture in the creased look. */
@@ -26,7 +25,6 @@ export const paperTextureCreased = defineExample({
     name: "creased",
     description: t`Paper texture in the creased look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "contain",
         scale: 0.9,
         speed: 0,
@@ -54,9 +52,10 @@ export const paperTextureCreased = defineExample({
         crumples: 1,
         crumpleCount: 4,
         drops: 0,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <PaperTexture {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <PaperTexture {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The paper texture in the spread look. */
@@ -65,7 +64,6 @@ export const paperTextureSpread = defineExample({
     name: "spread",
     description: t`Paper texture in the spread look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "contain",
         scale: 0.9,
         speed: 0,
@@ -93,9 +91,10 @@ export const paperTextureSpread = defineExample({
         crumples: 0,
         crumpleCount: 9,
         drops: 0,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <PaperTexture {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <PaperTexture {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The paper texture in the flat look. */
@@ -104,7 +103,6 @@ export const paperTextureFlat = defineExample({
     name: "flat",
     description: t`Paper texture in the flat look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "contain",
         scale: 0.9,
         speed: 0,
@@ -132,7 +130,8 @@ export const paperTextureFlat = defineExample({
         crumples: 0,
         crumpleCount: 6,
         drops: 0.2,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <PaperTexture {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <PaperTexture {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });

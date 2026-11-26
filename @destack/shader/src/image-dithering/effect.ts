@@ -1,10 +1,30 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import {
+    COLOR_BACK,
+    COLOR_FRONT,
+    COLOR_HIGHLIGHT,
+    INVERTED,
+    ORIGINAL_COLORS,
+    DOT_SIZE,
+} from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
-import { OBJECT_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { TRANSPARENT_PIXEL, type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { TRANSPARENT_PIXEL, type ShaderValues } from "../shader/value.ts";
+
+/** The types of the image dithering, as a person picks one. */
+const IMAGE_DITHERING_TYPE_CHOICES = {
+    random: { title: t.context("option")`Random` },
+    "2x2": { title: t.context("option")`2×2` },
+    "4x4": { title: t.context("option")`4×4` },
+    "8x8": { title: t.context("option")`8×8` },
+};
 
 /** A type of the image dithering. */
-export type ImageDitheringType = "random" | "2x2" | "4x4" | "8x8";
+export type ImageDitheringType = keyof typeof IMAGE_DITHERING_TYPE_CHOICES;
 
 /** The number the fragment shader reads for each type. */
 export const IMAGE_DITHERING_TYPES: Readonly<Record<ImageDitheringType, number>> = {
@@ -195,52 +215,37 @@ void main() {
 }
 `;
 
-/** The options of the image dithering, beside its sizing. */
-export interface ImageDitheringOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** The source image texture. */
+/** The properties people change in the image dithering's controls and inspector. */
+export const IMAGE_DITHERING_PROPERTIES = {
+    ...Shader.properties,
+    ...SIZING_PROPERTIES,
+    fit: SIZING_PROPERTIES.fit.default("cover"),
+    colorFront: COLOR_FRONT.default("#94ffaf"),
+    colorBack: COLOR_BACK.default("#000c38"),
+    colorHighlight: COLOR_HIGHLIGHT.default("#eaff94"),
+    type: field
+        .enum(IMAGE_DITHERING_TYPE_CHOICES)
+        .labeled(t.context("label")`Type`)
+        .described(t`The matrix that orders the dots.`)
+        .default("8x8"),
+    size: DOT_SIZE.default(2),
+    colorSteps: field
+        .integer(schema.number().int().min(1).max(7))
+        .labeled(t.context("label")`Color steps`)
+        .described(t`How many colors the dots use.`)
+        .default(2),
+    originalColors: ORIGINAL_COLORS.default(false),
+    inverted: INVERTED.default(false),
+};
+
+/** The options of the image dithering, each with its value. */
+export type ImageDitheringOptions = DeclaredProperties<typeof IMAGE_DITHERING_PROPERTIES> & {
+    /** The image it draws over, none for its background alone. */
     readonly image?: string | HTMLImageElement | null;
-    /** The foreground color, needs originalColors off. */
-    readonly colorFront?: ShaderColor;
-    /** The background color, needs originalColors off. */
-    readonly colorBack?: ShaderColor;
-    /** The secondary foreground color. */
-    readonly colorHighlight?: ShaderColor;
-    /** The dithering type. */
-    readonly type?: ImageDitheringType;
-    /** The size. */
-    readonly size?: number;
-    /** The number of colors to use, applies to both color modes, from 1 to 7. */
-    readonly colorSteps?: number;
-    /** Use the original colors of the image instead of the color palette. */
-    readonly originalColors?: boolean;
-    /** Inverts the image luminance, doesn't affect the color scheme. */
-    readonly inverted?: boolean;
-}
-
-/** The properties of the image dithering, the shader's included. */
-export interface ImageDitheringProperties
-    extends ImageDitheringOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default image dithering. */
-export const IMAGE_DITHERING_DEFAULTS: Required<ImageDitheringOptions> = {
-    image: null,
-    ...OBJECT_SIZING,
-    fit: "cover",
-    // scale: 0.95,
-    speed: 0,
-    frame: 0,
-    colorFront: "#94ffaf",
-    colorBack: "#000c38",
-    colorHighlight: "#eaff94",
-    type: "8x8",
-    size: 2,
-    colorSteps: 2,
-    originalColors: false,
-    inverted: false,
 };
 
 /** Write image dithering options as the fragment shader's uniforms. */
-export function imageDitheringUniforms(options: Required<ImageDitheringOptions>): ShaderValues {
+export function imageDitheringUniforms(options: ImageDitheringOptions): ShaderValues {
     return {
         u_image: { image: options.image ?? TRANSPARENT_PIXEL },
         u_colorFront: options.colorFront,

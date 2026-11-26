@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING } from "../shader/sizing.ts";
 import { SAMPLE_IMAGE } from "../shader/sample.ts";
-import { FLUTED_GLASS_DEFAULTS } from "./effect.ts";
 import { FlutedGlass } from "./fluted-glass.tsx";
 
 /** The size every example draws at. */
@@ -16,8 +14,9 @@ export const flutedGlassDefault = defineExample({
     of: FlutedGlass,
     name: "default",
     description: t`Fluted glass in the default look.`,
-    properties: { ...FLUTED_GLASS_DEFAULTS, image: SAMPLE_IMAGE },
-    render: (properties) => <FlutedGlass {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <FlutedGlass {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The fluted glass in the waves look. */
@@ -26,7 +25,6 @@ export const flutedGlassWaves = defineExample({
     name: "waves",
     description: t`Fluted glass in the waves look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         scale: 1.2,
         speed: 0,
@@ -45,16 +43,16 @@ export const flutedGlassWaves = defineExample({
         blur: 0.1,
         edges: 0.5,
         stretch: 1,
-        margin: 0,
         marginLeft: 0,
         marginRight: 0,
         marginTop: 0,
         marginBottom: 0,
         grainMixer: 0,
         grainOverlay: 0.05,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <FlutedGlass {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <FlutedGlass {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The fluted glass in the abstract look. */
@@ -63,7 +61,6 @@ export const flutedGlassAbstract = defineExample({
     name: "abstract",
     description: t`Fluted glass in the abstract look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         scale: 4,
         speed: 0,
@@ -82,16 +79,16 @@ export const flutedGlassAbstract = defineExample({
         blur: 1,
         edges: 0.5,
         stretch: 1,
-        margin: 0,
         marginLeft: 0,
         marginRight: 0,
         marginTop: 0,
         marginBottom: 0,
         grainMixer: 0.1,
         grainOverlay: 0.1,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <FlutedGlass {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <FlutedGlass {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
 /** The fluted glass in the folds look. */
@@ -100,7 +97,6 @@ export const flutedGlassFolds = defineExample({
     name: "folds",
     description: t`Fluted glass in the folds look.`,
     properties: {
-        ...OBJECT_SIZING,
         fit: "cover",
         speed: 0,
         frame: 0,
@@ -118,14 +114,14 @@ export const flutedGlassFolds = defineExample({
         blur: 0.25,
         edges: 0.5,
         stretch: 0,
-        margin: 0.1,
         marginLeft: 0.1,
         marginRight: 0.1,
         marginTop: 0.1,
         marginBottom: 0.1,
         grainMixer: 0,
         grainOverlay: 0,
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <FlutedGlass {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <FlutedGlass {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });

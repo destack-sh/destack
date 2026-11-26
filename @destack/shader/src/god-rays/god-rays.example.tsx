@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING } from "../shader/sizing.ts";
 
-import { GOD_RAYS_DEFAULTS } from "./effect.ts";
 import { GodRays } from "./god-rays.tsx";
 
 /** The size every example draws at. */
@@ -16,7 +14,6 @@ export const godRaysDefault = defineExample({
     of: GodRays,
     name: "default",
     description: t`God rays in the default look.`,
-    properties: GOD_RAYS_DEFAULTS,
     render: (properties) => <GodRays {...properties} xstyle={styles.canvas} />,
 });
 
@@ -26,7 +23,6 @@ export const godRaysWarp = defineExample({
     name: "warp",
     description: t`God rays in the warp look.`,
     properties: {
-        ...OBJECT_SIZING,
         colorBack: "#000000",
         colorBloom: "#222288",
         colors: ["#ff47d4", "#ff8c00", "#ffffff"],
@@ -48,7 +44,6 @@ export const godRaysLinear = defineExample({
     name: "linear",
     description: t`God rays in the linear look.`,
     properties: {
-        ...OBJECT_SIZING,
         offsetX: 0.2,
         offsetY: -0.8,
         colorBack: "#000000",
@@ -72,7 +67,6 @@ export const godRaysEther = defineExample({
     name: "ether",
     description: t`God rays in the ether look.`,
     properties: {
-        ...OBJECT_SIZING,
         offsetX: -0.6,
         colorBack: "#090f1d",
         colorBloom: "#ffffff",

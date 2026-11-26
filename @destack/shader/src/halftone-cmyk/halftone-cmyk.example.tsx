@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { OBJECT_SIZING } from "../shader/sizing.ts";
 import { SAMPLE_IMAGE } from "../shader/sample.ts";
-import { HALFTONE_CMYK_DEFAULTS } from "./effect.ts";
 import { HalftoneCmyk } from "./halftone-cmyk.tsx";
 
 /** The size every example draws at. */
@@ -11,22 +9,22 @@ const styles = style.create({
     canvas: { width: "100%", height: "20rem" },
 });
 
-/** The halftone cmyk in the default look. */
+/** The CMYK halftone in the default look. */
 export const halftoneCmykDefault = defineExample({
     of: HalftoneCmyk,
     name: "default",
-    description: t`Halftone cmyk in the default look.`,
-    properties: { ...HALFTONE_CMYK_DEFAULTS, image: SAMPLE_IMAGE },
-    render: (properties) => <HalftoneCmyk {...properties} xstyle={styles.canvas} />,
+    description: t`CMYK halftone in the default look.`,
+    render: (properties) => (
+        <HalftoneCmyk {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
-/** The halftone cmyk in the drops look. */
+/** The CMYK halftone in the drops look. */
 export const halftoneCmykDrops = defineExample({
     of: HalftoneCmyk,
     name: "drops",
-    description: t`Halftone cmyk in the drops look.`,
+    description: t`CMYK halftone in the drops look.`,
     properties: {
-        ...OBJECT_SIZING,
         scale: 1,
         fit: "cover",
         speed: 0,
@@ -52,18 +50,18 @@ export const halftoneCmykDrops = defineExample({
         gainY: -1.0,
         gainK: 0,
         type: "ink",
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <HalftoneCmyk {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <HalftoneCmyk {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
-/** The halftone cmyk in the newspaper look. */
+/** The CMYK halftone in the newspaper look. */
 export const halftoneCmykNewspaper = defineExample({
     of: HalftoneCmyk,
     name: "newspaper",
-    description: t`Halftone cmyk in the newspaper look.`,
+    description: t`CMYK halftone in the newspaper look.`,
     properties: {
-        ...OBJECT_SIZING,
         scale: 1,
         fit: "cover",
         speed: 0,
@@ -89,18 +87,18 @@ export const halftoneCmykNewspaper = defineExample({
         gainY: -0.45,
         gainK: 0,
         type: "dots",
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <HalftoneCmyk {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <HalftoneCmyk {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });
 
-/** The halftone cmyk in the vintage look. */
+/** The CMYK halftone in the vintage look. */
 export const halftoneCmykVintage = defineExample({
     of: HalftoneCmyk,
     name: "vintage",
-    description: t`Halftone cmyk in the vintage look.`,
+    description: t`CMYK halftone in the vintage look.`,
     properties: {
-        ...OBJECT_SIZING,
         scale: 1,
         fit: "cover",
         speed: 0,
@@ -126,7 +124,8 @@ export const halftoneCmykVintage = defineExample({
         gainY: 0.2,
         gainK: 0,
         type: "sharp",
-        image: SAMPLE_IMAGE,
     },
-    render: (properties) => <HalftoneCmyk {...properties} xstyle={styles.canvas} />,
+    render: (properties) => (
+        <HalftoneCmyk {...properties} image={SAMPLE_IMAGE} xstyle={styles.canvas} />
+    ),
 });

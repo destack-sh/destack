@@ -1,9 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { PATTERN_SIZING } from "../shader/sizing.ts";
 
-import { SIMPLEX_NOISE_DEFAULTS } from "./effect.ts";
 import { SimplexNoise } from "./simplex-noise.tsx";
 
 /** The size every example draws at. */
@@ -16,7 +14,6 @@ export const simplexNoiseDefault = defineExample({
     of: SimplexNoise,
     name: "default",
     description: t`Simplex noise in the default look.`,
-    properties: SIMPLEX_NOISE_DEFAULTS,
     render: (properties) => <SimplexNoise {...properties} xstyle={styles.canvas} />,
 });
 
@@ -26,7 +23,6 @@ export const simplexNoiseBubblegum = defineExample({
     name: "bubblegum",
     description: t`Simplex noise in the bubblegum look.`,
     properties: {
-        ...PATTERN_SIZING,
         speed: 2,
         frame: 0,
         colors: ["#ffffff", "#ff9e9e", "#5f57ff", "#00f7ff"],
@@ -43,7 +39,6 @@ export const simplexNoiseSpots = defineExample({
     name: "spots",
     description: t`Simplex noise in the spots look.`,
     properties: {
-        ...PATTERN_SIZING,
         speed: 0.6,
         frame: 0,
         colors: ["#ff7b00", "#f9ffeb", "#320d82"],
@@ -60,7 +55,6 @@ export const simplexNoiseFirstContact = defineExample({
     name: "firstContact",
     description: t`Simplex noise in the first contact look.`,
     properties: {
-        ...PATTERN_SIZING,
         speed: 2,
         frame: 0,
         colors: ["#e8cce6", "#120d22", "#442c44", "#e6baba", "#fff5f5"],

@@ -1,14 +1,26 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+import type { DeclaredProperties } from "@destack/view/declare";
+import { Shader } from "../shader/shader.tsx";
+import { PATTERN_SIZING_PROPERTIES, sizingUniforms } from "../shader/sizing.ts";
+import { PROPORTION } from "../shader/option.ts";
 import { glsl } from "../glsl/glsl.ts";
 import { NOISE_TEXTURE } from "../shader/noise.ts";
-import { PATTERN_SIZING, type Sizing, sizingUniforms } from "../shader/sizing.ts";
-import { type ShaderColor, type ShaderValues } from "../shader/value.ts";
-import type { ShaderProperties } from "../shader/shader.tsx";
+import { type ShaderValues } from "../shader/value.ts";
 
 /** The most colors in the warp. */
 export const WARP_MAX_COLOR_COUNT = 10;
 
+/** The patterns of the warp, as a person picks one. */
+const WARP_PATTERN_CHOICES = {
+    checks: { title: t.context("option")`Checks` },
+    stripes: { title: t.context("option")`Stripes` },
+    edge: { title: t.context("option")`Edge` },
+};
+
 /** A pattern of the warp. */
-export type WarpPattern = "checks" | "stripes" | "edge";
+export type WarpPattern = keyof typeof WARP_PATTERN_CHOICES;
 
 /** The number the fragment shader reads for each pattern. */
 export const WARP_PATTERNS: Readonly<Record<WarpPattern, number>> = {
@@ -127,48 +139,54 @@ void main() {
 }
 `;
 
-/** The options of the warp, beside its sizing. */
-export interface WarpOptions extends Sizing, Pick<ShaderProperties, "speed" | "frame"> {
-    /** Up to 10 gradient colors. */
-    readonly colors?: readonly ShaderColor[];
-    /** The blend point between colors, 0.5 = equal distribution, from 0 to 1. */
-    readonly proportion?: number;
-    /** The color transition sharpness, 0 = hard edge, 1 = smooth gradient, from 0 to 1. */
-    readonly softness?: number;
-    /** The strength of noise-based distortion, from 0 to 1. */
-    readonly distortion?: number;
-    /** The strength of the swirl distortion, needs swirlIterations > 1, from 0 to 1. */
-    readonly swirl?: number;
-    /** The number of layered swirl passes as an integer, needs swirl > 0, from 2 to 20. */
-    readonly swirlIterations?: number;
-    /** The zoom level of the base pattern, from 0 to 1. */
-    readonly shapeScale?: number;
-    /** The base pattern type. */
-    readonly shape?: WarpPattern;
-}
-
-/** The properties of the warp, the shader's included. */
-export interface WarpProperties
-    extends WarpOptions, Omit<ShaderProperties, "fragmentShader" | "uniforms"> {}
-
-/** The default warp. */
-export const WARP_DEFAULTS: Required<WarpOptions> = {
-    ...PATTERN_SIZING,
-    rotation: 0,
-    speed: 1,
-    frame: 0,
-    colors: ["#121212", "#9470ff", "#121212", "#8838ff"],
-    proportion: 0.45,
-    softness: 1,
-    distortion: 0.25,
-    swirl: 0.8,
-    swirlIterations: 10,
-    shapeScale: 0.1,
-    shape: "checks",
+/** The properties people change in the warp's controls and inspector. */
+export const WARP_PROPERTIES = {
+    ...Shader.properties,
+    speed: Shader.properties.speed.default(1),
+    ...PATTERN_SIZING_PROPERTIES,
+    colors: field
+        .colors({ minimum: 1, maximum: WARP_MAX_COLOR_COUNT })
+        .labeled(t.context("label")`Colors`)
+        .described(t`The colors the effect blends, in order.`)
+        .default(["#121212", "#9470ff", "#121212", "#8838ff"]),
+    proportion: PROPORTION.default(0.45),
+    softness: field
+        .number(schema.number().min(0).max(2))
+        .labeled(t.context("label")`Softness`)
+        .described(t`How smoothly the colors blend, from a hard edge to a smooth gradient.`)
+        .default(1),
+    distortion: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Distortion`)
+        .described(t`How strongly noise bends the pattern.`)
+        .default(0.25),
+    swirl: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Swirl`)
+        .described(t`How strongly the pattern swirls.`)
+        .default(0.8),
+    swirlIterations: field
+        .integer(schema.number().int().min(2).max(20))
+        .labeled(t.context("label")`Swirl passes`)
+        .described(t`How many swirls lie over each other.`)
+        .default(10),
+    shapeScale: field
+        .number(schema.number().min(0).max(1))
+        .labeled(t.context("label")`Pattern scale`)
+        .described(t`The size of the base pattern.`)
+        .default(0.1),
+    shape: field
+        .enum(WARP_PATTERN_CHOICES)
+        .labeled(t.context("label")`Shape`)
+        .described(t`The base pattern.`)
+        .default("checks"),
 };
 
+/** The options of the warp, each with its value. */
+export type WarpOptions = DeclaredProperties<typeof WARP_PROPERTIES>;
+
 /** Write warp options as the fragment shader's uniforms. */
-export function warpUniforms(options: Required<WarpOptions>): ShaderValues {
+export function warpUniforms(options: WarpOptions): ShaderValues {
     return {
         u_colors: options.colors,
         u_colorsCount: options.colors.length,
