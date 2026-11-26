@@ -32,6 +32,8 @@ export const valueFieldKinds = defineExample({
             share: 0.25,
             pinned: true,
             person: "Ada",
+            label: "#f76b15",
+            gradient: ["#e0eaff", "#241d9a", "#f75092"],
         });
         const of = (name: string) => ({
             get value() {
@@ -82,6 +84,17 @@ export const valueFieldKinds = defineExample({
                 <Field>
                     <FieldLabel>Person</FieldLabel>
                     <ValueField type={{ kind: "person" }} choices={PEOPLE} {...of("person")} />
+                </Field>
+                <Field>
+                    <FieldLabel>Label</FieldLabel>
+                    <ValueField type={{ kind: "color" }} {...of("label")} />
+                </Field>
+                <Field>
+                    <FieldLabel>Gradient</FieldLabel>
+                    <ValueField
+                        type={{ kind: "colors", minimum: 2, maximum: 5 }}
+                        {...of("gradient")}
+                    />
                 </Field>
                 <output>{JSON.stringify(given())}</output>
             </div>

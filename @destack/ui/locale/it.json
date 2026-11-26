@@ -6386,6 +6386,31 @@
         "3ciyci5wa1wun": {
             "source": "An agent's run, each step's time beside its bar.",
             "translation": "L'esecuzione di un agente, il tempo di ogni passo accanto alla sua barra."
+        },
+        "354ew35wqlwoo": {
+            "source": "Color {$p0}",
+            "context": "label",
+            "translation": "Colore {$p0}"
+        },
+        "dqx95w7y3d7": {
+            "source": "Add color",
+            "context": "action",
+            "translation": "Aggiungi colore"
+        },
+        "22n4jz51jsd66": {
+            "source": "Remove color",
+            "context": "action",
+            "translation": "Rimuovi colore"
+        },
+        "2t3qpz0y7d5vc": {
+            "source": "Move earlier",
+            "context": "action",
+            "translation": "Sposta prima"
+        },
+        "3jn1bkps0v1ry": {
+            "source": "Move later",
+            "context": "action",
+            "translation": "Sposta dopo"
         }
     }
 }

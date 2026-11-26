@@ -5,6 +5,8 @@ import choiceIcon from "@destack/icon/phosphor/caret-circle-down";
 import checkIcon from "@destack/icon/phosphor/check-square";
 import cubeIcon from "@destack/icon/phosphor/cube";
 import hashIcon from "@destack/icon/phosphor/hash";
+import paletteIcon from "@destack/icon/phosphor/palette";
+import swatchesIcon from "@destack/icon/phosphor/swatches";
 import textIcon from "@destack/icon/phosphor/text-aa";
 import userIcon from "@destack/icon/phosphor/user";
 import type { JSX } from "@destack/view";
@@ -20,6 +22,8 @@ const ICONS: Readonly<Record<ValueKind, IconBodies>> = {
     choice: choiceIcon,
     person: userIcon,
     object: cubeIcon,
+    color: paletteIcon,
+    colors: swatchesIcon,
     json: bracesIcon,
 };
 

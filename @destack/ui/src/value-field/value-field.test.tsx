@@ -109,3 +109,69 @@ test("keep JSON as it is typed", () => {
 
     expect([before, during, shown()]).toEqual(["[\n  1\n]", "[1,  2]", "[1,"]);
 });
+
+test("give a color typed in its picker, the swatch and text showing it", () => {
+    stubPopovers();
+    const { container, given } = draw({ kind: "color" }, "#f76b15");
+
+    // open the picker and type a color into its text
+    container.querySelector<HTMLButtonElement>("button")?.click();
+    flush();
+    const field = present(
+        document.querySelector<HTMLInputElement>("input[data-slot=color-field]"),
+        "the color's text",
+    );
+    field.value = "#0090ff";
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    flush();
+
+    expect([container.querySelector("bdi")?.textContent, given.at(-1)]).toEqual([
+        "#0090ff",
+        "#0090ff",
+    ]);
+});
+
+test("add, move and remove the colors of a palette between the fewest and the most", () => {
+    stubPopovers();
+    const { container, given } = draw({ kind: "colors", minimum: 2, maximum: 3 }, [
+        "#e0eaff",
+        "#241d9a",
+    ]);
+
+    // adding repeats the last color up to the most, a swatch's popover moves its color and removes it
+    press(container, "Add color");
+    press(container, "Add color");
+    press(document.body, "Move later", "Color 1");
+    press(document.body, "Remove color", "Color 3");
+
+    expect(given).toEqual([
+        ["#e0eaff", "#241d9a", "#241d9a"],
+        ["#241d9a", "#e0eaff", "#241d9a"],
+        ["#241d9a", "#e0eaff"],
+    ]);
+});
+
+/** Read a button's name without the marks that isolate a number in it. */
+function nameOf(button: HTMLButtonElement): string {
+    return (button.getAttribute("aria-label") ?? button.textContent).replaceAll(
+        /[\u2066-\u2069]/gu,
+        "",
+    );
+}
+
+/** Press the button of a name, inside the popover of another name where one is given. */
+function press(root: Element, label: string, popover?: string): void {
+    const scope =
+        popover === undefined
+            ? root
+            : present(
+                  root.querySelector(`[data-slot=popover-content][aria-label="${popover}"]`),
+                  `the popover of ${popover}`,
+              );
+    const buttons = [...scope.querySelectorAll<HTMLButtonElement>("button")];
+    present(
+        buttons.find((each) => nameOf(each) === label),
+        `the button ${label}`,
+    ).click();
+    flush();
+}
