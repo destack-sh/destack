@@ -258,11 +258,13 @@ function Connection(properties: { source: Source; isRemixed: boolean }) {
                     <Favicon icon={properties.source.icon} tint={properties.source.tint} />
                     From {properties.source.name}
                 </Toggle>
-                <Badge variant="secondary">
+                <Badge variant="soft" color="gray">
                     <ServiceGlyph icon="sync" />
                     Every 15 minutes
                 </Badge>
-                <Badge variant="secondary">Connected by your agent</Badge>
+                <Badge variant="soft" color="gray">
+                    Connected by your agent
+                </Badge>
             </Toolbar>
             {/* show the table's headline figures */}
             <div {...style.attrs(styles.figures)}>
@@ -338,9 +340,13 @@ function Toolbar(properties: { title: string; actions: JSX.Element; children: JS
 /** Draw a state as a badge in its color, or as a plain one for a state without a color. */
 function StatusBadge(properties: { color: Hue | undefined; children: JSX.Element }) {
     return properties.color === undefined ? (
-        <Badge variant="secondary">{properties.children}</Badge>
+        <Badge variant="soft" color="gray">
+            {properties.children}
+        </Badge>
     ) : (
-        <Badge color={properties.color}>{properties.children}</Badge>
+        <Badge variant="soft" color={properties.color}>
+            {properties.children}
+        </Badge>
     );
 }
 
@@ -436,15 +442,22 @@ function Person(properties: { isRemixed: boolean }) {
             </AppHeader>
             <article {...style.attrs(styles.document)}>
                 <div {...style.attrs(appStyles.properties)}>
-                    <Badge variant="secondary">
+                    <Badge variant="soft" color="gray">
                         <StateMark state="started" />
                         Client
                     </Badge>
-                    <Badge variant="secondary">Booking app</Badge>
-                    <Badge variant="secondary" data-xray="Analytics" xstyle={styles.wide}>
+                    <Badge variant="soft" color="gray">
+                        Booking app
+                    </Badge>
+                    <Badge variant="soft" color="gray" data-xray="Analytics" xstyle={styles.wide}>
                         14 mails this month
                     </Badge>
-                    <Badge variant="secondary" data-xray="Jobs" data-source="Calendar event">
+                    <Badge
+                        variant="soft"
+                        color="gray"
+                        data-xray="Jobs"
+                        data-source="Calendar event"
+                    >
                         Review · Wed 11:00
                     </Badge>
                     {properties.isRemixed ? (
@@ -602,11 +615,11 @@ function Tasks(properties: { isRemixed: boolean }) {
                         Board
                     </ToggleGroupItem>
                 </ToggleGroup>
-                <Badge variant="secondary" data-xray="Database">
+                <Badge variant="soft" color="gray" data-xray="Database">
                     <Icon icon={funnel} />
                     Due this week
                 </Badge>
-                <Badge variant="secondary" data-xray="Jobs" xstyle={styles.wide}>
+                <Badge variant="soft" color="gray" data-xray="Jobs" xstyle={styles.wide}>
                     <ServiceGlyph icon="sync" />
                     When done, tell whoever asked
                 </Badge>
@@ -998,7 +1011,7 @@ function Flows(properties: { isRemixed: boolean }) {
                     </>
                 }
             >
-                <Badge variant="secondary" data-xray="Jobs">
+                <Badge variant="soft" color="gray" data-xray="Jobs">
                     {story().workflows.length} workflows
                 </Badge>
                 {properties.isRemixed ? (
@@ -1288,7 +1301,9 @@ function Commitments(properties: { isRemixed: boolean }) {
                     <Icon icon={funnel} />
                     Open
                 </Toggle>
-                <Badge variant="secondary">From mail and chat</Badge>
+                <Badge variant="soft" color="gray">
+                    From mail and chat
+                </Badge>
             </Toolbar>
             <Table data-xray="Database">
                 <TableHeader>
@@ -1385,10 +1400,10 @@ function Tracker(properties: { isRemixed: boolean }) {
                 <Toggle variant="outline" defaultPressed>
                     Phase 2
                 </Toggle>
-                <Badge variant="secondary" data-xray="Jobs">
+                <Badge variant="soft" color="gray" data-xray="Jobs">
                     Status to Ines · Fri 16:00
                 </Badge>
-                <Badge variant="secondary" data-xray="Observability">
+                <Badge variant="soft" color="gray" data-xray="Observability">
                     0 errors today
                 </Badge>
             </Toolbar>
@@ -1423,9 +1438,11 @@ function Tracker(properties: { isRemixed: boolean }) {
                             </TableCell>
                             <TableCell xstyle={appText.body}>
                                 {properties.isRemixed ? (
-                                    <Badge variant="secondary">{task}</Badge>
+                                    <Badge variant="soft" color="gray">
+                                        {task}
+                                    </Badge>
                                 ) : (
-                                    <Badge color={isDone ? "green" : "yellow"}>
+                                    <Badge variant="soft" color={isDone ? "green" : "yellow"}>
                                         {isDone ? "Done" : "Open"}
                                     </Badge>
                                 )}
@@ -1473,7 +1490,9 @@ function Changelog(properties: { isRemixed: boolean }) {
                     {releases.map(([version, day, title, notes]) => (
                         <TableRow>
                             <TableCell xstyle={appText.body}>
-                                <Badge variant="outline">v{version}</Badge>
+                                <Badge variant="outline" color="gray">
+                                    v{version}
+                                </Badge>
                             </TableCell>
                             <TableCell xstyle={appText.body}>
                                 <span {...style.attrs(styles.release)}>

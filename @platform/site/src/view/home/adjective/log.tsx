@@ -60,10 +60,10 @@ export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
                 {/* the filters, typed as the log reads them */}
                 <div {...style.attrs(styles.filters)}>
                     <Glyph name="filter" size={13} />
-                    <Badge variant="secondary" xstyle={styles.token}>
+                    <Badge variant="soft" color="gray" xstyle={styles.token}>
                         <span {...style.attrs(styles.key)}>by:</span> Agent
                     </Badge>
-                    <Badge variant="secondary" xstyle={styles.token}>
+                    <Badge variant="soft" color="gray" xstyle={styles.token}>
                         <span {...style.attrs(styles.key)}>since:</span> yesterday 22:00
                     </Badge>
                 </div>
@@ -93,9 +93,13 @@ export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
                                 stamp="22:04"
                                 badge={
                                     review() === 0 ? (
-                                        <Badge variant="secondary">{CHANGE_COUNT} changes</Badge>
+                                        <Badge variant="soft" color="gray">
+                                            {CHANGE_COUNT} changes
+                                        </Badge>
                                     ) : (
-                                        <Badge color="red">{review()} to review</Badge>
+                                        <Badge variant="soft" color="red">
+                                            {review()} to review
+                                        </Badge>
                                     )
                                 }
                                 request={REQUEST}
@@ -159,9 +163,13 @@ function StepItem(properties: { step: Step; lane: Lane; isOpen: boolean; onToggl
                     {slip() === undefined ? (
                         <span {...style.attrs(styles.quiet)}>{properties.step.count}</span>
                     ) : fixed() === undefined ? (
-                        <Badge color="red">{slip()?.text}</Badge>
+                        <Badge variant="soft" color="red">
+                            {slip()?.text}
+                        </Badge>
                     ) : (
-                        <Badge color="green">{fixed()}</Badge>
+                        <Badge variant="soft" color="green">
+                            {fixed()}
+                        </Badge>
                     )}
                 </span>
             }
