@@ -1,11 +1,18 @@
 import { ActionInput } from "@destack/object";
 import type { Example } from "@destack/package/declare";
 import type { JsonValue } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { flush, type JSX } from "@destack/view";
 import type { Component } from "@destack/view/declare";
 import { markup, render, stubPopovers } from "@destack/view/test";
+import { layOutElements } from "../src/virtualizer/test/layout.ts";
 import { COMPONENTS, EXAMPLES } from "./fixture/examples.ts";
+
+/** The size every image loads at, a photo's. */
+const PHOTO = { width: 1600, height: 1200 };
+
+/** The size of every element, a phone's screen, which the test DOM does not lay out. */
+const SCREEN = 640;
 
 /** The components that declare properties a person changes, by their exported names. */
 const DECLARING = COMPONENTS.filter(
@@ -48,6 +55,8 @@ test("label and describe every declared property, and title each of its choices 
 test("change every example by its component's properties, and every property in an example", () => {
     // render each example of a declaring component with each property changed, noting what responds
     stubPopovers();
+    loadImages();
+    layOutElements({ client: SCREEN, scroll: SCREEN });
     const responsive = new Set<string>();
     const ignoring: string[] = [];
     for (const [exported, example] of EXAMPLES) {
@@ -120,4 +129,29 @@ function otherValuesOf(component: Component, key: string, current: unknown): Jso
     }
 
     return [];
+}
+
+/** Load every image at a photo's size, which the test DOM never fetches. */
+function loadImages(): void {
+    // stand in for a loaded image until the test ends
+    const prototype = HTMLImageElement.prototype;
+    const sizes = [
+        ["complete", true],
+        ["naturalWidth", PHOTO.width],
+        ["naturalHeight", PHOTO.height],
+    ] as const;
+    const before = sizes.map(([name]) => Object.getOwnPropertyDescriptor(prototype, name));
+    for (const [name, value] of sizes) {
+        Object.defineProperty(prototype, name, { configurable: true, get: () => value });
+    }
+
+    // restore each property once the test finishes
+    onTestFinished(() => {
+        sizes.forEach(([name], index) => {
+            const descriptor = before[index];
+            if (descriptor !== undefined) {
+                Object.defineProperty(prototype, name, descriptor);
+            }
+        });
+    });
 }
