@@ -85,6 +85,26 @@ export const ImportMap = Object.assign(importMap, {
         return `<script type="importmap">${JSON.stringify(map).replaceAll("<", "\\u003c")}</script>`;
     },
 
+    /** Rebase a map's targets below a base into a namespace, as a worker's resolved modules sit. */
+    rebase(map: ImportMap, base: string, namespace: string): ImportMap {
+        const moved = (targets: Readonly<Record<string, string>>) =>
+            Object.fromEntries(
+                Object.entries(targets).map(([specifier, target]) => [
+                    specifier,
+                    target.startsWith(`${base}/`)
+                        ? `${namespace}${target.slice(base.length)}`
+                        : target,
+                ]),
+            );
+
+        return {
+            imports: moved(map.imports),
+            scopes: Object.fromEntries(
+                Object.entries(map.scopes).map(([prefix, targets]) => [prefix, moved(targets)]),
+            ),
+        };
+    },
+
     /** Insert an import map at the start of a page's head, before every module it loads. */
     insert(html: string, map: ImportMap): string {
         return html.replace(/<head(?:\s[^>]*)?>/u, (head) => `${head}${ImportMap.script(map)}`);
