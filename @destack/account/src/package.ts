@@ -39,7 +39,7 @@ import { OAUTH_PATH } from "./address/address.ts";
 
 /** The account package: its objects, authentication records, OAuth mount and errors. */
 export default definePackage({
-    title: t`Accounts`,
+    title: t.context("title")`Accounts`,
     description: t`Sign people and machines in, and manage their accounts, organizations and spaces.`,
     icon: "user-circle",
     color: "yellow",

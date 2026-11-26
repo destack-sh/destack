@@ -86,16 +86,24 @@ export const user = defineObject(
         }),
 
         /** Refuse the person's sign-ins and tokens until resumed. */
-        suspend: method.mutation({ title: t`Suspend`, permission: "suspend", isPredicted: false }),
+        suspend: method.mutation({
+            title: t.context("action")`Suspend`,
+            permission: "suspend",
+            isPredicted: false,
+        }),
         /** Let a suspended person sign in again. */
-        resume: method.mutation({ title: t`Resume`, permission: "suspend", isPredicted: false }),
+        resume: method.mutation({
+            title: t.context("action")`Resume`,
+            permission: "suspend",
+            isPredicted: false,
+        }),
         suggestHandle: method.query({
-            title: t`Suggest handle`,
+            title: t.context("action")`Suggest handle`,
             permission: "read",
             output: schema.object({ handle: AccountHandle }),
         }),
         invited: method.query({
-            title: t`List invitations`,
+            title: t.context("action")`List invitations`,
             permission: "update",
             output: schema.object({
                 /** The pending invitations to the user or the user's verified email. */
@@ -112,12 +120,12 @@ export const user = defineObject(
         }),
         /** Read where the person receives notifications beyond an inbox, and in which language. */
         recipient: method.query({
-            title: t`Read recipient`,
+            title: t.context("action")`Read recipient`,
             permission: "recipient",
             output: Recipient,
         }),
         checkHandle: method.query({
-            title: t`Check handle`,
+            title: t.context("action")`Check handle`,
             permission: "read",
             input: schema.object({
                 /** The handle as the user typed it. */

@@ -74,8 +74,11 @@ export const session = defineObject(
         },
     },
     (method) => ({
-        revoke: method.mutation({ title: t`Revoke`, permission: "revoke" }),
-        revokeOthers: method.mutation({ title: t`Revoke others`, permission: "revoke" }),
+        revoke: method.mutation({ title: t.context("action")`Revoke`, permission: "revoke" }),
+        revokeOthers: method.mutation({
+            title: t.context("action")`Revoke others`,
+            permission: "revoke",
+        }),
         link: method.update("link", { visibility: "package", fields: ["clientId"] }),
     }),
 ).implement({

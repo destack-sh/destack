@@ -74,7 +74,11 @@ export const authorizationCode = defineObject(
             isPredicted: false,
         }),
         /** Spend a code, refusing one spent before. */
-        redeem: method.mutation({ title: t`Redeem`, permission: "redeem", visibility: "package" }),
+        redeem: method.mutation({
+            title: t.context("action")`Redeem`,
+            permission: "redeem",
+            visibility: "package",
+        }),
     }),
 ).implement({
     methods: {

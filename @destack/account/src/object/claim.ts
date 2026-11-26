@@ -45,7 +45,7 @@ export const claim = defineObject(
 
         /** Find the account holding a handle or a lookalike, and the account paying for it. */
         holder: method.query({
-            title: t`Read holder`,
+            title: t.context("action")`Read holder`,
             permission: "resolve",
             target: "scope",
             input: schema.object({

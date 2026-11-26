@@ -269,7 +269,7 @@ export const machine = defineObject(
         }),
         /** Rate a managed machine's spaces by other SKUs, as the universe declares them. */
         rate: method.mutation({
-            title: t`Rate`,
+            title: t.context("action")`Rate`,
             permission: "rate",
             visibility: "package",
             input: schema.object({
@@ -278,15 +278,19 @@ export const machine = defineObject(
             }),
         }),
         /** Record a self-hosted machine's tunnel at its derived name. */
-        relay: method.mutation({ title: t`Relay`, permission: "relay", input: EndpointRelay }),
-        enable: method.mutation({ title: t`Enable`, permission: "operate" }),
-        drain: method.mutation({ title: t`Drain`, permission: "operate" }),
-        disable: method.mutation({ title: t`Disable`, permission: "operate" }),
+        relay: method.mutation({
+            title: t.context("action")`Relay`,
+            permission: "relay",
+            input: EndpointRelay,
+        }),
+        enable: method.mutation({ title: t.context("action")`Enable`, permission: "operate" }),
+        drain: method.mutation({ title: t.context("action")`Drain`, permission: "operate" }),
+        disable: method.mutation({ title: t.context("action")`Disable`, permission: "operate" }),
         /** Record the machine leaving its home, as the home sees its last live link close. */
-        leave: method.mutation({ title: t`Leave`, permission: "leave" }),
+        leave: method.mutation({ title: t.context("action")`Leave`, permission: "leave" }),
         /** Record what the machine runs now, replacing the last report. */
         report: method.mutation({
-            title: t`Report`,
+            title: t.context("action")`Report`,
             permission: "rotate",
             input: schema.object({
                 /** The Destack version the machine runs. */
@@ -304,7 +308,7 @@ export const machine = defineObject(
             }),
         }),
         rename: method.mutation({
-            title: t`Rename`,
+            title: t.context("action")`Rename`,
             permission: "rename",
             input: schema.object({
                 /** The new name. */

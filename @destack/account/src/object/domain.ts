@@ -98,7 +98,7 @@ export const domain = defineObject(
     (method) => ({
         create: method.create("create", { fields: ["name"] }),
         verify: method.mutation({
-            title: t`Verify`,
+            title: t.context("action")`Verify`,
             permission: "verify",
             prepared: DomainChallenge,
         }),

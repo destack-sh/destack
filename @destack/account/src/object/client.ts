@@ -192,7 +192,7 @@ export const client = defineObject(
         }),
         /** Prove the caller holds one of the client's keys, recording its proven contact. */
         prove: method.mutation({
-            title: t`Prove`,
+            title: t.context("action")`Prove`,
             permission: "verify",
             input: schema.object({
                 /** The proof of one of the client's keys. */
@@ -203,22 +203,29 @@ export const client = defineObject(
         }),
         /** Link the calling session to a client by a proof of one of its keys. */
         link: method.mutation({
-            title: t`Link`,
+            title: t.context("action")`Link`,
             permission: "update",
             input: schema.object({ proof: CompactProof }),
         }),
         /** Store a browser client's Web Push subscription. */
         subscribe: method.mutation({
-            title: t`Subscribe`,
+            title: t.context("action")`Subscribe`,
             permission: "update",
             input: schema.object({ push: PushSubscription }),
         }),
         /** Forget a client's Web Push subscription, as its push service no longer knows it. */
-        unsubscribe: method.mutation({ title: t`Unsubscribe`, permission: "unsubscribe" }),
+        unsubscribe: method.mutation({
+            title: t.context("action")`Unsubscribe`,
+            permission: "unsubscribe",
+        }),
         /** Withdraw a client with its keys and sessions. */
-        revoke: method.mutation({ title: t`Revoke`, permission: "revoke" }),
+        revoke: method.mutation({ title: t.context("action")`Revoke`, permission: "revoke" }),
         /** Record the client's proven contact now. */
-        report: method.mutation({ title: t`Report`, permission: "report", visibility: "package" }),
+        report: method.mutation({
+            title: t.context("action")`Report`,
+            permission: "report",
+            visibility: "package",
+        }),
     }),
 ).implement({
     methods: {

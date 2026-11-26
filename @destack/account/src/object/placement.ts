@@ -268,11 +268,15 @@ export const placement = defineObject(
         }),
 
         /** Serve a space at an epoch. */
-        place: method.mutation({ title: t`Place`, permission: "place", input: Serving }),
+        place: method.mutation({
+            title: t.context("action")`Place`,
+            permission: "place",
+            input: Serving,
+        }),
 
         /** Mark a space as moving to a target machine, as the machine serving it at its epoch. */
         move: method.mutation({
-            title: t`Move`,
+            title: t.context("action")`Move`,
             permission: "move",
             input: Serving.extend({
                 /** The machine the space moves to. */
@@ -284,7 +288,7 @@ export const placement = defineObject(
 
         /** Decide again where the universe places the space for its tenancy, as the store. */
         decide: method.mutation({
-            title: t`Decide`,
+            title: t.context("action")`Decide`,
             permission: "decide",
             visibility: "package",
             input: schema.object({}),
@@ -292,26 +296,38 @@ export const placement = defineObject(
 
         /** Report whether the machine serves the space yet, at its epoch. */
         report: method.mutation({
-            title: t`Report`,
+            title: t.context("action")`Report`,
             permission: "serve",
             input: Serving.extend({ status: schema.enum(PLACEMENT_STATUSES) }),
         }),
 
         /** Read the account paying for the placed space's use, as the machine serving it. */
         payer: method.query({
-            title: t`Read payer`,
+            title: t.context("action")`Read payer`,
             permission: "serve",
             output: schema.identifier("account"),
         }),
 
         /** End a space's placement, as the machine serving it at its epoch. */
-        withdraw: method.mutation({ title: t`Withdraw`, permission: "move", input: Serving }),
+        withdraw: method.mutation({
+            title: t.context("action")`Withdraw`,
+            permission: "move",
+            input: Serving,
+        }),
 
         /** Give a machine work in the space, as the machine serving it at its epoch. */
-        assign: method.mutation({ title: t`Assign`, permission: "move", input: Worker }),
+        assign: method.mutation({
+            title: t.context("action")`Assign`,
+            permission: "move",
+            input: Worker,
+        }),
 
         /** Withdraw a machine's work in the space, as the machine serving it at its epoch. */
-        unassign: method.mutation({ title: t`Unassign`, permission: "move", input: Worker }),
+        unassign: method.mutation({
+            title: t.context("action")`Unassign`,
+            permission: "move",
+            input: Worker,
+        }),
     }),
 );
 

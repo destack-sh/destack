@@ -90,12 +90,16 @@ export const key = defineObject(
         }),
         enroll: method.create("enroll", { visibility: "package" }),
         suspend: method.mutation({
-            title: t`Suspend`,
+            title: t.context("action")`Suspend`,
             permission: "suspend",
             visibility: "package",
         }),
-        resume: method.mutation({ title: t`Resume`, permission: "suspend", visibility: "package" }),
-        revoke: method.mutation({ title: t`Revoke`, permission: "revoke" }),
+        resume: method.mutation({
+            title: t.context("action")`Resume`,
+            permission: "suspend",
+            visibility: "package",
+        }),
+        revoke: method.mutation({ title: t.context("action")`Revoke`, permission: "revoke" }),
     }),
 ).implement({
     methods: {

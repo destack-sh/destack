@@ -53,7 +53,11 @@ export const identity = defineObject(
         get: method.get("read"),
 
         /** Read the keys that verify what the identity signs, as a JSON Web Key Set. */
-        keys: method.query({ title: t`List keys`, permission: "read", output: KeySet }),
+        keys: method.query({
+            title: t.context("action")`List keys`,
+            permission: "read",
+            output: KeySet,
+        }),
     }),
 );
 

@@ -72,7 +72,7 @@ export const region = defineObject(
 
         /** Read the relay of an account's region. */
         relay: method.query({
-            title: t`Relay`,
+            title: t.context("action")`Relay`,
             permission: "read",
             target: "scope",
             input: schema.object({

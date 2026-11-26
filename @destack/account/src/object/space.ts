@@ -138,7 +138,7 @@ export const space = defineObject(
 
         /** Move a space to another address within its account. */
         rename: method.mutation({
-            title: t`Rename`,
+            title: t.context("action")`Rename`,
             permission: "update",
             input: schema.object({
                 /** The new address. */
@@ -150,7 +150,7 @@ export const space = defineObject(
 
         /** Read the space's address `<name>--<handle>` in its account. */
         address: method.query({
-            title: t`Read address`,
+            title: t.context("action")`Read address`,
             permission: "read",
             output: schema.object({
                 /** The address. */

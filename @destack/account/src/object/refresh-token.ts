@@ -70,7 +70,11 @@ export const refreshToken = defineObject(
             isPredicted: false,
         }),
         /** Spend a token on its successor, refusing one spent before. */
-        rotate: method.mutation({ title: t`Rotate`, permission: "rotate", visibility: "package" }),
+        rotate: method.mutation({
+            title: t.context("action")`Rotate`,
+            permission: "rotate",
+            visibility: "package",
+        }),
         /** Remove a token, as its family ends. */
         delete: method.delete("revoke", { visibility: "package" }),
     }),
