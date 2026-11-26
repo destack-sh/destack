@@ -13,14 +13,20 @@ export interface ScenarioDeclaration extends DefinitionSite {
     readonly interaction: graph.Moniker;
     /** The examples the scenario starts from. */
     readonly examples: readonly graph.Moniker[];
-    /** The description without interaction and examples: globals, steps and observations. */
+    /** The description without interaction and examples: sentence, globals, steps, observations. */
     readonly description: Omit<ScenarioDescription, "interaction" | "examples">;
 }
+
+/** A scenario as its module's outline reads it, before evaluation gives the rest. */
+export type ScenarioOutline = Omit<ScenarioDeclaration, "description"> & {
+    /** The description without interaction, examples and sentence. */
+    readonly description: Omit<ScenarioDescription, "interaction" | "examples" | "description">;
+};
 
 /** A scenario a module exports, located at its definition. */
 export const ScenarioDeclaration = {
     /** Read a scenario's definition: its subject, interaction, examples, steps and observations. */
-    async read(definition: Definition): Promise<ScenarioDeclaration> {
+    async read(definition: Definition): Promise<ScenarioOutline> {
         // read the given examples and globals, and the steps and observations
         const { site, fields } = definition;
         const given = fields.object("given");
@@ -33,7 +39,6 @@ export const ScenarioDeclaration = {
             interaction: await fields.symbol("interaction"),
             examples: await given.symbols("examples"),
             description: {
-                description: fields.text("description"),
                 ...(globals === undefined ? {} : { globals }),
                 parameters: schema
                     .record(schema.string(), schema.number())

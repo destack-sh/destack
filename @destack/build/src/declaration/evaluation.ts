@@ -19,12 +19,14 @@ import {
     DeclarationSite,
     DependencyName,
     graph,
+    Message,
     PackageVersion,
     PackageJson,
 } from "@destack/package";
 import { DECLARED_MODULE } from "@destack/package/transform";
 import type { FunctionExport } from "./declaration.ts";
-import type { ExampleDeclaration } from "../graph/example.ts";
+import type { ExampleDeclaration, ExampleOutline } from "../graph/example.ts";
+import type { ScenarioDeclaration, ScenarioOutline } from "../graph/scenario.ts";
 import type { ConstructorCatalog, ConstructorKind } from "./catalog.ts";
 import type { Project } from "../source/index.ts";
 import { modulePlugin } from "@destack/package/vite";
@@ -92,9 +94,13 @@ const EvaluatedEntry = schema.object({
 type EvaluatedEntry = schema.Infer<typeof EvaluatedEntry>;
 
 /** The exports of the generated examples entry. */
-const EvaluatedExamples = schema.object({
+const EvaluatedDefinitions = schema.object({
+    /** The name of each example, then of each scenario, as its module qualifies it. */
+    names: schema.array(schema.string()),
     /** The properties of each example, as its module evaluates them. */
     properties: schema.array(schema.jsonObject()),
+    /** The sentence of each example, then of each scenario, as its module writes it. */
+    descriptions: schema.array(Message),
 });
 
 /** The name a description gives its declaration. */
@@ -233,31 +239,75 @@ export const Evaluation = {
         return { declarations };
     },
 
-    /** Evaluate the properties each of a package's examples renders with. */
-    async examples(
+    /** Evaluate a package's examples and scenarios: names, sentences, and examples' properties. */
+    async definitions(
         project: Project,
-        examples: readonly Omit<ExampleDeclaration, "properties">[],
+        read: {
+            readonly examples: readonly ExampleOutline[];
+            readonly scenarios: readonly ScenarioOutline[];
+        },
         transformer: ModuleTransformer,
-    ): Promise<ExampleDeclaration[]> {
-        // import each example and export its properties
-        if (examples.length === 0) {
-            return [];
+    ): Promise<{
+        readonly examples: ExampleDeclaration[];
+        readonly scenarios: ScenarioDeclaration[];
+    }> {
+        // import each example and scenario, and export their names and the examples' properties
+        const sites = [...read.examples, ...read.scenarios];
+        if (sites.length === 0) {
+            return { examples: [], scenarios: [] };
         }
         const source = [
-            ...examples.map(
-                (example, index) =>
-                    `import { ${JSON.stringify(example.symbol)} as example${index} } from ${JSON.stringify(join(project.directory, example.source.file))};`,
+            ...sites.map(
+                (site, index) =>
+                    `import { ${JSON.stringify(site.symbol)} as definition${index} } from ${JSON.stringify(join(project.directory, site.source.file))};`,
             ),
-            `export const properties = [${examples.map((_, index) => `example${index}.properties`).join(", ")}];`,
+            `export const names = [${sites.map((_, index) => `definition${index}.name`).join(", ")}];`,
+            `export const properties = [${read.examples.map((_, index) => `definition${index}.properties`).join(", ")}];`,
+            `export const descriptions = [${sites.map((_, index) => `definition${index}.description`).join(", ")}];`,
         ].join("\n");
-        const { properties } = EvaluatedExamples.parse(
+        const { names, properties, descriptions } = EvaluatedDefinitions.parse(
             await evaluateEntry(source, project, { transformer }),
         );
 
-        return examples.map((example, index) => ({
+        // name and describe each as its module does, and give each example its properties
+        const evaluatedName = (index: number, symbol: string) =>
+            present(names[index], `the name of ${symbol}`);
+        const evaluatedDescription = (index: number, symbol: string) =>
+            present(descriptions[index], `the description of ${symbol}`);
+        const examples = read.examples.map((example, index) => ({
             ...example,
+            name: evaluatedName(index, example.symbol),
+            description: evaluatedDescription(index, example.symbol),
             properties: present(properties[index], `the properties of ${example.symbol}`),
         }));
+        const scenarios = read.scenarios.map((scenario, index) => {
+            const position = read.examples.length + index;
+
+            return {
+                ...scenario,
+                name: evaluatedName(position, scenario.symbol),
+                description: {
+                    ...scenario.description,
+                    description: evaluatedDescription(position, scenario.symbol),
+                },
+            };
+        });
+
+        // refuse a name two examples or scenarios share, as a stage finds each by its name
+        const named = new Map<string, string>();
+        for (const each of [...examples, ...scenarios]) {
+            const location = `${each.source.file}#${each.symbol}`;
+            const other = named.get(each.name);
+            if (other !== undefined) {
+                throw BuildError.of(
+                    "DECLARATION_INVALID",
+                    `name '${each.name}' of '${location}' is invalid: '${other}' has it too`,
+                );
+            }
+            named.set(each.name, location);
+        }
+
+        return { examples, scenarios };
     },
 };
 

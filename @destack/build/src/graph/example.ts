@@ -1,4 +1,4 @@
-import { graph, type PackageVersion } from "@destack/package";
+import { graph, type PackageVersion, Message } from "@destack/package";
 import { SourceRange } from "@destack/package/source";
 import { schema } from "@destack/schema";
 import type { Definition, DefinitionSite } from "../outline/definition.ts";
@@ -25,18 +25,21 @@ const exampleSchema = schema.object({
             }),
         ),
     ),
-    /** The sentence saying what the example shows. */
-    description: schema.string(),
+    /** The sentence saying what the example shows, as its module evaluates it. */
+    description: Message,
     /** The properties the example renders with, as its module evaluates them. */
     properties: schema.jsonObject(),
 });
 /** An example a module exports, located and described, with the properties its module gives. */
 export type ExampleDeclaration = schema.Infer<typeof exampleSchema> & DefinitionSite;
 
+/** An example as its module's outline reads it, before evaluation gives the rest. */
+export type ExampleOutline = Omit<ExampleDeclaration, "properties" | "description">;
+
 /** An example a module exports, located at its definition. */
 export const ExampleDeclaration = Object.assign(exampleSchema, {
     /** Read an example's definition: what it shows and the calls bringing its objects. */
-    async read(definition: Definition): Promise<Omit<ExampleDeclaration, "properties">> {
+    async read(definition: Definition): Promise<ExampleOutline> {
         // read the calls of each scope, each object by its moniker
         const { site, fields } = definition;
         const objects: Record<string, ExampleDeclaration["objects"][string]> = {};
@@ -54,7 +57,6 @@ export const ExampleDeclaration = Object.assign(exampleSchema, {
             ...site,
             of: await fields.symbol("of"),
             objects,
-            description: fields.text("description"),
         };
     },
 });

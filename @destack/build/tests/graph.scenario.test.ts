@@ -1,3 +1,4 @@
+import { Message } from "@destack/locale";
 import type { FileSystem } from "@destack/environment";
 import type { BuildReader } from "@destack/package/manifest";
 import { testSimulation } from "../src/test/world.ts";
@@ -61,7 +62,8 @@ function local(moniker: string): string {
 }
 
 /** A module declaring an example of the card and a scenario taking steps on it. */
-const CARD_EXAMPLES = `import { defineExample, defineScenario } from "@destack/package/declare";
+const CARD_EXAMPLES = `import { t } from "@destack/locale";
+import { defineExample, defineScenario } from "@destack/package/declare";
 import { NoteCard } from "./card.ts";
 import { cardInteraction } from "./card.interaction.ts";
 import { LOUD_LOOK } from "./card.look.ts";
@@ -79,7 +81,7 @@ const STEPS = [{ ...DONE_STEP }, { action: "set", properties: { tone: "quiet" } 
 export const noteCardLoud = defineExample({
     of: NoteCard,
     name: "loud",
-    description: "a loud card",
+    description: t\`A loud card.\`,
     properties: { title: "Groceries", ...LOUD_LOOK, lines: 1 / -0.5 },
     render: (properties) => NoteCard({ title: "Groceries", ...properties }),
 });
@@ -89,7 +91,7 @@ export const noteCardComplete = defineScenario({
     of: NoteCard,
     interaction: cardInteraction,
     name: "complete",
-    description: "complete a card",
+    description: t\`Complete a card.\`,
     given: { examples: [noteCardLoud], globals: { width: 320 } },
     parameters: {},
     when: [...STEPS],
@@ -112,6 +114,7 @@ async function writeCards(source: string, files: FileSystem): Promise<void> {
         JSON.stringify({
             ...declared,
             devDependencies: {
+                "@destack/locale": "workspace:*",
                 "@destack/package": "workspace:*",
                 "@destack/schema": "workspace:*",
             },
@@ -244,6 +247,15 @@ test.concurrent("declare each example showing its symbol with the properties its
         "the example module's graph",
     );
     const loud = module.declarations.find((declaration) => declaration.kind === "example");
+
+    // describe each as the card package's message of its sentence
+    const owner = PackageManifest.package(build.manifest).id;
+    const sentence = (source: string) => ({
+        package: owner,
+        id: Message.identify(source, ""),
+        source,
+        values: {},
+    });
     expect({
         declarations: module.declarations.map(({ moniker, kind, name, description }) => ({
             moniker: local(moniker),
@@ -257,11 +269,11 @@ test.concurrent("declare each example showing its symbol with the properties its
     }).toEqual({
         declarations: [
             {
-                moniker: "src/card.example.ts#noteCardComplete:scenario:complete",
+                moniker: "src/card.example.ts#noteCardComplete:scenario:noteCard.complete",
                 kind: "scenario",
-                name: "complete",
+                name: "noteCard.complete",
                 description: {
-                    description: "complete a card",
+                    description: sentence("Complete a card."),
                     interaction: graph.Moniker.of({
                         packageId: PackageManifest.package(build.manifest).id,
                         module: "src/card.interaction.ts",
@@ -275,11 +287,11 @@ test.concurrent("declare each example showing its symbol with the properties its
                 },
             },
             {
-                moniker: "src/card.example.ts#noteCardLoud:example:loud",
+                moniker: "src/card.example.ts#noteCardLoud:example:noteCard.loud",
                 kind: "example",
-                name: "loud",
+                name: "noteCard.loud",
                 description: {
-                    description: "a loud card",
+                    description: sentence("A loud card."),
                     properties: { title: "Groceries", tone: "loud", lines: -2 },
                     objects: {},
                 },
@@ -287,11 +299,15 @@ test.concurrent("declare each example showing its symbol with the properties its
         ],
         edges: [
             [
-                "src/card.example.ts#noteCardComplete:scenario:complete",
+                "src/card.example.ts#noteCardComplete:scenario:noteCard.complete",
                 "covers",
                 "src/card.ts#NoteCard",
             ],
-            ["src/card.example.ts#noteCardLoud:example:loud", "shows", "src/card.ts#NoteCard"],
+            [
+                "src/card.example.ts#noteCardLoud:example:noteCard.loud",
+                "shows",
+                "src/card.ts#NoteCard",
+            ],
         ],
     });
 });
