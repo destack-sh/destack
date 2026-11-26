@@ -164,6 +164,7 @@ function notesBuild(crypto: Crypto, built: PackageVersion = notes): Promise<Buil
                 stylesheets: [],
                 sandbox: { "clipboard-write": {} },
                 presents: [{ packageId: notes.id, type: "note", priority: "option" }],
+                opens: [],
                 categories: ["main"],
                 audience: "person" as const,
                 packages: [],
@@ -174,6 +175,7 @@ function notesBuild(crypto: Crypto, built: PackageVersion = notes): Promise<Buil
                 stylesheets: [],
                 sandbox: {},
                 presents: [{ packageId: notes.id, type: "note", priority: "default" }],
+                opens: [],
                 categories: [],
                 audience: "person" as const,
                 packages: [],
@@ -192,6 +194,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
         stylesheets: [],
         sandbox: {},
         presents: [],
+        opens: [],
         categories: [],
         audience: "person" as const,
         packages: [stackPackage.id],
@@ -218,6 +221,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
             description: {
                 name: "board",
                 presents: [],
+                opens: [],
                 categories: [],
                 audience: "person" as const,
                 packages: [stackPackage.id],
@@ -297,6 +301,7 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
         stylesheets: [],
         sandbox: {},
         presents: [],
+        opens: [],
         categories: [],
         audience: "person" as const,
         packages: [],
@@ -323,6 +328,7 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
             description: {
                 name: "reader",
                 presents: [],
+                opens: [],
                 categories: [],
                 audience: "person" as const,
                 packages: [],
@@ -1638,7 +1644,7 @@ const ServedCatalog = schema.looseObject({
     messages: schema.record(schema.string(), schema.string()),
 });
 
-test("serve a library's catalogs and assets at its dependent's origin", async () => {
+test("serve a library's catalogs and assets at its dependent's origin, and its hashed chunks for good", async () => {
     // publish a widget library with its German catalog and a font
     const { crypto } = testHost();
     const widgets = await TestViewBuild.of(
@@ -1660,6 +1666,7 @@ test("serve a library's catalogs and assets at its dependent's origin", async ()
                 stylesheets: [],
                 sandbox: {},
                 presents: [],
+                opens: [],
                 categories: [],
                 audience: "person" as const,
                 packages: [],
@@ -1667,7 +1674,10 @@ test("serve a library's catalogs and assets at its dependent's origin", async ()
             },
         },
         {
-            files: new Map([["locale/de.json", catalog(GREETING.id, "Willkommen zurück")]]),
+            files: new Map([
+                ["locale/de.json", catalog(GREETING.id, "Willkommen zurück")],
+                ["browser/chunk/shared-Bq3x9Zk1.js", new TextEncoder().encode("export {};")],
+            ]),
             dependencies: [widgets],
         },
         crypto,
@@ -1705,10 +1715,20 @@ test("serve a library's catalogs and assets at its dependent's origin", async ()
 
     // read the library's font below the asset path, cached for good under its name
     const font = await page.fetch(new Request(new URL("/.destack/asset/type.woff2", address).href));
+
+    // read the view's entry, revalidated, and its hashed chunk, cached for good
+    const cached = async (path: string) => {
+        const response = await page.fetch(new Request(new URL(path, address).href));
+        await response.body?.cancel();
+
+        return [response.status, response.headers.get("cache-control")];
+    };
     expect({
         served,
         missing,
         font: [font.status, font.headers.get("cache-control"), await font.text()],
+        entry: await cached("/browser/greeting.js"),
+        chunk: await cached("/browser/chunk/shared-Bq3x9Zk1.js"),
     }).toEqual({
         served: [
             [GREETING.id, "Willkommen zurück"],
@@ -1716,6 +1736,8 @@ test("serve a library's catalogs and assets at its dependent's origin", async ()
         ],
         missing: [404, 404],
         font: [200, "public, max-age=31536000, immutable", "type"],
+        entry: [200, "no-cache"],
+        chunk: [200, "public, max-age=31536000, immutable"],
     });
 });
 
@@ -1730,6 +1752,7 @@ test("serve a development build's frame, and refuse one of a build without a fra
                 stylesheets: [],
                 sandbox: {},
                 presents: [],
+                opens: [],
                 categories: [],
                 audience: "person" as const,
                 packages: [],
@@ -1826,6 +1849,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
                 stylesheets: [],
                 sandbox: {},
                 presents: [],
+                opens: [],
                 categories: [],
                 audience: "person" as const,
                 packages: [],

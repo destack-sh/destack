@@ -80,6 +80,9 @@ const KEEPALIVE_FRAME = ":\n\n";
 /** How often a reload stream sends its comment: half the machine's idle timeout of 31 s. */
 const KEEPALIVE_MILLISECONDS = 15_000;
 
+/** The cache policy of a file named by its content: a year, never revalidated (RFC 8246). */
+const IMMUTABLE = "public, max-age=31536000, immutable";
+
 /** The cookie remembering a sign-in an origin started at the issuer, until it returns. */
 const SIGN_IN_COOKIE = "destack-sign-in";
 
@@ -1191,7 +1194,7 @@ export class InstallationOriginServer {
             const file = await dependency.file(path.join("/"));
 
             return InstallationOriginServer.#file(request, file, () => dependency.load(file.path), {
-                "cache-control": "public, max-age=31536000, immutable",
+                "cache-control": IMMUTABLE,
                 "permissions-policy": policy,
             });
         }
@@ -1211,7 +1214,7 @@ export class InstallationOriginServer {
                 emitted,
                 () => emitter.load(emitted.path),
                 {
-                    "cache-control": "public, max-age=31536000, immutable",
+                    "cache-control": IMMUTABLE,
                     "permissions-policy": policy,
                 },
             );
@@ -1247,11 +1250,21 @@ export class InstallationOriginServer {
         const headers = { "cache-control": "no-cache", "permissions-policy": policy };
         const file = files.get(pathname.slice(1));
         if (file !== undefined) {
+            // serve a chunk or asset unchanging, as its name has its content's hash
+            const hashed = Object.values(reader.manifest.outputs).flatMap((output) => [
+                `${ViewDescription.chunks(output)}/`,
+                `${ViewDescription.assets(output)}/`,
+            ]);
+            const isHashed = hashed.some((directory) => file.path.startsWith(directory));
+            const cached = isHashed
+                ? { "cache-control": IMMUTABLE, "permissions-policy": policy }
+                : headers;
+
             return InstallationOriginServer.#file(
                 request,
                 file,
                 () => reader.load(file.path),
-                headers,
+                cached,
             );
         }
 
