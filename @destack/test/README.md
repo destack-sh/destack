@@ -130,6 +130,7 @@ test("refuse reading a missing page", async () => {
 A scenario plays steps through a driver of its interaction, then checks its observations.
 
 ```ts
+import { t } from "@destack/locale";
 import { defineScenario, type Interaction } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 
@@ -146,7 +147,7 @@ export const countTwice = defineScenario({
     of: "counter",
     interaction: counter,
     name: "count-twice",
-    description: "count up by one for each increment",
+    description: t`Count up by one for each increment.`,
     given: { examples: [] },
     when: [{ action: "increment" }, { action: "increment" }],
     parameters: {},
@@ -159,6 +160,7 @@ export const countTwice = defineScenario({
 An operation step repeats a step and checks the telemetry it recorded; metric checks hold in a seeded world alone, as an external server such as PostgreSQL races, and the bench tier measures time beside the counts.
 
 ```ts
+import { t } from "@destack/locale";
 import { defineScenario, type Interaction } from "@destack/package/declare";
 
 /** The counter interaction of the scenario above. */
@@ -169,7 +171,7 @@ export const incrementOnce = defineScenario({
     of: "counter",
     interaction: counter,
     name: "increment",
-    description: "increment a counter with one database operation",
+    description: t`Increment a counter with one database operation.`,
     given: { examples: [] },
     parameters: {},
     when: [
