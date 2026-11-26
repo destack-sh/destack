@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { account } from "@destack/account/object";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
@@ -6,8 +7,8 @@ import { machineInteraction } from "./interaction.ts";
 export const joinMember = defineScenario({
     of: account,
     interaction: machineInteraction,
-    name: "join-member",
-    description: "join a member on their first device",
+    name: "joinMember",
+    description: t`Join a member on their first device.`,
     given: { examples: [] },
     parameters: {},
     when: [
@@ -25,8 +26,8 @@ export const joinMember = defineScenario({
 export const syncDevice = defineScenario({
     of: account,
     interaction: machineInteraction,
-    name: "sync-device",
-    description: "sync a team's fifty issues onto a member's new device",
+    name: "syncDevice",
+    description: t`Sync a team's fifty issues onto a member's new device.`,
     given: { examples: [] },
     parameters: { members: 3, issues: 50 },
     when: [

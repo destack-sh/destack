@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { Machine } from "../machine/machine.ts";
 import { machineInteraction } from "./interaction.ts";
@@ -6,8 +7,8 @@ import { machineInteraction } from "./interaction.ts";
 export const enrollComputer = defineScenario({
     of: Machine,
     interaction: machineInteraction,
-    name: "enroll-computer",
-    description: "enroll a computer in the owner's account",
+    name: "enrollComputer",
+    description: t`Enroll a computer in the owner's account.`,
     given: { examples: [] },
     parameters: {},
     when: [
@@ -23,8 +24,8 @@ export const enrollComputer = defineScenario({
 export const idleMachine = defineScenario({
     of: Machine,
     interaction: machineInteraction,
-    name: "idle-machine",
-    description: "idle a settled home followed by three computers",
+    name: "idle",
+    description: t`Idle a settled home followed by three computers.`,
     given: { examples: [] },
     parameters: { minute: 60_000 },
     when: [
@@ -45,8 +46,8 @@ export const idleMachine = defineScenario({
 export const wakeIdleMachine = defineScenario({
     of: Machine,
     interaction: machineInteraction,
-    name: "wake-idle-machine",
-    description: "wake an idle home after half an hour",
+    name: "wakeIdle",
+    description: t`Wake an idle home after half an hour.`,
     given: { examples: [] },
     parameters: { minute: 60_000, halfHour: 1_800_000 },
     when: [

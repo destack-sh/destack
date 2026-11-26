@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { Machine } from "../machine/machine.ts";
 import { machineInteraction } from "./interaction.ts";
@@ -6,8 +7,8 @@ import { machineInteraction } from "./interaction.ts";
 export const wakeMachineAfterNight = defineScenario({
     of: Machine,
     interaction: machineInteraction,
-    name: "wake-machine-after-night",
-    description: "wake a home holding a team's issues after a night",
+    name: "wakeAfterNight",
+    description: t`Wake a home holding a team's issues after a night.`,
     given: { examples: [] },
     parameters: { members: 3, issues: 50, night: 28_800_000 },
     when: [
@@ -42,8 +43,8 @@ export const wakeMachineAfterNight = defineScenario({
 export const restartMachine = defineScenario({
     of: Machine,
     interaction: machineInteraction,
-    name: "restart-machine",
-    description: "restart a home computer followed by three computers",
+    name: "restart",
+    description: t`Restart a home computer followed by three computers.`,
     given: { examples: [] },
     parameters: { restarts: 2 },
     when: [

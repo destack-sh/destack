@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { space } from "@destack/account/object";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
@@ -6,8 +7,8 @@ import { machineInteraction } from "./interaction.ts";
 export const createSpace = defineScenario({
     of: space,
     interaction: machineInteraction,
-    name: "create-space",
-    description: "create a space until the home computer serves it",
+    name: "create",
+    description: t`Create a space until the home computer serves it.`,
     given: { examples: [] },
     parameters: {},
     when: [
@@ -24,8 +25,8 @@ export const createSpace = defineScenario({
 export const moveSpace = defineScenario({
     of: space,
     interaction: machineInteraction,
-    name: "move-space",
-    description: "move a space to the owner's laptop until it serves it",
+    name: "move",
+    description: t`Move a space to the owner's laptop until it serves it.`,
     given: { examples: [] },
     parameters: {},
     when: [

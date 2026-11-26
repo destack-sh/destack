@@ -85,7 +85,7 @@ export const signIn = defineObject(
         start: method.create("start", { fields: ["method"] }),
         /** Answer the code mailed to the person. */
         answer: method.mutation({
-            title: t`Answer`,
+            title: t.context("action")`Answer`,
             permission: "answer",
             input: schema.object({
                 /** The mailed code. */

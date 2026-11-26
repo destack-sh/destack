@@ -66,7 +66,7 @@ export const computer = defineObject(
         }),
         link: method.update("record", { visibility: "package", fields: ["tunnel"] }),
         enroll: method.mutation({
-            title: t`Enroll`,
+            title: t.context("action")`Enroll`,
             permission: "enroll",
             input: schema.object({
                 /** The signed-in person approving the enrollment. */
@@ -79,14 +79,14 @@ export const computer = defineObject(
             prepared: MachineEnrollment,
         }),
         revoke: method.mutation({
-            title: t`Revoke`,
+            title: t.context("action")`Revoke`,
             permission: "enroll",
             prepared: MachineEnrollment,
         }),
 
         /** Locate a space by its identifier or address in this machine's directory replica. */
         locate: method.query({
-            title: t`Locate`,
+            title: t.context("action")`Locate`,
             permission: "read",
             input: schema.object({
                 /** The space's identifier or address. */
@@ -96,7 +96,7 @@ export const computer = defineObject(
         }),
         /** Find the account claiming a handle in this machine's replica of the directory. */
         resolve: method.query({
-            title: t`Resolve`,
+            title: t.context("action")`Resolve`,
             permission: "read",
             input: schema.object({
                 /** The account's handle. */
@@ -108,6 +108,6 @@ export const computer = defineObject(
             }),
         }),
         /** Stop the machine process once the answer is sent. */
-        stop: method.mutation({ title: t`Stop`, permission: "stop" }),
+        stop: method.mutation({ title: t.context("action")`Stop`, permission: "stop" }),
     }),
 );

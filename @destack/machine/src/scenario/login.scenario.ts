@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { login } from "@destack/account/native";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
@@ -6,8 +7,8 @@ import { machineInteraction } from "./interaction.ts";
 export const signUp = defineScenario({
     of: login,
     interaction: machineInteraction,
-    name: "sign-up",
-    description: "sign three new people up",
+    name: "signUp",
+    description: t`Sign three new people up.`,
     given: { examples: [] },
     parameters: { signUps: 3 },
     when: [
@@ -23,8 +24,8 @@ export const signUp = defineScenario({
 export const signIn = defineScenario({
     of: login,
     interaction: machineInteraction,
-    name: "sign-in",
-    description: "sign the owner in three times",
+    name: "signIn",
+    description: t`Sign the owner in three times.`,
     given: { examples: [] },
     parameters: { signIns: 3 },
     when: [

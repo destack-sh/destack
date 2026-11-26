@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { invitation } from "@destack/object";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
@@ -6,8 +7,8 @@ import { machineInteraction } from "./interaction.ts";
 export const createInvitation = defineScenario({
     of: invitation,
     interaction: machineInteraction,
-    name: "create-invitation",
-    description: "invite a person to own a new space",
+    name: "create",
+    description: t`Invite a person to own a new space.`,
     given: { examples: [] },
     parameters: {},
     when: [
@@ -25,8 +26,8 @@ export const createInvitation = defineScenario({
 export const acceptInvitation = defineScenario({
     of: invitation,
     interaction: machineInteraction,
-    name: "accept-invitation",
-    description: "accept an invitation to own a new space",
+    name: "accept",
+    description: t`Accept an invitation to own a new space.`,
     given: { examples: [] },
     parameters: {},
     when: [

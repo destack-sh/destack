@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { Feed } from "@destack/sync/dataflow";
 import { machineInteraction } from "./interaction.ts";
@@ -100,8 +101,8 @@ const REVOKE_TEAM = {
 export const createTeam = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "create-team",
-    description: "create a team while the members' devices follow",
+    name: "createTeam",
+    description: t`Create a team while the members' devices follow.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [...JOINED, { operation: "team.create", ...CREATE_TEAM }],
@@ -111,8 +112,8 @@ export const createTeam = defineScenario({
 export const grantTeam = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "grant-team",
-    description: "grant every member a team",
+    name: "grantTeam",
+    description: t`Grant every member a team.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [...JOINED, CREATE_TEAM, { operation: "team.grant", ...GRANT_TEAM }],
@@ -122,8 +123,8 @@ export const grantTeam = defineScenario({
 export const createIssue = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "create-issue",
-    description: "create a shared team's issues",
+    name: "createIssue",
+    description: t`Create a shared team's issues.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [...JOINED, CREATE_TEAM, GRANT_TEAM, { operation: "issue.create", ...CREATE_ISSUES }],
@@ -133,8 +134,8 @@ export const createIssue = defineScenario({
 export const createComment = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "create-comment",
-    description: "comment on a shared team's issue",
+    name: "createComment",
+    description: t`Comment on a shared team's issue.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
@@ -150,8 +151,8 @@ export const createComment = defineScenario({
 export const updateIssue = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "update-issue",
-    description: "mark a shared team's issues done",
+    name: "updateIssue",
+    description: t`Mark a shared team's issues done.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
@@ -167,8 +168,8 @@ export const updateIssue = defineScenario({
 export const listIssues = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "list-issues",
-    description: "list a shared team's issues",
+    name: "listIssues",
+    description: t`List a shared team's issues.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
@@ -184,8 +185,8 @@ export const listIssues = defineScenario({
 export const revokeTeam = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "revoke-team",
-    description: "revoke a member's grant of a team",
+    name: "revokeTeam",
+    description: t`Revoke a member's grant of a team.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
@@ -210,8 +211,8 @@ export const revokeTeam = defineScenario({
 export const sendMessageBurst = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "send-message-burst",
-    description: "send bursts of ten messages a second in a channel",
+    name: "sendMessageBurst",
+    description: t`Send bursts of ten messages a second in a channel.`,
     given: { examples: [] },
     parameters: { members: 2, devices: 2, burst: 10, bursts: 3 },
     when: [
@@ -253,8 +254,8 @@ export const sendMessageBurst = defineScenario({
 export const typePage = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "type-page",
-    description: "type into one page with two members at once",
+    name: "typePage",
+    description: t`Type into one page with two members at once.`,
     given: { examples: [] },
     parameters: { members: 2, devices: 2, typists: 2, keys: 10 },
     when: [
@@ -336,8 +337,8 @@ const SHAPE_CHECKS = [
 export const dragShape = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "drag-shape",
-    description: "drag a shape for a second at 60 Hz",
+    name: "dragShape",
+    description: t`Drag a shape for a second at 60 Hz.`,
     given: { examples: [] },
     parameters: SHAPE_PARAMETERS,
     when: [...SHAPE_SHARED, { operation: "shape.drag", ...DRAG_SHAPE }],
@@ -348,8 +349,8 @@ export const dragShape = defineScenario({
 export const dropShape = defineScenario({
     of: Feed,
     interaction: machineInteraction,
-    name: "drop-shape",
-    description: "drop a dragged shape",
+    name: "dropShape",
+    description: t`Drop a dragged shape.`,
     given: { examples: [] },
     parameters: SHAPE_PARAMETERS,
     when: [

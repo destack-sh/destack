@@ -64,14 +64,14 @@ export const checkout = defineObject(
         delete: method.delete("delete", { prepared: schema.string() }),
         /** List the Destack packages of the workspace at or below the directory. */
         members: method.query({
-            title: t`List members`,
+            title: t.context("action")`List members`,
             permission: "read",
             output: schema.array(schema.string().min(1)),
             prepared: schema.array(schema.string().min(1)),
         }),
         /** Commit the working tree as it is and point the checkout's reference at the commit. */
         push: method.mutation({
-            title: t`Push`,
+            title: t.context("action")`Push`,
             permission: "push",
             input: schema.object({
                 /** The lease to write the repository, which the person takes from its forge. */

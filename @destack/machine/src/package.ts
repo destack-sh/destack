@@ -6,7 +6,7 @@ import { MachineError } from "./error/error.ts";
 
 /** The handle of the machine on a computer: its record and its checkouts. */
 export default definePackage({
-    title: t`Machine`,
+    title: t.context("title")`Machine`,
     description: t`Run a machine: serve the spaces placed on it with their modules (buckets, vaults, connections, messages, observability, audit), route their installations' calls and keep their builds.`,
     icon: "cpu",
     color: "brown",
