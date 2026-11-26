@@ -89,7 +89,7 @@ export const PackageJson = Object.assign(packageJson, {
         return [...new Set(names)].toSorted();
     },
 
-    /** Write a package file as released: each workspace range from its linked version on. */
+    /** Write a package file as released: each workspace range as its tag, a peer's as a range. */
     release(authored: JsonObject, versions: Readonly<Record<string, string>>): JsonObject {
         const released: { [field: string]: JsonValue | undefined } = { ...authored };
         for (const field of DEPENDENCY_FIELDS) {
@@ -172,22 +172,18 @@ export const RuntimeRequirements = schema.looseObject({
 /** The runtime dependency groups of a package.json, each absent when it declares none. */
 export type RuntimeRequirements = schema.Infer<typeof RuntimeRequirements>;
 
-/** Write the range a release requires a workspace package at, by the field that lists it. */
+/** Write what a release requires a workspace package at: a peer's range, else a tag. */
 function releasedRange(version: string | undefined, field: DependencyField): string {
     // range a peer from its linked release on, else at any version, as a peer range is no tag
     if (field === "peerDependencies") {
         return version !== undefined && Version.isRelease(version) ? `>=${version}` : ANY_RANGE;
     }
-    // take the default tag for an unlinked package
-    else if (version === undefined) {
-        return DEFAULT_TAG;
-    }
     // take the dev tag for unreleased code
-    else if (!Version.isRelease(version)) {
+    else if (version !== undefined && !Version.isRelease(version)) {
         return version;
     }
-    // range a dependency from its linked release on
+    // take the default tag for a released or unlinked package, which the lock pins
     else {
-        return `>=${version}`;
+        return DEFAULT_TAG;
     }
 }

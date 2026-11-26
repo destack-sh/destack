@@ -24,7 +24,7 @@ test("list a package's runtime dependencies and peers, and decide which it runs 
     });
 });
 
-test("release workspace ranges in each dependency field", () => {
+test("release workspace dependencies as tags and peers as ranges in each dependency field", () => {
     const authored = {
         name: "@example/notes",
         dependencies: { "@destack/object": "workspace:*", zod: "4.1.0" },
@@ -41,7 +41,7 @@ test("release workspace ranges in each dependency field", () => {
         PackageJson.release(authored, { "@destack/object": "2026.11.2", "@destack/view": "dev" }),
     ).toEqual({
         name: "@example/notes",
-        dependencies: { "@destack/object": ">=2026.11.2", zod: "4.1.0" },
+        dependencies: { "@destack/object": "latest", zod: "4.1.0" },
         peerDependencies: {
             "@destack/view": "*",
             "@destack/style": "*",
