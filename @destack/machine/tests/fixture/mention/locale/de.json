@@ -4,8 +4,7 @@
     "messages": {
         "2i8xss5u9cf0c": {
             "source": ".input {$count :number}\n.match $count\none {{{$count} mention}}\n* {{{$count} mentions}}",
-            "translation": ".input {$count :number}\n.match $count\none {{{$count} Erwähnung}}\n* {{{$count} Erwähnungen}}",
-            "state": "reviewed"
+            "translation": ".input {$count :number}\n.match $count\none {{{$count} Erwähnung}}\n* {{{$count} Erwähnungen}}"
         }
     }
 }
