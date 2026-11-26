@@ -10,6 +10,9 @@ import {
     type SqliteQueryClient,
 } from "../sqlite/client.ts";
 
+/** The most write-ahead pages before a checkpoint, 400 KB, which a reopen replays in ~30 ms. */
+const WAL_PAGES = 100;
+
 /** Statements over one SQLite WebAssembly database. */
 export class WasmQuery implements SqliteQueryClient {
     /** The most values one statement binds, as SQLite binds by default. */
@@ -109,7 +112,11 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
         const sqlite = await WasmClient.#sqlite(environment);
         const pool = await sqlite.installOpfsSAHPoolVfs({ name: `destack-${name}` });
         const database = new pool.OpfsSAHPoolDb(`/${name}`);
-        database.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
+
+        // write ahead without shared memory, which the pool lacks, as the worker holds the file alone
+        database.exec(
+            `PRAGMA foreign_keys = ON; PRAGMA locking_mode = EXCLUSIVE; PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = ${WAL_PAGES};`,
+        );
 
         return new WasmClient(database, environment);
     }
