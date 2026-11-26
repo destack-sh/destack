@@ -37,7 +37,7 @@ import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import objectPackage from "@destack/object/package";
 import universePackage from "../package.ts";
-import { Run } from "@destack/workflow";
+import { implementWorkflow, Run } from "@destack/workflow/server";
 import { apply } from "./apply.ts";
 import { UniverseDefinition } from "./definition.ts";
 import { UniverseError } from "../error/error.ts";
@@ -251,7 +251,7 @@ export class Universe implements AsyncDisposable {
         };
 
         // apply the regions, then each step of the platform's definition, once per run
-        const applied = apply.implement({
+        const applied = implementWorkflow(apply, {
             run: async (step) => {
                 const steps = [
                     {
