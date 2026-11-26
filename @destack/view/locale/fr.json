@@ -2,54 +2,265 @@
     "package": "package-01a0c80b-614f-73f1-896b-bb411e8814d4",
     "locale": "fr",
     "messages": {
-        "1068ek1xjdb5r": "Saisissez {$p0} ou plus",
-        "132kgdulndsrt": "Taille du texte",
-        "1452notpu0dpv": "Cochez ceci pour continuer",
-        "1cocc640n8l01": "Densité",
-        "1delqrekhmnuk": "Saisissez un nombre entier",
-        "1efpc5j99w05i": "Les combinaisons de touches des actions, par action ; null retire celle d’une action.",
-        "1hcl0upbwea6d": "Saisissez moins de {$p0}",
-        "1jvpuden7pat4": "Raccourcis clavier",
-        "1k4lymtoeig9y": "Choisissez une option",
-        "1ko7glppwdse4": "Si la palette de commandes propose chaque source : fenêtres, espaces, objets récents, et les commandes et vues de chaque paquet ; false en désactive une.",
-        "1n02jj4vv989y": "Saisissez une adresse e-mail",
-        "1oilqzpyytrc": "Suivre la préférence de mouvement du système, ou montrer ou retirer les transitions.",
-        "1qfwe9cjcku8n": "Raccourci de la palette de commandes",
-        "1t46tlnitwxr9": "Mouvement",
-        "1ujowtoax46x3": "Les couleurs de chaque application.",
-        "1x4bmhlbgvb41": "Saisissez une valeur",
-        "299qf937hwr9y": "Couleur d’accent",
-        "2an63ewfgziwl": "Apparence",
-        "2gv50whm2f52v": "Resserrer ou espacer les commandes et le contenu, ou suivre la densité du thème.",
-        "2kasy26uy2lty": "Police",
-        "2mrupd410pjq9": "Saisissez un nombre",
-        "2rvii1fvyr69g": "Lire le texte plus petit ou plus grand.",
-        "2sgcayahg6fcf": "Utiliser l’accent du thème ou une autre couleur.",
-        "2tav3yet8m6qb": "Modifier",
-        "2uenhb2vkfzdn": "Rétablir",
-        "2uqi7r1jh0hl2": "Choisissez l’une des options",
-        "2v0o8f1r3r4bb": "Saisissez un multiple de {$p0}",
-        "2wmvxphpizhs6": "Saisissez une date et une heure",
-        "2xwglr4suf2a8": "La combinaison de touches qui ouvre la palette de commandes de partout.",
-        "2yavqgggt9d5v": "Palette de commandes",
-        "31i2s5nf9hybb": "La vue ou l’objet qu’ouvre une nouvelle fenêtre.",
-        "3236et0s92eps": "Utiliser la police du thème ou une autre.",
-        "3cqc9z4dzb24j": "Palette de commandes",
-        "3d46b7x1zgmmo": "Thème",
-        "3kfk0m93p3hm0": "Ajoutez-en {$p0} au plus",
-        "3pzp5i4dxmohz": "Saisissez {$p0} ou moins",
-        "3qlf259es3kpa": "Suivre l’apparence du système, ou choisir une interface claire ou sombre.",
-        "3uzymu9m6axi2": "Saisissez une adresse web",
-        "3voa2c5sr7fi3": "Saisissez {$p0} caractères au plus",
-        "3w0iwicdx46qt": "Suivre le contraste de l’appareil, ou choisir à quel point le texte, les lignes et les graphiques ressortent.",
-        "3wwp3ujvyjht": "Saisissez au moins {$p0} caractères",
-        "7r2468kuio3t": "Annuler",
-        "m8xlw1qe8051": "Saisissez plus de {$p0}",
-        "nyo19lzme7kn": "Saisissez une valeur valide",
-        "rweb7q2g1y90": "Saisissez une date",
-        "t50tmnt3bwtl": "Contraste",
-        "uh2cfb3j2sv7": "Lien de départ",
-        "yzidyxnbu7ec": "Ajoutez-en au moins {$p0}",
-        "zwa4x3phj2tx": "Sources de la palette de commandes"
+        "1068ek1xjdb5r": {
+            "source": "Enter {$p0} or more",
+            "translation": "Saisissez {$p0} ou plus",
+            "state": "machine"
+        },
+        "1452notpu0dpv": {
+            "source": "Check this to go on",
+            "translation": "Cochez ceci pour continuer",
+            "state": "machine"
+        },
+        "1delqrekhmnuk": {
+            "source": "Enter a whole number",
+            "translation": "Saisissez un nombre entier",
+            "state": "machine"
+        },
+        "1efpc5j99w05i": {
+            "source": "The key combinations running actions, by action; null unbinds an action.",
+            "translation": "Les combinaisons de touches des actions, par action ; null retire celle d’une action.",
+            "state": "machine"
+        },
+        "1hcl0upbwea6d": {
+            "source": "Enter less than {$p0}",
+            "translation": "Saisissez moins de {$p0}",
+            "state": "machine"
+        },
+        "1k4lymtoeig9y": {
+            "source": "Choose an option",
+            "translation": "Choisissez une option",
+            "state": "machine"
+        },
+        "1ko7glppwdse4": {
+            "source": "Whether the command palette offers each source: windows, spaces, recent objects, and each package's commands and views by package; false turns one off.",
+            "translation": "Si la palette de commandes propose chaque source : fenêtres, espaces, objets récents, et les commandes et vues de chaque paquet ; false en désactive une.",
+            "state": "machine"
+        },
+        "1n02jj4vv989y": {
+            "source": "Enter an email address",
+            "translation": "Saisissez une adresse e-mail",
+            "state": "machine"
+        },
+        "1oilqzpyytrc": {
+            "source": "Use the system motion preference, or show or remove transitions.",
+            "translation": "Suivre la préférence de mouvement du système, ou montrer ou retirer les transitions.",
+            "state": "machine"
+        },
+        "1qfwe9cjcku8n": {
+            "source": "Command palette shortcut",
+            "translation": "Raccourci de la palette de commandes",
+            "state": "machine"
+        },
+        "1ujowtoax46x3": {
+            "source": "The colors of every app.",
+            "translation": "Les couleurs de chaque application.",
+            "state": "machine"
+        },
+        "1x4bmhlbgvb41": {
+            "source": "Enter a value",
+            "translation": "Saisissez une valeur",
+            "state": "machine"
+        },
+        "2gv50whm2f52v": {
+            "source": "Pack controls and content compactly or spaciously, or use the theme's density.",
+            "translation": "Resserrer ou espacer les commandes et le contenu, ou suivre la densité du thème.",
+            "state": "machine"
+        },
+        "2mrupd410pjq9": {
+            "source": "Enter a number",
+            "translation": "Saisissez un nombre",
+            "state": "machine"
+        },
+        "2rvii1fvyr69g": {
+            "source": "Read text smaller or larger.",
+            "translation": "Lire le texte plus petit ou plus grand.",
+            "state": "machine"
+        },
+        "2sgcayahg6fcf": {
+            "source": "Use the theme's accent, or another accent color.",
+            "translation": "Utiliser l’accent du thème ou une autre couleur.",
+            "state": "machine"
+        },
+        "2uqi7r1jh0hl2": {
+            "source": "Choose one of the options",
+            "translation": "Choisissez l’une des options",
+            "state": "machine"
+        },
+        "2v0o8f1r3r4bb": {
+            "source": "Enter a multiple of {$p0}",
+            "translation": "Saisissez un multiple de {$p0}",
+            "state": "machine"
+        },
+        "2wmvxphpizhs6": {
+            "source": "Enter a date and time",
+            "translation": "Saisissez une date et une heure",
+            "state": "machine"
+        },
+        "2xwglr4suf2a8": {
+            "source": "The key combination opening the command palette from anywhere.",
+            "translation": "La combinaison de touches qui ouvre la palette de commandes de partout.",
+            "state": "machine"
+        },
+        "31i2s5nf9hybb": {
+            "source": "The view or object a new window opens.",
+            "translation": "La vue ou l’objet qu’ouvre une nouvelle fenêtre.",
+            "state": "machine"
+        },
+        "3236et0s92eps": {
+            "source": "Use the theme's font, or another font.",
+            "translation": "Utiliser la police du thème ou une autre.",
+            "state": "machine"
+        },
+        "3kfk0m93p3hm0": {
+            "source": "Add at most {$p0}",
+            "translation": "Ajoutez-en {$p0} au plus",
+            "state": "machine"
+        },
+        "3pzp5i4dxmohz": {
+            "source": "Enter {$p0} or less",
+            "translation": "Saisissez {$p0} ou moins",
+            "state": "machine"
+        },
+        "3qlf259es3kpa": {
+            "source": "Use the system appearance or select a light or dark interface.",
+            "translation": "Suivre l’apparence du système, ou choisir une interface claire ou sombre.",
+            "state": "machine"
+        },
+        "3uzymu9m6axi2": {
+            "source": "Enter a web address",
+            "translation": "Saisissez une adresse web",
+            "state": "machine"
+        },
+        "3voa2c5sr7fi3": {
+            "source": "Enter at most {$p0} characters",
+            "translation": "Saisissez {$p0} caractères au plus",
+            "state": "machine"
+        },
+        "3w0iwicdx46qt": {
+            "source": "Follow the device's contrast or set how far text, lines and graphics stand out.",
+            "translation": "Suivre le contraste de l’appareil, ou choisir à quel point le texte, les lignes et les graphiques ressortent.",
+            "state": "machine"
+        },
+        "3wwp3ujvyjht": {
+            "source": "Enter at least {$p0} characters",
+            "translation": "Saisissez au moins {$p0} caractères",
+            "state": "machine"
+        },
+        "m8xlw1qe8051": {
+            "source": "Enter more than {$p0}",
+            "translation": "Saisissez plus de {$p0}",
+            "state": "machine"
+        },
+        "nyo19lzme7kn": {
+            "source": "Enter a valid value",
+            "translation": "Saisissez une valeur valide",
+            "state": "machine"
+        },
+        "rweb7q2g1y90": {
+            "source": "Enter a date",
+            "translation": "Saisissez une date",
+            "state": "machine"
+        },
+        "yzidyxnbu7ec": {
+            "source": "Add at least {$p0}",
+            "translation": "Ajoutez-en au moins {$p0}",
+            "state": "machine"
+        },
+        "zwa4x3phj2tx": {
+            "source": "Command palette sources",
+            "translation": "Sources de la palette de commandes",
+            "state": "machine"
+        },
+        "2ux2hhr5qibkn": {
+            "source": "Undo",
+            "context": "action",
+            "translation": "Annuler",
+            "state": "machine"
+        },
+        "281tq0zsf8l1z": {
+            "source": "Edit",
+            "context": "title",
+            "translation": "Modifier",
+            "state": "machine"
+        },
+        "p58p8ib8sawx": {
+            "source": "Redo",
+            "context": "action",
+            "translation": "Rétablir",
+            "state": "machine"
+        },
+        "3ue98s1oyp9y1": {
+            "source": "Command Palette",
+            "context": "action",
+            "translation": "Palette de commandes",
+            "state": "machine"
+        },
+        "1aw6uvkjvfxdg": {
+            "source": "Keybindings",
+            "context": "title",
+            "translation": "Raccourcis clavier",
+            "state": "machine"
+        },
+        "9vbmkd9p0d49": {
+            "source": "Appearance",
+            "context": "title",
+            "translation": "Apparence",
+            "state": "machine"
+        },
+        "13fkn5acl6tv1": {
+            "source": "Text size",
+            "context": "title",
+            "translation": "Taille du texte",
+            "state": "machine"
+        },
+        "3tibp3arrhatx": {
+            "source": "Density",
+            "context": "title",
+            "translation": "Densité",
+            "state": "machine"
+        },
+        "1kj4z2u7ihmxx": {
+            "source": "Contrast",
+            "context": "title",
+            "translation": "Contraste",
+            "state": "machine"
+        },
+        "29x1cchno2hhl": {
+            "source": "Motion",
+            "context": "title",
+            "translation": "Mouvement",
+            "state": "machine"
+        },
+        "pk8ill967gpg": {
+            "source": "Theme",
+            "context": "title",
+            "translation": "Thème",
+            "state": "machine"
+        },
+        "13h0zaokfnqrm": {
+            "source": "Accent color",
+            "context": "title",
+            "translation": "Couleur d’accent",
+            "state": "machine"
+        },
+        "pln54mgmh85u": {
+            "source": "Font",
+            "context": "title",
+            "translation": "Police",
+            "state": "machine"
+        },
+        "3fypzb1ciqs1b": {
+            "source": "Start link",
+            "context": "title",
+            "translation": "Lien de départ",
+            "state": "machine"
+        },
+        "qhdm0ccvskev": {
+            "source": "Command palette",
+            "context": "title",
+            "translation": "Palette de commandes",
+            "state": "machine"
+        }
     }
 }

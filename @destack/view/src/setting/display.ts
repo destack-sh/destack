@@ -33,7 +33,7 @@ const PREFERENCE = {
 /** The appearance a person selects. */
 export const appearance = defineSetting({
     name: "appearance",
-    title: t`Appearance`,
+    title: t.context("title")`Appearance`,
     description: t`Use the system appearance or select a light or dark interface.`,
     schema: Appearance,
     default: "system",
@@ -43,7 +43,7 @@ export const appearance = defineSetting({
 /** The text size a person reads at. */
 export const textSize = defineSetting({
     name: "textSize",
-    title: t`Text size`,
+    title: t.context("title")`Text size`,
     description: t`Read text smaller or larger.`,
     schema: TextSize,
     default: DEFAULT_DISPLAY.textSize,
@@ -53,7 +53,7 @@ export const textSize = defineSetting({
 /** How tightly a person packs controls and content. */
 export const density = defineSetting({
     name: "density",
-    title: t`Density`,
+    title: t.context("title")`Density`,
     description: t`Pack controls and content compactly or spaciously, or use the theme's density.`,
     schema: Density.nullable(),
     default: DEFAULT_DISPLAY.density,
@@ -63,7 +63,7 @@ export const density = defineSetting({
 /** The contrast a person reads at. */
 export const contrast = defineSetting({
     name: "contrast",
-    title: t`Contrast`,
+    title: t.context("title")`Contrast`,
     description: t`Follow the device's contrast or set how far text, lines and graphics stand out.`,
     schema: Contrast,
     default: DEFAULT_DISPLAY.contrast,
@@ -73,7 +73,7 @@ export const contrast = defineSetting({
 /** The motion a person sees. */
 export const motion = defineSetting({
     name: "motion",
-    title: t`Motion`,
+    title: t.context("title")`Motion`,
     description: t`Use the system motion preference, or show or remove transitions.`,
     schema: Motion,
     default: DEFAULT_DISPLAY.motion,
@@ -83,7 +83,7 @@ export const motion = defineSetting({
 /** The theme a person sees in every app, whole, or null for Destack's. */
 export const theme = defineSetting({
     name: "theme",
-    title: t`Theme`,
+    title: t.context("title")`Theme`,
     description: t`The colors of every app.`,
     schema: ThemeDefinition.nullable(),
     default: null,
@@ -93,7 +93,7 @@ export const theme = defineSetting({
 /** The accent a person selects over their theme's. */
 export const accent = defineSetting({
     name: "accent",
-    title: t`Accent color`,
+    title: t.context("title")`Accent color`,
     description: t`Use the theme's accent, or another accent color.`,
     schema: Accent.nullable(),
     default: DEFAULT_DISPLAY.accent,
@@ -103,7 +103,7 @@ export const accent = defineSetting({
 /** The interface typeface a person reads in over their theme's. */
 export const typeface = defineSetting({
     name: "typeface",
-    title: t`Font`,
+    title: t.context("title")`Font`,
     description: t`Use the theme's font, or another font.`,
     schema: Typeface.nullable(),
     default: DEFAULT_DISPLAY.typeface,

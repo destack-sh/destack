@@ -39,23 +39,23 @@ const RUNNERS = "[data-action], [role=menu], [role=dialog]";
 /** Undo the person's newest change across the page's scopes. */
 export const undo = defineAction({
     name: "undo",
-    title: t`Undo`,
-    category: t`Edit`,
+    title: t.context("action")`Undo`,
+    category: t.context("title")`Edit`,
     keybinding: "mod+z",
 });
 
 /** Redo the person's newest undone change across the page's scopes. */
 export const redo = defineAction({
     name: "redo",
-    title: t`Redo`,
-    category: t`Edit`,
+    title: t.context("action")`Redo`,
+    category: t.context("title")`Edit`,
     keybinding: "mod+shift+z",
 });
 
 /** Open the command palette over the page, from anywhere in it. */
 export const palette = defineAction({
     name: "palette",
-    title: t`Command Palette`,
+    title: t.context("action")`Command Palette`,
     keybinding: "mod+k",
     focus: "any",
 });

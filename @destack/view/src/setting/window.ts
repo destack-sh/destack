@@ -8,7 +8,7 @@ const LinkText = schema.string().regex(/^destack(?:-[a-z]+)?:\/\/\S+$/u);
 /** The link a new window opens, none for the desktop's own start view. */
 export const start = defineSetting({
     name: "start",
-    title: t`Start link`,
+    title: t.context("title")`Start link`,
     description: t`The view or object a new window opens.`,
     schema: LinkText.nullable(),
     default: null,

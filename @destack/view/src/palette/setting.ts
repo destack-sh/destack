@@ -19,7 +19,7 @@ export const shortcut = defineSetting({
 /** The key combinations that run actions, by action, merged key by key from every scope. */
 export const keybindings = defineSetting({
     name: "keybindings",
-    title: t`Keybindings`,
+    title: t.context("title")`Keybindings`,
     description: t`The key combinations running actions, by action; null unbinds an action.`,
     schema: schema.record(DeclarationKey, Shortcut.nullable()),
     default: {},

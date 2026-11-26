@@ -153,7 +153,7 @@ export class PaletteOverlay {
         const localization = this.#localization();
         const dialog = document.createElement("dialog");
         dialog.dataset["slot"] = "command-palette";
-        const name = localization.render(t`Command palette`);
+        const name = localization.render(t.context("title")`Command palette`);
         dialog.setAttribute("aria-label", name);
         dialog.className = readClass(styles.dialog);
         const frame = document.createElement("iframe");
