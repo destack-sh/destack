@@ -90,7 +90,7 @@ export const transfer = defineObject(
 
         /** Fence the space against writes as its target, answering where its database stands. */
         fence: method.mutation({
-            title: t`Fence`,
+            title: t.context("action")`Fence`,
             permission: "receive",
             prepared: Fence,
             output: Fence,
@@ -98,7 +98,7 @@ export const transfer = defineObject(
 
         /** Snapshot a resource of the space for the target's recipient key. */
         snapshot: method.mutation({
-            title: t`Snapshot`,
+            title: t.context("action")`Snapshot`,
             permission: "receive",
             input: schema.object({
                 /** The resource to snapshot. */
@@ -113,11 +113,15 @@ export const transfer = defineObject(
         }),
 
         /** Cancel the transfer as its source machine or one who may create transfers. */
-        cancel: method.mutation({ title: t`Cancel`, permission: "cancel", prepared: Placement }),
+        cancel: method.mutation({
+            title: t.context("action")`Cancel`,
+            permission: "cancel",
+            prepared: Placement,
+        }),
 
         /** Record as the target a transfer's success once it took the space over. */
         complete: method.mutation({
-            title: t`Complete`,
+            title: t.context("action")`Complete`,
             permission: "finish",
             visibility: "package",
         }),

@@ -91,7 +91,11 @@ export const instance = defineObject(
         update: method.update("record", { visibility: "package" }),
         delete: method.delete("record", { visibility: "package" }),
         /** Record an instance stopped, as its machine's instance controller decides. */
-        stop: method.mutation({ title: t`Stop`, permission: "record", visibility: "package" }),
+        stop: method.mutation({
+            title: t.context("action")`Stop`,
+            permission: "record",
+            visibility: "package",
+        }),
     }),
 );
 

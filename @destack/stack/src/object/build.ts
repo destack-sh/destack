@@ -186,7 +186,7 @@ export const build = defineObject(
         update: method.update("record", { visibility: "package" }),
         /** Push the succeeded build's files to the forge of its package's account. */
         push: method.mutation({
-            title: t`Push`,
+            title: t.context("action")`Push`,
             permission: "push",
             input: schema.object({
                 /** The account publishing the build's package. */
@@ -197,7 +197,7 @@ export const build = defineObject(
         }),
         /** Publish the succeeded build and its unpublished dependencies for the caller. */
         publish: method.mutation({
-            title: t`Publish`,
+            title: t.context("action")`Publish`,
             permission: "push",
             input: schema.object({
                 /** The account publishing the build's package. */
@@ -449,7 +449,7 @@ function sourcePackage(source: BuildSource): readonly string[] {
 /** Compile a build's source on a runner, storing its image and recording it on the build. */
 export const compile = defineWorkflow({
     name: "compile",
-    title: t`Compile`,
+    title: t.context("title")`Compile`,
     input: schema.object({
         /** The build compiled. */
         build: schema.identifier("build"),

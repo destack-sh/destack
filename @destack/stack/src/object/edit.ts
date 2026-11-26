@@ -87,7 +87,7 @@ export type EditOutput = schema.Infer<typeof EditOutput>;
 /** Commit a change to a branch's package as its actor, checked on a runner before it pushes. */
 export const edit = defineWorkflow({
     name: "edit",
-    title: t`Edit`,
+    title: t.context("title")`Edit`,
     input: EditInput,
     output: EditOutput,
 });

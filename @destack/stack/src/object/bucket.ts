@@ -24,25 +24,25 @@ export const bucket = defineObject(
     (method) => ({
         // read files, and presign their transfers
         files: method.query({
-            title: t`List files`,
+            title: t.context("action")`List files`,
             permission: "read",
             input: FileInput.files,
             output: FilePage,
         }),
         file: method.query({
-            title: t`Read file`,
+            title: t.context("action")`Read file`,
             permission: "read",
             input: FileInput.file,
             output: FileMetadata.nullable(),
         }),
         open: method.query({
-            title: t`Open`,
+            title: t.context("action")`Open`,
             permission: "read",
             input: FileInput.open,
             output: Lease,
         }),
         uploadPart: method.query({
-            title: t`Upload part`,
+            title: t.context("action")`Upload part`,
             permission: "write",
             input: FileInput.uploadPart,
             output: Lease,
@@ -50,25 +50,25 @@ export const bucket = defineObject(
 
         // change files, directly or in parts
         remove: method.mutation({
-            title: t`Remove`,
+            title: t.context("action")`Remove`,
             permission: "write",
             input: FileInput.remove,
             output: schema.object({}),
         }),
         createUpload: method.mutation({
-            title: t`Create upload`,
+            title: t.context("action")`Create upload`,
             permission: "write",
             input: FileInput.createUpload,
             output: schema.object({ uploadId: schema.string(), key: schema.string() }),
         }),
         completeUpload: method.mutation({
-            title: t`Complete upload`,
+            title: t.context("action")`Complete upload`,
             permission: "write",
             input: FileInput.completeUpload,
             output: FileMetadata,
         }),
         abortUpload: method.mutation({
-            title: t`Abort upload`,
+            title: t.context("action")`Abort upload`,
             permission: "write",
             input: FileInput.abortUpload,
             output: schema.object({}),

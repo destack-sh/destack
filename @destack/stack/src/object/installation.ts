@@ -298,13 +298,13 @@ export const installation = defineObject(
 
         /** Allow one of the package's optional capabilities, as the installation asked for it. */
         allow: method.mutation({
-            title: t`Allow`,
+            title: t.context("action")`Allow`,
             permission: "allow",
             input: schema.object({ capability: DeclarationName }),
         }),
         /** Commit a change to the branch the installation follows, as the caller. */
         edit: method.mutation({
-            title: t`Edit`,
+            title: t.context("action")`Edit`,
             permission: "edit",
             input: schema.object({
                 /** The changes, applied in order. */
@@ -317,14 +317,14 @@ export const installation = defineObject(
         }),
         /** Withdraw an optional capability allowed at the installation's request. */
         disallow: method.mutation({
-            title: t`Disallow`,
+            title: t.context("action")`Disallow`,
             permission: "allow",
             input: schema.object({ capability: DeclarationName }),
         }),
 
         /** Read the plan waiting for approval with the digest that approves it. */
         plan: method.query({
-            title: t`Plan`,
+            title: t.context("action")`Plan`,
             permission: "read",
             output: schema.object({
                 /** The steps waiting, across the installation, those it manages and resources. */
@@ -338,7 +338,7 @@ export const installation = defineObject(
 
         /** Target the revision of what the installation follows and apply what its plan allows. */
         reconcile: method.mutation({
-            title: t`Reconcile`,
+            title: t.context("action")`Reconcile`,
             permission: "apply",
             input: schema.object({
                 /** The space's build to target, absent to take the build of what it follows. */
@@ -348,7 +348,7 @@ export const installation = defineObject(
 
         /** Record what it follows now: the space's stack's digest, the host's image, or both. */
         follow: method.mutation({
-            title: t`Follow`,
+            title: t.context("action")`Follow`,
             permission: "update",
             visibility: "package",
             input: schema.object({
@@ -361,7 +361,7 @@ export const installation = defineObject(
 
         /** Approve the plan waiting for approval by its digest, then apply it. */
         approve: method.mutation({
-            title: t`Approve`,
+            title: t.context("action")`Approve`,
             permission: "apply",
             input: schema.object({
                 /** The digest of the reviewed plan. */
@@ -371,7 +371,7 @@ export const installation = defineObject(
 
         /** Read the build and view a client opens at a location, in the opening person's home. */
         open: method.query({
-            title: t`Open`,
+            title: t.context("action")`Open`,
             permission: "open",
             isAudited: true,
             input: schema.object({
@@ -385,7 +385,7 @@ export const installation = defineObject(
 
         /** Describe a permission the installation may ask a person for, as they read it. */
         request: method.query({
-            title: t`Request`,
+            title: t.context("action")`Request`,
             permission: "open",
             input: schema.object({
                 /** The permission a call of the installation needs. */
