@@ -421,10 +421,13 @@ export class DatabaseConnection<
     ): Promise<{ readonly plan: TablePlan; readonly outcome: MigrationOutcome }> {
         // declare the tables, its replicated tables as replicas
         const { manager = DATABASE_MANAGER, states = [], ...declaring } = options;
-        const declared = declareState(tables, this.dialect, {
-            replicated: this.state.declaredReplicas,
-            ...declaring,
-        });
+        const { scope } = this.state;
+        const declared = await scope.span("destack.database.declare", {}, async () =>
+            declareState(tables, this.dialect, {
+                replicated: this.state.declaredReplicas,
+                ...declaring,
+            }),
+        );
 
         // list the replicated tables another manager applied, which the plan leaves to it
         const replicas = new Set(
@@ -440,9 +443,11 @@ export class DatabaseConnection<
             .toSorted();
 
         // skip a declaration the manager applied last with the same tables left to others
-        const stamp = await Digest.json(
-            { declared, states, ...(left.length === 0 ? {} : { left }) },
-            this.state.environment.crypto,
+        const stamp = await scope.span("destack.database.stamp", {}, () =>
+            Digest.json(
+                { declared, states, ...(left.length === 0 ? {} : { left }) },
+                this.state.environment.crypto,
+            ),
         );
         const stamped = await readStamp(this, manager, existing);
         if (stamped.kind === "stamped" && stamped.digest === stamp) {
@@ -468,8 +473,10 @@ export class DatabaseConnection<
 
         // plan the declared and given tables, then apply the plan and stamp the declaration
         const merged = mergeStates([...states, declared]);
-        const plan = await this.plan(merged, manager);
-        await this.apply(plan, manager);
+        const plan = await scope.span("destack.database.plan", {}, () =>
+            this.plan(merged, manager),
+        );
+        await scope.span("destack.database.apply", {}, () => this.apply(plan, manager));
         await writeStamp(
             this,
             manager,
