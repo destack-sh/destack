@@ -4,263 +4,214 @@
     "messages": {
         "1068ek1xjdb5r": {
             "source": "Enter {$p0} or more",
-            "translation": "Voer {$p0} of meer in",
-            "state": "machine"
+            "translation": "Voer {$p0} of meer in"
         },
         "1452notpu0dpv": {
             "source": "Check this to go on",
-            "translation": "Vink dit aan om verder te gaan",
-            "state": "machine"
+            "translation": "Vink dit aan om verder te gaan"
         },
         "1delqrekhmnuk": {
             "source": "Enter a whole number",
-            "translation": "Voer een geheel getal in",
-            "state": "machine"
+            "translation": "Voer een geheel getal in"
         },
         "1efpc5j99w05i": {
             "source": "The key combinations running actions, by action; null unbinds an action.",
-            "translation": "De toetscombinaties van acties, per actie; null haalt die van een actie weg.",
-            "state": "machine"
+            "translation": "De toetscombinaties van acties, per actie; null haalt die van een actie weg."
         },
         "1hcl0upbwea6d": {
             "source": "Enter less than {$p0}",
-            "translation": "Voer minder dan {$p0} in",
-            "state": "machine"
+            "translation": "Voer minder dan {$p0} in"
         },
         "1k4lymtoeig9y": {
             "source": "Choose an option",
-            "translation": "Kies een optie",
-            "state": "machine"
+            "translation": "Kies een optie"
         },
         "1ko7glppwdse4": {
             "source": "Whether the command palette offers each source: windows, spaces, recent objects, and each package's commands and views by package; false turns one off.",
-            "translation": "Of het opdrachtenpalet elke bron aanbiedt: vensters, ruimtes, recente objecten, en de opdrachten en weergaven van elk pakket; false zet er een uit.",
-            "state": "machine"
+            "translation": "Of het opdrachtenpalet elke bron aanbiedt: vensters, ruimtes, recente objecten, en de opdrachten en weergaven van elk pakket; false zet er een uit."
         },
         "1n02jj4vv989y": {
             "source": "Enter an email address",
-            "translation": "Voer een e-mailadres in",
-            "state": "machine"
+            "translation": "Voer een e-mailadres in"
         },
         "1oilqzpyytrc": {
             "source": "Use the system motion preference, or show or remove transitions.",
-            "translation": "De bewegingsvoorkeur van het systeem volgen, of overgangen tonen of weglaten.",
-            "state": "machine"
+            "translation": "De bewegingsvoorkeur van het systeem volgen, of overgangen tonen of weglaten."
         },
         "1qfwe9cjcku8n": {
             "source": "Command palette shortcut",
-            "translation": "Sneltoets van het opdrachtenpalet",
-            "state": "machine"
+            "translation": "Sneltoets van het opdrachtenpalet"
         },
         "1ujowtoax46x3": {
             "source": "The colors of every app.",
-            "translation": "De kleuren van elke app.",
-            "state": "machine"
+            "translation": "De kleuren van elke app."
         },
         "1x4bmhlbgvb41": {
             "source": "Enter a value",
-            "translation": "Voer een waarde in",
-            "state": "machine"
+            "translation": "Voer een waarde in"
         },
         "2gv50whm2f52v": {
             "source": "Pack controls and content compactly or spaciously, or use the theme's density.",
-            "translation": "Bediening en inhoud compact of ruim zetten, of de dichtheid van het thema gebruiken.",
-            "state": "machine"
+            "translation": "Bediening en inhoud compact of ruim zetten, of de dichtheid van het thema gebruiken."
         },
         "2mrupd410pjq9": {
             "source": "Enter a number",
-            "translation": "Voer een getal in",
-            "state": "machine"
+            "translation": "Voer een getal in"
         },
         "2rvii1fvyr69g": {
             "source": "Read text smaller or larger.",
-            "translation": "Tekst kleiner of groter lezen.",
-            "state": "machine"
+            "translation": "Tekst kleiner of groter lezen."
         },
         "2sgcayahg6fcf": {
             "source": "Use the theme's accent, or another accent color.",
-            "translation": "Het accent van het thema gebruiken, of een andere kleur.",
-            "state": "machine"
+            "translation": "Het accent van het thema gebruiken, of een andere kleur."
         },
         "2uqi7r1jh0hl2": {
             "source": "Choose one of the options",
-            "translation": "Kies een van de opties",
-            "state": "machine"
+            "translation": "Kies een van de opties"
         },
         "2v0o8f1r3r4bb": {
             "source": "Enter a multiple of {$p0}",
-            "translation": "Voer een veelvoud van {$p0} in",
-            "state": "machine"
+            "translation": "Voer een veelvoud van {$p0} in"
         },
         "2wmvxphpizhs6": {
             "source": "Enter a date and time",
-            "translation": "Voer een datum en tijd in",
-            "state": "machine"
+            "translation": "Voer een datum en tijd in"
         },
         "2xwglr4suf2a8": {
             "source": "The key combination opening the command palette from anywhere.",
-            "translation": "De toetscombinatie die het opdrachtenpalet overal opent.",
-            "state": "machine"
+            "translation": "De toetscombinatie die het opdrachtenpalet overal opent."
         },
         "31i2s5nf9hybb": {
             "source": "The view or object a new window opens.",
-            "translation": "De weergave of het object dat een nieuw venster opent.",
-            "state": "machine"
+            "translation": "De weergave of het object dat een nieuw venster opent."
         },
         "3236et0s92eps": {
             "source": "Use the theme's font, or another font.",
-            "translation": "Het lettertype van het thema gebruiken, of een ander.",
-            "state": "machine"
+            "translation": "Het lettertype van het thema gebruiken, of een ander."
         },
         "3kfk0m93p3hm0": {
             "source": "Add at most {$p0}",
-            "translation": "Voeg er hoogstens {$p0} toe",
-            "state": "machine"
+            "translation": "Voeg er hoogstens {$p0} toe"
         },
         "3pzp5i4dxmohz": {
             "source": "Enter {$p0} or less",
-            "translation": "Voer {$p0} of minder in",
-            "state": "machine"
+            "translation": "Voer {$p0} of minder in"
         },
         "3qlf259es3kpa": {
             "source": "Use the system appearance or select a light or dark interface.",
-            "translation": "De weergave van het systeem volgen, of licht of donker kiezen.",
-            "state": "machine"
+            "translation": "De weergave van het systeem volgen, of licht of donker kiezen."
         },
         "3uzymu9m6axi2": {
             "source": "Enter a web address",
-            "translation": "Voer een webadres in",
-            "state": "machine"
+            "translation": "Voer een webadres in"
         },
         "3voa2c5sr7fi3": {
             "source": "Enter at most {$p0} characters",
-            "translation": "Voer hoogstens {$p0} tekens in",
-            "state": "machine"
+            "translation": "Voer hoogstens {$p0} tekens in"
         },
         "3w0iwicdx46qt": {
             "source": "Follow the device's contrast or set how far text, lines and graphics stand out.",
-            "translation": "Het contrast van het apparaat volgen, of kiezen hoe sterk tekst, lijnen en grafiek opvallen.",
-            "state": "machine"
+            "translation": "Het contrast van het apparaat volgen, of kiezen hoe sterk tekst, lijnen en grafiek opvallen."
         },
         "3wwp3ujvyjht": {
             "source": "Enter at least {$p0} characters",
-            "translation": "Voer minstens {$p0} tekens in",
-            "state": "machine"
+            "translation": "Voer minstens {$p0} tekens in"
         },
         "m8xlw1qe8051": {
             "source": "Enter more than {$p0}",
-            "translation": "Voer meer dan {$p0} in",
-            "state": "machine"
+            "translation": "Voer meer dan {$p0} in"
         },
         "nyo19lzme7kn": {
             "source": "Enter a valid value",
-            "translation": "Voer een geldige waarde in",
-            "state": "machine"
+            "translation": "Voer een geldige waarde in"
         },
         "rweb7q2g1y90": {
             "source": "Enter a date",
-            "translation": "Voer een datum in",
-            "state": "machine"
+            "translation": "Voer een datum in"
         },
         "yzidyxnbu7ec": {
             "source": "Add at least {$p0}",
-            "translation": "Voeg er minstens {$p0} toe",
-            "state": "machine"
+            "translation": "Voeg er minstens {$p0} toe"
         },
         "zwa4x3phj2tx": {
             "source": "Command palette sources",
-            "translation": "Bronnen van het opdrachtenpalet",
-            "state": "machine"
+            "translation": "Bronnen van het opdrachtenpalet"
         },
         "2ux2hhr5qibkn": {
             "source": "Undo",
             "context": "action",
-            "translation": "Ongedaan maken",
-            "state": "machine"
+            "translation": "Ongedaan maken"
         },
         "281tq0zsf8l1z": {
             "source": "Edit",
             "context": "title",
-            "translation": "Bewerken",
-            "state": "machine"
+            "translation": "Bewerken"
         },
         "p58p8ib8sawx": {
             "source": "Redo",
             "context": "action",
-            "translation": "Opnieuw",
-            "state": "machine"
+            "translation": "Opnieuw"
         },
         "3ue98s1oyp9y1": {
             "source": "Command Palette",
             "context": "action",
-            "translation": "Opdrachtenpalet",
-            "state": "machine"
+            "translation": "Opdrachtenpalet"
         },
         "1aw6uvkjvfxdg": {
             "source": "Keybindings",
             "context": "title",
-            "translation": "Sneltoetsen",
-            "state": "machine"
+            "translation": "Sneltoetsen"
         },
         "9vbmkd9p0d49": {
             "source": "Appearance",
             "context": "title",
-            "translation": "Weergave",
-            "state": "machine"
+            "translation": "Weergave"
         },
         "13fkn5acl6tv1": {
             "source": "Text size",
             "context": "title",
-            "translation": "Tekstgrootte",
-            "state": "machine"
+            "translation": "Tekstgrootte"
         },
         "3tibp3arrhatx": {
             "source": "Density",
             "context": "title",
-            "translation": "Dichtheid",
-            "state": "machine"
+            "translation": "Dichtheid"
         },
         "1kj4z2u7ihmxx": {
             "source": "Contrast",
             "context": "title",
-            "translation": "Contrast",
-            "state": "machine"
+            "translation": "Contrast"
         },
         "29x1cchno2hhl": {
             "source": "Motion",
             "context": "title",
-            "translation": "Beweging",
-            "state": "machine"
+            "translation": "Beweging"
         },
         "pk8ill967gpg": {
             "source": "Theme",
             "context": "title",
-            "translation": "Thema",
-            "state": "machine"
+            "translation": "Thema"
         },
         "13h0zaokfnqrm": {
             "source": "Accent color",
             "context": "title",
-            "translation": "Accentkleur",
-            "state": "machine"
+            "translation": "Accentkleur"
         },
         "pln54mgmh85u": {
             "source": "Font",
             "context": "title",
-            "translation": "Lettertype",
-            "state": "machine"
+            "translation": "Lettertype"
         },
         "3fypzb1ciqs1b": {
             "source": "Start link",
             "context": "title",
-            "translation": "Startlink",
-            "state": "machine"
+            "translation": "Startlink"
         },
         "qhdm0ccvskev": {
             "source": "Command palette",
             "context": "title",
-            "translation": "Opdrachtenpalet",
-            "state": "machine"
+            "translation": "Opdrachtenpalet"
         }
     }
 }
