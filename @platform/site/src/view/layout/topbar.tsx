@@ -120,9 +120,10 @@ export function TopBar(properties: { readonly path: string }) {
                                 <SheetTrigger
                                     render={(attributes) => (
                                         <Button
+                                            isIconOnly
                                             {...attributes}
                                             variant="ghost"
-                                            size="icon"
+
                                             xstyle={styles.menuButton}
                                         />
                                     )}
@@ -150,7 +151,7 @@ export function TopBar(properties: { readonly path: string }) {
                         </a>
                         <SheetClose
                             render={(attributes) => (
-                                <Button {...attributes} variant="ghost" size="icon" />
+                                <Button isIconOnly {...attributes} variant="ghost" />
                             )}
                             aria-label="Close menu"
                         >
@@ -217,7 +218,7 @@ function SocialLink(properties: { destination: Destination }) {
             title={properties.destination.label}
             rel="external noopener noreferrer"
             target="_blank"
-            {...style.attrs(buttonVariants({ variant: "ghost", size: "icon" }), styles.social)}
+            {...style.attrs(buttonVariants({ variant: "ghost", isIconOnly: true }), styles.social)}
         >
             <Icon icon={properties.destination.icon} xstyle={styles.tool} />
         </a>

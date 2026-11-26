@@ -119,9 +119,7 @@ export function SourceActions(properties: SourceActionsProperties) {
             </CopyButton>
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    render={(attributes) => (
-                        <Button {...attributes} variant="outline" size="icon" />
-                    )}
+                    render={(attributes) => <Button isIconOnly {...attributes} variant="outline" />}
                     aria-label="More page formats"
                 >
                     <Icon icon={caretDown} />

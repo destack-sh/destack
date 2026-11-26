@@ -202,7 +202,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
 
     return (
         <>
-            <Button variant="ghost" size="icon" aria-label="Search" onClick={() => void open()}>
+            <Button isIconOnly variant="ghost" aria-label="Search" onClick={() => void open()}>
                 <Icon icon={magnifyingGlass} xstyle={styles.icon} />
             </Button>
 

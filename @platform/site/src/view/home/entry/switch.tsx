@@ -188,13 +188,14 @@ export function BottomBar(properties: { isOpen: boolean }) {
             data-component="BottomBar"
             {...style.attrs(styles.bar, !isShown() && styles.barHidden)}
         >
-            <Button variant="ghost" size="icon" aria-label="Back to top" onClick={toTop}>
+            <Button isIconOnly variant="ghost" aria-label="Back to top" onClick={toTop}>
                 <Icon icon={arrowUp} xstyle={styles.barIcon} />
             </Button>
             <StackSwitch isOpen={properties.isOpen} place="bar" />
             <Button
+                isIconOnly
                 variant="ghost"
-                size="icon"
+
                 aria-label="Menu"
                 onClick={() => document.dispatchEvent(new CustomEvent(actionEvents.openMenu))}
             >

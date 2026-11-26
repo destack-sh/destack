@@ -347,7 +347,7 @@ function StatusBadge(properties: { color: Hue | undefined; children: JSX.Element
 /** Draw a tool of the mail toolbar: an icon button with its name for assistive technology. */
 function MailTool(properties: { icon: IconBodies; label: string }) {
     return (
-        <Button variant="ghost" size="icon-sm" aria-label={properties.label}>
+        <Button isIconOnly variant="ghost" size="sm" aria-label={properties.label}>
             <Icon icon={properties.icon} />
         </Button>
     );
@@ -526,9 +526,7 @@ function Person(properties: { isRemixed: boolean }) {
                             She asked about card payments, so I linked it here and in T-14.
                         </CardContent>
                         <CardFooter>
-                            <Button variant="link" size="inline">
-                                Reply
-                            </Button>
+                            <Button variant="link">Reply</Button>
                         </CardFooter>
                     </Card>
                 </div>
@@ -795,18 +793,19 @@ function Chat(properties: { isRemixed: boolean }) {
                     aria-label="Message"
                 />
                 <InputGroupAddon align="block-end">
-                    <InputGroupButton size="icon-sm" aria-label="Attach a file">
+                    <InputGroupButton isIconOnly size="sm" aria-label="Attach a file">
                         <Icon icon={paperclip} />
                     </InputGroupButton>
-                    <InputGroupButton size="icon-sm" aria-label="Mention someone">
+                    <InputGroupButton isIconOnly size="sm" aria-label="Mention someone">
                         <Icon icon={at} />
                     </InputGroupButton>
-                    <InputGroupButton size="icon-sm" aria-label="Add an emoji">
+                    <InputGroupButton isIconOnly size="sm" aria-label="Add an emoji">
                         <Icon icon={smiley} />
                     </InputGroupButton>
                     <InputGroupButton
                         variant="default"
-                        size="icon-sm"
+                        isIconOnly
+                        size="sm"
                         aria-label="Send"
                         xstyle={styles.send}
                     >
@@ -1144,10 +1143,10 @@ function Mail(properties: { isRemixed: boolean }) {
                         </span>
                     </span>
                     <span {...style.attrs(styles.mailTools)}>
-                        <Button variant="ghost" size="icon-sm" aria-label="Filter">
+                        <Button isIconOnly variant="ghost" size="sm" aria-label="Filter">
                             <Icon icon={funnelSimple} />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" aria-label="More">
+                        <Button isIconOnly variant="ghost" size="sm" aria-label="More">
                             <Icon icon={dotsThree} />
                         </Button>
                     </span>
@@ -1211,9 +1210,7 @@ function Mail(properties: { isRemixed: boolean }) {
                         </span>
                         <span {...style.attrs(styles.fromEnd)}>
                             <span {...style.attrs(appText.meta, styles.quiet)}>10:14</span>
-                            <Button variant="link" size="inline">
-                                Details
-                            </Button>
+                            <Button variant="link">Details</Button>
                         </span>
                     </span>
 

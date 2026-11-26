@@ -12,8 +12,9 @@ export function AppearanceToggle(properties: { appearance: LocalAppearance }) {
 
     return (
         <Button
+            isIconOnly
             variant="ghost"
-            size="icon"
+
             aria-label={`Switch to the ${target()} appearance`}
             onClick={() => properties.appearance.setAppearance(target())}
         >

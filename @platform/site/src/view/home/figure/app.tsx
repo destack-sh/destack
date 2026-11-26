@@ -221,12 +221,19 @@ export function AppRail(properties: {
             <Avatar size="sm" color="cyan" title="Your space" xstyle={appStyles.railWide}>
                 <AvatarFallback>F</AvatarFallback>
             </Avatar>
-            <Button variant="ghost" size="icon-sm" aria-label="Search" xstyle={appStyles.railWide}>
+            <Button
+                isIconOnly
+                variant="ghost"
+                size="sm"
+                aria-label="Search"
+                xstyle={appStyles.railWide}
+            >
                 <AppGlyph name="search" />
             </Button>
             <Button
+                isIconOnly
                 variant="ghost"
-                size="icon-sm"
+                size="sm"
                 aria-label="Inbox"
                 xstyle={[appStyles.railWide, appStyles.railInbox]}
             >
@@ -236,8 +243,9 @@ export function AppRail(properties: {
             <Separator xstyle={appStyles.railRule} />
             {properties.apps.map(([name, label]) => (
                 <Button
+                    isIconOnly
                     variant="ghost"
-                    size="icon-sm"
+                    size="sm"
                     data-component="AppLink"
                     data-app={name}
                     data-flip={`icon-${name}`}
