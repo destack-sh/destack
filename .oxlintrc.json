@@ -71,7 +71,6 @@
         "destack/error-message-style": "error",
         "destack/exact-optional": "error",
         "destack/jsdoc-sentence": "error",
-        "destack/message-context": "error",
         "destack/method-signature-style": "error",
         "destack/no-class-name": "error",
         "destack/no-import-alias": "error",
@@ -79,6 +78,7 @@
         "destack/no-inline-config": "error",
         "destack/no-ambient-effect": "error",
         "destack/no-manifest-import": "error",
+        "destack/message-context": "error",
         "destack/no-missing-translations": "off",
         "destack/no-overload-cast": "error",
         "destack/no-partial-assertions": "error",
@@ -593,6 +593,10 @@
                 {
                     "directory": "@destack/view/tests/fixture/notebook",
                     "name": "@destack/view-notebook-fixture"
+                },
+                {
+                    "directory": "@destack/view/tests/fixture/notes",
+                    "name": "@destack/view-notes-fixture"
                 }
             ],
             "entrypoints": [
@@ -714,7 +718,8 @@
                 "@destack/machine-start-fixture": "app",
                 "@example/notebooks": "app",
                 "@example/starter": "app",
-                "@destack/view-notebook-fixture": "library"
+                "@destack/view-notebook-fixture": "library",
+                "@destack/view-notes-fixture": "app"
             }
         }
     },
