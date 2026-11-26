@@ -64,5 +64,17 @@ export const commentType = defineObject({
     },
 });
 
+/** What a member said in a conversation. */
+export const messageType = defineObject({
+    name: "message",
+    plural: "messages",
+    title: t`${plural(argument("count"), { one: "message", other: "messages" })}`,
+    scope: studio,
+    fields: {
+        /** The words. */
+        text: field.string(schema.string()),
+    },
+});
+
 /** The studio the tasks are in. */
 export const STUDIO = "studio-01996ab0-0000-7000-8000-000000000001";
