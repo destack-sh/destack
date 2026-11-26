@@ -10,3 +10,4 @@ export * from "./metadata.ts";
 export * from "./constructor.ts";
 export * from "./sandbox.ts";
 export * from "./declaration.ts";
+export * from "./message.ts";
