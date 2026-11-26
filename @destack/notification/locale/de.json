@@ -5,141 +5,116 @@
         "11lax140tx7yn": {
             "source": "Mark unread",
             "context": "action",
-            "translation": "Ab hier als ungelesen markieren",
-            "state": "machine"
+            "translation": "Ab hier als ungelesen markieren"
         },
         "1jbmp1vpgkgx4": {
             "source": "Unarchive",
             "context": "action",
-            "translation": "Dearchivieren",
-            "state": "machine"
+            "translation": "Dearchivieren"
         },
         "1r9aqm7nxl3cz": {
             "source": "Act",
             "context": "action",
-            "translation": "Ausführen",
-            "state": "machine"
+            "translation": "Ausführen"
         },
         "1t9fvaex8qwc2": {
             "source": "Announce",
             "context": "action",
-            "translation": "Ankündigen",
-            "state": "machine"
+            "translation": "Ankündigen"
         },
         "1yq3aq51qtf59": {
             "source": "Focus",
             "context": "title",
-            "translation": "Fokus",
-            "state": "machine"
+            "translation": "Fokus"
         },
         "1zk6a1rgkhs21": {
             "source": "Expand",
             "context": "action",
-            "translation": "Ausklappen",
-            "state": "machine"
+            "translation": "Ausklappen"
         },
         "201kpf3h9zgvs": {
             "source": ".input {$count :number}\n.match $count\none {{Announcement}}\n* {{Announcements}}",
-            "translation": ".input {$count :number}\n.match $count\none {{Ankündigung}}\n* {{Ankündigungen}}",
-            "state": "machine"
+            "translation": ".input {$count :number}\n.match $count\none {{Ankündigung}}\n* {{Ankündigungen}}"
         },
         "273trtw5y1myv": {
             "source": "Send",
             "context": "action",
-            "translation": "Senden",
-            "state": "machine"
+            "translation": "Senden"
         },
         "2cm4swco3c572": {
             "source": "Deliver your notifications by email, push and on your desktops",
-            "translation": "Deine Benachrichtigungen per E-Mail, als Push und auf deinen Computern zustellen",
-            "state": "machine"
+            "translation": "Deine Benachrichtigungen per E-Mail, als Push und auf deinen Computern zustellen"
         },
         "2dfkaj8neyql0": {
             "source": ".input {$count :number}\n.match $count\none {{Notification}}\n* {{Notifications}}",
-            "translation": ".input {$count :number} .match $count one {{Benachrichtigung}} * {{Benachrichtigungen}}",
-            "state": "machine"
+            "translation": ".input {$count :number} .match $count one {{Benachrichtigung}} * {{Benachrichtigungen}}"
         },
         "2gs46b47gorz5": {
             "source": "How each app's notifications reach you.",
-            "translation": "Wie dich die Benachrichtigungen jeder App erreichen.",
-            "state": "machine"
+            "translation": "Wie dich die Benachrichtigungen jeder App erreichen."
         },
         "2onm05suvsexs": {
             "source": "When notifications set to arrive in a summary are sent, and how.",
-            "translation": "Wann und wie zusammengefasste Benachrichtigungen gesendet werden.",
-            "state": "machine"
+            "translation": "Wann und wie zusammengefasste Benachrichtigungen gesendet werden."
         },
         "2sfu2ta6j6z6t": {
             "source": "Notifications",
             "context": "title",
-            "translation": "Benachrichtigungen",
-            "state": "machine"
+            "translation": "Benachrichtigungen"
         },
         "31sl1zn720dlu": {
             "source": "Scheduled summary",
             "context": "title",
-            "translation": "Geplante Zusammenfassung",
-            "state": "machine"
+            "translation": "Geplante Zusammenfassung"
         },
         "34jzqbzm187a1": {
             "source": ".input {$count :number}\n.match $count\none {{Summary}}\n* {{Summaries}}",
-            "translation": ".input {$count :number}\n.match $count\none {{Zusammenfassung}}\n* {{Zusammenfassungen}}",
-            "state": "machine"
+            "translation": ".input {$count :number}\n.match $count\none {{Zusammenfassung}}\n* {{Zusammenfassungen}}"
         },
         "3bq8i6hm612bg": {
             "source": "Send notifications to your browsers and devices as pushes",
-            "translation": "Benachrichtigungen als Push an deine Browser und Geräte senden",
-            "state": "machine"
+            "translation": "Benachrichtigungen als Push an deine Browser und Geräte senden"
         },
         "3dejkkn31m3pg": {
             "source": "Notify",
             "context": "action",
-            "translation": "Benachrichtigen",
-            "state": "machine"
+            "translation": "Benachrichtigen"
         },
         "3o6n579nusnzb": {
             "source": "Snooze",
             "context": "action",
-            "translation": "Zurückstellen",
-            "state": "machine"
+            "translation": "Zurückstellen"
         },
         "3sh2fgcxn4jom": {
             "source": "Deliver",
             "context": "action",
-            "translation": "Zustellen",
-            "state": "machine"
+            "translation": "Zustellen"
         },
         "5e9yby7z9xs7": {
             "source": ".input {$count :number}\n.match $count\none {{Activity}}\n* {{Activities}}",
-            "translation": ".input {$count :number}\n.match $count\none {{Aktivität}}\n* {{Aktivitäten}}",
-            "state": "machine"
+            "translation": ".input {$count :number}\n.match $count\none {{Aktivität}}\n* {{Aktivitäten}}"
         },
         "98jouda88jdp": {
             "source": "Archive",
             "context": "action",
-            "translation": "Archivieren",
-            "state": "machine"
+            "translation": "Archivieren"
         },
         "e9fg17hqk8ds": {
             "source": ".input {$count :number}\n.match $count\none {{Subscription}}\n* {{Subscriptions}}",
-            "translation": ".input {$count :number}\n.match $count\none {{Abonnement}}\n* {{Abonnements}}",
-            "state": "machine"
+            "translation": ".input {$count :number}\n.match $count\none {{Abonnement}}\n* {{Abonnements}}"
         },
         "p4h3s0bcztkd": {
             "source": "Read",
             "context": "action",
-            "translation": "Lesen",
-            "state": "machine"
+            "translation": "Lesen"
         },
         "qa7gimuopaom": {
             "source": "When notifications wait in the inbox instead of alerting you.",
-            "translation": "Wann Benachrichtigungen im Eingang warten, statt dich zu stören.",
-            "state": "machine"
+            "translation": "Wann Benachrichtigungen im Eingang warten, statt dich zu stören."
         },
         "w027yep9y2wp": {
             "source": "Declare notifications, notify recipients, watch objects and deliver them as messages.",
-            "translation": "Benachrichtigungen deklarieren, Empfänger benachrichtigen, Objekte beobachten und alles als Nachrichten zustellen.",
-            "state": "machine"
+            "translation": "Benachrichtigungen deklarieren, Empfänger benachrichtigen, Objekte beobachten und alles als Nachrichten zustellen."
         }
     }
 }
