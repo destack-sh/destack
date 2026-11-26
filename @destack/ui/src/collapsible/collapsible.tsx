@@ -1,3 +1,5 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import { color, space, stroke } from "@destack/theme/tokens.stylex";
 import {
@@ -18,6 +20,11 @@ import {
 } from "../disclosure/index.ts";
 import { OpenChange, type OpenProperties, OpenState } from "../layer/index.ts";
 import { contentOr, type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The nearest collapsible, null outside one. */
 const CollapsibleContext = createContext<CollapsibleControl | null>(null);
@@ -63,48 +70,64 @@ const styles = style.create({
 export type CollapsibleElementProperties<Attributes> = Omit<Attributes, "class"> &
     ElementPartProperties;
 
-/** The properties of a collapsible, the native disclosure's attributes included. */
-export type CollapsibleProperties = CollapsibleElementProperties<
+/** The properties people change in a collapsible's controls and inspector. */
+const COLLAPSIBLE_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses presses on its trigger.`)
+        .default(false),
+};
+
+/** The properties of a collapsible besides its declared ones: its open state and attributes. */
+export type CollapsibleAttributes = CollapsibleElementProperties<
     Omit<JSX.DetailsHtmlAttributes<HTMLDetailsElement>, "open">
 > &
-    OpenProperties & {
-        /** Whether the trigger ignores the person. */
-        readonly disabled?: boolean;
-    };
+    OpenProperties & {};
 
 /** Render a native disclosure that shows and hides its content. */
-export function Collapsible(properties: CollapsibleProperties): JSX.Element {
-    // follow the controlled state or the collapsible's own
-    const rest = omit(properties, "open", "defaultOpen", "onOpenChange", "disabled");
-    const collapsible = new OpenState(properties, createUniqueId());
-    const { isOpen } = collapsible;
+export const Collapsible = defineComponent({
+    name: "collapsible",
+    properties: COLLAPSIBLE_PROPERTIES,
+    render(
+        properties: RenderProperties<CollapsibleAttributes, typeof COLLAPSIBLE_PROPERTIES>,
+    ): JSX.Element {
+        // follow the controlled state or the collapsible's own
+        const rest = omit(properties, "open", "defaultOpen", "onOpenChange", "disabled");
+        const collapsible = new OpenState(properties, createUniqueId());
+        const { isOpen } = collapsible;
 
-    return (
-        <CollapsibleContext value={{ isOpen, isDisabled: () => properties.disabled === true }}>
-            {renderPart("details", "collapsible", rest, disclosure.root, {
-                get "data-open"() {
-                    return isOpen() ? "" : undefined;
-                },
-                get "data-closed"() {
-                    return isOpen() ? undefined : "";
-                },
-                get "data-disabled"() {
-                    return properties.disabled === true ? "" : undefined;
-                },
-                get open() {
-                    return isOpen();
-                },
-                onToggle: (event) =>
-                    followToggle(
-                        event,
-                        isOpen,
-                        (open) => collapsible.follow(open, new OpenChange("trigger-press", event)),
-                        true,
-                    ),
-            })}
-        </CollapsibleContext>
-    );
-}
+        return (
+            <CollapsibleContext value={{ isOpen, isDisabled: () => properties.disabled }}>
+                {renderPart("details", "collapsible", rest, disclosure.root, {
+                    get "data-open"() {
+                        return isOpen() ? "" : undefined;
+                    },
+                    get "data-closed"() {
+                        return isOpen() ? undefined : "";
+                    },
+                    get "data-disabled"() {
+                        return properties.disabled ? "" : undefined;
+                    },
+                    get open() {
+                        return isOpen();
+                    },
+                    onToggle: (event) =>
+                        followToggle(
+                            event,
+                            isOpen,
+                            (open) =>
+                                collapsible.follow(open, new OpenChange("trigger-press", event)),
+                            true,
+                        ),
+                })}
+            </CollapsibleContext>
+        );
+    },
+});
+
+/** The properties of a collapsible, its native attributes included. */
+export type CollapsibleProperties = ComponentProperties<typeof Collapsible>;
 
 /** Render the summary that toggles its collapsible. */
 export function CollapsibleTrigger(
@@ -150,31 +173,55 @@ export function CollapsibleIndicator(
     );
 }
 
-/** The properties of a collapsible's content, the native element's attributes included. */
-export type CollapsibleContentProperties = CollapsibleElementProperties<
-    JSX.HTMLAttributes<HTMLDivElement>
-> & {
-    /** The layout, plain by default, or along a line below the icon of its trigger. */
-    readonly variant?: "default" | "line";
+/** The properties people change in a collapsible's content's controls and inspector. */
+const COLLAPSIBLE_CONTENT_PROPERTIES = {
+    variant: field
+        .enum({
+            default: { title: t.context("option")`Default` },
+            line: {
+                title: t.context("option")`Line`,
+                description: t`Indented beside a line, as nested items are.`,
+            },
+        })
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the content sits beside a line.`)
+        .default("default"),
 };
 
-/** Render the content a collapsible shows when open. */
-export function CollapsibleContent(properties: CollapsibleContentProperties): JSX.Element {
-    // lay it out along a line when asked
-    const control = useCollapsible();
-    const rest = omit(properties, "variant");
-    const layout = (): style.Styles => (properties.variant === "line" ? styles.line : null);
+/** The properties of a collapsible's content besides its declared ones: its attributes. */
+export type CollapsibleContentAttributes = CollapsibleElementProperties<
+    JSX.HTMLAttributes<HTMLDivElement>
+> & {};
 
-    return (
-        <DisclosurePanel isOpen={() => control.isOpen()}>
-            {renderPart("div", "collapsible-content", rest, layout, {
-                get "data-open"() {
-                    return control.isOpen() ? "" : undefined;
-                },
-                get "data-closed"() {
-                    return control.isOpen() ? undefined : "";
-                },
-            })}
-        </DisclosurePanel>
-    );
-}
+/** Render the content a collapsible shows when open. */
+export const CollapsibleContent = defineComponent({
+    name: "collapsibleContent",
+    properties: COLLAPSIBLE_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            CollapsibleContentAttributes,
+            typeof COLLAPSIBLE_CONTENT_PROPERTIES
+        >,
+    ): JSX.Element {
+        // lay it out along a line when asked
+        const control = useCollapsible();
+        const rest = omit(properties, "variant");
+        const layout = (): style.Styles => (properties.variant === "line" ? styles.line : null);
+
+        return (
+            <DisclosurePanel isOpen={() => control.isOpen()}>
+                {renderPart("div", "collapsible-content", rest, layout, {
+                    get "data-open"() {
+                        return control.isOpen() ? "" : undefined;
+                    },
+                    get "data-closed"() {
+                        return control.isOpen() ? undefined : "";
+                    },
+                })}
+            </DisclosurePanel>
+        );
+    },
+});
+
+/** The properties of a collapsible's content, its native attributes included. */
+export type CollapsibleContentProperties = ComponentProperties<typeof CollapsibleContent>;

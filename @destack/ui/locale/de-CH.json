@@ -190,6 +190,19 @@
         "m4f2pk5d73yn": {
             "source": "How large the switch is beside its label.",
             "translation": "Wie gross der Schalter neben seiner Beschriftung ist."
+        },
+        "2rqpjzmkxhnl5": {
+            "source": "The editor's zoom levels, the largest set on its own.",
+            "translation": "Die Zoomstufen des Editors, die grösste einzeln eingestellt."
+        },
+        "2zrjbini2675r": {
+            "source": "Off canvas",
+            "context": "option",
+            "translation": "Ausserhalb"
+        },
+        "1oi3djad8hl80": {
+            "source": "How it collapses as a person closes it.",
+            "translation": "Wie sie sich einklappt, wenn man sie schliesst."
         }
     }
 }

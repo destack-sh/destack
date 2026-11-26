@@ -29,8 +29,13 @@ export const accordionHelpQuestionsExpanded = defineExample({
     of: Accordion,
     name: "helpQuestionsExpanded",
     description: t`A help page's questions with every answer open.`,
-    render: () => (
-        <Accordion multiple defaultValue={["sharing", "offline"]}>
+    render: (properties) => (
+        <Accordion
+            multiple
+            defaultValue={["sharing", "offline"]}
+            orientation={properties.orientation}
+            disabled={properties.disabled}
+        >
             <AccordionItem value="sharing">
                 <AccordionTrigger>Who can see my notes?</AccordionTrigger>
                 <AccordionContent>Only the people you share a notebook with.</AccordionContent>
@@ -43,18 +48,19 @@ export const accordionHelpQuestionsExpanded = defineExample({
     ),
 });
 
-/** A help page's questions with one question unavailable. */
-export const accordionHelpQuestionsDisabled = defineExample({
-    of: Accordion,
-    name: "helpQuestionsDisabled",
-    description: t`A help page's questions with one question unavailable.`,
-    render: () => (
+/** A help page's questions, the billing question set on its own. */
+export const accordionItemDefault = defineExample({
+    of: AccordionItem,
+    name: "default",
+    description: t`A help page's questions, the billing question set on its own.`,
+    properties: { disabled: true },
+    render: (properties) => (
         <Accordion>
             <AccordionItem value="sharing">
                 <AccordionTrigger>Who can see my notes?</AccordionTrigger>
                 <AccordionContent>Only the people you share a notebook with.</AccordionContent>
             </AccordionItem>
-            <AccordionItem value="billing" disabled>
+            <AccordionItem value="billing" {...properties}>
                 <AccordionTrigger>How do I pay?</AccordionTrigger>
                 <AccordionContent>Your workspace owner handles billing.</AccordionContent>
             </AccordionItem>

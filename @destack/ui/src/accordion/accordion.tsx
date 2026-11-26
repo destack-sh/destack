@@ -1,5 +1,7 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import { state } from "@destack/theme/state";
-import type { Axis } from "../position/index.ts";
+import { AXES } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -18,6 +20,11 @@ import { SELECTION_OPTIONS, Selection, type SelectionProperties } from "../selec
 import { disclosure, DisclosurePanel, followToggle, refuseDisabled } from "../disclosure/index.ts";
 import { ListState } from "../focus/index.ts";
 import { renderPart, type Render } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The open items of the nearest accordion, null outside one. */
 const AccordionContext = createContext<AccordionControl | null>(null);
@@ -86,26 +93,43 @@ const styles = style.create({
     },
 });
 
-/** The properties of an accordion, the native element's attributes included. */
-export type AccordionProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
-    /** The direction the arrow keys move between triggers along, vertical by default. */
-    readonly orientation?: Axis;
-    /** Whether every trigger ignores the person. */
-    readonly disabled?: boolean;
+/** The properties people change in an accordion's controls and inspector. */
+const ACCORDION_PROPERTIES = {
+    orientation: field
+        .enum(AXES)
+        .labeled(t.context("label")`Orientation`)
+        .described(t`Whether the sections stack in a column or lie in a row.`)
+        .default("vertical"),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses presses on every section of the accordion.`)
+        .default(false),
+};
+
+/** The properties of an accordion besides its declared ones: its open sections and attributes. */
+export type AccordionAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> & {
     /** The StyleX styles applied after the accordion's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with its attributes, its own by default. */
     readonly render?: Render;
 } & SelectionProperties;
 
-/** The properties of an item of an accordion, the native disclosure's attributes included. */
-export type AccordionItemProperties = AccordionElementProperties<
+/** The properties people change in an accordion section's controls and inspector. */
+const ACCORDION_ITEM_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses presses on this section alone.`)
+        .default(false),
+};
+
+/** The properties of an accordion section besides its declared ones: its value and attributes. */
+export type AccordionItemAttributes = AccordionElementProperties<
     Omit<JSX.DetailsHtmlAttributes<HTMLDetailsElement>, "open" | "name">
 > & {
     /** The value the item stands for in the accordion's open values. */
     readonly value: string;
-    /** Whether the item's trigger ignores the person. */
-    readonly disabled?: boolean;
 };
 
 /** The properties of an element of an accordion, the native element's attributes included. */
@@ -119,7 +143,7 @@ export type AccordionElementProperties<Attributes> = Omit<Attributes, "class"> &
 /** The open items of an accordion and its triggers, which its items share. */
 export class AccordionControl {
     /** The properties of the accordion root, read for its controlled state. */
-    readonly properties: AccordionProperties;
+    readonly properties: RenderProperties<AccordionAttributes, typeof ACCORDION_PROPERTIES>;
     /** The name a single accordion's items share, so the platform has one open at a time. */
     readonly name: string | undefined;
     /** The open values, controlled or the accordion's own. */
@@ -128,14 +152,14 @@ export class AccordionControl {
     readonly list: ListState;
 
     /** Create the state of an accordion from its root's properties. */
-    constructor(properties: AccordionProperties) {
+    constructor(properties: RenderProperties<AccordionAttributes, typeof ACCORDION_PROPERTIES>) {
         // follow the controlled open values or the accordion's own
         this.properties = properties;
         this.name = properties.multiple === true ? undefined : createUniqueId();
         this.selection = new Selection(properties);
         this.list = new ListState({
             get orientation() {
-                return properties.orientation ?? "vertical";
+                return properties.orientation;
             },
             isLooping: true,
             isTypeahead: false,
@@ -175,77 +199,94 @@ export interface AccordionItemControl {
 }
 
 /** Render a stack of disclosures that arrow keys move between. */
-export function Accordion(properties: AccordionProperties): JSX.Element {
-    // share the open items with the items and read the text direction for the arrow keys
-    const control = new AccordionControl(properties);
-    const locale = useLocale();
-    const rest = omit(properties, ...SELECTION_OPTIONS, "orientation", "disabled");
+export const Accordion = defineComponent({
+    name: "accordion",
+    properties: ACCORDION_PROPERTIES,
+    render(
+        properties: RenderProperties<AccordionAttributes, typeof ACCORDION_PROPERTIES>,
+    ): JSX.Element {
+        // share the open items with the items and read the text direction for the arrow keys
+        const control = new AccordionControl(properties);
+        const locale = useLocale();
+        const rest = omit(properties, ...SELECTION_OPTIONS, "orientation", "disabled");
 
-    return (
-        <AccordionContext value={control}>
-            {renderPart("div", "accordion", rest, null, {
-                get "data-orientation"() {
-                    return properties.orientation ?? "vertical";
-                },
-                onKeyDown: (event) => {
-                    // move between the triggers when the focus rests on one
-                    if (
-                        event.target instanceof HTMLElement &&
-                        event.target.dataset["slot"] === "accordion-trigger"
-                    ) {
-                        control.list.focus.move(event, locale.direction);
-                    }
-                },
-                onFocusOut: (event) => control.list.focus.focusOut(event),
-            })}
-        </AccordionContext>
-    );
-}
+        return (
+            <AccordionContext value={control}>
+                {renderPart("div", "accordion", rest, null, {
+                    get "data-orientation"() {
+                        return properties.orientation;
+                    },
+                    onKeyDown: (event) => {
+                        // move between the triggers when the focus rests on one
+                        if (
+                            event.target instanceof HTMLElement &&
+                            event.target.dataset["slot"] === "accordion-trigger"
+                        ) {
+                            control.list.focus.move(event, locale.direction);
+                        }
+                    },
+                    onFocusOut: (event) => control.list.focus.focusOut(event),
+                })}
+            </AccordionContext>
+        );
+    },
+});
+
+/** The properties of an accordion, its native attributes included. */
+export type AccordionProperties = ComponentProperties<typeof Accordion>;
 
 /** Render one native disclosure of the nearest accordion, open while its value is. */
-export function AccordionItem(properties: AccordionItemProperties): JSX.Element {
-    // read the accordion, refusing an item outside one
-    const accordion = useAccordion();
-    const rest = omit(properties, "value", "disabled");
-    const isDisabled = (): boolean =>
-        properties.disabled === true || accordion.properties.disabled === true;
+export const AccordionItem = defineComponent({
+    name: "accordionItem",
+    properties: ACCORDION_ITEM_PROPERTIES,
+    render(
+        properties: RenderProperties<AccordionItemAttributes, typeof ACCORDION_ITEM_PROPERTIES>,
+    ): JSX.Element {
+        // read the accordion, refusing an item outside one
+        const accordion = useAccordion();
+        const rest = omit(properties, "value", "disabled");
+        const isDisabled = (): boolean => properties.disabled || accordion.properties.disabled;
 
-    return (
-        <AccordionItemContext
-            value={{
-                value: properties.value,
-                isDisabled,
-                isOpen: () => accordion.isOpen(properties.value),
-            }}
-        >
-            {renderPart("details", "accordion-item", rest, [disclosure.root, styles.item], {
-                get name() {
-                    return accordion.name;
-                },
-                get "data-open"() {
-                    return accordion.isOpen(properties.value) ? "" : undefined;
-                },
-                get "data-closed"() {
-                    return accordion.isOpen(properties.value) ? undefined : "";
-                },
-                get "data-disabled"() {
-                    return isDisabled() ? "" : undefined;
-                },
-                get open() {
-                    return accordion.isOpen(properties.value);
-                },
-                onToggle: (event) =>
-                    followToggle(
-                        event,
-                        () => accordion.isOpen(properties.value),
-                        (isOpening) =>
-                            accordion.toggle(properties.value, isOpening, event.currentTarget),
-                        "value" in accordion.properties,
-                    ),
-            })}
-        </AccordionItemContext>
-    );
-}
+        return (
+            <AccordionItemContext
+                value={{
+                    value: properties.value,
+                    isDisabled,
+                    isOpen: () => accordion.isOpen(properties.value),
+                }}
+            >
+                {renderPart("details", "accordion-item", rest, [disclosure.root, styles.item], {
+                    get name() {
+                        return accordion.name;
+                    },
+                    get "data-open"() {
+                        return accordion.isOpen(properties.value) ? "" : undefined;
+                    },
+                    get "data-closed"() {
+                        return accordion.isOpen(properties.value) ? undefined : "";
+                    },
+                    get "data-disabled"() {
+                        return isDisabled() ? "" : undefined;
+                    },
+                    get open() {
+                        return accordion.isOpen(properties.value);
+                    },
+                    onToggle: (event) =>
+                        followToggle(
+                            event,
+                            () => accordion.isOpen(properties.value),
+                            (isOpening) =>
+                                accordion.toggle(properties.value, isOpening, event.currentTarget),
+                            "value" in accordion.properties,
+                        ),
+                })}
+            </AccordionItemContext>
+        );
+    },
+});
+
+/** The properties of an accordion section, its native attributes included. */
+export type AccordionItemProperties = ComponentProperties<typeof AccordionItem>;
 
 /** Render the summary that toggles its item, with a chevron that turns when open. */
 export function AccordionTrigger(

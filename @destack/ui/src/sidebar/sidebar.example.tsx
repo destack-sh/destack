@@ -17,6 +17,9 @@ import {
     SidebarMenuBadge,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
     SidebarProvider,
     SidebarRail,
     SidebarTrigger,
@@ -130,6 +133,58 @@ export const sidebarNotebooksCollapsed = defineExample({
                     12 notes from Lisbon, Porto and Madeira.
                 </div>
             </SidebarInset>
+        </SidebarProvider>
+    ),
+});
+
+/** A sidebar's notebook entry, set on its own. */
+export const sidebarMenuButtonDefault = defineExample({
+    of: SidebarMenuButton,
+    name: "default",
+    description: t`A sidebar's notebook entry, set on its own.`,
+    layout: "fullscreen",
+    render: (properties) => (
+        <SidebarProvider>
+            <Sidebar>
+                <SidebarContent>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton href="/trips" {...properties}>
+                                <Icon name="notebook" />
+                                Trips
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarContent>
+            </Sidebar>
+        </SidebarProvider>
+    ),
+});
+
+/** A notebook's nested section entry, set on its own. */
+export const sidebarMenuSubButtonDefault = defineExample({
+    of: SidebarMenuSubButton,
+    name: "default",
+    description: t`A notebook's nested section entry, set on its own.`,
+    layout: "fullscreen",
+    render: (properties) => (
+        <SidebarProvider>
+            <Sidebar>
+                <SidebarContent>
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton href="/trips">Trips</SidebarMenuButton>
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton href="/trips/lisbon" {...properties}>
+                                        Lisbon
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
+                </SidebarContent>
+            </Sidebar>
         </SidebarProvider>
     ),
 });

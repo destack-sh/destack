@@ -1,5 +1,7 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import { state } from "@destack/theme/state";
-import type { Axis } from "../position/index.ts";
+import { type Axis, AXES } from "../position/index.ts";
 import { schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { StoredItem } from "@destack/view/primitives/storage";
@@ -12,7 +14,6 @@ import {
     createSignal,
     createUniqueId,
     type JSX,
-    merge,
     omit,
     onSettled,
     type Setter,
@@ -26,6 +27,11 @@ import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Move } from "../interaction/index.ts";
 import { mergeProperties, renderPart, type Render } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The storage key prefix of saved layouts. */
 const LAYOUT_KEY = "destack-resizable:";
@@ -35,11 +41,6 @@ const SavedLayout = schema.array(schema.number());
 
 /** The share a keyboard step moves a handle by, in percent of the group. */
 const KEYBOARD_STEP = 10;
-
-/** The direction of a panel group that sets none. */
-const DEFAULTS: Required<Pick<ResizablePanelGroupProperties, "direction">> = {
-    direction: "horizontal",
-};
 
 /** The panel group of the nearest group, null outside one. */
 const ResizableContext = createContext<ResizableControl | null>(null);
@@ -140,7 +141,10 @@ export class ResizableControl {
     /** The panels in document order. */
     readonly panels: Accessor<readonly ResizablePanelState[]>;
     /** The properties of the group, read for its handlers and saved layout. */
-    readonly #properties: ResizablePanelGroupProperties;
+    readonly #properties: RenderProperties<
+        ResizablePanelGroupAttributes,
+        typeof RESIZABLE_PANEL_GROUP_PROPERTIES
+    >;
     /** The layout the group saves under its id, absent without one. */
     readonly #stored: StoredItem | undefined;
     /** The package's telemetry, reporting garbled saved layouts. */
@@ -155,7 +159,13 @@ export class ResizableControl {
     readonly #handles: CollectionBuilder<Accessor<Element | undefined>>;
 
     /** Create a group without panels, restoring the layout it saved under its id. */
-    constructor(direction: () => Axis, properties: ResizablePanelGroupProperties) {
+    constructor(
+        direction: () => Axis,
+        properties: RenderProperties<
+            ResizablePanelGroupAttributes,
+            typeof RESIZABLE_PANEL_GROUP_PROPERTIES
+        >,
+    ) {
         // start without panels or handles on the saved layout
         this.#panels = new CollectionBuilder((panel) => panel.element());
         this.#handles = new CollectionBuilder((element) => element());
@@ -334,13 +344,20 @@ function collapseStep(
     return isCollapsing ? sign * (limits.collapsed - share) : undefined;
 }
 
-/** The properties of a panel group, the native element's attributes included. */
-export interface ResizablePanelGroupProperties extends Omit<
+/** The properties people change in a panel group's controls and inspector. */
+const RESIZABLE_PANEL_GROUP_PROPERTIES = {
+    direction: field
+        .enum(AXES)
+        .labeled(t.context("label")`Direction`)
+        .described(t`Whether the panels lie side by side or one above the other.`)
+        .default("horizontal"),
+};
+
+/** The properties of a panel group besides its declared ones: its saved sizes and attributes. */
+export interface ResizablePanelGroupAttributes extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class"
 > {
-    /** The direction the panels line up in, horizontal by default. */
-    readonly direction?: Axis;
     /** Handle the panels' shares changing, in order. */
     readonly onLayout?: (layout: readonly number[]) => void;
     /** The id the group saves its layout under in the browser, restoring it on the next visit. */
@@ -372,13 +389,20 @@ export interface ResizablePanelProperties extends Omit<
     readonly render?: Render;
 }
 
-/** The properties of a handle between two panels, the native element's attributes included. */
-export interface ResizableHandleProperties extends Omit<
+/** The properties people change in a resize handle's controls and inspector. */
+const RESIZABLE_HANDLE_PROPERTIES = {
+    withHandle: field
+        .boolean()
+        .labeled(t.context("label")`Grip`)
+        .described(t`Shows a grip on the divider, which a person drags.`)
+        .default(false),
+};
+
+/** The properties of a resize handle besides its declared ones: its attributes. */
+export interface ResizableHandleAttributes extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "onKeyDown" | "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel"
 > {
-    /** Whether the handle shows a grip to aim at. */
-    readonly withHandle?: boolean;
     /** The StyleX styles applied after the handle's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -394,32 +418,43 @@ export function useResizable(): ResizableControl {
 }
 
 /** Render a row or column of panels whose shares the handles between them change. */
-export function ResizablePanelGroup(properties: ResizablePanelGroupProperties): JSX.Element {
-    // share one group with its panels and handles
-    const group = merge(DEFAULTS, properties);
-    const control = new ResizableControl(() => group.direction, properties);
-    const rest = omit(group, "direction", "onLayout", "autoSaveId");
+export const ResizablePanelGroup = defineComponent({
+    name: "resizablePanelGroup",
+    properties: RESIZABLE_PANEL_GROUP_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            ResizablePanelGroupAttributes,
+            typeof RESIZABLE_PANEL_GROUP_PROPERTIES
+        >,
+    ): JSX.Element {
+        // share one group with its panels and handles
+        const control = new ResizableControl(() => properties.direction, properties);
+        const rest = omit(properties, "direction", "onLayout", "autoSaveId");
 
-    // restore the saved layout once settled, so the server and the hydrating page render alike
-    onSettled(() => control.restore());
+        // restore the saved layout once settled, so the server and the hydrating page render alike
+        onSettled(() => control.restore());
 
-    return (
-        <ResizableContext value={control}>
-            {renderPart(
-                "div",
-                "resizable-panel-group",
-                rest,
-                () => [styles.group, directions[group.direction]],
-                {
-                    get "data-panel-group-direction"() {
-                        return group.direction;
+        return (
+            <ResizableContext value={control}>
+                {renderPart(
+                    "div",
+                    "resizable-panel-group",
+                    rest,
+                    () => [styles.group, directions[properties.direction]],
+                    {
+                        get "data-panel-group-direction"() {
+                            return properties.direction;
+                        },
+                        ref: (element) => control.setElement(element),
                     },
-                    ref: (element) => control.setElement(element),
-                },
-            )}
-        </ResizableContext>
-    );
-}
+                )}
+            </ResizableContext>
+        );
+    },
+});
+
+/** The properties of a panel group, its native attributes included. */
+export type ResizablePanelGroupProperties = ComponentProperties<typeof ResizablePanelGroup>;
 
 /** Render a panel that takes its share of the group. */
 export function ResizablePanel(properties: ResizablePanelProperties): JSX.Element {
@@ -473,103 +508,116 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
 }
 
 /** Render the window splitter between two panels. */
-export function ResizableHandle(properties: ResizableHandleProperties): JSX.Element {
-    // read the group, this handle's place and the panel before it
-    const control = useResizable();
-    const locale = useLocale();
-    let element: HTMLElement | undefined;
-    const handle = control.addHandle(() => element);
-    const rest = omit(properties, "withHandle", "children");
-    const before = (): ResizablePanelState | undefined => control.panels()[handle()];
-    let start: { readonly extent: number; readonly layout: number[] } = { extent: 0, layout: [] };
+export const ResizableHandle = defineComponent({
+    name: "resizableHandle",
+    properties: RESIZABLE_HANDLE_PROPERTIES,
+    render(
+        properties: RenderProperties<ResizableHandleAttributes, typeof RESIZABLE_HANDLE_PROPERTIES>,
+    ): JSX.Element {
+        // read the group, this handle's place and the panel before it
+        const control = useResizable();
+        const locale = useLocale();
+        let element: HTMLElement | undefined;
+        const handle = control.addHandle(() => element);
+        const rest = omit(properties, "withHandle", "children");
+        const before = (): ResizablePanelState | undefined => control.panels()[handle()];
+        let start: { readonly extent: number; readonly layout: number[] } = {
+            extent: 0,
+            layout: [],
+        };
 
-    // move by the pointer's share of the group since it pressed
-    const move = new Move(
-        {
-            distance: 0,
-            onMoveStart: (event) => {
-                const group = event.target.parentElement?.getBoundingClientRect();
-                const extent = control.direction() === "horizontal" ? group?.width : group?.height;
-                start = { extent: extent ?? 0, layout: control.layout() };
-            },
-            onMove: (event) => {
-                // step by an arrow key along the group's axis, mirrored right to left
-                const isHorizontal = control.direction() === "horizontal";
-                const mirror = isHorizontal && locale.direction === "rtl" ? -1 : 1;
-                if (event.pointerType === "keyboard") {
-                    const steps = isHorizontal ? event.deltaX * mirror : event.deltaY;
-                    control.move(handle(), steps * KEYBOARD_STEP);
-
-                    return;
-                }
-
-                // follow a pointer by its share of the group since it pressed
-                const offset = isHorizontal ? event.offsetX * mirror : event.offsetY;
-                if (start.extent > 0) {
-                    control.move(handle(), (offset / start.extent) * 100, start.layout);
-                }
-            },
-        },
-        useEnvironment().clock,
-    );
-
-    // collapse or restore the panel before on Enter, and move to its limits on Home and End
-    const keys = {
-        onKeyDown: (event: KeyboardEvent) => {
-            const panel = before();
-            if (event.key === "Enter") {
-                event.preventDefault();
-                control.toggle(handle());
-            } else if (panel !== undefined && (event.key === "Home" || event.key === "End")) {
-                event.preventDefault();
-                const limit = event.key === "Home" ? panel.minimum : panel.maximum;
-                control.move(handle(), control.share(limit) - control.sizeOf(panel));
-            }
-        },
-    };
-
-    return renderPart(
-        "div",
-        "resizable-handle",
-        rest,
-        () => [state.focus, styles.handle, handles[control.direction()]],
-        mergeProperties(
-            mergeProperties(move.attributes(), keys),
-            mergeProperties(
-                {
-                    role: "separator" as const,
-                    tabindex: 0,
-                    get "aria-orientation"() {
-                        return control.direction() === "horizontal" ? "vertical" : "horizontal";
-                    },
-                    get "aria-controls"() {
-                        return before()?.id;
-                    },
-                    get "aria-valuenow"() {
-                        return Math.round(sizeOrZero(control, before()));
-                    },
-                    get "aria-valuemin"() {
-                        return limitOf(control, before()?.minimum ?? 0);
-                    },
-                    get "aria-valuemax"() {
-                        return limitOf(control, before()?.maximum ?? 100);
-                    },
-                    get children() {
-                        return (
-                            <Show when={properties.withHandle === true}>
-                                <div
-                                    aria-hidden="true"
-                                    {...style.attrs(styles.grip, grips[control.direction()])}
-                                />
-                            </Show>
-                        );
-                    },
+        // move by the pointer's share of the group since it pressed
+        const move = new Move(
+            {
+                distance: 0,
+                onMoveStart: (event) => {
+                    const group = event.target.parentElement?.getBoundingClientRect();
+                    const extent =
+                        control.direction() === "horizontal" ? group?.width : group?.height;
+                    start = { extent: extent ?? 0, layout: control.layout() };
                 },
-                { ref: (created: HTMLDivElement) => (element = created) },
+                onMove: (event) => {
+                    // step by an arrow key along the group's axis, mirrored right to left
+                    const isHorizontal = control.direction() === "horizontal";
+                    const mirror = isHorizontal && locale.direction === "rtl" ? -1 : 1;
+                    if (event.pointerType === "keyboard") {
+                        const steps = isHorizontal ? event.deltaX * mirror : event.deltaY;
+                        control.move(handle(), steps * KEYBOARD_STEP);
+
+                        return;
+                    }
+
+                    // follow a pointer by its share of the group since it pressed
+                    const offset = isHorizontal ? event.offsetX * mirror : event.offsetY;
+                    if (start.extent > 0) {
+                        control.move(handle(), (offset / start.extent) * 100, start.layout);
+                    }
+                },
+            },
+            useEnvironment().clock,
+        );
+
+        // collapse or restore the panel before on Enter, and move to its limits on Home and End
+        const keys = {
+            onKeyDown: (event: KeyboardEvent) => {
+                const panel = before();
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    control.toggle(handle());
+                } else if (panel !== undefined && (event.key === "Home" || event.key === "End")) {
+                    event.preventDefault();
+                    const limit = event.key === "Home" ? panel.minimum : panel.maximum;
+                    control.move(handle(), control.share(limit) - control.sizeOf(panel));
+                }
+            },
+        };
+
+        return renderPart(
+            "div",
+            "resizable-handle",
+            rest,
+            () => [state.focus, styles.handle, handles[control.direction()]],
+            mergeProperties(
+                mergeProperties(move.attributes(), keys),
+                mergeProperties(
+                    {
+                        role: "separator" as const,
+                        tabindex: 0,
+                        get "aria-orientation"() {
+                            return control.direction() === "horizontal" ? "vertical" : "horizontal";
+                        },
+                        get "aria-controls"() {
+                            return before()?.id;
+                        },
+                        get "aria-valuenow"() {
+                            return Math.round(sizeOrZero(control, before()));
+                        },
+                        get "aria-valuemin"() {
+                            return limitOf(control, before()?.minimum ?? 0);
+                        },
+                        get "aria-valuemax"() {
+                            return limitOf(control, before()?.maximum ?? 100);
+                        },
+                        get children() {
+                            return (
+                                <Show when={properties.withHandle}>
+                                    <div
+                                        aria-hidden="true"
+                                        {...style.attrs(styles.grip, grips[control.direction()])}
+                                    />
+                                </Show>
+                            );
+                        },
+                    },
+                    { ref: (created: HTMLDivElement) => (element = created) },
+                ),
             ),
-        ),
-    );
-}
+        );
+    },
+});
+
+/** The properties of a resize handle, its native attributes included. */
+export type ResizableHandleProperties = ComponentProperties<typeof ResizableHandle>;
 
 /** Read a handle's limit as a rounded share, none for pixels before the group is measured. */
 function limitOf(control: ResizableControl, limit: ResizableSize): number | undefined {

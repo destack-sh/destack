@@ -20,8 +20,8 @@ export const collapsibleNoteTags = defineExample({
     of: Collapsible,
     name: "noteTags",
     description: t`The first tags of a note and the rest on request.`,
-    render: () => (
-        <Collapsible>
+    render: (properties) => (
+        <Collapsible {...properties}>
             <CollapsibleTrigger
                 render={(attributes) => <Button {...attributes} variant="ghost" size="sm" />}
             >
@@ -35,43 +35,18 @@ export const collapsibleNoteTags = defineExample({
 });
 
 /** Every tag of a note shown after the request. */
-export const collapsibleNoteTagsExpanded = defineExample({
-    of: Collapsible,
-    name: "noteTagsExpanded",
+export const collapsibleContentDefault = defineExample({
+    of: CollapsibleContent,
+    name: "default",
     description: t`Every tag of a note shown after the request.`,
-    properties: {
-        open: true,
-    },
     render: (properties) => (
-        <Collapsible {...properties}>
+        <Collapsible open>
             <CollapsibleTrigger
                 render={(attributes) => <Button {...attributes} variant="ghost" size="sm" />}
             >
                 travel and 3 more
             </CollapsibleTrigger>
-            <CollapsibleContent xstyle={[text.sm, styles.rest]}>
-                food, family, summer
-            </CollapsibleContent>
-        </Collapsible>
-    ),
-});
-
-/** The tags of a note whose request for the rest is unavailable. */
-export const collapsibleNoteTagsDisabled = defineExample({
-    of: Collapsible,
-    name: "noteTagsDisabled",
-    description: t`The tags of a note whose request for the rest is unavailable.`,
-    properties: {
-        disabled: true,
-    },
-    render: (properties) => (
-        <Collapsible {...properties}>
-            <CollapsibleTrigger
-                render={(attributes) => <Button {...attributes} variant="ghost" size="sm" />}
-            >
-                travel and 3 more
-            </CollapsibleTrigger>
-            <CollapsibleContent xstyle={[text.sm, styles.rest]}>
+            <CollapsibleContent xstyle={[text.sm, styles.rest]} {...properties}>
                 food, family, summer
             </CollapsibleContent>
         </Collapsible>

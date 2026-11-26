@@ -1,3 +1,5 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
@@ -7,7 +9,6 @@ import {
     createEffect,
     createSignal,
     type JSX,
-    merge,
     omit,
     untrack,
     useContext,
@@ -22,11 +23,13 @@ import {
     renderPart,
     type Render,
 } from "../part/index.ts";
-import { type Axis, Scroll, scrollFade } from "../position/index.ts";
+import { type Axis, Scroll, scrollFade, AXES } from "../position/index.ts";
 import { areaMarker } from "./scroll-area.stylex.ts";
-
-/** The orientation of a scroll area that sets none. */
-const DEFAULTS: Required<Pick<ScrollAreaProperties, "orientation">> = { orientation: "vertical" };
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The least length of a thumb in pixels, which a pointer can aim at. */
 const LEAST_THUMB = 24;
@@ -130,12 +133,22 @@ interface BarControl {
 /** The bar around a thumb, null outside one. */
 const BarContext = createContext<BarControl | null>(null);
 
-/** The properties of a scroll area, the attributes of the element that scrolls included. */
-export interface ScrollAreaProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
-    /** The axes it scrolls along, vertical by default. */
-    readonly orientation?: Axis | "both";
-    /** Whether its content fades at the sides with more past them. */
-    readonly fade?: boolean;
+/** The properties people change in a scroll area's controls and inspector. */
+const SCROLL_AREA_PROPERTIES = {
+    orientation: field
+        .enum({ ...AXES, both: { title: t.context("option")`Both` } })
+        .labeled(t.context("label")`Orientation`)
+        .described(t`The directions it scrolls in.`)
+        .default("vertical"),
+    fade: field
+        .boolean()
+        .labeled(t.context("label")`Fade`)
+        .described(t`Fades the edges where more content waits to scroll in.`)
+        .default(false),
+};
+
+/** The properties of a scroll area besides its declared ones: its bars and attributes. */
+export interface ScrollAreaAttributes extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The bars, one per axis by default and none for null. */
     readonly bars?: JSX.Element;
     /** The StyleX styles applied after the scroll area's styles, usually its size. */
@@ -145,59 +158,70 @@ export interface ScrollAreaProperties extends Omit<JSX.HTMLAttributes<HTMLDivEle
 }
 
 /** Render a region that scrolls natively, its bars over its content. */
-export function ScrollArea(properties: ScrollAreaProperties): JSX.Element {
-    // follow the scrolling, and keep the bars a moment after
-    const area = merge(DEFAULTS, properties);
-    const [viewport, setViewport] = createSignal<HTMLElement | undefined>(undefined, {
-        ownedWrite: true,
-    });
-    const [isScrolling, setScrolling] = createSignal(false, { ownedWrite: true });
-    const linger = new Timeout();
-    const scroll = (): void => {
-        setScrolling(true);
-        linger.set(() => setScrolling(false), LINGER);
-    };
-    createEffect(viewport, (element) =>
-        element === undefined ? undefined : Scroll.follow(element),
-    );
-    const control: ScrollAreaControl = { viewport, isScrolling };
-    const rest = omit(area, "orientation", "fade", "bars", "xstyle", "style", "children");
+export const ScrollArea = defineComponent({
+    name: "scrollArea",
+    properties: SCROLL_AREA_PROPERTIES,
+    render(
+        properties: RenderProperties<ScrollAreaAttributes, typeof SCROLL_AREA_PROPERTIES>,
+    ): JSX.Element {
+        // follow the scrolling, and keep the bars a moment after
+        const [viewport, setViewport] = createSignal<HTMLElement | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const [isScrolling, setScrolling] = createSignal(false, { ownedWrite: true });
+        const linger = new Timeout();
+        const scroll = (): void => {
+            setScrolling(true);
+            linger.set(() => setScrolling(false), LINGER);
+        };
+        createEffect(viewport, (element) =>
+            element === undefined ? undefined : Scroll.follow(element),
+        );
+        const control: ScrollAreaControl = { viewport, isScrolling };
+        const rest = omit(properties, "orientation", "fade", "bars", "xstyle", "style", "children");
 
-    return (
-        <ScrollAreaContext value={control}>
-            <div
-                data-slot="scroll-area"
-                data-orientation={area.orientation}
-                {...style.attributes([areaMarker, styles.area, area.xstyle], area.style)}
-            >
-                {renderPart(
-                    "div",
-                    "scroll-area-viewport",
-                    rest,
-                    () => [
-                        state.focusInset,
-                        styles.viewport,
-                        orientations[area.orientation],
-                        area.fade === true && scrollFade.sides,
-                    ],
-                    {
-                        tabindex: 0,
-                        ref: (element) => void setViewport(element),
-                        onScroll: scroll,
-                        get children() {
-                            return area.children;
+        return (
+            <ScrollAreaContext value={control}>
+                <div
+                    data-slot="scroll-area"
+                    data-orientation={properties.orientation}
+                    {...style.attributes(
+                        [areaMarker, styles.area, properties.xstyle],
+                        properties.style,
+                    )}
+                >
+                    {renderPart(
+                        "div",
+                        "scroll-area-viewport",
+                        rest,
+                        () => [
+                            state.focusInset,
+                            styles.viewport,
+                            orientations[properties.orientation],
+                            properties.fade && scrollFade.sides,
+                        ],
+                        {
+                            tabindex: 0,
+                            ref: (element) => void setViewport(element),
+                            onScroll: scroll,
+                            get children() {
+                                return properties.children;
+                            },
                         },
-                    },
-                )}
-                {"bars" in properties ? (
-                    properties.bars
-                ) : (
-                    <StandardBars orientation={area.orientation} />
-                )}
-            </div>
-        </ScrollAreaContext>
-    );
-}
+                    )}
+                    {"bars" in properties ? (
+                        properties.bars
+                    ) : (
+                        <StandardBars orientation={properties.orientation} />
+                    )}
+                </div>
+            </ScrollAreaContext>
+        );
+    },
+});
+
+/** The properties of a scroll area, its native attributes included. */
+export type ScrollAreaProperties = ComponentProperties<typeof ScrollArea>;
 
 /** Render a bar for each axis an area scrolls along. */
 function StandardBars(properties: { readonly orientation: Axis | "both" }): JSX.Element {
@@ -214,164 +238,180 @@ function StandardBars(properties: { readonly orientation: Axis | "both" }): JSX.
     );
 }
 
-/** The properties of a bar, the native element's attributes included. */
-export type ScrollAreaBarProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style"> &
-    ElementPartProperties & {
-        /** The axis it scrolls along, vertical by default. */
-        readonly orientation?: Axis;
-    };
+/** The properties people change in a scroll bar's controls and inspector. */
+const SCROLL_AREA_BAR_PROPERTIES = {
+    orientation: field
+        .enum(AXES)
+        .labeled(t.context("label")`Orientation`)
+        .described(t`Whether the bar runs down the side or across the bottom.`)
+        .default("vertical"),
+};
+
+/** The properties of a scroll bar besides its declared ones: its attributes. */
+export type ScrollAreaBarAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style"> &
+    ElementPartProperties & {};
 
 /** Render a bar that scrolls its area along an axis, hidden where everything fits. */
-export function ScrollAreaBar(properties: ScrollAreaBarProperties): JSX.Element {
-    // stand by the area around it
-    const area = useContext(ScrollAreaContext);
-    if (area === null) {
-        throw new TypeError("a scroll area's bar needs a scroll area around it");
-    }
-    const axis = untrack(() => properties.orientation) ?? "vertical";
-    const isVertical = axis === "vertical";
-    let bar: HTMLElement | undefined;
-    let thumbElement: HTMLElement | undefined;
-    let thumbLength = 0;
-    let start = 0;
-    const draw = (): void => {
-        // size and place the thumb by the share in view
-        const view = area.viewport();
-        if (view === undefined || bar === undefined) {
-            return;
+export const ScrollAreaBar = defineComponent({
+    name: "scrollAreaBar",
+    properties: SCROLL_AREA_BAR_PROPERTIES,
+    render(
+        properties: RenderProperties<ScrollAreaBarAttributes, typeof SCROLL_AREA_BAR_PROPERTIES>,
+    ): JSX.Element {
+        // stand by the area around it
+        const area = useContext(ScrollAreaContext);
+        if (area === null) {
+            throw new TypeError("a scroll area's bar needs a scroll area around it");
         }
-        const { length, whole, most, offset } = measure(view, axis);
-        bar.hidden = most <= 1;
-        const track = isVertical ? bar.clientHeight : bar.clientWidth;
-        const thumb = Math.max(LEAST_THUMB, (length / whole) * track);
-        const place = most === 0 ? 0 : (offset / most) * (track - thumb);
-        thumbLength = Math.min(thumb, track);
-        if (thumbElement !== undefined) {
-            thumbElement.style[isVertical ? "height" : "width"] = `${String(thumbLength)}px`;
-            thumbElement.style[isVertical ? "top" : "insetInlineStart"] = `${String(place)}px`;
-        }
-    };
-    const scrollTo = (view: HTMLElement, offset: number): void => {
-        // scroll to a distance from the start of the text
-        if (isVertical) {
-            view.scrollTop = offset;
-        } else {
-            view.scrollLeft = getComputedStyle(view).direction === "rtl" ? -offset : offset;
-        }
-    };
-    const trackLength = (): number => (isVertical ? bar?.clientHeight : bar?.clientWidth) ?? 0;
-
-    // follow the scrolling, and the size of the area and of what it scrolls
-    createEffect(area.viewport, (view) => {
-        if (view === undefined) {
-            return undefined;
-        }
-        untrack(draw);
-        const resizes = new ResizeObserver(() => untrack(draw));
-        [view, ...view.children].forEach((each) => resizes.observe(each));
-        const changes = new MutationObserver(() => {
-            [...view.children].forEach((each) => resizes.observe(each));
-            untrack(draw);
-        });
-        changes.observe(view, { childList: true });
-        const listening = new AbortController();
-        view.addEventListener("scroll", () => untrack(draw), {
-            passive: true,
-            signal: listening.signal,
-        });
-
-        return () => {
-            resizes.disconnect();
-            changes.disconnect();
-            listening.abort();
+        const axis = untrack(() => properties.orientation);
+        const isVertical = axis === "vertical";
+        let bar: HTMLElement | undefined;
+        let thumbElement: HTMLElement | undefined;
+        let thumbLength = 0;
+        let start = 0;
+        const draw = (): void => {
+            // size and place the thumb by the share in view
+            const view = area.viewport();
+            if (view === undefined || bar === undefined) {
+                return;
+            }
+            const { length, whole, most, offset } = measure(view, axis);
+            bar.hidden = most <= 1;
+            const track = isVertical ? bar.clientHeight : bar.clientWidth;
+            const thumb = Math.max(LEAST_THUMB, (length / whole) * track);
+            const place = most === 0 ? 0 : (offset / most) * (track - thumb);
+            thumbLength = Math.min(thumb, track);
+            if (thumbElement !== undefined) {
+                thumbElement.style[isVertical ? "height" : "width"] = `${String(thumbLength)}px`;
+                thumbElement.style[isVertical ? "top" : "insetInlineStart"] = `${String(place)}px`;
+            }
         };
-    });
+        const scrollTo = (view: HTMLElement, offset: number): void => {
+            // scroll to a distance from the start of the text
+            if (isVertical) {
+                view.scrollTop = offset;
+            } else {
+                view.scrollLeft = getComputedStyle(view).direction === "rtl" ? -offset : offset;
+            }
+        };
+        const trackLength = (): number => (isVertical ? bar?.clientHeight : bar?.clientWidth) ?? 0;
 
-    // go to where a press beside the thumb lands
-    const press = (event: PointerEvent): void => {
-        // leave the thumb, and other buttons
-        const view = untrack(area.viewport);
-        const bounds = bar?.getBoundingClientRect();
-        const isOnThumb =
-            event.target instanceof Node && thumbElement?.contains(event.target) === true;
-        const room = trackLength() - thumbLength;
-        if (
-            view === undefined ||
-            bounds === undefined ||
-            event.button !== 0 ||
-            isOnThumb ||
-            room <= 0
-        ) {
-            return;
-        }
+        // follow the scrolling, and the size of the area and of what it scrolls
+        createEffect(area.viewport, (view) => {
+            if (view === undefined) {
+                return undefined;
+            }
+            untrack(draw);
+            const resizes = new ResizeObserver(() => untrack(draw));
+            [view, ...view.children].forEach((each) => resizes.observe(each));
+            const changes = new MutationObserver(() => {
+                [...view.children].forEach((each) => resizes.observe(each));
+                untrack(draw);
+            });
+            changes.observe(view, { childList: true });
+            const listening = new AbortController();
+            view.addEventListener("scroll", () => untrack(draw), {
+                passive: true,
+                signal: listening.signal,
+            });
 
-        // have the thumb's middle under the pointer
-        const isBackward = getComputedStyle(view).direction === "rtl";
-        const along = isVertical
-            ? event.clientY - bounds.top
-            : isBackward
-              ? bounds.right - event.clientX
-              : event.clientX - bounds.left;
-        scrollTo(view, ((along - thumbLength / 2) / room) * measure(view, axis).most);
-    };
+            return () => {
+                resizes.disconnect();
+                changes.disconnect();
+                listening.abort();
+            };
+        });
 
-    // drag the thumb by the share of the room it has
-    const move = new Move(
-        {
-            distance: 0,
-            keys: [],
-            orientation: axis,
-            onMoveStart: () => {
-                const view = untrack(area.viewport);
-                start = view === undefined ? 0 : measure(view, axis).offset;
+        // go to where a press beside the thumb lands
+        const press = (event: PointerEvent): void => {
+            // leave the thumb, and other buttons
+            const view = untrack(area.viewport);
+            const bounds = bar?.getBoundingClientRect();
+            const isOnThumb =
+                event.target instanceof Node && thumbElement?.contains(event.target) === true;
+            const room = trackLength() - thumbLength;
+            if (
+                view === undefined ||
+                bounds === undefined ||
+                event.button !== 0 ||
+                isOnThumb ||
+                room <= 0
+            ) {
+                return;
+            }
+
+            // have the thumb's middle under the pointer
+            const isBackward = getComputedStyle(view).direction === "rtl";
+            const along = isVertical
+                ? event.clientY - bounds.top
+                : isBackward
+                  ? bounds.right - event.clientX
+                  : event.clientX - bounds.left;
+            scrollTo(view, ((along - thumbLength / 2) / room) * measure(view, axis).most);
+        };
+
+        // drag the thumb by the share of the room it has
+        const move = new Move(
+            {
+                distance: 0,
+                keys: [],
+                orientation: axis,
+                onMoveStart: () => {
+                    const view = untrack(area.viewport);
+                    start = view === undefined ? 0 : measure(view, axis).offset;
+                },
+                onMove: (event) => {
+                    const view = untrack(area.viewport);
+                    const room = trackLength() - thumbLength;
+                    if (view !== undefined && room > 0) {
+                        const isBackward =
+                            !isVertical && getComputedStyle(view).direction === "rtl";
+                        const offset = isVertical
+                            ? event.offsetY
+                            : event.offsetX * (isBackward ? -1 : 1);
+                        scrollTo(view, start + (offset / room) * measure(view, axis).most);
+                    }
+                },
             },
-            onMove: (event) => {
-                const view = untrack(area.viewport);
-                const room = trackLength() - thumbLength;
-                if (view !== undefined && room > 0) {
-                    const isBackward = !isVertical && getComputedStyle(view).direction === "rtl";
-                    const offset = isVertical
-                        ? event.offsetY
-                        : event.offsetX * (isBackward ? -1 : 1);
-                    scrollTo(view, start + (offset / room) * measure(view, axis).most);
-                }
-            },
-        },
-        useEnvironment().clock,
-    );
+            useEnvironment().clock,
+        );
 
-    return (
-        <BarContext value={{ axis, setThumb: (element) => (thumbElement = element) }}>
-            {renderPart(
-                "div",
-                "scroll-area-bar",
-                omit(properties, "orientation", "children"),
-                [styles.bar, bars[axis]],
-                mergeProperties(move.attributes(), {
-                    "aria-hidden": "true" as const,
-                    tabindex: -1,
-                    "data-orientation": axis,
-                    hidden: true,
-                    ref: (element: HTMLElement) => {
-                        bar = element;
-                    },
-                    get "data-scrolling"() {
-                        return area.isScrolling() ? "" : undefined;
-                    },
-                    get "data-moving"() {
-                        return move.isMoving() ? "" : undefined;
-                    },
-                    onPointerDown: press,
-                    onWheel: (event: WheelEvent) =>
-                        area.viewport()?.scrollBy({ left: event.deltaX, top: event.deltaY }),
-                    get children() {
-                        return contentOr(properties, () => <ScrollAreaThumb />);
-                    },
-                }),
-            )}
-        </BarContext>
-    );
-}
+        return (
+            <BarContext value={{ axis, setThumb: (element) => (thumbElement = element) }}>
+                {renderPart(
+                    "div",
+                    "scroll-area-bar",
+                    omit(properties, "orientation", "children"),
+                    [styles.bar, bars[axis]],
+                    mergeProperties(move.attributes(), {
+                        "aria-hidden": "true" as const,
+                        tabindex: -1,
+                        "data-orientation": axis,
+                        hidden: true,
+                        ref: (element: HTMLElement) => {
+                            bar = element;
+                        },
+                        get "data-scrolling"() {
+                            return area.isScrolling() ? "" : undefined;
+                        },
+                        get "data-moving"() {
+                            return move.isMoving() ? "" : undefined;
+                        },
+                        onPointerDown: press,
+                        onWheel: (event: WheelEvent) =>
+                            area.viewport()?.scrollBy({ left: event.deltaX, top: event.deltaY }),
+                        get children() {
+                            return contentOr(properties, () => <ScrollAreaThumb />);
+                        },
+                    }),
+                )}
+            </BarContext>
+        );
+    },
+});
+
+/** The properties of a scroll bar, its native attributes included. */
+export type ScrollAreaBarProperties = ComponentProperties<typeof ScrollAreaBar>;
 
 /** Render the part of a bar that stands for what is in view. */
 export function ScrollAreaThumb(

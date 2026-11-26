@@ -835,10 +835,6 @@
             "source": "When a booking starts, within its season, in a form that needs it.",
             "translation": "Quando começa uma reserva, dentro da época, num formulário que a exige."
         },
-        "1ojpmhtn2acl6": {
-            "source": "The tools of a drawing, from top to bottom.",
-            "translation": "As ferramentas de um desenho, de cima para baixo."
-        },
         "1om9kvf2oy8xw": {
             "source": "Files in panes, which open and split with files from the desktop.",
             "translation": "Ficheiros em painéis que se abrem e dividem com ficheiros do ambiente de trabalho."
@@ -1425,10 +1421,6 @@
         "24dc7ojhzeyb0": {
             "source": "Shows a spinner in place of the label while its action runs.",
             "translation": "Mostra um indicador de carregamento no lugar do rótulo enquanto a ação decorre."
-        },
-        "24fptq1c7ttdb": {
-            "source": "The controls of a text nobody may change.",
-            "translation": "Os controlos de um texto que ninguém pode alterar."
         },
         "24jzugj39mqt": {
             "source": "Next slide",
@@ -3354,10 +3346,6 @@
             "source": "A space's usage as three small cards, each a figure and its label.",
             "translation": "A utilização de um espaço em três cartões pequenos, cada um com um número e o seu rótulo."
         },
-        "3nm8goljdsspi": {
-            "source": "The tags of a note whose request for the rest is unavailable.",
-            "translation": "As etiquetas de uma nota cujo pedido do resto está indisponível."
-        },
         "3nnk1s8gdk425": {
             "source": "Select row",
             "context": "action",
@@ -3582,10 +3570,6 @@
         "3txn6o6owexpx": {
             "source": "Results for “{$p0}”",
             "translation": "Resultados para “{$p0}”"
-        },
-        "3tz3ye0t3wuvx": {
-            "source": "A help page's questions with one question unavailable.",
-            "translation": "As perguntas de uma página de ajuda com uma pergunta indisponível."
         },
         "3u1uig2083xod": {
             "source": "A task's status and person, each shown on the button that picks another.",
@@ -5021,10 +5005,6 @@
             "source": "The hue the initials show on, where there is no picture.",
             "translation": "A tonalidade sobre a qual aparecem as iniciais quando não há imagem."
         },
-        "1gvhi80lruej2": {
-            "source": "The side of its trigger the menu opens on, where it fits.",
-            "translation": "O lado do seu acionador onde o menu abre, se couber."
-        },
         "34l19jm9wy458": {
             "source": "Top center",
             "context": "option",
@@ -5044,10 +5024,6 @@
             "source": "Top",
             "context": "option",
             "translation": "Em cima"
-        },
-        "3gqn9bvcl96aj": {
-            "source": "Where along its trigger the menu lines up.",
-            "translation": "Onde o menu se alinha ao longo do seu acionador."
         },
         "3akpbdixtevq8": {
             "source": "Whether the field shows its frame.",
@@ -5399,6 +5375,266 @@
         "2l8hk3x0cxqe1": {
             "source": "A note's title typed into its group, beside its character limit.",
             "translation": "O título de uma nota escrito no seu grupo, junto ao limite de caracteres."
+        },
+        "2vo6qlx43ycjk": {
+            "source": "A help page's questions, the billing question set on its own.",
+            "translation": "As perguntas de uma página de ajuda, a de faturação definida à parte."
+        },
+        "ejlj8smtaepc": {
+            "source": "Whether the sections stack in a column or lie in a row.",
+            "translation": "Se as secções se empilham numa coluna ou ficam numa linha."
+        },
+        "23qqcuxbxwnoa": {
+            "source": "Refuses presses on every section of the accordion.",
+            "translation": "Recusa toques em cada secção do acordeão."
+        },
+        "21xug21nf2fuy": {
+            "source": "Refuses presses on this section alone.",
+            "translation": "Recusa toques apenas nesta secção."
+        },
+        "308r336deo1nk": {
+            "source": "Refuses presses on its trigger.",
+            "translation": "Recusa toques no seu acionador."
+        },
+        "38oiwl8f6h94s": {
+            "source": "Indented beside a line, as nested items are.",
+            "translation": "Recuado junto a uma linha, como os itens aninhados."
+        },
+        "1m7gptfqs3nhw": {
+            "source": "Whether the content sits beside a line.",
+            "translation": "Se o conteúdo fica junto a uma linha."
+        },
+        "1jdd2ua60awpo": {
+            "source": "A palette's width, for commands with details.",
+            "translation": "A largura de uma paleta, para comandos com detalhes."
+        },
+        "3tswjebuyr5x6": {
+            "source": "A plain list's width.",
+            "translation": "A largura de uma lista simples."
+        },
+        "2uwla52aemfu7": {
+            "source": "How wide the dialog grows.",
+            "translation": "A largura que o diálogo atinge."
+        },
+        "13qzj7hbjwlkx": {
+            "source": "A note card's actions, duplicating it set on its own.",
+            "translation": "As ações de um cartão de nota, duplicar definido à parte."
+        },
+        "2mt8xc5py04it": {
+            "source": "A notebook's pin, set on its own.",
+            "translation": "A fixação de um caderno, definida à parte."
+        },
+        "23q79tlvm40aw": {
+            "source": "A notebook's sort orders, by title set on its own.",
+            "translation": "As ordenações de um caderno, a por título definida à parte."
+        },
+        "b30dkg272p2h": {
+            "source": "Handle",
+            "context": "label",
+            "translation": "Pega"
+        },
+        "wpy205n8mfl": {
+            "source": "Shows a handle at its top edge, as a drawer rising from the bottom does when absent.",
+            "translation": "Mostra uma pega no rebordo superior; se ausente, como uma gaveta que sobe de baixo."
+        },
+        "exns131ei8kb": {
+            "source": "A note's options, pinning it set on its own.",
+            "translation": "As opções de uma nota, a fixação definida à parte."
+        },
+        "2khwuoz9apxoe": {
+            "source": "A note's options, ordering by title set on its own.",
+            "translation": "As opções de uma nota, a ordenação por título definida à parte."
+        },
+        "1vsl5piieb3gy": {
+            "source": "The editor's File menu open, laid out by its side and alignment.",
+            "translation": "O menu Ficheiro do editor aberto, disposto pelo lado e alinhamento."
+        },
+        "k77h9d9p5f3t": {
+            "source": "The editor's File menu, exporting set on its own.",
+            "translation": "O menu Ficheiro do editor, exportar definido à parte."
+        },
+        "ms880kyy2y1j": {
+            "source": "The editor's View menu, the ruler set on its own.",
+            "translation": "O menu Ver do editor, a régua definida à parte."
+        },
+        "2rqpjzmkxhnl5": {
+            "source": "The editor's zoom levels, the largest set on its own.",
+            "translation": "Os níveis de zoom do editor, o maior definido à parte."
+        },
+        "3q84w7ej6966r": {
+            "source": "A site's company link, set on its own.",
+            "translation": "A ligação da empresa de um site, definida à parte."
+        },
+        "glaxrjzjlha1": {
+            "source": "Active",
+            "context": "label",
+            "translation": "Ativo"
+        },
+        "dxt2rct8i7l0": {
+            "source": "Marks the link to the page a person is on.",
+            "translation": "Marca a ligação para a página em que se está."
+        },
+        "2d90xbf257xct": {
+            "source": "A note list's pages, the third set on its own.",
+            "translation": "As páginas de uma lista de notas, a terceira definida à parte."
+        },
+        "ijxuvhncyvcs": {
+            "source": "As wide as a form, whatever it holds.",
+            "translation": "Tão largo como um formulário, contenha o que contiver."
+        },
+        "20yvs55362ard": {
+            "source": "As wide as what it holds, such as a few controls.",
+            "translation": "Tão largo como o seu conteúdo, como alguns controlos."
+        },
+        "2h3i6v7mybq3t": {
+            "source": "Width",
+            "context": "label",
+            "translation": "Largura"
+        },
+        "2ef5fbq72aiyb": {
+            "source": "Whether the popover keeps a form's width or fits what it holds.",
+            "translation": "Se o popover mantém a largura de um formulário ou se ajusta ao conteúdo."
+        },
+        "4gl85ilrhuy7": {
+            "source": "The side of its trigger it opens on, where it fits.",
+            "translation": "O lado do seu acionador em que abre, onde couber."
+        },
+        "1b4t45msgnwk": {
+            "source": "Where along its trigger it lines up.",
+            "translation": "Onde se alinha ao longo do seu acionador."
+        },
+        "1459kz4oqqs5l": {
+            "source": "A notebook list beside the open note, the divider between them set on its own.",
+            "translation": "Uma lista de cadernos junto à nota aberta, com o divisor definido à parte."
+        },
+        "36hg1u3shqqdm": {
+            "source": "Whether the panels lie side by side or one above the other.",
+            "translation": "Se os painéis ficam lado a lado ou um acima do outro."
+        },
+        "237sfq18avd9j": {
+            "source": "Grip",
+            "context": "label",
+            "translation": "Pega"
+        },
+        "1fe7hx0vipa2r": {
+            "source": "Shows a grip on the divider, which a person drags.",
+            "translation": "Mostra uma pega no divisor, que se arrasta."
+        },
+        "3lhgud89wfpya": {
+            "source": "A long list of tags with its one bar set on its own.",
+            "translation": "Uma longa lista de etiquetas, com a sua única barra definida à parte."
+        },
+        "jddzdqoezctn": {
+            "source": "Both",
+            "context": "option",
+            "translation": "Ambos"
+        },
+        "f59n5o23ogbs": {
+            "source": "The directions it scrolls in.",
+            "translation": "As direções em que se desloca."
+        },
+        "1cxxphj3ox3zd": {
+            "source": "Fade",
+            "context": "label",
+            "translation": "Esbatimento"
+        },
+        "26aa1eomn3llv": {
+            "source": "Fades the edges where more content waits to scroll in.",
+            "translation": "Esbate os rebordos onde mais conteúdo espera por deslocar."
+        },
+        "31hihbl36qgc4": {
+            "source": "Whether the bar runs down the side or across the bottom.",
+            "translation": "Se a barra desce pelo lado ou atravessa em baixo."
+        },
+        "1h1euz0943jd5": {
+            "source": "The edge it slides in from, mirrored right to left.",
+            "translation": "O rebordo de onde desliza, espelhado da direita para a esquerda."
+        },
+        "277rcacfsihgc": {
+            "source": "A sidebar's notebook entry, set on its own.",
+            "translation": "A entrada de caderno de uma barra lateral, definida à parte."
+        },
+        "3uvnee3ozw1ca": {
+            "source": "A notebook's nested section entry, set on its own.",
+            "translation": "A entrada de secção aninhada de um caderno, definida à parte."
+        },
+        "2grp9sx7x1mko": {
+            "source": "Sidebar",
+            "context": "option",
+            "translation": "Barra lateral"
+        },
+        "h0yvcqr19oc2": {
+            "source": "Against the edge of the screen.",
+            "translation": "Encostada ao rebordo do ecrã."
+        },
+        "1c2ie9ply3mvm": {
+            "source": "Floating",
+            "context": "option",
+            "translation": "Flutuante"
+        },
+        "2jdk1gv98sopg": {
+            "source": "A card apart from the edge.",
+            "translation": "Um cartão afastado do rebordo."
+        },
+        "18lf19m3o3ddd": {
+            "source": "Inset",
+            "context": "option",
+            "translation": "Embutida"
+        },
+        "28fb260yhzv42": {
+            "source": "Around the main content, which sits on it as a card.",
+            "translation": "À volta do conteúdo principal, que assenta nela como um cartão."
+        },
+        "2zrjbini2675r": {
+            "source": "Off canvas",
+            "context": "option",
+            "translation": "Fora do ecrã"
+        },
+        "3ruccufg9n4rh": {
+            "source": "Off the screen.",
+            "translation": "Para fora do ecrã."
+        },
+        "z35ozljpnivh": {
+            "source": "Icon",
+            "context": "option",
+            "translation": "Ícone"
+        },
+        "1m7mu4fvs97gi": {
+            "source": "Down to its icons.",
+            "translation": "Até ficar só com os ícones."
+        },
+        "1isabpe0hfb55": {
+            "source": "Stays open at its full width.",
+            "translation": "Fica aberta em toda a largura."
+        },
+        "2n00m2y01xx4o": {
+            "source": "The side of the screen it sits on.",
+            "translation": "O lado do ecrã em que fica."
+        },
+        "1dyr9bd0i6v2a": {
+            "source": "Whether it sits against the edge, floats, or holds the content inset.",
+            "translation": "Se fica encostada ao rebordo, flutua ou segura o conteúdo embutido."
+        },
+        "1gdfkzekxmfik": {
+            "source": "Collapse",
+            "context": "label",
+            "translation": "Recolher"
+        },
+        "1oi3djad8hl80": {
+            "source": "How it collapses as a person closes it.",
+            "translation": "Como se recolhe ao fechá-la."
+        },
+        "16pr7ul85y63n": {
+            "source": "How tall the entry is.",
+            "translation": "A altura da entrada."
+        },
+        "rg6i8gj05z8c": {
+            "source": "Whether the tools lie in a row or a column.",
+            "translation": "Se as ferramentas ficam numa linha ou numa coluna."
+        },
+        "q4anqcu705s4": {
+            "source": "Refuses presses on every tool, each still in reach of the keys.",
+            "translation": "Recusa toques em cada ferramenta, cada uma ao alcance das teclas."
         }
     }
 }

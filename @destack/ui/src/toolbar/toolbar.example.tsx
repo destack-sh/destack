@@ -15,8 +15,8 @@ export const toolbarText = defineExample({
     of: Toolbar,
     name: "text",
     description: t`The controls of a text.`,
-    render: () => (
-        <Toolbar aria-label="Text">
+    render: (properties) => (
+        <Toolbar aria-label="Text" {...properties}>
             <ToolbarGroup aria-label="History">
                 <ToolbarButton aria-label="Undo">
                     <Icon icon={undoIcon} />
@@ -44,48 +44,6 @@ export const toolbarText = defineExample({
                     <SelectItem value="body">Body</SelectItem>
                 </SelectContent>
             </Select>
-            <Input aria-label="Find" placeholder="Find" />
-        </Toolbar>
-    ),
-});
-
-/** The tools of a drawing, from top to bottom. */
-export const toolbarVertical = defineExample({
-    of: Toolbar,
-    name: "vertical",
-    description: t`The tools of a drawing, from top to bottom.`,
-    render: () => (
-        <Toolbar aria-label="Tools" orientation="vertical">
-            <ToolbarButton aria-label="Undo">
-                <Icon icon={undoIcon} />
-            </ToolbarButton>
-            <ToolbarSeparator orientation="horizontal" />
-            <ToolbarButton aria-label="Redo">
-                <Icon icon={redoIcon} />
-            </ToolbarButton>
-        </Toolbar>
-    ),
-});
-
-/** The controls of a text nobody may change. */
-export const toolbarDisabled = defineExample({
-    of: Toolbar,
-    name: "disabled",
-    description: t`The controls of a text nobody may change.`,
-    render: () => (
-        <Toolbar aria-label="Text" disabled>
-            <ToolbarButton aria-label="Undo">
-                <Icon icon={undoIcon} />
-            </ToolbarButton>
-            <ToolbarSeparator />
-            <ToggleGroup multiple defaultValue={["bold"]} aria-label="Style">
-                <ToggleGroupItem value="bold" aria-label="Bold">
-                    <Icon icon={boldIcon} />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="italic" aria-label="Italic">
-                    <Icon icon={italicIcon} />
-                </ToggleGroupItem>
-            </ToggleGroup>
             <Input aria-label="Find" placeholder="Find" />
         </Toolbar>
     ),

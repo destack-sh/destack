@@ -1,3 +1,5 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
 import type { Clock } from "@destack/environment";
@@ -34,6 +36,11 @@ import { Timeout } from "@destack/view/primitives/timer";
 import { Hover, type HoverEvent, SafePolygon } from "../interaction/index.ts";
 import { type Render, renderPart, mergeProperties } from "../part/index.ts";
 import { ListState, tabbablesIn } from "../focus/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
 const TOP = "[data-navigation-top]";
@@ -607,47 +614,66 @@ export function NavigationMenuIndicator(
     });
 }
 
-/** The properties of a link of a navigation menu, the native anchor's attributes included. */
-export type NavigationMenuLinkProperties = NavigationMenuElementProperties<
+/** The properties people change in a navigation link's controls and inspector. */
+const NAVIGATION_MENU_LINK_PROPERTIES = {
+    active: field
+        .boolean()
+        .labeled(t.context("label")`Active`)
+        .described(t`Marks the link to the page a person is on.`)
+        .default(false),
+};
+
+/** The properties of a navigation link besides its declared ones: the native link's attributes. */
+export type NavigationMenuLinkAttributes = NavigationMenuElementProperties<
     JSX.AnchorHTMLAttributes<HTMLAnchorElement>
 > & {
-    /** Whether the link points at the current page. */
-    readonly active?: boolean;
     /** Render another element with the link's attributes, such as a router's link. */
     readonly render?: Render;
 };
 
 /** Render a link of a navigation menu, marked as the current page when active. */
-export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JSX.Element {
-    // join a top-level link to the menu's entries, and mark it and the current page over its styles
-    const menu = useNavigationMenu();
-    const isTop = !useContext(NavigationMenuContentContext);
-    const key = createUniqueId();
-    let element: HTMLElement | undefined;
-    if (isTop) {
-        menu.join(key, () => element);
-    }
-    const rest = omit(properties, "active");
+export const NavigationMenuLink = defineComponent({
+    name: "navigationMenuLink",
+    properties: NAVIGATION_MENU_LINK_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            NavigationMenuLinkAttributes,
+            typeof NAVIGATION_MENU_LINK_PROPERTIES
+        >,
+    ): JSX.Element {
+        // join a top-level link to the menu's entries, and mark it and the current page over its styles
+        const menu = useNavigationMenu();
+        const isTop = !useContext(NavigationMenuContentContext);
+        const key = createUniqueId();
+        let element: HTMLElement | undefined;
+        if (isTop) {
+            menu.join(key, () => element);
+        }
+        const rest = omit(properties, "active");
 
-    return renderPart("a", "navigation-menu-link", rest, [text.sm, state.focus, styles.link], {
-        get "aria-current"() {
-            return properties.active === true ? "page" : undefined;
-        },
-        get "data-active"() {
-            return properties.active === true ? "" : undefined;
-        },
-        "data-navigation-top": isTop ? "" : undefined,
-        ref: (link: HTMLElement) => {
-            element = link;
-        },
-        onFocus: () => {
-            // follow the focus onto a top-level link
-            if (isTop) {
-                menu.list.focus.focusIn(key);
-            }
-        },
-    });
-}
+        return renderPart("a", "navigation-menu-link", rest, [text.sm, state.focus, styles.link], {
+            get "aria-current"() {
+                return properties.active ? "page" : undefined;
+            },
+            get "data-active"() {
+                return properties.active ? "" : undefined;
+            },
+            "data-navigation-top": isTop ? "" : undefined,
+            ref: (link: HTMLElement) => {
+                element = link;
+            },
+            onFocus: () => {
+                // follow the focus onto a top-level link
+                if (isTop) {
+                    menu.list.focus.focusIn(key);
+                }
+            },
+        });
+    },
+});
+
+/** The properties of a navigation link, the native link's attributes included. */
+export type NavigationMenuLinkProperties = ComponentProperties<typeof NavigationMenuLink>;
 
 /** Move Tab past a panel's ends to its trigger and to the next top-level entry. */
 function leavePanel(

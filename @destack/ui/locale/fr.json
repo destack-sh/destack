@@ -835,10 +835,6 @@
             "source": "When a booking starts, within its season, in a form that needs it.",
             "translation": "Quand commence une réservation, dans sa saison, dans un formulaire qui l'exige."
         },
-        "1ojpmhtn2acl6": {
-            "source": "The tools of a drawing, from top to bottom.",
-            "translation": "Les outils d'un dessin, de haut en bas."
-        },
         "1om9kvf2oy8xw": {
             "source": "Files in panes, which open and split with files from the desktop.",
             "translation": "Des fichiers dans des volets qui s'ouvrent et se divisent avec des fichiers du bureau."
@@ -1425,10 +1421,6 @@
         "24dc7ojhzeyb0": {
             "source": "Shows a spinner in place of the label while its action runs.",
             "translation": "Affiche un indicateur de chargement à la place du libellé pendant que l'action s'exécute."
-        },
-        "24fptq1c7ttdb": {
-            "source": "The controls of a text nobody may change.",
-            "translation": "Les contrôles d'un texte que personne ne peut modifier."
         },
         "24jzugj39mqt": {
             "source": "Next slide",
@@ -3354,10 +3346,6 @@
             "source": "A space's usage as three small cards, each a figure and its label.",
             "translation": "L'utilisation d'un espace en trois petites cartes, chacune un chiffre et son libellé."
         },
-        "3nm8goljdsspi": {
-            "source": "The tags of a note whose request for the rest is unavailable.",
-            "translation": "Les étiquettes d'une note dont la demande du reste est indisponible."
-        },
         "3nnk1s8gdk425": {
             "source": "Select row",
             "context": "action",
@@ -3582,10 +3570,6 @@
         "3txn6o6owexpx": {
             "source": "Results for “{$p0}”",
             "translation": "Résultats pour « {$p0} »"
-        },
-        "3tz3ye0t3wuvx": {
-            "source": "A help page's questions with one question unavailable.",
-            "translation": "Les questions d'une page d'aide dont une indisponible."
         },
         "3u1uig2083xod": {
             "source": "A task's status and person, each shown on the button that picks another.",
@@ -5021,10 +5005,6 @@
             "source": "The hue the initials show on, where there is no picture.",
             "translation": "La teinte derrière les initiales, en l'absence d'image."
         },
-        "1gvhi80lruej2": {
-            "source": "The side of its trigger the menu opens on, where it fits.",
-            "translation": "Le côté de son déclencheur où le menu s'ouvre, s'il y a la place."
-        },
         "34l19jm9wy458": {
             "source": "Top center",
             "context": "option",
@@ -5044,10 +5024,6 @@
             "source": "Top",
             "context": "option",
             "translation": "En haut"
-        },
-        "3gqn9bvcl96aj": {
-            "source": "Where along its trigger the menu lines up.",
-            "translation": "Où le menu s'aligne le long de son déclencheur."
         },
         "3akpbdixtevq8": {
             "source": "Whether the field shows its frame.",
@@ -5399,6 +5375,266 @@
         "2l8hk3x0cxqe1": {
             "source": "A note's title typed into its group, beside its character limit.",
             "translation": "Le titre d'une note saisi dans son groupe, à côté de sa limite de caractères."
+        },
+        "2vo6qlx43ycjk": {
+            "source": "A help page's questions, the billing question set on its own.",
+            "translation": "Les questions d'une page d'aide, celle sur la facturation réglée à part."
+        },
+        "ejlj8smtaepc": {
+            "source": "Whether the sections stack in a column or lie in a row.",
+            "translation": "Si les sections s'empilent en colonne ou se placent en ligne."
+        },
+        "23qqcuxbxwnoa": {
+            "source": "Refuses presses on every section of the accordion.",
+            "translation": "Refuse les appuis sur chaque section de l'accordéon."
+        },
+        "21xug21nf2fuy": {
+            "source": "Refuses presses on this section alone.",
+            "translation": "Refuse les appuis sur cette seule section."
+        },
+        "308r336deo1nk": {
+            "source": "Refuses presses on its trigger.",
+            "translation": "Refuse les appuis sur son déclencheur."
+        },
+        "38oiwl8f6h94s": {
+            "source": "Indented beside a line, as nested items are.",
+            "translation": "En retrait à côté d'une ligne, comme les éléments imbriqués."
+        },
+        "1m7gptfqs3nhw": {
+            "source": "Whether the content sits beside a line.",
+            "translation": "Si le contenu se place à côté d'une ligne."
+        },
+        "1jdd2ua60awpo": {
+            "source": "A palette's width, for commands with details.",
+            "translation": "La largeur d'une palette, pour des commandes avec détails."
+        },
+        "3tswjebuyr5x6": {
+            "source": "A plain list's width.",
+            "translation": "La largeur d'une simple liste."
+        },
+        "2uwla52aemfu7": {
+            "source": "How wide the dialog grows.",
+            "translation": "La largeur que prend la boîte de dialogue."
+        },
+        "13qzj7hbjwlkx": {
+            "source": "A note card's actions, duplicating it set on its own.",
+            "translation": "Les actions d'une carte de note, la duplication réglée à part."
+        },
+        "2mt8xc5py04it": {
+            "source": "A notebook's pin, set on its own.",
+            "translation": "L'épinglage d'un carnet, réglé à part."
+        },
+        "23q79tlvm40aw": {
+            "source": "A notebook's sort orders, by title set on its own.",
+            "translation": "Les tris d'un carnet, celui par titre réglé à part."
+        },
+        "b30dkg272p2h": {
+            "source": "Handle",
+            "context": "label",
+            "translation": "Poignée"
+        },
+        "wpy205n8mfl": {
+            "source": "Shows a handle at its top edge, as a drawer rising from the bottom does when absent.",
+            "translation": "Affiche une poignée sur son bord supérieur, comme un tiroir montant du bas s'il n'est pas indiqué."
+        },
+        "exns131ei8kb": {
+            "source": "A note's options, pinning it set on its own.",
+            "translation": "Les options d'une note, l'épinglage réglé à part."
+        },
+        "2khwuoz9apxoe": {
+            "source": "A note's options, ordering by title set on its own.",
+            "translation": "Les options d'une note, le tri par titre réglé à part."
+        },
+        "1vsl5piieb3gy": {
+            "source": "The editor's File menu open, laid out by its side and alignment.",
+            "translation": "Le menu Fichier de l'éditeur ouvert, placé selon son côté et son alignement."
+        },
+        "k77h9d9p5f3t": {
+            "source": "The editor's File menu, exporting set on its own.",
+            "translation": "Le menu Fichier de l'éditeur, l'export réglé à part."
+        },
+        "ms880kyy2y1j": {
+            "source": "The editor's View menu, the ruler set on its own.",
+            "translation": "Le menu Affichage de l'éditeur, la règle réglée à part."
+        },
+        "2rqpjzmkxhnl5": {
+            "source": "The editor's zoom levels, the largest set on its own.",
+            "translation": "Les niveaux de zoom de l'éditeur, le plus grand réglé à part."
+        },
+        "3q84w7ej6966r": {
+            "source": "A site's company link, set on its own.",
+            "translation": "Le lien entreprise d'un site, réglé à part."
+        },
+        "glaxrjzjlha1": {
+            "source": "Active",
+            "context": "label",
+            "translation": "Actif"
+        },
+        "dxt2rct8i7l0": {
+            "source": "Marks the link to the page a person is on.",
+            "translation": "Marque le lien vers la page où l'on se trouve."
+        },
+        "2d90xbf257xct": {
+            "source": "A note list's pages, the third set on its own.",
+            "translation": "Les pages d'une liste de notes, la troisième réglée à part."
+        },
+        "ijxuvhncyvcs": {
+            "source": "As wide as a form, whatever it holds.",
+            "translation": "Aussi large qu'un formulaire, quel que soit son contenu."
+        },
+        "20yvs55362ard": {
+            "source": "As wide as what it holds, such as a few controls.",
+            "translation": "Aussi large que son contenu, comme quelques contrôles."
+        },
+        "2h3i6v7mybq3t": {
+            "source": "Width",
+            "context": "label",
+            "translation": "Largeur"
+        },
+        "2ef5fbq72aiyb": {
+            "source": "Whether the popover keeps a form's width or fits what it holds.",
+            "translation": "Si la fenêtre contextuelle garde la largeur d'un formulaire ou s'ajuste à son contenu."
+        },
+        "4gl85ilrhuy7": {
+            "source": "The side of its trigger it opens on, where it fits.",
+            "translation": "Le côté de son déclencheur où il s'ouvre, là où il tient."
+        },
+        "1b4t45msgnwk": {
+            "source": "Where along its trigger it lines up.",
+            "translation": "Où il s'aligne le long de son déclencheur."
+        },
+        "1459kz4oqqs5l": {
+            "source": "A notebook list beside the open note, the divider between them set on its own.",
+            "translation": "Une liste de carnets à côté de la note ouverte, le séparateur réglé à part."
+        },
+        "36hg1u3shqqdm": {
+            "source": "Whether the panels lie side by side or one above the other.",
+            "translation": "Si les panneaux sont côte à côte ou l'un au-dessus de l'autre."
+        },
+        "237sfq18avd9j": {
+            "source": "Grip",
+            "context": "label",
+            "translation": "Prise"
+        },
+        "1fe7hx0vipa2r": {
+            "source": "Shows a grip on the divider, which a person drags.",
+            "translation": "Affiche une prise sur le séparateur, qu'on fait glisser."
+        },
+        "3lhgud89wfpya": {
+            "source": "A long list of tags with its one bar set on its own.",
+            "translation": "Une longue liste d'étiquettes, sa barre unique réglée à part."
+        },
+        "jddzdqoezctn": {
+            "source": "Both",
+            "context": "option",
+            "translation": "Les deux"
+        },
+        "f59n5o23ogbs": {
+            "source": "The directions it scrolls in.",
+            "translation": "Les directions dans lesquelles il défile."
+        },
+        "1cxxphj3ox3zd": {
+            "source": "Fade",
+            "context": "label",
+            "translation": "Fondu"
+        },
+        "26aa1eomn3llv": {
+            "source": "Fades the edges where more content waits to scroll in.",
+            "translation": "Estompe les bords où d'autres contenus attendent de défiler."
+        },
+        "31hihbl36qgc4": {
+            "source": "Whether the bar runs down the side or across the bottom.",
+            "translation": "Si la barre descend sur le côté ou traverse en bas."
+        },
+        "1h1euz0943jd5": {
+            "source": "The edge it slides in from, mirrored right to left.",
+            "translation": "Le bord d'où il glisse, en miroir de droite à gauche."
+        },
+        "277rcacfsihgc": {
+            "source": "A sidebar's notebook entry, set on its own.",
+            "translation": "L'entrée de carnet d'une barre latérale, réglée à part."
+        },
+        "3uvnee3ozw1ca": {
+            "source": "A notebook's nested section entry, set on its own.",
+            "translation": "L'entrée de section imbriquée d'un carnet, réglée à part."
+        },
+        "2grp9sx7x1mko": {
+            "source": "Sidebar",
+            "context": "option",
+            "translation": "Barre latérale"
+        },
+        "h0yvcqr19oc2": {
+            "source": "Against the edge of the screen.",
+            "translation": "Contre le bord de l'écran."
+        },
+        "1c2ie9ply3mvm": {
+            "source": "Floating",
+            "context": "option",
+            "translation": "Flottante"
+        },
+        "2jdk1gv98sopg": {
+            "source": "A card apart from the edge.",
+            "translation": "Une carte détachée du bord."
+        },
+        "18lf19m3o3ddd": {
+            "source": "Inset",
+            "context": "option",
+            "translation": "Incrustée"
+        },
+        "28fb260yhzv42": {
+            "source": "Around the main content, which sits on it as a card.",
+            "translation": "Autour du contenu principal, posé dessus comme une carte."
+        },
+        "2zrjbini2675r": {
+            "source": "Off canvas",
+            "context": "option",
+            "translation": "Hors écran"
+        },
+        "3ruccufg9n4rh": {
+            "source": "Off the screen.",
+            "translation": "Hors de l'écran."
+        },
+        "z35ozljpnivh": {
+            "source": "Icon",
+            "context": "option",
+            "translation": "Icône"
+        },
+        "1m7mu4fvs97gi": {
+            "source": "Down to its icons.",
+            "translation": "Jusqu'à ses seules icônes."
+        },
+        "1isabpe0hfb55": {
+            "source": "Stays open at its full width.",
+            "translation": "Reste ouverte à pleine largeur."
+        },
+        "2n00m2y01xx4o": {
+            "source": "The side of the screen it sits on.",
+            "translation": "Le côté de l'écran où elle se trouve."
+        },
+        "1dyr9bd0i6v2a": {
+            "source": "Whether it sits against the edge, floats, or holds the content inset.",
+            "translation": "Si elle est contre le bord, flotte ou porte le contenu incrusté."
+        },
+        "1gdfkzekxmfik": {
+            "source": "Collapse",
+            "context": "label",
+            "translation": "Repli"
+        },
+        "1oi3djad8hl80": {
+            "source": "How it collapses as a person closes it.",
+            "translation": "Comment elle se replie quand on la ferme."
+        },
+        "16pr7ul85y63n": {
+            "source": "How tall the entry is.",
+            "translation": "La hauteur de l'entrée."
+        },
+        "rg6i8gj05z8c": {
+            "source": "Whether the tools lie in a row or a column.",
+            "translation": "Si les outils sont en ligne ou en colonne."
+        },
+        "q4anqcu705s4": {
+            "source": "Refuses presses on every tool, each still in reach of the keys.",
+            "translation": "Refuse les appuis sur chaque outil, chacun restant accessible au clavier."
         }
     }
 }

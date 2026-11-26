@@ -5,7 +5,7 @@ import { text } from "@destack/theme/text";
 import { color, radius, size, space, stroke, width } from "@destack/theme/tokens.stylex";
 import { For } from "@destack/view";
 import { Badge } from "../badge/index.ts";
-import { ScrollArea } from "./scroll-area.tsx";
+import { ScrollArea, ScrollAreaBar } from "./scroll-area.tsx";
 
 /** The height of the tag list. */
 const styles = style.create({
@@ -76,6 +76,23 @@ export const scrollAreaLabelStrip = defineExample({
                     {(tag) => <Badge variant="secondary">{tag}</Badge>}
                 </For>
             </div>
+        </ScrollArea>
+    ),
+});
+
+/** A long list of tags with its one bar set on its own. */
+export const scrollAreaBarDefault = defineExample({
+    of: ScrollAreaBar,
+    name: "default",
+    description: t`A long list of tags with its one bar set on its own.`,
+    render: (properties) => (
+        <ScrollArea
+            orientation="both"
+            aria-label="Tags"
+            xstyle={styles.tags}
+            bars={<ScrollAreaBar {...properties} />}
+        >
+            <For each={TAGS}>{(tag) => <p {...style.attrs(text.sm, styles.tag)}>{tag}</p>}</For>
         </ScrollArea>
     ),
 });

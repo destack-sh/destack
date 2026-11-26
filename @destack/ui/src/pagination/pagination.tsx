@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
@@ -7,8 +8,13 @@ import { media } from "@destack/style/media.stylex";
 import { color, size, space } from "@destack/theme/tokens.stylex";
 import { createControllableSignal, For, type JSX, omit, useLocale } from "@destack/view";
 import { type ElementPartProperties, type Render, renderPart } from "../part/index.ts";
-import { Button, type ButtonSize } from "../button/index.ts";
+import { Button } from "../button/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The styles of a pagination and its elements. */
 const styles = style.create({
@@ -53,14 +59,20 @@ const styles = style.create({
 export type PaginationElementProperties<Attributes> = Omit<Attributes, "class"> &
     ElementPartProperties;
 
-/** The properties of a link to a page. */
-export type PaginationLinkProperties = PaginationElementProperties<
+/** The properties people change in a page link's controls and inspector. */
+const PAGINATION_LINK_PROPERTIES = {
+    active: field
+        .boolean()
+        .labeled(t.context("label")`Active`)
+        .described(t`Marks the link to the page a person is on.`)
+        .default(false),
+    size: Button.properties.size,
+};
+
+/** The properties of a page link besides its declared ones: the native link's attributes. */
+export type PaginationLinkAttributes = PaginationElementProperties<
     JSX.AnchorHTMLAttributes<HTMLAnchorElement>
 > & {
-    /** Whether the link points at the current page. */
-    readonly active?: boolean;
-    /** The height and padding of the link, a square icon size by default. */
-    readonly size?: ButtonSize;
     /** Render another element with the link's attributes, the native anchor by default. */
     readonly render?: Render;
 };
@@ -93,31 +105,40 @@ export function PaginationItem(
 }
 
 /** Render a link to a page, marked as the current page when active. */
-export function PaginationLink(properties: PaginationLinkProperties): JSX.Element {
-    const rest = omit(properties, "active", "size");
+export const PaginationLink = defineComponent({
+    name: "paginationLink",
+    properties: PAGINATION_LINK_PROPERTIES,
+    render(
+        properties: RenderProperties<PaginationLinkAttributes, typeof PAGINATION_LINK_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "active", "size");
 
-    return renderPart(
-        "a",
-        "pagination-link",
-        rest,
-        () => [
-            Button.styles({
-                variant: properties.active === true ? "outline" : "ghost",
-                size: properties.size ?? "default",
-                isIconOnly: true,
-            }),
-            properties.active === true && styles.current,
-        ],
-        {
-            get "aria-current"() {
-                return properties.active === true ? "page" : undefined;
+        return renderPart(
+            "a",
+            "pagination-link",
+            rest,
+            () => [
+                Button.styles({
+                    variant: properties.active ? "outline" : "ghost",
+                    size: properties.size,
+                    isIconOnly: true,
+                }),
+                properties.active && styles.current,
+            ],
+            {
+                get "aria-current"() {
+                    return properties.active ? "page" : undefined;
+                },
+                get "data-active"() {
+                    return properties.active ? "" : undefined;
+                },
             },
-            get "data-active"() {
-                return properties.active === true ? "" : undefined;
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of a page link, the native link's attributes included. */
+export type PaginationLinkProperties = ComponentProperties<typeof PaginationLink>;
 
 /** Render the link to the previous page, its arrow pointing against the text. */
 export function PaginationPrevious(

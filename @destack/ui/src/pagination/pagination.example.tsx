@@ -64,3 +64,24 @@ export const paginationFirstPageDisabled = defineExample({
         </Pagination>
     ),
 });
+
+/** A note list's pages, the third set on its own. */
+export const paginationLinkDefault = defineExample({
+    of: PaginationLink,
+    name: "default",
+    description: t`A note list's pages, the third set on its own.`,
+    render: (properties) => (
+        <Pagination>
+            <PaginationContent>
+                <PaginationItem>
+                    <PaginationLink href="?page=2">2</PaginationLink>
+                </PaginationItem>
+                <PaginationItem>
+                    <PaginationLink href="?page=3" {...properties}>
+                        3
+                    </PaginationLink>
+                </PaginationItem>
+            </PaginationContent>
+        </Pagination>
+    ),
+});

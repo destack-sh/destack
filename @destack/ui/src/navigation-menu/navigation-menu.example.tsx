@@ -129,3 +129,21 @@ export const navigationMenuProductsOpen = defineExample({
         </NavigationMenu>
     ),
 });
+
+/** A site's company link, set on its own. */
+export const navigationMenuLinkDefault = defineExample({
+    of: NavigationMenuLink,
+    name: "default",
+    description: t`A site's company link, set on its own.`,
+    render: (properties) => (
+        <NavigationMenu aria-label="Site">
+            <NavigationMenuList>
+                <NavigationMenuItem>
+                    <NavigationMenuLink href="/about" {...properties}>
+                        About
+                    </NavigationMenuLink>
+                </NavigationMenuItem>
+            </NavigationMenuList>
+        </NavigationMenu>
+    ),
+});

@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import { state } from "@destack/theme/state";
 import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
@@ -53,6 +54,11 @@ import { Skeleton } from "../skeleton/index.ts";
 import { OpenChange, type OpenReason } from "../layer/index.ts";
 import { Tooltip, TooltipContent, TooltipControl } from "../tooltip/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The 32-bit FNV-1a offset basis, which starts each skeleton row's hash. */
 const FNV_OFFSET = 2_166_136_261;
@@ -77,13 +83,6 @@ const MAX_WIDTH = 400;
 
 /** The viewports narrower than 768 pixels, where the sidebar opens as a sheet. */
 const MOBILE_QUERY = "(max-width: 47.999rem)";
-
-/** The look and collapse of a sidebar that sets neither. */
-const DEFAULTS: Required<Pick<SidebarProperties, "side" | "variant" | "collapsible">> = {
-    side: "left",
-    variant: "sidebar",
-    collapsible: "offcanvas",
-};
 
 /** The sidebar state of the nearest provider, null outside one. */
 const SidebarContext = createContext<SidebarControl | null>(null);
@@ -298,13 +297,13 @@ const sizes = style.create({
 });
 
 /** The side of the screen a sidebar sits on. */
-export type SidebarSide = "left" | "right";
+export type SidebarSide = keyof typeof SIDEBAR_SIDES;
 
 /** The look of a sidebar: against the edge, floating, or inset around the main content. */
-export type SidebarVariant = "sidebar" | "floating" | "inset";
+export type SidebarVariant = keyof typeof SIDEBAR_VARIANTS;
 
 /** How a sidebar collapses: off the screen, down to its icons, or not at all. */
-export type SidebarCollapsible = "offcanvas" | "icon" | "none";
+export type SidebarCollapsible = keyof typeof SIDEBAR_COLLAPSES;
 
 /** The open state of a sidebar on wide and on narrow screens, which its elements share. */
 export class SidebarControl {
@@ -488,17 +487,68 @@ export interface SidebarProviderProperties extends Omit<
     readonly render?: Render;
 }
 
-/** The properties of a sidebar, the native element's attributes included. */
-export interface SidebarProperties extends Omit<
+/** The sides of the screen a sidebar sits on. */
+const SIDEBAR_SIDES = {
+    left: { title: t.context("option")`Left` },
+    right: { title: t.context("option")`Right` },
+};
+
+/** The looks of a sidebar. */
+const SIDEBAR_VARIANTS = {
+    sidebar: {
+        title: t.context("option")`Sidebar`,
+        description: t`Against the edge of the screen.`,
+    },
+    floating: {
+        title: t.context("option")`Floating`,
+        description: t`A card apart from the edge.`,
+    },
+    inset: {
+        title: t.context("option")`Inset`,
+        description: t`Around the main content, which sits on it as a card.`,
+    },
+};
+
+/** The ways a sidebar collapses. */
+const SIDEBAR_COLLAPSES = {
+    offcanvas: {
+        title: t.context("option")`Off canvas`,
+        description: t`Off the screen.`,
+    },
+    icon: {
+        title: t.context("option")`Icon`,
+        description: t`Down to its icons.`,
+    },
+    none: {
+        title: t.context("option")`None`,
+        description: t`Stays open at its full width.`,
+    },
+};
+
+/** The properties people change in a sidebar's controls and inspector. */
+const SIDEBAR_PROPERTIES = {
+    side: field
+        .enum(SIDEBAR_SIDES)
+        .labeled(t.context("label")`Side`)
+        .described(t`The side of the screen it sits on.`)
+        .default("left"),
+    variant: field
+        .enum(SIDEBAR_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether it sits against the edge, floats, or holds the content inset.`)
+        .default("sidebar"),
+    collapsible: field
+        .enum(SIDEBAR_COLLAPSES)
+        .labeled(t.context("label")`Collapse`)
+        .described(t`How it collapses as a person closes it.`)
+        .default("offcanvas"),
+};
+
+/** The properties of a sidebar besides its declared ones: its native attributes. */
+export interface SidebarAttributes extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "id"
 > {
-    /** The side of the screen, left by default. */
-    readonly side?: SidebarSide;
-    /** The look, against the edge by default. */
-    readonly variant?: SidebarVariant;
-    /** How it collapses, off the screen by default. */
-    readonly collapsible?: SidebarCollapsible;
     /** The StyleX styles applied after the sidebar's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with its attributes, its own by default. */
@@ -509,28 +559,49 @@ export interface SidebarProperties extends Omit<
 export type SidebarElementProperties<Attributes> = Omit<Attributes, "class"> &
     ElementPartProperties;
 
-/** The properties of a sidebar menu button, a link with `href` and a button otherwise. */
-export type SidebarMenuButtonProperties = SidebarElementProperties<
+/** The properties people change in a sidebar entry's controls and inspector. */
+const SIDEBAR_MENU_BUTTON_PROPERTIES = {
+    active: field
+        .boolean()
+        .labeled(t.context("label")`Active`)
+        .described(t`Marks the link to the page a person is on.`)
+        .default(false),
+    size: field
+        .enum({
+            sm: { title: t.context("option")`Small` },
+            default: { title: t.context("option")`Default` },
+            lg: { title: t.context("option")`Large` },
+        })
+        .labeled(t.context("label")`Size`)
+        .described(t`How tall the entry is.`)
+        .default("default"),
+};
+
+/** The properties of a sidebar entry besides its declared ones: its link and tooltip. */
+export type SidebarMenuButtonAttributes = SidebarElementProperties<
     JSX.ButtonHTMLAttributes<HTMLButtonElement> & JSX.AnchorHTMLAttributes<HTMLAnchorElement>
 > & {
     /** The link target, which renders the button as a link. */
     readonly href?: string;
-    /** Whether the button stands for the current page. */
-    readonly active?: boolean;
-    /** The height of the button, default by default. */
-    readonly size?: "default" | "sm" | "lg";
     /** The name a tooltip shows while the sidebar is collapsed to its icons. */
     readonly tooltip?: string;
     /** Render another element with the button's attributes, such as a router's link. */
     readonly render?: Render;
 };
 
-/** The properties of a sidebar sub-entry's link, the native anchor's attributes included. */
-export type SidebarMenuSubButtonProperties = SidebarElementProperties<
+/** The properties people change in a nested sidebar entry's controls and inspector. */
+const SIDEBAR_MENU_SUB_BUTTON_PROPERTIES = {
+    active: field
+        .boolean()
+        .labeled(t.context("label")`Active`)
+        .described(t`Marks the link to the page a person is on.`)
+        .default(false),
+};
+
+/** The properties of a nested sidebar entry besides its declared ones: its link's. */
+export type SidebarMenuSubButtonAttributes = SidebarElementProperties<
     JSX.AnchorHTMLAttributes<HTMLAnchorElement>
 > & {
-    /** Whether the link stands for the current page. */
-    readonly active?: boolean;
     /** Render another element with the link's attributes, such as a router's link. */
     readonly render?: Render;
 };
@@ -577,87 +648,97 @@ export function SidebarProvider(properties: SidebarProviderProperties): JSX.Elem
 }
 
 /** Render the sidebar. */
-export function Sidebar(properties: SidebarProperties): JSX.Element {
-    // read the state and the look
-    const control = useSidebar();
-    const locale = useLocale();
-    const sidebar = merge(DEFAULTS, properties);
-    const rest = omit(sidebar, "side", "variant", "collapsible", "children");
-    const dragged = () => {
-        const pixels = control.width();
+export const Sidebar = defineComponent({
+    name: "sidebar",
+    properties: SIDEBAR_PROPERTIES,
+    render(
+        properties: RenderProperties<SidebarAttributes, typeof SIDEBAR_PROPERTIES>,
+    ): JSX.Element {
+        // read the state and the look
+        const control = useSidebar();
+        const locale = useLocale();
+        const rest = omit(properties, "side", "variant", "collapsible", "children");
+        const dragged = () => {
+            const pixels = control.width();
 
-        return pixels === undefined ? styles.expanded : styles.sized(pixels);
-    };
-    const sizing = () =>
-        control.isOpen() || sidebar.collapsible === "none"
-            ? dragged()
-            : styles[sidebar.collapsible === "icon" ? "icon" : "offcanvas"];
+            return pixels === undefined ? styles.expanded : styles.sized(pixels);
+        };
+        const sizing = () =>
+            control.isOpen() || properties.collapsible === "none"
+                ? dragged()
+                : styles[properties.collapsible === "icon" ? "icon" : "offcanvas"];
 
-    return (
-        <Show
-            when={!control.isMobile() || sidebar.collapsible === "none"}
-            fallback={
-                <Sheet
-                    open={control.isMobileOpen()}
-                    onOpenChange={(isOpen) => control.setMobileOpen(isOpen)}
-                >
-                    <SheetContent
-                        side={sidebar.side}
-                        data-slot="sidebar"
-                        data-mobile="true"
-                        xstyle={styles.sheet}
+        return (
+            <Show
+                when={!control.isMobile() || properties.collapsible === "none"}
+                fallback={
+                    <Sheet
+                        open={control.isMobileOpen()}
+                        onOpenChange={(isOpen) => control.setMobileOpen(isOpen)}
                     >
-                        <SheetTitle xstyle={visuallyHiddenStyle()}>
-                            {locale.render(t.context("title")`Sidebar`)}
-                        </SheetTitle>
-                        <div {...style.attrs(styles.inner)}>{sidebar.children}</div>
-                    </SheetContent>
-                </Sheet>
-            }
-        >
-            {renderPart(
-                "div",
-                "sidebar",
-                rest,
-                () => [
-                    style.defaultMarker(),
-                    text.sm,
-                    styles.sidebar,
-                    styles[sidebar.side],
-                    sidebar.variant === "sidebar" ? null : styles.floating,
-                    sizing(),
-                    (control.isResizing() || control.isInstant()) && styles.resizing,
-                ],
-                {
-                    id: control.id,
-                    get "data-open"() {
-                        return control.isOpen() ? "" : undefined;
+                        <SheetContent
+                            side={properties.side}
+                            data-slot="sidebar"
+                            data-mobile="true"
+                            xstyle={styles.sheet}
+                        >
+                            <SheetTitle xstyle={visuallyHiddenStyle()}>
+                                {locale.render(t.context("title")`Sidebar`)}
+                            </SheetTitle>
+                            <div {...style.attrs(styles.inner)}>{properties.children}</div>
+                        </SheetContent>
+                    </Sheet>
+                }
+            >
+                {renderPart(
+                    "div",
+                    "sidebar",
+                    rest,
+                    () => [
+                        style.defaultMarker(),
+                        text.sm,
+                        styles.sidebar,
+                        styles[properties.side],
+                        properties.variant === "sidebar" ? null : styles.floating,
+                        sizing(),
+                        (control.isResizing() || control.isInstant()) && styles.resizing,
+                    ],
+                    {
+                        id: control.id,
+                        get "data-open"() {
+                            return control.isOpen() ? "" : undefined;
+                        },
+                        get "data-closed"() {
+                            return control.isOpen() ? undefined : "";
+                        },
+                        get "data-collapsible"() {
+                            return control.isOpen() ? undefined : properties.collapsible;
+                        },
+                        get "data-variant"() {
+                            return properties.variant;
+                        },
+                        get "data-side"() {
+                            return properties.side;
+                        },
+                        get inert() {
+                            return !control.isOpen() && properties.collapsible === "offcanvas";
+                        },
+                        get children() {
+                            return (
+                                <div {...style.attrs(styles.inner, dragged())}>
+                                    {properties.children}
+                                </div>
+                            );
+                        },
                     },
-                    get "data-closed"() {
-                        return control.isOpen() ? undefined : "";
-                    },
-                    get "data-collapsible"() {
-                        return control.isOpen() ? undefined : sidebar.collapsible;
-                    },
-                    get "data-variant"() {
-                        return sidebar.variant;
-                    },
-                    get "data-side"() {
-                        return sidebar.side;
-                    },
-                    get inert() {
-                        return !control.isOpen() && sidebar.collapsible === "offcanvas";
-                    },
-                    get children() {
-                        return (
-                            <div {...style.attrs(styles.inner, dragged())}>{sidebar.children}</div>
-                        );
-                    },
-                },
-            )}
-        </Show>
-    );
-}
+                )}
+            </Show>
+        );
+    },
+});
+
+/** The properties of a sidebar, its native attributes included. */
+export type SidebarProperties = ComponentProperties<typeof Sidebar>;
 
 /** Render the button that opens and closes the sidebar. */
 export function SidebarTrigger(properties: Omit<ButtonProperties, "onClick">): JSX.Element {
@@ -862,54 +943,66 @@ export function SidebarMenuItem(
 }
 
 /** Render an entry's button, or its link with `href`. */
-export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.Element {
-    // show the entry's text in the sidebar's tooltip, which only a collapsed sidebar does
-    const control = useSidebar();
-    const { tooltip } = control;
-    const isHinting = (): boolean =>
-        properties.tooltip !== undefined && !control.isOpen() && !control.isMobile();
-    const rest = omit(properties, "tooltip", "active", "size");
-    let element: HTMLElement | undefined;
-    const hint = (reason: OpenReason, target: HTMLElement) => {
-        if (isHinting()) {
-            const trigger = { element: target, payload: properties.tooltip };
-            tooltip.open(new OpenChange(reason, undefined, trigger));
-        }
-    };
-    const hover = new Hover({
-        onHoverStart: (event) => hint("trigger-hover", event.target),
-        onHoverEnd: () => tooltip.close(new OpenChange("trigger-hover")),
-    });
-    onCleanup(() => tooltip.drop(element));
+export const SidebarMenuButton = defineComponent({
+    name: "sidebarMenuButton",
+    properties: SIDEBAR_MENU_BUTTON_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            SidebarMenuButtonAttributes,
+            typeof SIDEBAR_MENU_BUTTON_PROPERTIES
+        >,
+    ): JSX.Element {
+        // show the entry's text in the sidebar's tooltip, which only a collapsed sidebar does
+        const control = useSidebar();
+        const { tooltip } = control;
+        const isHinting = (): boolean =>
+            properties.tooltip !== undefined && !control.isOpen() && !control.isMobile();
+        const rest = omit(properties, "tooltip", "active", "size");
+        let element: HTMLElement | undefined;
+        const hint = (reason: OpenReason, target: HTMLElement) => {
+            if (isHinting()) {
+                const trigger = { element: target, payload: properties.tooltip };
+                tooltip.open(new OpenChange(reason, undefined, trigger));
+            }
+        };
+        const hover = new Hover({
+            onHoverStart: (event) => hint("trigger-hover", event.target),
+            onHoverEnd: () => tooltip.close(new OpenChange("trigger-hover")),
+        });
+        onCleanup(() => tooltip.drop(element));
 
-    // render a link for an address, else a button
-    return renderPart(
-        () => (properties.href === undefined ? "button" : "a"),
-        "sidebar-menu-button",
-        rest,
-        () => [
-            state.focus,
-            state.hover,
-            styles.menuButton,
-            sizes[properties.size ?? "default"],
-            properties.active === true && state.current,
-        ],
-        merge(hover.attributes(), {
-            get "data-active"() {
-                return properties.active === true ? "" : undefined;
-            },
-            get "aria-current"() {
-                return properties.active === true ? "page" : undefined;
-            },
-            get "aria-describedby"() {
-                return isHinting() && tooltip.state.isFrom(element) ? tooltip.id : undefined;
-            },
-            ref: (target: HTMLElement) => (element = target),
-            onFocus: (event: PartEvent<Event>) => hint("trigger-focus", event.currentTarget),
-            onBlur: (event: FocusEvent) => tooltip.close(new OpenChange("focus-out", event)),
-        }),
-    );
-}
+        // render a link for an address, else a button
+        return renderPart(
+            () => (properties.href === undefined ? "button" : "a"),
+            "sidebar-menu-button",
+            rest,
+            () => [
+                state.focus,
+                state.hover,
+                styles.menuButton,
+                sizes[properties.size],
+                properties.active && state.current,
+            ],
+            merge(hover.attributes(), {
+                get "data-active"() {
+                    return properties.active ? "" : undefined;
+                },
+                get "aria-current"() {
+                    return properties.active ? "page" : undefined;
+                },
+                get "aria-describedby"() {
+                    return isHinting() && tooltip.state.isFrom(element) ? tooltip.id : undefined;
+                },
+                ref: (target: HTMLElement) => (element = target),
+                onFocus: (event: PartEvent<Event>) => hint("trigger-focus", event.currentTarget),
+                onBlur: (event: FocusEvent) => tooltip.close(new OpenChange("focus-out", event)),
+            }),
+        );
+    },
+});
+
+/** The properties of a sidebar entry, its native attributes included. */
+export type SidebarMenuButtonProperties = ComponentProperties<typeof SidebarMenuButton>;
 
 /** Render placeholder rows of a menu while its entries load, through the shared skeleton. */
 export function SidebarMenuSkeleton(
@@ -976,30 +1069,42 @@ export function SidebarMenuSubItem(
 }
 
 /** Render a sub-entry's link, marked as the current page when active. */
-export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties): JSX.Element {
-    const rest = omit(properties, "active");
+export const SidebarMenuSubButton = defineComponent({
+    name: "sidebarMenuSubButton",
+    properties: SIDEBAR_MENU_SUB_BUTTON_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            SidebarMenuSubButtonAttributes,
+            typeof SIDEBAR_MENU_SUB_BUTTON_PROPERTIES
+        >,
+    ): JSX.Element {
+        const rest = omit(properties, "active");
 
-    return renderPart(
-        "a",
-        "sidebar-menu-sub-button",
-        rest,
-        () => [
-            state.focus,
-            state.hover,
-            styles.menuButton,
-            sizes.sm,
-            properties.active === true && state.current,
-        ],
-        {
-            get "aria-current"() {
-                return properties.active === true ? "page" : undefined;
+        return renderPart(
+            "a",
+            "sidebar-menu-sub-button",
+            rest,
+            () => [
+                state.focus,
+                state.hover,
+                styles.menuButton,
+                sizes.sm,
+                properties.active && state.current,
+            ],
+            {
+                get "aria-current"() {
+                    return properties.active ? "page" : undefined;
+                },
+                get "data-active"() {
+                    return properties.active ? "" : undefined;
+                },
             },
-            get "data-active"() {
-                return properties.active === true ? "" : undefined;
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of a nested sidebar entry, the native link's attributes included. */
+export type SidebarMenuSubButtonProperties = ComponentProperties<typeof SidebarMenuSubButton>;
 
 /** Hash an identifier to a whole number, alike on the server and in the hydrating page. */
 function hashOf(id: string): number {

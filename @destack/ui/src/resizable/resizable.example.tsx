@@ -104,3 +104,24 @@ export const resizablePanelGroupInboxSplit = defineExample({
         </ResizablePanelGroup>
     ),
 });
+
+/** A notebook list beside the open note, the divider between them set on its own. */
+export const resizableHandleDefault = defineExample({
+    of: ResizableHandle,
+    name: "default",
+    description: t`A notebook list beside the open note, the divider between them set on its own.`,
+    layout: "padded",
+    render: (properties) => (
+        <ResizablePanelGroup xstyle={styles.split}>
+            <ResizablePanel defaultSize={30}>
+                <div {...style.attrs(text.sm, styles.pane, styles.list)}>Notebooks</div>
+            </ResizablePanel>
+            <ResizableHandle aria-label="Resize the notebook list" {...properties} />
+            <ResizablePanel>
+                <div {...style.attrs(text.sm, styles.pane)}>
+                    <p {...style.attrs(styles.note)}>Trip to Lisbon</p>
+                </div>
+            </ResizablePanel>
+        </ResizablePanelGroup>
+    ),
+});
