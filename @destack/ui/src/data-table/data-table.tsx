@@ -133,7 +133,7 @@ import type { DataTableInstance } from "./table.ts";
 import { Length, Virtualizer } from "../virtualizer/index.ts";
 import { VisuallyHidden, visuallyHiddenStyle } from "../visually-hidden/index.ts";
 import { defineComponent } from "@destack/view/declare";
-import { schema } from "@destack/schema";
+import { field } from "@destack/object";
 
 /** The page sizes a pagination offers without its own. */
 const PAGE_SIZES: readonly number[] = [10, 20, 50, 100];
@@ -781,7 +781,13 @@ export const DataTable = defineComponent(
             },
         );
     },
-    { isVirtual: schema.boolean().default(false) },
+    {
+        isVirtual: field
+            .boolean()
+            .labeled(t.context("label")`Virtual`)
+            .described(t`Renders only the rows in view, for long tables.`)
+            .default(false),
+    },
 );
 
 /** Render a header cell of a data table, marked with its column's sort. */
@@ -2428,13 +2434,16 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
     const control = properties.control;
     const editor = untrack(() => properties.editor);
     const initial = untrack(() => control.edit()?.initial);
-    let field: HTMLInputElement | HTMLSelectElement | undefined;
+    let editorElement: HTMLInputElement | HTMLSelectElement | undefined;
     onSettled(() =>
         untrack(() => {
             // focus the field with the caret at the end
-            field?.focus();
-            if (field instanceof HTMLInputElement && field.type === "text") {
-                field.setSelectionRange(field.value.length, field.value.length);
+            editorElement?.focus();
+            if (editorElement instanceof HTMLInputElement && editorElement.type === "text") {
+                editorElement.setSelectionRange(
+                    editorElement.value.length,
+                    editorElement.value.length,
+                );
             }
         }),
     );
@@ -2455,8 +2464,8 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
     // end an edit whose row leaves the table with the text it has
     onCleanup(() =>
         untrack(() => {
-            if (field !== undefined && control.edit() !== undefined) {
-                control.leave(textOf(field));
+            if (editorElement !== undefined && control.edit() !== undefined) {
+                control.leave(textOf(editorElement));
             }
         }),
     );
@@ -2493,7 +2502,7 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
                 <Input
                     ref={(element) => {
                         // set the text once, the field changing it until the edit ends
-                        field = element;
+                        editorElement = element;
                         element.value =
                             initial ??
                             editor.format(
@@ -2512,7 +2521,7 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
             }
         >
             <Select
-                ref={(element) => (field = element)}
+                ref={(element) => (editorElement = element)}
                 aria-label={properties.label}
                 aria-invalid={isInvalid()}
                 value={choice()}

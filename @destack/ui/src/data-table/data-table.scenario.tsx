@@ -1,16 +1,16 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { DataTable } from "./data-table.tsx";
-import { dataTableNotes } from "./data-table.example.tsx";
+import { dataTableDefault } from "./data-table.example.tsx";
 
 /** Move between a data table's cells with the arrow keys, Home and End. */
 export const dataTableMoveBetweenCells = defineScenario({
     of: DataTable,
     interaction: viewInteraction,
-    name: "move-between-cells",
-    description:
-        "move the focus between a data table's cells with the arrow keys, Home and End, onto a cell's single control",
-    given: { examples: [dataTableNotes] },
+    name: "moveBetweenCells",
+    description: t`Move the focus between a data table's cells with the arrow keys, Home and End, onto a cell's single control.`,
+    given: { examples: [dataTableDefault] },
     parameters: {},
     when: [
         {
@@ -39,10 +39,9 @@ export const dataTableMoveBetweenCells = defineScenario({
 export const dataTableJumpToEnds = defineScenario({
     of: DataTable,
     interaction: viewInteraction,
-    name: "jump-to-ends",
-    description:
-        "move the focus to a row's last cell with End, a page of rows down with Page Down, and to the grid's last and first cells with Control and End or Home",
-    given: { examples: [dataTableNotes] },
+    name: "jumpToEnds",
+    description: t`Move the focus to a row's last cell with End, a page of rows down with Page Down, and to the grid's last and first cells with Control and End or Home.`,
+    given: { examples: [dataTableDefault] },
     parameters: {},
     when: [
         {

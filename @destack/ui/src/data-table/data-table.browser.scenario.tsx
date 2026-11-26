@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { dataTableTasks } from "./data-table.example.tsx";
@@ -10,8 +11,8 @@ const rows = { css: "[data-slot=data-table] tbody tr" };
 export const dataTableFilterAndRename = defineScenario({
     of: DataTable,
     interaction: viewInteraction,
-    name: "filter-and-rename",
-    description: "narrow the tasks to one status, then rename a task in place",
+    name: "filterAndRename",
+    description: t`Narrow the tasks to one status, then rename a task in place.`,
     given: { examples: [dataTableTasks] },
     parameters: {},
     when: [

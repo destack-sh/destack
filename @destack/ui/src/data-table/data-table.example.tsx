@@ -130,6 +130,8 @@ function NotesTable(properties: {
     readonly isVirtual?: boolean;
     /** The ids of the notes that cannot be selected. */
     readonly locked?: readonly string[];
+    /** The ids of the notes selected at first. */
+    readonly selected?: readonly string[];
 }): JSX.Element {
     const table = createTable({
         features: FEATURES,
@@ -139,7 +141,10 @@ function NotesTable(properties: {
         },
         getRowId: (row) => row.id,
         enableRowSelection: (row) => properties.locked?.includes(row.id) !== true,
-        initialState: { pagination: { pageIndex: 0, pageSize: properties.pageSize } },
+        initialState: {
+            pagination: { pageIndex: 0, pageSize: properties.pageSize },
+            rowSelection: Object.fromEntries((properties.selected ?? []).map((id) => [id, true])),
+        },
     });
 
     return (
@@ -164,39 +169,43 @@ function NotesTable(properties: {
 }
 
 /** Notes in a table that sorts, filters, selects, hides columns and pages. */
-export const dataTableNotes = defineExample({
+export const dataTableDefault = defineExample({
     of: DataTable,
-    name: "notes",
-    description: "notes in a table that sorts, filters, selects, hides columns and pages",
+    name: "default",
+    description: t`Notes in a table that sorts, filters, selects, hides columns and pages.`,
     layout: "padded",
     render: () => <NotesTable notes={NOTES} pageSize={10} />,
 });
 
 /** Notes in a table whose shared notes cannot be selected. */
-export const dataTableNotesLocked = defineExample({
+export const dataTableDisabled = defineExample({
     of: DataTable,
-    name: "notes-locked",
-    description: "notes in a table whose shared notes cannot be selected",
+    name: "disabled",
+    description: t`Notes in a table whose shared notes cannot be selected, the others selected.`,
     layout: "padded",
-    render: () => (
-        <NotesTable notes={NOTES} pageSize={10} locked={NOTES.slice(1, 3).map((note) => note.id)} />
-    ),
+    render: () => {
+        // lock the shared notes, and select every other one
+        const locked = NOTES.slice(1, 3).map((note) => note.id);
+        const selected = NOTES.map((note) => note.id).filter((id) => !locked.includes(id));
+
+        return <NotesTable notes={NOTES} pageSize={10} locked={locked} selected={selected} />;
+    },
 });
 
 /** A notes table with no notes. */
-export const dataTableNotesEmpty = defineExample({
+export const dataTableEmpty = defineExample({
     of: DataTable,
-    name: "notes-empty",
-    description: "a notes table with no notes",
+    name: "empty",
+    description: t`A notes table with no notes.`,
     layout: "padded",
     render: () => <NotesTable notes={[]} pageSize={10} />,
 });
 
 /** A thousand notes in a scrolling table that renders only the rows in view. */
-export const dataTableNotesVirtual = defineExample({
+export const dataTableVirtual = defineExample({
     of: DataTable,
-    name: "notes-virtual",
-    description: "a thousand notes in a scrolling table that renders only the rows in view",
+    name: "virtual",
+    description: t`A thousand notes in a scrolling table that renders only the rows in view.`,
     layout: "padded",
     render: () => (
         <NotesTable
@@ -273,19 +282,19 @@ function GroupedNotes(properties: {
 }
 
 /** Notes grouped by notebook, each group collapsed to its words sum. */
-export const dataTableNotesGrouped = defineExample({
+export const dataTableGrouped = defineExample({
     of: DataTable,
-    name: "notes-grouped",
-    description: "notes grouped by notebook, each group collapsed to its words sum",
+    name: "grouped",
+    description: t`Notes grouped by notebook, each group collapsed to its words sum.`,
     layout: "padded",
     render: () => <GroupedNotes expanded={{}} />,
 });
 
 /** Notes grouped by notebook with every group expanded to its notes. */
-export const dataTableNotesGroupedExpanded = defineExample({
+export const dataTableGroupedExpanded = defineExample({
     of: DataTable,
-    name: "notes-grouped-expanded",
-    description: "notes grouped by notebook with every group expanded to its notes",
+    name: "groupedExpanded",
+    description: t`Notes grouped by notebook with every group expanded to its notes.`,
     layout: "padded",
     render: () => <GroupedNotes expanded />,
 });
@@ -310,10 +319,10 @@ const TASK_FEATURES = tableFeatures({
 const TASK_COLUMN = createColumnHelper<typeof TASK_FEATURES, TaskRow>();
 
 /** Tasks with subtasks in a table that expands each task to its subtasks. */
-export const dataTableTasksNested = defineExample({
+export const dataTableNested = defineExample({
     of: DataTable,
-    name: "tasks-nested",
-    description: "tasks with subtasks in a table that expands each task to its subtasks",
+    name: "nested",
+    description: t`Tasks with subtasks in a table that expands each task to its subtasks.`,
     layout: "padded",
     render: () => {
         const table = createTable({
@@ -442,7 +451,7 @@ const PRIORITY_LABELS: Readonly<Record<LaunchTask["priority"], string>> = {
 /** Archive the tasks. */
 const archive = defineAction({
     name: "archive-tasks",
-    title: t`Archive`,
+    title: t.context("action")`Archive`,
     input: { items },
 });
 
@@ -572,8 +581,7 @@ function LaunchTasksTable(): JSX.Element {
 export const dataTableTasks = defineExample({
     of: DataTable,
     name: "tasks",
-    description:
-        "a launch's tasks with a filter, resizable pinned columns, editable titles and row actions",
+    description: t`A launch's tasks with a filter, resizable pinned columns, editable titles and row actions.`,
     layout: "padded",
     render: () => <LaunchTasksTable />,
 });

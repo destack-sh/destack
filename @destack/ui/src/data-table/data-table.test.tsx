@@ -38,11 +38,7 @@ import {
     selectionColumn,
     useDataTableState,
 } from "./index.ts";
-import {
-    dataTableNotesGrouped,
-    dataTableNotesVirtual,
-    dataTableTasksNested,
-} from "./data-table.example.tsx";
+import { dataTableGrouped, dataTableVirtual, dataTableNested } from "./data-table.example.tsx";
 
 /** The marks that isolate interpolated names in rendered messages. */
 const ISOLATES = /[⁦-⁩]/gu;
@@ -234,7 +230,7 @@ function treeRows(container: Element): (string | null)[][] {
 }
 
 test("group rows by a column with each group's count and sum, expanding a group to its rows", () => {
-    const { container } = render(() => dataTableNotesGrouped.render?.());
+    const { container } = render(() => dataTableGrouped.render?.());
     const collapsed = treeRows(container);
     const role = container.querySelector("table")?.getAttribute("role");
     container.querySelector<HTMLElement>("[aria-label='Expand row']")?.click();
@@ -257,7 +253,7 @@ test("group rows by a column with each group's count and sum, expanding a group 
 });
 
 test("expand a row to its sub rows and collapse it again from its button", () => {
-    const { container } = render(() => dataTableTasksNested.render?.());
+    const { container } = render(() => dataTableNested.render?.());
     const expanded = treeRows(container);
     container.querySelector<HTMLElement>("[aria-label='Collapse row']")?.click();
     flush();
@@ -337,7 +333,7 @@ test("move the focus by key onto rows a virtualized table renders only once they
         Reflect.deleteProperty(HTMLElement.prototype, "getBoundingClientRect");
     });
     stubPopovers();
-    const { container } = render(dataTableNotesVirtual);
+    const { container } = render(dataTableVirtual);
     flush();
     const scroller = container.querySelector<HTMLElement>("[data-slot=data-table]");
     let scrollTop = 0;

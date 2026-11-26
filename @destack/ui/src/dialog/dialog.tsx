@@ -43,7 +43,7 @@ import { type ElementPartProperties, renderPart, type Render } from "../part/ind
 import { CollectionBuilder } from "../collection/index.ts";
 import { scrim } from "./scrim.stylex.ts";
 import { defineComponent } from "@destack/view/declare";
-import { schema } from "@destack/schema";
+import { field } from "@destack/object";
 
 /** The widest a dialog grows. */
 const DIALOG_WIDTH = width.dialog;
@@ -401,7 +401,11 @@ export const DialogContent = defineComponent(
         );
     },
     {
-        showCloseButton: schema.boolean().default(true),
+        showCloseButton: field
+            .boolean()
+            .labeled(t.context("label")`Close button`)
+            .described(t`Shows a button in its corner that closes the dialog.`)
+            .default(true),
     },
 );
 

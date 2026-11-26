@@ -49,17 +49,18 @@ import { LayerStack } from "../layer/index.ts";
 import type { Side } from "../position/index.ts";
 import { type Toast, ToastManager, type ToastType } from "./manager.ts";
 import { defineComponent } from "@destack/view/declare";
+import { field } from "@destack/object";
 import { schema } from "@destack/schema";
 
 /** The corners and edges a toaster stacks its toasts at. */
-const TOASTER_POSITIONS = [
-    "top-left",
-    "top-center",
-    "top-right",
-    "bottom-left",
-    "bottom-center",
-    "bottom-right",
-] as const;
+const TOASTER_POSITIONS = {
+    "top-left": { title: t.context("option")`Top left` },
+    "top-center": { title: t.context("option")`Top center` },
+    "top-right": { title: t.context("option")`Top right` },
+    "bottom-left": { title: t.context("option")`Bottom left` },
+    "bottom-center": { title: t.context("option")`Bottom center` },
+    "bottom-right": { title: t.context("option")`Bottom right` },
+};
 
 /** The time a toast shows before it leaves on its own, in milliseconds, as Base UI's. */
 const DURATION = 5000;
@@ -250,7 +251,7 @@ const positions = style.create({
 });
 
 /** The corner or edge of the viewport a toaster stacks its toasts in. */
-export type ToasterPosition = (typeof TOASTER_POSITIONS)[number];
+export type ToasterPosition = keyof typeof TOASTER_POSITIONS;
 
 /** The properties of a toaster. */
 export interface ToasterProperties {
@@ -534,9 +535,21 @@ export const Toaster = defineComponent(
         );
     },
     {
-        position: schema.enum(TOASTER_POSITIONS).default("bottom-right"),
-        duration: schema.number().positive().default(DURATION),
-        visibleToasts: schema.number().int().positive().default(VISIBLE_TOASTS),
+        position: field
+            .enum(TOASTER_POSITIONS)
+            .labeled(t.context("label")`Position`)
+            .described(t`The corner or edge of the screen the toasts stack at.`)
+            .default("bottom-right"),
+        duration: field
+            .integer(schema.number().int().positive())
+            .labeled(t.context("label")`Duration`)
+            .described(t`How long a toast shows before it goes, in milliseconds.`)
+            .default(DURATION),
+        visibleToasts: field
+            .integer(schema.number().int().positive())
+            .labeled(t.context("label")`Visible toasts`)
+            .described(t`How many toasts show at once before the rest wait.`)
+            .default(VISIBLE_TOASTS),
     },
 );
 
