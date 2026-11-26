@@ -1,5 +1,5 @@
 import type { Example } from "@destack/package/declare";
-import { expect, test } from "@destack/test";
+import { expect, test, vi } from "@destack/test";
 import { flush, type JSX } from "@destack/view";
 import { accessibleName, render, stubPopovers } from "@destack/view/test";
 import manifest from "../package.json" with { type: "json" };
@@ -62,6 +62,30 @@ test("give every control of every example a name, a type and references that lea
 
         return found;
     });
+
+    expect([...new Set(problems)]).toEqual([]);
+});
+
+test("render every example without an error or a warning", () => {
+    // listen to the console while each example renders and goes
+    stubPopovers();
+    const said: string[] = [];
+    const listen =
+        (kind: string) =>
+        (...values: unknown[]) =>
+            void said.push(`${kind}: ${String(values[0]).split("\n")[0] ?? ""}`);
+    const warn = vi.spyOn(console, "warn").mockImplementation(listen("warning"));
+    const error = vi.spyOn(console, "error").mockImplementation(listen("error"));
+    const problems = EXAMPLES.flatMap(([name, example]) => {
+        said.length = 0;
+        const { unmount } = render(() => example.render?.());
+        flush();
+        unmount();
+
+        return said.map((each) => `${name} ${each}`);
+    });
+    warn.mockRestore();
+    error.mockRestore();
 
     expect([...new Set(problems)]).toEqual([]);
 });
