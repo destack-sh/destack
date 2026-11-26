@@ -1,4 +1,3 @@
-import { Color } from "@destack/color";
 import { type JsonValue, schema } from "@destack/schema";
 import { type Field, type FieldType, StateMachine, type StateStage } from "../field/field.ts";
 import type { Localization, NumberFormat } from "@destack/locale";
@@ -17,8 +16,6 @@ export type ObjectValue =
       }
     | { readonly kind: "boolean"; readonly value: boolean }
     | { readonly kind: "time"; readonly value: number }
-    | { readonly kind: "color"; readonly value: string }
-    | { readonly kind: "colors"; readonly value: readonly string[] }
     | (Choice & { readonly kind: "choice"; readonly value: string })
     | (Choice & { readonly kind: "state"; readonly value: string; readonly stage: StateStage })
     | { readonly kind: "reference"; readonly value: string; readonly target: string }
@@ -34,8 +31,6 @@ const KINDS: Readonly<Record<FieldType, Exclude<ObjectValue["kind"], "absent">>>
     number: "number",
     boolean: "boolean",
     time: "time",
-    color: "color",
-    colors: "colors",
     enum: "choice",
     state: "state",
     reference: "reference",
@@ -87,10 +82,6 @@ export const ObjectValue = {
             return { kind, value: schema.number().parse(value) };
         } else if (kind === "boolean") {
             return { kind, value: schema.boolean().parse(value) };
-        } else if (kind === "color") {
-            return { kind, value: Color.schema.parse(value) };
-        } else if (kind === "colors") {
-            return { kind, value: schema.array(Color.schema).parse(value) };
         } else if (kind === "state" && machine !== undefined) {
             const state = schema.string().parse(value);
             const stage = StateMachine.stage(machine, state);

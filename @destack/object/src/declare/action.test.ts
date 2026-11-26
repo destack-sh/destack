@@ -4,7 +4,14 @@ import { now } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { argument, plural, t } from "@destack/locale";
 import { PackageVersion, PackageId } from "@destack/package";
-import { Identifier, type JsonObject, present, schema } from "@destack/schema";
+import {
+    Identifier,
+    type JsonObject,
+    JsonValue,
+    present,
+    schema,
+    toJsonSchema,
+} from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, expectTypeOf, onTestFinished, refusal, test } from "@destack/test";
 import { ObjectRemote } from "../client/index.ts";
@@ -1078,7 +1085,14 @@ test("read what a schema takes, its choices, and whether it must be given", () =
         ["limit", "default", { kind: "number" }],
         ["title", "optional", { kind: "text" }],
         ["isShown", "required", { kind: "boolean" }],
-        ["range", "required", { kind: "json" }],
+        [
+            "range",
+            "required",
+            {
+                kind: "json",
+                schema: JsonValue.object(toJsonSchema(schema.object({ start: schema.number() }))),
+            },
+        ],
     ]);
 });
 
@@ -1132,6 +1146,7 @@ test("read a declared variable the nearest place gives, the space, and refuse on
                 label: t`Week`,
                 presence: "required",
                 kind: "json",
+                schema: JsonValue.object(toJsonSchema(visibleWeek.value)),
                 variable: visibleWeek.key,
             },
         ],

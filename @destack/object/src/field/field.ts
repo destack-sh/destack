@@ -4,9 +4,7 @@ import {
     type InputPresence,
     type ActionValue,
     type VALUE_KINDS,
-    type ColorsInput,
 } from "../declare/input.ts";
-import { Color } from "@destack/color";
 import { NumberInput } from "../declare/number.ts";
 import { PackageId } from "@destack/package";
 import {
@@ -34,13 +32,7 @@ import {
     textEnum,
 } from "@destack/db";
 import { Message, NumberFormat } from "@destack/locale";
-import {
-    canonicalize,
-    schema,
-    toJsonSchema,
-    type Identifier,
-    type JsonValue,
-} from "@destack/schema";
+import { canonicalize, schema, toJsonSchema, type Identifier, JsonValue } from "@destack/schema";
 import type { BuilderCall } from "../object/description.ts";
 import type { ObjectConstraint } from "../object/constraint.ts";
 import type { IdentityOf, ObjectStorage, ObjectType } from "../object/object.ts";
@@ -71,8 +63,6 @@ export const FIELD_TYPES = [
     "boolean",
     "binary",
     "time",
-    "color",
-    "colors",
     "enum",
     "json",
     "message",
@@ -100,8 +90,6 @@ const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     binary: "binary",
     boolean: "boolean",
     time: "time",
-    color: "color",
-    colors: "colors",
     fractionalIndex: "fractionalIndex",
     text: "text",
     count: "integer",
@@ -121,13 +109,15 @@ const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     reference: "reference",
 };
 
+/** The JSON Schema of any JSON value, which a field of no schema of its own takes. */
+const ANY_JSON = JsonValue.object(toJsonSchema(schema.json()));
+
 /** The kinds of value people give for a field, by its meaning. */
 const VALUE_KIND: Readonly<Partial<Record<FieldType, (typeof VALUE_KINDS)[number]>>> = {
     string: "text",
     text: "text",
     boolean: "boolean",
     time: "time",
-    color: "color",
     subject: "person",
 };
 
@@ -212,7 +202,6 @@ export type FieldSource =
               | "binary"
               | "boolean"
               | "time"
-              | "color"
               | "fractionalIndex"
               | "message"
               | "count"
@@ -233,7 +222,6 @@ export type FieldSource =
           readonly arguments: readonly [schema.Schema] | readonly [schema.Schema, JsonOptions];
       }
     | { readonly builder: "file"; readonly arguments: readonly [ObjectFileLimits] }
-    | { readonly builder: "colors"; readonly arguments: readonly [ColorsInput] }
     | {
           readonly builder: "text";
           readonly arguments: readonly [] | readonly [readonly (TextMarkType | TextNodeType)[]];
@@ -611,14 +599,14 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
                   ? { kind: "choice", choices: this.choices ?? [] }
                   : source.builder === "integer" || source.builder === "number"
                     ? { kind: "number", ...Field.numbers(source, this.format) }
-                    : source.builder === "colors"
-                      ? { kind: "colors", ...source.arguments[0] }
-                      : {
-                            kind:
-                                this.principals === undefined
-                                    ? (VALUE_KIND[this.type] ?? "json")
-                                    : "person",
-                        };
+                    : source.builder === "json"
+                      ? {
+                            kind: "json",
+                            schema: JsonValue.object(toJsonSchema(source.arguments[0])),
+                        }
+                      : this.principals !== undefined
+                        ? { kind: "person" }
+                        : Field.plain(VALUE_KIND[this.type]);
         const declared = this.isDefault ? "default" : this.required ? "required" : "optional";
 
         return new ActionInput({
@@ -1100,6 +1088,11 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return new Field<FieldConfigurationOf<{ value: Value }>>({ source, build, ...WRITTEN });
     }
 
+    /** Read what a field of a plain kind takes, any JSON for a field of none. */
+    static plain(kind: (typeof VALUE_KINDS)[number] | undefined): ActionValue {
+        return kind === undefined ? { kind: "json", schema: ANY_JSON } : { kind };
+    }
+
     /** Read the numbers a number field takes, and how people read them. */
     static numbers(
         source: Extract<FieldSource, { readonly builder: "integer" | "number" }>,
@@ -1459,23 +1452,6 @@ export const field = {
     /** An instant in UTC epoch milliseconds. */
     time() {
         return Field.required({ builder: "time", arguments: [] }, integer);
-    },
-
-    /** A color CSS writes: hexadecimal, rgb(), hsl() or oklch(). */
-    color() {
-        return Field.required({ builder: "color", arguments: [] }, (name) =>
-            Field.validated(name, Color.schema),
-        );
-    },
-
-    /** Colors in order, such as a gradient's, between the fewest and the most it takes. */
-    colors(count: ColorsInput = {}) {
-        const fewest = schema.array(Color.schema).min(count.minimum ?? 0);
-        const sized = count.maximum === undefined ? fewest : fewest.max(count.maximum);
-
-        return Field.required({ builder: "colors", arguments: [count] }, (name) =>
-            json(name, sized),
-        );
     },
 
     /** One of a fixed set of strings: a list, or each value with how it looks. */

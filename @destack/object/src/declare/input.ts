@@ -1,9 +1,15 @@
-import { Color } from "@destack/color";
 import { IconName } from "@destack/icon";
 import { NumberInput } from "./number.ts";
 import { Condition, type JsonCondition } from "@destack/db";
 import { Message } from "@destack/locale";
-import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
+import {
+    fromJsonSchema,
+    type JsonObject,
+    JsonValue,
+    present,
+    schema,
+    toJsonSchema,
+} from "@destack/schema";
 import { ObjectReference, ObjectTypeReference } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import { FieldChoice } from "../field/choice.ts";
@@ -16,7 +22,7 @@ import {
 } from "./variable.ts";
 
 /** The kinds of value a person gives, objects and choices aside. */
-export const VALUE_KINDS = ["text", "boolean", "time", "person", "color", "json"] as const;
+export const VALUE_KINDS = ["text", "boolean", "time", "person"] as const;
 
 /** The type of the JSON value of each kind a person gives. */
 const VALUE_TYPES = {
@@ -24,16 +30,6 @@ const VALUE_TYPES = {
     boolean: "boolean",
     time: "number",
 } as const;
-
-/** How many colors an input takes. */
-export const ColorsInput = schema.object({
-    /** The fewest colors. */
-    minimum: schema.number().int().min(0).exactOptional(),
-    /** The most colors. */
-    maximum: schema.number().int().min(1).exactOptional(),
-});
-/** How many colors an input takes. */
-export type ColorsInput = schema.Infer<typeof ColorsInput>;
 
 /** What a schema that wraps another says of a value's presence, by its type. */
 const PRESENCES: Readonly<Partial<Record<string, InputPresence>>> = {
@@ -68,7 +64,11 @@ export type InputPresence = "required" | "optional" | "default";
 export type ActionValue =
     | { readonly kind: (typeof VALUE_KINDS)[number] }
     | (NumberInput & { readonly kind: "number" })
-    | (ColorsInput & { readonly kind: "colors" })
+    | {
+          readonly kind: "json";
+          /** The JSON Schema the value meets, whose name, such as a color's, picks its input. */
+          readonly schema: JsonObject;
+      }
     | { readonly kind: "choice"; readonly choices: readonly FieldChoice[] }
     | {
           readonly kind: "object";
@@ -157,7 +157,10 @@ export class ActionInput {
                   }
                 : inner.type === "number"
                   ? { kind: "number", ...NumberInput.of(definition) }
-                  : { kind: SCHEMA_KINDS[inner.type] ?? "json" };
+                  : plainOr(
+                        JsonValue.object(toJsonSchema(schema.unwrap(definition))),
+                        SCHEMA_KINDS[inner.type],
+                    );
 
         return new ActionInput({ name, label: undefined, presence, value });
     }
@@ -217,20 +220,12 @@ export class ActionInput {
         else if (taken.kind === "number") {
             return typeof value === "number" && NumberInput.takes(taken, value);
         }
-        // take a color CSS writes, or as many as the input takes
-        else if (taken.kind === "color") {
-            return Color.schema.safeParse(value).success;
-        } else if (taken.kind === "colors") {
-            const colors = schema.array(Color.schema).safeParse(value).data;
-
-            return (
-                colors !== undefined &&
-                colors.length >= (taken.minimum ?? 0) &&
-                colors.length <= (taken.maximum ?? colors.length)
-            );
+        // take JSON its schema takes
+        else if (taken.kind === "json") {
+            return fromJsonSchema(taken.schema).safeParse(value).success;
         }
 
-        return taken.kind === "json" || typeof value === VALUE_TYPES[taken.kind];
+        return typeof value === VALUE_TYPES[taken.kind];
     }
 
     /** Describe the input by its name, its label, its presence and what it takes. */
@@ -252,10 +247,8 @@ export class ActionInput {
             const { kind: _kind, ...numbers } = value;
 
             return Object.keys(numbers).length === 0 ? shared : { ...shared, numbers };
-        } else if (value.kind === "colors") {
-            const { kind: _kind, ...colors } = value;
-
-            return Object.keys(colors).length === 0 ? shared : { ...shared, colors };
+        } else if (value.kind === "json") {
+            return { ...shared, schema: value.schema };
         } else if (value.kind === "object") {
             return {
                 ...shared,
@@ -287,8 +280,11 @@ export class ActionInput {
                     }
                   : kind === "number"
                     ? { kind, ...description.numbers }
-                    : kind === "colors"
-                      ? { kind, ...description.colors }
+                    : kind === "json"
+                      ? {
+                            kind,
+                            schema: present(description.schema, `the schema of input '${name}'`),
+                        }
                       : { kind };
 
         return new ActionInput({
@@ -311,9 +307,10 @@ export class ActionInput {
                 ? { kind: "choice", choices: choices.map((each) => ({ value: each })) }
                 : type === "number" || type === "integer"
                   ? { kind: "number", ...NumberInput.ofJson(value) }
-                  : type === "boolean"
-                    ? { kind: "boolean" }
-                    : { kind: type === "string" ? "text" : "json" };
+                  : plainOr(
+                        JsonValue.object(value),
+                        typeof type === "string" ? SCHEMA_KINDS[type] : undefined,
+                    );
 
         return new ActionInput({ name, label: undefined, presence, value: taken });
     }
@@ -328,13 +325,13 @@ export const ActionInputDescription = schema.object({
     /** Whether the person must give it, may, or leaves it to its default. */
     presence: schema.enum(["required", "optional", "default"]),
     /** What it takes. */
-    kind: schema.enum([...VALUE_KINDS, "number", "colors", "choice", "object"]),
+    kind: schema.enum([...VALUE_KINDS, "number", "json", "choice", "object"]),
     /** The key of the variable places give it by. */
     variable: schema.string().min(1).exactOptional(),
     /** The numbers of a number, any when absent. */
     numbers: NumberInput.exactOptional(),
-    /** How many colors a list of colors takes, any when absent. */
-    colors: ColorsInput.exactOptional(),
+    /** The JSON Schema of a JSON value. */
+    schema: schema.jsonObject().exactOptional(),
     /** The choices of a choice. */
     choices: schema.array(FieldChoice).exactOptional(),
     /** The type of an object. */
@@ -350,3 +347,11 @@ export const ActionInputDescription = schema.object({
 });
 /** An input of an action, as its declaration describes it. */
 export type ActionInputDescription = schema.Infer<typeof ActionInputDescription>;
+
+/** Read what a schema takes: its plain kind, or JSON of it where it is named or of no kind. */
+function plainOr(description: JsonObject, plain: "text" | "boolean" | undefined): ActionValue {
+    // keep a named schema, such as a color's, whatever JSON it is, so its own input shows
+    const isNamed = typeof description["$ref"] === "string";
+
+    return plain === undefined || isNamed ? { kind: "json", schema: description } : { kind: plain };
+}
