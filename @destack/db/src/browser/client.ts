@@ -76,6 +76,9 @@ export class WasmQuery implements SqliteQueryClient {
 
 /** A connection client over one SQLite WebAssembly database, one transaction at a time. */
 export class WasmClient extends WasmQuery implements SqliteConnectionClient {
+    /** The realm's SQLite runtime, compiled and instantiated once, as a realm loads a library. */
+    static #runtime: ReturnType<typeof init> | undefined;
+
     /** The work queue. */
     readonly #queue: SqliteWorkQueue;
     /** The environment the client's turns wait in. */
@@ -93,7 +96,7 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
     /** Open an in-memory database. */
     static async memory(environment: DatabaseEnvironment): Promise<WasmClient> {
         // open with foreign keys enforced
-        const sqlite = await environment.scheduler.run(() => init());
+        const sqlite = await WasmClient.#sqlite(environment);
         const database = new sqlite.oo1.DB(":memory:");
         database.exec("PRAGMA foreign_keys = ON;");
 
@@ -103,12 +106,19 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
     /** Open a file of the origin's private file system, which one worker holds at a time. */
     static async opfs(name: string, environment: DatabaseEnvironment): Promise<WasmClient> {
         // open the file through the database's own pool of synchronous access handles
-        const sqlite = await environment.scheduler.run(() => init());
+        const sqlite = await WasmClient.#sqlite(environment);
         const pool = await sqlite.installOpfsSAHPoolVfs({ name: `destack-${name}` });
         const database = new pool.OpfsSAHPoolDb(`/${name}`);
         database.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
 
         return new WasmClient(database, environment);
+    }
+
+    /** Read the realm's SQLite runtime, loading it at the first database. */
+    static #sqlite(environment: DatabaseEnvironment): ReturnType<typeof init> {
+        WasmClient.#runtime ??= environment.scheduler.run(() => init());
+
+        return WasmClient.#runtime;
     }
 
     /** Close the database after its work. */
