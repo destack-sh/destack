@@ -1,116 +1,38 @@
-import {
-    ReplicaSet,
-    Scope,
-    type Publisher,
-    replica,
-    replicaPosition,
-    replicaSubscription,
-    type Subscription,
-} from "@destack/sync";
-import { and, eq } from "@destack/db";
-import type { DatabaseConnection } from "@destack/db/database";
-import { PackageId } from "@destack/package";
-import {
-    type FeatureReference,
-    QueriesParameters,
-    QUERIES_PUBLICATION,
-    Shape,
-} from "@destack/object";
-import { Identifier, schema } from "@destack/schema";
-import { type Environment, waitAborted } from "@destack/environment";
-import { entitlement, type Entitlement, entitlementShape } from "../object/entitlement.ts";
-import type { EntitlementResource } from "../object/allowance.ts";
+import type { Decision } from "@destack/object";
+import type { Identifier } from "@destack/schema";
+import type { Entitlement, EntitlementUse } from "../server/entitlement.ts";
 
-/** The package declaring the features a test entitles accounts to, by resource too. */
-export const ENTITLED_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000f9");
+/** The accounts' plans in a test: the uses each account was allowed, all others refused. */
+export class TestEntitlement {
+    /** The uses each account was allowed, by account. */
+    readonly #allowed = new Map<string, Set<string>>();
 
-/** Accounts' entitlements as a test writes them into a follower's replica. */
-export const TestEntitlement = {
-    /** A publisher that sends nothing until stopped. */
-    publisher: {
-        request: async () => {},
-        stream: async function* (_subscription: Subscription, signal: AbortSignal) {
-            await waitAborted(signal);
-            yield* [];
-        },
-    } satisfies Publisher,
+    /** Allow an account a use of its plan. */
+    allow(accountId: Identifier<"account">, use: EntitlementUse): void {
+        const allowed = this.#allowed.get(accountId) ?? new Set<string>();
+        allowed.add(TestEntitlement.#describe(use));
+        this.#allowed.set(accountId, allowed);
+    }
 
-    /** Apply an entitlement to a resource or feature to an account as its replica would. */
-    async set(
-        database: DatabaseConnection,
-        accountId: Identifier<"account">,
-        granted: EntitlementResource | { readonly feature: FeatureReference },
-        terms: Pick<Entitlement, "kind"> & Partial<Pick<Entitlement, "value" | "limit" | "state">>,
-        environment: Environment,
-    ): Promise<void> {
-        // mark the replica of the universe's entitlements complete, following the account's key beside the earlier ones
-        const now = environment.clock.now();
-        const scope = Scope.universe.id;
-        const name = Shape.replicaName(QUERIES_PUBLICATION, scope);
-        const followed = Shape.subscription(
-            scope,
-            [{ shape: entitlementShape, keys: [{ account: accountId }] }],
-            { target: scope },
-        );
-        const recorded = await new ReplicaSet(database).subscription(name, scope);
-        const queries = {
-            ...QueriesParameters.parse(recorded?.parameters ?? {}).queries,
-            ...QueriesParameters.parse(followed.parameters).queries,
+    /** Read an account's plan: within it once allowed, else unentitled. */
+    of(accountId: Identifier<"account">): Entitlement {
+        return {
+            decide: async (use): Promise<Decision> => {
+                const used = TestEntitlement.#describe(use);
+
+                return this.#allowed.get(accountId)?.has(used) === true
+                    ? { status: "true", reason: "Within", message: `${used} within the plan` }
+                    : {
+                          status: "false",
+                          reason: "Unentitled",
+                          message: `no plan of the account grants ${used}`,
+                      };
+            },
         };
-        const columns = ReplicaSet.subscriptionColumns(
-            { ...followed, parameters: { queries: schema.json().parse(queries) } },
-            "caller",
-        );
-        await database.transaction(async (transaction) => {
-            await transaction
-                .insert(replica)
-                .values({ name, scope, tables: [] })
-                .onConflictDoNothing();
-            await transaction
-                .insert(replicaSubscription)
-                .values({ name, scope, ...columns })
-                .onConflictDoUpdate({
-                    target: [replicaSubscription.name, replicaSubscription.scope],
-                    set: columns,
-                });
-            await transaction
-                .insert(replicaPosition)
-                .values({ name, scope, log: "test", epoch: "test", sequence: 1 })
-                .onConflictDoNothing();
-        });
+    }
 
-        // mark the replica live, as its follow would
-        new ReplicaSet(database).mark({ name, scope }, { log: "test", epoch: "test", sequence: 1 });
-
-        // replace the entitlement, a resource's under a test feature of its name
-        const feature =
-            typeof granted === "string"
-                ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
-                : { ...granted.feature, resource: null };
-        await database.transaction(
-            async (transaction) =>
-                await transaction
-                    .delete(entitlement.table)
-                    .where(
-                        and(
-                            eq(entitlement.table.scope, accountId),
-                            eq(entitlement.table.packageId, feature.packageId),
-                            eq(entitlement.table.feature, feature.name),
-                        ),
-                    ),
-        );
-        await database.transaction(
-            async (transaction) =>
-                await transaction.insert(entitlement.table).values({
-                    id: Identifier.create("entitlement", environment),
-                    scope: accountId,
-                    packageId: feature.packageId,
-                    feature: feature.name,
-                    resource: feature.resource,
-                    ...terms,
-                    createdAt: now,
-                    updatedAt: now,
-                }),
-        );
-    },
-};
+    /** Describe a use as people read it. */
+    static #describe(use: EntitlementUse): string {
+        return use.kind === "resource" ? use.resource : `${use.tenancy} tenancy`;
+    }
+}

@@ -1,6 +1,9 @@
 import type { UniverseOrigin } from "../address/address.ts";
 import { implementPackage, type PackageImplementation } from "@destack/object/server";
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
+import type { Watch } from "@destack/db/database";
+import type { Identifier } from "@destack/schema";
+import type { Entitlement } from "./entitlement.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
 import type { PlatformDefinition } from "./universe.ts";
 import { stage } from "../object/stage.ts";
@@ -32,6 +35,10 @@ export interface AccountOptions {
     readonly stacks: PlatformDefinition["stacks"];
     /** The universe's sign-in, which answers the oauth mount once the store exists. */
     readonly signIn: Promise<BetterAuthAuthenticator>;
+    /** Read an account's plan, as the universe's finance decides it. */
+    readonly entitlement: (accountId: Identifier<"account">) => Entitlement;
+    /** The rows the plans derive from, each keyed to its account by the watched row's `scope`. */
+    readonly entitlementWatches: readonly Watch[];
 }
 
 /** Serve the account package in the universe's store, its oauth mount answering sign-in. */
@@ -45,14 +52,14 @@ export function accountServer(options: AccountOptions): PackageImplementation {
             implementClient(),
             implementKey(),
             implementApplication(),
-            implementSpace(options.stacks),
-            implementDomain({ resolver: options.resolver }),
+            implementSpace(options.stacks, options.entitlement),
+            implementDomain({ resolver: options.resolver, entitlement: options.entitlement }),
             implementHostname(),
             implementMachine(options.universe),
             implementIdentity(),
             implementOperation(),
             implementRegion(),
-            implementPlacement(),
+            implementPlacement(options.entitlement, options.entitlementWatches),
             // apply the stages an account's stack declares
             stage.implement({ declaration: {} }),
             implementClaim(),

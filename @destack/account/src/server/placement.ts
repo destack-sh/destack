@@ -6,10 +6,10 @@ import type {
     ResultOf,
 } from "@destack/object";
 import type { Select } from "@destack/db";
-import type { Snapshot } from "@destack/db/database";
+import type { Snapshot, Watch } from "@destack/db/database";
 import { canonicalize, type DigestCrypto, type Identifier, present, schema } from "@destack/schema";
 import { Account, account } from "../object/account.ts";
-import { Entitlement, entitlement } from "../object/entitlement.ts";
+import type { Entitlement } from "./entitlement.ts";
 import { Machine, machine } from "../object/machine.ts";
 import { assignment, Placement, placement, type Schedule } from "../object/placement.ts";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -18,25 +18,25 @@ import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import { StoreRelationship } from "./relationship.ts";
 
-/** Implement placements. */
-export function implementPlacement(): typeof placement {
+/** Implement placements, deciding tenancies by the accounts' plans. */
+export function implementPlacement(
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
+    watches: readonly Watch[],
+): typeof placement {
     return placement.implement({
         methods: {
             create: {
-                // let the machine it is placed on serve the space
+                // let the machine it is placed on serve the space and its account
                 handle: async (context, next) => {
                     const created = await next();
-                    await StoreRelationship.touch(
-                        context,
-                        servingRelationship(created, created.machineId),
-                    );
+                    await serve(context, created, created.machineId);
 
                     return created;
                 },
             },
-            place,
+            place: (context) => place(context, entitlement),
             move,
-            decide,
+            decide: (context) => decide(context, entitlement),
             withdraw,
             report,
             assign,
@@ -69,15 +69,10 @@ export function implementPlacement(): typeof placement {
                         ],
                         on: { scope: "id" },
                     },
-                    // decide again for an account whose tenancy entitlement changed
-                    {
-                        table: entitlement.table,
-                        where: { resource: "tenancy" },
-                        fields: Entitlement.decided,
-                        on: { scope: "scope" },
-                    },
+                    // decide again for an account whose plan changed
+                    ...watches,
                 ],
-                reconcile: decideChanged,
+                reconcile: (reconciliation) => decideChanged(reconciliation, entitlement),
             },
         ],
     });
@@ -86,6 +81,7 @@ export function implementPlacement(): typeof placement {
 /** Serve a space at an epoch as the calling machine, ending any move. */
 async function place(
     context: MethodContextOf<typeof placement, "place">,
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
 ): Promise<ResultOf<typeof placement, "place">> {
     // read the calling machine and its epoch
     const caller = schema.identifier("machine").parse(Caller.sender(context.caller).id);
@@ -109,13 +105,13 @@ async function place(
     // end any move and its receiver's access, and hand serving to a machine taking the space over
     await releaseReceivers(context, current, null);
     if (current.machineId !== caller) {
-        await StoreRelationship.delete(context, servingRelationship(current, current.machineId));
-        await StoreRelationship.touch(context, servingRelationship(current, caller));
+        await unserve(context, current, current.machineId);
+        await serve(context, current, caller);
     }
 
     // serve the space at the epoch, decided again for the machine
     const placed = { ...current, machineId: caller };
-    const decided = await decideSchedule(context, placed, context.environment.crypto);
+    const decided = await decideSchedule(context, placed, context.environment.crypto, entitlement);
 
     return context.update({
         machineId: caller,
@@ -147,16 +143,50 @@ async function move(
     return context.update({ targetId: context.input.target, transferId: context.input.transferId });
 }
 
-/** Read the relationship letting a machine serve a placed space. */
-function servingRelationship(
+/** Let a machine serve a placed space and its account, which the account's sellers meter by. */
+async function serve(
+    context: MethodContext,
     row: Pick<Select<typeof placement.table>, "spaceId" | "scope">,
     machineId: Identifier<"machine">,
-) {
-    return {
+): Promise<void> {
+    const subject = principal.machine.reference(Scope.universe.id, machineId);
+    await StoreRelationship.touch(context, {
         object: space.reference(row.scope, row.spaceId),
         relation: "machine",
-        subject: principal.machine.reference(Scope.universe.id, machineId),
-    };
+        subject,
+    });
+    await StoreRelationship.touch(context, {
+        object: await accountOf(context, row.scope),
+        relation: "server",
+        subject,
+    });
+}
+
+/** End a machine's serving of a placed space, and of its account once it serves none else. */
+async function unserve(
+    context: MethodContext,
+    row: Pick<Select<typeof placement.table>, "spaceId" | "scope">,
+    machineId: Identifier<"machine">,
+): Promise<void> {
+    // end its serving of the space
+    const subject = principal.machine.reference(Scope.universe.id, machineId);
+    await StoreRelationship.delete(context, {
+        object: space.reference(row.scope, row.spaceId),
+        relation: "machine",
+        subject,
+    });
+
+    // end its serving of the account once no other space of it stays placed there
+    const others = await context.read(placement).findMany({
+        where: { scope: row.scope, machineId, spaceId: { ne: row.spaceId } },
+    });
+    if (others.length === 0) {
+        await StoreRelationship.delete(context, {
+            object: await accountOf(context, row.scope),
+            relation: "server",
+            subject,
+        });
+    }
 }
 
 /** Revoke the receivers of a space's moves but a kept machine, as the store. */
@@ -180,9 +210,10 @@ async function releaseReceivers(
 /** Decide where a space's tenancy places it, recording a changed decision. */
 async function decide(
     context: MethodContextOf<typeof placement, "decide">,
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
 ): Promise<ResultOf<typeof placement, "decide">> {
     const { target } = context;
-    const decided = await decideSchedule(context, target, context.environment.crypto);
+    const decided = await decideSchedule(context, target, context.environment.crypto, entitlement);
 
     return canonicalize(target.schedule) === canonicalize(decided)
         ? target
@@ -192,6 +223,7 @@ async function decide(
 /** Decide a placement again as its inputs changed, recording a changed decision. */
 async function decideChanged(
     reconciliation: ObjectReconciliation<typeof placement>,
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
 ): Promise<void> {
     // find the placements whose decision changed, as the latest commits read
     const reader = reconciliation.database.snapshot();
@@ -201,7 +233,7 @@ async function decideChanged(
             row,
             isChanged:
                 canonicalize(row.schedule) !==
-                canonicalize(await decideSchedule(reader, row, crypto)),
+                canonicalize(await decideSchedule(reader, row, crypto, entitlement)),
         })),
     );
     const changed = decided.filter(({ isChanged }) => isChanged);
@@ -219,13 +251,13 @@ export async function decideSchedule(
     reader: Pick<Snapshot, "read">,
     row: Pick<Select<typeof placement.table>, "spaceId" | "scope" | "machineId">,
     crypto: DigestCrypto,
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
 ): Promise<Schedule> {
-    // read the space's tenancy, its account's plan and the machine serving it
+    // read the space's tenancy and the machine serving it
     const placed = present(
         await reader.read(space.table).findFirst({ where: { id: row.spaceId } }),
         `space ${row.spaceId}`,
     );
-    const entitled = await reader.read(entitlement.table).findMany({ where: { scope: row.scope } });
     const serving = present(
         await reader.read(machine.table).findFirst({ where: { id: row.machineId } }),
         `machine ${row.machineId}`,
@@ -234,7 +266,10 @@ export async function decideSchedule(
     // keep the serving machine's tenancy while none is set, and the machine while it stands
     const current = Machine.tenancy(serving, row.scope);
     const asked = placed.tenancy ?? current;
-    const allowed = Entitlement.decide(entitled, { tenancy: asked });
+    const allowed = await entitlement(row.scope).decide({
+        kind: "tenancy",
+        tenancy: asked,
+    });
     const isStanding = serving.status === "enabled" && serving.deletedAt === null;
 
     // refuse a tenancy a person set that the account's plan does not unlock
@@ -314,7 +349,7 @@ async function withdraw(
     // remove the placement at the machine's epoch, which removes the work its assignments give
     const { target } = context;
     Placement.requireServed(target, context.input.epoch);
-    await StoreRelationship.delete(context, servingRelationship(target, target.machineId));
+    await unserve(context, target, target.machineId);
     await context.remove();
 
     return target;
@@ -365,4 +400,11 @@ async function unassign(
     }
 
     return target;
+}
+
+/** Read an account's reference, the object its serving machines relate to. */
+async function accountOf(context: MethodContext, accountId: string): Promise<ObjectReference> {
+    const owner = await Account.of(context, accountId);
+
+    return account.reference(owner.scope, owner.id);
 }

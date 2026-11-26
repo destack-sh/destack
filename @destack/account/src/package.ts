@@ -4,7 +4,6 @@ import { defineMount, definePackage, proof } from "@destack/object";
 import { AccountError } from "./error/error.ts";
 import {
     account,
-    entitlement,
     assignment,
     claim,
     client,
@@ -74,7 +73,6 @@ export default definePackage({
         placement,
         assignment,
         claim,
-        entitlement,
     ],
     tables: [
         // the authentication protocols' records

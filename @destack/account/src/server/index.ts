@@ -16,3 +16,4 @@ export * from "./operation.ts";
 export * from "./region.ts";
 export * from "./placement.ts";
 export * from "./dns-resolver.ts";
+export * from "./entitlement.ts";

@@ -40,8 +40,11 @@ export const region = defineObject(
         },
         access: {
             relations: {
-                // the installation selling to the region's accounts
-                merchant: { subjects: [principal.installation], grantedBy: "operate" },
+                // the installation selling to the region's accounts, and the space it sells from
+                merchant: {
+                    subjects: [principal.installation, principal.space],
+                    grantedBy: "operate",
+                },
                 // everyone choosing a region while signing up
                 public: { subjects: [anyone.all()] },
             },

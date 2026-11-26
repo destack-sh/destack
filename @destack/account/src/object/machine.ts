@@ -204,7 +204,12 @@ export const machine = defineObject(
             },
             permissions: {
                 read: union(relation("operator"), relation("self")),
-                list: union(permission("read"), through("account", "serve")),
+                // let the account's servers and its sellers find its machines, the sellers to meter their hours
+                list: union(
+                    permission("read"),
+                    through("account", "serve"),
+                    through("account", "sell"),
+                ),
                 verify: union(
                     relation("operator"),
                     relation("self"),

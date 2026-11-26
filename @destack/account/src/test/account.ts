@@ -6,14 +6,7 @@ import type { DatabaseConnection } from "@destack/db/database";
 import { MemoryBlobStorage } from "@destack/resource";
 import { TestTemplate, TestDatabase, TestRun } from "@destack/db/test";
 import { Scope, Subject, RequestId } from "@destack/sync";
-import {
-    AccessContext,
-    Caller,
-    InstallationId,
-    type Policy,
-    principal,
-    type Relationship,
-} from "@destack/access";
+import { InstallationId, type Policy, principal, type Relationship } from "@destack/access";
 import {
     Jwks,
     Jwt,
@@ -35,17 +28,10 @@ import {
     type TestSigner,
 } from "@destack/object/test";
 import { PackageVersion, PackageId } from "@destack/package";
-import { ENTITLED_PACKAGE } from "./entitlement.ts";
+import { TestEntitlement } from "./entitlement.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { found, Identifier, type JsonValue, present, schema } from "@destack/schema";
-import {
-    CallError,
-    type FeatureReference,
-    type Fetch,
-    PackageMount,
-    type InstanceOf,
-    tablesOf,
-} from "@destack/object";
+import { CallError, type Fetch, PackageMount, type InstanceOf, tablesOf } from "@destack/object";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import {
@@ -59,10 +45,6 @@ import { IdentityKeystore, IdentityRegistry, type Identity } from "../identity/i
 import {
     account,
     Account,
-    Allowance,
-    entitlement,
-    Entitlement,
-    type EntitlementResource,
     machine,
     type Membership,
     organization,
@@ -372,6 +354,8 @@ interface Served {
     readonly releases: Map<string, Promise<BuildReader>>;
     /** The email sign-in mailed. */
     readonly mail: TestMail;
+    /** The accounts' plans the universe decides tenancies and domains by. */
+    readonly entitlement: TestEntitlement;
     /** The issuer as native clients call it. */
     readonly issuer: Issuer;
     /** Route a request of the universe's origin to the package mounted at its path. */
@@ -408,6 +392,8 @@ export class TestAccount implements AsyncDisposable {
     readonly issuer: Issuer;
     /** The published releases declaring settings, by package and version. */
     readonly releases: Map<string, Promise<BuildReader>>;
+    /** The accounts' plans the universe decides by, which tests allow uses of. */
+    readonly entitlement: TestEntitlement;
     /** The platform's account, whose home serves its region. */
     readonly platform: Identifier<"account">;
     /** Who serves the platform's homes. */
@@ -459,6 +445,7 @@ export class TestAccount implements AsyncDisposable {
         // store what tests read and change
         this.issuer = served.issuer;
         this.releases = served.releases;
+        this.entitlement = served.entitlement;
         this.platform = state.platform;
         this.homes = state.homes;
         this.simulation = state.simulation;
@@ -846,51 +833,6 @@ export class TestAccount implements AsyncDisposable {
         };
     }
 
-    /** Entitle an account to a resource or feature as finance does, replacing its terms. */
-    async entitle(
-        accountId: Identifier<"account">,
-        granted: EntitlementResource | { readonly feature: FeatureReference },
-        terms: Pick<Entitlement, "kind"> & Partial<Pick<Entitlement, "value" | "limit" | "state">>,
-    ): Promise<void> {
-        // key a resource's entitlement by a test feature of its name
-        const feature =
-            typeof granted === "string"
-                ? { packageId: ENTITLED_PACKAGE, name: granted, resource: granted }
-                : { ...granted.feature, resource: null };
-
-        // replace the one the account has for the feature with one of the terms, keeping the others
-        const stored = await this.database
-            .snapshot()
-            .read(entitlement.table)
-            .findMany({ where: { scope: accountId } });
-        const allowance: Allowance = {
-            packageId: feature.packageId,
-            feature: feature.name,
-            resource: feature.resource,
-            value: null,
-            limit: null,
-            resetAt: null,
-            state: null,
-            ...terms,
-        };
-        const kept = stored.filter((row) => Entitlement.key(row) !== Entitlement.key(allowance));
-        await this.allow(accountId, [...kept.map((row) => Entitlement.allowance(row)), allowance]);
-    }
-
-    /** Set an account's allowances through account.entitle, as finance does. */
-    async allow(accountId: Identifier<"account">, allowances: readonly Allowance[]): Promise<void> {
-        // act as the platform's merchant
-        const owner = await Account.of(this.database.snapshot(), accountId);
-        const provider = await this.merchant();
-        const now = this.store.clock.now();
-        await this.store.mutate(AccessContext.of(Caller.of(provider), now), {
-            id: RequestId.create(this.environment),
-            calls: [
-                account.call("entitle", { ...account.target(owner), allowances: [...allowances] }),
-            ],
-        });
-    }
-
     /** Act as the managed machine a space is placed on. */
     async machine(spaceId: Identifier<"space">): Promise<MachineKey> {
         const placed = present(
@@ -980,11 +922,8 @@ export class TestAccount implements AsyncDisposable {
         regionId: RegionCode,
         origin?: string,
     ): Promise<MachineKey> {
-        // entitle the account to dedicated tenancy, which the platform requires to declare its machine
-        await this.entitle(accountId, "tenancy", {
-            kind: "static",
-            value: ["shared", "dedicated", "self"],
-        });
+        // allow the account dedicated tenancy, which the platform requires to declare its machine
+        this.entitlement.allow(accountId, { kind: "tenancy", tenancy: "dedicated" });
 
         // store a new identity's machine as the universe with its key
         const identity = new MachineKey(
@@ -1161,6 +1100,7 @@ export class TestAccount implements AsyncDisposable {
         const environment = options.simulation.environment(WORLD_NODE);
         const releases = new Map<string, Promise<BuildReader>>();
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
+        const entitlement = new TestEntitlement();
         const events = await testEvents(database, environment);
         const opening = options.openRelease ?? TestAccount.#opening(releases);
         const store = new ObjectStore({
@@ -1172,6 +1112,8 @@ export class TestAccount implements AsyncDisposable {
                     resolver: options.resolver ?? new TestDns(),
                     stacks: options.stacks,
                     signIn: signIn.promise,
+                    entitlement: (accountId) => entitlement.of(accountId),
+                    entitlementWatches: [],
                 }),
                 settingServer({ after: [] }),
             ],
@@ -1267,6 +1209,7 @@ export class TestAccount implements AsyncDisposable {
             mail,
             issuer,
             fetch,
+            entitlement,
         };
     }
 

@@ -1,3 +1,4 @@
+import { TestEntitlement } from "./entitlement.ts";
 import { accessRelationship, Caller, principal, Relationship, universe } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { MemoryBlobStorage } from "@destack/resource";
@@ -60,16 +61,17 @@ export const TestDirectory = {
         sender: Identifier<"machine">,
         environment: Environment,
     ): Promise<ObjectRemote> {
-        // serve placements, assignments and spaces, acting as the store's principal
+        // serve placements, assignments and spaces under plans allowing nothing, acting as the store's principal
         const { clock } = environment;
+        const entitlement = new TestEntitlement();
         const store = TestObjectStore.of({
             chain: async () => undefined,
             environment,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),
             servers: serversOf([
-                implementPlacement(),
+                implementPlacement((accountId) => entitlement.of(accountId), []),
                 assignment,
-                implementSpace(STACKS),
+                implementSpace(STACKS, (accountId) => entitlement.of(accountId)),
                 relationship,
             ]),
             claims: { object: claim },

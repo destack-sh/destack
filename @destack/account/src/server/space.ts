@@ -8,6 +8,7 @@ import { SpaceAddress } from "../address/address.ts";
 import { account } from "../object/account.ts";
 import { machine } from "../object/machine.ts";
 import { Placement, placement } from "../object/placement.ts";
+import type { Entitlement } from "./entitlement.ts";
 import { decideSchedule } from "./placement.ts";
 import { Space, space } from "../object/space.ts";
 import type { PlatformDefinition } from "./universe.ts";
@@ -15,7 +16,10 @@ import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
 /** Implement spaces, born with the platform's space stack unless given one. */
-export function implementSpace(stacks: PlatformDefinition["stacks"]): typeof space {
+export function implementSpace(
+    stacks: PlatformDefinition["stacks"],
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
+): typeof space {
     return space.implement({
         methods: {
             create: {
@@ -25,7 +29,7 @@ export function implementSpace(stacks: PlatformDefinition["stacks"]): typeof spa
                         id: schema.identifier("space").parse(created.id),
                         scope: account.identifier(created.scope),
                     }),
-                handle: (context, next) => create(context, next, stacks),
+                handle: (context, next) => create(context, next, stacks, entitlement),
             },
             update: { handle: update },
             address,
@@ -70,7 +74,7 @@ export function implementSpace(stacks: PlatformDefinition["stacks"]): typeof spa
                         on: { scope: "id" },
                     },
                 ],
-                reconcile: place,
+                reconcile: (reconciliation) => place(reconciliation, entitlement),
             },
         ],
     });
@@ -96,6 +100,7 @@ async function create(
     context: MethodContextOf<typeof space, "create">,
     next: NextOf<typeof space, "create">,
     stacks: PlatformDefinition["stacks"],
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
 ): Promise<ResultOf<typeof space, "create">> {
     // create the space with its stack, the space stack by default
     const accountId = schema.identifier("account").parse(context.scope);
@@ -110,7 +115,12 @@ async function create(
     // place it in the same transaction, else leave it pending until a machine admits its account
     if (target !== undefined) {
         await context.mutate(context.self, [
-            await placementCall(context, crypto, { spaceId, scope: accountId, machineId: target }),
+            await placementCall(
+                context,
+                crypto,
+                { spaceId, scope: accountId, machineId: target },
+                entitlement,
+            ),
         ]);
     }
 
@@ -160,7 +170,10 @@ async function pickMachine(
 }
 
 /** Place each live space without a placement on a candidate, leaving the rest waiting. */
-async function place(reconciliation: ObjectReconciliation<typeof space>): Promise<void> {
+async function place(
+    reconciliation: ObjectReconciliation<typeof space>,
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
+): Promise<void> {
     // read which spaces have no placement yet
     const reader = reconciliation.database.snapshot();
     const placed = await reader.read(placement.table).findMany({
@@ -178,7 +191,7 @@ async function place(reconciliation: ObjectReconciliation<typeof space>): Promis
         const target = await pickMachine(reader, crypto, accountId, spaceId, undefined);
         if (target !== undefined) {
             const taken = { spaceId, scope: accountId, machineId: target };
-            calls.push(await placementCall(reader, crypto, taken));
+            calls.push(await placementCall(reader, crypto, taken, entitlement));
         }
     }
     if (calls.length > 0) {
@@ -191,8 +204,9 @@ async function placementCall(
     reader: Pick<Snapshot, "read">,
     crypto: DigestCrypto,
     placed: Pick<Select<typeof placement.table>, "spaceId" | "scope" | "machineId">,
+    entitlement: (accountId: Identifier<"account">) => Entitlement,
 ): Promise<Call> {
-    const decided = await decideSchedule(reader, placed, crypto);
+    const decided = await decideSchedule(reader, placed, crypto, entitlement);
 
     return placement.call("create", {
         ...placement.in(placed.scope),

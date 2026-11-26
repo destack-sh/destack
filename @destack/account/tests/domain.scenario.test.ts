@@ -53,7 +53,7 @@ test("claim and verify a domain once through its TXT record", async () => {
         });
 
     // claim the domain for the account on a plan with custom domains
-    await fixture.accounts.entitle(accountId, "domain", { kind: "boolean" });
+    fixture.accounts.entitlement.allow(accountId, { kind: "resource", resource: "domain" });
     const claimed = await owner.domain.create({
         scope: accountId,
         requestId: RequestId.create(fixture.environment),
@@ -123,8 +123,8 @@ test("let a second account claim a domain and refuse its verification once anoth
     const rival = fixture.rival.client(accountPackage);
 
     // claim the domain in both accounts on plans with custom domains
-    await fixture.accounts.entitle(accountId, "domain", { kind: "boolean" });
-    await fixture.accounts.entitle(otherId, "domain", { kind: "boolean" });
+    fixture.accounts.entitlement.allow(accountId, { kind: "resource", resource: "domain" });
+    fixture.accounts.entitlement.allow(otherId, { kind: "resource", resource: "domain" });
     const first = await owner.domain.create({
         scope: accountId,
         requestId: RequestId.create(fixture.environment),
@@ -170,7 +170,7 @@ test("serve hostnames below a verified domain alone, and refuse to remove the do
     const notes = `notes.${name}`;
 
     // refuse a hostname before its domain is verified
-    await fixture.accounts.entitle(accountId, "domain", { kind: "boolean" });
+    fixture.accounts.entitlement.allow(accountId, { kind: "resource", resource: "domain" });
     const claimed = await owner.domain.create({
         scope: accountId,
         requestId: RequestId.create(fixture.environment),
@@ -219,7 +219,7 @@ test("hide an account's domains from a stranger to every domain method", async (
     const { accountId, name } = fixture;
     const owner = fixture.owner.client(accountPackage);
     const stranger = fixture.stranger.client(accountPackage);
-    await fixture.accounts.entitle(accountId, "domain", { kind: "boolean" });
+    fixture.accounts.entitlement.allow(accountId, { kind: "resource", resource: "domain" });
     const claimed = await owner.domain.create({
         scope: accountId,
         requestId: RequestId.create(fixture.environment),
@@ -265,9 +265,9 @@ test("refuse a domain claim until the account's plan allows custom domains", asy
     expect(await refusal(claim())).toEqual([
         "TOO_MANY_REQUESTS",
         "CUSTOM_DOMAIN_EXHAUSTED",
-        `a custom domain of '${fixture.accountId}' exceeds its plan: the plan does not allow custom domains`,
+        `a custom domain of '${fixture.accountId}' exceeds its plan: no plan of the account grants domain`,
     ]);
-    await fixture.accounts.entitle(fixture.accountId, "domain", { kind: "boolean" });
+    fixture.accounts.entitlement.allow(fixture.accountId, { kind: "resource", resource: "domain" });
     const claimed = await claim();
     expect(claimed).toEqual(claimedDomain(fixture, claimed.id));
 });

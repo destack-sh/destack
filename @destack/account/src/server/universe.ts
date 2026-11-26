@@ -670,7 +670,7 @@ export class Platform {
         await this.#addHostnames(accountId, this.definition.hostnames);
         await this.#upgradeHome(home, this.definition.home);
 
-        // sell to every region's accounts through the finance installation in the platform's home
+        // sell to every region's accounts through the finance installation in the platform's home, which replicates them
         const owner = await Scope.object(this.store.database.snapshot(), home);
         const merchantId = await InstallationId.of(
             owner,
@@ -681,14 +681,19 @@ export class Platform {
         const regions = await Region.list(this.store.database);
         await this.#authorize(Scope.universe.id, now, async (authorization) => {
             for (const entry of regions) {
-                await Relationship.touch(
-                    {
-                        object: region.reference(Scope.universe.id, entry.id),
-                        relation: "merchant",
-                        subject: merchant,
-                    },
-                    authorization,
-                );
+                for (const subject of [
+                    merchant,
+                    principal.space.reference(Scope.universe.id, home),
+                ]) {
+                    await Relationship.touch(
+                        {
+                            object: region.reference(Scope.universe.id, entry.id),
+                            relation: "merchant",
+                            subject,
+                        },
+                        authorization,
+                    );
+                }
             }
         });
     }

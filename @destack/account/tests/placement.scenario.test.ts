@@ -134,6 +134,18 @@ function move(
     );
 }
 
+/** Decide a space's placement again as the store, as it does once the account's plan changes. */
+async function decide(fixture: TestAccount, spaceId: Identifier<"space">): Promise<void> {
+    const placed = present(
+        await fixture.database.snapshot().read(placement.table).findFirst({ where: { spaceId } }),
+        `the placement of space ${spaceId}`,
+    );
+    await fixture.store.mutate(fixture.store.as(placement), {
+        id: RequestId.create(fixture.environment),
+        calls: [placement.call("decide", placement.target(placed))],
+    });
+}
+
 /** Read the machine rows a machine replicates of the directory, with their statuses. */
 async function machines(copier: TestCaller): Promise<unknown[][]> {
     const controller = new AbortController();
@@ -949,11 +961,10 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
     const unentitled = await schedule("self");
 
     // keep it on the laptop once the plan unlocks its tenancy, move it to the region's cloud machine, and keep it once unset
-    await fixture.entitle(accountId, "tenancy", {
-        kind: "static",
-        value: ["shared", "dedicated", "self"],
-    });
-    await fixture.served.simulation.idle();
+    for (const tenancy of ["shared", "dedicated", "self"] as const) {
+        fixture.entitlement.allow(accountId, { kind: "tenancy", tenancy });
+    }
+    await decide(fixture, laptop);
     const kept = [await decided(), await schedule("shared"), await schedule(null)];
 
     // find no dedicated machine of the account, then decide again once one and then two are declared
@@ -1026,8 +1037,8 @@ test("move a space off a draining machine, decide again once it is placed, and k
     const moved = await read();
 
     // change the plan, which decides again without a new decision
-    await fixture.entitle(accountId, "tenancy", { kind: "static", value: ["self"] });
-    await fixture.served.simulation.idle();
+    fixture.entitlement.allow(accountId, { kind: "tenancy", tenancy: "self" });
+    await decide(fixture, laptop);
     const kept = await read();
 
     // compare each decision, and the revision a decision without change keeps

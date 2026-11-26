@@ -32,7 +32,6 @@ import { StackRelease } from "./stack-release.ts";
 import { user } from "./user.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
-import { Allowance } from "./allowance.ts";
 import { AccountError } from "../error/error.ts";
 import { argument, plural, t } from "@destack/locale";
 
@@ -81,6 +80,8 @@ export const account = defineObject(
             relations: {
                 // the region's merchant, related as each account is created
                 merchant: { subjects: [region.members("sell")], grantedBy: "place" },
+                // the machines serving the account's spaces, which its sellers meter by
+                server: { subjects: [principal.machine], grantedBy: "place" },
                 // the account's home space, and the installations living in it
                 home: { subjects: [principal.space, principal.space.members(CONTAINED)] },
                 // the people and the clients the account's managers let publish packages under its name
@@ -109,11 +110,12 @@ export const account = defineObject(
                 list: union(permission("view"), relation("public")),
                 // let those reading or serving the account see it whole, its replicas among them
                 view: union(permission("read"), permission("serve")),
-                replicate: contained(principal.space),
+                // let the account's region's merchant sell to it: bill, meter and announce its usage
+                sell: relation("merchant"),
+                // let the account's spaces and its region's merchant replicate it, the merchant to bill and meter it
+                replicate: union(contained(principal.space), relation("merchant")),
                 // let the account's home and its machines serve it
-                serve: union(relation("home"), contained(principal.machine)),
-                // let the region's merchant entitle the account
-                entitle: relation("merchant"),
+                serve: union(relation("home"), contained(principal.machine), relation("server")),
                 // let the account's spaces claim the names of their objects in the account
                 claim: contained(principal.space),
                 // let the person or the organization's managers found accounts in their scope
@@ -134,15 +136,7 @@ export const account = defineObject(
                 read: "view",
                 except: ["handle", "name", "kind", "regionId", "revision", "deletedAt"],
             },
-            reserved: [
-                "administer",
-                "replicate",
-                "serve",
-                "entitle",
-                "claim",
-                "place",
-                "provision",
-            ],
+            reserved: ["administer", "replicate", "serve", "sell", "claim", "place", "provision"],
             elevated: { delete: sudo, administer: sudo, impersonate: sudo },
         },
         traits: [recoverable({ within: { days: 30 }, by: "delete" }), shareable({})],
@@ -158,17 +152,6 @@ export const account = defineObject(
             isPredicted: false,
         }),
         update: method.update("update", { fields: ["handle", "name"] }),
-
-        /** Set the account's entitlements to its allowances, one per feature, at its home. */
-        entitle: method.mutation({
-            title: t`Entitle`,
-            permission: "entitle",
-            visibility: "installation",
-            input: schema.object({
-                /** The allowances the account has, replacing every other entitlement. */
-                allowances: schema.array(Allowance),
-            }),
-        }),
     }),
 );
 /** A persisted account record. */

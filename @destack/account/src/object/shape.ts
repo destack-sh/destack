@@ -59,6 +59,14 @@ export const accountShape = defineShape({
     ],
 });
 
+/** Every account's row and machines with the roles deciding them, as a seller's home reads them. */
+export const accountsShape = defineShape({
+    name: "accounts",
+    parameters: schema.object({}),
+    objects: [account, machine],
+    queries: () => [account.query({ scopes: "every" }), machine.query({ scopes: "every" })],
+});
+
 /** One organization's row, which has its payer. */
 export const organizationShape = defineShape({
     name: "organization",

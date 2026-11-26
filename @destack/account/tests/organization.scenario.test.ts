@@ -266,7 +266,7 @@ test("serve an organization's accounts on hostnames below the domains it verifie
     await using fixture = await TestAccount.open({ resolver: dns });
     const founder = await fixture.signIn("founder@example.com");
     const { organizationId, accountId } = await foundOrganization(fixture, founder);
-    await fixture.entitle(accountId, "domain", { kind: "boolean" });
+    fixture.entitlement.allow(accountId, { kind: "resource", resource: "domain" });
     const claimed = await founder.client(accountPackage).domain.create({
         scope: organizationId,
         requestId: RequestId.create(fixture.store.environment),

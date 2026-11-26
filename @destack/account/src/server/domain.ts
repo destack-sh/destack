@@ -1,8 +1,9 @@
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
-import { schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import type { DnsResolver } from "./dns-resolver.ts";
 import { account } from "../object/account.ts";
-import { Entitlement } from "../object/entitlement.ts";
+import { Account } from "../object/account.ts";
+import type { Entitlement } from "./entitlement.ts";
 import { Domain, DomainChallenge, domain } from "../object/domain.ts";
 import { hostname } from "../object/hostname.ts";
 import type {} from "@destack/package/import-meta";
@@ -12,6 +13,8 @@ import { AccountError } from "../error/error.ts";
 export interface DomainOptions {
     /** The resolver reading the challenge records. */
     readonly resolver: DnsResolver;
+    /** Read an account's plan, which refuses domains to a payer whose plan has none. */
+    readonly entitlement: (accountId: Identifier<"account">) => Entitlement;
 }
 
 /** Implement domains. */
@@ -20,7 +23,17 @@ export function implementDomain(options: DomainOptions): typeof domain {
         methods: {
             create: async (call, next) => {
                 // refuse a payer whose plan allows no domains
-                await Entitlement.requireCustomDomains(call);
+                const payer = await Account.payer(call, call.scope);
+                const allowed = await options.entitlement(payer).decide({
+                    kind: "resource",
+                    resource: "domain",
+                });
+                if (allowed.status !== "true") {
+                    throw AccountError.of(
+                        "CUSTOM_DOMAIN_EXHAUSTED",
+                        `a custom domain of '${call.scope}' exceeds its plan: ${allowed.message}`,
+                    );
+                }
 
                 return next();
             },
