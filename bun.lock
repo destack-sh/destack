@@ -297,6 +297,7 @@
       "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/test": "workspace:*",
         "@lezer/generator": "1.8.1",
@@ -306,6 +307,7 @@
     "@destack/color": {
       "name": "@destack/color",
       "dependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/schema": "workspace:*",
       },
       "devDependencies": {
@@ -362,6 +364,7 @@
         "postgres": "3.4.9",
       },
       "devDependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/test": "workspace:*",
         "@sqlite.org/sqlite-wasm": "3.53.4-build1",
         "@types/bun": "1.4.4",
@@ -973,6 +976,7 @@
         "magic-string": "1.4.1",
       },
       "devDependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
         "lightningcss": "1.33.0",
@@ -1121,6 +1125,7 @@
       "name": "@destack/shader",
       "dependencies": {
         "@destack/error": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/style": "workspace:*",
         "@destack/view": "workspace:*",
@@ -1261,6 +1266,7 @@
         "@destack/telemetry": "workspace:*",
       },
       "devDependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1",
       },
@@ -1330,6 +1336,7 @@
       },
       "devDependencies": {
         "@destack/environment": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@vitest/coverage-v8": "5.0.1",
         "@vitest/ui": "5.1.0",
       },

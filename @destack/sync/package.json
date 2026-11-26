@@ -28,6 +28,7 @@
         }
     },
     "devDependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1"
     }

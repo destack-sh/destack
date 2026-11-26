@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { Feed } from "./feed.ts";
 import { feedInteraction } from "../scenario/interaction.ts";
@@ -6,9 +7,8 @@ import { feedInteraction } from "../scenario/interaction.ts";
 export const snapshotThousandsOfRows = defineScenario({
     of: Feed,
     interaction: feedInteraction,
-    name: "snapshot-thousands-of-rows",
-    description:
-        "snapshot thousands of rows of every query set into memory, and into a replica database",
+    name: "snapshotThousandsOfRows",
+    description: t`Snapshot thousands of rows of every query set into memory, and into a replica database.`,
     given: { examples: [] },
     parameters: { rows: 4000 },
     when: [
@@ -39,8 +39,8 @@ export const snapshotThousandsOfRows = defineScenario({
 export const writeToHundredSubscribers = defineScenario({
     of: Feed,
     interaction: feedInteraction,
-    name: "write-to-hundred-subscribers",
-    description: "write rows a hundred followers of one audience follow, each until all have it",
+    name: "writeToHundredSubscribers",
+    description: t`Write rows a hundred followers of one audience follow, each until all have it.`,
     given: { examples: [] },
     parameters: { rows: 500, followers: 100, warmup: 20, writes: 40 },
     when: [
@@ -66,8 +66,8 @@ export const writeToHundredSubscribers = defineScenario({
 export const writeToThousandRowSubscribers = defineScenario({
     of: Feed,
     interaction: feedInteraction,
-    name: "rank-for-thousand-subscribers",
-    description: "rank one task anew while a thousand direct subscribers follow it",
+    name: "rankForThousandSubscribers",
+    description: t`Rank one task anew while a thousand direct subscribers follow it.`,
     given: { examples: [] },
     parameters: { rows: 200, subscribers: 1000, warmup: 20, writes: 40 },
     when: [
@@ -89,8 +89,8 @@ export const writeToThousandRowSubscribers = defineScenario({
 export const writeAcrossDistinctAccess = defineScenario({
     of: Feed,
     interaction: feedInteraction,
-    name: "write-across-distinct-access",
-    description: "write rows three hundred followers of fifty distinct audiences follow",
+    name: "writeAcrossDistinctAccess",
+    description: t`Write rows three hundred followers of fifty distinct audiences follow.`,
     given: { examples: [] },
     parameters: { rows: 500, followers: 300, audiences: 50, warmup: 20, writes: 40 },
     when: [
@@ -121,9 +121,8 @@ export const writeAcrossDistinctAccess = defineScenario({
 export const flipRowsThroughLookup = defineScenario({
     of: Feed,
     interaction: feedInteraction,
-    name: "flip-rows-through-lookup",
-    description:
-        "rename a project back and forth, flipping its fifteen hundred tasks in and out of a lookup",
+    name: "flipRowsThroughLookup",
+    description: t`Rename a project back and forth, flipping its fifteen hundred tasks in and out of a lookup.`,
     given: { examples: [] },
     parameters: { tasks: 1500, warmup: 20, flips: 6 },
     when: [
@@ -146,8 +145,8 @@ export const flipRowsThroughLookup = defineScenario({
 export const followEveryQuerySet = defineScenario({
     of: Feed,
     interaction: feedInteraction,
-    name: "follow-every-query-set",
-    description: "write rows one follower of every query set follows over three thousand rows",
+    name: "followEveryQuerySet",
+    description: t`Write rows one follower of every query set follows over three thousand rows.`,
     given: { examples: [] },
     parameters: { rows: 3000, warmup: 20, writes: 48 },
     when: [
@@ -173,8 +172,8 @@ export const followEveryQuerySet = defineScenario({
 export const reorderTasksByRollup = defineScenario({
     of: Feed,
     interaction: feedInteraction,
-    name: "reorder-tasks-by-rollup",
-    description: "comment on tasks a window of the ten most commented among ten thousand follows",
+    name: "reorderTasksByRollup",
+    description: t`Comment on tasks a window of the ten most commented among ten thousand follows.`,
     given: { examples: [] },
     parameters: { tasks: 10_000, warmup: 20, comments: 60, among: 40 },
     when: [
