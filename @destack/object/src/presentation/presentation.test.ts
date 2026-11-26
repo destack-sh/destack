@@ -7,6 +7,7 @@ import { space } from "../test/space.ts";
 import { ObjectAppearance } from "./appearance.ts";
 import { ObjectDetail } from "./detail.ts";
 import { ObjectView } from "./view.ts";
+import { ObjectValue } from "./value.ts";
 
 /** The source locale, which renders a message title as written. */
 const SOURCE = Localization.of(SOURCE_LOCALE, []);
@@ -247,4 +248,16 @@ test("title every type by its title or name field, a message as rendered, else i
         fields: ["name", "name", undefined],
         decorated: false,
     });
+});
+
+test("read a column outside the fields by its JSON type: the identifier as text, the revision as a number", () => {
+    expect([
+        ObjectValue.of(task, "id", "task-1", SOURCE),
+        ObjectValue.of(task, "revision", 6, SOURCE),
+        ObjectValue.of(task, "tags", { area: "launch" }, SOURCE),
+    ]).toEqual([
+        { kind: "text", value: "task-1" },
+        { kind: "number", value: 6 },
+        { kind: "json", value: { area: "launch" } },
+    ]);
 });

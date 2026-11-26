@@ -49,12 +49,22 @@ export const ObjectValue = {
         value: JsonValue | undefined,
         localization: Localization,
     ): ObjectValue {
-        // read absence, a column outside the fields such as the identifier as text, then by kind
+        // read absence, then a column outside the fields, such as the identifier or the revision, by its JSON type
         const field = type.fields[name];
         if (value === undefined || value === null) {
             return { kind: "absent" };
-        } else if (field === undefined) {
-            return { kind: "text", value: schema.string().parse(value) };
+        }
+        // read a text column as text
+        else if (field === undefined && typeof value === "string") {
+            return { kind: "text", value };
+        }
+        // read a number column as a number
+        else if (field === undefined && typeof value === "number") {
+            return { kind: "number", value };
+        }
+        // read any other column as JSON
+        else if (field === undefined) {
+            return { kind: "json", value };
         }
 
         // read the value by its field's kind
