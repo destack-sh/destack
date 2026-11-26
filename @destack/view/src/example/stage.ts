@@ -1,12 +1,28 @@
 import type { BrowserEnvironment } from "@destack/environment/browser";
-import type { Example, Given, Scenario } from "@destack/package/declare";
-import { type JsonObject, type JsonValue, present } from "@destack/schema";
-import type { Catalog } from "@destack/locale";
+import {
+    type Example,
+    type Given,
+    Operation,
+    Reference,
+    type Scenario,
+    SetStep,
+} from "@destack/package/declare";
+import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
+import { ActionInput, type ActionInputDescription, Field } from "@destack/object";
+import { type ComponentProperties, isComponent } from "../declare/component.ts";
+import { Catalog } from "@destack/locale";
+import type { PackageId } from "@destack/package";
+import { CONTEXT_ELEMENT, ViewContext } from "../declare/context.ts";
 import type { JSX } from "@solidjs/web";
 import { computeAccessibleName, getRole, isDisabled, isInaccessible } from "dom-accessibility-api";
-import { createSignal } from "solid-js";
-import { Globals, type Locator, OBSERVED_STATES, type Observation } from "../scenario/index.ts";
+import { createSignal, flush } from "solid-js";
+import { Globals, type Locator, OBSERVED_STATES, Observation, Step } from "../scenario/index.ts";
+import { Keyboard } from "./keyboard.ts";
+import { Pointer } from "./pointer.ts";
 import { renderExample } from "./frame.ts";
+import { renderMatrix } from "./matrix.ts";
+import { ExampleRequest, MatrixAxes, ExampleEvent } from "../page/message.ts";
+import type { IndexEntry } from "../page/example.ts";
 
 /** The global a page exposes its stage as. */
 export const STAGE = "destackStage";
@@ -30,31 +46,47 @@ export class Stage {
     readonly #examples: ReadonlyMap<string, Rendered>;
     /** The unmounting of the examples, last mounted first. */
     readonly #mounted: DisposableStack;
+    /** The pointer the steps point with. */
+    readonly #pointer: Pointer;
+    /** The keyboard the steps type with. */
+    readonly #keyboard: Keyboard;
 
     /** Create a stage of rendered examples. */
     private constructor(
         container: HTMLElement,
         examples: ReadonlyMap<string, Rendered>,
         mounted: DisposableStack,
+        pointer: Pointer,
     ) {
+        // store the container, the examples, their unmounting, the pointer and the keyboard
         this.container = container;
         this.#examples = examples;
         this.#mounted = mounted;
+        this.#pointer = pointer;
+        this.#keyboard = new Keyboard(container.ownerDocument);
     }
 
-    /** Render the examples of a scenario into a container. */
+    /** Render the examples of a scenario into a container, translated by the catalogs. */
     static render(
         container: HTMLElement,
         given: Given<JSX.Element, Globals>,
         environment: BrowserEnvironment,
+        page: {
+            readonly catalogs?: readonly Catalog[];
+            readonly index?: readonly IndexEntry[];
+        } = {},
     ): Stage {
         // render each example in order
         const mounted = new DisposableStack();
         const examples = new Map<string, Rendered>();
         for (const example of given.examples) {
-            // render the example over properties a set step changes
-            const declared = Object.keys(example.properties);
+            // render the example over the properties a set step or a host changes: its own and its component's
+            const definitions = isComponent(example.of) ? example.of.properties : {};
+            const declared = [
+                ...new Set([...Object.keys(example.properties), ...Object.keys(definitions)]),
+            ];
             const [values, setValues] = createSignal<Record<string, unknown>>({
+                ...defaultsOf(definitions),
                 ...example.properties,
             });
             const properties = Object.defineProperties(
@@ -68,14 +100,140 @@ export class Stage {
             const element = container.ownerDocument.createElement("div");
             container.append(element);
             const globals = given.globals === undefined ? {} : { globals: given.globals };
-            mounted.defer(renderExample(element, { example, properties, ...globals }, environment));
+            mounted.defer(
+                renderExample(element, { example, properties, ...page, ...globals }, environment),
+            );
             examples.set(example.name, {
                 declared,
                 set: (changed) => setValues((current) => ({ ...current, ...changed })),
             });
         }
 
-        return new Stage(container, examples, mounted);
+        return new Stage(
+            container,
+            examples,
+            mounted,
+            new Pointer(given.globals?.pointer ?? "mouse"),
+        );
+    }
+
+    /** Host a page's examples: show the one its address gives, then each one its host asks for. */
+    static async host(
+        element: HTMLElement,
+        shown: Shown,
+        owner: PackageId,
+        environment: BrowserEnvironment,
+    ): Promise<void> {
+        // fetch every catalog the page's builds serve, as its context lists them
+        const catalogs = await fetchCatalogs(owner, environment);
+
+        // show what the address gives, talking to a host of the page's own origin
+        const url = new URL(environment.navigation.currentEntry.url);
+        const { origin } = url;
+        let current = await show(element, shown, catalogs, environment, origin, {
+            name: present(url.searchParams.get("name"), "the shown name"),
+            globals: schema.json().parse(JSON.parse(url.searchParams.get("globals") ?? "{}")),
+            properties: schema
+                .jsonObject()
+                .parse(JSON.parse(url.searchParams.get("properties") ?? "{}")),
+            matrix: MatrixAxes.nullable().parse(
+                JSON.parse(url.searchParams.get("matrix") ?? "null"),
+            ),
+        });
+
+        // show what the host asks for next in place, passing every other request to what is shown
+        let showing = Promise.resolve();
+        window.addEventListener("message", (event: MessageEvent<unknown>) => {
+            // take only the parent's requests of this origin
+            const request =
+                event.source === window.parent ? ExampleRequest.read(event, origin) : undefined;
+            if (request === undefined) {
+                return;
+            }
+            // show another example or scenario, one at a time in the order asked, taking the last down once the next is drawn
+            if (request.destack === "show") {
+                showing = showing.then(async () => {
+                    const next = await show(element, shown, catalogs, environment, origin, request);
+                    current.dispose();
+                    current = next;
+                });
+            }
+            // pass it on, after what is being shown
+            else {
+                void showing.then(() => current.receive(request));
+            }
+        });
+    }
+
+    /** Act one step of a scenario, returning what each of its checks saw and if it passed. */
+    async play(
+        steps: readonly { readonly step: unknown; readonly checks: readonly unknown[] }[],
+        index: number,
+        pause: (milliseconds: number) => Promise<void>,
+    ): Promise<{ readonly seen: JsonValue; readonly isPassed: boolean }[]> {
+        // act the step, waiting out a pause by the page's clock
+        const { step, checks } = present(steps[index], `step ${String(index)} of the scenario`);
+        await this.act(schema.union([SetStep, Step]).parse(step), pause);
+
+        // observe each check, comparing what it saw with what it expects
+        const observed = checks.flatMap((check) => {
+            // skip a check that reads telemetry, which a page does not record
+            const parsed = ObservedCheck.safeParse(check);
+            if (!parsed.success) {
+                return [];
+            }
+
+            // compare what the examples show with what the check expects
+            const seen = this.observe(parsed.data.observe);
+
+            return [{ seen, isPassed: JSON.stringify(seen) === JSON.stringify(parsed.data.is) }];
+        });
+
+        return observed;
+    }
+
+    /** Take one step on the examples as a person would, waiting out a pause by a clock. */
+    async act(step: SetStep | Step, pause: (milliseconds: number) => Promise<void>): Promise<void> {
+        switch (step.action) {
+            case "focus":
+                this.locate(step.target).focus();
+                break;
+            case "click":
+                this.#pointer.move(this.locate(step.target), step.position);
+                this.#pointer.press(step.button);
+                this.#pointer.release();
+                break;
+            case "pointerMove":
+                this.#pointer.move(this.locate(step.target), step.position);
+                break;
+            case "pointerDown":
+                this.#pointer.press(step.button);
+                break;
+            case "pointerUp":
+                this.#pointer.release();
+                break;
+            case "wheel":
+                this.#pointer.wheel(step.deltaX ?? 0, step.deltaY ?? 0);
+                break;
+            case "pause":
+                await pause(step.milliseconds);
+                break;
+            case "press":
+                // focus the target and let the focus settle, as a browser does before the key
+                if (step.target !== undefined) {
+                    this.locate(step.target).focus();
+                    flush();
+                }
+                this.#keyboard.press(step.key);
+                break;
+            case "fill":
+                this.#keyboard.fill(this.locate(step.target), step.value);
+                break;
+            case "set":
+                this.set(step.properties, step.example);
+                break;
+        }
+        flush();
     }
 
     /** Unmount the examples. */
@@ -334,45 +492,8 @@ function isModal(dialog: Element): boolean {
     return isMatched && dialog.matches(":modal");
 }
 
-/** Frame the declaration a page's address selects by its module's path and its name. */
-export async function hostFrame(
-    element: HTMLElement,
-    modules: Readonly<Record<string, () => Promise<unknown>>>,
-    catalogs: readonly Catalog[],
-    environment: BrowserEnvironment,
-): Promise<void> {
-    // read the module, the name and the globals the URL names, and find the declaration by name
-    const url = new URL(environment.navigation.currentEntry.url);
-    const module = present(url.searchParams.get("module"), "the framed module");
-    const name = present(url.searchParams.get("name"), "the framed name");
-    const globals = Globals.parse(JSON.parse(url.searchParams.get("globals") ?? "{}"));
-    const load = present(modules[`/${module}`], `the module '${module}' of the frame`);
-    const loaded = await load();
-    const exported: readonly unknown[] =
-        typeof loaded === "object" && loaded !== null ? Object.values(loaded) : [];
-    const value = exported.find(
-        (each) => typeof each === "object" && each !== null && Reflect.get(each, "name") === name,
-    );
-
-    // refuse an export of the name that is no example or scenario
-    if (!isFramed(value)) {
-        throw new TypeError(
-            `export '${name}' of '${module}' is invalid: it is no example or scenario`,
-        );
-    }
-
-    // render an example
-    if (value.kind === "example") {
-        renderExample(element, { example: value, globals, catalogs }, environment);
-    }
-    // stage a scenario's examples for its driver
-    else {
-        Reflect.set(globalThis, STAGE, Stage.render(element, value.given, environment));
-    }
-}
-
-/** Report whether a module's export is an example or a scenario a frame shows, by its kind. */
-function isFramed(
+/** Report whether a module's export is an example or a scenario a page shows, by its kind. */
+function isShowable(
     value: unknown,
 ): value is Example<object, JSX.Element> | Scenario<unknown, unknown, Globals, JSX.Element> {
     return (
@@ -382,3 +503,291 @@ function isFramed(
         (value.kind === "example" || value.kind === "scenario")
     );
 }
+
+/** A page's examples and scenarios by name, each with its kind and how to load it. */
+type Shown = Readonly<
+    Record<string, Omit<IndexEntry, "name"> & { readonly load: () => Promise<unknown> }>
+>;
+
+/** What a page shows: an example or scenario by name, its globals, properties and matrix axes. */
+type Address = Omit<Extract<ExampleRequest, { readonly destack: "show" }>, "destack">;
+
+/** What a page shows now: how it takes its host's requests, and how to take it down. */
+interface Presentation {
+    /** Take a request of the host. */
+    readonly receive: (request: ExampleRequest) => void;
+    /** Take it down, leaving the element empty. */
+    readonly dispose: () => void;
+}
+
+/** Show an example alone, laid out as a matrix, or a scenario, telling the host what it may do. */
+async function show(
+    container: HTMLElement,
+    shown: Shown,
+    catalogs: readonly Catalog[],
+    environment: BrowserEnvironment,
+    origin: string,
+    address: Address,
+): Promise<Presentation> {
+    // load the declaration by its name, refusing one that is no example or scenario
+    const { name } = address;
+    const entry = present(shown[name], `the example or scenario '${name}' of the page`);
+    const value = await entry.load();
+    if (!isShowable(value)) {
+        throw new TypeError(`'${name}' is invalid: it is no example or scenario`);
+    }
+
+    // show it in its own element, removed with it
+    const element = container.ownerDocument.createElement("div");
+    container.append(element);
+    const globals = Globals.parse(address.globals);
+    const page = { element, shown, catalogs, environment, origin, globals };
+
+    // lay an example out along its axes, else show it alone, else play a scenario
+    if (value.kind === "example" && address.matrix !== null) {
+        return showMatrix(value, address.properties, address.matrix, page);
+    } else if (value.kind === "example") {
+        return showExample(value, address.properties, page);
+    } else {
+        return showScenario(value, page);
+    }
+}
+
+/** Where and with what a page shows an example or scenario. */
+interface Showing {
+    /** The element it shows in, which it removes once taken down. */
+    readonly element: HTMLElement;
+    /** The page's examples and scenarios. */
+    readonly shown: Shown;
+    /** The catalogs translating them. */
+    readonly catalogs: readonly Catalog[];
+    /** The page's environment. */
+    readonly environment: BrowserEnvironment;
+    /** The globals it renders with. */
+    readonly globals: Globals;
+    /** The origin of the page and its host. */
+    readonly origin: string;
+}
+
+/** Lay an example out along its axes, laying the cells out again as its values or axes change. */
+function showMatrix(
+    example: Example<object, JSX.Element>,
+    given: JsonObject,
+    initial: MatrixAxes,
+    page: Showing,
+): Presentation {
+    // render every cell of the axes with the example's values, telling the host the cell picked
+    const { element, catalogs, environment, globals } = page;
+    let values = valuesOf(example, given);
+    let axes = initial;
+    const render = () =>
+        renderMatrix(
+            element,
+            { example, globals, catalogs, properties: values },
+            axes,
+            environment,
+            {
+                choose: (chosen) =>
+                    ExampleEvent.send({ destack: "cell", values: chosen }, page.origin),
+                open: (opened) =>
+                    ExampleEvent.send({ destack: "open", values: opened }, page.origin),
+            },
+        );
+    let dispose = render();
+    tellExample(example, values, page.origin);
+
+    return {
+        receive: (request) => {
+            // take changed values or other axes, then lay the cells out again
+            if (request.destack === "set") {
+                values = { ...values, ...request.properties };
+            } else if (request.destack === "axes") {
+                axes = request.axes;
+            } else {
+                return;
+            }
+            dispose();
+            dispose = render();
+        },
+        dispose: () => {
+            dispose();
+            element.remove();
+        },
+    };
+}
+
+/** Show an example alone, from the properties given, telling the host what it may change. */
+function showExample(
+    example: Example<object, JSX.Element>,
+    given: JsonObject,
+    page: Showing,
+): Presentation {
+    // stage the example, starting from the properties given
+    const stage = stageOf({ examples: [example], globals: page.globals }, page);
+    if (Object.keys(given).length > 0) {
+        stage.set(given, undefined);
+    }
+    tellExample(example, valuesOf(example, given), page.origin);
+
+    return {
+        receive: (request) => {
+            if (request.destack === "set") {
+                stage.set(request.properties, undefined);
+            }
+        },
+        dispose: () => {
+            stage.dispose();
+            page.element.remove();
+        },
+    };
+}
+
+/** Show a scenario's examples, telling the host its steps, and act each one the host asks for. */
+function showScenario(
+    scenario: Scenario<unknown, unknown, Globals, JSX.Element>,
+    page: Showing,
+): Presentation {
+    // stage its examples and tell the host its steps with their checks
+    const stage = stageOf(scenario.given, page);
+    const entries = scenario.when.map((each) => Reference.resolve(each, scenario.parameters));
+    const steps = entries.map((each) => ({
+        step: schema.json().parse(Operation.step(each)),
+        checks: schema.array(schema.json()).parse(Operation.is(each) ? (each.then ?? []) : []),
+    }));
+    const description = scenario.description;
+    ExampleEvent.send(
+        { destack: "scenario", name: scenario.name, description, steps },
+        page.origin,
+    );
+
+    // wait out a step's pauses by the page's clock
+    const pause = async (milliseconds: number) =>
+        new Promise<void>((resolve) => {
+            page.environment.clock.setTimeout(resolve, milliseconds);
+        });
+
+    return {
+        receive: (request) => {
+            // act the step asked for, then tell the host what its checks saw
+            if (request.destack === "act") {
+                const { index } = request;
+                void stage.play(steps, index, pause).then((observed) => {
+                    ExampleEvent.send({ destack: "acted", index, observed }, page.origin);
+                });
+            }
+        },
+        dispose: () => {
+            stage.dispose();
+            page.element.remove();
+        },
+    };
+}
+
+/** Stage examples on a page, exposing the stage to a test's driver. */
+function stageOf(given: Given<JSX.Element, Globals>, page: Showing): Stage {
+    // render the examples with the page's index, and expose the stage
+    const index = Object.entries(page.shown).map(([name, { kind }]) => ({ name, kind }));
+    const stage = Stage.render(page.element, given, page.environment, {
+        catalogs: page.catalogs,
+        index,
+    });
+    Reflect.set(globalThis, STAGE, stage);
+
+    return stage;
+}
+
+/** Read an example's values: its component's defaults, its own properties, then those given. */
+function valuesOf(example: Example<object, JSX.Element>, given: JsonObject): JsonObject {
+    const definitions = isComponent(example.of) ? example.of.properties : {};
+
+    return schema
+        .jsonObject()
+        .parse({ ...defaultsOf(definitions), ...example.properties, ...given });
+}
+
+/** Tell the host an example is shown: its description, its inputs and their values. */
+function tellExample(
+    example: Example<object, JSX.Element>,
+    values: JsonObject,
+    origin: string,
+): void {
+    ExampleEvent.send(
+        {
+            destack: "example",
+            name: example.name,
+            description: example.description,
+            inputs: inputsOf(example),
+            values,
+        },
+        origin,
+    );
+}
+
+/** Fetch every catalog the page's builds serve, as the page's context lists them below its base. */
+async function fetchCatalogs(
+    owner: PackageId,
+    environment: BrowserEnvironment,
+): Promise<Catalog[]> {
+    // read the page's context, which lists the catalogs
+    const element = document.getElementById(CONTEXT_ELEMENT);
+    if (element === null) {
+        throw new TypeError(`the page has no '${CONTEXT_ELEMENT}' context`);
+    }
+    const context = ViewContext.parse(JSON.parse(element.textContent));
+    const root = `${new URL(environment.navigation.currentEntry.url).origin}${context.base}`;
+
+    return Promise.all(
+        context.catalogs.map(async (path) => {
+            // fetch each at its build path, refusing one that does not load
+            const response = await environment.network.fetch(new Request(`${root}/${path}`));
+            if (!response.ok) {
+                throw new TypeError(
+                    `could not read the catalog at '${path}': status '${String(response.status)}'`,
+                );
+            }
+
+            return Catalog.of(path, await response.json(), owner);
+        }),
+    );
+}
+
+/** Describe the inputs a host changes an example's component by, objects aside. */
+function inputsOf(example: Example): ActionInputDescription[] {
+    // describe each property of the component the example shows, none for anything else
+    const definitions = isComponent(example.of) ? example.of.properties : {};
+
+    return Object.entries(definitions).flatMap(([name, definition]) => {
+        const input = definition === undefined ? undefined : ActionInput.of(name, definition);
+
+        return input === undefined || input.value.kind === "object" ? [] : [input.describe()];
+    });
+}
+
+/** Read the default value of each property a component declares with a defaulted schema. */
+function defaultsOf(
+    definitions: ComponentProperties<Record<string, unknown>>,
+): Record<string, unknown> {
+    // parse nothing through each schema, keeping what a default gives, or a field's initial value
+    const defaults: Record<string, unknown> = {};
+    for (const [name, definition] of Object.entries(definitions)) {
+        const parsed =
+            definition instanceof schema.Schema ? definition.safeParse(undefined) : undefined;
+        if (parsed?.success === true && parsed.data !== undefined) {
+            defaults[name] = parsed.data;
+        }
+        // take the value a field starts with
+        else if (definition instanceof Field && definition.initial !== undefined) {
+            defaults[name] = definition.initial.value;
+        }
+    }
+
+    return defaults;
+}
+
+/** A check of a step that observes the examples, and the value it expects. */
+const ObservedCheck = schema.object({
+    /** The observation. */
+    observe: Observation,
+    /** The value it expects. */
+    is: schema.json(),
+});

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { expect, test } from "@destack/test";
 import { createSignal } from "../solid/reactive.ts";
@@ -43,7 +44,7 @@ function Panel() {
 const panel = defineExample({
     of: Panel,
     name: "panel",
-    description: "a counter, a field and a scrolling list",
+    description: t`A counter, a field and a scrolling list.`,
     render: () => <Panel />,
 });
 
