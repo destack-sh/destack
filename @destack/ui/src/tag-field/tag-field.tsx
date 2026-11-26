@@ -621,7 +621,7 @@ export function TagFieldItem(properties: TagFieldItemProperties): JSX.Element {
                 "span",
                 "tag-field-item",
                 rest,
-                () => [Badge.styles({ variant: "secondary" }), state.focus, styles.tag],
+                () => [Badge.styles({ variant: "soft", color: "gray" }), state.focus, styles.tag],
                 {
                     role: "listitem" as const,
                     tabindex: -1,

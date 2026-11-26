@@ -471,7 +471,9 @@ function Details(properties: { readonly step: Step }): JSX.Element {
             <h3 {...style.attrs(text.base, styles.heading)}>
                 <Icon icon={KINDS[properties.step.kind].icon} />
                 {properties.step.name}
-                <Badge variant="secondary">{KINDS[properties.step.kind].label}</Badge>
+                <Badge variant="soft" color="gray">
+                    {KINDS[properties.step.kind].label}
+                </Badge>
             </h3>
             <Show when={properties.step.error}>
                 {(error) => (

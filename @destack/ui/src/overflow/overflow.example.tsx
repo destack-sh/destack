@@ -212,7 +212,9 @@ function Labels(properties: PropertiesOf<typeof Overflow>): JSX.Element {
             <For each={["bug", "design", "accessibility", "timeline", "keyboard", "browser"]}>
                 {(label) => (
                     <OverflowItem>
-                        <Badge variant="secondary">{label}</Badge>
+                        <Badge variant="soft" color="gray">
+                            {label}
+                        </Badge>
                     </OverflowItem>
                 )}
             </For>

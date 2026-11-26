@@ -43,8 +43,11 @@ export const activityTask = defineExample({
                     </ActivityBadge>
                     <ActivityBody>
                         <span>
-                            Grace added <Badge color="blue">Launch</Badge> ·{" "}
-                            <RelativeTime value={clock.now() - 26 * HOUR} />
+                            Grace added{" "}
+                            <Badge variant="soft" color="blue">
+                                Launch
+                            </Badge>{" "}
+                            · <RelativeTime value={clock.now() - 26 * HOUR} />
                         </span>
                     </ActivityBody>
                 </ActivityItem>

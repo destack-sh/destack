@@ -103,7 +103,10 @@ function Row(properties: { readonly line: Line }): JSX.Element {
         >
             <Message align={properties.line.role === "user" ? "end" : "start"}>
                 <MessageContent>
-                    <Bubble variant={properties.line.role === "user" ? "secondary" : "ghost"}>
+                    <Bubble
+                        variant={properties.line.role === "user" ? "soft" : "ghost"}
+                        color={properties.line.role === "user" ? "gray" : undefined}
+                    >
                         <BubbleContent>{properties.line.text}</BubbleContent>
                     </Bubble>
                 </MessageContent>
@@ -254,7 +257,10 @@ function VirtualRows(properties: { readonly lines: readonly Line[] }): JSX.Eleme
                         {...virtualizer.itemAttributes(item())}
                         {...style.attrs(styles.virtualRow(`${String(item().start)}px`))}
                     >
-                        <Bubble variant={item().index % 2 === 0 ? "secondary" : "ghost"}>
+                        <Bubble
+                            variant={item().index % 2 === 0 ? "soft" : "ghost"}
+                            color={item().index % 2 === 0 ? "gray" : undefined}
+                        >
                             <BubbleContent>{properties.lines[item().index]?.text}</BubbleContent>
                         </Bubble>
                     </div>

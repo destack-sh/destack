@@ -26,7 +26,7 @@ export const quoteMessage = defineExample({
         <Stack space="4">
             <Message align="start">
                 <MessageContent>
-                    <Bubble variant="muted">
+                    <Bubble variant="soft" color="gray">
                         <BubbleContent>
                             <Stack space="1">
                                 <Quote render={(attributes) => <a {...attributes} href="#when" />}>

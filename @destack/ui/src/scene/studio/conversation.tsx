@@ -237,7 +237,9 @@ function Header(properties: {
             <h1 {...style.attrs(text.sm, styles.title)}>{properties.conversation.name}</h1>
             <span {...style.attrs(styles.topic)}>{properties.conversation.topic}</span>
             <Show when={pinned() > 0}>
-                <Badge variant="secondary">{pinned()} pinned</Badge>
+                <Badge variant="soft" color="gray">
+                    {pinned()} pinned
+                </Badge>
             </Show>
         </header>
     );

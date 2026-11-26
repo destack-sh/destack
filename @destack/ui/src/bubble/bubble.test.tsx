@@ -6,7 +6,7 @@ import { Bubble, BubbleContent, BubbleGroup, BubbleOverlay } from "./index.ts";
 test("render a bubble with its look and side, and a button of one", () => {
     const { container } = render(() => (
         <>
-            <Bubble variant="tinted" align="end">
+            <Bubble variant="soft" align="end">
                 <BubbleContent render={(attributes) => <button {...attributes} />}>
                     Yes
                 </BubbleContent>
@@ -17,7 +17,7 @@ test("render a bubble with its look and side, and a button of one", () => {
 
     expect(markup(container)).toBe(
         [
-            '<div data-slot="bubble" data-variant="tinted" data-align="end">',
+            '<div data-slot="bubble" data-variant="soft" data-align="end">',
             '<button data-slot="bubble-content">Yes</button>',
             '<div data-slot="bubble-overlay" data-side="top" data-align="end">👍</div></div>',
         ].join(""),

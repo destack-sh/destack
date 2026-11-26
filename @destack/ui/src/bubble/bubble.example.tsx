@@ -1,19 +1,7 @@
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
-import { For } from "@destack/view";
 import { Stack } from "../stack/index.ts";
 import { Bubble, BubbleContent, BubbleGroup, BubbleOverlay } from "./bubble.tsx";
-
-/** The variants, each with a message it suits. */
-const VARIANTS = [
-    ["default", "The ferry leaves at nine."],
-    ["secondary", "Then we have breakfast there."],
-    ["muted", "Ada missed a call"],
-    ["tinted", "Booked: two seats by the window."],
-    ["outline", "Which deck did you take?"],
-    ["ghost", "The upper deck has the better view, and the wind that comes with it."],
-    ["destructive", "Not delivered"],
-] as const;
 
 /** A conversation between two people, each person's bubbles in a row. */
 export const bubbleConversation = defineExample({
@@ -21,22 +9,21 @@ export const bubbleConversation = defineExample({
     name: "conversation",
     description: t`A conversation between two people, each person's bubbles tight where they meet.`,
     layout: "padded",
-    render: () => (
+    properties: {
+        variant: "soft",
+        color: "gray",
+    },
+    render: (properties) => (
         <Stack space="4">
             <BubbleGroup>
-                <Bubble variant="secondary">
+                <Bubble {...properties}>
                     <BubbleContent>Hey, are we still on for Saturday?</BubbleContent>
                 </Bubble>
-                <Bubble variant="secondary">
+                <Bubble {...properties}>
                     <BubbleContent>
                         I found a place by the river that takes the four of us, and they have a
                         table outside if the weather holds
                     </BubbleContent>
-                    <BubbleOverlay role="img" aria-label="ReactionGroup: heart, thumbs up">
-                        <span>❤️</span>
-                        <span>👍</span>
-                        <span>2</span>
-                    </BubbleOverlay>
                 </Bubble>
             </BubbleGroup>
             <BubbleGroup>
@@ -54,21 +41,45 @@ export const bubbleConversation = defineExample({
     ),
 });
 
-/** Each variant. */
-export const bubbleVariants = defineExample({
+/** A booked ferry, confirmed in a soft bubble. */
+export const bubbleBooking = defineExample({
     of: Bubble,
-    name: "variants",
-    description: t`Each variant with a message it suits.`,
+    name: "booking",
+    description: t`A booked ferry, confirmed in a soft bubble.`,
     layout: "padded",
-    render: () => (
-        <Stack space="3">
-            <For each={VARIANTS}>
-                {([variant, words]) => (
-                    <Bubble variant={variant}>
-                        <BubbleContent>{words}</BubbleContent>
-                    </Bubble>
-                )}
-            </For>
-        </Stack>
+    properties: {
+        variant: "soft",
+    },
+    render: (properties) => (
+        <Bubble {...properties}>
+            <BubbleContent>
+                Booked: two seats by the window on the nine o'clock ferry.
+            </BubbleContent>
+        </Bubble>
+    ),
+});
+
+/** Two reactions over the edge of a bubble. */
+export const bubbleOverlayReactions = defineExample({
+    of: BubbleOverlay,
+    name: "reactions",
+    description: t`Two reactions over the edge of a bubble.`,
+    layout: "padded",
+    properties: {
+        role: "img",
+        "aria-label": "Reactions: heart, thumbs up",
+    },
+    render: (properties) => (
+        <Bubble variant="soft" color="gray">
+            <BubbleContent>
+                I found a place by the river that takes the four of us, and they have a table
+                outside if the weather holds
+            </BubbleContent>
+            <BubbleOverlay {...properties}>
+                <span>❤️</span>
+                <span>👍</span>
+                <span>2</span>
+            </BubbleOverlay>
+        </Bubble>
     ),
 });

@@ -51,7 +51,7 @@ test("render tags as a list with buttons, the text of the next, and hidden input
     expect(markup(container)).toBe(
         [
             '<div data-slot="tag-field" role="group"><div data-slot="tag-field-list" role="list" aria-label="Tags">',
-            '<span data-slot="tag-field-item" role="listitem" tabindex="-1"><span>travel</span>',
+            '<span data-slot="tag-field-item" style="--x-backgroundColor: var(--destack-swatch-gray-tint); --x-color: var(--destack-swatch-gray-tint-text); --x-borderColor: transparent;" role="listitem" tabindex="-1"><span>travel</span>',
             '<button data-slot="tag-field-remove" type="button" tabindex="-1" aria-label="Remove \u2068travel\u2069">',
             '<svg viewBox="0 0 256 256" fill="currentColor" width="0.75em" height="0.75em" aria-hidden="true" data-slot="icon"></svg>',
             "</button></span></div>",

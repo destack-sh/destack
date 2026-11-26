@@ -626,7 +626,7 @@ export function ComboboxChip(properties: ComboboxChipProperties): JSX.Element {
                 "span",
                 "combobox-chip",
                 rest,
-                () => [Badge.styles({ variant: "secondary" }), styles.chip],
+                () => [Badge.styles({ variant: "soft", color: "gray" }), styles.chip],
                 {
                     get children() {
                         return contentOr(properties, () => (

@@ -424,7 +424,10 @@ export function Chat(properties: {
                                 >
                                     <Message align={line().isOwn ? "end" : "start"}>
                                         <MessageContent>
-                                            <Bubble variant={line().isOwn ? "secondary" : "ghost"}>
+                                            <Bubble
+                                                variant={line().isOwn ? "soft" : "ghost"}
+                                                color={line().isOwn ? "gray" : undefined}
+                                            >
                                                 <BubbleContent>{line().text}</BubbleContent>
                                             </Bubble>
                                         </MessageContent>

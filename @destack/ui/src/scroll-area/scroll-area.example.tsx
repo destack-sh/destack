@@ -73,7 +73,11 @@ export const scrollAreaLabelStrip = defineExample({
         <ScrollArea {...properties} xstyle={styles.strip}>
             <div {...style.attrs(styles.labels)}>
                 <For each={TAGS.slice(0, 12)}>
-                    {(tag) => <Badge variant="secondary">{tag}</Badge>}
+                    {(tag) => (
+                        <Badge variant="soft" color="gray">
+                            {tag}
+                        </Badge>
+                    )}
                 </For>
             </div>
         </ScrollArea>

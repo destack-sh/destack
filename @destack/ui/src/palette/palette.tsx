@@ -303,7 +303,11 @@ function PaletteEntry(properties: {
                 <For each={properties.item.accessories ?? []}>
                     {(accessory) => (
                         <Show when={accessory.color} fallback={accessory.text}>
-                            {(tint) => <Badge color={tint()}>{accessory.text}</Badge>}
+                            {(tint) => (
+                                <Badge variant="soft" color={tint()}>
+                                    {accessory.text}
+                                </Badge>
+                            )}
                         </Show>
                     )}
                 </For>

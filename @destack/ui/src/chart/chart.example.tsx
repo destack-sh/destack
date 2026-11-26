@@ -276,7 +276,9 @@ export const chartCard = defineExample({
                 <CardTitle>
                     <span {...style.attrs(text["2xl"], card.figure)}>
                         30
-                        <Badge variant="secondary">+43%</Badge>
+                        <Badge variant="soft" color="gray">
+                            +43%
+                        </Badge>
                     </span>
                 </CardTitle>
             </CardHeader>

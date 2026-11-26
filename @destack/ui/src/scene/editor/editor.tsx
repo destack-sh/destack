@@ -582,7 +582,7 @@ export function Editor(properties: {
                             <span {...style.attrs(text.sm, styles.title)}>
                                 {wordsOf(trail()[0] ?? "", true)}
                             </span>
-                            <Badge variant="secondary">
+                            <Badge variant="soft" color="gray">
                                 {isScenario()
                                     ? localization.render(t.context("option")`Scenario`)
                                     : localization.render(t.context("option")`Example`)}

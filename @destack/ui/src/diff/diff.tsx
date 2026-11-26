@@ -612,7 +612,11 @@ function DiffHeader(properties: {
                 size="sm"
             />
             <Show when={status()}>
-                {(said) => <Badge variant="outline">{locale.render(said())}</Badge>}
+                {(said) => (
+                    <Badge variant="outline" color="gray">
+                        {locale.render(said())}
+                    </Badge>
+                )}
             </Show>
             <span {...style.attrs(styles.grow)} />
             <span dir="ltr" {...style.attrs(text.xs, styles.counts)}>

@@ -238,7 +238,7 @@ function ActionPick(properties: {
             <Show when={properties.asking.subject}>
                 {(subject) => (
                     <div data-slot="action-subject" {...style.attrs(styles.subject)}>
-                        <Badge variant="secondary" xstyle={styles.subjectText}>
+                        <Badge variant="soft" color="gray" xstyle={styles.subjectText}>
                             {subject()}
                         </Badge>
                     </div>

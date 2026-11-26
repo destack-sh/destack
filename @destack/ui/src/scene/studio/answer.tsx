@@ -232,7 +232,9 @@ function SourceLink(properties: {
                 rel="noreferrer"
                 xstyle={styles.source}
             >
-                <Badge variant="secondary">{properties.source.site}</Badge>
+                <Badge variant="soft" color="gray">
+                    {properties.source.site}
+                </Badge>
             </HoverCardTrigger>
             <HoverCardContent>
                 <Stack space="1">

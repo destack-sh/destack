@@ -9,7 +9,8 @@ export const badgeNoteState = defineExample({
     name: "noteState",
     description: t`A note's state and its number of comments.`,
     properties: {
-        variant: "secondary",
+        variant: "soft",
+        color: "gray",
     },
     render: (properties) => (
         <Cluster>
@@ -20,20 +21,27 @@ export const badgeNoteState = defineExample({
     ),
 });
 
-/** The tags of a task, each tinted in its swatch. */
+/** The tags of a task, each in its hue's tint. */
 export const badgeTaskTags = defineExample({
     of: Badge,
     name: "taskTags",
-    description: t`The tags of a task, each tinted in its swatch.`,
+    description: t`The tags of a task, each in its hue's tint.`,
     properties: {
+        variant: "soft",
         color: "green",
     },
     render: (properties) => (
         <Cluster>
             <Badge {...properties}>Site</Badge>
-            <Badge color="blue">Story</Badge>
-            <Badge color="purple">Plan</Badge>
-            <Badge color="red">At risk</Badge>
+            <Badge variant="soft" color="blue">
+                Story
+            </Badge>
+            <Badge variant="soft" color="purple">
+                Plan
+            </Badge>
+            <Badge variant="soft" color="red">
+                At risk
+            </Badge>
         </Cluster>
     ),
 });

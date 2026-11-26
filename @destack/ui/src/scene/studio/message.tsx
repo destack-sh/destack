@@ -220,7 +220,7 @@ export function MessageView(properties: {
                                         when={isBubble()}
                                         fallback={<Text text={message().text} />}
                                     >
-                                        <Bubble variant="secondary">
+                                        <Bubble variant="soft" color="gray">
                                             <BubbleContent>
                                                 <Text text={message().text} />
                                             </BubbleContent>

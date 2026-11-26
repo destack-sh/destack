@@ -1,19 +1,22 @@
+import { Hue } from "@destack/color";
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { state } from "@destack/theme/state";
 import { text } from "@destack/theme/text";
 import { color, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
-import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
-import { useMessageAlign } from "../message/index.ts";
+import { createContext, type JSX, omit, useContext } from "@destack/view";
+import { MESSAGE_ALIGNS, type MessageAlign, useMessageAlign } from "../message/index.ts";
 import { messageMarker } from "../message/marker.stylex.ts";
+import { Fill } from "../fill/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { bubbleMarker } from "./marker.stylex.ts";
-
-/** The variant of a bubble that sets none. */
-const DEFAULTS = { variant: "default" } as const;
-
-/** The place of a bubble's reactions that set none. */
-const REACTION_DEFAULTS = { side: "bottom", align: "end" } as const;
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The widest a bubble grows, so the sides of a conversation stay apart. */
 const WIDEST = "80%";
@@ -98,38 +101,6 @@ const styles = style.create({
         backgroundColor: color.muted,
         whiteSpace: "nowrap",
     },
-    group: {
-        display: "flex",
-        flexDirection: "column",
-        gap: `calc(${space[1]} / 2)`,
-        minWidth: 0,
-        width: "100%",
-    },
-});
-
-/** The colors of each variant. */
-const variants = style.create({
-    default: {
-        backgroundColor: swatch.accentSolid,
-        color: swatch.accentLabel,
-    },
-    secondary: {
-        backgroundColor: color.muted,
-        color: color.foreground,
-    },
-    muted: {
-        backgroundColor: `color-mix(in oklab, ${color.muted} 50%, transparent)`,
-        color: color.mutedForeground,
-    },
-    tinted: {
-        backgroundColor: swatch.accentTint,
-        color: swatch.accentTintText,
-    },
-    outline: {
-        borderColor: color.border,
-        backgroundColor: color.background,
-        color: color.foreground,
-    },
     ghost: {
         paddingInline: 0,
         paddingBlock: 0,
@@ -137,9 +108,15 @@ const variants = style.create({
         color: color.foreground,
         borderColor: { default: "transparent", [media.forcedColors]: "Canvas" },
     },
-    destructive: {
-        backgroundColor: swatch.destructiveTint,
-        color: swatch.destructiveTintText,
+    ink: (foreground: string) => ({
+        color: foreground,
+    }),
+    group: {
+        display: "flex",
+        flexDirection: "column",
+        gap: `calc(${space[1]} / 2)`,
+        minWidth: 0,
+        width: "100%",
     },
 });
 
@@ -151,22 +128,36 @@ const sides = style.create({
     end: { insetInlineEnd: space[3] },
 });
 
-/** The look of a bubble. */
-export type BubbleVariant = keyof typeof variants;
-
-/** The side of a conversation a bubble stands at. */
-export type BubbleAlign = "start" | "end";
+/** The look of a bubble: a fill, or its text alone. */
+export type BubbleVariant = Fill | "ghost";
 
 /** The properties of an element of a bubble, the native element's attributes included. */
 export type BubbleElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
 
-/** The properties of a bubble. */
-export type BubbleProperties = BubbleElementProperties & {
-    /** The look, the accent's by default. */
-    readonly variant?: BubbleVariant;
-    /** The side it stands at, its message's by default. */
-    readonly align?: BubbleAlign;
+/** The properties people change in a bubble's controls and inspector. */
+const BUBBLE_PROPERTIES = {
+    variant: field
+        .enum({
+            ...Fill.choices,
+            ghost: {
+                title: t.context("option")`Ghost`,
+                description: t`Text alone in its color, as for a long answer.`,
+            },
+        })
+        .labeled(t.context("label")`Variant`)
+        .described(t`How the bubble is filled in its color.`)
+        .default("solid"),
+    color: field
+        .enum(Hue.choices)
+        .labeled(t.context("label")`Color`)
+        .described(t`The hue it is drawn in, the accent when absent.`)
+        .optional(),
+    align: field
+        .enum(MESSAGE_ALIGNS)
+        .labeled(t.context("label")`Align`)
+        .described(t`The side of the conversation it stands at.`)
+        .optional(),
 };
 
 /** Whether a bubble stands in a group. */
@@ -175,47 +166,63 @@ const BubbleGroupContext = createContext(false);
 /** The look and side of the nearest bubble, the defaults outside one. */
 const BubbleContext = createContext<{
     readonly variant: BubbleVariant;
-    readonly align: BubbleAlign;
-}>({ ...DEFAULTS, align: "start" });
+    readonly color: Hue | undefined;
+    readonly align: MessageAlign;
+}>({ variant: "solid", color: undefined, align: "start" });
 
 /** Render the surface of a message, as wide as its content up to most of the row. */
-export function Bubble(properties: BubbleProperties): JSX.Element {
-    // stand at the side of the message around it
-    const messageAlign = useMessageAlign();
-    const bubble = {
-        get variant() {
-            return properties.variant ?? DEFAULTS.variant;
-        },
-        get align() {
-            return properties.align ?? messageAlign();
-        },
-    };
-    const rest = omit(properties, "variant", "align");
+export const Bubble = defineComponent({
+    name: "bubble",
+    properties: BUBBLE_PROPERTIES,
+    render(
+        properties: RenderProperties<BubbleElementProperties, typeof BUBBLE_PROPERTIES>,
+    ): JSX.Element {
+        // stand at the side of the message around it
+        const messageAlign = useMessageAlign();
+        const bubble = {
+            get variant() {
+                return properties.variant;
+            },
+            get color() {
+                return properties.color;
+            },
+            get align() {
+                return properties.align ?? messageAlign();
+            },
+        };
+        const rest = omit(properties, "variant", "color", "align");
 
-    return (
-        <BubbleContext value={bubble}>
-            {renderPart(
-                "div",
-                "bubble",
-                rest,
-                () => [
-                    bubbleMarker,
-                    styles.bubble,
-                    bubble.variant === "ghost" && styles.wide,
-                    bubble.align === "end" && styles.end,
-                ],
-                {
-                    get "data-variant"() {
-                        return bubble.variant;
+        return (
+            <BubbleContext value={bubble}>
+                {renderPart(
+                    "div",
+                    "bubble",
+                    rest,
+                    () => [
+                        bubbleMarker,
+                        styles.bubble,
+                        bubble.variant === "ghost" && styles.wide,
+                        bubble.align === "end" && styles.end,
+                    ],
+                    {
+                        get "data-variant"() {
+                            return bubble.variant;
+                        },
+                        get "data-color"() {
+                            return bubble.color;
+                        },
+                        get "data-align"() {
+                            return bubble.align;
+                        },
                     },
-                    get "data-align"() {
-                        return bubble.align;
-                    },
-                },
-            )}
-        </BubbleContext>
-    );
-}
+                )}
+            </BubbleContext>
+        );
+    },
+});
+
+/** The properties of a bubble, its native attributes included. */
+export type BubbleProperties = ComponentProperties<typeof Bubble>;
 
 /** Render the content of the nearest bubble, a link or a button where it renders one. */
 export function BubbleContent(properties: BubbleElementProperties): JSX.Element {
@@ -226,39 +233,61 @@ export function BubbleContent(properties: BubbleElementProperties): JSX.Element 
         text.sm,
         styles.content,
         isGrouped && (bubble.align === "end" ? styles.endCorners : styles.startCorners),
-        variants[bubble.variant],
+        bubble.variant === "ghost"
+            ? [
+                  styles.ghost,
+                  bubble.color !== undefined && styles.ink(swatch[`${bubble.color}Text`]),
+              ]
+            : Fill.styles(bubble.variant, bubble.color),
         properties.render !== undefined && [state.focus, styles.interactive],
     ]);
 }
 
-/** The properties of a bubble's reactions. */
-export type BubbleOverlayProperties = BubbleElementProperties & {
-    /** The edge they stand over, the bottom by default. */
-    readonly side?: "top" | "bottom";
-    /** The end of the edge they stand at, the end by default. */
-    readonly align?: BubbleAlign;
+/** The properties people change in a bubble overlay's controls and inspector. */
+const BUBBLE_OVERLAY_PROPERTIES = {
+    side: field
+        .enum({
+            top: { title: t.context("option")`Top` },
+            bottom: { title: t.context("option")`Bottom` },
+        })
+        .labeled(t.context("label")`Side`)
+        .described(t`The edge they stand over.`)
+        .default("bottom"),
+    align: field
+        .enum(MESSAGE_ALIGNS)
+        .labeled(t.context("label")`Align`)
+        .described(t`The end of the edge they stand at.`)
+        .default("end"),
 };
 
 /** Render the reactions over the edge of the nearest bubble. */
-export function BubbleOverlay(properties: BubbleOverlayProperties): JSX.Element {
-    const reactions = merge(REACTION_DEFAULTS, properties);
-    const rest = omit(properties, "side", "align");
+export const BubbleOverlay = defineComponent({
+    name: "bubbleOverlay",
+    properties: BUBBLE_OVERLAY_PROPERTIES,
+    render(
+        properties: RenderProperties<BubbleElementProperties, typeof BUBBLE_OVERLAY_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "side", "align");
 
-    return renderPart(
-        "div",
-        "bubble-overlay",
-        rest,
-        () => [text.xs, styles.reactions, sides[reactions.side], sides[reactions.align]],
-        {
-            get "data-side"() {
-                return reactions.side;
+        return renderPart(
+            "div",
+            "bubble-overlay",
+            rest,
+            () => [text.xs, styles.reactions, sides[properties.side], sides[properties.align]],
+            {
+                get "data-side"() {
+                    return properties.side;
+                },
+                get "data-align"() {
+                    return properties.align;
+                },
             },
-            get "data-align"() {
-                return reactions.align;
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of a bubble's reactions, their native attributes included. */
+export type BubbleOverlayProperties = ComponentProperties<typeof BubbleOverlay>;
 
 /** Render the bubbles of one person in a row, their corners tight where they meet. */
 export function BubbleGroup(properties: BubbleElementProperties): JSX.Element {

@@ -795,7 +795,11 @@ function Tag(properties: {
 }): JSX.Element {
     return (
         <Show when={properties.choice.color} fallback={<Badge>{properties.choice.title}</Badge>}>
-            {(hue) => <Badge color={hue()}>{properties.choice.title}</Badge>}
+            {(hue) => (
+                <Badge variant="soft" color={hue()}>
+                    {properties.choice.title}
+                </Badge>
+            )}
         </Show>
     );
 }
