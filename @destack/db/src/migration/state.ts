@@ -846,11 +846,13 @@ function asReplica(table: Table, described: TableDescription): TableDescription 
         Object.values(table[TABLE].logged).map((column) => column.definition.name),
     );
 
+    // leave the declared checks to the home, whose rows a replica takes with guarded fields masked
     return {
         ...described,
         columns: described.columns.map((column) =>
             logged.has(column.name) ? column : { ...column, nullable: true },
         ),
+        constraints: described.constraints.filter((constraint) => constraint.kind !== "check"),
     };
 }
 
@@ -900,9 +902,19 @@ function asReplicated(described: TableDescription, dialect: Dialect): TableDescr
             describeColumn(integer(REPLICA_COLUMN).notNull().default(0), dialect),
         ],
         constraints: [
-            ...described.constraints.filter(
-                (constraint) => constraint.kind !== "unique" && constraint.kind !== "foreignKey",
-            ),
+            ...described.constraints
+                .filter(
+                    (constraint) =>
+                        constraint.kind !== "unique" && constraint.kind !== "foreignKey",
+                )
+                .map((constraint) =>
+                    constraint.kind === "check"
+                        ? {
+                              ...constraint,
+                              expression: `(${constraint.expression}) OR ${quote(REPLICA_COLUMN)} = 1`,
+                          }
+                        : constraint,
+                ),
             ...checks,
         ],
         indexes: [...described.indexes, ...uniqueIndexes(described)].map((index) =>

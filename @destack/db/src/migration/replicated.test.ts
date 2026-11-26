@@ -1,8 +1,34 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
-import { asc, defineDatabase, defineTable, eq, sql, TABLE, text, unique } from "../index.ts";
+import { asc, check, defineDatabase, defineTable, eq, sql, TABLE, text, unique } from "../index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TestDatabase } from "../test/database.ts";
+
+/** Installs of stacks with their arguments, the home's beside replicas of other homes'. */
+const install = defineTable(
+    "replicated_install",
+    {
+        /** The install's identifier. */
+        id: text("id").primaryKey(),
+        /** The space storing the install. */
+        scope: text("scope").notNull(),
+        /** The exported stack, absent for an application. */
+        export: text("export"),
+        /** The stack's arguments, which a replica receives masked. */
+        parameters: text("parameters"),
+    },
+    {
+        log: {},
+        constraints: () => [
+            check("replicated_install_stack", {
+                OR: [
+                    { export: { isNotNull: true }, parameters: { isNotNull: true } },
+                    { export: { isNull: true }, parameters: { isNull: true } },
+                ],
+            }),
+        ],
+    },
+);
 
 /** Tags pointing at versions, the home's beside replicas of other homes'. */
 const tag = defineTable(
@@ -62,11 +88,11 @@ const pin = defineTable(
     { log: {} },
 );
 
-test("require, cascade and refuse over a replicated table's home rows alone", async () => {
+test("require, check, cascade and refuse over a replicated table's home rows alone", async () => {
     // store packages here, and replicate releases and pins that reference them
     const world = testSimulation().environment("test");
     const storage = await TestDatabase.create(
-        defineDatabase({ name: "main", tables: [parcel], replicated: [release, pin] }),
+        defineDatabase({ name: "main", tables: [parcel], replicated: [release, pin, install] }),
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
@@ -114,6 +140,18 @@ test("require, cascade and refuse over a replicated table's home rows alone", as
         ),
     );
 
+    // refuse a home install of a stack without its arguments, and copy a replica's, whose arguments its home masks
+    const unchecked = await refusal(() =>
+        write((transaction) =>
+            transaction.insert(install).values([{ id: "i1", scope: "home", export: "./stack" }]),
+        ),
+    );
+    await write((transaction) =>
+        transaction.log.asReplica(() =>
+            transaction.upsert(install, [{ id: "i2", scope: "other", export: "./stack" }]),
+        ),
+    );
+
     // delete the released package, and refuse deleting the pinned one
     await write((transaction) => transaction.delete(parcel).where(eq(parcel.id, "notes")));
     const pinned = await refusal(() =>
@@ -123,8 +161,14 @@ test("require, cascade and refuse over a replicated table's home rows alone", as
     // expect the home's release of the deleted package gone, and every replica kept
     const stored = await database.select({ id: release.id }).from(release).orderBy(asc(release.id));
     const pins = await database.select({ id: pin.id }).from(pin).orderBy(asc(pin.id));
-    expect({ missing, pinned, stored, pins }).toEqual({
+    const installs = await database.select({ id: install.id }).from(install);
+    expect({ missing, unchecked, pinned, stored, pins, installs }).toEqual({
         missing: ["BAD_REQUEST", "RECORD_INVALID", "record is invalid: it fails a declared check"],
+        unchecked: [
+            "BAD_REQUEST",
+            "RECORD_INVALID",
+            "record is invalid: it fails a declared check",
+        ],
         pinned: [
             "PRECONDITION_FAILED",
             "REFERENCE_BLOCKED",
@@ -132,6 +176,7 @@ test("require, cascade and refuse over a replicated table's home rows alone", as
         ],
         stored: [{ id: "u1" }, { id: "u3" }],
         pins: [{ id: "p1" }, { id: "u2" }],
+        installs: [{ id: "i2" }],
     });
 });
 
