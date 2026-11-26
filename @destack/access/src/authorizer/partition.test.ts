@@ -169,6 +169,7 @@ test("forget a removed scope's relationships, roles, invitations and row, and re
     await owner((authorization) =>
         Invitation.create(
             {
+                title: "Plans",
                 relationship: { object, relation: "member", subject: userSubject("carol") },
             },
             authorization,

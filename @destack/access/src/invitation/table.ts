@@ -1,4 +1,4 @@
-import { check, defineTable, identifier, index, integer, text } from "@destack/db";
+import { check, defineTable, Expression, identifier, index, integer, text } from "@destack/db";
 import { accessRole } from "../role/table.ts";
 import { schema } from "@destack/schema";
 
@@ -30,6 +30,8 @@ export const accessInvitation = defineTable(
         objectScope: text("object_scope").notNull(),
         /** The object's identifier. */
         objectId: text("object_id").notNull(),
+        /** The object's title when invited, which the invitee reads without reading the object. */
+        title: text("title").notNull(),
         /** The offered relation, absent for an offered role binding. */
         relation: text("relation"),
         /** The offered role, absent for an offered relation. */
@@ -65,6 +67,8 @@ export const accessInvitation = defineTable(
     },
     {
         log: { retention: "history" },
+        // title earlier invitations by their object's identifier, as they kept no title
+        convert: { 2: { title: Expression.column("objectId") } },
         constraints: (invitation) => [
             index("invitation_object").on(
                 invitation.objectPackageId,

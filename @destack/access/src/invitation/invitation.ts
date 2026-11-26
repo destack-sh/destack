@@ -35,6 +35,8 @@ const invitationSchema = schema.object({
     id: schema.string().min(1),
     /** The relationship accepting the invitation creates. */
     relationship: InvitationRelationship,
+    /** The object's title when invited, which the invitee reads without reading the object. */
+    title: schema.string().min(1),
     /** The principal who invited, absent for the system's invitations. */
     inviter: Subject.nullable(),
     /** Why the inviting principal offers or asks for the relationship. */
@@ -60,6 +62,8 @@ export interface InvitationRequest {
         /** Optional expiry in UTC epoch milliseconds. */
         readonly expiresAt?: number;
     } & ({ readonly relation: string } | { readonly role: string });
+    /** The object's title, which the invitee reads without reading the object. */
+    readonly title: string;
     /** Why the inviting principal offers or asks for the relationship. */
     readonly purpose?: string;
     /** When the invitation lapses in UTC epoch milliseconds, a week from now by default. */
@@ -205,6 +209,7 @@ export const Invitation = {
             ...Relationship.viaColumns(invited),
             ...Relationship.subjectColumns(invited.subject),
             relationshipExpiresAt: invited.expiresAt,
+            title: invitation.title,
             ...ObjectReference.columns("inviter", invitation.inviter ?? undefined),
             purpose: invitation.purpose ?? null,
             expiresAt: invitation.expiresAt,
@@ -222,6 +227,7 @@ export const Invitation = {
                 subject: Relationship.subjectOf(row),
                 expiresAt: row.relationshipExpiresAt,
             },
+            title: row.title,
             inviter: row.inviterId === null ? null : ObjectReference.at("inviter", row),
             ...(row.purpose === null ? {} : { purpose: row.purpose }),
             status: InvitationStatus.parse(row.status),
@@ -282,6 +288,7 @@ export const Invitation = {
                         subject: invited.subject,
                         expiresAt: invited.expiresAt ?? null,
                     },
+                    title: request.title,
                     inviter,
                     ...(request.purpose === undefined ? {} : { purpose: request.purpose }),
                     status: "pending",

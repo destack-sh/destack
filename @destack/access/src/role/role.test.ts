@@ -827,6 +827,7 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
         (authorization) =>
             Invitation.create(
                 {
+                    title: "Plans",
                     relationship: {
                         object: node.reference("personal", "a"),
                         relation: "viewer",

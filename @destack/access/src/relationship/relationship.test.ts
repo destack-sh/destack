@@ -122,6 +122,7 @@ test("show an invitation to its inviting principal, its addressee and whoever ma
         (authorization) =>
             Invitation.create(
                 {
+                    title: "Plans",
                     relationship: {
                         object,
                         relation: "viewer",
@@ -139,6 +140,7 @@ test("show an invitation to its inviting principal, its addressee and whoever ma
         (authorization) =>
             Invitation.create(
                 {
+                    title: "Plans",
                     relationship: {
                         object,
                         relation: "viewer",
@@ -192,6 +194,7 @@ test("read the invitations on an object to one addressee, leaving out other addr
         (authorization) =>
             Invitation.create(
                 {
+                    title: "Plans",
                     relationship: { object, relation: "viewer", subject: dave },
                 },
                 authorization,

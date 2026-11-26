@@ -187,6 +187,7 @@ export async function inviteDana(
     // offer the relationship for a week
     const invitation = await Invitation.create(
         {
+            title: "Plans",
             relationship: { object: note, relation: "editor", subject },
             purpose: "Review the draft",
         },

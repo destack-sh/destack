@@ -369,6 +369,7 @@ databaseTest(
             (authorization) =>
                 Invitation.create(
                     {
+                        title: "Plans",
                         relationship: {
                             object: node.reference("personal", "c"),
                             relation: "editor",
@@ -490,6 +491,7 @@ databaseTest(
             (authorization) =>
                 Invitation.create(
                     {
+                        title: "Plans",
                         relationship: {
                             object: node.reference("personal", "a"),
                             relation: "editor",
@@ -509,6 +511,7 @@ databaseTest(
                     (authorization) =>
                         Invitation.create(
                             {
+                                title: "Plans",
                                 relationship: {
                                     object: node.reference("personal", "a"),
                                     relation: "editor",
@@ -584,6 +587,7 @@ databaseTest(
             (authorization) =>
                 Invitation.create(
                     {
+                        title: "Plans",
                         relationship: {
                             object: node.reference("work", "d"),
                             relation: "editor",
@@ -608,6 +612,7 @@ databaseTest(
             (authorization) =>
                 Invitation.create(
                     {
+                        title: "Plans",
                         relationship: {
                             object: node.reference("work", "d"),
                             relation: "editor",
