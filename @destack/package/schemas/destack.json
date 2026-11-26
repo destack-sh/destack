@@ -307,15 +307,15 @@
                                                             "maxLength": 214,
                                                             "pattern": "^(?:@[a-z0-9][a-z0-9._-]*\\/)?[a-z0-9][a-z0-9._-]*$"
                                                         },
-                                                        "value": {
+                                                        "member": {
                                                             "type": "string",
-                                                            "pattern": "^\\.(?:\\/[a-z][a-z0-9-]*)*#[A-Za-z][A-Za-z0-9]*$"
+                                                            "minLength": 1
                                                         }
                                                     },
                                                     "required": [
                                                         "kind",
-                                                        "package",
-                                                        "value"
+                                                        "member",
+                                                        "package"
                                                     ],
                                                     "additionalProperties": false
                                                 },

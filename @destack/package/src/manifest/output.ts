@@ -1,5 +1,3 @@
-import * as lexer from "es-module-lexer/js";
-import MagicString from "magic-string";
 import { Digest, present, schema } from "@destack/schema";
 import type { BuildReader } from "./reader.ts";
 import { DependencyName, PeerDependency } from "../definition/index.ts";
@@ -100,9 +98,9 @@ export const ImportMap = Object.assign(importMap, {
     /** Rewrite the specifiers a module imports to where the map resolves them, ahead of loading. */
     async apply(map: ImportMap, code: string, referrer: string): Promise<string> {
         // find each literal specifier of a static, re-exporting or dynamic import, the module's scopes read once
-        await lexer.init();
-        const [imports] = lexer.parse(code);
+        const [imports] = await parseImports(code);
         const chain = chainOf(map, referrer);
+        const { default: MagicString } = await import("magic-string");
         const rewritten = new MagicString(code);
         for (const imported of imports) {
             const { specifier } = imported;
@@ -124,8 +122,7 @@ export const ImportMap = Object.assign(importMap, {
     /** List the modules a module imports as the map and its own path resolve them. */
     async imports(map: ImportMap, code: string, referrer: string): Promise<ModuleImports> {
         // resolve each literal specifier through the map, a relative one against the module
-        await lexer.init();
-        const [imports] = lexer.parse(code);
+        const [imports] = await parseImports(code);
         const chain = chainOf(map, referrer);
         const modules: string[] = [];
         let isOpen = false;
@@ -259,4 +256,14 @@ function resolveIn(
     } else {
         return undefined;
     }
+}
+
+/** Parse a module's imports, loading the lexer only once a caller reads a module. */
+async function parseImports(
+    code: string,
+): Promise<ReturnType<typeof import("es-module-lexer/js").parse>> {
+    const lexer = await import("es-module-lexer/js");
+    await lexer.init();
+
+    return lexer.parse(code);
 }

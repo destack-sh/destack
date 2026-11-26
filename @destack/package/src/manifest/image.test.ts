@@ -145,6 +145,7 @@ function browserOutputs(
                       stylesheets: [],
                       sandbox: {},
                       presents: [],
+                      opens: [],
                       categories: [],
                       audience: "person" as const,
                       packages: [],

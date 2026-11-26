@@ -32,6 +32,8 @@ export const DeclarationDescription = schema.object({
     package: PackageVersion,
     /** The original declaration in its exact source package. */
     symbol: DependencySymbol.extend({ package: PackageVersion }),
+    /** The member of the declaring export holding the declaration, such as `run`. */
+    member: schema.string().min(1).exactOptional(),
     /** The declaring module and source position. */
     source: SourceLocation,
     /** The description validated by its domain inspector. */

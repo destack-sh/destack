@@ -99,6 +99,8 @@ const viewDescription = schema
         sandbox: Sandbox,
         /** The object types the view presents, so opening an object picks its view. */
         presents: schema.array(ViewPresentation),
+        /** The object types the view opens, which its package's device stores. */
+        opens: schema.array(ViewPresentation.pick({ packageId: true, type: true })),
         /** The roles clients open the view in. */
         categories: schema.array(ViewCategory),
         /** Who the view serves. */
@@ -114,7 +116,7 @@ const viewDescription = schema
 export const ViewDescription = Object.assign(viewDescription, {
     /** A view as its declaration describes it: name, presented types, packages and render mode. */
     declaration: viewDescription
-        .pick({ presents: true, categories: true, audience: true, packages: true })
+        .pick({ presents: true, opens: true, categories: true, audience: true, packages: true })
         .extend({
             name: schema.string().min(1),
             render: ViewRender.declaration,
@@ -166,6 +168,11 @@ export const ViewDescription = Object.assign(viewDescription, {
     /** Read the directory of a browser output's assets. */
     assets(output: { readonly directory: string }): string {
         return `${output.directory}/asset`;
+    },
+
+    /** Read the directory of the chunks a browser output's entries share. */
+    chunks(output: { readonly directory: string }): string {
+        return `${output.directory}/chunk`;
     },
 
     /** List view names by rank: views of no type first, then by strength and name. */

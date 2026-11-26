@@ -24,14 +24,14 @@ export const DeclarationKindDefinition = schema.object({
 /** The definition of a kind of declaration the package owns. */
 export type DeclarationKindDefinition = schema.Infer<typeof DeclarationKindDefinition>;
 
-/** A dependency's kind each declaration makes, as a value the kind describes. */
-const KindValueRead = schema.object({
+/** A dependency's kind each declaration makes, as a member of the declaration. */
+const KindValueMember = schema.object({
     /** The description kind. */
     kind: DeclarationName,
     /** The dependency declaring the kind. */
     package: DependencyName,
-    /** The function reading the kind's value from a declaration. */
-    value: FunctionReference,
+    /** The member of each declaration holding the kind's value, such as `run`. */
+    member: schema.string().min(1),
 });
 
 /** A dependency's kind each declaration makes, described by this package's own functions. */
@@ -41,7 +41,7 @@ const KindValueDescribed = DeclarationKindDefinition.extend({
 });
 
 /** A dependency's kind each declaration makes: as a value, or described by this package. */
-export const DeclarationKindValue = schema.union([KindValueRead, KindValueDescribed]);
+export const DeclarationKindValue = schema.union([KindValueMember, KindValueDescribed]);
 /** A dependency's kind each declaration also makes. */
 export type DeclarationKindValue = schema.Infer<typeof DeclarationKindValue>;
 

@@ -3,7 +3,7 @@ import { type Environment, FileSystemError } from "@destack/environment";
 import type { Plugin, PluginOption } from "vite";
 import { type Digest, Uuid } from "@destack/schema";
 import type { Sandbox } from "../definition/sandbox.ts";
-import type { PackageVersion } from "../definition/package.ts";
+import type { PackageId, PackageVersion } from "../definition/package.ts";
 import type { DeclarationDescription } from "../definition/declaration.ts";
 import type { PackageOutput } from "../manifest/index.ts";
 import type { Runtime } from "../runtime/index.ts";
@@ -115,6 +115,8 @@ export interface Compilation {
     readonly exports: Readonly<Record<string, string>>;
     /** The names of the packages the package requires at run time. */
     readonly requires: ReadonlySet<string>;
+    /** The names of the Destack packages the package's modules resolve, by id. */
+    readonly packages: ReadonlyMap<PackageId, string>;
     /** The runtime the output runs on. */
     readonly runtime: Runtime;
     /** What the package's workloads and views always use beyond the bare sandbox. */

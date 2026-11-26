@@ -7,6 +7,7 @@ const VIEW: ViewDescription = {
     stylesheets: [],
     sandbox: {},
     presents: [],
+    opens: [],
     categories: [],
     audience: "person",
     packages: [],
