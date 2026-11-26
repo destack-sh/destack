@@ -3,9 +3,9 @@ import type { Digest } from "@destack/schema";
 import { schema } from "@destack/schema";
 import { Plan, ResourceRecord } from "@destack/resource";
 import { DatabaseHandle } from "../database/handle.ts";
-import type { DatabaseKind } from "../declare/database.ts";
+import type { DatabaseKind, DatabaseSchema } from "../declare/database.ts";
 import { quote } from "../dialect/quote.ts";
-import type { DatabaseHost } from "../provider/provider.ts";
+import type { DatabaseCluster, DatabaseHost } from "../provider/provider.ts";
 import { sql } from "../sql/index.ts";
 import { Table } from "../table/table.ts";
 import { connectPostgres } from "./connection.ts";
@@ -14,7 +14,7 @@ import { PostgresConnector } from "./connector.ts";
 import type { DatabaseState } from "../migration/state.ts";
 
 /** Store databases in one PostgreSQL cluster database, one schema per database, over one pool. */
-export class PostgresDatabaseHost implements DatabaseHost {
+export class PostgresDatabaseHost implements DatabaseCluster {
     /** The provider code of PostgreSQL databases. */
     readonly provider = "postgresql";
     /** Provisioning creates the database's schema, so it is not pure. */
@@ -44,28 +44,55 @@ export class PostgresDatabaseHost implements DatabaseHost {
         return this.pool.end();
     }
 
-    /** Create the database's schema for the resource. */
+    /** Create the database's schema for the resource, and start the scope's log in it once. */
     async provision(record: ResourceRecord<typeof DatabaseKind>): Promise<{ reference: string }> {
-        // create the schema unless it exists
-        await using connection = await this.#connect(record.id);
-        await connection.executeScript(`CREATE SCHEMA IF NOT EXISTS ${quote(record.id)}`);
-
-        // start the log in a schema with no tables yet
+        // create the schema, then start the log in one with no tables yet
+        const reference = this.reference(record.scope, record.id);
+        await this.create(reference);
+        await using connection = await this.connect(reference);
         const [found] = await connection.execute(
-            sql`SELECT count(*)::int AS tables FROM pg_class WHERE relnamespace = ${record.id}::regnamespace AND relkind = 'r'`,
+            sql`SELECT count(*)::int AS tables FROM pg_class WHERE relnamespace = ${reference}::regnamespace AND relkind = 'r'`,
             schema.object({ tables: schema.number().int().nonnegative() }),
         );
         if (found?.tables === 0) {
             await connection.log.create(record.scope);
         }
 
-        return { reference: record.id };
+        return { reference };
+    }
+
+    /** Name the database of an identifier in a scope: its schema, named by the identifier. */
+    reference(_scope: string, id: string): string {
+        return id;
+    }
+
+    /** List the scopes whose own schema the cluster keeps, by a prefix of their identifiers. */
+    scopes(prefix: string): Promise<string[]> {
+        return this.schemas(prefix);
+    }
+
+    /** Create an empty database schema unless it exists. */
+    async create(reference: string): Promise<void> {
+        await using connection = await this.connect(reference);
+        await connection.executeScript(`CREATE SCHEMA IF NOT EXISTS ${quote(reference)}`);
+    }
+
+    /** List the schemas of the cluster whose names start with a prefix, by name. */
+    async schemas(prefix: string): Promise<string[]> {
+        // read the names from the catalog through the public schema
+        await using connection = await this.connect("public");
+        const rows = await connection.execute(
+            sql`SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${prefix}) ORDER BY nspname`,
+            schema.object({ name: schema.string() }),
+        );
+
+        return rows.map((row) => row.name);
     }
 
     /** Count a database's bytes: its schema's tables with their indexes and TOAST. */
     async bytes(reference: string): Promise<number> {
         // sum the total size of each table in the schema, refusing a missing schema
-        await using connection = await this.#connect(reference);
+        await using connection = await this.connect(reference);
         const [row] = await connection.execute(
             sql`SELECT coalesce(sum(pg_total_relation_size(oid)), 0)::float8 AS bytes FROM pg_class WHERE relnamespace = ${reference}::regnamespace AND relkind = 'r'`,
             schema.object({ bytes: schema.number().int().nonnegative() }),
@@ -79,8 +106,12 @@ export class PostgresDatabaseHost implements DatabaseHost {
 
     /** Drop the database's schema with its contents. */
     async destroy(record: ResourceRecord<typeof DatabaseKind>): Promise<void> {
-        const reference = ResourceRecord.reference(record);
-        await using connection = await this.#connect(reference);
+        await this.drop(ResourceRecord.reference(record));
+    }
+
+    /** Drop a database's schema with its contents. */
+    async drop(reference: string): Promise<void> {
+        await using connection = await this.connect(reference);
         await connection.executeScript(`DROP SCHEMA ${quote(reference)} CASCADE`);
     }
 
@@ -90,7 +121,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         desired: readonly DatabaseState[],
     ): Promise<Plan> {
         const connect = (tables: readonly Table[]) =>
-            this.#connect(ResourceRecord.reference(record), tables);
+            this.connect(ResourceRecord.reference(record), tables);
 
         return DatabaseHandle.plan(
             connect,
@@ -106,7 +137,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         digest: Digest,
     ): Promise<void> {
         const connect = (tables: readonly Table[]) =>
-            this.#connect(ResourceRecord.reference(record), tables);
+            this.connect(ResourceRecord.reference(record), tables);
         const states = desired.map((state) => state.tables.postgresql);
 
         return DatabaseHandle.apply(connect, states, digest, record.id);
@@ -118,7 +149,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         desired: readonly DatabaseState[],
     ): Promise<DatabaseHandle> {
         const connect = (tables: readonly Table[]) =>
-            this.#connect(ResourceRecord.reference(record), tables);
+            this.connect(ResourceRecord.reference(record), tables);
 
         return DatabaseHandle.open(
             connect,
@@ -128,7 +159,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
     }
 
     /** Connect to one schema of the cluster on the shared pool. */
-    #connect(reference: string, tables: readonly Table[] = []) {
+    connect(reference: string, tables: DatabaseSchema | readonly Table[] = []) {
         return connectPostgres(this.pool, tables, {
             environment: this.environment,
             schema: reference,

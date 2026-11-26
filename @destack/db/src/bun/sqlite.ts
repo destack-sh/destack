@@ -1,7 +1,7 @@
 import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { type ResourceBinding, ResourceRecord } from "@destack/resource";
-import type { Database, DatabaseConnector } from "../declare/database.ts";
+import type { DatabaseConnector, DatabaseSchema } from "../declare/database.ts";
 import type { Model } from "../query/model.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Table } from "../table/table.ts";
@@ -38,7 +38,7 @@ export const bunSqliteConnector: DatabaseConnector = {
 /** Open a provisioned database file, announcing commits to its other writers on its channel. */
 export function openBunSqlite<Models extends Readonly<Record<string, Model>>>(
     resource: Pick<ResourceRecord | ResourceBinding, "reference">,
-    tables: Database<Models> | readonly Table[],
+    tables: DatabaseSchema<Models> | readonly Table[],
     environment: Environment<"files" | "server">,
 ): Promise<SqliteDatabase<BunClient, Models>> {
     const path = fileURLToPath(ResourceRecord.reference(resource));
