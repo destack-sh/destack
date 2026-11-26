@@ -116,7 +116,7 @@ export async function mount(
                 : undefined;
             const authorization = new PageAuthorization(root, environment);
             const call = pageOrigin(root, authorization);
-            const { tabs, open } = await instruments.span("destack.page.tabs", {}, () =>
+            const { tabs, open, ready } = await instruments.span("destack.page.tabs", {}, () =>
                 openTabs(
                     context,
                     view,
@@ -157,13 +157,9 @@ export async function mount(
                           device,
                           stopping.signal,
                       );
-            const opened = await instruments.span("destack.page.presentation", {}, () =>
-                shown.next(),
+            const first = await instruments.span("destack.page.presentation", {}, () =>
+                firstPresentation(page, shown, device === undefined, environment),
             );
-            if (opened.done === true) {
-                throw new TypeError("the person's presentation ended before the page showed");
-            }
-            const first = opened.value;
             appendFaces(document, destackFonts);
             restyle(first);
 
@@ -267,6 +263,7 @@ export async function mount(
                     rendering.switch(next.locale);
                     presented = next;
                     setKeybindings(next.keybindings);
+                    Presentation.cache(page, next, environment.storage);
                 }
             })().catch((error: unknown) => {
                 if (!stopping.signal.aborted) {
@@ -294,8 +291,9 @@ export async function mount(
                 }
             };
 
-            // unmount once the page goes
+            // unmount once the page goes, mounted once its tabs are ready, failing with a device that cannot open
             window.addEventListener("pagehide", () => void unmount(), { once: true });
+            await instruments.span("destack.page.ready", {}, () => ready);
 
             return unmount;
         },
@@ -606,6 +604,7 @@ async function openTabs(
 ): Promise<{
     readonly tabs: Map<string, BrowserTab>;
     readonly open: ViewMount["open"];
+    readonly ready: Promise<void>;
 }> {
     // follow a person's own settings and profile, and list the parts each scope plays for the view
     const { device } = devices;
@@ -635,58 +634,91 @@ async function openTabs(
         ),
     );
 
-    // open a scope's tab over the device in a span, ready once its access replica holds the scope's chain
+    // open a scope's tab over the device, usable at once as its sends wait for the device, ready once its access replica holds the scope's chain
     const instruments = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
-    const openTab = (scope: string, played: readonly DeviceRole[]) =>
-        instruments.span("destack.tab.open", { "destack.scope.id": scope }, async () => {
-            const tab = BrowserTab.open({
-                name,
-                election,
-                objects: DeviceRole.objects(view.objects, played),
-                scope,
-                caller: context.user,
-                ...(device === undefined ? {} : { device }),
-                environment,
-            });
-            await instruments.span("destack.tab.ready", {}, () => tab.ready);
-
-            return tab;
+    const openTab = (scope: string, played: readonly DeviceRole[]) => {
+        const tab = BrowserTab.open({
+            name,
+            election,
+            objects: DeviceRole.objects(view.objects, played),
+            scope,
+            caller: context.user,
+            ...(device === undefined ? {} : { device }),
+            environment,
         });
+        const ready = instruments.span(
+            "destack.tab.ready",
+            { "destack.scope.id": scope },
+            () => tab.ready,
+        );
+
+        return { tab, ready };
+    };
 
     // open another space of the person while a component asks, closing its tab once it stops
     const open = async (scope: string, signal: AbortSignal) => {
-        const tab = await openTab(scope, ["space"]);
+        // open its tab, closed with the asking component
+        const { tab, ready } = openTab(scope, ["space"]);
         signal.addEventListener("abort", () => void tab.close(), { once: true });
+
+        // hand it out once ready
+        await ready;
 
         return tab;
     };
 
     // open the context's scopes, each in the parts it plays
-    const tabs = new Map(
-        await Promise.all(
-            [...roles].map(async ([scope, played]) => {
-                const tab = await openTab(scope, played);
+    const opened = [...roles].map(([scope, played]) => ({ scope, ...openTab(scope, played) }));
+    const tabs = new Map(opened.map(({ scope, tab }) => [scope, tab] as const));
 
-                // keep the person's own settings and profile synced for the page, once their first rows arrive
-                if (scope === context.user.id) {
-                    const { query } = tab;
-                    const profileKey = ObjectTypeReference.key(user.typeReference);
-                    const settingKey = ObjectTypeReference.key(setting.typeReference);
-                    const profile = present(query[profileKey], "the person's profile type");
-                    const settings = present(query[settingKey], "the person's setting type");
-                    await Promise.all([
-                        profile.findMany({ scopes: "every", where: { id: scope } }).subscribe()
-                            .ready,
-                        settings.findMany({ where: { scope } }).subscribe().ready,
-                    ]);
-                }
+    // be ready once every tab is, the person's own settings and profile synced for the page
+    const own = opened.find(({ scope }) => scope === context.user.id)?.tab;
+    const synced = own === undefined ? [] : [syncOwn(own, context.user.id)];
+    const ready = Promise.all([...opened.map((each) => each.ready), ...synced]).then(() => {});
 
-                return [scope, tab] as const;
-            }),
-        ),
-    );
+    return { tabs, open, ready };
+}
 
-    return { tabs, open };
+/** Follow the person's settings and profile in their tab, settling once their first rows arrive. */
+async function syncOwn(tab: BrowserTab, scope: string): Promise<void> {
+    // follow the profile and settings of the person's own scope
+    const { query } = tab;
+    const profileKey = ObjectTypeReference.key(user.typeReference);
+    const settingKey = ObjectTypeReference.key(setting.typeReference);
+    const profile = present(query[profileKey], "the person's profile type");
+    const settings = present(query[settingKey], "the person's setting type");
+
+    // settle once both have their first rows
+    await Promise.all([
+        profile.findMany({ scopes: "every", where: { id: scope } }).subscribe().ready,
+        settings.findMany({ where: { scope } }).subscribe().ready,
+    ]);
+}
+
+/** Take a page's first presentation: the person's last in this browser, else defaults. */
+async function firstPresentation(
+    page: Page,
+    shown: AsyncGenerator<Presentation, void>,
+    isVisitor: boolean,
+    environment: Pick<BrowserEnvironment, "storage" | "locale">,
+): Promise<Presentation> {
+    // show a person their last presentation in this browser, else the defaults until their device answers
+    const remembered = isVisitor ? undefined : Presentation.cached(page, environment.storage);
+    if (remembered !== undefined) {
+        return remembered;
+    }
+    // show a person this browser has not shown the page the defaults
+    else if (!isVisitor) {
+        return Presentation.resolve(page, { locale: environment.locale, chain: [] }, [], []);
+    }
+
+    // show a visitor the page's own presentation
+    const opened = await shown.next();
+    if (opened.done === true) {
+        throw new TypeError("the visitor's presentation ended before the page showed");
+    }
+
+    return opened.value;
 }
 
 /** Call a path below the page's origin and base, which its session cookie authenticates. */

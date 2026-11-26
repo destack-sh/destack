@@ -12,6 +12,7 @@ import { ANONYMOUS, principal, accessRelationship } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
 import { keybindings, sources } from "../palette/index.ts";
 import { appearance, theme } from "../setting/index.ts";
+import { SimulatedStorage } from "@destack/environment/browser/simulation";
 import { Presentation, type Page } from "./presentation.ts";
 
 /** The person a page presents for. */
@@ -187,4 +188,33 @@ test("show a person the theme they chose, else Destack's, and a visitor the page
             (each) => each.variables(DEFAULT_DISPLAY)[background],
         ),
     );
+});
+
+test("remember a person's last presentation per installation, and miss an unknown or older one", () => {
+    // keep a presentation for the person, then read it back, for another person and from an older shape
+    const storage = new SimulatedStorage();
+    const presented = Presentation.resolve(page, { locale: "de-AT", chain: [] }, [], []);
+    const missed = Presentation.cached(page, storage);
+    Presentation.cache(page, presented, storage);
+    const other = {
+        ...page,
+        context: {
+            ...page.context,
+            user: principal.user.reference(
+                "universe",
+                schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000e9"),
+            ),
+        },
+    };
+    storage.setItem(
+        `destack:presentation:1:${page.context.installation}:${other.context.user.id}`,
+        '{"locale":"de"}',
+    );
+
+    // expect the person's own back, nothing before it, and a miss for the other's older shape
+    expect({
+        missed,
+        remembered: Presentation.cached(page, storage),
+        other: Presentation.cached(other, storage),
+    }).toEqual({ missed: undefined, remembered: presented, other: undefined });
 });

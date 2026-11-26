@@ -1,4 +1,5 @@
-import type { LocaleTag, Shortcut } from "@destack/locale";
+import type { Storage } from "@destack/environment/browser";
+import { LocaleTag, Shortcut } from "@destack/locale";
 import type { PackageId } from "@destack/package";
 import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
@@ -20,6 +21,21 @@ export interface Presentation {
     /** Whether the person offers the package's actions. */
     readonly isOffered: boolean;
 }
+
+/** The key prefix of a page's last presentation in browser storage, versioned by shape. */
+const CACHE_KEY = "destack:presentation:1";
+
+/** A presentation as the browser's storage keeps it. */
+const CachedPresentation = schema.object({
+    /** The language and region the person reads. */
+    locale: LocaleTag,
+    /** The theme's custom properties and color scheme. */
+    style: schema.record(schema.string(), schema.string()),
+    /** The person's key combinations by action key, null for one turned off. */
+    keybindings: schema.record(schema.string(), Shortcut.nullable()),
+    /** Whether the person offers the package's actions. */
+    isOffered: schema.boolean(),
+});
 
 /** The settings a presentation reads in the person's own scope. */
 export const PRESENTED_SETTINGS = [...DISPLAY_SETTINGS, keybindings.reference, sources.reference];
@@ -70,4 +86,24 @@ export const Presentation = {
             isOffered: offered[packageId] !== false,
         };
     },
+
+    /** Read the page's last presentation for its person in the browser, absent before the first. */
+    cached(page: Page, storage: Storage): Presentation | undefined {
+        // read the stored presentation, a missing or older one a miss the device answers
+        const stored = storage.getItem(cacheKey(page));
+        const parsed =
+            stored === null ? undefined : CachedPresentation.safeParse(JSON.parse(stored));
+
+        return parsed?.success === true ? parsed.data : undefined;
+    },
+
+    /** Keep the page's presentation for its person in the browser, for its next load. */
+    cache(page: Page, presentation: Presentation, storage: Storage): void {
+        storage.setItem(cacheKey(page), JSON.stringify(presentation));
+    },
 };
+
+/** Name a page's presentation in the browser's storage, by its installation and person. */
+function cacheKey(page: Page): string {
+    return `${CACHE_KEY}:${page.context.installation}:${page.context.user.id}`;
+}
