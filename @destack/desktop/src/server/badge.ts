@@ -5,7 +5,7 @@ import {
     type notification,
 } from "@destack/notification/client";
 import type { message } from "@destack/message/client";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import type { Shell } from "../shell/index.ts";
 
 /** The application icon's badge: the unread count of the person's inbox. */

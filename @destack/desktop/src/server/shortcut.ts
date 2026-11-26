@@ -1,5 +1,5 @@
 import type { Identifier } from "@destack/schema";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import { type setting, SettingValue } from "@destack/setting/object";
 import { shortcut } from "@destack/view/setting";
 import type { Shell } from "../shell/index.ts";

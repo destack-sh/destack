@@ -2,7 +2,7 @@ import { type Localization, t } from "@destack/locale";
 import type { Select } from "@destack/db";
 import { deviceSetting } from "@destack/setting/object";
 import type { Device } from "@destack/machine/device";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import { autostart } from "../setting/index.ts";
 import type { Shell } from "../shell/index.ts";
 import type { Menu } from "./menu.ts";

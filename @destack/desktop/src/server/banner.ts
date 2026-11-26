@@ -1,6 +1,7 @@
 import { installation } from "@destack/stack/object";
 import type { Device, Launcher } from "@destack/machine/device";
-import { type ObjectClient, RelationalQuery } from "@destack/object/client";
+import { RelationalQuery } from "@destack/object/client";
+import { type ObjectClient } from "@destack/object/device";
 import { type Message, message } from "@destack/message/client";
 import { activity, type Activity, Inbox, notification } from "@destack/notification/client";
 import { type Identifier, present } from "@destack/schema";

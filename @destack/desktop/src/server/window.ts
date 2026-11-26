@@ -1,4 +1,4 @@
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import { type Decision, Status } from "@destack/object";
 import type { Address } from "@destack/view/declare";
 import { Link } from "../link/index.ts";

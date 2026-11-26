@@ -1,6 +1,6 @@
 import type { Localization } from "@destack/locale";
 import type { Action } from "@destack/object";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import { present } from "@destack/schema";
 import type { MenuItem, MenuName, Shell } from "../shell/index.ts";
 import { DesktopError } from "../error/index.ts";

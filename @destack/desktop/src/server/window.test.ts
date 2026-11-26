@@ -1,4 +1,4 @@
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import { testSimulation } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import { Link } from "../link/index.ts";

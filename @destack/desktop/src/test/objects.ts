@@ -1,7 +1,8 @@
 import { principal } from "@destack/access";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { ObjectType } from "@destack/object";
-import { ObjectClient, ObjectRemote } from "@destack/object/client";
+import { ObjectRemote } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { onTestFinished } from "@destack/test";

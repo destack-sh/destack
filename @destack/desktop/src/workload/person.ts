@@ -3,7 +3,7 @@ import { t } from "@destack/locale";
 import { machine, placement, space } from "@destack/account/object";
 import type { Device, Launcher } from "@destack/machine/device";
 import type { Address } from "@destack/view/declare";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import { setting } from "@destack/setting/object";
 import { message } from "@destack/message/client";
 import { activity, Inbox, type InboxRow, notification } from "@destack/notification/client";
