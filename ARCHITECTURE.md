@@ -100,7 +100,7 @@ What every package uses: schemas, errors, effects, messages, telemetry, mail and
 | [`@destack/error`](@destack/error) | Declare the errors a package's callers receive, each with a stable reason, an HTTP code and typed data. | gRPC status codes |
 | [`@destack/environment`](@destack/environment) | Take every effect through one environment: time, randomness and the network, real or simulated. | FoundationDB simulation, TigerBeetle VOPR |
 | [`@destack/icon`](@destack/icon) | Name Phosphor icons and store their SVG bodies, each one loaded only where it is used. | Phosphor, Lucide |
-| [`@destack/color`](@destack/color) | Name the hues colors mean things in, which each theme fills in. | Radix Colors |
+| [`@destack/color`](@destack/color) | Read, change and write colors, and name the hues they mean things in. | Radix Colors |
 | [`@destack/code`](@destack/code) | Parse, compare, patch and merge source code in the browser, in Bun and in workers. | Lezer, CodeMirror, git |
 | [`@destack/locale`](@destack/locale) | Localise messages and format numbers, money and dates for a person's language and region. | Lingui, MessageFormat 2 |
 | [`@destack/telemetry`](@destack/telemetry) | Instrument Destack packages with traces, metrics, logs, exceptions and analytics. | OpenTelemetry, Sentry |

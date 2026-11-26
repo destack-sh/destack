@@ -318,7 +318,7 @@
                 {
                     "directory": "@destack/color",
                     "name": "@destack/color",
-                    "description": "Name the hues colors mean things in, which each theme fills in."
+                    "description": "Read, change and write colors, and name the hues they mean things in."
                 },
                 {
                     "directory": "@destack/connection",
