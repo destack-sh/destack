@@ -2534,11 +2534,6 @@
             "translation": "Levantar un elemento con Entrar, subirlo y devolverlo a su sitio con Escape.",
             "state": "machine"
         },
-        "2lov88jlm6jdb": {
-            "source": "A title without a frame, as in a dialog it is the first line of.",
-            "translation": "Un título sin marco, como en un diálogo del que es la primera línea.",
-            "state": "machine"
-        },
         "2ltvcx3pe6dqr": {
             "source": "Choose {$p0} or later.",
             "translation": "Elige {$p0} o después.",

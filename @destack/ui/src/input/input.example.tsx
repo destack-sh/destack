@@ -16,19 +16,6 @@ export const inputDefault = defineExample({
     render: (properties) => <Input {...properties} />,
 });
 
-/** A title without a frame, as in a dialog it is the first line of. */
-export const inputPlain = defineExample({
-    of: Input,
-    name: "plain",
-    description: t`A title without a frame, as in a dialog it is the first line of.`,
-    properties: {
-        variant: "plain",
-        placeholder: "Task title",
-        "aria-label": "Title",
-    },
-    render: (properties) => <Input {...properties} />,
-});
-
 /** The search box marked invalid. */
 export const inputInvalid = defineExample({
     of: Input,

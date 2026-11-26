@@ -2534,11 +2534,6 @@
             "translation": "Sollevare un elemento con Invio, spostarlo su e rimetterlo al suo posto con Esc.",
             "state": "machine"
         },
-        "2lov88jlm6jdb": {
-            "source": "A title without a frame, as in a dialog it is the first line of.",
-            "translation": "Un titolo senza cornice, come in una finestra di cui è la prima riga.",
-            "state": "machine"
-        },
         "2ltvcx3pe6dqr": {
             "source": "Choose {$p0} or later.",
             "translation": "Scegli {$p0} o dopo.",
