@@ -7,6 +7,7 @@ import * as style from "@destack/style";
 import { Button } from "@destack/ui/button";
 import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@destack/ui/empty";
 import {
+    Item,
     ItemActions,
     ItemContent,
     ItemDescription,
@@ -14,7 +15,6 @@ import {
     ItemHeader,
     ItemSeparator,
     ItemTitle,
-    itemVariants,
 } from "@destack/ui/item";
 import { Select, SelectItem, SelectTrigger, SelectValue } from "@destack/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
@@ -184,7 +184,7 @@ function DirectoryList(properties: { label: string; entries: readonly ContentEnt
                         <a
                             href={entry.href}
                             role="listitem"
-                            {...style.attrs(style.defaultMarker(), itemVariants({}), styles.entry)}
+                            {...style.attrs(style.defaultMarker(), Item.styles({}), styles.entry)}
                         >
                             <Show when={entry.cover}>
                                 {(cover) => (
