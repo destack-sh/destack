@@ -51,19 +51,16 @@ export const popoverImageSize = defineExample({
 });
 
 /** The image size popover open beside its trigger. */
-export const popoverImageSizeOpen = defineExample({
-    of: Popover,
-    name: "imageSizeOpen",
+export const popoverContentDefault = defineExample({
+    of: PopoverContent,
+    name: "default",
     description: t`The image size popover open beside its trigger.`,
-    properties: {
-        defaultOpen: true,
-    },
     render: (properties) => (
-        <Popover {...properties}>
+        <Popover defaultOpen>
             <PopoverTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
                 Size
             </PopoverTrigger>
-            <PopoverContent align="start">
+            <PopoverContent align="start" {...properties}>
                 <Field orientation="horizontal">
                     <FieldLabel>Width</FieldLabel>
                     <Input type="number" name="width" value="640" />

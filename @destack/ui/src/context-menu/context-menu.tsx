@@ -19,15 +19,21 @@ import {
     MenuControl,
     MenuSubTrigger,
     useMenu,
-    type MenuCheckboxItemProperties,
     type MenuContentProperties,
     type MenuElementProperties,
     type MenuItemProperties,
     type MenuRadioGroupProperties,
-    type MenuRadioItemProperties,
     type MenuRootProperties,
+    type MenuItemAttributes,
+    type MenuCheckboxItemAttributes,
+    type MenuRadioItemAttributes,
 } from "../menu/index.ts";
 import { contentOr, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The time a finger stays before it opens the menu, in milliseconds, as iOS and Android wait. */
 const LONG_PRESS = 500;
@@ -139,14 +145,35 @@ export function ContextMenuLabel(
 }
 
 /** Render an item that runs its action and closes the menu. */
-export function ContextMenuItem(properties: MenuItemProperties): JSX.Element {
-    return <MenuItem data-slot="context-menu-item" {...properties} />;
-}
+export const ContextMenuItem = defineComponent({
+    name: "contextMenuItem",
+    properties: MenuItem.properties,
+    render(
+        properties: RenderProperties<MenuItemAttributes, typeof MenuItem.properties>,
+    ): JSX.Element {
+        return <MenuItem data-slot="context-menu-item" {...properties} />;
+    },
+});
+
+/** The properties of a context menu's item, its native attributes included. */
+export type ContextMenuItemProperties = ComponentProperties<typeof ContextMenuItem>;
 
 /** Render an item that checks and unchecks. */
-export function ContextMenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.Element {
-    return <MenuCheckboxItem data-slot="context-menu-checkbox-item" {...properties} />;
-}
+export const ContextMenuCheckboxItem = defineComponent({
+    name: "contextMenuCheckboxItem",
+    properties: MenuCheckboxItem.properties,
+    render(
+        properties: RenderProperties<
+            MenuCheckboxItemAttributes,
+            typeof MenuCheckboxItem.properties
+        >,
+    ): JSX.Element {
+        return <MenuCheckboxItem data-slot="context-menu-checkbox-item" {...properties} />;
+    },
+});
+
+/** The properties of a context menu's item that checks, its native attributes included. */
+export type ContextMenuCheckboxItemProperties = ComponentProperties<typeof ContextMenuCheckboxItem>;
 
 /** Render a group of radio items that share one selected value. */
 export function ContextMenuRadioGroup(properties: MenuRadioGroupProperties): JSX.Element {
@@ -154,9 +181,18 @@ export function ContextMenuRadioGroup(properties: MenuRadioGroupProperties): JSX
 }
 
 /** Render an item of a radio group. */
-export function ContextMenuRadioItem(properties: MenuRadioItemProperties): JSX.Element {
-    return <MenuRadioItem data-slot="context-menu-radio-item" {...properties} />;
-}
+export const ContextMenuRadioItem = defineComponent({
+    name: "contextMenuRadioItem",
+    properties: MenuRadioItem.properties,
+    render(
+        properties: RenderProperties<MenuRadioItemAttributes, typeof MenuRadioItem.properties>,
+    ): JSX.Element {
+        return <MenuRadioItem data-slot="context-menu-radio-item" {...properties} />;
+    },
+});
+
+/** The properties of a context menu's radio item, its native attributes included. */
+export type ContextMenuRadioItemProperties = ComponentProperties<typeof ContextMenuRadioItem>;
 
 /** Render a line between groups of items. */
 export function ContextMenuSeparator(

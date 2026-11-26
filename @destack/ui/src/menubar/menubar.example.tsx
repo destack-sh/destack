@@ -2,9 +2,12 @@ import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import {
     Menubar,
+    MenubarCheckboxItem,
     MenubarContent,
     MenubarItem,
     MenubarMenu,
+    MenubarRadioGroup,
+    MenubarRadioItem,
     MenubarSeparator,
     MenubarShortcut,
     MenubarTrigger,
@@ -70,6 +73,83 @@ export const menubarEditorMenusOpen = defineExample({
                 <MenubarTrigger>Edit</MenubarTrigger>
                 <MenubarContent>
                     <MenubarItem>Undo</MenubarItem>
+                </MenubarContent>
+            </MenubarMenu>
+        </Menubar>
+    ),
+});
+
+/** The editor's File menu open, laid out by its side and alignment. */
+export const menubarContentDefault = defineExample({
+    of: MenubarContent,
+    name: "default",
+    description: t`The editor's File menu open, laid out by its side and alignment.`,
+    render: (properties) => (
+        <Menubar aria-label="Editor">
+            <MenubarMenu defaultOpen>
+                <MenubarTrigger>File</MenubarTrigger>
+                <MenubarContent {...properties}>
+                    <MenubarItem>New note</MenubarItem>
+                    <MenubarItem>Export</MenubarItem>
+                </MenubarContent>
+            </MenubarMenu>
+        </Menubar>
+    ),
+});
+
+/** The editor's File menu, exporting set on its own. */
+export const menubarItemDefault = defineExample({
+    of: MenubarItem,
+    name: "default",
+    description: t`The editor's File menu, exporting set on its own.`,
+    render: (properties) => (
+        <Menubar aria-label="Editor">
+            <MenubarMenu defaultOpen>
+                <MenubarTrigger>File</MenubarTrigger>
+                <MenubarContent>
+                    <MenubarItem>New note</MenubarItem>
+                    <MenubarItem {...properties}>Export</MenubarItem>
+                </MenubarContent>
+            </MenubarMenu>
+        </Menubar>
+    ),
+});
+
+/** The editor's View menu, the ruler set on its own. */
+export const menubarCheckboxItemDefault = defineExample({
+    of: MenubarCheckboxItem,
+    name: "default",
+    description: t`The editor's View menu, the ruler set on its own.`,
+    render: (properties) => (
+        <Menubar aria-label="Editor">
+            <MenubarMenu defaultOpen>
+                <MenubarTrigger>View</MenubarTrigger>
+                <MenubarContent>
+                    <MenubarCheckboxItem checked {...properties}>
+                        Ruler
+                    </MenubarCheckboxItem>
+                </MenubarContent>
+            </MenubarMenu>
+        </Menubar>
+    ),
+});
+
+/** The editor's zoom levels, the largest set on its own. */
+export const menubarRadioItemDefault = defineExample({
+    of: MenubarRadioItem,
+    name: "default",
+    description: t`The editor's zoom levels, the largest set on its own.`,
+    render: (properties) => (
+        <Menubar aria-label="Editor">
+            <MenubarMenu defaultOpen>
+                <MenubarTrigger>View</MenubarTrigger>
+                <MenubarContent>
+                    <MenubarRadioGroup value="100">
+                        <MenubarRadioItem value="100">100%</MenubarRadioItem>
+                        <MenubarRadioItem value="200" {...properties}>
+                            200%
+                        </MenubarRadioItem>
+                    </MenubarRadioGroup>
                 </MenubarContent>
             </MenubarMenu>
         </Menubar>

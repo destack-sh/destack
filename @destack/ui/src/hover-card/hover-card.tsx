@@ -10,7 +10,6 @@ import {
     createContext,
     createEffect,
     type JSX,
-    merge,
     omit,
     onCleanup,
     useContext,
@@ -18,7 +17,7 @@ import {
 } from "@destack/view";
 import { Hover } from "../interaction/index.ts";
 import { HoverPopover } from "../popover/index.ts";
-import { type Align, type Anchor, Position, PositionAnchor, type Side } from "../position/index.ts";
+import { type Anchor, Position, PositionAnchor, ANCHOR_PROPERTIES } from "../position/index.ts";
 import {
     controlOf,
     OpenChange,
@@ -28,6 +27,11 @@ import {
     TopLayer,
     type TriggerProperties,
 } from "../layer/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The wait before a resting pointer opens a hover card, in milliseconds. */
 const DELAY = 700;
@@ -35,10 +39,10 @@ const DELAY = 700;
 /** The wait before a hover card the pointer left closes, in milliseconds. */
 const CLOSE_DELAY = 300;
 
-/** The side and alignment of a hover card that sets neither. */
-const DEFAULTS: Required<Pick<HoverCardContentProperties, "side" | "align">> = {
-    side: "bottom",
-    align: "center",
+/** The properties people change in a hover card's controls and inspector. */
+const HOVER_CARD_CONTENT_PROPERTIES = {
+    side: ANCHOR_PROPERTIES.side.default("bottom"),
+    align: ANCHOR_PROPERTIES.align.default("center"),
 };
 
 /** The hover card of the nearest hover card root, null outside one. */
@@ -95,17 +99,13 @@ export type HoverCardTriggerProperties<Payload = unknown> = ElementPartPropertie
     Omit<JSX.AnchorHTMLAttributes<HTMLAnchorElement>, "class" | "style"> &
     TriggerProperties<Payload, HoverCardControl<Payload>>;
 
-/** The properties of a hover card's content, the native element's attributes included. */
-export interface HoverCardContentProperties extends Omit<
+/** The properties of a hover card's content besides its declared ones: its anchor and gap. */
+export interface HoverCardContentAttributes extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class"
 > {
     /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
     readonly anchor?: Anchor | undefined;
-    /** The side of the trigger it opens on, bottom by default. */
-    readonly side?: Side;
-    /** The edge of the trigger it lines up with, center by default. */
-    readonly align?: Align;
     /** The gap from the trigger in pixels, 4 by default. */
     readonly sideOffset?: number;
     /** The StyleX styles applied after the hover card's styles. */
@@ -176,56 +176,67 @@ export function HoverCardTrigger<Payload = unknown>(
 }
 
 /** Render a preview in the top layer beside its link and open while the pointer rests on it. */
-export function HoverCardContent(properties: HoverCardContentProperties): JSX.Element {
-    // read the hover card and its placement
-    const card = useHoverCard();
-    const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "anchor", "side", "align", "sideOffset");
+export const HoverCardContent = defineComponent({
+    name: "hoverCardContent",
+    properties: HOVER_CARD_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            HoverCardContentAttributes,
+            typeof HOVER_CARD_CONTENT_PROPERTIES
+        >,
+    ): JSX.Element {
+        // read the hover card and its placement
+        const card = useHoverCard();
+        const rest = omit(properties, "anchor", "side", "align", "sideOffset");
 
-    // show and hide the card as it opens and closes
-    createEffect(card.isOpen, (isOpen) => untrack(() => card.sync(isOpen)));
+        // show and hide the card as it opens and closes
+        createEffect(card.isOpen, (isOpen) => untrack(() => card.sync(isOpen)));
 
-    // leave the card open while a pointer rests on it
-    const hover = new Hover({
-        onHoverStart: () => card.open(),
-        onHoverEnd: () => card.closeLater(new OpenChange("trigger-hover")),
-    });
+        // leave the card open while a pointer rests on it
+        const hover = new Hover({
+            onHoverStart: () => card.open(),
+            onHoverEnd: () => card.closeLater(new OpenChange("trigger-hover")),
+        });
 
-    return (
-        <TopLayer>
-            <PositionAnchor
-                anchor={content.anchor}
-                onAnchor={(element) => card.setAnchor(element)}
-            />
-            {renderPart(
-                "div",
-                "hover-card-content",
-                rest,
-                () => [
-                    styles.content,
-                    Position.beside(content.side, content.align),
-                    Position.offset(content.side, content.sideOffset),
-                ],
-                mergeProperties(hover.attributes(), {
-                    id: card.id,
-                    popover: "hint" as const,
-                    get "data-open"() {
-                        return card.isOpen() ? "" : undefined;
-                    },
-                    get "data-closed"() {
-                        return card.isOpen() ? undefined : "";
-                    },
-                    get "data-side"() {
-                        return content.side;
-                    },
-                    get "data-align"() {
-                        return content.align;
-                    },
-                    ref: (element: HTMLElement) => card.setContent(element),
-                    onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) =>
-                        card.follow(event),
-                }),
-            )}
-        </TopLayer>
-    );
-}
+        return (
+            <TopLayer>
+                <PositionAnchor
+                    anchor={properties.anchor}
+                    onAnchor={(element) => card.setAnchor(element)}
+                />
+                {renderPart(
+                    "div",
+                    "hover-card-content",
+                    rest,
+                    () => [
+                        styles.content,
+                        Position.beside(properties.side, properties.align),
+                        Position.offset(properties.side, properties.sideOffset),
+                    ],
+                    mergeProperties(hover.attributes(), {
+                        id: card.id,
+                        popover: "hint" as const,
+                        get "data-open"() {
+                            return card.isOpen() ? "" : undefined;
+                        },
+                        get "data-closed"() {
+                            return card.isOpen() ? undefined : "";
+                        },
+                        get "data-side"() {
+                            return properties.side;
+                        },
+                        get "data-align"() {
+                            return properties.align;
+                        },
+                        ref: (element: HTMLElement) => card.setContent(element),
+                        onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) =>
+                            card.follow(event),
+                    }),
+                )}
+            </TopLayer>
+        );
+    },
+});
+
+/** The properties of a hover card's content, the native element's attributes included. */
+export type HoverCardContentProperties = ComponentProperties<typeof HoverCardContent>;

@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -51,6 +52,11 @@ import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 import { KbdShortcut } from "../kbd/index.ts";
 import { OpenContext } from "../layer/index.ts";
 import { mergeProperties, renderPart, type Render } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The distance of a command dialog from the viewport's top. */
 const DIALOG_OFFSET = "12vh";
@@ -384,15 +390,31 @@ export interface CommandItemProperties extends ListBoxItemProperties {
     readonly icon?: JSX.Element;
 }
 
-/** The properties of a command dialog. */
-export interface CommandDialogProperties
+/** The properties people change in a command dialog's controls and inspector. */
+const COMMAND_DIALOG_PROPERTIES = {
+    size: field
+        .enum({
+            default: {
+                title: t.context("option")`Default`,
+                description: t`A palette's width, for commands with details.`,
+            },
+            sm: {
+                title: t.context("option")`Small`,
+                description: t`A plain list's width.`,
+            },
+        })
+        .labeled(t.context("label")`Size`)
+        .described(t`How wide the dialog grows.`)
+        .default("default"),
+};
+
+/** The properties of a command dialog besides its declared ones: its dialog and its list. */
+export interface CommandDialogAttributes
     extends Omit<DialogProperties, "children">, Omit<CommandProperties, "title"> {
     /** The title assistive technology announces, a generic one by default. */
     readonly title?: string;
     /** The description assistive technology announces, a generic one by default. */
     readonly description?: string;
-    /** How wide it grows: a palette's width by default, small for a plain list. */
-    readonly size?: "default" | "sm";
 }
 
 /** The properties of a command group, the native element's attributes included. */
@@ -675,43 +697,52 @@ export function CommandShortcut(properties: CommandShortcutProperties): JSX.Elem
 }
 
 /** Render a command in a modal dialog near the viewport's top, titled for assistive technology. */
-export function CommandDialog(properties: CommandDialogProperties): JSX.Element {
-    const locale = useLocale();
-    const command = omit(
-        properties,
-        "open",
-        "defaultOpen",
-        "onOpenChange",
-        "modal",
-        "size",
-        "title",
-        "description",
-    );
+export const CommandDialog = defineComponent({
+    name: "commandDialog",
+    properties: COMMAND_DIALOG_PROPERTIES,
+    render(
+        properties: RenderProperties<CommandDialogAttributes, typeof COMMAND_DIALOG_PROPERTIES>,
+    ): JSX.Element {
+        const locale = useLocale();
+        const command = omit(
+            properties,
+            "open",
+            "defaultOpen",
+            "onOpenChange",
+            "modal",
+            "size",
+            "title",
+            "description",
+        );
 
-    return (
-        <Dialog {...properties}>
-            <DialogContent
-                data-slot="command-dialog"
-                showCloseButton={false}
-                xstyle={[
-                    styles.dialog,
-                    properties.size === "sm" && styles.small,
-                    transition.instant,
-                ]}
-            >
-                <DialogTitle xstyle={visuallyHiddenStyle()}>
-                    {properties.title ?? locale.render(t.context("title")`Command palette`)}
-                </DialogTitle>
-                <DialogDescription xstyle={visuallyHiddenStyle()}>
-                    {properties.description ?? locale.render(t`Search for a command to run`)}
-                </DialogDescription>
-                <CommandDialogContext value={true}>
-                    <Command {...command} />
-                </CommandDialogContext>
-            </DialogContent>
-        </Dialog>
-    );
-}
+        return (
+            <Dialog {...properties}>
+                <DialogContent
+                    data-slot="command-dialog"
+                    showCloseButton={false}
+                    xstyle={[
+                        styles.dialog,
+                        properties.size === "sm" && styles.small,
+                        transition.instant,
+                    ]}
+                >
+                    <DialogTitle xstyle={visuallyHiddenStyle()}>
+                        {properties.title ?? locale.render(t.context("title")`Command palette`)}
+                    </DialogTitle>
+                    <DialogDescription xstyle={visuallyHiddenStyle()}>
+                        {properties.description ?? locale.render(t`Search for a command to run`)}
+                    </DialogDescription>
+                    <CommandDialogContext value={true}>
+                        <Command {...command} />
+                    </CommandDialogContext>
+                </DialogContent>
+            </Dialog>
+        );
+    },
+});
+
+/** The properties of a command dialog, its dialog's and its list's included. */
+export type CommandDialogProperties = ComponentProperties<typeof CommandDialog>;
 
 /** Render a line after an option's title, such as where it lives. */
 export function CommandItemDescription(

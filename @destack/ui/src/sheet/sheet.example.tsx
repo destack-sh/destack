@@ -43,19 +43,16 @@ export const sheetListFilters = defineExample({
 });
 
 /** The filters panel of a note list open from the right. */
-export const sheetListFiltersOpen = defineExample({
-    of: Sheet,
-    name: "listFiltersOpen",
+export const sheetContentDefault = defineExample({
+    of: SheetContent,
+    name: "default",
     description: t`The filters panel of a note list open from the right.`,
-    properties: {
-        defaultOpen: true,
-    },
     render: (properties) => (
-        <Sheet {...properties}>
+        <Sheet defaultOpen>
             <SheetTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
                 Filters
             </SheetTrigger>
-            <SheetContent side="right">
+            <SheetContent side="right" {...properties}>
                 <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
                     <SheetDescription>Show only the notes that match.</SheetDescription>

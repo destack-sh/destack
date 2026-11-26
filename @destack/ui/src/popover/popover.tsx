@@ -1,3 +1,5 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, weight, width } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -8,7 +10,6 @@ import {
     createUniqueId,
     flush,
     type JSX,
-    merge,
     omit,
     onCleanup,
     Show,
@@ -32,16 +33,34 @@ import {
 } from "../layer/index.ts";
 import { Timeout } from "@destack/view/primitives/timer";
 import { type HoverEvent, SafePolygon } from "../interaction/index.ts";
-import { type Align, type Anchor, Position, PositionAnchor, type Side } from "../position/index.ts";
+import { type Anchor, Position, PositionAnchor, ANCHOR_PROPERTIES } from "../position/index.ts";
 import { type ElementPartProperties, renderPart, type Render } from "../part/index.ts";
 import { Viewport } from "./viewport.ts";
 import { CollectionBuilder } from "../collection/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
-/** The side and alignment of a popover that sets neither. */
-const DEFAULTS: Required<Pick<PopoverContentProperties, "side" | "align" | "width">> = {
-    side: "bottom",
-    align: "center",
-    width: "fixed",
+/** The properties people change in a popover's controls and inspector. */
+const POPOVER_CONTENT_PROPERTIES = {
+    side: ANCHOR_PROPERTIES.side.default("bottom"),
+    align: ANCHOR_PROPERTIES.align.default("center"),
+    width: field
+        .enum({
+            fixed: {
+                title: t.context("option")`Fixed`,
+                description: t`As wide as a form, whatever it holds.`,
+            },
+            fit: {
+                title: t.context("option")`Fit`,
+                description: t`As wide as what it holds, such as a few controls.`,
+            },
+        })
+        .labeled(t.context("label")`Width`)
+        .described(t`Whether the popover keeps a form's width or fits what it holds.`)
+        .default("fixed"),
 };
 
 /** The popover of the nearest popover root, null outside one. */
@@ -556,8 +575,8 @@ export type PopoverTriggerProperties<Payload = unknown> = ElementPartProperties 
     Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style"> &
     TriggerProperties<Payload, PopoverControl<Payload>>;
 
-/** The properties of a popover's content. */
-export interface PopoverContentProperties extends Omit<
+/** The properties of a popover's content besides its declared ones: its anchor and gap. */
+export interface PopoverContentAttributes extends Omit<
     JSX.HTMLAttributes<HTMLElement>,
     "class" | "ref" | "onBeforeToggle" | "onToggle"
 > {
@@ -565,12 +584,6 @@ export interface PopoverContentProperties extends Omit<
     readonly onToggle?: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) => void;
     /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
     readonly anchor?: Anchor | undefined;
-    /** The side of the trigger it opens on, bottom by default. */
-    readonly side?: Side;
-    /** The edge of the trigger it lines up with, center by default. */
-    readonly align?: Align;
-    /** How wide it is: a form's width, or as wide as a few controls in it, fixed by default. */
-    readonly width?: "fixed" | "fit";
     /** The gap from the trigger in pixels, 4 by default. */
     readonly sideOffset?: number;
     /** The StyleX styles applied after the popover's styles. */
@@ -646,107 +659,117 @@ export function PopoverTrigger<Payload = unknown>(
 }
 
 /** Render content in the top layer beside its trigger, labelled by the trigger. */
-export function PopoverContent(properties: PopoverContentProperties): JSX.Element {
-    // read the popover and its placement
-    const popover = usePopover();
-    const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "anchor", "side", "align", "sideOffset", "onToggle", "width");
-    const modalRest = omit(rest, "tabindex");
-    const label = (): string | undefined =>
-        properties["aria-label"] === undefined
-            ? popover.isTitled()
-                ? `${popover.id}-title`
-                : popover.state.labelId()
-            : undefined;
+export const PopoverContent = defineComponent({
+    name: "popoverContent",
+    properties: POPOVER_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<PopoverContentAttributes, typeof POPOVER_CONTENT_PROPERTIES>,
+    ): JSX.Element {
+        // read the popover and its placement
+        const popover = usePopover();
+        const rest = omit(properties, "anchor", "side", "align", "sideOffset", "onToggle", "width");
+        const modalRest = omit(rest, "tabindex");
+        const label = (): string | undefined =>
+            properties["aria-label"] === undefined
+                ? popover.isTitled()
+                    ? `${popover.id}-title`
+                    : popover.state.labelId()
+                : undefined;
 
-    // show and hide the popover as it opens and closes
-    createEffect(popover.isOpen, (isOpen) => untrack(() => popover.sync(isOpen)));
+        // show and hide the popover as it opens and closes
+        createEffect(popover.isOpen, (isOpen) => untrack(() => popover.sync(isOpen)));
 
-    return (
-        <TopLayer>
-            <PositionAnchor
-                anchor={content.anchor}
-                onAnchor={(element) => popover.setAnchor(element)}
-            />
-            <Show
-                when={popover.isModal()}
-                fallback={renderPart(
-                    "div",
-                    "popover-content",
-                    rest,
-                    () => [
-                        text.sm,
-                        styles.content,
-                        content.width === "fit" && styles.fit,
-                        Position.beside(content.side, content.align),
-                        Position.offset(content.side, content.sideOffset),
-                    ],
-                    {
-                        id: popover.id,
-                        popover: "auto" as const,
-                        role: "dialog" as const,
-                        tabindex: -1,
-                        get "aria-labelledby"() {
-                            return label();
-                        },
-                        get "aria-describedby"() {
-                            return popover.isDescribed() ? `${popover.id}-description` : undefined;
-                        },
-                        get "data-open"() {
-                            return popover.isOpen() ? "" : undefined;
-                        },
-                        get "data-closed"() {
-                            return popover.isOpen() ? undefined : "";
-                        },
-                        get "data-side"() {
-                            return content.side;
-                        },
-                        get "data-align"() {
-                            return content.align;
-                        },
-                        ref: (element) => popover.setContent(element),
-                        onBeforeToggle: (event) => popover.request(event),
-                        onToggle: (event) => {
-                            // follow the platform before the caller's handler
-                            popover.follow(event);
-                            content.onToggle?.(event);
-                        },
-                    },
-                )}
-            >
-                <dialog
-                    id={popover.id}
-                    closedby="any"
-                    aria-labelledby={label()}
-                    aria-describedby={
-                        popover.isDescribed() ? `${popover.id}-description` : undefined
-                    }
-                    data-slot="popover-content"
-                    data-open={popover.isOpen() ? "" : undefined}
-                    data-closed={popover.isOpen() ? undefined : ""}
-                    data-side={content.side}
-                    data-align={content.align}
-                    {...modalRest}
-                    ref={(element) => popover.setContent(element)}
-                    onCancel={(event) => popover.requestModal(event)}
-                    onClose={() => popover.followModal()}
-                    {...style.attributes(
-                        [
+        return (
+            <TopLayer>
+                <PositionAnchor
+                    anchor={properties.anchor}
+                    onAnchor={(element) => popover.setAnchor(element)}
+                />
+                <Show
+                    when={popover.isModal()}
+                    fallback={renderPart(
+                        "div",
+                        "popover-content",
+                        rest,
+                        () => [
                             text.sm,
                             styles.content,
-                            content.width === "fit" && styles.fit,
-                            transition.modalPopover,
-                            styles.modal,
-                            Position.area(content.side, content.align),
-                            content.xstyle,
+                            properties.width === "fit" && styles.fit,
+                            Position.beside(properties.side, properties.align),
+                            Position.offset(properties.side, properties.sideOffset),
                         ],
-                        content.style,
+                        {
+                            id: popover.id,
+                            popover: "auto" as const,
+                            role: "dialog" as const,
+                            tabindex: -1,
+                            get "aria-labelledby"() {
+                                return label();
+                            },
+                            get "aria-describedby"() {
+                                return popover.isDescribed()
+                                    ? `${popover.id}-description`
+                                    : undefined;
+                            },
+                            get "data-open"() {
+                                return popover.isOpen() ? "" : undefined;
+                            },
+                            get "data-closed"() {
+                                return popover.isOpen() ? undefined : "";
+                            },
+                            get "data-side"() {
+                                return properties.side;
+                            },
+                            get "data-align"() {
+                                return properties.align;
+                            },
+                            ref: (element) => popover.setContent(element),
+                            onBeforeToggle: (event) => popover.request(event),
+                            onToggle: (event) => {
+                                // follow the platform before the caller's handler
+                                popover.follow(event);
+                                properties.onToggle?.(event);
+                            },
+                        },
                     )}
-                />
-            </Show>
-        </TopLayer>
-    );
-}
+                >
+                    <dialog
+                        id={popover.id}
+                        closedby="any"
+                        aria-labelledby={label()}
+                        aria-describedby={
+                            popover.isDescribed() ? `${popover.id}-description` : undefined
+                        }
+                        data-slot="popover-content"
+                        data-open={popover.isOpen() ? "" : undefined}
+                        data-closed={popover.isOpen() ? undefined : ""}
+                        data-side={properties.side}
+                        data-align={properties.align}
+                        {...modalRest}
+                        ref={(element) => popover.setContent(element)}
+                        onCancel={(event) => popover.requestModal(event)}
+                        onClose={() => popover.followModal()}
+                        {...style.attributes(
+                            [
+                                text.sm,
+                                styles.content,
+                                properties.width === "fit" && styles.fit,
+                                transition.modalPopover,
+                                styles.modal,
+                                Position.area(properties.side, properties.align),
+                                properties.xstyle,
+                            ],
+                            properties.style,
+                        )}
+                    />
+                </Show>
+            </TopLayer>
+        );
+    },
+});
+
+/** The properties of a popover's content, the native element's attributes included. */
+export type PopoverContentProperties = ComponentProperties<typeof PopoverContent>;
 
 /** The properties of an element of a popover, the native element's attributes included. */
 export type PopoverElementProperties<Target extends HTMLElement> = Omit<

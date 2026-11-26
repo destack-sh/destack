@@ -24,15 +24,22 @@ import {
     type MenuShortcutProperties,
     MenuSubTrigger,
     useMenu,
-    type MenuCheckboxItemProperties,
     type MenuContentProperties,
     type MenuElementProperties,
     type MenuItemProperties,
     type MenuRadioGroupProperties,
-    type MenuRadioItemProperties,
     type MenuRootProperties,
+    type MenuItemAttributes,
+    type MenuCheckboxItemAttributes,
+    type MenuRadioItemAttributes,
+    type MenuContentAttributes,
 } from "../menu/index.ts";
 import { renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The selector of a menubar's triggers. */
 const TRIGGER = "[data-slot=menubar-trigger]";
@@ -256,9 +263,18 @@ export function MenubarTrigger(
 }
 
 /** Render a menubar menu below its trigger. */
-export function MenubarContent(properties: MenuContentProperties): JSX.Element {
-    return <MenuContent data-slot="menubar-content" {...properties} />;
-}
+export const MenubarContent = defineComponent({
+    name: "menubarContent",
+    properties: MenuContent.properties,
+    render(
+        properties: RenderProperties<MenuContentAttributes, typeof MenuContent.properties>,
+    ): JSX.Element {
+        return <MenuContent data-slot="menubar-content" {...properties} />;
+    },
+});
+
+/** The properties of a menubar's menu, its native attributes included. */
+export type MenubarContentProperties = ComponentProperties<typeof MenubarContent>;
 
 /** Render a group of related items. */
 export function MenubarGroup(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {
@@ -273,14 +289,35 @@ export function MenubarLabel(
 }
 
 /** Render an item that runs its action and closes the menu. */
-export function MenubarItem(properties: MenuItemProperties): JSX.Element {
-    return <MenuItem data-slot="menubar-item" {...properties} />;
-}
+export const MenubarItem = defineComponent({
+    name: "menubarItem",
+    properties: MenuItem.properties,
+    render(
+        properties: RenderProperties<MenuItemAttributes, typeof MenuItem.properties>,
+    ): JSX.Element {
+        return <MenuItem data-slot="menubar-item" {...properties} />;
+    },
+});
+
+/** The properties of a menubar's item, its native attributes included. */
+export type MenubarItemProperties = ComponentProperties<typeof MenubarItem>;
 
 /** Render an item that checks and unchecks. */
-export function MenubarCheckboxItem(properties: MenuCheckboxItemProperties): JSX.Element {
-    return <MenuCheckboxItem data-slot="menubar-checkbox-item" {...properties} />;
-}
+export const MenubarCheckboxItem = defineComponent({
+    name: "menubarCheckboxItem",
+    properties: MenuCheckboxItem.properties,
+    render(
+        properties: RenderProperties<
+            MenuCheckboxItemAttributes,
+            typeof MenuCheckboxItem.properties
+        >,
+    ): JSX.Element {
+        return <MenuCheckboxItem data-slot="menubar-checkbox-item" {...properties} />;
+    },
+});
+
+/** The properties of a menubar's item that checks, its native attributes included. */
+export type MenubarCheckboxItemProperties = ComponentProperties<typeof MenubarCheckboxItem>;
 
 /** Render a group of radio items that share one selected value. */
 export function MenubarRadioGroup(properties: MenuRadioGroupProperties): JSX.Element {
@@ -288,9 +325,18 @@ export function MenubarRadioGroup(properties: MenuRadioGroupProperties): JSX.Ele
 }
 
 /** Render an item of a radio group. */
-export function MenubarRadioItem(properties: MenuRadioItemProperties): JSX.Element {
-    return <MenuRadioItem data-slot="menubar-radio-item" {...properties} />;
-}
+export const MenubarRadioItem = defineComponent({
+    name: "menubarRadioItem",
+    properties: MenuRadioItem.properties,
+    render(
+        properties: RenderProperties<MenuRadioItemAttributes, typeof MenuRadioItem.properties>,
+    ): JSX.Element {
+        return <MenuRadioItem data-slot="menubar-radio-item" {...properties} />;
+    },
+});
+
+/** The properties of a menubar's radio item, its native attributes included. */
+export type MenubarRadioItemProperties = ComponentProperties<typeof MenubarRadioItem>;
 
 /** Render a line between groups of items. */
 export function MenubarSeparator(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {

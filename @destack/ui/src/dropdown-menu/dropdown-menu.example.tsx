@@ -78,6 +78,22 @@ export const dropdownMenuControlled = defineExample({
     },
 });
 
+/** A note's options, pinning it set on its own. */
+export const dropdownMenuCheckboxItemDefault = defineExample({
+    of: DropdownMenuCheckboxItem,
+    name: "default",
+    description: t`A note's options, pinning it set on its own.`,
+    render: (properties) => <NoteMenu defaultOpen isCheckable pinned={properties} />,
+});
+
+/** A note's options, ordering by title set on its own. */
+export const dropdownMenuRadioItemDefault = defineExample({
+    of: DropdownMenuRadioItem,
+    name: "default",
+    description: t`A note's options, ordering by title set on its own.`,
+    render: (properties) => <NoteMenu defaultOpen isCheckable title={properties} />,
+});
+
 /** Render a note's actions, reporting the action they run, varying an item or the options. */
 function NoteMenu(
     properties: PropertiesOf<typeof DropdownMenu> & {
@@ -85,6 +101,10 @@ function NoteMenu(
         readonly duplicate?: PropertiesOf<typeof DropdownMenuItem>;
         /** Whether the menu has options that check. */
         readonly isCheckable?: boolean;
+        /** The properties of the option that pins the note. */
+        readonly pinned?: PropertiesOf<typeof DropdownMenuCheckboxItem>;
+        /** The properties of the option that orders by title. */
+        readonly title?: PropertiesOf<typeof DropdownMenuRadioItem>;
         /** The side and alignment of the open menu. */
         readonly content?: PropertiesOf<typeof DropdownMenuContent>;
     },
@@ -96,7 +116,9 @@ function NoteMenu(
 
     return (
         <>
-            <DropdownMenu {...omit(properties, "duplicate", "isCheckable", "content")}>
+            <DropdownMenu
+                {...omit(properties, "duplicate", "isCheckable", "pinned", "title", "content")}
+            >
                 <DropdownMenuTrigger
                     render={(attributes) => <Button {...attributes} variant="outline" />}
                 >
@@ -131,6 +153,7 @@ function NoteMenu(
                             <DropdownMenuCheckboxItem
                                 checked={isPinned()}
                                 onCheckedChange={setPinned}
+                                {...properties.pinned}
                             >
                                 Pinned
                             </DropdownMenuCheckboxItem>
@@ -138,7 +161,9 @@ function NoteMenu(
                                 <DropdownMenuRadioItem value="edited">
                                     Last edited
                                 </DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem value="title">Title</DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem value="title" {...properties.title}>
+                                    Title
+                                </DropdownMenuRadioItem>
                             </DropdownMenuRadioGroup>
                         </>
                     ) : undefined}

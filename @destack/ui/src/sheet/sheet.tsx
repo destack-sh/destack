@@ -1,8 +1,10 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { SIDES } from "../position/index.ts";
 import * as style from "@destack/style";
 import { transition } from "@destack/theme/motion";
 import { color, stroke, width } from "@destack/theme/tokens.stylex";
-import { type JSX, merge, omit } from "@destack/view";
-import type { Side } from "../position/index.ts";
+import { type JSX, omit } from "@destack/view";
 import {
     Dialog,
     DialogClose,
@@ -14,17 +16,29 @@ import {
     DialogTrigger,
     useDialog,
     type DialogButtonProperties,
-    type DialogContentProperties,
+    type DialogContentAttributes,
     type DialogElementProperties,
     type DialogProperties,
     type DialogTriggerProperties,
 } from "../dialog/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The widest a left or right sheet grows. */
 const SHEET_WIDTH = width.sheet;
 
-/** The side of a sheet that sets none. */
-const DEFAULTS: Required<Pick<SheetContentProperties, "side">> = { side: "right" };
+/** The properties people change in a sheet's controls and inspector: its dialog's and its side. */
+const SHEET_CONTENT_PROPERTIES = {
+    ...DialogContent.properties,
+    side: field
+        .enum(SIDES)
+        .labeled(t.context("label")`Side`)
+        .described(t`The edge it slides in from, mirrored right to left.`)
+        .default("right"),
+};
 
 /** The styles every sheet shares. */
 const styles = style.create({
@@ -114,11 +128,8 @@ const exits = style.create({
     left: { transform: { default: "translateX(-100%)", ":dir(rtl)": "translateX(100%)" } },
 });
 
-/** The properties of a sheet's content. */
-export interface SheetContentProperties extends DialogContentProperties {
-    /** The edge it slides in from, right by default, mirrored right to left. */
-    readonly side?: Side;
-}
+/** The properties of a sheet's content besides its declared ones: its dialog content's. */
+export type SheetContentAttributes = DialogContentAttributes;
 
 /** Hold the open state of a panel that slides in from an edge of the screen. */
 export function Sheet<Payload = unknown>(properties: DialogProperties<Payload>): JSX.Element {
@@ -138,27 +149,35 @@ export function SheetClose(properties: DialogButtonProperties): JSX.Element {
 }
 
 /** Render the sheet as a modal dialog against one edge of the screen. */
-export function SheetContent(properties: SheetContentProperties): JSX.Element {
-    // read the dialog and the sheet's side
-    const control = useDialog();
-    const sheet = merge(DEFAULTS, properties);
-    const rest = omit(sheet, "side", "xstyle", "style");
+export const SheetContent = defineComponent({
+    name: "sheetContent",
+    properties: SHEET_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<SheetContentAttributes, typeof SHEET_CONTENT_PROPERTIES>,
+    ): JSX.Element {
+        // read the dialog and the sheet's side
+        const control = useDialog();
+        const rest = omit(properties, "side", "xstyle", "style");
 
-    return (
-        <DialogContent
-            data-slot="sheet-content"
-            data-side={sheet.side}
-            {...rest}
-            xstyle={[
-                transition.sheet,
-                styles.sheet,
-                sides[sheet.side],
-                control.isOpen() ? enters[sheet.side] : exits[sheet.side],
-                sheet.xstyle,
-            ]}
-        />
-    );
-}
+        return (
+            <DialogContent
+                data-slot="sheet-content"
+                data-side={properties.side}
+                {...rest}
+                xstyle={[
+                    transition.sheet,
+                    styles.sheet,
+                    sides[properties.side],
+                    control.isOpen() ? enters[properties.side] : exits[properties.side],
+                    properties.xstyle,
+                ]}
+            />
+        );
+    },
+});
+
+/** The properties of a sheet's content, its dialog's included. */
+export type SheetContentProperties = ComponentProperties<typeof SheetContent>;
 
 /** Render the top of a sheet with its title and description. */
 export function SheetHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {

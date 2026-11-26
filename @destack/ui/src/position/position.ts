@@ -1,4 +1,5 @@
 import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import { LayoutAnimation } from "../motion/index.ts";
 import { transition } from "@destack/theme/motion";
@@ -19,14 +20,43 @@ export const AXES = {
     vertical: { title: t.context("option")`Vertical` },
 };
 
+/** The sides of its anchor an overlay opens on, as a person chooses one. */
+export const SIDES = {
+    top: { title: t.context("option")`Top` },
+    right: { title: t.context("option")`Right` },
+    bottom: { title: t.context("option")`Bottom` },
+    left: { title: t.context("option")`Left` },
+};
+
+/** The edges of its anchor an overlay lines up with, as a person chooses one. */
+export const ALIGNS = {
+    start: { title: t.context("option")`Start` },
+    center: { title: t.context("option")`Center` },
+    end: { title: t.context("option")`End` },
+};
+
+/** The properties people change in an overlay beside its trigger, each setting its defaults. */
+export const ANCHOR_PROPERTIES = {
+    side: field
+        .enum(SIDES)
+        .labeled(t.context("label")`Side`)
+        .described(t`The side of its trigger it opens on, where it fits.`)
+        .default("bottom"),
+    align: field
+        .enum(ALIGNS)
+        .labeled(t.context("label")`Align`)
+        .described(t`Where along its trigger it lines up.`)
+        .default("center"),
+};
+
 /** An axis things run along. */
 export type Axis = keyof typeof AXES;
 
 /** The side of its anchor an overlay opens on. */
-export type Side = "top" | "right" | "bottom" | "left";
+export type Side = keyof typeof SIDES;
 
 /** The edge of its anchor an overlay lines up with, along its side. */
-export type Align = "start" | "center" | "end";
+export type Align = keyof typeof ALIGNS;
 
 /** A point in the viewport an overlay opens at, in CSS pixels. */
 export interface Point {

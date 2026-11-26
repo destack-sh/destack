@@ -83,3 +83,58 @@ export const contextMenuNotebookView = defineExample({
         );
     },
 });
+
+/** A note card's actions, duplicating it set on its own. */
+export const contextMenuItemDefault = defineExample({
+    of: ContextMenuItem,
+    name: "default",
+    description: t`A note card's actions, duplicating it set on its own.`,
+    render: (properties) => (
+        <ContextMenu>
+            <ContextMenuTrigger xstyle={[text.sm, styles.card]}>
+                Groceries: milk, bread, apples
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+                <ContextMenuItem>Open</ContextMenuItem>
+                <ContextMenuItem {...properties}>Duplicate</ContextMenuItem>
+            </ContextMenuContent>
+        </ContextMenu>
+    ),
+});
+
+/** A notebook's pin, set on its own. */
+export const contextMenuCheckboxItemDefault = defineExample({
+    of: ContextMenuCheckboxItem,
+    name: "default",
+    description: t`A notebook's pin, set on its own.`,
+    render: (properties) => (
+        <ContextMenu>
+            <ContextMenuTrigger xstyle={[text.sm, styles.card]}>Trips: 12 notes</ContextMenuTrigger>
+            <ContextMenuContent>
+                <ContextMenuCheckboxItem checked {...properties}>
+                    Pinned
+                </ContextMenuCheckboxItem>
+            </ContextMenuContent>
+        </ContextMenu>
+    ),
+});
+
+/** A notebook's sort orders, by title set on its own. */
+export const contextMenuRadioItemDefault = defineExample({
+    of: ContextMenuRadioItem,
+    name: "default",
+    description: t`A notebook's sort orders, by title set on its own.`,
+    render: (properties) => (
+        <ContextMenu>
+            <ContextMenuTrigger xstyle={[text.sm, styles.card]}>Trips: 12 notes</ContextMenuTrigger>
+            <ContextMenuContent>
+                <ContextMenuRadioGroup value="edited">
+                    <ContextMenuRadioItem value="edited">Last edited</ContextMenuRadioItem>
+                    <ContextMenuRadioItem value="title" {...properties}>
+                        Title
+                    </ContextMenuRadioItem>
+                </ContextMenuRadioGroup>
+            </ContextMenuContent>
+        </ContextMenu>
+    ),
+});

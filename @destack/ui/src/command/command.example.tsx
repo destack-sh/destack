@@ -43,7 +43,7 @@ export const commandDialogNoteActions = defineExample({
     of: CommandDialog,
     name: "noteActions",
     description: t`A command palette that opens with ⌘K and runs note actions.`,
-    render: () => {
+    render: (properties) => {
         const [isOpen, setOpen] = createSignal(false);
 
         return (
@@ -55,7 +55,7 @@ export const commandDialogNoteActions = defineExample({
                     }
                 }}
             >
-                <CommandDialog open={isOpen()} onOpenChange={setOpen}>
+                <CommandDialog {...properties} open={isOpen()} onOpenChange={setOpen}>
                     <CommandInput placeholder="Type a command" />
                     <CommandList>
                         <CommandEmpty>No results</CommandEmpty>

@@ -23,22 +23,19 @@ export const tooltipArchiveButton = defineExample({
 });
 
 /** The archive button's tooltip shown above it. */
-export const tooltipArchiveButtonOpen = defineExample({
-    of: Tooltip,
-    name: "archiveButtonOpen",
+export const tooltipContentDefault = defineExample({
+    of: TooltipContent,
+    name: "default",
     description: t`The archive button's tooltip shown above it.`,
-    properties: {
-        defaultOpen: true,
-    },
     render: (properties) => (
-        <Tooltip {...properties}>
+        <Tooltip defaultOpen>
             <TooltipTrigger
                 render={(attributes) => <Button isIconOnly {...attributes} variant="ghost" />}
                 aria-label="Archive"
             >
                 <Icon name="archive" />
             </TooltipTrigger>
-            <TooltipContent>Archive note</TooltipContent>
+            <TooltipContent {...properties}>Archive note</TooltipContent>
         </Tooltip>
     ),
 });

@@ -9,7 +9,6 @@ import {
     createEffect,
     createSignal,
     type JSX,
-    merge,
     omit,
     onCleanup,
     useContext,
@@ -24,7 +23,7 @@ import {
     type Render,
 } from "../part/index.ts";
 import { HoverPopover } from "../popover/index.ts";
-import { type Align, type Anchor, Position, PositionAnchor, type Side } from "../position/index.ts";
+import { type Anchor, Position, PositionAnchor, ANCHOR_PROPERTIES } from "../position/index.ts";
 import {
     controlOf,
     OpenChange,
@@ -34,6 +33,11 @@ import {
     TopLayer,
     type TriggerProperties,
 } from "../layer/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The wait before a resting pointer shows a tooltip, in milliseconds. */
 const DELAY = 700;
@@ -47,10 +51,10 @@ const TIMEOUT = 300;
 /** The widest a tooltip grows before its text wraps, 320px. */
 const WIDTH = width.tooltip;
 
-/** The side and alignment of a tooltip that sets neither. */
-const DEFAULTS: Required<Pick<TooltipContentProperties, "side" | "align">> = {
-    side: "top",
-    align: "center",
+/** The properties people change in a tooltip's controls and inspector. */
+const TOOLTIP_CONTENT_PROPERTIES = {
+    side: ANCHOR_PROPERTIES.side.default("top"),
+    align: ANCHOR_PROPERTIES.align.default("center"),
 };
 
 /** A tooltip: a hover popover that shows at once and without motion while its group is warm. */
@@ -221,17 +225,13 @@ export type TooltipTriggerProperties<Payload = unknown> = ElementPartProperties 
     Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style"> &
     TriggerProperties<Payload, TooltipControl<Payload>>;
 
-/** The properties of a tooltip's content, the native element's attributes included. */
-export interface TooltipContentProperties extends Omit<
+/** The properties of a tooltip's content besides its declared ones: its anchor and gap. */
+export interface TooltipContentAttributes extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class"
 > {
     /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
     readonly anchor?: Anchor | undefined;
-    /** The side of the trigger it shows on, top by default. */
-    readonly side?: Side;
-    /** The edge of the trigger it lines up with, center by default. */
-    readonly align?: Align;
     /** The gap from the trigger in pixels, 4 by default. */
     readonly sideOffset?: number;
     /** The StyleX styles applied after the tooltip's styles. */
@@ -330,63 +330,71 @@ export function TooltipTrigger<Payload = unknown>(
 }
 
 /** Render the text that describes its trigger, in the top layer beside it. */
-export function TooltipContent(properties: TooltipContentProperties): JSX.Element {
-    // read the tooltip and its placement
-    const tooltip = useTooltip();
-    const isInstant = tooltip.isInstant;
-    const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "anchor", "side", "align", "sideOffset");
+export const TooltipContent = defineComponent({
+    name: "tooltipContent",
+    properties: TOOLTIP_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<TooltipContentAttributes, typeof TOOLTIP_CONTENT_PROPERTIES>,
+    ): JSX.Element {
+        // read the tooltip and its placement
+        const tooltip = useTooltip();
+        const isInstant = tooltip.isInstant;
+        const rest = omit(properties, "anchor", "side", "align", "sideOffset");
 
-    // show and hide the tooltip as it opens and closes
-    createEffect(tooltip.isOpen, (isOpen) => untrack(() => tooltip.sync(isOpen)));
+        // show and hide the tooltip as it opens and closes
+        createEffect(tooltip.isOpen, (isOpen) => untrack(() => tooltip.sync(isOpen)));
 
-    // leave the tooltip open while a pointer rests on it
-    const hover = new Hover({
-        onHoverStart: () => tooltip.open(),
-        onHoverEnd: () => tooltip.closeLater(new OpenChange("trigger-hover")),
-    });
+        // leave the tooltip open while a pointer rests on it
+        const hover = new Hover({
+            onHoverStart: () => tooltip.open(),
+            onHoverEnd: () => tooltip.closeLater(new OpenChange("trigger-hover")),
+        });
 
-    return (
-        <TopLayer>
-            <PositionAnchor
-                anchor={content.anchor}
-                onAnchor={(element) => tooltip.setAnchor(element)}
-            />
-            {renderPart(
-                "div",
-                "tooltip-content",
-                rest,
-                () => [
-                    text.xs,
-                    styles.content,
-                    Position.beside(content.side, content.align),
-                    Position.offset(content.side, content.sideOffset),
-                    isInstant() && styles.instant,
-                ],
-                mergeProperties(hover.attributes(), {
-                    id: tooltip.id,
-                    popover: "hint" as const,
-                    role: "tooltip" as const,
-                    get "data-open"() {
-                        return tooltip.isOpen() ? "" : undefined;
-                    },
-                    get "data-closed"() {
-                        return tooltip.isOpen() ? undefined : "";
-                    },
-                    get "data-instant"() {
-                        return isInstant() ? "" : undefined;
-                    },
-                    get "data-side"() {
-                        return content.side;
-                    },
-                    get "data-align"() {
-                        return content.align;
-                    },
-                    ref: (element: HTMLElement) => tooltip.setContent(element),
-                    onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) =>
-                        tooltip.follow(event),
-                }),
-            )}
-        </TopLayer>
-    );
-}
+        return (
+            <TopLayer>
+                <PositionAnchor
+                    anchor={properties.anchor}
+                    onAnchor={(element) => tooltip.setAnchor(element)}
+                />
+                {renderPart(
+                    "div",
+                    "tooltip-content",
+                    rest,
+                    () => [
+                        text.xs,
+                        styles.content,
+                        Position.beside(properties.side, properties.align),
+                        Position.offset(properties.side, properties.sideOffset),
+                        isInstant() && styles.instant,
+                    ],
+                    mergeProperties(hover.attributes(), {
+                        id: tooltip.id,
+                        popover: "hint" as const,
+                        role: "tooltip" as const,
+                        get "data-open"() {
+                            return tooltip.isOpen() ? "" : undefined;
+                        },
+                        get "data-closed"() {
+                            return tooltip.isOpen() ? undefined : "";
+                        },
+                        get "data-instant"() {
+                            return isInstant() ? "" : undefined;
+                        },
+                        get "data-side"() {
+                            return properties.side;
+                        },
+                        get "data-align"() {
+                            return properties.align;
+                        },
+                        ref: (element: HTMLElement) => tooltip.setContent(element),
+                        onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) =>
+                            tooltip.follow(event),
+                    }),
+                )}
+            </TopLayer>
+        );
+    },
+});
+
+/** The properties of a tooltip's content, the native element's attributes included. */
+export type TooltipContentProperties = ComponentProperties<typeof TooltipContent>;

@@ -1,3 +1,5 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import { transition } from "@destack/theme/motion";
 import { color, motion, radius, shadow, size, space } from "@destack/theme/tokens.stylex";
@@ -16,7 +18,7 @@ import {
 import {
     useDialog,
     type DialogButtonProperties,
-    type DialogContentProperties,
+    type DialogContentAttributes,
     type DialogElementProperties,
     type DialogProperties,
     type DialogTriggerProperties,
@@ -36,6 +38,11 @@ import {
 import { Swipe, type SwipeEvent } from "../interaction/index.ts";
 import type { Side } from "../position/index.ts";
 import { mergeProperties, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The share of the viewport a drawer grows to at most. */
 const DRAWER_EXTENT = "80dvh";
@@ -259,64 +266,81 @@ export function DrawerClose(properties: DialogButtonProperties): JSX.Element {
     return <SheetClose data-slot="drawer-close" {...properties} />;
 }
 
-/** The properties of a drawer's content, the dialog content's included. */
-export interface DrawerContentProperties extends DialogContentProperties {
-    /** Whether to show a handle at the top edge, true when the drawer rises from the bottom. */
-    readonly showHandle?: boolean;
-}
+/** The properties people change in a drawer's controls and inspector. */
+const DRAWER_CONTENT_PROPERTIES = {
+    showHandle: field
+        .boolean()
+        .labeled(t.context("label")`Handle`)
+        .described(
+            t`Shows a handle at its top edge, as a drawer rising from the bottom does when absent.`,
+        )
+        .optional(),
+};
+
+/** The properties of a drawer's content besides its declared ones: its dialog content's. */
+export type DrawerContentAttributes = DialogContentAttributes;
 
 /** Render the drawer against its edge, with a handle when it rises from the bottom. */
-export function DrawerContent(properties: DrawerContentProperties): JSX.Element {
-    // close the drawer on a swipe toward its edge from unscrolled content, or settle it at a snap point
-    const drawer = useDrawer();
-    const dialog = useDialog();
-    const rest = omit(properties, "showHandle", "xstyle", "style", "children");
-    const swipe = new Swipe(
-        {
-            side: () => drawer.direction(),
-            onSwipeEnd: (event) =>
-                drawer.settle(event, viewportOf(drawer), () =>
-                    dialog.close(new OpenChange("swipe")),
-                ),
-            canStart: (event) => canSwipe(drawer, event),
-            flickSpeed: FLICK_SPEED,
-            isElastic: true,
-        },
-        useEnvironment().clock,
-    );
+export const DrawerContent = defineComponent({
+    name: "drawerContent",
+    properties: DRAWER_CONTENT_PROPERTIES,
+    render(
+        properties: RenderProperties<DrawerContentAttributes, typeof DRAWER_CONTENT_PROPERTIES>,
+    ): JSX.Element {
+        // close the drawer on a swipe toward its edge from unscrolled content, or settle it at a snap point
+        const drawer = useDrawer();
+        const dialog = useDialog();
+        const rest = omit(properties, "showHandle", "xstyle", "style", "children");
+        const swipe = new Swipe(
+            {
+                side: () => drawer.direction(),
+                onSwipeEnd: (event) =>
+                    drawer.settle(event, viewportOf(drawer), () =>
+                        dialog.close(new OpenChange("swipe")),
+                    ),
+                canStart: (event) => canSwipe(drawer, event),
+                flickSpeed: FLICK_SPEED,
+                isElastic: true,
+            },
+            useEnvironment().clock,
+        );
 
-    // stay above a phone's keyboard
-    const keyboard = createKeyboardInset();
-    let content: HTMLElement | undefined;
-    const measure = (element: HTMLElement) => (content = element);
+        // stay above a phone's keyboard
+        const keyboard = createKeyboardInset();
+        let content: HTMLElement | undefined;
+        const measure = (element: HTMLElement) => (content = element);
 
-    return (
-        <SheetContent
-            data-slot="drawer-content"
-            data-snap-point={drawer.activeIndex()}
-            side={drawer.direction()}
-            showCloseButton={false}
-            {...mergeProperties({ ref: measure }, rest)}
-            {...swipe.attributes()}
-            xstyle={[
-                styles.drawer,
-                transition.drawer,
-                styles.scrim,
-                corners[drawer.direction()],
-                extentStyle(drawer, swipe, content),
-                drawer.direction() === "bottom" &&
-                    keyboard() > 0 &&
-                    styles.above(`${String(keyboard())}px`),
-                properties.xstyle,
-            ]}
-        >
-            <Show when={properties.showHandle ?? drawer.direction() === "bottom"}>
-                <DrawerHandle />
-            </Show>
-            {properties.children}
-        </SheetContent>
-    );
-}
+        return (
+            <SheetContent
+                data-slot="drawer-content"
+                data-snap-point={drawer.activeIndex()}
+                side={drawer.direction()}
+                showCloseButton={false}
+                {...mergeProperties({ ref: measure }, rest)}
+                {...swipe.attributes()}
+                xstyle={[
+                    styles.drawer,
+                    transition.drawer,
+                    styles.scrim,
+                    corners[drawer.direction()],
+                    extentStyle(drawer, swipe, content),
+                    drawer.direction() === "bottom" &&
+                        keyboard() > 0 &&
+                        styles.above(`${String(keyboard())}px`),
+                    properties.xstyle,
+                ]}
+            >
+                <Show when={properties.showHandle ?? drawer.direction() === "bottom"}>
+                    <DrawerHandle />
+                </Show>
+                {properties.children}
+            </SheetContent>
+        );
+    },
+});
+
+/** The properties of a drawer's content, the dialog content's attributes included. */
+export type DrawerContentProperties = ComponentProperties<typeof DrawerContent>;
 
 /** Render the bar a drawer shows at its top edge as the place to drag it by. */
 export function DrawerHandle(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
