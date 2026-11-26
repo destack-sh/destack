@@ -2,7 +2,7 @@ import { media } from "@destack/style/media.stylex";
 import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { present } from "@destack/schema";
-import { buttonVariants } from "@destack/ui/button";
+import { Button } from "@destack/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@destack/ui/select";
 import { For } from "@destack/view";
 
@@ -243,7 +243,7 @@ function PlanCard(properties: {
             <a
                 href={isFree() ? "/#present-participle" : product}
                 {...style.attrs(
-                    buttonVariants({ variant: isPicked() ? "default" : "outline", size: "lg" }),
+                    Button.styles({ variant: isPicked() ? "default" : "outline", size: "lg" }),
                     press.key,
                     styles.action,
                 )}

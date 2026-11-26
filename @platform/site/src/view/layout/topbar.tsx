@@ -7,7 +7,7 @@ import xIcon from "@destack/icon/phosphor/x";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { Button, buttonVariants } from "@destack/ui/button";
+import { Button } from "@destack/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@destack/ui/sheet";
 import { createEffect, createMemo, createSignal } from "@destack/view";
@@ -218,7 +218,7 @@ function SocialLink(properties: { destination: Destination }) {
             title={properties.destination.label}
             rel="external noopener noreferrer"
             target="_blank"
-            {...style.attrs(buttonVariants({ variant: "ghost", isIconOnly: true }), styles.social)}
+            {...style.attrs(Button.styles({ variant: "ghost", isIconOnly: true }), styles.social)}
         >
             <Icon icon={properties.destination.icon} xstyle={styles.tool} />
         </a>
