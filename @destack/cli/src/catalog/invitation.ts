@@ -1,8 +1,7 @@
-import { Contact, principal } from "@destack/access";
-import { Account, space } from "@destack/account/object";
+import { space } from "@destack/account/object";
 import { Shareable } from "@destack/object";
 import { present, schema } from "@destack/schema";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId } from "@destack/sync";
 import { CommandOption, type CommandBody } from "../command/command.ts";
 import { CliError } from "../error/index.ts";
 import { Cell } from "../terminal/cell.ts";
@@ -13,9 +12,6 @@ const INVITATION_COLUMNS = ["ROLE", "OBJECT", "ID"];
 
 /** The role a person gets unless another is asked for. */
 const DEFAULT_ROLE = "editor";
-
-/** The prefix of a person's handle. */
-const HANDLE_PREFIX = "@";
 
 /** Invite a person to the space the terminal acts in, by their handle or email. */
 export const shareCommand: CommandBody = {
@@ -44,12 +40,7 @@ export const shareCommand: CommandBody = {
 
         // address the person: the user of a handle's personal account, or an email's contact
         const named = present(person, "the person argument");
-        const subject = named.startsWith(HANDLE_PREFIX)
-            ? principal.user.reference(
-                  Scope.universe.id,
-                  Account.person(await native.resolve(named.slice(HANDLE_PREFIX.length))),
-              )
-            : Contact.subject(Contact.email(schema.email().parse(named)));
+        const subject = await context.subject(named);
 
         // invite them at the universe, which stores the space's row and its invitations
         const { session } = await context.launcher();
@@ -78,13 +69,13 @@ export const invitedCommand: CommandBody = {
         const { session, user } = await context.launcher();
         const { items } = await session.accounts().user.invited({ id: user.userId });
 
-        // list each with its role and what it shares, its identifier last
-        const cells = items.map(({ id, relationship }) => {
+        // list each with its role and the title of what it shares, its identifier last
+        const cells = items.map(({ id, relationship, title }) => {
             const role = "relation" in relationship ? relationship.relation : relationship.role;
 
             return [
                 Cell.plain(role),
-                Cell.plain(`${relationship.object.type} ${relationship.object.id}`),
+                Cell.plain(`${relationship.object.type} ${title}`),
                 {
                     ...Cell.plain(id),
                     paint: (text: string) => context.terminal.style("dim", text),
@@ -125,7 +116,7 @@ export const acceptCommand: CommandBody = {
         await context.terminal.print(
             json
                 ? JSON.stringify(found)
-                : context.terminal.event("Accepted", "done", `${object.type} '${object.id}'`),
+                : context.terminal.event("Accepted", "done", `${object.type} '${found.title}'`),
         );
     },
 };
