@@ -585,6 +585,7 @@ Write boring, plain commit messages:
 
 Re-review your own work thoroughly before suggesting or making commits:
 - **SC40** Prior to ANY commits, the full diff must be reviewed in full (not just hunks, the full diffs, including relevnat surrounding areas and call paths) to ensure compliance with all of the rules.
-- **SS41** Every diff MUST be aligned with the long term product objectives, have the right minimal compressed nouns and verbs, prefer subtraction / compression / generalisation over addition, and fulfill our modeling and sytle criteria. (Checklists MAY be helpful here.)
+- **SS41** Every diff MUST be aligned with the long term product objectives, have the right minimal compressed nouns and verbs, prefer subtraction / compression / generalisation over addition, and fulfill our modeling and sytle criteria.
+  (Checklists MAY be helpful here.)
 
 ## Custom
