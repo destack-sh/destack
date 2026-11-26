@@ -197,14 +197,24 @@ test("bring a new turn near the top, keep the place of earlier rows, and count t
     setIds((all) => [...all, "turn"]);
     await layout.change();
 
+    const turn = read();
+
+    // jump to a row, and to one the app adds after it is asked for
+    control?.scrollToMessage("row-2");
+    const jumped = layout.top();
+    control?.scrollToMessage("later");
+    setIds((all) => ["later", ...all]);
+    await layout.change();
+
     expect({
         start,
         below,
         above,
         end,
         followed,
-        turn: read(),
-        jump: [control?.scrollToMessage("row-2"), layout.top(), control?.scrollToMessage("none")],
+        turn,
+        jump: jumped,
+        later: layout.top(),
     }).toEqual({
         start: [160, 0, "start end"],
         below: [160, 1, "start end"],
@@ -212,6 +222,7 @@ test("bring a new turn near the top, keep the place of earlier rows, and count t
         end: [400, 0, "start"],
         followed: [450, 0, "start"],
         turn: [586, 0, "start"],
-        jump: [true, 150, false],
+        jump: 150,
+        later: 50,
     });
 });

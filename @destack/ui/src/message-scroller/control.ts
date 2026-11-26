@@ -290,16 +290,14 @@ export class MessageScrollerControl {
         return true;
     }
 
-    /** Scroll to a row by its id, waiting for the first rows, and report whether it may. */
-    scrollToMessage(id: string, options: MessageJumpOptions = {}): boolean {
-        // wait until there are rows
+    /** Scroll to a row by its id, once it is there, as an app loads the rows around it. */
+    scrollToMessage(id: string, options: MessageJumpOptions = {}): void {
+        // wait for the row, until the reader moves the view
         const layout = this.#layout;
-        const rows = layout?.rows ?? [];
-        const row = rows.find((each) => each.getAttribute(MESSAGE_ID) === id);
+        const row = layout?.rows.find((each) => each.getAttribute(MESSAGE_ID) === id);
+        this.#jump = row === undefined ? { id, options } : undefined;
         if (layout === undefined || row === undefined) {
-            this.#jump = rows.length === 0 ? { id, options } : undefined;
-
-            return this.#jump !== undefined;
+            return;
         }
 
         // bring the row to its place in the view, where rows drawn on the way move it
@@ -320,8 +318,6 @@ export class MessageScrollerControl {
             },
             behavior,
         );
-
-        return true;
     }
 
     /** Take the elements, and follow the reader and the rows until it returns. */
@@ -339,8 +335,8 @@ export class MessageScrollerControl {
         viewport.addEventListener("scroll", () => this.#scrolled(layout), passive);
         viewport.addEventListener("scrollend", () => this.#arrived(layout), passive);
         viewport.addEventListener("wheel", (event) => this.#wheeled(layout, event), passive);
-        viewport.addEventListener("touchstart", () => this.#stop(), passive);
-        viewport.addEventListener("pointerdown", () => this.#stop(), passive);
+        viewport.addEventListener("touchstart", () => this.#leave(), passive);
+        viewport.addEventListener("pointerdown", () => this.#leave(), passive);
         viewport.addEventListener("keydown", (event) => this.#pressed(layout, event), passive);
         content.addEventListener("focusin", (event) => this.#focused(layout, event), passive);
         ownerDocument.addEventListener("selectionchange", () => this.#selected(layout), passive);
@@ -399,11 +395,17 @@ export class MessageScrollerControl {
 
     /** Follow rows that came or went. */
     #changed(layout: MessageScrollerLayout): void {
-        // open with the first rows
+        // open with the first rows, and go on to a row asked for once it is there
         const before = layout.rows;
         layout.read();
+        const jump = this.#jump;
+        const isArrived = layout.rows.some((row) => row.getAttribute(MESSAGE_ID) === jump?.id);
         if (before.length === 0) {
             this.#open(layout);
+
+            return;
+        } else if (jump !== undefined && isArrived) {
+            this.scrollToMessage(jump.id, jump.options);
 
             return;
         }
@@ -461,7 +463,7 @@ export class MessageScrollerControl {
         const top = viewport.scrollTop;
         const isOwn = top === this.#top || top >= viewport.scrollHeight - viewport.clientHeight - 1;
         if (!isOwn && !this.#isSmooth) {
-            this.#stop();
+            this.#leave();
         }
         const isUp = top < this.#top && top < layout.end() - 1;
         if (isUp && this.#destination === undefined) {
@@ -504,7 +506,7 @@ export class MessageScrollerControl {
     /** Let go where the reader scrolls up by the wheel. */
     #wheeled(layout: MessageScrollerLayout, { deltaY, target }: WheelEvent): void {
         // leave a wheel over something inside that scrolls up itself
-        this.#stop();
+        this.#leave();
         let element = target instanceof Element ? target : null;
         while (element !== null && element !== layout.viewport && element.scrollTop === 0) {
             element = element.parentElement;
@@ -516,7 +518,7 @@ export class MessageScrollerControl {
 
     /** Let go where the reader scrolls up by the keys. */
     #pressed(layout: MessageScrollerLayout, { key, target }: KeyboardEvent): void {
-        this.#stop();
+        this.#leave();
         if (UPWARD.has(key) && target === layout.viewport && layout.viewport.scrollTop > 0) {
             this.#isFollowing = false;
         }
@@ -535,6 +537,12 @@ export class MessageScrollerControl {
         const selection = viewport.ownerDocument.getSelection();
         this.#isSelecting =
             selection?.isCollapsed === false && viewport.contains(selection.anchorNode);
+    }
+
+    /** Stop as the reader moves the view, dropping a row asked for. */
+    #leave(): void {
+        this.#jump = undefined;
+        this.#stop();
     }
 
     /** Stop being on the way, as the reader moves the view. */
