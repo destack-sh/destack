@@ -142,16 +142,28 @@ test("say what people call a color", () => {
     ]);
 });
 
-test("validate text as a color CSS writes, with the reason it refuses another", () => {
-    expect(
-        ["#f76b15", "oklch(69% 0.19 45)", "rgb(0 144 255 / 50%)", "orange", "#12"].map(
-            (text) => Color.schema.safeParse(text).error?.issues[0]?.message ?? "color",
-        ),
-    ).toEqual([
-        "color",
-        "color",
-        "color",
-        "a color is hexadecimal, rgb(), hsl() or oklch()",
-        "a color is hexadecimal, rgb(), hsl() or oklch()",
-    ]);
+test("validate text as a color exactly where Color.read reads one, refusing any other", () => {
+    // the schema, which JSON Schema describes, agrees with the parser on every form
+    const texts = [
+        "#f76b15",
+        "#FFF",
+        "#f76b1580",
+        " #000 ",
+        "rgb(0 144 255 / 50%)",
+        "RGBA(0, 144, 255, 0.5)",
+        "hsl(120deg 50% 50%)",
+        "hsl(none 0% 50%)",
+        "oklch(69% 0.19 45)",
+        "oklch(0.69 0.19 45deg / 1)",
+        "orange",
+        "#12",
+        "rgb(0 0)",
+        "rgb(0deg 0 0)",
+        "oklch(1 2 3 4 5)",
+        "hsl(a b c)",
+    ];
+
+    expect(texts.map((text) => Color.schema.safeParse(text).success)).toEqual(
+        texts.map((text) => Color.read(text) !== undefined),
+    );
 });

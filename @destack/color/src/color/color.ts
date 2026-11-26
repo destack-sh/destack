@@ -97,7 +97,7 @@ const HUE_NAMES = [
 ] as const;
 
 /** The chroma below which a color is gray. */
-const GRAY_CHROMA = 0.001;
+export const GRAY_CHROMA = 0.001;
 
 /** The lightness below which orange is brown. */
 const BROWN_LIGHTNESS = 0.68;
@@ -117,6 +117,38 @@ const FUNCTION = /^(rgb|hsl|oklch)a?\(([^()]+)\)$/iu;
 /** A number of a color function, with the unit it may have. */
 const NUMBER = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)(%|deg)?$/iu;
 
+/** A number of a color function as a pattern, in any case as CSS reads it. */
+const NUMBER_PATTERN = String.raw`[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?`;
+
+/** A channel of a color function: none, or a number or a share of its range. */
+const CHANNEL_PATTERN = `(?:[nN][oO][nN][eE]|${NUMBER_PATTERN}%?)`;
+
+/** A hue of a color function: none, or a number, a share of the circle or degrees. */
+const HUE_PATTERN = `(?:[nN][oO][nN][eE]|${NUMBER_PATTERN}(?:%|[dD][eE][gG])?)`;
+
+/** The separators between the numbers of a color function. */
+const SEPARATOR_PATTERN = String.raw`[\s,/]+`;
+
+/** Write the arguments of a color function: three channels, then an alpha. */
+function argumentsPattern(first: string, second: string, third: string): string {
+    const channels = [first, second, third].join(SEPARATOR_PATTERN);
+
+    return String.raw`\(\s*${channels}(?:${SEPARATOR_PATTERN}${CHANNEL_PATTERN})?\s*\)`;
+}
+
+/** A color CSS writes, as `Color.read` takes it: hexadecimal, rgb(), hsl() or oklch(). */
+const CSS_COLOR = new RegExp(
+    String.raw`^\s*(?:` +
+        [
+            String.raw`#(?:[\da-fA-F]{3,4}|[\da-fA-F]{6}|[\da-fA-F]{8})`,
+            `[rR][gG][bB][aA]?${argumentsPattern(CHANNEL_PATTERN, CHANNEL_PATTERN, CHANNEL_PATTERN)}`,
+            `[hH][sS][lL][aA]?${argumentsPattern(HUE_PATTERN, CHANNEL_PATTERN, CHANNEL_PATTERN)}`,
+            `[oO][kK][lL][cC][hH][aA]?${argumentsPattern(CHANNEL_PATTERN, CHANNEL_PATTERN, HUE_PATTERN)}`,
+        ].join("|") +
+        String.raw`)\s*$`,
+    "u",
+);
+
 /** The room a channel may leave its range by before a color is out of a screen's. */
 const GAMUT_TOLERANCE = 0.0001;
 
@@ -126,9 +158,10 @@ const GAMUT_STEPS = 18;
 /** A color in one space, which another has the nearest color of. */
 export class Color {
     /** A color CSS writes as text: hexadecimal, rgb(), hsl() or oklch(). */
-    static readonly schema = schema.string().refine((text) => Color.read(text) !== undefined, {
-        message: "a color is hexadecimal, rgb(), hsl() or oklch()",
-    });
+    static readonly schema = schema
+        .string()
+        .regex(CSS_COLOR, { message: "a color is hexadecimal, rgb(), hsl() or oklch()" })
+        .meta({ id: "color", title: "Color" });
 
     /** The space. */
     readonly space: ColorSpace;
