@@ -19,23 +19,6 @@ export const switchNotifications = defineExample({
     ),
 });
 
-/** The notifications switch unavailable. */
-export const switchNotificationsDisabled = defineExample({
-    of: Switch,
-    name: "notificationsDisabled",
-    description: t`The notifications switch unavailable.`,
-    properties: {
-        name: "notifications",
-        checked: true,
-        disabled: true,
-    },
-    render: (properties) => (
-        <Label>
-            <Switch {...properties} /> Notifications
-        </Label>
-    ),
-});
-
 /** A switch composed from its root and thumb parts. */
 export const switchComposed = defineExample({
     of: Switch,
@@ -51,22 +34,5 @@ export const switchComposed = defineExample({
             </Switch>{" "}
             Airplane mode
         </Label>
-    ),
-});
-
-/** A small switch, and one a person reads but does not flip. */
-export const switchSmall = defineExample({
-    of: Switch,
-    name: "small",
-    description: t`A small switch, and one a person reads but does not flip.`,
-    render: () => (
-        <div>
-            <Label>
-                <Switch size="sm" defaultChecked /> Notifications
-            </Label>
-            <Label>
-                <Switch size="sm" defaultChecked readOnly /> Backups
-            </Label>
-        </div>
     ),
 });

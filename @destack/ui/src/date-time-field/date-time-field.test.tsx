@@ -2,13 +2,14 @@ import { expect, test } from "@destack/test";
 import { Locale, Localization } from "@destack/locale";
 import { createSignal, flush, LocaleContext } from "@destack/view";
 import { render } from "@destack/view/test";
+import type { HourCycle } from "../date-segment/index.ts";
 import { DateTimeField } from "./index.ts";
 
 /** The morning of a day, in Zurich 10:30. */
 const MORNING = Date.UTC(2026, 10, 24, 9, 30);
 
 /** Read the field of the morning in a language, on a clock. */
-function written(tag: string, hourCycle?: 12 | 24): string | null {
+function written(tag: string, hourCycle?: HourCycle): string | null {
     return render(() => (
         <LocaleContext value={Localization.of(Locale.parse(tag), [])}>
             <DateTimeField value={MORNING} timeZone="Europe/Zurich" hourCycle={hourCycle} />
@@ -69,7 +70,7 @@ test("give the instant as a segment changes, and show one set from outside", () 
 });
 
 test("lay out the time where the language has it, on the clock given", () => {
-    expect([written("vi"), written("de"), written("de", 12), written("en-US", 24)]).toEqual([
+    expect([written("vi"), written("de"), written("de", "h12"), written("en-US", "h23")]).toEqual([
         "10:30 24/11/2026",
         "24.11.2026, 10:30",
         "24.11.2026, 10:30 AM",

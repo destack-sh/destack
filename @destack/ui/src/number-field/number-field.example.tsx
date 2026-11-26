@@ -35,7 +35,7 @@ export const numberFieldFormats = defineExample({
     of: NumberField,
     name: "formats",
     description: t`Numbers as amounts, shares, measures and counts.`,
-    render: () => (
+    render: (properties) => (
         <FieldGroup xstyle={styles.wide}>
             <Field>
                 <FieldLabel>Price</FieldLabel>
@@ -44,6 +44,7 @@ export const numberFieldFormats = defineExample({
                     min={0}
                     step={0.5}
                     format={{ style: "currency", currency: "EUR" }}
+                    {...properties}
                 />
             </Field>
             <Field>
@@ -54,6 +55,7 @@ export const numberFieldFormats = defineExample({
                     max={1}
                     step={0.05}
                     format={{ style: "percent" }}
+                    {...properties}
                 />
             </Field>
             <Field>
@@ -62,11 +64,12 @@ export const numberFieldFormats = defineExample({
                     defaultValue={42}
                     min={0}
                     format={{ style: "unit", unit: "kilometer" }}
+                    {...properties}
                 />
             </Field>
             <Field>
                 <FieldLabel>Guests</FieldLabel>
-                <NumberField defaultValue={2} min={1} max={8} />
+                <NumberField defaultValue={2} min={1} max={8} {...properties} />
                 <FieldDescription>One to eight.</FieldDescription>
             </Field>
         </FieldGroup>
@@ -78,8 +81,8 @@ export const numberFieldParts = defineExample({
     of: NumberField,
     name: "parts",
     description: t`A number between its buttons, from the parts.`,
-    render: () => (
-        <NumberField defaultValue={100} min={10} max={400} step={10} snapOnStep>
+    render: (properties) => (
+        <NumberField defaultValue={100} min={10} max={400} step={10} snapOnStep {...properties}>
             <InputGroup xstyle={styles.narrow}>
                 <InputGroupAddon>
                     <NumberFieldDecrement isIconOnly size="sm">
@@ -102,12 +105,18 @@ export const numberFieldScrub = defineExample({
     of: NumberField,
     name: "scrub",
     description: t`A number its label scrubs, with what it settled on.`,
-    render: () => {
+    render: (properties) => {
         const [width, setWidth] = createSignal<number | undefined>(320);
 
         return (
             <div {...style.attrs(styles.wide)}>
-                <NumberField value={width()} onValueChange={setWidth} min={0} max={1000}>
+                <NumberField
+                    {...properties}
+                    value={width()}
+                    onValueChange={setWidth}
+                    min={0}
+                    max={1000}
+                >
                     <NumberFieldScrubArea>Width</NumberFieldScrubArea>
                     <InputGroup>
                         <NumberFieldInput aria-label="Width" />
@@ -117,17 +126,4 @@ export const numberFieldScrub = defineExample({
             </div>
         );
     },
-});
-
-/** A number that takes no input, and one shown alone. */
-export const numberFieldDisabled = defineExample({
-    of: NumberField,
-    name: "disabled",
-    description: t`A number that takes no input, and one shown alone.`,
-    render: () => (
-        <div {...style.attrs(styles.wide)}>
-            <NumberField aria-label="Disabled" defaultValue={3} disabled />
-            <NumberField aria-label="Read only" defaultValue={3} readOnly />
-        </div>
-    ),
 });

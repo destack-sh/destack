@@ -1,4 +1,5 @@
-import type { Axis } from "../position/index.ts";
+import { AXES } from "../position/index.ts";
+import { field } from "@destack/object";
 import { type Localization, type NumberFormat, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -36,6 +37,11 @@ import {
     renderPart,
 } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The range a slider covers without its own minimum and maximum, the native default. */
 const RANGE = { min: 0, max: 100 };
@@ -71,6 +77,27 @@ const THUMB = {
     transitionDuration: motion.durationShort,
     transitionTimingFunction: motion.easingStandard,
 } as const;
+
+/** The properties people change in a slider's controls and inspector. */
+const SLIDER_PROPERTIES = {
+    orientation: field
+        .enum(AXES)
+        .labeled(t.context("label")`Orientation`)
+        .described(t`Whether the track runs across or up.`)
+        .default("horizontal"),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses the thumbs where the value cannot change now, as its field does when absent.`,
+        )
+        .optional(),
+    readOnly: field
+        .boolean()
+        .labeled(t.context("label")`Read only`)
+        .described(t`Shows the values, which a person cannot change.`)
+        .default(false),
+};
 
 /** The styles of a slider, its track, range, thumbs and marks. */
 const styles = style.create({
@@ -206,7 +233,7 @@ const styles = style.create({
 /** The values, range and thumbs of a slider, which its track, range and thumbs share. */
 export class SliderControl {
     /** The slider's properties, read for its range, step, form and handlers. */
-    readonly properties: SliderProperties;
+    readonly properties: RenderProperties<SliderAttributes, typeof SLIDER_PROPERTIES>;
     /** The field the slider's first thumb belongs to, null outside one. */
     readonly field: FieldControl | null;
     /** The values of the thumbs. */
@@ -223,7 +250,11 @@ export class SliderControl {
     readonly #setValues: (values: readonly number[]) => void;
 
     /** Create the state of a slider from its root's properties. */
-    constructor(properties: SliderProperties, field: FieldControl | null, locale: Localization) {
+    constructor(
+        properties: RenderProperties<SliderAttributes, typeof SLIDER_PROPERTIES>,
+        fieldControl: FieldControl | null,
+        locale: Localization,
+    ) {
         // follow the controlled values or the slider's own, the middle of the range by default
         const middle = untrack(
             () => ((properties.min ?? RANGE.min) + (properties.max ?? RANGE.max)) / 2,
@@ -235,7 +266,7 @@ export class SliderControl {
             onChange: (next) => properties.onValueChange?.(next),
         });
         this.properties = properties;
-        this.field = field;
+        this.field = fieldControl;
         this.values = values;
         this.#thumbs = new CollectionBuilder((element) => element());
         this.#setValues = setValues;
@@ -295,9 +326,14 @@ export class SliderControl {
         return this.properties.step ?? 1;
     }
 
+    /** Report whether the slider refuses the person, by its own value or its field's. */
+    isDisabled(): boolean {
+        return this.properties.disabled === true || this.field?.isDisabled() === true;
+    }
+
     /** Report whether the person moves the thumbs. */
     isEditable(): boolean {
-        return this.properties.disabled !== true && this.properties.readOnly !== true;
+        return !this.isDisabled() && !this.properties.readOnly;
     }
 
     /** Write a value as its format says. */
@@ -442,8 +478,8 @@ function decimalsOf(value: number): number {
 /** The nearest slider, null outside one. */
 const SliderContext = createContext<SliderControl | null>(null);
 
-/** The properties of a slider: its values, range and look. */
-export interface SliderProperties extends Omit<
+/** The properties of a slider besides its declared ones: its values, range and form. */
+export interface SliderAttributes extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "onInput" | "onChange"
 > {
@@ -469,12 +505,6 @@ export interface SliderProperties extends Omit<
     readonly format?: NumberFormat;
     /** The values marked along the track. */
     readonly marks?: readonly number[];
-    /** The direction the track runs along, horizontal by default. */
-    readonly orientation?: Axis;
-    /** Whether the thumbs ignore the person. */
-    readonly disabled?: boolean;
-    /** Whether the person reads the values but does not move the thumbs. */
-    readonly readOnly?: boolean;
     /** The form field name each thumb submits its value under. */
     readonly name?: string;
     /** The id of the form the thumbs belong to, their ancestor form by default. */
@@ -498,88 +528,95 @@ export interface SliderThumbProperties extends SliderElementProperties<
 }
 
 /** Render a slider around its track and thumbs, with a native range input per thumb. */
-export function Slider(given: SliderProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onValueChange",
-        read: (value) => (typeof value === "number" ? [value] : value),
-        take: (change, current) => {
-            const first: unknown = Array.isArray(change) ? change[0] : change;
+export const Slider = defineComponent({
+    name: "slider",
+    properties: SLIDER_PROPERTIES,
+    render(given: RenderProperties<SliderAttributes, typeof SLIDER_PROPERTIES>): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: (value) => (typeof value === "number" ? [value] : value),
+            take: (change, current) => {
+                const first: unknown = Array.isArray(change) ? change[0] : change;
 
-            return typeof current === "number" ? first : change;
-        },
-    });
+                return typeof current === "number" ? first : change;
+            },
+        });
 
-    // share the values with the parts
-    const control = new SliderControl(properties, useFieldControl(), useLocale());
-    const rest = omit(
-        properties,
-        "value",
-        "defaultValue",
-        "onValueChange",
-        "onValueCommitted",
-        "min",
-        "max",
-        "step",
-        "largeStep",
-        "minStepsBetweenValues",
-        "format",
-        "marks",
-        "orientation",
-        "disabled",
-        "readOnly",
-        "name",
-        "form",
-        "children",
-    );
+        // share the values with the parts
+        const control = new SliderControl(properties, useFieldControl(), useLocale());
+        const rest = omit(
+            properties,
+            "value",
+            "defaultValue",
+            "onValueChange",
+            "onValueCommitted",
+            "min",
+            "max",
+            "step",
+            "largeStep",
+            "minStepsBetweenValues",
+            "format",
+            "marks",
+            "orientation",
+            "disabled",
+            "readOnly",
+            "name",
+            "form",
+            "children",
+        );
 
-    return (
-        <SliderContext value={control}>
-            {renderPart(
-                "div",
-                "slider",
-                rest,
-                () => [styles.slider, control.isVertical() && styles.vertical],
-                mergeProperties(
-                    {
-                        role: "group" as const,
-                        get "data-orientation"() {
-                            return properties.orientation ?? "horizontal";
+        return (
+            <SliderContext value={control}>
+                {renderPart(
+                    "div",
+                    "slider",
+                    rest,
+                    () => [styles.slider, control.isVertical() && styles.vertical],
+                    mergeProperties(
+                        {
+                            role: "group" as const,
+                            get "data-orientation"() {
+                                return properties.orientation;
+                            },
+                            get "data-disabled"() {
+                                return control.isDisabled() ? "" : undefined;
+                            },
+                            get "data-readonly"() {
+                                return properties.readOnly ? "" : undefined;
+                            },
+                            get "data-dragging"() {
+                                return control.dragged() === undefined ? undefined : "";
+                            },
+                            get children() {
+                                return contentOr(properties, () => (
+                                    <>
+                                        <SliderTrack>
+                                            <SliderIndicator />
+                                        </SliderTrack>
+                                        <SliderMarks />
+                                        <Repeat count={control.values().length}>
+                                            {(index) => <SliderThumb index={index} />}
+                                        </Repeat>
+                                    </>
+                                ));
+                            },
                         },
-                        get "data-disabled"() {
-                            return properties.disabled === true ? "" : undefined;
+                        {
+                            onPointerDown: (
+                                event: PointerEvent & { readonly currentTarget: HTMLElement },
+                            ) => control.drag(event),
                         },
-                        get "data-readonly"() {
-                            return properties.readOnly === true ? "" : undefined;
-                        },
-                        get "data-dragging"() {
-                            return control.dragged() === undefined ? undefined : "";
-                        },
-                        get children() {
-                            return contentOr(properties, () => (
-                                <>
-                                    <SliderTrack>
-                                        <SliderIndicator />
-                                    </SliderTrack>
-                                    <SliderMarks />
-                                    <Repeat count={control.values().length}>
-                                        {(index) => <SliderThumb index={index} />}
-                                    </Repeat>
-                                </>
-                            ));
-                        },
-                    },
-                    {
-                        onPointerDown: (
-                            event: PointerEvent & { readonly currentTarget: HTMLElement },
-                        ) => control.drag(event),
-                    },
-                ),
-            )}
-        </SliderContext>
-    );
-}
+                    ),
+                )}
+            </SliderContext>
+        );
+    },
+});
+
+/** The properties of a slider, its values, range and look included. */
+export type SliderProperties = ComponentProperties<typeof Slider>;
 
 /** Render the values of the nearest slider as they are written, joined as a range. */
 export function SliderValue(
@@ -672,10 +709,10 @@ export function SliderTrack(
         () => [styles.track, control.isVertical() && styles.verticalTrack],
         {
             get "data-orientation"() {
-                return control.properties.orientation ?? "horizontal";
+                return control.properties.orientation;
             },
             get "data-disabled"() {
-                return control.properties.disabled === true ? "" : undefined;
+                return control.isDisabled() ? "" : undefined;
             },
         },
     );
@@ -704,10 +741,10 @@ export function SliderIndicator(
         ],
         {
             get "data-orientation"() {
-                return control.properties.orientation ?? "horizontal";
+                return control.properties.orientation;
             },
             get "data-disabled"() {
-                return control.properties.disabled === true ? "" : undefined;
+                return control.isDisabled() ? "" : undefined;
             },
         },
     );
@@ -728,15 +765,15 @@ export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
         <input
             type="range"
             data-slot="slider-thumb"
-            data-orientation={control.properties.orientation ?? "horizontal"}
-            data-disabled={control.properties.disabled === true ? "" : undefined}
+            data-orientation={control.properties.orientation}
+            data-disabled={control.isDisabled() ? "" : undefined}
             data-dragging={control.dragged() === index() ? "" : undefined}
             min={control.min()}
             max={control.max()}
             step={control.properties.step}
             name={control.properties.name}
             form={control.properties.form}
-            disabled={control.properties.disabled}
+            disabled={control.isDisabled()}
             aria-label={
                 isRange()
                     ? locale.render(
@@ -751,7 +788,7 @@ export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
                     ? undefined
                     : control.write(control.valueAt(index()))
             }
-            aria-readonly={control.properties.readOnly === true ? "true" : undefined}
+            aria-readonly={control.properties.readOnly ? "true" : undefined}
             {...(index() === 0 ? control.field?.attributes() : undefined)}
             {...mergeProperties(
                 {

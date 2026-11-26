@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import xIcon from "@destack/icon/phosphor/x";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -30,12 +31,33 @@ import {
     renderPart,
 } from "../part/index.ts";
 import { VisuallyHidden } from "../visually-hidden/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** What divides the tags a person types or pastes, commas and line breaks by default. */
 const DELIMITER = /[,\n]/u;
 
 /** The least room the text to type in takes before it goes to a line of its own. */
 const LEAST_TEXT = `calc(16 * ${space[1]})`;
+
+/** The properties people change in a tag field's controls and inspector. */
+const TAG_FIELD_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses input where the tags cannot change now, as its field does when absent.`,
+        )
+        .optional(),
+    readOnly: field
+        .boolean()
+        .labeled(t.context("label")`Read only`)
+        .described(t`Shows the tags, which a person cannot change.`)
+        .default(false),
+};
 
 /** The styles of a tags field and its parts. */
 const styles = style.create({
@@ -134,8 +156,8 @@ export type TagFieldElementProperties<Target extends HTMLElement = HTMLDivElemen
 > &
     ElementPartProperties;
 
-/** The properties of a tags field: its tags, what it takes and its form. */
-export type TagFieldProperties = TagFieldElementProperties & {
+/** The properties of a tag field besides its declared ones: its tags, rules and attributes. */
+export type TagFieldAttributes = TagFieldElementProperties & {
     /** The tags. */
     readonly value?: readonly string[];
     /** The tags at first while uncontrolled, none by default. */
@@ -166,10 +188,6 @@ export type TagFieldProperties = TagFieldElementProperties & {
     readonly blurBehavior?: "add" | "clear" | "keep";
     /** Whether a person changes a tag in place, as they do by default. */
     readonly editable?: boolean;
-    /** Whether the field ignores the person. */
-    readonly disabled?: boolean;
-    /** Whether the person reads the tags but does not change them. */
-    readonly readOnly?: boolean;
     /** The form field name each tag is submitted under. */
     readonly name?: string;
     /** The id of the form it belongs to, its ancestor form by default. */
@@ -193,7 +211,7 @@ export class TagFieldControl {
     /** The field around it, null outside one. */
     readonly field: FieldControl | null;
     /** The properties. */
-    readonly properties: TagFieldProperties;
+    readonly properties: RenderProperties<TagFieldAttributes, typeof TAG_FIELD_PROPERTIES>;
     /** The element of the field. */
     element: HTMLElement | undefined;
     /** Set the tags. */
@@ -208,7 +226,10 @@ export class TagFieldControl {
     readonly #setNews: (kind: "added" | "removed", tag: string) => void;
 
     /** Follow a field's tags. */
-    constructor(properties: TagFieldProperties, field: FieldControl | null) {
+    constructor(
+        properties: RenderProperties<TagFieldAttributes, typeof TAG_FIELD_PROPERTIES>,
+        fieldControl: FieldControl | null,
+    ) {
         // follow the controlled tags and text, or the field's own
         const [values, setValues] = createControllableSignal<readonly string[]>({
             isControlled: () => "value" in properties,
@@ -225,7 +246,7 @@ export class TagFieldControl {
         this.values = values;
         this.typed = typed;
         this.properties = properties;
-        this.field = field;
+        this.field = fieldControl;
         this.#setValues = setValues;
         this.#setTyped = setTyped;
 
@@ -242,9 +263,14 @@ export class TagFieldControl {
         this.#setNews = (kind, tag) => void setNews({ kind, tag });
     }
 
+    /** Report whether the field refuses the person, by its own value or its field's. */
+    isDisabled(): boolean {
+        return this.properties.disabled === true || this.field?.isDisabled() === true;
+    }
+
     /** Report whether a person changes the tags. */
     isEditable(): boolean {
-        return this.properties.disabled !== true && this.properties.readOnly !== true;
+        return !this.isDisabled() && !this.properties.readOnly;
     }
 
     /** Report whether there are more tags than it takes. */
@@ -409,99 +435,106 @@ export function useTagField(): TagFieldControl {
 }
 
 /** Render tags a person types, removes and changes in one field. */
-export function TagField(given: TagFieldProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onValueChange",
-        read: (value) =>
-            Array.isArray(value) ? value.filter((each) => typeof each === "string") : [],
-        settles: true,
-    });
-    const control = new TagFieldControl(properties, useFieldControl());
-    const locale = useLocale();
-    const rest = omit(
-        properties,
-        "value",
-        "defaultValue",
-        "onValueChange",
-        "inputValue",
-        "onInputValueChange",
-        "max",
-        "allowOverflow",
-        "allowDuplicates",
-        "maxLength",
-        "delimiter",
-        "sanitizeValue",
-        "validate",
-        "onValueInvalid",
-        "blurBehavior",
-        "editable",
-        "disabled",
-        "readOnly",
-        "name",
-        "form",
-        "children",
-    );
-    const news = (): string => {
-        // tell of the last tag that came or went
-        const last = control.news();
-        if (last === undefined) {
-            return "";
-        }
+export const TagField = defineComponent({
+    name: "tagField",
+    properties: TAG_FIELD_PROPERTIES,
+    render(given: RenderProperties<TagFieldAttributes, typeof TAG_FIELD_PROPERTIES>): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: (value) =>
+                Array.isArray(value) ? value.filter((each) => typeof each === "string") : [],
+            settles: true,
+        });
+        const control = new TagFieldControl(properties, useFieldControl());
+        const locale = useLocale();
+        const rest = omit(
+            properties,
+            "value",
+            "defaultValue",
+            "onValueChange",
+            "inputValue",
+            "onInputValueChange",
+            "max",
+            "allowOverflow",
+            "allowDuplicates",
+            "maxLength",
+            "delimiter",
+            "sanitizeValue",
+            "validate",
+            "onValueInvalid",
+            "blurBehavior",
+            "editable",
+            "disabled",
+            "readOnly",
+            "name",
+            "form",
+            "children",
+        );
+        const news = (): string => {
+            // tell of the last tag that came or went
+            const last = control.news();
+            if (last === undefined) {
+                return "";
+            }
 
-        return last.kind === "added"
-            ? locale.render(t`Added ${last.tag}`)
-            : locale.render(t`Removed ${last.tag}`);
-    };
+            return last.kind === "added"
+                ? locale.render(t`Added ${last.tag}`)
+                : locale.render(t`Removed ${last.tag}`);
+        };
 
-    return (
-        <TagFieldContext value={control}>
-            {renderPart("div", "tag-field", rest, styles.field, {
-                role: "group" as const,
-                ref: (element: HTMLElement) => (control.element = element),
-                get "data-disabled"() {
-                    return properties.disabled === true ? "" : undefined;
-                },
-                get "data-readonly"() {
-                    return properties.readOnly === true ? "" : undefined;
-                },
-                onPointerDown: (event: PointerEvent) => {
-                    // type by a press between the tags
-                    if (event.target === event.currentTarget) {
-                        event.preventDefault();
-                        control.focus(control.values().length);
-                    }
-                },
-                get children() {
-                    return (
-                        <>
-                            {contentOr(properties, () => (
-                                <>
-                                    <TagFieldList />
-                                    <TagFieldInput />
-                                </>
-                            ))}
-                            <VisuallyHidden role="status">{news()}</VisuallyHidden>
-                            <Show when={properties.name}>
-                                <For each={control.values()}>
-                                    {(value) => (
-                                        <input
-                                            type="hidden"
-                                            name={properties.name}
-                                            form={properties.form}
-                                            value={value}
-                                        />
-                                    )}
-                                </For>
-                            </Show>
-                        </>
-                    );
-                },
-            })}
-        </TagFieldContext>
-    );
-}
+        return (
+            <TagFieldContext value={control}>
+                {renderPart("div", "tag-field", rest, styles.field, {
+                    role: "group" as const,
+                    ref: (element: HTMLElement) => (control.element = element),
+                    get "data-disabled"() {
+                        return control.isDisabled() ? "" : undefined;
+                    },
+                    get "data-readonly"() {
+                        return properties.readOnly ? "" : undefined;
+                    },
+                    onPointerDown: (event: PointerEvent) => {
+                        // type by a press between the tags
+                        if (event.target === event.currentTarget) {
+                            event.preventDefault();
+                            control.focus(control.values().length);
+                        }
+                    },
+                    get children() {
+                        return (
+                            <>
+                                {contentOr(properties, () => (
+                                    <>
+                                        <TagFieldList />
+                                        <TagFieldInput />
+                                    </>
+                                ))}
+                                <VisuallyHidden role="status">{news()}</VisuallyHidden>
+                                <Show when={properties.name}>
+                                    <For each={control.values()}>
+                                        {(value) => (
+                                            <input
+                                                type="hidden"
+                                                name={properties.name}
+                                                form={properties.form}
+                                                value={value}
+                                            />
+                                        )}
+                                    </For>
+                                </Show>
+                            </>
+                        );
+                    },
+                })}
+            </TagFieldContext>
+        );
+    },
+});
+
+/** The properties of a tag field, its tags, rules and attributes included. */
+export type TagFieldProperties = ComponentProperties<typeof TagField>;
 
 /** Render the tags of the nearest field, each as the caller does. */
 export function TagFieldList(
@@ -679,12 +712,12 @@ export function TagFieldRemove(
     }
 
     return (
-        <Show when={control.properties.readOnly !== true}>
+        <Show when={!control.properties.readOnly}>
             {renderPart("button", "tag-field-remove", properties, [state.touch, styles.remove], {
                 type: "button" as const,
                 tabindex: -1,
                 get disabled() {
-                    return control.properties.disabled === true;
+                    return control.isDisabled();
                 },
                 get "aria-label"() {
                     return locale.render(t`Remove ${control.values()[place()] ?? ""}`);
@@ -738,7 +771,7 @@ export function TagFieldInput(
     };
 
     return (
-        <Show when={control.properties.readOnly !== true}>
+        <Show when={!control.properties.readOnly}>
             {renderPart(
                 "input",
                 "tag-field-input",
@@ -762,7 +795,7 @@ export function TagFieldInput(
                             : undefined;
                     },
                     get disabled() {
-                        return control.properties.disabled === true;
+                        return control.isDisabled();
                     },
                     get value() {
                         return control.typed();

@@ -11,14 +11,15 @@ export const searchFieldNotebooks = defineExample({
     of: SearchField,
     name: "notebooks",
     description: t`A list narrowed by what a person types.`,
-    render: () => {
+    properties: { placeholder: "Find a notebook" },
+    render: (properties) => {
         const [text, setText] = createSignal("");
         const found = () =>
             NOTEBOOKS.filter((name) => name.toLowerCase().includes(text().toLowerCase()));
 
         return (
             <div>
-                <SearchField value={text()} onValueChange={setText} placeholder="Find a notebook" />
+                <SearchField {...properties} value={text()} onValueChange={setText} />
                 <ul>
                     <For each={found()}>{(name) => <li>{name}</li>}</For>
                 </ul>

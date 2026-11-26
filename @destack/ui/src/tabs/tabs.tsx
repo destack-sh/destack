@@ -37,7 +37,7 @@ import {
     type Render,
     renderPart,
 } from "../part/index.ts";
-import { Scroll, scrollFade } from "../position/index.ts";
+import { AXES, Scroll, scrollFade } from "../position/index.ts";
 import {
     TabsContext,
     TabsControl,
@@ -535,10 +535,7 @@ export type TabsValueProperties<Attributes> = TabsElementProperties<Omit<Attribu
 /** The properties people change in tabs's controls and inspector. */
 const TABS_PROPERTIES = {
     orientation: field
-        .enum({
-            horizontal: { title: t.context("option")`Horizontal` },
-            vertical: { title: t.context("option")`Vertical` },
-        })
+        .enum(AXES)
         .labeled(t.context("label")`Orientation`)
         .described(t`Whether the tabs lie in a row or a column.`)
         .default("horizontal"),

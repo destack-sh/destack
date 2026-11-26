@@ -18,30 +18,13 @@ export const timeFieldReminder = defineExample({
     of: TimeField,
     name: "reminder",
     description: t`A time field that sets the hour a daily reminder rings.`,
-    render: () => {
+    render: (properties) => {
         const [time, setTime] = createSignal<PlainTime>("08:30");
 
         return (
             <Field>
                 <FieldLabel>Reminder</FieldLabel>
-                <TimeField value={time()} onValueChange={setTime} />
-            </Field>
-        );
-    },
-});
-
-/** The reminder time unavailable. */
-export const timeFieldReminderDisabled = defineExample({
-    of: TimeField,
-    name: "reminderDisabled",
-    description: t`The reminder time unavailable.`,
-    render: () => {
-        const [time, setTime] = createSignal<PlainTime>("08:30");
-
-        return (
-            <Field disabled>
-                <FieldLabel>Reminder</FieldLabel>
-                <TimeField value={time()} onValueChange={setTime} />
+                <TimeField {...properties} value={time()} onValueChange={setTime} />
             </Field>
         );
     },

@@ -10,9 +10,6 @@ export const dateFieldBirthday = defineExample({
     of: DateField,
     name: "birthday",
     description: t`A date field that types a person's birthday, labelled and described by its field.`,
-    properties: {
-        disabled: false,
-    },
     render: (properties) => {
         const [birthday, setBirthday] = createSignal<PlainDate>();
 
@@ -31,7 +28,9 @@ export const dateFieldArchived = defineExample({
     of: DateField,
     name: "archived",
     description: t`A date field with the day a note was archived.`,
-    render: () => <DateField aria-label="Archived" defaultValue={"2026-10-07"} />,
+    render: (properties) => (
+        <DateField aria-label="Archived" defaultValue={"2026-10-07"} {...properties} />
+    ),
 });
 
 /** The archive date marked invalid. */
@@ -39,15 +38,12 @@ export const dateFieldArchivedInvalid = defineExample({
     of: DateField,
     name: "archivedInvalid",
     description: t`The archive date marked invalid.`,
-    render: () => (
-        <DateField aria-label="Archived" aria-invalid="true" defaultValue={"2026-10-07"} />
+    render: (properties) => (
+        <DateField
+            aria-label="Archived"
+            aria-invalid="true"
+            defaultValue={"2026-10-07"}
+            {...properties}
+        />
     ),
-});
-
-/** The archive date unavailable. */
-export const dateFieldArchivedDisabled = defineExample({
-    of: DateField,
-    name: "archivedDisabled",
-    description: t`The archive date unavailable.`,
-    render: () => <DateField aria-label="Archived" disabled defaultValue={"2026-10-07"} />,
 });

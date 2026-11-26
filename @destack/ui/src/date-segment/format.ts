@@ -35,8 +35,14 @@ const MORNING = Date.UTC(2026, 0, 1, 1);
 /** The day whose times are written. */
 const SAMPLE_DAY = PlainDate.of(1970, 1, 1);
 
-/** How many hours a clock counts to. */
-export type HourCycle = 12 | 24;
+/** The hour cycles a person chooses between, keyed as `Intl` names them. */
+export const HOUR_CYCLES = {
+    h12: { title: t.context("option")`12-hour` },
+    h23: { title: t.context("option")`24-hour` },
+};
+
+/** The hours a clock counts as `Intl` names them: 1 to 12 beside a day period, or 0 to 23. */
+export type HourCycle = keyof typeof HOUR_CYCLES;
 
 /** A minute in milliseconds. */
 const MINUTE = 60_000;
@@ -174,7 +180,7 @@ export class TimeFormat implements DateSegmentFormat<PlainTime> {
     /** Whether hours count 1 to 12 beside a day period, else 0 to 23. */
     readonly isTwelveHour: boolean;
     /** The cycle Intl writes its hours in. */
-    readonly hourCycle: "h12" | "h23";
+    readonly hourCycle: HourCycle;
     /** The locale the segments write and name themselves in. */
     readonly #locale: Localization;
     /** The format that writes the day periods. */
@@ -187,8 +193,9 @@ export class TimeFormat implements DateSegmentFormat<PlainTime> {
             hour: "numeric",
             timeZone: "UTC",
         }).resolvedOptions().hourCycle;
-        this.isTwelveHour = hours === undefined ? cycle === "h11" || cycle === "h12" : hours === 12;
-        this.hourCycle = this.isTwelveHour ? "h12" : "h23";
+        const isLocaleTwelveHour = cycle === "h11" || cycle === "h12";
+        this.hourCycle = hours ?? (isLocaleTwelveHour ? "h12" : "h23");
+        this.isTwelveHour = this.hourCycle === "h12";
         const format = new Intl.DateTimeFormat(locale.tag, {
             hour: "2-digit",
             minute: "2-digit",

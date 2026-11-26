@@ -13,6 +13,7 @@ import {
 import { field } from "@destack/object";
 import { t } from "@destack/locale";
 import { readChoices, useFieldControl, useFieldValue } from "../field/control.ts";
+import { AXES } from "../position/index.ts";
 
 /** The group of the nearest toggle group, null outside one. */
 const ToggleGroupContext = createContext<ToggleGroupControl | null>(null);
@@ -95,10 +96,7 @@ export function useToggleGroup(): ToggleGroupControl {
 const TOGGLE_GROUP_PROPERTIES = {
     ...Toggle.properties,
     orientation: field
-        .enum({
-            horizontal: { title: t.context("option")`Horizontal` },
-            vertical: { title: t.context("option")`Vertical` },
-        })
+        .enum(AXES)
         .labeled(t.context("label")`Orientation`)
         .described(t`Whether the toggles lie in a row or a column.`)
         .default("horizontal"),

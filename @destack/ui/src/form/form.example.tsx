@@ -265,10 +265,10 @@ export const formNative = defineExample({
     name: "native",
     description: t`A form without a draft, whose fields show what the browser says.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <form onSubmit={(event) => event.preventDefault()} {...style.attrs(styles.form)}>
             <FieldGroup>
-                <Field>
+                <Field {...properties}>
                     <FieldLabel>Email</FieldLabel>
                     <Input type="email" name="email" required />
                     <FieldError />

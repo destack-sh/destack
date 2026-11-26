@@ -75,7 +75,6 @@ export function Outline(properties: {
             isSide
             header={
                 <SearchField
-                    variant="plain"
                     aria-label={localization.render(t`Find an example`)}
                     placeholder={localization.render(t`Find an example`)}
                     value={text()}

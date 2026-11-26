@@ -1,3 +1,5 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import * as style from "@destack/style";
 import {
     color,
@@ -17,17 +19,42 @@ import { JoinContext, useJoin } from "../join/index.ts";
 import { Textarea, type TextareaProperties } from "../textarea/index.ts";
 import { addonMarker, controlMarker, multilineMarker } from "./marker.stylex.ts";
 import { renderPart, type Render } from "../part/index.ts";
-
-/** The alignment of an addon that sets none. */
-const ADDON_DEFAULTS: Required<Pick<InputGroupAddonProperties, "align">> = {
-    align: "inline-start",
-};
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The variant, size and type of a group's button that sets none. */
 const BUTTON_DEFAULTS: Required<Pick<InputGroupButtonProperties, "variant" | "size" | "type">> = {
     variant: "ghost",
     size: "sm",
     type: "button",
+};
+
+/** The places an addon sits around its group's control. */
+const ALIGNS = {
+    "inline-start": { title: t.context("option")`Inline start` },
+    "inline-end": { title: t.context("option")`Inline end` },
+    "block-start": { title: t.context("option")`Block start` },
+    "block-end": { title: t.context("option")`Block end` },
+};
+
+/** The properties people change in an addon's controls and inspector. */
+const INPUT_GROUP_ADDON_PROPERTIES = {
+    align: field
+        .enum(ALIGNS)
+        .labeled(t.context("label")`Align`)
+        .described(t`Whether the addon sits before, after, above or below the control.`)
+        .default("inline-start"),
+};
+
+/** The properties people change in a group's input's controls and inspector: its input's own. */
+const INPUT_GROUP_INPUT_PROPERTIES = {
+    placeholder: Input.properties.placeholder,
+    disabled: Input.properties.disabled,
+    readonly: Input.properties.readonly,
+    required: Input.properties.required,
 };
 
 /** The styles of an input group and its elements. */
@@ -142,7 +169,7 @@ const alignments = style.create({
 });
 
 /** Where an addon sits around its group's control. */
-export type InputGroupAlign = "inline-start" | "inline-end" | "block-start" | "block-end";
+export type InputGroupAlign = keyof typeof ALIGNS;
 
 /** The properties of an element of an input group, the native element's attributes included. */
 export type InputGroupElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivElement>> = Omit<
@@ -155,11 +182,8 @@ export type InputGroupElementProperties<Attributes = JSX.HTMLAttributes<HTMLDivE
     readonly render?: Render;
 };
 
-/** The properties of an input group's addon, the native element's attributes included. */
-export interface InputGroupAddonProperties extends InputGroupElementProperties {
-    /** Where the addon sits, inline-start by default. */
-    readonly align?: InputGroupAlign;
-}
+/** The properties of an input group's addon besides its declared ones: its native attributes. */
+export type InputGroupAddonAttributes = InputGroupElementProperties;
 
 /** The properties of an input group's button, a ghost extra-small button by default. */
 export type InputGroupButtonProperties = ButtonProperties;
@@ -179,29 +203,40 @@ export function InputGroup(properties: InputGroupElementProperties): JSX.Element
 }
 
 /** Render icons, text or buttons beside or around a group's control. */
-export function InputGroupAddon(properties: InputGroupAddonProperties): JSX.Element {
-    const addon = merge(ADDON_DEFAULTS, properties);
-    const rest = omit(addon, "align", "onClick");
+export const InputGroupAddon = defineComponent({
+    name: "inputGroupAddon",
+    properties: INPUT_GROUP_ADDON_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            InputGroupAddonAttributes,
+            typeof INPUT_GROUP_ADDON_PROPERTIES
+        >,
+    ): JSX.Element {
+        const rest = omit(properties, "align", "onClick");
 
-    return renderPart(
-        "div",
-        "input-group-addon",
-        rest,
-        () => [text.sm, styles.addon, alignments[addon.align], addonMarker],
-        {
-            get "data-align"() {
-                return addon.align;
+        return renderPart(
+            "div",
+            "input-group-addon",
+            rest,
+            () => [text.sm, styles.addon, alignments[properties.align], addonMarker],
+            {
+                get "data-align"() {
+                    return properties.align;
+                },
+                role: "group" as const,
+                onClick: (event) => {
+                    focusControl(event);
+                    if (typeof properties.onClick === "function") {
+                        properties.onClick(event);
+                    }
+                },
             },
-            role: "group" as const,
-            onClick: (event) => {
-                focusControl(event);
-                if (typeof addon.onClick === "function") {
-                    addon.onClick(event);
-                }
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of an input group's addon, the native element's attributes included. */
+export type InputGroupAddonProperties = ComponentProperties<typeof InputGroupAddon>;
 
 /** Focus the control of an addon's group unless the click pressed a button. */
 function focusControl(event: MouseEvent & { readonly currentTarget: HTMLDivElement }): void {
@@ -227,17 +262,35 @@ export function InputGroupText(
     return renderPart("span", "input-group-text", properties, [text.sm, styles.text]);
 }
 
-/** Render a group's input, tied to its field like any input. */
-export function InputGroupInput(properties: InputProperties): JSX.Element {
-    return (
-        <Input
-            variant="plain"
-            data-slot="input-group-control"
-            {...properties}
-            xstyle={[styles.control, controlMarker, properties.xstyle]}
-        />
-    );
-}
+/** The properties of a group's input besides its declared ones: its input's other attributes. */
+export type InputGroupInputAttributes = Omit<
+    InputProperties,
+    "variant" | keyof typeof INPUT_GROUP_INPUT_PROPERTIES
+>;
+
+/** Render a group's input, plain inside its group's frame, tied to its field like any input. */
+export const InputGroupInput = defineComponent({
+    name: "inputGroupInput",
+    properties: INPUT_GROUP_INPUT_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            InputGroupInputAttributes,
+            typeof INPUT_GROUP_INPUT_PROPERTIES
+        >,
+    ): JSX.Element {
+        return (
+            <Input
+                variant="plain"
+                data-slot="input-group-control"
+                {...properties}
+                xstyle={[styles.control, controlMarker, properties.xstyle]}
+            />
+        );
+    },
+});
+
+/** The properties of a group's input, the native input's attributes included. */
+export type InputGroupInputProperties = ComponentProperties<typeof InputGroupInput>;
 
 /** Render a group's textarea, tied to its field like any textarea. */
 export function InputGroupTextarea(properties: TextareaProperties): JSX.Element {

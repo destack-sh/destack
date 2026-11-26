@@ -2,7 +2,6 @@ import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { createSignal } from "@destack/view";
 import { Field, FieldDescription, FieldError, FieldLabel } from "../field/index.ts";
-import { Stack } from "../stack/index.ts";
 import {
     type TagRefusal,
     TagField,
@@ -40,7 +39,7 @@ export const tagFieldInvite = defineExample({
     name: "invite",
     description: t`The people of an invitation, whose addresses are checked, three at most.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         const [problem, setProblem] = createSignal("");
 
         return (
@@ -54,6 +53,7 @@ export const tagFieldInvite = defineExample({
                     validate={(tag) => tag.includes("@")}
                     onValueInvalid={(tag, refusal) => setProblem(`${tag} ${REFUSALS[refusal]}`)}
                     onInputValueChange={() => setProblem("")}
+                    {...properties}
                 >
                     <TagFieldList />
                     <TagFieldInput inputmode="email" placeholder="name@example.com" />
@@ -63,18 +63,4 @@ export const tagFieldInvite = defineExample({
             </Field>
         );
     },
-});
-
-/** Tags a person reads, and a field a person cannot use. */
-export const tagFieldReadOnly = defineExample({
-    of: TagField,
-    name: "readOnly",
-    description: t`Tags a person reads, and a field a person cannot use.`,
-    layout: "padded",
-    render: () => (
-        <Stack space="4">
-            <TagField readOnly defaultValue={["travel", "lisbon"]} />
-            <TagField disabled defaultValue={["travel", "lisbon"]} />
-        </Stack>
-    ),
 });

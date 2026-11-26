@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { LayoutAnimation } from "../motion/index.ts";
 import { transition } from "@destack/theme/motion";
@@ -12,8 +13,14 @@ const ANCHOR_AREA = "self-block-end span-self-inline-end";
 /** The gap between an overlay at a point and the edges of the screen, in pixels. */
 const EDGE = 4;
 
+/** The axes things run along, as a person chooses one. */
+export const AXES = {
+    horizontal: { title: t.context("option")`Horizontal` },
+    vertical: { title: t.context("option")`Vertical` },
+};
+
 /** An axis things run along. */
-export type Axis = "horizontal" | "vertical";
+export type Axis = keyof typeof AXES;
 
 /** The side of its anchor an overlay opens on. */
 export type Side = "top" | "right" | "bottom" | "left";

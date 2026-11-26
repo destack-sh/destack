@@ -1,3 +1,5 @@
+import { Input } from "../input/index.ts";
+import { field } from "@destack/object";
 import checkIcon from "@destack/icon/phosphor/check";
 import pencilIcon from "@destack/icon/phosphor/pencil-simple";
 import xIcon from "@destack/icon/phosphor/x";
@@ -28,9 +30,31 @@ import {
     mergeProperties,
     renderPart,
 } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** How a text is changed and kept where its owner does not say. */
 const DEFAULTS = { activationMode: "click", submitMode: "both" } as const;
+
+/** The properties people change in an editable text's controls and inspector. */
+const EDITABLE_PROPERTIES = {
+    placeholder: Input.properties.placeholder,
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses changes where the text cannot change now, as its field does when absent.`,
+        )
+        .optional(),
+    readOnly: field
+        .boolean()
+        .labeled(t.context("label")`Read only`)
+        .described(t`Shows the text, which a person cannot change.`)
+        .default(false),
+};
 
 /** The styles of a text changed in place and its parts. */
 const styles = style.create({
@@ -94,8 +118,10 @@ export type EditableElementProperties<Target extends HTMLElement = HTMLDivElemen
 > &
     ElementPartProperties;
 
-/** The properties of a text changed in place: its text, how it is changed and kept, its form. */
-export type EditableProperties = EditableElementProperties & {
+/** The properties of an editable text besides its declared ones: its text, modes and form. */
+export type EditableAttributes = EditableElementProperties & {
+    /** Whether the text has lines, which Enter breaks and the command key with Enter keeps. */
+    readonly multiline?: boolean;
     /** The text. */
     readonly value?: string;
     /** The text at first while uncontrolled, none by default. */
@@ -118,18 +144,10 @@ export type EditableProperties = EditableElementProperties & {
     readonly submitMode?: "enter" | "blur" | "both" | "none";
     /** Whether the text is selected as the change begins, as it is by default. */
     readonly selectOnFocus?: boolean;
-    /** Whether the text has lines, which Enter breaks and the command key with Enter keeps. */
-    readonly multiline?: boolean;
-    /** What it shows while it is empty. */
-    readonly placeholder?: string;
     /** The most characters it has, any number by default. */
     readonly maxLength?: number;
     /** Whether an empty text is put back as it was, as a title's is. */
     readonly required?: boolean;
-    /** Whether it ignores the person. */
-    readonly disabled?: boolean;
-    /** Whether the person reads the text but does not change it. */
-    readonly readOnly?: boolean;
     /** The form field name it submits its text under. */
     readonly name?: string;
     /** The id of the form it belongs to, its ancestor form by default. */
@@ -145,7 +163,7 @@ export class EditableControl {
     /** The field around it, null outside one. */
     readonly field: FieldControl | null;
     /** The properties. */
-    readonly properties: EditableProperties;
+    readonly properties: RenderProperties<EditableAttributes, typeof EDITABLE_PROPERTIES>;
     /** The element around it. */
     element: HTMLElement | undefined;
     /** Set the text. */
@@ -156,7 +174,10 @@ export class EditableControl {
     #before = "";
 
     /** Follow a text. */
-    constructor(properties: EditableProperties, field: FieldControl | null) {
+    constructor(
+        properties: RenderProperties<EditableAttributes, typeof EDITABLE_PROPERTIES>,
+        fieldControl: FieldControl | null,
+    ) {
         // follow the controlled text and change, or its own
         const [value, setValue] = createControllableSignal<string>({
             isControlled: () => "value" in properties,
@@ -173,14 +194,19 @@ export class EditableControl {
         this.value = value;
         this.isEdited = isEdited;
         this.properties = properties;
-        this.field = field;
+        this.field = fieldControl;
         this.#setValue = setValue;
         this.#setEdited = setEdited;
     }
 
+    /** Report whether it refuses the person, by its own value or its field's. */
+    isDisabled(): boolean {
+        return this.properties.disabled === true || this.field?.isDisabled() === true;
+    }
+
     /** Report whether a person changes it. */
     isEditable(): boolean {
-        return this.properties.disabled !== true && this.properties.readOnly !== true;
+        return !this.isDisabled() && !this.properties.readOnly;
     }
 
     /** Begin the change. */
@@ -250,72 +276,83 @@ export function useEditable(): EditableControl {
 }
 
 /** Render a text a person changes where it stands. */
-export function Editable(given: EditableProperties): JSX.Element {
-    // edit the value of the field's form
-    const bound = useFieldValue(given, { value: "value", change: "onValueChange", read: readText });
-    const properties = merge(DEFAULTS, bound);
-    const control = new EditableControl(properties, useFieldControl());
-    const rest = omit(
-        properties,
-        "value",
-        "defaultValue",
-        "onValueChange",
-        "onValueCommitted",
-        "onValueReverted",
-        "edit",
-        "defaultEdit",
-        "onEditChange",
-        "activationMode",
-        "submitMode",
-        "selectOnFocus",
-        "multiline",
-        "placeholder",
-        "maxLength",
-        "required",
-        "disabled",
-        "readOnly",
-        "name",
-        "form",
-        "children",
-    );
+export const Editable = defineComponent({
+    name: "editable",
+    properties: EDITABLE_PROPERTIES,
+    render(given: RenderProperties<EditableAttributes, typeof EDITABLE_PROPERTIES>): JSX.Element {
+        // edit the value of the field's form
+        const bound = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: readText,
+        });
+        const properties = merge(DEFAULTS, bound);
+        const control = new EditableControl(properties, useFieldControl());
+        const rest = omit(
+            properties,
+            "value",
+            "defaultValue",
+            "onValueChange",
+            "onValueCommitted",
+            "onValueReverted",
+            "edit",
+            "defaultEdit",
+            "onEditChange",
+            "activationMode",
+            "submitMode",
+            "selectOnFocus",
+            "multiline",
+            "placeholder",
+            "maxLength",
+            "required",
+            "disabled",
+            "readOnly",
+            "name",
+            "form",
+            "children",
+        );
 
-    return (
-        <EditableContext value={control}>
-            {renderPart("div", "editable", rest, styles.editable, {
-                ref: (element: HTMLElement) => (control.element = element),
-                get "data-editing"() {
-                    return control.isEdited() ? "" : undefined;
-                },
-                get "data-disabled"() {
-                    return properties.disabled === true ? "" : undefined;
-                },
-                get "data-readonly"() {
-                    return properties.readOnly === true ? "" : undefined;
-                },
-                get children() {
-                    return (
-                        <>
-                            {contentOr(properties, () => (
-                                <>
-                                    <EditablePreview />
-                                    <EditableInput />
-                                </>
-                            ))}
-                            <Show when={properties.name}>
-                                <input
-                                    type="hidden"
-                                    name={properties.name}
-                                    form={properties.form}
-                                    value={control.value()}
-                                />
-                            </Show>
-                        </>
-                    );
-                },
-            })}
-        </EditableContext>
-    );
-}
+        return (
+            <EditableContext value={control}>
+                {renderPart("div", "editable", rest, styles.editable, {
+                    ref: (element: HTMLElement) => (control.element = element),
+                    get "data-editing"() {
+                        return control.isEdited() ? "" : undefined;
+                    },
+                    get "data-disabled"() {
+                        return control.isDisabled() ? "" : undefined;
+                    },
+                    get "data-readonly"() {
+                        return properties.readOnly ? "" : undefined;
+                    },
+                    get children() {
+                        return (
+                            <>
+                                {contentOr(properties, () => (
+                                    <>
+                                        <EditablePreview />
+                                        <EditableInput />
+                                    </>
+                                ))}
+                                <Show when={properties.name}>
+                                    <input
+                                        type="hidden"
+                                        name={properties.name}
+                                        form={properties.form}
+                                        value={control.value()}
+                                    />
+                                </Show>
+                            </>
+                        );
+                    },
+                })}
+            </EditableContext>
+        );
+    },
+});
+
+/** The properties of an editable text, its text, modes and form included. */
+export type EditableProperties = ComponentProperties<typeof Editable>;
 
 /** Render the text as it is read, which a press or Enter begins to change. */
 export function EditablePreview(

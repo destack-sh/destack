@@ -39,6 +39,12 @@ import {
     type NumberFieldStep,
     useNumberField,
 } from "./control.ts";
+import { field } from "@destack/object";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** How long a button is pressed before it steps again, in milliseconds, as Base UI's. */
 const REPEAT_DELAY = 400;
@@ -48,6 +54,22 @@ const REPEAT_INTERVAL = 60;
 
 /** How far a pointer moves for each step it scrubs, in pixels, as Base UI's. */
 const SCRUB_DISTANCE = 2;
+
+/** The properties people change in a number field's controls and inspector. */
+const NUMBER_FIELD_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses input where the number cannot change now, as its field does when absent.`,
+        )
+        .optional(),
+    readOnly: field
+        .boolean()
+        .labeled(t.context("label")`Read only`)
+        .described(t`Shows the number, which a person cannot change.`)
+        .default(false),
+};
 
 /** The styles of a number field. */
 const styles = style.create({
@@ -116,56 +138,65 @@ const ATTRIBUTES = [
     "aria-invalid",
 ] as const;
 
-/** The properties of a number field, with its element's attributes. */
-export type NumberFieldProperties = NumberFieldOptions &
+/** The properties of a number field besides its declared ones: its options and attributes. */
+export type NumberFieldAttributes = NumberFieldOptions &
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | keyof NumberFieldOptions> &
     ElementPartProperties;
 
 /** Render a field of a number, written and read as people of the language write it. */
-export function NumberField(given: NumberFieldProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onValueChange",
-        read: (value) => (typeof value === "number" ? value : undefined),
-    });
+export const NumberField = defineComponent({
+    name: "numberField",
+    properties: NUMBER_FIELD_PROPERTIES,
+    render(
+        given: RenderProperties<NumberFieldAttributes, typeof NUMBER_FIELD_PROPERTIES>,
+    ): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: (value) => (typeof value === "number" ? value : undefined),
+        });
 
-    // share the number with the parts
-    const control = new NumberFieldControl(properties, useFieldControl(), useLocale());
-    let element: HTMLElement | undefined;
-    const rest = omit(properties, ...OPTIONS, ...ATTRIBUTES, "children");
+        // share the number with the parts
+        const control = new NumberFieldControl(properties, useFieldControl(), useLocale());
+        let element: HTMLElement | undefined;
+        const rest = omit(properties, ...OPTIONS, ...ATTRIBUTES, "children");
 
-    return (
-        <NumberFieldContext value={control}>
-            {renderPart("div", "number-field", rest, styles.field, {
-                ref: (created: HTMLElement) => (element = created),
-                get "data-disabled"() {
-                    return control.isDisabled() ? "" : undefined;
-                },
-                get children() {
-                    return (
-                        <>
-                            {contentOr(properties, () => (
-                                <NumberFieldParts />
-                            ))}
-                            <Show when={isFormControl(properties) || control.refusal() !== ""}>
-                                <FormInput
-                                    name={properties.name}
-                                    form={properties.form}
-                                    disabled={control.isDisabled()}
-                                    value={String(control.value() ?? "")}
-                                    error={control.refusal()}
-                                    onReset={() => control.reset()}
-                                    onFocus={() => element?.querySelector("input")?.focus()}
-                                />
-                            </Show>
-                        </>
-                    );
-                },
-            })}
-        </NumberFieldContext>
-    );
-}
+        return (
+            <NumberFieldContext value={control}>
+                {renderPart("div", "number-field", rest, styles.field, {
+                    ref: (created: HTMLElement) => (element = created),
+                    get "data-disabled"() {
+                        return control.isDisabled() ? "" : undefined;
+                    },
+                    get children() {
+                        return (
+                            <>
+                                {contentOr(properties, () => (
+                                    <NumberFieldParts />
+                                ))}
+                                <Show when={isFormControl(properties) || control.refusal() !== ""}>
+                                    <FormInput
+                                        name={properties.name}
+                                        form={properties.form}
+                                        disabled={control.isDisabled()}
+                                        value={String(control.value() ?? "")}
+                                        error={control.refusal()}
+                                        onReset={() => control.reset()}
+                                        onFocus={() => element?.querySelector("input")?.focus()}
+                                    />
+                                </Show>
+                            </>
+                        );
+                    },
+                })}
+            </NumberFieldContext>
+        );
+    },
+});
+
+/** The properties of a number field, with its element's attributes. */
+export type NumberFieldProperties = ComponentProperties<typeof NumberField>;
 
 /** Render the usual parts of a number field. */
 function NumberFieldParts(): JSX.Element {

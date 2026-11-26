@@ -5,7 +5,6 @@ import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { createSignal } from "@destack/view";
 import { Button } from "../button/index.ts";
-import { Cluster } from "../cluster/index.ts";
 import { ColorSwatchPicker } from "../color-swatch-picker/index.ts";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import {
@@ -42,7 +41,7 @@ export const colorPickerLabel = defineExample({
     of: ColorPicker,
     name: "label",
     description: t`A label's color in a popover, with its opacity, presets and the screen's colors.`,
-    render: () => {
+    render: (properties) => {
         const [color, setColor] = createSignal("#0090ff");
 
         return (
@@ -56,7 +55,11 @@ export const colorPickerLabel = defineExample({
                     )}
                 />
                 <PopoverContent xstyle={styles.content} aria-label="Color">
-                    <ColorPicker value={color()} onValueChange={(next) => void setColor(next)}>
+                    <ColorPicker
+                        {...properties}
+                        value={color()}
+                        onValueChange={(next) => void setColor(next)}
+                    >
                         <ColorArea />
                         <ColorSlider channel="hue" />
                         <ColorSlider channel="alpha" />
@@ -81,8 +84,8 @@ export const colorPickerPerceived = defineExample({
     of: ColorPicker,
     name: "perceived",
     description: t`A color as people see it: lightness and chroma, the hue, and each as a number.`,
-    render: () => (
-        <ColorPicker defaultValue="oklch(69% 0.19 45)" format="oklch">
+    render: (properties) => (
+        <ColorPicker defaultValue="oklch(69% 0.19 45)" format="oklch" {...properties}>
             <ColorArea colorSpace="oklch" />
             <ColorSlider colorSpace="oklch" channel="hue" />
             <div {...style.attrs(styles.row)}>
@@ -99,19 +102,57 @@ export const colorPickerPerceived = defineExample({
 export const colorPickerChannels = defineExample({
     of: ColorPicker,
     name: "channels",
-    description: t`Red, green and blue as sliders, and a picker a person cannot use.`,
-    render: () => (
-        <Cluster space="6">
-            <ColorPicker defaultValue="#30a46c">
-                <ColorSlider colorSpace="rgb" channel="red" />
-                <ColorSlider colorSpace="rgb" channel="green" />
-                <ColorSlider colorSpace="rgb" channel="blue" />
-            </ColorPicker>
-            <ColorPicker disabled defaultValue="#8e4ec6">
-                <ColorArea />
-                <ColorSlider channel="hue" />
-                <ColorField />
-            </ColorPicker>
-        </Cluster>
+    description: t`Red, green and blue as sliders.`,
+    render: (properties) => (
+        <ColorPicker defaultValue="#30a46c" {...properties}>
+            <ColorSlider colorSpace="rgb" channel="red" />
+            <ColorSlider colorSpace="rgb" channel="green" />
+            <ColorSlider colorSpace="rgb" channel="blue" />
+        </ColorPicker>
     ),
+});
+
+/** An accent's saturation and brightness, its hue kept. */
+export const colorAreaDefault = defineExample({
+    of: ColorArea,
+    name: "default",
+    description: t`An accent's saturation and brightness, its hue kept.`,
+    render: (properties) => (
+        <ColorPicker defaultValue="#f76b15">
+            <ColorArea {...properties} />
+        </ColorPicker>
+    ),
+});
+
+/** An accent's hue as a slider. */
+export const colorSliderDefault = defineExample({
+    of: ColorSlider,
+    name: "default",
+    description: t`An accent's hue as a slider.`,
+    render: (properties) => (
+        <ColorPicker defaultValue="#f76b15">
+            <ColorSlider channel="hue" {...properties} />
+        </ColorPicker>
+    ),
+});
+
+/** An accent written out to edit. */
+export const colorFieldDefault = defineExample({
+    of: ColorField,
+    name: "default",
+    description: t`An accent written out to edit.`,
+    render: (properties) => (
+        <ColorPicker defaultValue="#f76b15">
+            <ColorField aria-label="Accent" {...properties} />
+        </ColorPicker>
+    ),
+});
+
+/** A label's color, over squares where it is see-through. */
+export const colorSwatchDefault = defineExample({
+    of: ColorSwatch,
+    name: "default",
+    description: t`A label's color, over squares where it is see-through.`,
+    properties: { color: "rgb(0 144 255 / 60%)" },
+    render: (properties) => <ColorSwatch {...properties} />,
 });

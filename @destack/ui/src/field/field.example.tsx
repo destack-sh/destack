@@ -43,7 +43,7 @@ export const fieldNotebookForm = defineExample({
     layout: "padded",
     name: "notebookForm",
     description: t`A notebook form whose name field reports an error until it has a value.`,
-    render: () => {
+    render: (properties) => {
         const [name, setName] = createSignal("");
         const error = (): string | undefined => (name() === "" ? "Enter a name" : undefined);
 
@@ -59,45 +59,7 @@ export const fieldNotebookForm = defineExample({
                         />
                         <FieldError errors={[{ message: error() }]} />
                     </Field>
-                    <Field>
-                        <FieldLabel>Description</FieldLabel>
-                        <Textarea />
-                        <FieldDescription>
-                            Shown to everyone you share the notebook with.
-                        </FieldDescription>
-                    </Field>
-                </FieldGroup>
-            </FieldSet>
-        );
-    },
-});
-
-/** A notebook form unavailable while it saves. */
-export const fieldNotebookFormDisabled = defineExample({
-    of: Field,
-    layout: "padded",
-    name: "notebookFormDisabled",
-    description: t`A notebook form unavailable while it saves.`,
-    properties: {
-        disabled: true,
-    },
-    render: (properties) => {
-        const [name, setName] = createSignal("");
-        const error = (): string | undefined => (name() === "" ? "Enter a name" : undefined);
-
-        return (
-            <FieldSet xstyle={styles.form}>
-                <FieldLegend>Notebook</FieldLegend>
-                <FieldGroup>
                     <Field {...properties}>
-                        <FieldLabel>Name</FieldLabel>
-                        <Input
-                            value={name()}
-                            onInput={(event) => setName(event.currentTarget.value)}
-                        />
-                        <FieldError errors={[{ message: error() }]} />
-                    </Field>
-                    <Field disabled>
                         <FieldLabel>Description</FieldLabel>
                         <Textarea />
                         <FieldDescription>
@@ -116,7 +78,7 @@ export const fieldEventForm = defineExample({
     name: "eventForm",
     description: t`An event's settings: every control with its label, its help and its error.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         // refuse an event without seats
         const [seats, setSeats] = createSignal("0");
         const isFull = (): boolean => Number(seats()) < 1;
@@ -127,7 +89,7 @@ export const fieldEventForm = defineExample({
                 <FieldDescription>Guests see these once you send the invitations.</FieldDescription>
                 <FieldGroup>
                     {/* Text */}
-                    <Field>
+                    <Field {...properties}>
                         <FieldLabel>Title</FieldLabel>
                         <Input value="Launch party" />
                     </Field>
@@ -192,4 +154,24 @@ export const fieldEventForm = defineExample({
             </FieldSet>
         );
     },
+});
+
+/** The channels a person is told by, under their legend. */
+export const fieldLegendDefault = defineExample({
+    of: FieldLegend,
+    name: "default",
+    description: t`The channels a person is told by, under their legend.`,
+    render: (properties) => (
+        <FieldSet>
+            <FieldLegend {...properties}>Tell me by</FieldLegend>
+            <Field orientation="horizontal">
+                <Checkbox defaultChecked />
+                <FieldLabel>Mail</FieldLabel>
+            </Field>
+            <Field orientation="horizontal">
+                <Checkbox />
+                <FieldLabel>Push</FieldLabel>
+            </Field>
+        </FieldSet>
+    ),
 });

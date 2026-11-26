@@ -21,6 +21,8 @@ import { type FieldControl, useFieldControl, useFieldValue } from "../field/cont
 import { ListState } from "../focus/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { FormInput, type FormInputProperties, isFormControl } from "../form-input/index.ts";
+import { HOUR_CYCLES } from "./format.ts";
+import { field } from "@destack/object";
 
 /** The text an empty hour, minute or day period shows. */
 const PLACEHOLDER_TIME = "––";
@@ -56,6 +58,34 @@ const CHANGES: ReadonlySet<string> = new Set([
     "Backspace",
     "Delete",
 ]);
+
+/** The properties people change in a date, time or instant field's controls and inspector. */
+export const SEGMENT_FIELD_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses input where the value cannot change now, as its field does when absent.`,
+        )
+        .optional(),
+    readOnly: field
+        .boolean()
+        .labeled(t.context("label")`Read only`)
+        .described(t`Shows the value, its segments in reach of the keys but unchanged.`)
+        .default(false),
+};
+
+/** The properties people change in a time or instant field's controls and inspector. */
+export const TIME_SEGMENT_FIELD_PROPERTIES = {
+    ...SEGMENT_FIELD_PROPERTIES,
+    hourCycle: field
+        .enum(HOUR_CYCLES)
+        .labeled(t.context("label")`Hour cycle`)
+        .described(
+            t`Whether the hours count to 12 beside a day period or to 23, the language's by default.`,
+        )
+        .optional(),
+};
 
 /** The styles of a segmented field and its segments. */
 const styles = style.create({
@@ -243,12 +273,12 @@ export class DateSegmentControl {
     /** Create the state of a segmented field from its group's properties. */
     constructor(
         properties: DateSegmentGroupProperties,
-        field: FieldControl | null,
+        fieldControl: FieldControl | null,
         locale: Localization,
     ) {
         // set the properties and field, and the segments the arrow keys move between
         this.properties = properties;
-        this.field = field;
+        this.field = fieldControl;
         this.list = new ListState({
             orientation: "horizontal",
             isLooping: false,
@@ -400,7 +430,7 @@ export function DateSegmentField<Value>(
     // follow the value, and the segments typed so far
     const format = untrack(() => properties.format);
     const locale = useLocale();
-    const field = useFieldControl();
+    const fieldControl = useFieldControl();
     const rest = omit(
         properties,
         "format",
@@ -476,7 +506,9 @@ export function DateSegmentField<Value>(
                         name={properties.name}
                         form={properties.form}
                         required={properties.required}
-                        disabled={properties.disabled === true || field?.isDisabled() === true}
+                        disabled={
+                            properties.disabled === true || fieldControl?.isDisabled() === true
+                        }
                         value={writeOf(value())}
                         error={refusal()}
                         onReset={reset}
@@ -501,9 +533,9 @@ export function DateSegmentField<Value>(
 /** Render a group of spinbuttons, one per part of a date or time. */
 export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.Element {
     // label the group by its field's label and collect the digits typed into the focused segment
-    const field = useFieldControl();
+    const fieldControl = useFieldControl();
     const locale = useLocale();
-    const control = new DateSegmentControl(properties, field, locale);
+    const control = new DateSegmentControl(properties, fieldControl, locale);
     const rest = omit(
         properties,
         "format",
@@ -516,16 +548,16 @@ export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.El
         "xstyle",
         "style",
     );
-    field?.group();
+    fieldControl?.group();
     const isInvalid = (): boolean =>
         properties.invalid === true ||
-        field?.isInvalid() === true ||
+        fieldControl?.isInvalid() === true ||
         properties["aria-invalid"] === "true";
 
     return (
         <div
             role="group"
-            {...field?.groupAttributes()}
+            {...fieldControl?.groupAttributes()}
             {...rest}
             aria-invalid={isInvalid() ? "true" : undefined}
             onFocusOut={(event) => control.list.focus.focusOut(event)}

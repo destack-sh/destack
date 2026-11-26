@@ -1,5 +1,6 @@
 import { Color, type ColorFormat, type ColorSpace } from "@destack/color";
 import { type Message, t } from "@destack/locale";
+import type { FieldControl } from "../field/control.ts";
 import type { ColorChannel } from "@destack/color";
 import {
     type Accessor,
@@ -37,8 +38,8 @@ export interface ColorPickerOptions {
     readonly onValueCommitted?: (value: string) => void;
     /** How the color is written, hexadecimal by default. */
     readonly format?: ColorFormat;
-    /** Whether the parts ignore the person. */
-    readonly disabled?: boolean;
+    /** Whether the parts ignore the person, as its field does when absent. */
+    readonly disabled?: boolean | undefined;
 }
 
 /** The color of a picker, which its parts share whatever space each shows. */
@@ -47,13 +48,15 @@ export class ColorPickerControl {
     readonly value: Accessor<string>;
     /** The picker's properties. */
     readonly #options: ColorPickerOptions;
+    /** The field around the picker, null outside one. */
+    readonly #field: FieldControl | null;
     /** Replace the written color and tell the change handler. */
     readonly #setValue: (value: string) => void;
     /** The color last picked, whose hue a gray one keeps, and the way it was written. */
     #picked: { readonly color: Color; readonly value: string } | undefined;
 
     /** Follow a picker's color. */
-    constructor(options: ColorPickerOptions) {
+    constructor(options: ColorPickerOptions, fieldControl: FieldControl | null) {
         // follow the controlled color or the picker's own
         const [value, setValue] = createControllableSignal<string>({
             isControlled: () => "value" in options,
@@ -63,6 +66,7 @@ export class ColorPickerControl {
         });
         this.value = value;
         this.#options = options;
+        this.#field = fieldControl;
         this.#setValue = setValue;
     }
 
@@ -94,7 +98,7 @@ export class ColorPickerControl {
 
     /** Report whether the parts ignore the person. */
     isDisabled(): boolean {
-        return this.#options.disabled === true;
+        return this.#options.disabled === true || this.#field?.isDisabled() === true;
     }
 }
 

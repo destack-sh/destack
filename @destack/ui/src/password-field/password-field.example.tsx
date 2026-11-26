@@ -8,10 +8,10 @@ export const passwordFieldSignIn = defineExample({
     of: PasswordField,
     name: "signIn",
     description: t`A password a person gives.`,
-    render: () => (
+    render: (properties) => (
         <Field>
             <FieldLabel>Password</FieldLabel>
-            <PasswordField defaultValue="correct horse" />
+            <PasswordField defaultValue="correct horse" {...properties} />
         </Field>
     ),
 });
@@ -21,10 +21,15 @@ export const passwordFieldInvalid = defineExample({
     of: PasswordField,
     name: "invalid",
     description: t`A secret that is refused.`,
-    render: () => (
+    render: (properties) => (
         <Field data-invalid="true">
             <FieldLabel>Token</FieldLabel>
-            <PasswordField autocomplete="off" aria-invalid="true" defaultValue="token" />
+            <PasswordField
+                autocomplete="off"
+                aria-invalid="true"
+                defaultValue="token"
+                {...properties}
+            />
             <FieldError>The token expired.</FieldError>
         </Field>
     ),

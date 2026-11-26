@@ -9,7 +9,6 @@ import {
     For,
     type FormField,
     type JSX,
-    merge,
     omit,
     onCleanup,
     Show,
@@ -18,20 +17,64 @@ import {
     useLocale,
 } from "@destack/view";
 import { t } from "@destack/locale";
+import { field } from "@destack/object";
 import { Button } from "../button/index.ts";
 import { Label, type LabelProperties } from "../label/index.ts";
 import { FieldContext, FieldControl, useFieldControl } from "./control.ts";
 import { Separator } from "../separator/index.ts";
 import { mergeProperties, renderPart, type Render } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The width of a field group above which responsive fields lay out in a row. */
 const RESPONSIVE_QUERY = "@container field-group (min-width: 28rem)";
 
-/** The orientation of a field that sets none. */
-const DEFAULTS: Required<Pick<FieldProperties, "orientation">> = { orientation: "vertical" };
+/** The directions a field lays out its label and control in. */
+const ORIENTATIONS = {
+    vertical: { title: t.context("option")`Vertical` },
+    horizontal: { title: t.context("option")`Horizontal` },
+    responsive: {
+        title: t.context("option")`Responsive`,
+        description: t`In a row where its field group is wide enough, else in a column.`,
+    },
+};
 
-/** The variant of a legend that sets none. */
-const LEGEND_DEFAULTS: Required<Pick<FieldLegendProperties, "variant">> = { variant: "legend" };
+/** The looks of a legend: a section heading or a label. */
+const LEGEND_VARIANTS = {
+    legend: { title: t.context("option")`Legend` },
+    label: { title: t.context("option")`Label` },
+};
+
+/** The properties people change in a field's controls and inspector. */
+const FIELD_PROPERTIES = {
+    orientation: field
+        .enum(ORIENTATIONS)
+        .labeled(t.context("label")`Orientation`)
+        .described(t`Whether the label sits above its control or beside it.`)
+        .default("vertical"),
+    invalid: field
+        .boolean()
+        .labeled(t.context("label")`Invalid`)
+        .described(t`Marks the control and colors the field, as for a refused value.`)
+        .default(false),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses input in the field's control.`)
+        .default(false),
+};
+
+/** The properties people change in a legend's controls and inspector. */
+const FIELD_LEGEND_PROPERTIES = {
+    variant: field
+        .enum(LEGEND_VARIANTS)
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether the legend heads a section or reads as a label.`)
+        .default("legend"),
+};
 
 /** An error as it appears. */
 const appear = style.keyframes({
@@ -156,10 +199,10 @@ const orientations = style.create({
 const legends = { legend: text.base, label: text.xs } as const;
 
 /** The direction a field lays out its label and control in. */
-export type FieldOrientation = "vertical" | "horizontal" | "responsive";
+export type FieldOrientation = keyof typeof ORIENTATIONS;
 
 /** The look of a legend: a section heading or a label. */
-export type FieldLegendVariant = "legend" | "label";
+export type FieldLegendVariant = keyof typeof LEGEND_VARIANTS;
 
 /** The properties of an element of a field, the native element's attributes included. */
 export type FieldElementProperties<Target extends HTMLElement> = Omit<
@@ -172,23 +215,14 @@ export type FieldElementProperties<Target extends HTMLElement> = Omit<
     readonly render?: Render;
 };
 
-/** The properties of a field. */
-export interface FieldProperties extends FieldElementProperties<HTMLDivElement> {
-    /** The direction of its label and control, vertical by default. */
-    readonly orientation?: FieldOrientation;
-    /** Whether the value is invalid, which marks the control and colors the field. */
-    readonly invalid?: boolean;
-    /** Whether the field is disabled, which disables the control. */
-    readonly disabled?: boolean;
+/** The properties of a field besides its declared ones: its native attributes and form value. */
+export interface FieldAttributes extends FieldElementProperties<HTMLDivElement> {
     /** The value of a form its control edits, which tells what is wrong with it. */
     readonly field?: FormField<unknown> | undefined;
 }
 
-/** The properties of a legend. */
-export interface FieldLegendProperties extends FieldElementProperties<HTMLLegendElement> {
-    /** The look, legend by default. */
-    readonly variant?: FieldLegendVariant;
-}
+/** The properties of a legend besides its declared ones: its native attributes. */
+export type FieldLegendAttributes = FieldElementProperties<HTMLLegendElement>;
 
 /** The properties of a field's error message. */
 export interface FieldErrorProperties extends FieldElementProperties<HTMLDivElement> {
@@ -197,115 +231,121 @@ export interface FieldErrorProperties extends FieldElementProperties<HTMLDivElem
 }
 
 /** Render a field that connects its label, control, descriptions and errors. */
-export function Field(properties: FieldProperties): JSX.Element {
-    // share one control with the field's elements
-    const field = merge(DEFAULTS, properties);
-    const rest = omit(field, "orientation", "invalid", "disabled", "field");
-    const control = new FieldControl(
-        () => field.invalid === true,
-        () => field.disabled === true,
-        untrack(() => field.field),
-        untrack(() => field.orientation) === "horizontal",
-    );
+export const Field = defineComponent({
+    name: "field",
+    properties: FIELD_PROPERTIES,
+    render(properties: RenderProperties<FieldAttributes, typeof FIELD_PROPERTIES>): JSX.Element {
+        // share one control with the field's elements
+        const rest = omit(properties, "orientation", "invalid", "disabled", "field");
+        const control = new FieldControl(
+            () => properties.invalid,
+            () => properties.disabled,
+            untrack(() => properties.field),
+            untrack(() => properties.orientation) === "horizontal",
+        );
 
-    // show what the browser says is wrong, and settle on the value as the focus leaves
-    const recheck = (event: Event): void => {
-        if (isCheckable(event.target)) {
-            control.recheck(event.target);
-        }
-    };
-    const refuse = (event: Event): void => {
-        // take the browser's place, and its focus on the form's first refused control
-        const { target } = event;
-        if (isCheckable(target) && control.refuse(target)) {
-            event.preventDefault();
-            const first = [...(target.form?.elements ?? [])].find(
-                (each) => isCheckable(each) && !each.validity.valid,
-            );
-            if (first === target) {
-                target.focus();
+        // show what the browser says is wrong, and settle on the value as the focus leaves
+        const recheck = (event: Event): void => {
+            if (isCheckable(event.target)) {
+                control.recheck(event.target);
             }
-        }
-    };
-
-    // settle on the value as the focus leaves
-    const { clock } = useEnvironment();
-    let press: AbortController | undefined;
-    let isPressed = false;
-    onCleanup(() => press?.abort());
-    const enter = (event: FocusEvent & { readonly currentTarget: HTMLElement }): void => {
-        // tell whether a press outside takes the focus
-        if (press === undefined) {
-            // follow presses until the value is settled on
-            press = new AbortController();
-            const { signal } = press;
-            const { ownerDocument } = event.currentTarget;
-            const options = { signal, capture: true };
-            ownerDocument.addEventListener("pointerdown", () => (isPressed = true), options);
-            ownerDocument.addEventListener("pointerup", () => (isPressed = false), options);
-            ownerDocument.addEventListener("pointercancel", () => (isPressed = false), options);
-        }
-    };
-    const leave = (event: FocusEvent & { readonly currentTarget: HTMLElement }): void => {
-        // stay while the focus does, or leaves with the window
-        const { currentTarget, relatedTarget } = event;
-        const { ownerDocument } = currentTarget;
-        const isInside = relatedTarget instanceof Node && currentTarget.contains(relatedTarget);
-        if (isInside || !ownerDocument.hasFocus()) {
-            return;
-        }
-        const settle = (): void => {
-            // stop following presses
-            press?.abort();
-            press = undefined;
-            isPressed = false;
-            control.value?.settle();
+        };
+        const refuse = (event: Event): void => {
+            // take the browser's place, and its focus on the form's first refused control
+            const { target } = event;
+            if (isCheckable(target) && control.refuse(target)) {
+                event.preventDefault();
+                const first = [...(target.form?.elements ?? [])].find(
+                    (each) => isCheckable(each) && !each.validity.valid,
+                );
+                if (first === target) {
+                    target.focus();
+                }
+            }
         };
 
-        // settle once a press is over, so an error never moves what is pressed
-        if (isPressed && press !== undefined) {
-            const options = { signal: press.signal, capture: true, once: true };
-            const wait = (): void => void clock.setTimeout(settle, 0);
-            ownerDocument.addEventListener("pointerup", wait, options);
-            ownerDocument.addEventListener("pointercancel", wait, options);
-        } else {
-            settle();
-        }
-    };
+        // settle on the value as the focus leaves
+        const { clock } = useEnvironment();
+        let press: AbortController | undefined;
+        let isPressed = false;
+        onCleanup(() => press?.abort());
+        const enter = (event: FocusEvent & { readonly currentTarget: HTMLElement }): void => {
+            // tell whether a press outside takes the focus
+            if (press === undefined) {
+                // follow presses until the value is settled on
+                press = new AbortController();
+                const { signal } = press;
+                const { ownerDocument } = event.currentTarget;
+                const options = { signal, capture: true };
+                ownerDocument.addEventListener("pointerdown", () => (isPressed = true), options);
+                ownerDocument.addEventListener("pointerup", () => (isPressed = false), options);
+                ownerDocument.addEventListener("pointercancel", () => (isPressed = false), options);
+            }
+        };
+        const leave = (event: FocusEvent & { readonly currentTarget: HTMLElement }): void => {
+            // stay while the focus does, or leaves with the window
+            const { currentTarget, relatedTarget } = event;
+            const { ownerDocument } = currentTarget;
+            const isInside = relatedTarget instanceof Node && currentTarget.contains(relatedTarget);
+            if (isInside || !ownerDocument.hasFocus()) {
+                return;
+            }
+            const settle = (): void => {
+                // stop following presses
+                press?.abort();
+                press = undefined;
+                isPressed = false;
+                control.value?.settle();
+            };
 
-    return (
-        <FieldContext value={control}>
-            {renderPart(
-                "div",
-                "field",
-                rest,
-                () => [styles.field, orientations[field.orientation]],
-                mergeProperties(
-                    {
-                        role: "group" as const,
-                        get "data-orientation"() {
-                            return field.orientation;
+            // settle once a press is over, so an error never moves what is pressed
+            if (isPressed && press !== undefined) {
+                const options = { signal: press.signal, capture: true, once: true };
+                const wait = (): void => void clock.setTimeout(settle, 0);
+                ownerDocument.addEventListener("pointerup", wait, options);
+                ownerDocument.addEventListener("pointercancel", wait, options);
+            } else {
+                settle();
+            }
+        };
+
+        return (
+            <FieldContext value={control}>
+                {renderPart(
+                    "div",
+                    "field",
+                    rest,
+                    () => [styles.field, orientations[properties.orientation]],
+                    mergeProperties(
+                        {
+                            role: "group" as const,
+                            get "data-orientation"() {
+                                return properties.orientation;
+                            },
+                            get "data-invalid"() {
+                                return control.isInvalid() ? "" : undefined;
+                            },
+                            get "data-disabled"() {
+                                return control.isDisabled() ? "" : undefined;
+                            },
                         },
-                        get "data-invalid"() {
-                            return control.isInvalid() ? "" : undefined;
+                        {
+                            onFocusIn: enter,
+                            onFocusOut: leave,
+                            onInput: recheck,
+                            onChange: recheck,
+                            ref: (element: HTMLElement) =>
+                                element.addEventListener("invalid", refuse, { capture: true }),
                         },
-                        get "data-disabled"() {
-                            return control.isDisabled() ? "" : undefined;
-                        },
-                    },
-                    {
-                        onFocusIn: enter,
-                        onFocusOut: leave,
-                        onInput: recheck,
-                        onChange: recheck,
-                        ref: (element: HTMLElement) =>
-                            element.addEventListener("invalid", refuse, { capture: true }),
-                    },
-                ),
-            )}
-        </FieldContext>
-    );
-}
+                    ),
+                )}
+            </FieldContext>
+        );
+    },
+});
+
+/** The properties of a field, its native attributes included. */
+export type FieldProperties = ComponentProperties<typeof Field>;
 
 /** Render the label of the nearest field's control. */
 export function FieldLabel(properties: LabelProperties): JSX.Element {
@@ -455,22 +495,30 @@ export function FieldSet(properties: FieldElementProperties<HTMLFieldSetElement>
 }
 
 /** Render the legend of a fieldset as a heading or a label. */
-export function FieldLegend(properties: FieldLegendProperties): JSX.Element {
-    const legend = merge(LEGEND_DEFAULTS, properties);
-    const rest = omit(legend, "variant");
+export const FieldLegend = defineComponent({
+    name: "fieldLegend",
+    properties: FIELD_LEGEND_PROPERTIES,
+    render(
+        properties: RenderProperties<FieldLegendAttributes, typeof FIELD_LEGEND_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "variant");
 
-    return renderPart(
-        "legend",
-        "field-legend",
-        rest,
-        () => [legends[legend.variant], styles.legend],
-        {
-            get "data-variant"() {
-                return legend.variant;
+        return renderPart(
+            "legend",
+            "field-legend",
+            rest,
+            () => [legends[properties.variant], styles.legend],
+            {
+                get "data-variant"() {
+                    return properties.variant;
+                },
             },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of a legend, its native attributes included. */
+export type FieldLegendProperties = ComponentProperties<typeof FieldLegend>;
 
 /** Render a stack of fields that responsive fields measure their width against. */
 export function FieldGroup(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {

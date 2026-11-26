@@ -15,20 +15,6 @@ export const textareaComment = defineExample({
     render: (properties) => <Textarea {...properties} />,
 });
 
-/** The comment box unavailable. */
-export const textareaCommentDisabled = defineExample({
-    of: Textarea,
-    name: "commentDisabled",
-    description: t`The comment box unavailable.`,
-    properties: {
-        name: "comment",
-        placeholder: "Add a comment",
-        "aria-label": "Comment",
-        disabled: true,
-    },
-    render: (properties) => <Textarea {...properties} />,
-});
-
 /** The comment box marked invalid. */
 export const textareaCommentInvalid = defineExample({
     of: Textarea,

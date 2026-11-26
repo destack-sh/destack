@@ -54,3 +54,34 @@ export const inputGroupNoteSearchInvalid = defineExample({
         </InputGroup>
     ),
 });
+
+/** A note's link with its address beside the field. */
+export const inputGroupAddonDefault = defineExample({
+    of: InputGroupAddon,
+    name: "default",
+    description: t`A note's link with its address beside the field.`,
+    render: (properties) => (
+        <InputGroup>
+            <InputGroupInput defaultValue="groceries" aria-label="Link" />
+            <InputGroupAddon {...properties}>
+                <InputGroupText>notes.example/</InputGroupText>
+            </InputGroupAddon>
+        </InputGroup>
+    ),
+});
+
+/** A note's title typed into its group, beside its character limit. */
+export const inputGroupInputDefault = defineExample({
+    of: InputGroupInput,
+    name: "default",
+    description: t`A note's title typed into its group, beside its character limit.`,
+    properties: { placeholder: "Untitled" },
+    render: (properties) => (
+        <InputGroup>
+            <InputGroupInput aria-label="Title" {...properties} />
+            <InputGroupAddon align="inline-end">
+                <InputGroupText>40</InputGroupText>
+            </InputGroupAddon>
+        </InputGroup>
+    ),
+});

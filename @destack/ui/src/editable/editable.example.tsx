@@ -27,10 +27,15 @@ export const editablePage = defineExample({
     name: "page",
     description: t`A page's title, put back where nothing is left, and what it is about, in lines.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Stack space="3">
             <h1 {...style.attrs(text["3xl"], styles.title)}>
-                <Editable required defaultValue="Spring in Lisbon" placeholder="Untitled" />
+                <Editable
+                    required
+                    defaultValue="Spring in Lisbon"
+                    placeholder="Untitled"
+                    {...properties}
+                />
             </h1>
             <Editable
                 multiline
@@ -47,7 +52,7 @@ export const editableButtons = defineExample({
     name: "buttons",
     description: t`A name with buttons that change, keep and leave it, and an empty one.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Stack space="4">
             <Editable activationMode="none" submitMode="enter" defaultValue="Ada Lovelace">
                 <EditablePreview />
@@ -57,8 +62,7 @@ export const editableButtons = defineExample({
                 <EditableSubmit />
                 <EditableCancel />
             </Editable>
-            <Editable placeholder="Add a nickname" />
-            <Editable readOnly defaultValue="Read only" />
+            <Editable placeholder="Add a nickname" {...properties} />
         </Stack>
     ),
 });

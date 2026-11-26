@@ -14,6 +14,11 @@ import {
 } from "../input-group/index.ts";
 import type { InputProperties } from "../input/index.ts";
 import { mergeProperties } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The styles of a search field. */
 const styles = style.create({
@@ -22,8 +27,11 @@ const styles = style.create({
     },
 });
 
-/** The properties of a search field, the native input's attributes included. */
-export type SearchFieldProperties = Omit<InputProperties, "type" | "value" | "onSubmit"> & {
+/** The properties of a search field besides its declared ones: its input's other attributes. */
+export type SearchFieldAttributes = Omit<
+    InputProperties,
+    "type" | "value" | "onSubmit" | "variant" | keyof typeof InputGroupInput.properties
+> & {
     /** The text searched for, which makes the field controlled. */
     readonly value?: string;
     /** The text the field starts from when uncontrolled. */
@@ -37,100 +45,113 @@ export type SearchFieldProperties = Omit<InputProperties, "type" | "value" | "on
 };
 
 /** Render a field to search by, cleared by its button or Escape. */
-export function SearchField(given: SearchFieldProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onValueChange",
-        read: readText,
-    });
+export const SearchField = defineComponent({
+    name: "searchField",
+    properties: InputGroupInput.properties,
+    render(
+        given: RenderProperties<SearchFieldAttributes, typeof InputGroupInput.properties>,
+    ): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: readText,
+        });
 
-    // follow the controlled text or the field's own
-    const locale = useLocale();
-    const field = useFieldControl();
-    const [value, setValue] = createControllableSignal<string>({
-        isControlled: () => properties.value !== undefined,
-        value: () => properties.value ?? "",
-        defaultValue: untrack(() => properties.defaultValue) ?? "",
-        onChange: (next) => properties.onValueChange?.(next),
-    });
-    let input: HTMLInputElement | undefined;
-    const form = (): HTMLFormElement | null | undefined => input?.form;
-    const rest = omit(
-        properties,
-        "value",
-        "defaultValue",
-        "onValueChange",
-        "onSubmit",
-        "onClear",
-        "xstyle",
-    );
-    handleFormReset(
-        () => form(),
-        () => setValue(properties.defaultValue ?? ""),
-    );
-    const clear = (): void => {
-        setValue("");
-        properties.onClear?.();
-        input?.focus();
-    };
+        // follow the controlled text or the field's own
+        const locale = useLocale();
+        const fieldControl = useFieldControl();
+        const [value, setValue] = createControllableSignal<string>({
+            isControlled: () => properties.value !== undefined,
+            value: () => properties.value ?? "",
+            defaultValue: untrack(() => properties.defaultValue) ?? "",
+            onChange: (next) => properties.onValueChange?.(next),
+        });
+        let input: HTMLInputElement | undefined;
+        const form = (): HTMLFormElement | null | undefined => input?.form;
+        const rest = omit(
+            properties,
+            "value",
+            "defaultValue",
+            "onValueChange",
+            "onSubmit",
+            "onClear",
+            "xstyle",
+        );
+        handleFormReset(
+            () => form(),
+            () => setValue(properties.defaultValue ?? ""),
+        );
+        const clear = (): void => {
+            setValue("");
+            properties.onClear?.();
+            input?.focus();
+        };
 
-    // leave a field that takes no input
-    const isEditable = (): boolean =>
-        properties.disabled !== true &&
-        properties.readonly !== true &&
-        field?.isDisabled() !== true;
+        // leave a field that takes no input
+        const isEditable = (): boolean =>
+            properties.disabled !== true &&
+            !properties.readonly &&
+            fieldControl?.isDisabled() !== true;
 
-    // take the keys of a search
-    const keys = (event: KeyboardEvent): void => {
-        // search, or clear what there is before Escape closes something around
-        if (event.isComposing) {
-            return;
-        } else if (event.key === "Enter") {
-            properties.onSubmit?.(value());
-        } else if (event.key === "Escape" && value() !== "" && isEditable()) {
-            event.preventDefault();
-            event.stopPropagation();
-            clear();
-        }
-    };
+        // take the keys of a search
+        const keys = (event: KeyboardEvent): void => {
+            // search, or clear what there is before Escape closes something around
+            if (event.isComposing) {
+                return;
+            } else if (event.key === "Enter") {
+                properties.onSubmit?.(value());
+            } else if (event.key === "Escape" && value() !== "" && isEditable()) {
+                event.preventDefault();
+                event.stopPropagation();
+                clear();
+            }
+        };
 
-    return (
-        <InputGroup data-slot="search-field" xstyle={properties.xstyle}>
-            <InputGroupAddon>
-                <Icon icon={searchIcon} />
-            </InputGroupAddon>
-            <InputGroupInput
-                enterkeyhint="search"
-                placeholder={locale.render(t.context("label")`Search`)}
-                aria-label={field === null ? locale.render(t.context("label")`Search`) : undefined}
-                {...mergeProperties(
-                    {
-                        ref: (element: HTMLInputElement) => (input = element),
-                        onInput: (
-                            event: InputEvent & { readonly currentTarget: HTMLInputElement },
-                        ) => setValue(event.currentTarget.value),
-                        onKeyDown: keys,
-                    },
-                    rest,
-                )}
-                type="search"
-                value={value()}
-                xstyle={styles.input}
-            />
-            <Show when={value() !== "" && isEditable()}>
-                <InputGroupAddon align="inline-end">
-                    <InputGroupButton
-                        isIconOnly
-                        size="sm"
-                        tabindex={-1}
-                        aria-label={locale.render(t.context("action")`Clear`)}
-                        onClick={clear}
-                    >
-                        <Icon icon={xIcon} />
-                    </InputGroupButton>
+        return (
+            <InputGroup data-slot="search-field" xstyle={properties.xstyle}>
+                <InputGroupAddon>
+                    <Icon icon={searchIcon} />
                 </InputGroupAddon>
-            </Show>
-        </InputGroup>
-    );
-}
+                <InputGroupInput
+                    enterkeyhint="search"
+                    placeholder={locale.render(t.context("label")`Search`)}
+                    aria-label={
+                        fieldControl === null
+                            ? locale.render(t.context("label")`Search`)
+                            : undefined
+                    }
+                    {...mergeProperties(
+                        {
+                            ref: (element: HTMLInputElement) => (input = element),
+                            onInput: (
+                                event: InputEvent & { readonly currentTarget: HTMLInputElement },
+                            ) => setValue(event.currentTarget.value),
+                            onKeyDown: keys,
+                        },
+                        rest,
+                    )}
+                    type="search"
+                    value={value()}
+                    xstyle={styles.input}
+                />
+                <Show when={value() !== "" && isEditable()}>
+                    <InputGroupAddon align="inline-end">
+                        <InputGroupButton
+                            isIconOnly
+                            size="sm"
+                            tabindex={-1}
+                            aria-label={locale.render(t.context("action")`Clear`)}
+                            onClick={clear}
+                        >
+                            <Icon icon={xIcon} />
+                        </InputGroupButton>
+                    </InputGroupAddon>
+                </Show>
+            </InputGroup>
+        );
+    },
+});
+
+/** The properties of a search field, the native input's attributes included. */
+export type SearchFieldProperties = ComponentProperties<typeof SearchField>;

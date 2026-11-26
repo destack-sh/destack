@@ -1,4 +1,6 @@
-import { Color, COLOR_CHANNELS, type ColorChannel, type ColorSpace } from "@destack/color";
+import { Color, COLOR_CHANNELS, type ColorChannel, ColorSpace } from "@destack/color";
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
 import eyedropperIcon from "@destack/icon/phosphor/eyedropper";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -17,7 +19,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
-import { readText, useFieldValue } from "../field/control.ts";
+import { readText, useFieldValue, useFieldControl } from "../field/control.ts";
 import { Icon } from "../icon/index.ts";
 import { InputGroup } from "../input-group/index.ts";
 import { Input, type InputProperties } from "../input/index.ts";
@@ -41,6 +43,11 @@ import {
     useColorPicker,
 } from "./control.ts";
 import { nameOf } from "./name.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 export { type ColorPickerOptions, useColorPicker } from "./control.ts";
 
@@ -58,6 +65,35 @@ const CHECKERS = `repeating-conic-gradient(color-mix(in oklab, ${color.mutedFore
 
 /** The edge of a thumb, seen on any color. */
 const THUMB_EDGE = "0 0 0 1px rgb(0 0 0 / 0.5), inset 0 0 0 1px rgb(0 0 0 / 0.5)";
+
+/** The properties people change in a color picker's controls and inspector. */
+const COLOR_PICKER_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(
+            t`Refuses every part where the color cannot change now, as its field does when absent.`,
+        )
+        .optional(),
+};
+
+/** The properties people change in a color area's controls and inspector. */
+const COLOR_AREA_PROPERTIES = {
+    colorSpace: field
+        .enum(ColorSpace.choices)
+        .labeled(t.context("label")`Color space`)
+        .described(t`The space whose channels the area lays out, its hue elsewhere.`)
+        .default("hsb"),
+};
+
+/** The properties people change in a swatch's controls and inspector. */
+const COLOR_SWATCH_PROPERTIES = {
+    color: field
+        .string(schema.string())
+        .labeled(t.context("label")`Color`)
+        .described(t`The hue or CSS color it shows, as its picker's does when absent.`)
+        .optional(),
+};
 
 /** The styles of a color picker and its parts. */
 const styles = style.create({
@@ -200,9 +236,9 @@ export type ColorElementProperties<Target extends HTMLElement = HTMLDivElement> 
 > &
     ElementPartProperties;
 
-/** The properties of a color picker: its color, its form and its parts. */
-export type ColorPickerProperties = ColorElementProperties &
-    ColorPickerOptions & {
+/** The properties of a color picker besides its declared ones: its color, form and parts. */
+export type ColorPickerAttributes = ColorElementProperties &
+    Omit<ColorPickerOptions, keyof typeof COLOR_PICKER_PROPERTIES> & {
         /** The form field name it submits its color under. */
         readonly name?: string;
         /** The id of the form it belongs to, its ancestor form by default. */
@@ -210,59 +246,68 @@ export type ColorPickerProperties = ColorElementProperties &
     };
 
 /** Render a color's area, hue and text, or parts of one's own around the same color. */
-export function ColorPicker(given: ColorPickerProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onValueChange",
-        read: (value) => readText(value) || undefined,
-    });
-    const control = new ColorPickerControl(properties);
-    const rest = omit(
-        properties,
-        "value",
-        "defaultValue",
-        "onValueChange",
-        "onValueCommitted",
-        "format",
-        "disabled",
-        "name",
-        "form",
-        "children",
-    );
+export const ColorPicker = defineComponent({
+    name: "colorPicker",
+    properties: COLOR_PICKER_PROPERTIES,
+    render(
+        given: RenderProperties<ColorPickerAttributes, typeof COLOR_PICKER_PROPERTIES>,
+    ): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: (value) => readText(value) || undefined,
+        });
+        const control = new ColorPickerControl(properties, useFieldControl());
+        const rest = omit(
+            properties,
+            "value",
+            "defaultValue",
+            "onValueChange",
+            "onValueCommitted",
+            "format",
+            "disabled",
+            "name",
+            "form",
+            "children",
+        );
 
-    return (
-        <ColorPickerContext value={control}>
-            {renderPart("div", "color-picker", rest, styles.picker, {
-                role: "group" as const,
-                get "data-disabled"() {
-                    return control.isDisabled() ? "" : undefined;
-                },
-                get children() {
-                    return (
-                        <>
-                            {contentOr(properties, () => (
-                                <>
-                                    <ColorArea />
-                                    <ColorSlider channel="hue" />
-                                    <ColorField />
-                                </>
-                            ))}
-                            <Show when={properties.name}>
-                                <input
-                                    type="hidden"
-                                    name={properties.name}
-                                    form={properties.form}
-                                    value={control.value()}
-                                />
-                            </Show>
-                        </>
-                    );
-                },
-            })}
-        </ColorPickerContext>
-    );
-}
+        return (
+            <ColorPickerContext value={control}>
+                {renderPart("div", "color-picker", rest, styles.picker, {
+                    role: "group" as const,
+                    get "data-disabled"() {
+                        return control.isDisabled() ? "" : undefined;
+                    },
+                    get children() {
+                        return (
+                            <>
+                                {contentOr(properties, () => (
+                                    <>
+                                        <ColorArea />
+                                        <ColorSlider channel="hue" />
+                                        <ColorField />
+                                    </>
+                                ))}
+                                <Show when={properties.name}>
+                                    <input
+                                        type="hidden"
+                                        name={properties.name}
+                                        form={properties.form}
+                                        value={control.value()}
+                                    />
+                                </Show>
+                            </>
+                        );
+                    },
+                })}
+            </ColorPickerContext>
+        );
+    },
+});
+
+/** The properties of a color picker, its color, format and form included. */
+export type ColorPickerProperties = ComponentProperties<typeof ColorPicker>;
 
 /** What a color area tells its thumb. */
 interface ColorAreaThumb {
@@ -283,10 +328,8 @@ interface ColorAreaThumb {
 /** The nearest color area, null outside one. */
 const ColorAreaContext = createContext<ColorAreaThumb | null>(null);
 
-/** The properties of a color area. */
-export type ColorAreaProperties = ColorElementProperties & {
-    /** The space whose channels it shows, hue, saturation and brightness by default. */
-    readonly colorSpace?: ColorSpace;
+/** The properties of a color area besides its declared ones: its channels and attributes. */
+export type ColorAreaAttributes = ColorElementProperties & {
     /** The channel along the width, the second of the space by default. */
     readonly xChannel?: ColorChannel;
     /** The channel along the height, the third of the space by default, a lightness first. */
@@ -294,185 +337,197 @@ export type ColorAreaProperties = ColorElementProperties & {
 };
 
 /** Render two channels of the nearest picker's color as an area, with a thumb to drag. */
-export function ColorArea(properties: ColorAreaProperties): JSX.Element {
-    // show the channels that are left once the hue is elsewhere
-    const picker = useColorPicker();
-    const locale = useLocale();
-    const colorSpace = (): ColorSpace => properties.colorSpace ?? "hsb";
-    const xChannel = (): ColorChannel =>
-        properties.xChannel ??
-        (colorSpace() === "oklch" ? "chroma" : COLOR_CHANNELS[colorSpace()][1]);
-    const yChannel = (): ColorChannel =>
-        properties.yChannel ??
-        (colorSpace() === "oklch" ? "lightness" : COLOR_CHANNELS[colorSpace()][2]);
-    const current = (): Color => picker.color(colorSpace());
-    const share = (channel: ColorChannel): number => {
-        const { min, max } = Color.range(channel);
+export const ColorArea = defineComponent({
+    name: "colorArea",
+    properties: COLOR_AREA_PROPERTIES,
+    render(
+        properties: RenderProperties<ColorAreaAttributes, typeof COLOR_AREA_PROPERTIES>,
+    ): JSX.Element {
+        // show the channels that are left once the hue is elsewhere
+        const picker = useColorPicker();
+        const locale = useLocale();
+        const colorSpace = (): ColorSpace => properties.colorSpace;
+        const xChannel = (): ColorChannel =>
+            properties.xChannel ??
+            (colorSpace() === "oklch" ? "chroma" : COLOR_CHANNELS[colorSpace()][1]);
+        const yChannel = (): ColorChannel =>
+            properties.yChannel ??
+            (colorSpace() === "oklch" ? "lightness" : COLOR_CHANNELS[colorSpace()][2]);
+        const current = (): Color => picker.color(colorSpace());
+        const share = (channel: ColorChannel): number => {
+            const { min, max } = Color.range(channel);
 
-        return (current().get(channel) - min) / (max - min);
-    };
-    const rest = omit(properties, "colorSpace", "xChannel", "yChannel", "children");
+            return (current().get(channel) - min) / (max - min);
+        };
+        const rest = omit(properties, "colorSpace", "xChannel", "yChannel", "children");
 
-    // paint the colors of every point, anew as the channel left out changes
-    const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>(undefined, {
-        ownedWrite: true,
-    });
-    const base = createMemo(
-        () => current().with(xChannel(), 0).with(yChannel(), 0).with("alpha", 1),
-        { equals: (one, other) => one.equals(other) },
-    );
-    createEffect(
-        () => [canvas(), base(), xChannel(), yChannel()] as const,
-        ([element, start, horizontal, vertical]) => paint(element, start, horizontal, vertical),
-    );
-
-    // move the thumb to a point, by a press, a drag or a key
-    let area: HTMLElement | undefined;
-    let input: HTMLInputElement | undefined;
-    const moveTo = (x: number, y: number): void => {
-        picker.set(
-            current()
-                .with(xChannel(), stepAt(xChannel(), x))
-                .with(yChannel(), stepAt(yChannel(), y)),
+        // paint the colors of every point, anew as the channel left out changes
+        const [canvas, setCanvas] = createSignal<HTMLCanvasElement | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const base = createMemo(
+            () => current().with(xChannel(), 0).with(yChannel(), 0).with("alpha", 1),
+            { equals: (one, other) => one.equals(other) },
         );
-    };
-    const follow = ({ clientX, clientY }: PointerEvent): void => {
-        // measure from the side the text starts at, and up
-        const box = area?.getBoundingClientRect();
-        if (box !== undefined && box.width > 0 && box.height > 0) {
-            const across = (clientX - box.left) / box.width;
-            moveTo(
-                locale.direction === "rtl" ? 1 - across : across,
-                1 - (clientY - box.top) / box.height,
+        createEffect(
+            () => [canvas(), base(), xChannel(), yChannel()] as const,
+            ([element, start, horizontal, vertical]) => paint(element, start, horizontal, vertical),
+        );
+
+        // move the thumb to a point, by a press, a drag or a key
+        let area: HTMLElement | undefined;
+        let input: HTMLInputElement | undefined;
+        const moveTo = (x: number, y: number): void => {
+            picker.set(
+                current()
+                    .with(xChannel(), stepAt(xChannel(), x))
+                    .with(yChannel(), stepAt(yChannel(), y)),
             );
-        }
-    };
-    const drag = (event: PointerEvent & { readonly currentTarget: HTMLElement }): void => {
-        // leave other buttons, and follow until the pointer lets go
-        if (event.button !== 0 || picker.isDisabled()) {
-            return;
-        }
-        event.preventDefault();
-        const { currentTarget } = event;
-        currentTarget.setPointerCapture(event.pointerId);
-        input?.focus({ preventScroll: true });
-        const before = current();
-        follow(event);
-        const listening = new AbortController();
-        const { signal } = listening;
-        currentTarget.addEventListener("pointermove", follow, { signal });
-        currentTarget.addEventListener(
-            "pointerup",
-            () => {
-                listening.abort();
-                picker.commit();
-            },
-            { signal },
-        );
-        currentTarget.addEventListener(
-            "pointercancel",
-            () => {
-                listening.abort();
-                picker.set(before);
-            },
-            { signal },
-        );
-    };
-    const press = (event: KeyboardEvent): void => {
-        // step along the width or the height
-        const isForward = locale.direction === "rtl" ? "ArrowLeft" : "ArrowRight";
-        const isBackward = locale.direction === "rtl" ? "ArrowRight" : "ArrowLeft";
-        const steps = {
-            [isForward]: [xChannel(), 1],
-            [isBackward]: [xChannel(), -1],
-            ArrowUp: [yChannel(), 1],
-            ArrowDown: [yChannel(), -1],
-            PageUp: [yChannel(), LARGE_STEP],
-            PageDown: [yChannel(), -LARGE_STEP],
-            Home: [xChannel(), -LARGE_STEP],
-            End: [xChannel(), LARGE_STEP],
-        } as const satisfies Record<string, readonly [ColorChannel, number]>;
-        const found = Object.entries(steps).find(([key]) => key === event.key);
-        if (found === undefined || picker.isDisabled()) {
-            return;
-        }
-        event.preventDefault();
-        const [channel, count] = found[1];
-        const large = event.shiftKey && Math.abs(count) === 1 ? LARGE_STEP : 1;
-        const { step } = Color.range(channel);
-        picker.set(current().with(channel, current().get(channel) + count * large * step));
-        picker.commit();
-    };
-    const words = (): string =>
-        [xChannel(), yChannel()]
-            .map(
-                (channel) =>
-                    `${locale.render(CHANNEL_NAMES[channel])} ${written(channel, current().get(channel), locale)}`,
-            )
-            .join(", ");
-    const valueText = (): string => `${words()}, ${nameOf(current(), locale)}`;
+        };
+        const follow = ({ clientX, clientY }: PointerEvent): void => {
+            // measure from the side the text starts at, and up
+            const box = area?.getBoundingClientRect();
+            if (box !== undefined && box.width > 0 && box.height > 0) {
+                const across = (clientX - box.left) / box.width;
+                moveTo(
+                    locale.direction === "rtl" ? 1 - across : across,
+                    1 - (clientY - box.top) / box.height,
+                );
+            }
+        };
+        const drag = (event: PointerEvent & { readonly currentTarget: HTMLElement }): void => {
+            // leave other buttons, and follow until the pointer lets go
+            if (event.button !== 0 || picker.isDisabled()) {
+                return;
+            }
+            event.preventDefault();
+            const { currentTarget } = event;
+            currentTarget.setPointerCapture(event.pointerId);
+            input?.focus({ preventScroll: true });
+            const before = current();
+            follow(event);
+            const listening = new AbortController();
+            const { signal } = listening;
+            currentTarget.addEventListener("pointermove", follow, { signal });
+            currentTarget.addEventListener(
+                "pointerup",
+                () => {
+                    listening.abort();
+                    picker.commit();
+                },
+                { signal },
+            );
+            currentTarget.addEventListener(
+                "pointercancel",
+                () => {
+                    listening.abort();
+                    picker.set(before);
+                },
+                { signal },
+            );
+        };
+        const press = (event: KeyboardEvent): void => {
+            // step along the width or the height
+            const isForward = locale.direction === "rtl" ? "ArrowLeft" : "ArrowRight";
+            const isBackward = locale.direction === "rtl" ? "ArrowRight" : "ArrowLeft";
+            const steps = {
+                [isForward]: [xChannel(), 1],
+                [isBackward]: [xChannel(), -1],
+                ArrowUp: [yChannel(), 1],
+                ArrowDown: [yChannel(), -1],
+                PageUp: [yChannel(), LARGE_STEP],
+                PageDown: [yChannel(), -LARGE_STEP],
+                Home: [xChannel(), -LARGE_STEP],
+                End: [xChannel(), LARGE_STEP],
+            } as const satisfies Record<string, readonly [ColorChannel, number]>;
+            const found = Object.entries(steps).find(([key]) => key === event.key);
+            if (found === undefined || picker.isDisabled()) {
+                return;
+            }
+            event.preventDefault();
+            const [channel, count] = found[1];
+            const large = event.shiftKey && Math.abs(count) === 1 ? LARGE_STEP : 1;
+            const { step } = Color.range(channel);
+            picker.set(current().with(channel, current().get(channel) + count * large * step));
+            picker.commit();
+        };
+        const words = (): string =>
+            [xChannel(), yChannel()]
+                .map(
+                    (channel) =>
+                        `${locale.render(CHANNEL_NAMES[channel])} ${written(channel, current().get(channel), locale)}`,
+                )
+                .join(", ");
+        const valueText = (): string => `${words()}, ${nameOf(current(), locale)}`;
 
-    // tell the thumb its place, its color and its keys
-    const thumb: ColorAreaThumb = {
-        place: () => [`${String(share(xChannel()) * 100)}%`, `${String(share(yChannel()) * 100)}%`],
-        fill: () => current().with("alpha", 1).toString(),
-        attributes: () => ({
-            "aria-valuetext": valueText(),
-            ...Color.range(xChannel()),
-            disabled: picker.isDisabled(),
-            value: current().get(xChannel()),
-        }),
-        take: (element) => (input = element),
-        set: (value) => picker.set(current().with(xChannel(), value)),
-        press,
-    };
+        // tell the thumb its place, its color and its keys
+        const thumb: ColorAreaThumb = {
+            place: () => [
+                `${String(share(xChannel()) * 100)}%`,
+                `${String(share(yChannel()) * 100)}%`,
+            ],
+            fill: () => current().with("alpha", 1).toString(),
+            attributes: () => ({
+                "aria-valuetext": valueText(),
+                ...Color.range(xChannel()),
+                disabled: picker.isDisabled(),
+                value: current().get(xChannel()),
+            }),
+            take: (element) => (input = element),
+            set: (value) => picker.set(current().with(xChannel(), value)),
+            press,
+        };
 
-    return (
-        <ColorAreaContext value={thumb}>
-            {renderPart(
-                "div",
-                "color-area",
-                rest,
-                styles.area,
-                mergeProperties(
-                    {
-                        get "data-disabled"() {
-                            return picker.isDisabled() ? "" : undefined;
+        return (
+            <ColorAreaContext value={thumb}>
+                {renderPart(
+                    "div",
+                    "color-area",
+                    rest,
+                    styles.area,
+                    mergeProperties(
+                        {
+                            get "data-disabled"() {
+                                return picker.isDisabled() ? "" : undefined;
+                            },
+                            get children() {
+                                return (
+                                    <>
+                                        <canvas
+                                            ref={(element) => setCanvas(element)}
+                                            width={POINTS}
+                                            height={POINTS}
+                                            aria-hidden="true"
+                                            data-slot="color-area-paint"
+                                            {...style.attrs(styles.paint)}
+                                            style={{
+                                                transform:
+                                                    locale.direction === "rtl"
+                                                        ? "scaleX(-1)"
+                                                        : undefined,
+                                            }}
+                                        />
+                                        {contentOr(properties, () => (
+                                            <ColorThumb />
+                                        ))}
+                                    </>
+                                );
+                            },
                         },
-                        get children() {
-                            return (
-                                <>
-                                    <canvas
-                                        ref={(element) => setCanvas(element)}
-                                        width={POINTS}
-                                        height={POINTS}
-                                        aria-hidden="true"
-                                        data-slot="color-area-paint"
-                                        {...style.attrs(styles.paint)}
-                                        style={{
-                                            transform:
-                                                locale.direction === "rtl"
-                                                    ? "scaleX(-1)"
-                                                    : undefined,
-                                        }}
-                                    />
-                                    {contentOr(properties, () => (
-                                        <ColorThumb />
-                                    ))}
-                                </>
-                            );
+                        {
+                            role: "group" as const,
+                            ref: (element: HTMLElement) => (area = element),
+                            onPointerDown: drag,
                         },
-                    },
-                    {
-                        role: "group" as const,
-                        ref: (element: HTMLElement) => (area = element),
-                        onPointerDown: drag,
-                    },
-                ),
-            )}
-        </ColorAreaContext>
-    );
-}
+                    ),
+                )}
+            </ColorAreaContext>
+        );
+    },
+});
+
+/** The properties of a color area, its channels included. */
+export type ColorAreaProperties = ComponentProperties<typeof ColorArea>;
 
 /** Render the thumb of the nearest color area, which the keys move both ways. */
 export function ColorThumb(properties: ColorElementProperties): JSX.Element {
@@ -515,9 +570,10 @@ export function ColorThumb(properties: ColorElementProperties): JSX.Element {
     );
 }
 
-/** The properties of a color slider, its slider's besides its values. */
-export type ColorSliderProperties = Omit<
+/** The properties of a color slider besides its declared ones: its channel and space. */
+export type ColorSliderAttributes = Omit<
     SliderProperties,
+    | keyof typeof Slider.properties
     | "value"
     | "defaultValue"
     | "onValueChange"
@@ -534,76 +590,88 @@ export type ColorSliderProperties = Omit<
 };
 
 /** Render one channel of the nearest picker's color as a slider over the colors it sets. */
-export function ColorSlider(properties: ColorSliderProperties): JSX.Element {
-    // run through the channel's colors, the rest of the color kept
-    const picker = useColorPicker();
-    const locale = useLocale();
-    const colorSpace = (): ColorSpace => properties.colorSpace ?? "hsb";
-    const current = (): Color => picker.color(colorSpace());
-    const isVertical = (): boolean => properties.orientation === "vertical";
-    const base = (): Color => {
-        // show a hue at its most vivid, and each channel without the alpha but its own
-        const shown = properties.channel === "alpha" ? current() : current().with("alpha", 1);
-        const isVivid = properties.channel === "hue" && colorSpace() !== "oklch";
+export const ColorSlider = defineComponent({
+    name: "colorSlider",
+    properties: Slider.properties,
+    render(
+        properties: RenderProperties<ColorSliderAttributes, typeof Slider.properties>,
+    ): JSX.Element {
+        // run through the channel's colors, the rest of the color kept
+        const picker = useColorPicker();
+        const locale = useLocale();
+        const colorSpace = (): ColorSpace => properties.colorSpace ?? "hsb";
+        const current = (): Color => picker.color(colorSpace());
+        const isVertical = (): boolean => properties.orientation === "vertical";
+        const base = (): Color => {
+            // show a hue at its most vivid, and each channel without the alpha but its own
+            const shown = properties.channel === "alpha" ? current() : current().with("alpha", 1);
+            const isVivid = properties.channel === "hue" && colorSpace() !== "oklch";
 
-        return isVivid ? new Color("hsb", [shown.get("hue"), 100, 100]) : shown;
-    };
-    const image = (): string => {
-        // list the colors from one end of the channel to the other
-        const { min, max } = Color.range(properties.channel);
-        const start = base();
-        const colors = Array.from({ length: STOPS + 1 }, (_, index) =>
-            start.with(properties.channel, min + (index / STOPS) * (max - min)).toString(),
+            return isVivid ? new Color("hsb", [shown.get("hue"), 100, 100]) : shown;
+        };
+        const image = (): string => {
+            // list the colors from one end of the channel to the other
+            const { min, max } = Color.range(properties.channel);
+            const start = base();
+            const colors = Array.from({ length: STOPS + 1 }, (_, index) =>
+                start.with(properties.channel, min + (index / STOPS) * (max - min)).toString(),
+            );
+            const isReversed = locale.direction === "rtl";
+            const side = isVertical() ? "to top" : isReversed ? "to left" : "to right";
+
+            return `linear-gradient(${side}, ${colors.join(", ")})`;
+        };
+        const rest = omit(properties, "channel", "colorSpace", "xstyle");
+
+        return (
+            <Slider
+                data-slot="color-slider"
+                aria-label={locale.render(CHANNEL_NAMES[properties.channel])}
+                {...rest}
+                min={Color.range(properties.channel).min}
+                max={Color.range(properties.channel).max}
+                step={Color.range(properties.channel).step}
+                disabled={properties.disabled === true || picker.isDisabled()}
+                value={[current().get(properties.channel)]}
+                onValueChange={([value]) => {
+                    if (value !== undefined) {
+                        picker.set(current().with(properties.channel, value));
+                    }
+                }}
+                onValueCommitted={() => picker.commit()}
+                xstyle={[styles.slider, properties.xstyle]}
+            >
+                <SliderTrack xstyle={[styles.track, isVertical() && styles.vertical]}>
+                    <div {...style.attrs(styles.fill, styles.run(image()))} />
+                </SliderTrack>
+                <SliderThumb
+                    aria-valuetext={written(
+                        properties.channel,
+                        current().get(properties.channel),
+                        locale,
+                    )}
+                    xstyle={[
+                        styles.sliderThumb,
+                        styles.sliderThumbFill(
+                            base()
+                                .with(properties.channel, current().get(properties.channel))
+                                .toString(),
+                        ),
+                    ]}
+                />
+            </Slider>
         );
-        const isReversed = locale.direction === "rtl";
-        const side = isVertical() ? "to top" : isReversed ? "to left" : "to right";
+    },
+});
 
-        return `linear-gradient(${side}, ${colors.join(", ")})`;
-    };
-    const rest = omit(properties, "channel", "colorSpace", "xstyle");
+/** The properties of a color slider, the slider's own included. */
+export type ColorSliderProperties = ComponentProperties<typeof ColorSlider>;
 
-    return (
-        <Slider
-            data-slot="color-slider"
-            aria-label={locale.render(CHANNEL_NAMES[properties.channel])}
-            {...rest}
-            min={Color.range(properties.channel).min}
-            max={Color.range(properties.channel).max}
-            step={Color.range(properties.channel).step}
-            disabled={properties.disabled === true || picker.isDisabled()}
-            value={[current().get(properties.channel)]}
-            onValueChange={([value]) => {
-                if (value !== undefined) {
-                    picker.set(current().with(properties.channel, value));
-                }
-            }}
-            onValueCommitted={() => picker.commit()}
-            xstyle={[styles.slider, properties.xstyle]}
-        >
-            <SliderTrack xstyle={[styles.track, isVertical() && styles.vertical]}>
-                <div {...style.attrs(styles.fill, styles.run(image()))} />
-            </SliderTrack>
-            <SliderThumb
-                aria-valuetext={written(
-                    properties.channel,
-                    current().get(properties.channel),
-                    locale,
-                )}
-                xstyle={[
-                    styles.sliderThumb,
-                    styles.sliderThumbFill(
-                        base()
-                            .with(properties.channel, current().get(properties.channel))
-                            .toString(),
-                    ),
-                ]}
-            />
-        </Slider>
-    );
-}
-
-/** The properties of a color field, its input's or its number field's included. */
-export type ColorFieldProperties = Omit<InputProperties, "value" | "defaultValue" | "type"> & {
+/** The properties of a color field besides its declared ones: its channel and space. */
+export type ColorFieldAttributes = Omit<
+    InputProperties,
+    "value" | "defaultValue" | "type" | keyof typeof Input.properties
+> & {
     /** The channel it sets as a number, the whole color as text by default. */
     readonly channel?: ColorChannel;
     /** The space of the channel, hue, saturation and brightness by default. */
@@ -611,21 +679,30 @@ export type ColorFieldProperties = Omit<InputProperties, "value" | "defaultValue
 };
 
 /** Render the nearest picker's color as text to edit, or one of its channels as a number. */
-export function ColorField(properties: ColorFieldProperties): JSX.Element {
-    const rest = omit(properties, "channel", "colorSpace");
+export const ColorField = defineComponent({
+    name: "colorField",
+    properties: Input.properties,
+    render(
+        properties: RenderProperties<ColorFieldAttributes, typeof Input.properties>,
+    ): JSX.Element {
+        const rest = omit(properties, "channel", "colorSpace");
 
-    return (
-        <Show when={properties.channel} fallback={<ColorTextField {...rest} />}>
-            {(channel) => (
-                <ColorNumberField
-                    channel={channel()}
-                    colorSpace={properties.colorSpace ?? "hsb"}
-                    {...rest}
-                />
-            )}
-        </Show>
-    );
-}
+        return (
+            <Show when={properties.channel} fallback={<ColorTextField {...rest} />}>
+                {(channel) => (
+                    <ColorNumberField
+                        channel={channel()}
+                        colorSpace={properties.colorSpace ?? "hsb"}
+                        {...rest}
+                    />
+                )}
+            </Show>
+        );
+    },
+});
+
+/** The properties of a color field, the input's own included. */
+export type ColorFieldProperties = ComponentProperties<typeof ColorField>;
 
 /** Render a color as text, read when a person leaves it or presses Enter. */
 function ColorTextField(properties: Omit<InputProperties, "value">): JSX.Element {
@@ -714,41 +791,47 @@ function ColorNumberField(
     );
 }
 
-/** The properties of a swatch. */
-export type ColorSwatchProperties = ColorElementProperties<HTMLSpanElement> & {
-    /** The color it shows, the nearest picker's by default. */
-    readonly color?: string;
-};
+/** The properties of a swatch besides its declared ones: its native attributes. */
+export type ColorSwatchAttributes = ColorElementProperties<HTMLSpanElement>;
 
 /** Render a color, over squares that show through where it is see-through. */
-export function ColorSwatch(properties: ColorSwatchProperties): JSX.Element {
-    // show the nearest picker's color without one of its own
-    const picker = useContext(ColorPickerContext);
-    const locale = useLocale();
-    const rest = omit(properties, "color");
-    const shown = (): string | undefined => properties.color ?? picker?.value();
+export const ColorSwatch = defineComponent({
+    name: "colorSwatch",
+    properties: COLOR_SWATCH_PROPERTIES,
+    render(
+        properties: RenderProperties<ColorSwatchAttributes, typeof COLOR_SWATCH_PROPERTIES>,
+    ): JSX.Element {
+        // show the nearest picker's color without one of its own
+        const picker = useContext(ColorPickerContext);
+        const locale = useLocale();
+        const rest = omit(properties, "color");
+        const shown = (): string | undefined => properties.color ?? picker?.value();
 
-    return renderPart("span", "color-swatch", rest, styles.swatch, {
-        role: "img" as const,
-        get "aria-label"() {
-            const read = Color.read(shown() ?? "");
+        return renderPart("span", "color-swatch", rest, styles.swatch, {
+            role: "img" as const,
+            get "aria-label"() {
+                const read = Color.read(shown() ?? "");
 
-            return read === undefined
-                ? locale.render(t.context("label")`Color`)
-                : nameOf(read, locale);
-        },
-        get children() {
-            return (
-                <span
-                    {...style.attrs(
-                        styles.swatchInside,
-                        styles.swatchFill(shown() ?? "transparent"),
-                    )}
-                />
-            );
-        },
-    });
-}
+                return read === undefined
+                    ? locale.render(t.context("label")`Color`)
+                    : nameOf(read, locale);
+            },
+            get children() {
+                return (
+                    <span
+                        {...style.attrs(
+                            styles.swatchInside,
+                            styles.swatchFill(shown() ?? "transparent"),
+                        )}
+                    />
+                );
+            },
+        });
+    },
+});
+
+/** The properties of a swatch, its color included. */
+export type ColorSwatchProperties = ComponentProperties<typeof ColorSwatch>;
 
 /** What a browser offers to take a color from the screen, where it does. */
 interface EyeDropperWindow {
