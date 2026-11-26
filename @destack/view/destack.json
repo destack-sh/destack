@@ -52,6 +52,9 @@
     "stamps": {
         "defineView": {
             "module": 1
+        },
+        "defineComponent": {
+            "module": 3
         }
     },
     "check": {
