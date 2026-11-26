@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { toggleGroupUnaligned } from "./toggle-group.example.tsx";
@@ -7,9 +8,8 @@ import { ToggleGroup } from "./toggle-group.tsx";
 export const toggleGroupMoveWithArrowKeys = defineScenario({
     of: ToggleGroup,
     interaction: viewInteraction,
-    name: "move-with-arrow-keys",
-    description:
-        "move the focus between a toggle group's items with arrow keys, Home and End, wrapping",
+    name: "moveWithArrowKeys",
+    description: t`Move the focus between a toggle group's items with arrow keys, Home and End, wrapping.`,
     given: { examples: [toggleGroupUnaligned] },
     parameters: {},
     when: [

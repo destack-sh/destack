@@ -1,12 +1,15 @@
 import * as style from "@destack/style";
-import { space } from "@destack/theme/tokens.stylex";
+import { color, radius, space, stroke } from "@destack/theme/tokens.stylex";
 import { createContext, type JSX, merge, omit, useContext, useLocale } from "@destack/view";
 import { type Render, renderPart } from "../part/index.ts";
 import { SELECTION_OPTIONS, Selection, type SelectionProperties } from "../selection/index.ts";
 import { ListState } from "../focus/index.ts";
 import type { Axis } from "../position/index.ts";
-import { toggleVariants, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
-import { useFieldValue, readChoices } from "../field/control.ts";
+import { Toggle, toggleVariants, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
+import { defineComponent } from "@destack/view/declare";
+import { field } from "@destack/object";
+import { t } from "@destack/locale";
+import { readChoices, useFieldControl, useFieldValue } from "../field/control.ts";
 
 /** The orientation of a toggle group that sets none. */
 const DEFAULTS: Required<Pick<ToggleGroupProperties, "orientation">> = {
@@ -20,6 +23,16 @@ const ToggleGroupContext = createContext<ToggleGroupControl | null>(null);
 const orientations = style.create({
     horizontal: { display: "flex", alignItems: "center", gap: space[1] },
     vertical: { display: "flex", flexDirection: "column", gap: space[1] },
+});
+
+/** The track a segmented group lays its items on. */
+const variants = style.create({
+    segmented: {
+        gap: 0,
+        padding: stroke.ring,
+        borderRadius: radius[3],
+        backgroundColor: color.muted,
+    },
 });
 
 /** The pressed values and focus of a toggle group, which its items share. */
@@ -88,49 +101,85 @@ export function useToggleGroup(): ToggleGroupControl {
 }
 
 /** Render a group of toggles that arrow keys move between, of which a single group has one on. */
-export function ToggleGroup(given: ToggleGroupProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onValueChange",
-        read: readChoices,
-        settles: true,
-    });
+export const ToggleGroup = defineComponent(
+    "toggleGroup",
+    function ToggleGroup(given: ToggleGroupProperties): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: readChoices,
+            settles: true,
+        });
 
-    // share one group with the items and read the text direction for the arrow keys
-    const control = new ToggleGroupControl(properties);
-    const locale = useLocale();
-    const rest = omit(
-        properties,
-        ...SELECTION_OPTIONS,
-        "variant",
-        "size",
-        "orientation",
-        "disabled",
-    );
-    const group = merge(DEFAULTS, properties);
+        // label the group by the nearest field's label, as a field labels a group of controls
+        const fieldControl = useFieldControl();
+        fieldControl?.group();
 
-    return (
-        <ToggleGroupContext value={control}>
-            {renderPart("div", "toggle-group", rest, () => orientations[group.orientation], {
-                get role() {
-                    return properties.multiple === true ? "group" : "radiogroup";
-                },
-                get "aria-orientation"() {
-                    return group.orientation;
-                },
-                get "aria-disabled"() {
-                    return properties.disabled === true ? "true" : undefined;
-                },
-                get "data-disabled"() {
-                    return properties.disabled === true ? "" : undefined;
-                },
-                onKeyDown: (event) => control.list.focus.move(event, locale.direction),
-                onFocusOut: (event) => control.list.focus.focusOut(event),
-            })}
-        </ToggleGroupContext>
-    );
-}
+        // share one group with the items and read the text direction for the arrow keys
+        const control = new ToggleGroupControl(properties);
+        const locale = useLocale();
+        const rest = omit(
+            properties,
+            ...SELECTION_OPTIONS,
+            "variant",
+            "size",
+            "orientation",
+            "disabled",
+        );
+        const group = merge(DEFAULTS, properties);
+
+        return (
+            <ToggleGroupContext value={control}>
+                {renderPart(
+                    "div",
+                    "toggle-group",
+                    rest,
+                    () => [
+                        orientations[group.orientation],
+                        properties.variant === "segmented" && variants.segmented,
+                    ],
+                    {
+                        get id() {
+                            return fieldControl?.groupAttributes().id;
+                        },
+                        get "aria-labelledby"() {
+                            return fieldControl?.groupAttributes()["aria-labelledby"];
+                        },
+                        get "aria-describedby"() {
+                            return fieldControl?.groupAttributes()["aria-describedby"];
+                        },
+                        get role() {
+                            return properties.multiple === true ? "group" : "radiogroup";
+                        },
+                        get "aria-orientation"() {
+                            return group.orientation;
+                        },
+                        get "aria-disabled"() {
+                            return properties.disabled === true ? "true" : undefined;
+                        },
+                        get "data-disabled"() {
+                            return properties.disabled === true ? "" : undefined;
+                        },
+                        onKeyDown: (event) => control.list.focus.move(event, locale.direction),
+                        onFocusOut: (event) => control.list.focus.focusOut(event),
+                    },
+                )}
+            </ToggleGroupContext>
+        );
+    },
+    {
+        ...Toggle.properties,
+        orientation: field
+            .enum({
+                horizontal: { title: t.context("option")`Horizontal` },
+                vertical: { title: t.context("option")`Vertical` },
+            })
+            .labeled(t.context("label")`Orientation`)
+            .described(t`Whether the toggles lie in a row or a column.`)
+            .default("horizontal"),
+    },
+);
 
 /** Render a toggle of the nearest toggle group, exposed as a radio in a single group. */
 export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Element {

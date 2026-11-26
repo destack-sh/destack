@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/ui/icon";
 import { Toggle } from "./toggle.tsx";
@@ -6,7 +7,7 @@ import { Toggle } from "./toggle.tsx";
 export const toggleBold = defineExample({
     of: Toggle,
     name: "bold",
-    description: "a toggle that turns bold text on and off",
+    description: t`A toggle that turns bold text on and off.`,
     properties: {
         variant: "outline",
         "aria-label": "Bold",
@@ -21,29 +22,12 @@ export const toggleBold = defineExample({
 /** The bold toggle turned on. */
 export const toggleBoldPressed = defineExample({
     of: Toggle,
-    name: "bold-pressed",
-    description: "the bold toggle turned on",
+    name: "boldPressed",
+    description: t`The bold toggle turned on.`,
     properties: {
         variant: "outline",
         "aria-label": "Bold",
         defaultPressed: true,
-    },
-    render: (properties) => (
-        <Toggle {...properties}>
-            <Icon name="text-b" />
-        </Toggle>
-    ),
-});
-
-/** The bold toggle unavailable. */
-export const toggleBoldDisabled = defineExample({
-    of: Toggle,
-    name: "bold-disabled",
-    description: "the bold toggle unavailable",
-    properties: {
-        variant: "outline",
-        "aria-label": "Bold",
-        disabled: true,
     },
     render: (properties) => (
         <Toggle {...properties}>

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 import { Toggle } from "./toggle.tsx";
@@ -10,8 +11,8 @@ const bold = { role: "button", name: "Bold" };
 export const togglePressWithKeys = defineScenario({
     of: Toggle,
     interaction: viewInteraction,
-    name: "press-with-keys",
-    description: "press a toggle on with Space and off again with Enter",
+    name: "pressWithKeys",
+    description: t`Press a toggle on with Space and off again with Enter.`,
     given: { examples: [toggleBold] },
     parameters: {},
     when: [
