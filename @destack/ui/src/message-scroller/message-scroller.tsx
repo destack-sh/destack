@@ -8,6 +8,7 @@ import { color, motion, radius, shadow, space, stroke } from "@destack/theme/tok
 import { type JSX, omit, onSettled, Show, useContext, useLocale } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
+import { messageMarker } from "../message/marker.stylex.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
 import {
     MESSAGE_ID,
@@ -57,10 +58,10 @@ const styles = style.create({
             ":is([data-autoscrolling])": "transparent transparent",
         },
     },
+    // leave the room between rows to the rows, so no part of it belongs to none
     content: {
         display: "flex",
         flexDirection: "column",
-        gap: space[6],
         minWidth: 0,
         padding: space[4],
         // stay at the top of a view taller than the rows, also while it waits to open
@@ -69,6 +70,7 @@ const styles = style.create({
     item: {
         flexShrink: 0,
         minWidth: 0,
+        paddingBlock: `calc(${space[6]} / 2)`,
         // draw it only near the view, whole where something of it stands over its edges
         contentVisibility: {
             default: "auto",
@@ -239,15 +241,22 @@ export type MessageScrollerItemProperties = MessageScrollerElementProperties & {
 export function MessageScrollerItem(properties: MessageScrollerItemProperties): JSX.Element {
     const rest = omit(properties, "messageId", "scrollAnchor");
 
-    return renderPart("div", "message-scroller-item", rest, [state.focusInset, styles.item], {
-        tabindex: -1,
-        get [MESSAGE_ID]() {
-            return properties.messageId;
+    return renderPart(
+        "div",
+        "message-scroller-item",
+        rest,
+        // stand for its message, whose actions show while the row is pointed at or focused
+        [messageMarker, state.focusInset, styles.item],
+        {
+            tabindex: -1,
+            get [MESSAGE_ID]() {
+                return properties.messageId;
+            },
+            get [SCROLL_ANCHOR]() {
+                return properties.scrollAnchor === true ? "" : undefined;
+            },
         },
-        get [SCROLL_ANCHOR]() {
-            return properties.scrollAnchor === true ? "" : undefined;
-        },
-    });
+    );
 }
 
 /** The properties of the button that scrolls a conversation to one of its ends. */

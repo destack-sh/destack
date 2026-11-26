@@ -54,8 +54,10 @@ const AVATAR = size[2];
 
 /** The styles of a message and its parts. */
 const styles = style.create({
+    // measure what is in it against its own width
     message: {
         position: "relative",
+        containerType: "inline-size",
         display: "flex",
         alignItems: "flex-end",
         gap: space[2],
@@ -109,10 +111,17 @@ const styles = style.create({
             )]: `calc(${space[3]} + ${stroke.border})`,
         },
     },
+    // hug a bubble, so its actions stand beside it
     content: {
         display: "flex",
         flexDirection: "column",
-        flexGrow: 1,
+        flexGrow: {
+            default: 1,
+            [style.when.ancestor(
+                ":has([data-slot=bubble]:not([data-variant=ghost]))",
+                messageMarker,
+            )]: 0,
+        },
         gap: space[2],
         minWidth: 0,
     },
@@ -188,8 +197,22 @@ const styles = style.create({
             )]: "auto",
         },
     },
+    // float over the corner, or stand beside a bubble, whose corner is far from the row's
     float: {
-        position: "absolute",
+        position: {
+            default: "absolute",
+            [style.when.ancestor(
+                ":has([data-slot=bubble]:not([data-variant=ghost]))",
+                messageMarker,
+            )]: "static",
+        },
+        alignSelf: {
+            default: null,
+            [style.when.ancestor(
+                ":has([data-slot=bubble]:not([data-variant=ghost]))",
+                messageMarker,
+            )]: "center",
+        },
         zIndex: 2,
         insetBlockStart: `calc(-1 * ${space[4]})`,
         insetInlineEnd: space[2],

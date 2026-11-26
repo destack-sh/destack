@@ -5,6 +5,7 @@ import { text } from "@destack/theme/text";
 import { color, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
 import { useMessageAlign } from "../message/index.ts";
+import { messageMarker } from "../message/marker.stylex.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { bubbleMarker } from "./marker.stylex.ts";
 
@@ -17,6 +18,9 @@ const REACTION_DEFAULTS = { side: "bottom", align: "end" } as const;
 /** The widest a bubble grows, so the sides of a conversation stay apart. */
 const WIDEST = "80%";
 
+/** The widest a bubble grows in a message, measured against the message. */
+const WIDEST_IN_MESSAGE = "80cqi";
+
 /** The styles of a bubble and its parts. */
 const styles = style.create({
     bubble: {
@@ -24,7 +28,10 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         width: "fit-content",
-        maxWidth: WIDEST,
+        maxWidth: {
+            default: WIDEST,
+            [style.when.ancestor("[data-slot=message]", messageMarker)]: WIDEST_IN_MESSAGE,
+        },
         minWidth: 0,
     },
     end: {
