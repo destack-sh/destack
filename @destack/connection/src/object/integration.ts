@@ -166,7 +166,7 @@ export const integration = defineObject(
         }),
         /** Start a device authorization for another space's connection (RFC 8628 3.1). */
         authorizeDevice: method.query({
-            title: t`Authorize device`,
+            title: t.context("action")`Authorize device`,
             permission: "request",
             input: schema.object({
                 /** The scopes and resource asked for. */
@@ -178,7 +178,7 @@ export const integration = defineObject(
         }),
         /** Request a token for another space's connection as the client (RFC 6749 3.2). */
         requestToken: method.query({
-            title: t`Request token`,
+            title: t.context("action")`Request token`,
             permission: "request",
             input: schema.object({
                 /** The grant proving possession of the connection's authorization. */
@@ -190,7 +190,7 @@ export const integration = defineObject(
         }),
         /** Revoke a token of another space's connection as the client (RFC 7009 2.1). */
         revokeToken: method.query({
-            title: t`Revoke token`,
+            title: t.context("action")`Revoke token`,
             permission: "request",
             input: schema.object({
                 /** The token revoked. */

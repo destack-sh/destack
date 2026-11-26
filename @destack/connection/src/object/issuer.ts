@@ -92,7 +92,7 @@ export const Issuer = {
         delete: method.delete("manage"),
         /** Issue a token of an installation, narrowed to a grant. */
         issue: method.query({
-            title: t`Issue`,
+            title: t.context("action")`Issue`,
             permission: "issue",
             input: schema.object({
                 /** The app's installation on an external account. */
@@ -106,7 +106,7 @@ export const Issuer = {
         }),
         /** Remove the app from the external account of an installation. */
         uninstall: method.mutation({
-            title: t`Uninstall`,
+            title: t.context("action")`Uninstall`,
             permission: "issue",
             input: schema.object({
                 /** The app's installation on an external account. */
@@ -118,7 +118,7 @@ export const Issuer = {
         }),
         /** Claim the installation a completed installation page redirects back with. */
         installation: method.mutation({
-            title: t`Read installation`,
+            title: t.context("action")`Read installation`,
             permission: "issue",
             input: schema.object({
                 /** The redirect's query parameters. */

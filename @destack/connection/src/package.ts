@@ -12,7 +12,7 @@ const LEND_CAPABILITY = "lend";
 
 /** The handle spaces serve connections to external accounts through, and clients call them by. */
 export default definePackage({
-    title: t`Connections`,
+    title: t.context("title")`Connections`,
     description: t`Connect external accounts once, and call their APIs with credentials kept in a vault.`,
     icon: "plugs-connected",
     color: "yellow",

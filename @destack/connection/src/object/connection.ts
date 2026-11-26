@@ -214,7 +214,7 @@ export const connection = defineObject(
         }),
         /** Replace a supplied credential's material, storing it in the vault first. */
         rotate: method.mutation({
-            title: t`Rotate`,
+            title: t.context("action")`Rotate`,
             permission: "manage",
             input: schema.object({
                 /** The material the connection's kind sends, such as a new API key. */
@@ -225,7 +225,7 @@ export const connection = defineObject(
         }),
         /** Lease the connection's protocol and current credential to a call its egress sends. */
         lease: method.query({
-            title: t`Lease`,
+            title: t.context("action")`Lease`,
             permission: "use",
             output: schema.sensitive(ConnectionLease),
             prepared: schema.sensitive(ConnectionLease),
@@ -233,7 +233,7 @@ export const connection = defineObject(
         }),
         /** Start authorizing the external account, answering the page a person approves it on. */
         authorize: method.mutation({
-            title: t`Authorize`,
+            title: t.context("action")`Authorize`,
             permission: "manage",
             input: schema.object({
                 /** The URI the authorization server redirects the person back to. */
@@ -249,7 +249,7 @@ export const connection = defineObject(
         }),
         /** Complete the authorization with the authorization server's redirect parameters. */
         complete: method.mutation({
-            title: t`Complete`,
+            title: t.context("action")`Complete`,
             permission: "manage",
             input: schema.object({
                 /** The redirect's query parameters, its state and code among them. */
@@ -258,7 +258,10 @@ export const connection = defineObject(
             prepared: AuthorizationGrant,
         }),
         /** Disconnect the external account, whose controller revokes the credential. */
-        disconnect: method.mutation({ title: t`Disconnect`, permission: "manage" }),
+        disconnect: method.mutation({
+            title: t.context("action")`Disconnect`,
+            permission: "manage",
+        }),
         delete: method.delete("manage"),
     }),
 );
