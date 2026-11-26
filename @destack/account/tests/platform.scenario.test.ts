@@ -487,6 +487,7 @@ test("invite a new operator as the platform's owner beside the first", async () 
                     subject: Contact.subject(Contact.email(SUCCESSOR_EMAIL)),
                     expiresAt: null,
                 },
+                title: "Destack",
                 inviter,
                 status: "pending",
                 createdAt: fixture.clock.now(),

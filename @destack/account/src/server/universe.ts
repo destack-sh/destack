@@ -711,10 +711,15 @@ export class Platform {
             return;
         }
 
-        // invite the operator as the universe
+        // invite the operator as the universe, titled by the organization's name
         const relationship = this.#ownership(organizationId);
+        const named = await this.store.database
+            .snapshot()
+            .read(organization.table)
+            .findFirst({ where: { id: organizationId } });
+        const { name: title } = present(named, "the operating organization");
         await this.#authorize(organizationId, now, (authorization) =>
-            Invitation.create({ relationship }, authorization),
+            Invitation.create({ title, relationship }, authorization),
         );
     }
 
