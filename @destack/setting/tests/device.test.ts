@@ -1,12 +1,9 @@
-import { principal } from "@destack/access";
-import { RequestId, Scope } from "@destack/sync";
-import { TestObjectStore } from "@destack/object/test";
-import { ObjectClient, Observable } from "@destack/object/client";
-import { canonicalize, Identifier, schema } from "@destack/schema";
+import { RequestId } from "@destack/sync";
+import { Observable } from "@destack/object/client";
+import { canonicalize, schema } from "@destack/schema";
 
 import { expect, onTestFinished, test } from "@destack/test";
 import { deviceSetting, setting, SettingValue } from "../src/object/index.ts";
-import { connectBunSqlite } from "@destack/db/bun";
 import {
     type Setting,
     SettingPlacement,
@@ -15,7 +12,7 @@ import {
 } from "../src/setting/index.ts";
 import { editor, lineNumbers, notes } from "./fixture/setting/index.ts";
 import settingPackage from "../src/package.ts";
-import { openSettings } from "./fixture/store.ts";
+import { followScope, openSettings } from "./fixture/store.ts";
 import { alice, aliceUser, deviceSource, named, source } from "./fixture/value.ts";
 
 test("resolve and watch values over live queries of the user's scope and the space she acts in", async () => {
@@ -26,8 +23,8 @@ test("resolve and watch values over live queries of the user's scope and the spa
 
     // follow the values of both settings in Alice's personal scope and the space
     const [personal, acted] = await Promise.all([
-        follow(personalStore, alice),
-        follow(spaceStore, spaceId),
+        followScope(personalStore, alice),
+        followScope(spaceStore, spaceId),
     ]);
     const selection = SettingSelection.parse({ scope: alice, space: spaceId });
     const where = { OR: [editor.condition(selection), lineNumbers.condition(selection)] };
@@ -147,7 +144,7 @@ test("resolve and watch values over live queries of the user's scope and the spa
 
 test("resolve a value the device stores over the user's own, off the server", async () => {
     await using served = await openSettings({ scope: aliceUser });
-    const personal = await follow(served, alice);
+    const personal = await followScope(served, alice);
     const release = editor.package.version;
 
     // set Alice's own value on the server, and store the device's value in its database
@@ -206,7 +203,7 @@ test("resolve a value the device stores over the user's own, off the server", as
 test("follow a person's values with the device's own, yielding again once the device's value changes", async () => {
     // store device values for Alice's editor mode and for another setting
     await using served = await openSettings({ scope: aliceUser });
-    const personal = await follow(served, alice);
+    const personal = await followScope(served, alice);
     const release = editor.package.version;
     const created = await personal.mutate(deviceSetting).create({
         ...named(editor),
@@ -225,7 +222,7 @@ test("follow a person's values with the device's own, yielding again once the de
     const stopping = new AbortController();
     onTestFinished(() => stopping.abort());
     const steps = SettingValue.follow(
-        personal.database,
+        personal,
         [editor.reference],
         { scope: alice, device: schema.identifier("device").parse(created.scope) },
         stopping.signal,
@@ -241,46 +238,3 @@ test("follow a person's values with the device's own, yielding again once the de
         ),
     ).toEqual([["standard"], ["vim"]]);
 });
-
-/** Follow a scope's values as Alice into a local replica, beside the device's values. */
-async function follow(
-    served: TestObjectStore,
-    scope: string,
-): Promise<
-    ObjectClient<{ readonly setting: typeof setting; readonly deviceSetting: typeof deviceSetting }>
-> {
-    // replicate the scope's values into a local database beside the device's own values
-    const local = await connectBunSqlite(
-        ":memory:",
-        ObjectClient.tables({ setting, deviceSetting }),
-        { environment: served.environment },
-    );
-    onTestFinished(() => local.close());
-    const client = await ObjectClient.open({
-        environment: served.environment,
-        database: local,
-        objects: { setting, deviceSetting },
-        scope,
-        caller: aliceUser,
-        device: principal.device.reference(
-            Scope.universe.id,
-            Identifier.create("device", served.environment),
-        ),
-        remote: served.as(alice).connect(settingPackage, { scope }),
-    });
-    const controller = new AbortController();
-    const running = client.run(controller.signal);
-    served.defer(async () => {
-        controller.abort();
-        await running;
-        await client.close();
-    });
-
-    // wait until the scope's access replica arrives, as following its chain requires
-    await local.log.waitUntil(
-        async () => (await client.access.position(local)) !== undefined,
-        controller.signal,
-    );
-
-    return client;
-}

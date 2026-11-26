@@ -6,7 +6,7 @@ import { setting, SettingValue } from "../src/object/index.ts";
 import settingPackage from "../src/package.ts";
 import { alice, aliceUser, installation, named, selection, space } from "./fixture/value.ts";
 import { editor, history, lineNumbers } from "./fixture/setting/index.ts";
-import { openSettings } from "./fixture/store.ts";
+import { followScope, openSettings } from "./fixture/store.ts";
 
 /** The milliseconds in a day. */
 const DAY = Duration.milliseconds({ days: 1 });
@@ -248,12 +248,16 @@ test("follow a scope's values for a setting and yield them again after a change"
     const stopping = new AbortController();
     onTestFinished(() => stopping.abort());
     const followed = SettingValue.follow(
-        served.database,
+        await followScope(served, alice),
         [editor.reference],
         { scope: alice },
         stopping.signal,
     );
-    const first = await followed.next();
+    // take the first read holding the row: the local read comes first, the synced one after
+    let first = await followed.next();
+    while (first.done !== true && first.value.values.length === 0) {
+        first = await followed.next();
+    }
     const changed = await values.update({
         scope: alice,
         id: created.id,

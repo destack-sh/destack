@@ -8,7 +8,8 @@ import { Setting, SettingMetadata, SettingScope } from "../setting/setting.ts";
 import { SettingSelection } from "../setting/placement.ts";
 import { DeviceValue, SettingResolution } from "../setting/resolution.ts";
 import { defineObject, field, declarable, propagated } from "@destack/object";
-import { Duration, type Identifier, schema, Version } from "@destack/schema";
+import { Observable, type ObjectNode } from "@destack/object/client";
+import { canonicalize, Duration, type Identifier, schema, Version } from "@destack/schema";
 import { DeclarationName, type PackageVersion, PackageId } from "@destack/package";
 import { SETTING_MODES } from "../setting/mode.ts";
 import { argument, plural, t } from "@destack/locale";
@@ -234,7 +235,7 @@ export const SettingValue = {
 
     /** Yield settings' values along a scope's chain and on a device, now and after each change. */
     async *follow(
-        database: DatabaseConnection,
+        node: ObjectNode,
         settings: readonly DeclarationReference[],
         at: {
             /** The scope whose chain places values. */
@@ -244,66 +245,55 @@ export const SettingValue = {
         },
         signal: AbortSignal,
     ): AsyncGenerator<SettingChain> {
-        // read the values along the chain and the device's own
+        // follow the settings' values in every scope the node replicates, and the device's own
         const { scope, device } = at;
         const named = settings.map((reference) => ({
             packageId: reference.packageId,
             name: reference.name,
         }));
-        const read = async (): Promise<SettingChain> => {
-            // read the chain as it stands, none before its scope replicates, with its values and the device's values
-            const snapshot = database.snapshot();
-            const chain = (await Scope.chain(snapshot, scope)).map((link) => link.object.id);
-            const values = await SettingValue.placed(snapshot, settings, chain);
-            const devices =
-                device === undefined
-                    ? []
-                    : await snapshot
-                          .read(deviceSetting.table)
-                          .findMany({ where: { scope: device, OR: named } });
+        const values = node
+            .queryType(setting)
+            .findMany({ scopes: "every", where: { OR: named } })
+            .subscribe();
+        const devices =
+            device === undefined
+                ? undefined
+                : node
+                      .queryType(deviceSetting)
+                      .findMany({ where: { scope: device, OR: named } })
+                      .subscribe();
+        const followed = devices === undefined ? [values] : [values, devices];
 
-            return { chain, values, device: devices };
+        // read the chain as it stands with the values it places and the device's own
+        const read = async (): Promise<SettingChain> => {
+            // read the chain, then the values it places and the device's own
+            const chain = [...(await node.chain(scope))];
+            const placed = (await values.read()).filter((value) => chain.includes(value.scope));
+            const own = devices === undefined ? [] : [...(await devices.read())];
+
+            return { chain, values: placed, device: own };
         };
 
-        // yield them now from the log's position
-        const log = database.log;
-        let { sequence } = await log.position();
-        let current = await read();
-        yield current;
-
-        // yield them after each page changing them, following the chain again once it changes
-        const tables = [
-            setting.table,
-            Scope.table,
-            ...(device === undefined ? [] : [deviceSetting.table]),
+        // read again at each change of either query, offline too, yielding each read that differs from the last
+        const watches: AsyncIterator<unknown>[] = [
+            values.watch(signal),
+            ...(devices === undefined ? [] : [devices.watch(signal)]),
         ];
-        for (;;) {
-            const scopes = device === undefined ? current.chain : [...current.chain, device];
-            const pages = log.follow({ tables, after: sequence, scopes }, signal);
-            const changes = pages[Symbol.asyncIterator]();
-            try {
-                // read again after each page until the follow ends or the chain changes
-                let page = await changes.next();
-                while (page.done !== true) {
-                    sequence = page.value.sequence;
-                    const next = await read();
+        const changes = Observable.latest(watches, () => undefined);
+        try {
+            let last: string | undefined;
+            let change = await changes.next();
+            while (change.done !== true) {
+                const next = await read();
+                const canonical = canonicalize(next);
+                if (canonical !== last) {
+                    last = canonical;
                     yield next;
-                    const isMoved = next.chain.join(" ") !== current.chain.join(" ");
-                    current = next;
-                    if (isMoved) {
-                        break;
-                    }
-                    page = await changes.next();
                 }
-
-                // end once the follow ends, else follow the new chain
-                if (page.done === true) {
-                    return;
-                }
-            } finally {
-                // stop following once the caller stops reading or the chain changes
-                await changes.return?.(undefined);
+                change = await changes.next();
             }
+        } finally {
+            await Promise.all(followed.map((live) => live.close()));
         }
     },
 };
