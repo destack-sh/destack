@@ -14,6 +14,8 @@ export interface Choice {
     readonly icon?: Icon | undefined;
     /** The color, none without one. */
     readonly color?: Hue | undefined;
+    /** One sentence on when to choose it, none without one. */
+    readonly description?: string | undefined;
     /** The passage a search matched, none without one. */
     readonly excerpt?: string | undefined;
 }
@@ -21,12 +23,16 @@ export interface Choice {
 /** One of the values a person picks, groups or filters by, with how it looks. */
 export const Choice = {
     /** Read a field's value as a choice in a locale, titled as stored without a title. */
-    of({ value, title, icon, color }: FieldChoice, localization: Localization): Choice {
+    of(
+        { value, title, icon, color, description }: FieldChoice,
+        localization: Localization,
+    ): Choice {
         return {
             value,
             title: title === undefined ? value : localization.render(title),
             ...(icon === undefined ? {} : { icon: { icon } }),
             ...(color === undefined ? {} : { color }),
+            ...(description === undefined ? {} : { description: localization.render(description) }),
         };
     },
 };
