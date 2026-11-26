@@ -638,12 +638,12 @@ export class Transaction {
             "destack.transaction.run",
             attributes,
             async (span) => {
-                // count the transaction and each attempt in the running spans' totals
-                const { context } = environment.telemetry;
-                SpanPath.add(context.active(), { "destack.transaction.count": 1 });
+                // count the transaction and each attempt in the totals of the spans its context runs in
+                const entered = environment.telemetry.context.active();
+                SpanPath.add(entered, { "destack.transaction.count": 1 });
                 const attempt = () => {
                     attempts += 1;
-                    SpanPath.add(context.active(), { "destack.transaction.attempts": 1 });
+                    SpanPath.add(entered, { "destack.transaction.attempts": 1 });
 
                     return run();
                 };

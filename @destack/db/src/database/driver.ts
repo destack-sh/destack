@@ -67,22 +67,24 @@ export class DatabaseDriver {
         return this.session.dialect;
     }
 
-    /** Submit work through the transaction or connection. */
+    /** Submit work through the transaction or connection, run in its submitter's context. */
     run<Value>(operation: () => PromiseLike<Value>, statement: DriverStatement): Promise<Value> {
-        // classify failures and measure the statement
-        const reported = () =>
+        // classify failures and measure the statement, bound to the submitter's context as its queue runs it from another flow
+        const { context } = this.state.environment.telemetry;
+        const reported = context.bind(context.active(), () =>
             this.#measure(statement, async () => {
                 try {
                     return await operation();
                 } catch (error) {
                     throw classifyError(error, this.state.declared);
                 }
-            });
+            }),
+        );
 
         return this.transaction ? this.transaction.run(reported) : this.state.run(reported);
     }
 
-    /** Run a statement, measuring it. */
+    /** Run a statement measured on its owner's span, a transaction outside any on its own. */
     #measure<Value>(statement: DriverStatement, run: () => Promise<Value>): Promise<Value> {
         // name the operation and its first table
         const { state } = this;
@@ -97,13 +99,15 @@ export class DatabaseDriver {
             ...(isDeclared ? { "db.collection.name": table } : {}),
         };
 
-        // run it measured, failed or not
+        // measure it, failed or not
         const { context } = state.environment.telemetry;
         let rows = 0;
 
-        // measure the run, adding it to the running spans' totals
-        const measured = () =>
-            state.scope.measure(
+        // measure the run, adding it to the totals of the spans running as it starts
+        const measured = () => {
+            const entered = context.active();
+
+            return state.scope.measure(
                 "db.client.operation.duration",
                 attributes,
                 async () => {
@@ -122,8 +126,7 @@ export class DatabaseDriver {
                 },
                 (seconds) => {
                     // add the run to the running spans' totals
-                    const active = context.active();
-                    SpanPath.add(active, {
+                    SpanPath.add(entered, {
                         "db.client.operation.count": 1,
                         [WRITES]: WRITE_OPERATIONS.has(statement.operation) ? 1 : 0,
                         "db.client.operation.duration": seconds,
@@ -132,14 +135,14 @@ export class DatabaseDriver {
                     state.rows.add(rows, attributes);
                 },
             );
+        };
 
-        // run a statement outside any span in a database client span of its own
-        const name = [operation, isDeclared ? table : undefined]
-            .filter((part) => part !== undefined)
-            .join(" ");
+        // run a transaction outside any span in a database client span of its own, a statement on its owner's
+        const isOpening =
+            SpanPath.of(context.active()) === undefined && operation === "TRANSACTION";
 
-        return SpanPath.of(context.active()) === undefined && name !== ""
-            ? state.scope.span(name, attributes, measured, { kind: "client", duration: false })
+        return isOpening
+            ? state.scope.span(operation, attributes, measured, { kind: "client", duration: false })
             : measured();
     }
 
