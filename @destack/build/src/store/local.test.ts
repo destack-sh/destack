@@ -177,8 +177,8 @@ test("place a stored file by its blob and a layered one from where its layer kee
     ]).toEqual(["stored", "export const answer = 42;"]);
 });
 
-test("keep an image copied up from the layer once the next layer drops it", async () => {
-    // copy up an image and its build a store has only through its layer
+test("keep an image copied up or retained from the layer once the next layer drops it", async () => {
+    // lay out an image and its build a store has only through its layer
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files, crypto } = environment;
@@ -189,29 +189,44 @@ test("keep an image copied up from the layer once the next layer drops it", asyn
     const image = await imageAlone(distributor, release);
     const distribution = join(directory, "distribution");
     await distributor.writeLayer([image], ["bun"], distribution, "linked");
-    {
-        await using layered = await LocalBuildStore.of({
+
+    // keep it once by copying it up with its build, once by retaining it alone
+    const keeps = {
+        copied: (layered: LocalBuildStore) =>
+            layered.copyUp([
+                { kind: "image", digest: image },
+                { kind: "manifest", digest: release },
+            ]),
+        retained: (layered: LocalBuildStore) => layered.retain("space", new Set([image])),
+    };
+    const answers: Record<string, string> = {};
+    for (const [way, keep] of Object.entries(keeps)) {
+        // keep it in a store over the layer
+        const path = join(directory, way);
+        {
+            await using layered = await LocalBuildStore.of({
+                blobs: store.blobs,
+                directory: path,
+                environment,
+                layer: await BuildLayer.open(distribution, environment),
+            });
+            await keep(layered);
+        }
+
+        // read the image's build's module over an empty layer
+        await using reopened = await LocalBuildStore.of({
             blobs: store.blobs,
-            directory: join(directory, "layered"),
+            directory: path,
             environment,
-            layer: await BuildLayer.open(distribution, environment),
         });
-        await layered.copyUp([
-            { kind: "image", digest: image },
-            { kind: "manifest", digest: release },
-        ]);
+        const read = await reopened.contents((await reopened.image(image)).root);
+        answers[way] = new TextDecoder().decode(await read.load("src/answer.ts"));
     }
 
-    // read the image and its build's module over an empty layer
-    await using reopened = await LocalBuildStore.of({
-        blobs: store.blobs,
-        directory: join(directory, "layered"),
-        environment,
+    expect(answers).toEqual({
+        copied: "export const answer = 42;",
+        retained: "export const answer = 42;",
     });
-    const read = await reopened.contents((await reopened.image(image)).root);
-    expect(new TextDecoder().decode(await read.load("src/answer.ts"))).toBe(
-        "export const answer = 42;",
-    );
 });
 
 test("keep an image put over a layered build only while that layer is mounted", async () => {

@@ -423,22 +423,60 @@ export class BuildStore<
         return (await this.#recorded(digest))?.isComplete === true;
     }
 
-    /** Find the store keeping a whole build: this one, else the first source that keeps it. */
-    async storeOf(digest: Digest): Promise<BuildStore | undefined> {
-        // take this store when it has the build whole
-        if (await this.contains(digest)) {
+    /** Find the store a root is pulled into for some runtimes: this one, else the first source. */
+    async storeOf(
+        root: Pick<BuildObject, "kind" | "digest">,
+        runtimes: readonly Runtime[] | "all" = "all",
+    ): Promise<BuildStore | undefined> {
+        // take this store when the root is pulled into it
+        if (await this.isPulled(root, runtimes)) {
             return this;
         }
 
         // ask each source in order
         for (const source of this.sources) {
-            const keeper = await source.storeOf(digest);
+            const keeper = await source.storeOf(root, runtimes);
             if (keeper !== undefined) {
                 return keeper;
             }
         }
 
         return undefined;
+    }
+
+    /** Report whether a root is pulled here: whole, or each build's outputs for some runtimes. */
+    async isPulled(
+        root: Pick<BuildObject, "kind" | "digest">,
+        runtimes: readonly Runtime[] | "all",
+    ): Promise<boolean> {
+        // take a whole root, and refuse a root the store lacks or one asked whole
+        if (await this.contains(root.digest)) {
+            return true;
+        } else if (runtimes === "all" || (await this.#head(root.digest)) === undefined) {
+            return false;
+        }
+
+        // require each build's manifest and its outputs for the runtimes, as a pull for them stores
+        const builds =
+            root.kind === "image"
+                ? BuildImage.builds(await this.image(root.digest))
+                : [root.digest];
+        const held = await Promise.all(
+            builds.map(async (build) => {
+                // read the build's outputs for the runtimes, and whether each is stored
+                const manifest = await this.find(build);
+                const outputs = Object.entries(manifest?.outputs ?? {}).filter(([, output]) =>
+                    runtimes.includes(output.runtime),
+                );
+                const stored = await Promise.all(
+                    outputs.map(([name]) => this.containsOutput(build, name)),
+                );
+
+                return manifest !== undefined && stored.every(Boolean);
+            }),
+        );
+
+        return held.every(Boolean);
     }
 
     /** Report whether a blob lies here or in a source. */
@@ -1172,10 +1210,31 @@ export class BuildStore<
         await this.blobs.lease([digest], expiresAt.getTime());
     }
 
-    /** Retain builds under a root's name, such as a space's, until it retains others. */
-    async retain(name: string, manifests: ReadonlySet<Digest>): Promise<void> {
+    /** Retain builds and images under a root's name, such as a space's, until it retains others. */
+    async retain(name: string, roots: ReadonlySet<Digest>): Promise<void> {
+        // find the roots the layer holds
+        const layered = [...roots].flatMap((digest) => {
+            const object = this.layer.object(digest);
+
+            return object === undefined ? [] : [object];
+        });
+
+        // copy them up with each image's builds, so they outlive the layer
+        const builds = layered.flatMap((object) => {
+            const image = object.kind === "image" ? this.layer.image(object.digest) : undefined;
+
+            return (image === undefined ? [] : BuildImage.builds(image)).map((digest) => ({
+                kind: "manifest" as const,
+                digest,
+            }));
+        });
+        if (layered.length > 0) {
+            await this.copyUp([...layered, ...builds]);
+        }
+
+        // record the roots
         await this.database.transaction((transaction) =>
-            BuildStore.replaceRoot(transaction, name, manifests),
+            BuildStore.replaceRoot(transaction, name, roots),
         );
     }
 

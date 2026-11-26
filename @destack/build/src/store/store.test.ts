@@ -400,7 +400,7 @@ test("read a build, its image, files and attachments through a source, reporting
         root: root.manifest,
         file: new TextDecoder().decode(await store.file(file)),
         attachment: await store.attachment(manifest, "code.json"),
-        isKeeper: (await store.storeOf(manifest)) === source,
+        isKeeper: (await store.storeOf({ kind: "manifest", digest: manifest })) === source,
         contains: [await store.contains(manifest), await source.contains(manifest)],
     }).toEqual({
         manifest: (await source.contents(manifest)).manifest,
@@ -1126,11 +1126,17 @@ test("pull one output of a served build: what its runtime loads and its maps, no
         requested,
         isComplete: await pulled.store.contains(digest),
         hasOutput: await pulled.store.containsOutput(digest, "bun"),
+        // report the build pulled for Bun, though not whole
+        isPulled: [
+            await pulled.store.isPulled(root, ["bun"]),
+            await pulled.store.isPulled(root, "all"),
+        ],
         arrived: files.filter((_, index) => stored[index] === true).map((file) => file.path),
     }).toEqual({
         requested: ["read", "read", "read"],
         isComplete: false,
         hasOutput: true,
+        isPulled: [true, false],
         arrived: [
             "bun/addon.node",
             "bun/serve.js",
