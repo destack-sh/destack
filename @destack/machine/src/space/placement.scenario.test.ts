@@ -30,14 +30,14 @@ test("delete a space at its home once its installations are gone, clearing its b
     await fixture.simulation.idle();
 
     // remove the space's volume here, and its placement and row at the universe, the account's home left
-    const volumes = await fixture.machine.volumes.list();
+    const stored = await fixture.machine.storage.list();
     const placed = await accountObject.Placement.find(fixture.machine.directory.snapshot, [
         ids.space,
     ]);
     const listed = await accounts.space.list({ accountId: ids.account, limit: 10 });
     const isCleared = !(await fixture.machine.builds.roots()).has(`space:${ids.space}`);
     expect({
-        removed: [volumes.includes(ids.space), placed, listed.items.map((item) => item.id)],
+        removed: [stored.includes(ids.space), placed, listed.items.map((item) => item.id)],
         builds: [isStored, isCleared],
     }).toEqual({
         removed: [false, [], [accountObject.Account.home(ids.account)]],

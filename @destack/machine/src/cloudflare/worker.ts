@@ -542,7 +542,7 @@ export class PartitionObject {
             database: cloud.replica,
             describe: async () => ({ osVersion: null, startedAt, update: null, host: null }),
             enrollment: (view) => cloud.enrollment(view ?? cloud.replica.snapshot()),
-            volumes: host,
+            storage: host,
             builds: await host.builds(await cloud.releases()),
             targets: CLOUD_RUNTIMES,
             isRunner: false,

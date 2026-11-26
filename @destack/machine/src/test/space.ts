@@ -460,12 +460,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
     /** Read a test machine's volumes, which every machine of a test world stores in. */
     static #volumes(machine: Machine): TestSpaceStorage {
-        const { volumes } = machine;
-        if (!(volumes instanceof TestSpaceStorage)) {
+        const { storage } = machine;
+        if (!(storage instanceof TestSpaceStorage)) {
             throw new TypeError(`the machine '${machine.id}' stores no test volumes`);
         }
 
-        return volumes;
+        return storage;
     }
 
     /** Open a space made at the universe, the fixture's account and space by default, hosted. */
@@ -1165,7 +1165,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const storage = simulation.environment(test.id);
         const { dialect } = universe.storage.database;
         const local = withForge.resources?.(join(directory, RESOURCES), environment);
-        const volumes = new TestSpaceStorage({
+        const spaces = new TestSpaceStorage({
             main: TestSpace.#base(options),
             replicated: SpaceStorage.replicas({ follows: withForge.follows ?? [] }),
             databases: lifetime.databases ?? new Map(),
@@ -1193,7 +1193,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
                     new BunSqliteDatabaseHost(pathToFileURL(`${databases}/`), environment),
                     object.database,
                 ),
-                TestSpaceDatabaseHost.over(main, environment, (space) => volumes.database(space)),
+                TestSpaceDatabaseHost.over(main, environment, (space) => spaces.database(space)),
             ],
             connectors: [...(withForge.connectors ?? []), ...(local?.connectors ?? [])],
         });
@@ -1269,7 +1269,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
                     return { osVersion: null, startedAt: null, update: null, host };
                 },
-                volumes,
+                storage: spaces,
                 builds,
                 targets: ["bun", "browser"],
                 isRunner: changed.isRunner ?? true,

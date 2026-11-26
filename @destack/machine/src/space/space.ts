@@ -431,7 +431,7 @@ export class Space {
                 { "destack.space.id": id },
                 async () => {
                     // open the space's volume and its blobs
-                    const volume = await machine.volumes.open(id);
+                    const volume = await machine.storage.open(id);
                     try {
                         const { environment } = machine;
                         const blobs = new BlobStore({
@@ -980,7 +980,7 @@ export class Space {
                 // close and delete the volume
                 await this.volume.close();
                 this.health.set("stopped", "the space closed");
-                await this.machine.volumes.delete(this.id);
+                await this.machine.storage.delete(this.id);
             },
         );
     }

@@ -183,7 +183,7 @@ test("move a space and back, each source destroying its copy", async () => {
     // let the source machine destroy the space it left: its volume, database files and blobs
     await sourceMachine.simulation.idle();
     const removed = {
-        isVolumeKept: (await sourceMachine.machine.volumes.list()).includes(ids.space),
+        isVolumeKept: (await sourceMachine.machine.storage.list()).includes(ids.space),
         databases: await world.files.exists(join(sourceDatabases, ids.space)),
         blobs: await world.files.exists(join(sourceMachine.files, "blobs", ids.space)),
     };
@@ -627,10 +627,10 @@ test("move a space afresh after a cancelled takeover", async () => {
 
     // let the target machine destroy the cancelled move's copy once the space no longer moves there
     await target.simulation.waitUntil(
-        async () => (await target.machine.volumes.list()).length === 0,
+        async () => (await target.machine.storage.list()).length === 0,
         target.simulation.clock.now() + ABANDON_MILLISECONDS,
     );
-    const abandoned = await target.machine.volumes.list();
+    const abandoned = await target.machine.storage.list();
 
     // move the space afresh to the same target as the owner, and read the installation as the target serves it placed there
     await owner.transfer.create({

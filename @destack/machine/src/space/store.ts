@@ -187,7 +187,7 @@ export function ownServers(
     const binder = new Binder(
         providers.objects().map((type) => ResourceBindingKind.of(providers.kind(type), type)),
         bindingKinds,
-        space.machine.volumes.replicated,
+        space.machine.storage.replicated,
     );
     const transfers = configureTransfers(space, start, providers);
 
@@ -237,7 +237,7 @@ function spaceControl(
         projections: isPrimary
             ? [
                   SpaceTransfer.projection(transfers, store),
-                  space.placement(store, space.machine.volumes.main),
+                  space.placement(store, space.machine.storage.main),
                   space.assignment(start.remote),
                   ...binder.specifications(store),
               ]

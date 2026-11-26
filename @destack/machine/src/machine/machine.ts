@@ -119,7 +119,7 @@ export type MachineOptions = Pick<
     | "identity"
     | "keyring"
     | "database"
-    | "volumes"
+    | "storage"
     | "builds"
     | "targets"
     | "isRunner"
@@ -193,7 +193,7 @@ export class Machine {
     /** The machine's replica of the universe's directory. */
     readonly directory: Directory;
     /** The storage of the machine's spaces. */
-    readonly volumes: SpaceStorage;
+    readonly storage: SpaceStorage;
     /** The builds the machine runs: pulled releases and copies of its spaces' builds. */
     readonly builds: BuildStore;
     /** The runtimes the machine pulls builds' closures for. */
@@ -287,7 +287,7 @@ export class Machine {
         });
 
         // set the spaces' storage, the builds and what the machine builds and enforces
-        this.volumes = options.volumes;
+        this.storage = options.storage;
         this.builds = options.builds;
         this.targets = options.targets;
         this.isRunner = options.isRunner;
@@ -1432,7 +1432,7 @@ export class Machine {
         const stored: Identifier<"space">[] = [];
         if (this.health.status !== "up") {
             this.health.set("up", "its account enables it");
-            stored.push(...(await this.volumes.list()));
+            stored.push(...(await this.storage.list()));
 
             // let the cache collect the builds of spaces this machine no longer stores
             await this.#prune(stored);

@@ -890,10 +890,10 @@ async function mainState(
     const followedTables = Table.affected(followed.flatMap((type) => type.tables));
 
     // read the tables the space replicates already
-    const { volumes } = options.space.machine;
+    const { storage } = options.space.machine;
     const replicated = new Set([
-        ...volumes.replicated.map((table) => table[TABLE].sqlName),
-        ...volumes.main.replicated,
+        ...storage.replicated.map((table) => table[TABLE].sqlName),
+        ...storage.main.replicated,
     ]);
     const isReplicated = (state: TableState) => replicated.has(state.table.name);
 
