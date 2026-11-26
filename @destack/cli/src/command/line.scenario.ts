@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { terminalInteraction } from "../scenario/interaction.ts";
 import { CommandLine } from "./line.ts";
@@ -9,8 +10,8 @@ const PARAMETERS = { runs: 3, warmup: 1 };
 export const showWhoami = defineScenario({
     of: CommandLine,
     interaction: terminalInteraction,
-    name: "show-whoami",
-    description: "ask who is signed in",
+    name: "showWhoami",
+    description: t`Ask who is signed in.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
@@ -28,8 +29,8 @@ export const showWhoami = defineScenario({
 export const listSpaces = defineScenario({
     of: CommandLine,
     interaction: terminalInteraction,
-    name: "list-spaces",
-    description: "list the owner's spaces",
+    name: "listSpaces",
+    description: t`List the owner's spaces.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
@@ -47,8 +48,8 @@ export const listSpaces = defineScenario({
 export const listInstallations = defineScenario({
     of: CommandLine,
     interaction: terminalInteraction,
-    name: "list-installations",
-    description: "list the home's installations",
+    name: "listInstallations",
+    description: t`List the home's installations.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
@@ -84,8 +85,8 @@ const CREDENTIAL_REQUEST = "capability[]=authtype\nprotocol=https\nhost=universe
 export const answerGitCredential = defineScenario({
     of: CommandLine,
     interaction: terminalInteraction,
-    name: "answer-git-credential",
-    description: "answer git's credential request with the owner's token",
+    name: "answerGitCredential",
+    description: t`Answer git's credential request with the owner's token.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
