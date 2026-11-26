@@ -36,7 +36,7 @@ import {
     runtimeTarget,
 } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
-import { PackageJson, type Sandbox } from "@destack/package";
+import { PackageJson, type PackageId, type Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { type PackageOutput, type PackageChunk } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
@@ -58,6 +58,9 @@ import { BundleRecorder } from "./recorder.ts";
 
 /** The directory of the chunks entries share, below an output's directory. */
 const CHUNK_DIRECTORY = "chunk";
+
+/** The directory of an output's assets and workers, below its directory. */
+const ASSET_DIRECTORY = "asset";
 
 /** A stylesheet import, by its extension, with or without a query. */
 const STYLESHEET = /\.css(?:\?.*)?$/u;
@@ -214,6 +217,11 @@ export class ModuleOutput implements Compilation {
     /** The names of the packages the package requires at run time. */
     get requires(): ReadonlySet<string> {
         return new Set(PackageJson.runtimeDependencies(this.project.packageJson));
+    }
+
+    /** The names of the Destack packages the package's modules resolve, by id. */
+    get packages(): ReadonlyMap<PackageId, string> {
+        return new Map([...this.project.tree.ids].map(([name, id]) => [id, name]));
     }
 
     /** The runtime the output runs on. */
@@ -669,14 +677,17 @@ export class ModuleOutput implements Compilation {
             worker: { plugins: () => [modulePlugin(this.#transformer), baselinePlugin()] },
             build: {
                 emitAssets: true,
+                // emit the files Vite names itself, such as a worker's, in the output's asset directory
+                assetsDir: ASSET_DIRECTORY,
                 write: false,
                 outDir: destination,
                 emptyOutDir: false,
                 ssr: project.runtime !== "browser",
                 // emit current syntax for the server runtimes Destack ships, and baseline syntax for browsers
                 target: runtimeTarget(project.runtime),
-                // minify the browser's modules as asked, leaving the server runtimes' as transpiled
-                minify: project.runtime === "browser" && (options.minify ?? false),
+                // minify the browser's modules in a release unless asked otherwise, leaving the server runtimes' as transpiled
+                minify:
+                    project.runtime === "browser" && (options.minify ?? this.mode === "release"),
                 sourcemap: true,
                 copyPublicDir: false,
                 rolldownOptions: this.#rolldownOptions(compiled, input, destination, locations),
@@ -811,7 +822,7 @@ export class ModuleOutput implements Compilation {
                 chunkFileNames: `${CHUNK_DIRECTORY}/[name]-[hash].js`,
                 // name each asset by its file's name alone, wherever its source lives
                 assetFileNames: ({ names: [name = "asset"] }) =>
-                    `asset/${posix.basename(name, posix.extname(name))}-[hash][extname]`,
+                    `${ASSET_DIRECTORY}/${posix.basename(name, posix.extname(name))}-[hash][extname]`,
                 sourcemapPathTransform(source, map) {
                     const generatedMap = `${directory}/${relativePath(destination, map)}`;
 

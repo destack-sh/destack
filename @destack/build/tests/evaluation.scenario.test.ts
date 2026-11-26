@@ -277,7 +277,7 @@ async function partPackage(app: string, environment: Environment<"files" | "proc
             declarations: {
                 defineThing: {
                     describes: [
-                        { kind: "part", package: "@example/parts", value: "./inspect#part" },
+                        { kind: "part", package: "@example/parts", member: "part" },
                         { kind: "thing", function: "./inspect#describe" },
                     ],
                 },
@@ -300,7 +300,7 @@ async function partPackage(app: string, environment: Environment<"files" | "proc
         `import { definePart } from "@example/parts";
 
 export function defineThing(definition: { name: string; part?: string }, module?: { package: object }) {
-    return { ...definition, package: module!.package, parts: definition.part === undefined ? [] : [definePart({ part: definition.part })] };
+    return { ...definition, package: module!.package, part: definition.part === undefined ? undefined : definePart({ part: definition.part }) };
 }
 `,
     );
@@ -309,17 +309,13 @@ export function defineThing(definition: { name: string; part?: string }, module?
         `export function describe(value: { name: string }) {
     return { name: value.name };
 }
-
-export function part(value: { parts: { part: string }[] }) {
-    return value.parts[0];
-}
 `,
     );
 
     return directory;
 }
 
-test("declare a dependency's kind by the value a constructor reads, and none where it reads none", async () => {
+test("declare a dependency's kind by the member a constructor sets, and none where it sets none", async () => {
     // declare a thing with a part and one without
     await using simulation = testSimulation();
     const environment = simulation.environment("test");

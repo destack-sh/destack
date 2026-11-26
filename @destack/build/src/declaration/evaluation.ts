@@ -82,7 +82,6 @@ const EvaluatedEntry = schema.object({
     /** The functions of each constructor kind, aligned with the catalog's kinds. */
     functions: schema.array(
         schema.object({
-            value: schema.unknown(),
             describe: schema.unknown(),
             vocabulary: schema.unknown(),
             symbols: schema.unknown(),
@@ -413,12 +412,11 @@ function generateEntry(entries: readonly string[], kinds: readonly CatalogedKind
     const locate = (inspector: FunctionExport) => locateFunction(inspector, conditions, modules);
     const functions = kinds.map(({ inspector }) => {
         // name each function of the kind, absent ones as undefined
-        const value = inspector.value && locate(inspector.value);
         const describe = locate(inspector.describe);
         const vocabulary = inspector.vocabulary && locate(inspector.vocabulary);
         const symbols = inspector.symbols && locate(inspector.symbols);
 
-        return `{ value: ${value ?? "undefined"}, describe: ${describe}, vocabulary: ${vocabulary ?? "undefined"}, symbols: ${symbols ?? "undefined"} }`;
+        return `{ describe: ${describe}, vocabulary: ${vocabulary ?? "undefined"}, symbols: ${symbols ?? "undefined"} }`;
     });
 
     // import the recorder first, then the entries and the inspecting modules
@@ -659,9 +657,9 @@ async function describeDeclaration(
     let described: unknown;
     try {
         value =
-            typeof functions.value === "function"
-                ? Reflect.apply(functions.value, undefined, [declared])
-                : declared;
+            kind.member === undefined
+                ? declared
+                : Reflect.get(schema.looseObject({}).parse(declared), kind.member);
         if (value === undefined) {
             return undefined;
         }
@@ -687,6 +685,7 @@ async function describeDeclaration(
         kind: kind.kind,
         package: kind.package,
         symbol: { package: owner, symbol: { module: site.module, name } },
+        ...(kind.member === undefined ? {} : { member: kind.member }),
         source: { file: site.module, line: site.line, column: site.column },
         description,
         ...(isProvisioned(value) ? { provisioned: true } : {}),

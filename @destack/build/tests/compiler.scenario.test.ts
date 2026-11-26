@@ -338,7 +338,7 @@ test("write each warm rebuild's current stylesheets, fonts and workers in develo
         ]);
 
         // expect one worker kept across an edit beside it, replaced by its edit and dropped with its import
-        const path = "assets/echo.worker-*.js";
+        const path = "asset/echo.worker-*.js";
         const echo = String(started[path]);
         expect([started, kept, reworked, stopped]).toEqual([
             { [path]: echo },

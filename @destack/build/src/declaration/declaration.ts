@@ -22,8 +22,6 @@ export interface FunctionExport {
 
 /** The functions inspecting one kind of declaration, exported by the kind's package. */
 export interface Inspector {
-    /** The function reading a dependency's kind's value from a declaration. */
-    readonly value?: FunctionExport;
     /** The function describing a declaration, exported by the kind's package. */
     readonly describe: FunctionExport;
     /** The function comparing two releases' descriptions, exported by the kind's package. */

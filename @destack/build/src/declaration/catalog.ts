@@ -28,6 +28,8 @@ export interface ConstructorKind {
     readonly kind: string;
     /** The package declaring the kind. */
     readonly package: PackageVersion;
+    /** The member of each declaration holding the kind's value, if not the declaration itself. */
+    readonly member?: string;
     /** The functions inspecting the kind. */
     readonly inspector: Inspector;
 }
@@ -149,7 +151,7 @@ export class ConstructorCatalog {
 
         // locate a dependency's kind, described by this package's functions where it names them
         const declaring = await this.#locateKind(entry.package, entry.kind, location);
-        if (!("value" in entry)) {
+        if (!("member" in entry)) {
             return {
                 kind: entry.kind,
                 package: declaring.package,
@@ -157,14 +159,12 @@ export class ConstructorCatalog {
             };
         }
 
-        // else inspect it by the kind's functions on the value read here
+        // else inspect the member it names by the kind's functions
         return {
             kind: entry.kind,
             package: declaring.package,
-            inspector: {
-                value: await this.#locateFunction(location, entry.value),
-                ...(await this.#locateInspector(declaring.location, declaring.entry)),
-            },
+            member: entry.member,
+            inspector: await this.#locateInspector(declaring.location, declaring.entry),
         };
     }
 

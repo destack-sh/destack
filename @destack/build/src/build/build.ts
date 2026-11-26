@@ -244,7 +244,7 @@ export const ModuleOptions = schema.object({
     runtime: Runtime,
     /** Package-relative module or HTML entries, absent to compile the package exports. */
     entries: schema.record(schema.string(), schema.string()).readonly().exactOptional(),
-    /** Minify generated code with Vite's minifier. */
+    /** Minify generated browser code with Vite's minifier, by default in a release. */
     minify: schema.boolean().exactOptional(),
     /** Public URL prefix used by browser assets. */
     base: schema.string().exactOptional(),

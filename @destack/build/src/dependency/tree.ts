@@ -4,7 +4,7 @@ import {
     DependencyName,
     PackageDefinition,
     PackageJson,
-    type PackageRole,
+    PackageId,
     RuntimeRequirements,
     type DependencyPackage,
     DependencyRelease,
@@ -100,8 +100,8 @@ interface TreeVisit {
 export class BuildTree {
     /** The directory of each dependency's build or npm unit, by package name. */
     readonly directories: Readonly<Record<string, string>>;
-    /** The role of each placed Destack build, by package name. */
-    readonly roles: ReadonlyMap<string, PackageRole>;
+    /** The id of each placed Destack build, by package name. */
+    readonly ids: ReadonlyMap<string, PackageId>;
     /** The exports of each Destack dependency, by package name. */
     readonly #exports: ReadonlyMap<string, schema.Infer<typeof MaterializedExports>>;
     /** The internal subpaths of each Destack dependency, by package name. */
@@ -109,17 +109,17 @@ export class BuildTree {
     /** The dependencies in the importer's workspace, free to import internal subpaths. */
     readonly #members: ReadonlySet<string>;
 
-    /** Read a tree from its dependencies' directories, roles, exports and workspace members. */
+    /** Read a tree from its dependencies' directories, ids, exports and workspace members. */
     private constructor(
         directories: Readonly<Record<string, string>>,
-        roles: ReadonlyMap<string, PackageRole>,
+        ids: ReadonlyMap<string, PackageId>,
         exports: ReadonlyMap<string, schema.Infer<typeof MaterializedExports>>,
         internal: ReadonlyMap<string, ReadonlySet<string>>,
         members: ReadonlySet<string>,
     ) {
-        // take the directories, roles, exports, internal subpaths and members
+        // take the directories, ids, exports, internal subpaths and members
         this.directories = directories;
-        this.roles = roles;
+        this.ids = ids;
         this.#exports = exports;
         this.#internal = internal;
         this.#members = members;
@@ -286,7 +286,7 @@ export class BuildTree {
 
         return new BuildTree(
             { ...placedIn("npm"), ...tree.directories },
-            tree.roles,
+            tree.ids,
             tree.#exports,
             tree.#internal,
             tree.#members,
@@ -612,7 +612,7 @@ export class BuildTree {
     /** The directory of each Destack dependency's build, by package name. */
     get builds(): Readonly<Record<string, string>> {
         return Object.fromEntries(
-            Object.entries(this.directories).filter(([name]) => this.roles.has(name)),
+            Object.entries(this.directories).filter(([name]) => this.ids.has(name)),
         );
     }
 
@@ -622,12 +622,12 @@ export class BuildTree {
         files: FileSystem,
         members: readonly string[] = [],
     ): Promise<BuildTree> {
-        // read each package's exports, its internal ones, and its role where it declares one
-        const roles = new Map<string, PackageRole>();
+        // read each Destack package's id, exports and internal exports
+        const ids = new Map<string, PackageId>();
         const exports = new Map<string, schema.Infer<typeof MaterializedExports>>();
         const internal = new Map<string, ReadonlySet<string>>();
         for (const [name, directory] of Object.entries(directories)) {
-            // read a Destack package's role and runtime exports, an npm package having neither
+            // read a Destack package's id and runtime exports, an npm package having neither
             const definition = join(directory, DEFINITION_FILE);
             if (await files.exists(definition)) {
                 const packageJson = MaterializedPackage.parse(
@@ -636,7 +636,7 @@ export class BuildTree {
                 const read = PackageDefinition.read(await files.readTextFile(definition));
                 const settings = Object.entries(read.exports ?? {});
                 exports.set(name, packageJson.exports);
-                roles.set(name, read.role);
+                ids.set(name, read.id);
                 internal.set(
                     name,
                     new Set(
@@ -648,7 +648,7 @@ export class BuildTree {
             }
         }
 
-        return new BuildTree(directories, roles, exports, internal, new Set(members));
+        return new BuildTree(directories, ids, exports, internal, new Set(members));
     }
 
     /** List the real roots a tree's packages link to, each once. */
