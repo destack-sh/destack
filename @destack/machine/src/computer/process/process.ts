@@ -2,12 +2,16 @@ import { TelemetryScope } from "@destack/telemetry";
 import { Bookmark } from "@destack/object/client";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { CommandHost } from "./command.ts";
+import type { Environment } from "@destack/environment";
 import { Release } from "@destack/update/release";
 import { UniverseHome } from "./home.ts";
+import { waitAborted } from "@destack/environment";
 import { type LoopbackEndpoint, ENDPOINT_FILE, LOCK_FILE, Loopback } from "./endpoint.ts";
 import { MachineError } from "../../error/index.ts";
 import { Autostart } from "../autostart/index.ts";
+
+/** The host starting and stopping a machine: its files, processes, servers and platform. */
+export type MachineHost = Environment<"files" | "process" | "host" | "server">;
 
 /** The environment the machine runs with: system values and its configuration, no credentials. */
 const ENVIRONMENT = [
@@ -45,6 +49,9 @@ const START_LOCK_TIMEOUT_MILLISECONDS = 10000;
 /** How long a launched machine may take to answer, in milliseconds. */
 const LAUNCH_TIMEOUT_MILLISECONDS = 5000;
 
+/** The socket a starting client listens at for the machine's notification that it serves. */
+const READY_SOCKET = "ready.sock";
+
 /** The file in the machine's directory its output goes to. */
 const LOG_FILE = "machine.log";
 
@@ -56,7 +63,7 @@ export class MachineProcess {
     /** The machine's private state directory. */
     readonly directory: string;
     /** The host starting and stopping the machine. */
-    readonly environment: CommandHost;
+    readonly environment: MachineHost;
     /** The owner's loopback connection to the running machine. */
     readonly loopback: Loopback;
 
@@ -64,7 +71,7 @@ export class MachineProcess {
     readonly #scope: TelemetryScope;
 
     /** Address the machine process of a state directory. */
-    constructor(directory: string, environment: CommandHost) {
+    constructor(directory: string, environment: MachineHost) {
         // take the directory and the environment, with the telemetry and the loopback on them
         this.directory = directory;
         this.environment = environment;
@@ -73,7 +80,7 @@ export class MachineProcess {
     }
 
     /** Address the machine process of the current release home. */
-    static current(environment: CommandHost): MachineProcess {
+    static current(environment: MachineHost): MachineProcess {
         return new MachineProcess(UniverseHome.current(environment).directory, environment);
     }
 
@@ -136,8 +143,11 @@ export class MachineProcess {
             // let the OS supervisor start a registered machine
             const autostart = await Autostart.of(this.directory, this.environment);
             if (autostart.isSupervised && (await autostart.isRegistered())) {
-                await autostart.start();
-                await this.#started(SUPERVISOR_TIMEOUT_MILLISECONDS);
+                await this.#started(SUPERVISOR_TIMEOUT_MILLISECONDS, async () => {
+                    await autostart.start();
+
+                    return undefined;
+                });
             }
             // launch one detached otherwise
             else {
@@ -209,6 +219,14 @@ export class MachineProcess {
         cleanup.defer(() => files.remove(temporary, { force: true }));
         await files.rename(temporary, endpoint);
         cleanup.defer(() => files.remove(endpoint));
+
+        // notify a starting client listening at the ready socket, which none may be
+        const ready = join(this.directory, READY_SOCKET);
+        if (await files.exists(ready)) {
+            const socket = this.environment.network.connect({ unix: ready });
+            await socket.opened;
+            await socket.close();
+        }
     }
 
     /** Launch one detached process while its caller has the startup lock. */
@@ -232,58 +250,66 @@ export class MachineProcess {
                       fileURLToPath(entry),
                   ];
 
-        // write the machine's output to its log, independently of the launching terminal
+        // start the machine, stopping it when its start fails
         const log = { file: join(this.directory, LOG_FILE) };
-        const child = process.spawn([executable, ...runArguments], {
-            isDetached: true,
-            stdin: "ignore",
-            stdout: log,
-            stderr: log,
-            variables,
-        });
-
-        // bound startup while the child publishes its endpoint
-        const exited = new AbortController();
-        void child.exited.then(
-            () => exited.abort(),
-            (error: unknown) => exited.abort(error),
-        );
+        let child: ReturnType<typeof process.spawn> | undefined;
         try {
-            await this.#started(LAUNCH_TIMEOUT_MILLISECONDS, exited.signal);
+            await this.#started(LAUNCH_TIMEOUT_MILLISECONDS, async () => {
+                // spawn it writing its output to its log, independently of the launching terminal
+                const spawned = process.spawn([executable, ...runArguments], {
+                    isDetached: true,
+                    stdin: "ignore",
+                    stdout: log,
+                    stderr: log,
+                    variables,
+                });
+                child = spawned;
+
+                // end the wait once it exits
+                const exited = new AbortController();
+                void spawned.exited.then(
+                    () => exited.abort(),
+                    (error: unknown) => exited.abort(error),
+                );
+
+                return exited.signal;
+            });
         } catch (error) {
-            child.kill("SIGTERM");
+            child?.kill("SIGTERM");
             throw error;
         }
     }
 
-    /** Wait until a starting machine answers, failing once it exits or times out. */
-    async #started(
-        timeout: number,
-        exited: AbortSignal = new AbortController().signal,
-    ): Promise<void> {
-        // watch for the endpoint before asking a machine that may have published it already
-        const stopping = AbortSignal.any([this.environment.clock.timeout(timeout), exited]);
-        const changes = await this.environment.files.watch(this.directory, { signal: stopping });
+    /** Start a machine and wait for its ready notification, failing once it exits or times out. */
+    async #started(timeout: number, start: () => Promise<AbortSignal | undefined>): Promise<void> {
+        // listen at the ready socket before starting the machine, which notifies it once it serves
+        const { files, server, clock } = this.environment;
+        const path = join(this.directory, READY_SOCKET);
+        await files.remove(path, { force: true });
+        const ready = Promise.withResolvers<void>();
+        const listener = await server.socket({
+            unix: path,
+            accept: (socket) => {
+                ready.resolve();
+                void socket.close();
+            },
+        });
+
+        // start it, then wait for its notification, its exit or the timeout
+        const exited = (await start()) ?? new AbortController().signal;
+        const stopping = AbortSignal.any([clock.timeout(timeout), exited]);
         try {
-            if (await this.#answers()) {
+            await Promise.race([ready.promise, waitAborted(stopping)]);
+            if (!stopping.aborted) {
                 return;
             }
-
-            // ask again each time the endpoint is published
-            for await (const change of changes) {
-                if (change.path === ENDPOINT_FILE && (await this.#answers())) {
-                    return;
-                }
-            }
-        } catch (error) {
-            if (!stopping.aborted) {
-                throw error;
-            }
+        } finally {
+            await listener.stop();
+            await files.remove(path, { force: true });
         }
 
         // read the last line the machine logged
         const file = join(this.directory, LOG_FILE);
-        const { files } = this.environment;
         const log = (await files.exists(file)) ? await files.readTextFile(file) : "";
         const last = log.trimEnd().split("\n").at(-1) ?? "";
 

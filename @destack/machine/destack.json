@@ -9,7 +9,9 @@
         "src/cloudflare/tail.ts",
         "src/cloudflare/test/scenario.ts",
         "src/cloudflare/runtime/test/partition.ts",
-        "src/cloudflare/graph.ts"
+        "src/cloudflare/graph.ts",
+        "src/computer/process/test/ready.ts",
+        "src/computer/process/test/exit.ts"
     ],
     "exports": {
         "./scenario": {
