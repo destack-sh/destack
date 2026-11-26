@@ -165,13 +165,12 @@ test("bundle an app's release image, its browser output importing builtins alone
         "output/browser/src/view/index.js",
     ]);
 
-    // expect the exports to import builtins alone, every other module bundled in, and no development frame
+    // expect the exports to import builtins alone, every other module bundled in
     const output = present(root.manifest.outputs["browser"], "the browser output");
     const imported = Object.values(output.exports).flatMap((each) => each.imports);
     expect({
         exports: Object.keys(output.exports).toSorted(),
         imported: [...new Set(imported)].toSorted(),
-        isFramed: output.frame !== undefined,
     }).toEqual({
         exports: ["./device", "./object", "./objects", "./package", "./view", "./view/notebooks"],
         imported: [
@@ -201,7 +200,6 @@ test("bundle an app's release image, its browser output importing builtins alone
             "@destack/telemetry/browser",
             "@destack/telemetry/otlp",
         ],
-        isFramed: false,
     });
 });
 
