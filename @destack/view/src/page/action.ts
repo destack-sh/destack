@@ -100,6 +100,37 @@ interface Provision {
     readonly element: Element | undefined;
 }
 
+/** What a part of a page, or the page itself, handles and provides, followed on its own. */
+class ActionPart {
+    /** The handlers, by setting key, the latest last. */
+    readonly handlers = new Map<string, Handling[]>();
+    /** The places it gives, the latest last. */
+    provisions: readonly Provision[] = [];
+    /** Count the changes, which readers of the part follow. */
+    readonly #revision: Accessor<number>;
+    /** Replace the count of changes. */
+    readonly #setRevision: Setter<number>;
+
+    /** Start a part without handlers or places. */
+    constructor() {
+        const [revision, setRevision] = createSignal(0, { ownedWrite: true });
+        this.#revision = revision;
+        this.#setRevision = setRevision;
+    }
+
+    /** Follow the changes to the part. */
+    follow(): void {
+        this.#revision();
+    }
+
+    /** Tell the readers of the part it changed, but on a server, which renders once. */
+    changed(): void {
+        if (!isServer) {
+            this.#setRevision((count) => count + 1);
+        }
+    }
+}
+
 /** What actions act on at a place of a page, such as a list's rows. */
 export interface ActionSubject {
     /** The part that gives it, absent for the page itself. */
@@ -138,10 +169,12 @@ export type ActionFail = (action: Action, reason: string | undefined) => void;
 export class ActionRegistry {
     /** The handled actions, by setting key. */
     readonly #actions = new Map<string, Action>();
-    /** The handlers of each action, by setting key, the latest last. */
-    readonly #handlers = new Map<string, Handling[]>();
-    /** The places of the page's parts, the latest last. */
-    #provisions: readonly Provision[] = [];
+    /** The number of handlers of each action, by setting key. */
+    readonly #counts = new Map<string, number>();
+    /** What the page itself handles and provides. */
+    readonly #page = new ActionPart();
+    /** What each part of the page handles and provides, by its element. */
+    readonly #parts = new WeakMap<Element, ActionPart>();
     /** The actions calling methods that the page offers, by setting key. */
     readonly #offered = new Map<string, Action>();
     /** What the page calls methods with, absent on a page without clients. */
@@ -150,6 +183,8 @@ export class ActionRegistry {
     readonly #last: Accessor<Element | null>;
     /** Replace where the person last was. */
     readonly #setLast: Setter<Element | null>;
+    /** What the pointer rests on, null off the page. */
+    #pointed: Element | null = null;
     /** The parts of the page asking the person, the latest last. */
     #asks: readonly ActionAsk[] = [];
     /** The parts of the page telling the person of failures, the latest last. */
@@ -207,27 +242,40 @@ export class ActionRegistry {
                     }),
             },
         };
-        this.#actions.set(key, action);
-        this.#handlers.set(key, [...(this.#handlers.get(key) ?? []), stored]);
-        this.#changed();
+        const part = this.#partOf(element);
+        part.handlers.set(key, [...(part.handlers.get(key) ?? []), stored]);
+        part.changed();
+        this.#count(key, action, 1);
 
         return () => {
-            const left = (this.#handlers.get(key) ?? []).filter((each) => each !== stored);
+            // take it off, and the action off the page's once none handles it
+            const left = (part.handlers.get(key) ?? []).filter((each) => each !== stored);
             if (left.length === 0) {
-                this.#actions.delete(key);
-                this.#handlers.delete(key);
+                part.handlers.delete(key);
             } else {
-                this.#handlers.set(key, left);
+                part.handlers.set(key, left);
             }
-            this.#changed();
+            part.changed();
+            this.#count(key, action, -1);
         };
     }
 
     /** Report whether an action runs now: an enabled handler of it applies to the focus. */
     has(reference: DeclarationReference, focus: Element | null): boolean {
-        const action = this.find(reference);
+        // take a handled action, else one that calls a method
+        const key = DeclarationReference.key(reference);
+        const handled = this.#actions.get(key);
+        const offered = this.#offered.get(key);
+        this.#revision();
 
-        return action !== undefined && this.actions(focus).includes(action);
+        return (
+            (handled !== undefined &&
+                this.#chosen(key, focus) !== undefined &&
+                isGiven(handled, this.places(focus))) ||
+            (offered?.call !== undefined &&
+                this.#client(offered.call) !== undefined &&
+                isGiven(offered, this.places(focus)))
+        );
     }
 
     /** List the actions that run for a focus, the innermost first, then those on what is around. */
@@ -586,12 +634,13 @@ export class ActionRegistry {
     provide(place: (element: Element | null) => Place, element?: Element): () => void {
         // add it, until it stops
         const provision: Provision = { place, element };
-        this.#provisions = [...this.#provisions, provision];
-        this.#changed();
+        const part = this.#partOf(element);
+        part.provisions = [...part.provisions, provision];
+        part.changed();
 
         return () => {
-            this.#provisions = this.#provisions.filter((each) => each !== provision);
-            this.#changed();
+            part.provisions = part.provisions.filter((each) => each !== provision);
+            part.changed();
         };
     }
 
@@ -602,18 +651,54 @@ export class ActionRegistry {
 
     /** List the provisions around an element, the innermost first, the page's own last. */
     #around(element: Element | null): Provision[] {
-        // follow the places as they come and go
-        this.#revision();
+        // take those of the parts around the element, a later one of a part before an earlier
+        return this.#partsAround(element).flatMap(({ provisions }) => provisions.toReversed());
+    }
 
-        // take the page's, and those of the parts around the element
-        const around = this.#provisions.filter(
-            ({ element: of }) => of === undefined || (element !== null && of.contains(element)),
-        );
+    /** List the parts around an element, the innermost first, the page last, following each. */
+    #partsAround(element: Element | null): ActionPart[] {
+        // follow each element up to the page
+        const parts: ActionPart[] = [];
+        for (let each = element; each !== null; each = each.parentElement) {
+            const part = this.#partOf(each);
+            part.follow();
+            parts.push(part);
+        }
+        this.#page.follow();
+        parts.push(this.#page);
 
-        // put a later one of a part before an earlier
-        return around
-            .toReversed()
-            .toSorted((one, other) => depthOf(other.element) - depthOf(one.element));
+        return parts;
+    }
+
+    /** Read what an element handles and provides, the page's own for none. */
+    #partOf(element: Element | undefined): ActionPart {
+        // start the part of an element the first time it is asked for
+        if (element === undefined) {
+            return this.#page;
+        }
+        let part = this.#parts.get(element);
+        if (part === undefined) {
+            part = new ActionPart();
+            this.#parts.set(element, part);
+        }
+
+        return part;
+    }
+
+    /** Count the handlers of an action, adding it with the first and dropping it with the last. */
+    #count(key: string, action: Action, step: 1 | -1): void {
+        const count = (this.#counts.get(key) ?? 0) + step;
+        if (count === 0) {
+            this.#counts.delete(key);
+            this.#actions.delete(key);
+            this.#changed();
+        } else {
+            this.#counts.set(key, count);
+            if (count === 1 && step === 1) {
+                this.#actions.set(key, action);
+                this.#changed();
+            }
+        }
     }
 
     /** List the key combinations that run an action: the person's, else the platform's declared. */
@@ -625,15 +710,23 @@ export class ActionRegistry {
 
     /** Run the innermost action a key press binds, of a part where one asks. */
     press(event: KeyboardEvent, isCommand: boolean, part?: Element): boolean {
-        // bind the actions here, within the part where one asks, leaving a field's keys to it
-        const focus = event.target instanceof Element ? event.target : null;
+        // bind the actions here, what the pointer rests on where nothing has the focus,
+        //  but none that destroys something only pointed at
+        const { target } = event;
+        const isLoose =
+            target === null || target === document.body || target === document.documentElement;
+        const focus = isLoose ? this.#pointed : target instanceof Element ? target : null;
         const isField = isTextField(event.target);
         const bindings = this.actions(focus).flatMap((action) => {
             // take one handled in the part, where its focus may be
             const key = DeclarationReference.key(action.reference);
             const chosen = this.#chosen(key, focus)?.element;
             const isOwn = part === undefined || (chosen !== undefined && part.contains(chosen));
-            const isBound = isOwn && (action.focus === "any" || !isField);
+            const isPointed = isLoose && focus !== null;
+            const isBound =
+                isOwn &&
+                (action.focus === "any" || !isField) &&
+                !(isPointed && action.isDestructive);
 
             return !isBound
                 ? []
@@ -690,8 +783,25 @@ export class ActionRegistry {
 
     /** Run the actions key presses bind anywhere on the page until aborted. */
     listen(signal: AbortSignal): void {
+        // run what each key press binds
         const isCommand = Shortcut.isCommand(navigator.userAgent);
         window.addEventListener("keydown", (event) => this.press(event, isCommand), { signal });
+
+        // remember what the pointer rests on, until it leaves the page
+        window.addEventListener(
+            "pointerover",
+            ({ target }) => {
+                this.#pointed = target instanceof Element ? target : null;
+            },
+            { signal, passive: true },
+        );
+        document.documentElement.addEventListener(
+            "pointerleave",
+            () => {
+                this.#pointed = null;
+            },
+            { signal, passive: true },
+        );
 
         // remember where the person last was, apart from the buttons and menus running actions there
         window.addEventListener(
@@ -898,25 +1008,18 @@ export class ActionRegistry {
 
     /** Choose who handles an action: the innermost around the focus, else the page's latest. */
     #chosen(key: string, focus: Element | null): Handling | undefined {
-        // follow the handlers as they come and go
-        this.#revision();
+        // take the first enabled handler of the innermost part that has one, the page's latest
+        for (const part of this.#partsAround(focus)) {
+            const enabled = (part.handlers.get(key) ?? []).filter(
+                ({ handler }) => handler.isEnabled?.(focus) ?? true,
+            );
+            const chosen = part === this.#page ? enabled.at(-1) : enabled[0];
+            if (chosen !== undefined) {
+                return chosen;
+            }
+        }
 
-        // take the enabled handlers, and those the focus is in the element of
-        const enabled = (this.#handlers.get(key) ?? []).filter(
-            ({ handler }) => handler.isEnabled?.(focus) ?? true,
-        );
-        const around = enabled.flatMap(({ handler, element }) =>
-            element !== undefined && focus !== null && element.contains(focus)
-                ? [{ handler, element }]
-                : [],
-        );
-
-        // choose the innermost around the focus, else the latest handler for the whole page
-        const innermost = around.find(({ element }) =>
-            around.every((other) => other.element === element || other.element.contains(element)),
-        );
-
-        return innermost ?? enabled.findLast(({ element }) => element === undefined);
+        return undefined;
     }
 }
 

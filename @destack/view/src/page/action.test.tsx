@@ -232,6 +232,39 @@ test("run the innermost action a key binds, by the person's keys, leaving fields
     });
 });
 
+test("run a key on what the pointer rests on where nothing has the focus, but no destructive one", async () => {
+    // handle an action and a destructive one in the calendar
+    const { calendar, day } = layOut();
+    const remove = defineAction({
+        name: "remove",
+        title: t`Remove`,
+        keybinding: "x",
+        isDestructive: true,
+    });
+    const actions = new ActionRegistry();
+    const ran: string[] = [];
+    actions.handle(plan, { run: () => void ran.push("plan") }, calendar);
+    actions.handle(remove, { run: () => void ran.push("remove") }, calendar);
+    actions.provide(at(1));
+    const closing = new AbortController();
+    actions.listen(closing.signal);
+    onTestFinished(() => closing.abort());
+
+    // press on the page, then with the pointer on the day, then with the focus in the day
+    const before = pressOn(document.body, "p");
+    day.dispatchEvent(new PointerEvent("pointerover", { bubbles: true }));
+    const pointed = [pressOn(document.body, "p"), pressOn(document.body, "x")];
+    const focused = pressOn(day, "x");
+    await Promise.resolve();
+
+    expect({ before, pointed, focused, ran }).toEqual({
+        before: false,
+        pointed: [true, false],
+        focused: true,
+        ran: ["plan", "remove"],
+    });
+});
+
 test("read the values an input has, and what the action runs on, from the innermost handler", async () => {
     // handle a move on the page without either, and in a task with both
     const move = defineAction({ name: "move", title: t`Move`, input: { to: schema.string() } });
