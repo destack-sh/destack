@@ -1597,6 +1597,22 @@
         "@destack/build": "workspace:*",
       },
     },
+    "@destack/view/tests/fixture/notes": {
+      "name": "@destack/view-notes-fixture",
+      "dependencies": {
+        "@destack/account": "workspace:*",
+        "@destack/icon": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/ui": "workspace:*",
+        "@destack/view": "workspace:*",
+      },
+      "devDependencies": {
+        "@destack/build": "workspace:*",
+      },
+    },
     "@destack/workflow": {
       "name": "@destack/workflow",
       "dependencies": {
@@ -2044,6 +2060,8 @@
     "@destack/view": ["@destack/view@workspace:@destack/view"],
 
     "@destack/view-notebook-fixture": ["@destack/view-notebook-fixture@workspace:@destack/view/tests/fixture/notebook"],
+
+    "@destack/view-notes-fixture": ["@destack/view-notes-fixture@workspace:@destack/view/tests/fixture/notes"],
 
     "@destack/workflow": ["@destack/workflow@workspace:@destack/workflow"],
 

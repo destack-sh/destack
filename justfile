@@ -190,12 +190,21 @@ postgres action:
     options="-p 55432 -k /tmp -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=300"
     "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "$options" --wait "{{action}}"
 
-# run the local universe: serve, reset, publish, desktop or cli
+# run the local universe: serve, reset, publish, desktop or cli; `--release` first runs it as this month's release, in its own universe
 [no-exit-message]
 [positional-arguments]
 local *arguments:
-    @case "${1:-serve}" in serve | reset) just postgres up ;; esac
-    @bun run --cwd @platform/deployment local "$@"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # take the release's version from the distribution, as a release run does, and its own universe
+    arguments=("$@")
+    if [ "${arguments[0]:-}" = "--release" ]; then
+        DESTACK_RELEASE_VERSION="$(bun run --silent --cwd @platform/distribution src/main.ts release version)"
+        export DESTACK_RELEASE_VERSION
+        arguments=("${arguments[1]:-serve}" --universe release "${arguments[@]:2}")
+    fi
+    case "${arguments[0]:-serve}" in serve | reset) just postgres up ;; esac
+    bun run --cwd @platform/deployment local "${arguments[@]}"
 
 # pack
 pack target="":
