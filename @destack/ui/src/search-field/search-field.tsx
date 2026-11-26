@@ -102,8 +102,8 @@ export function SearchField(given: SearchFieldProperties): JSX.Element {
             </InputGroupAddon>
             <InputGroupInput
                 enterkeyhint="search"
-                placeholder={locale.render(t`Search`)}
-                aria-label={field === null ? locale.render(t`Search`) : undefined}
+                placeholder={locale.render(t.context("label")`Search`)}
+                aria-label={field === null ? locale.render(t.context("label")`Search`) : undefined}
                 {...mergeProperties(
                     {
                         ref: (element: HTMLInputElement) => (input = element),
@@ -121,9 +121,10 @@ export function SearchField(given: SearchFieldProperties): JSX.Element {
             <Show when={value() !== "" && isEditable()}>
                 <InputGroupAddon align="inline-end">
                     <InputGroupButton
-                        size="icon-sm"
+                        isIconOnly
+                        size="sm"
                         tabindex={-1}
-                        aria-label={locale.render(t`Clear`)}
+                        aria-label={locale.render(t.context("action")`Clear`)}
                         onClick={clear}
                     >
                         <Icon icon={xIcon} />

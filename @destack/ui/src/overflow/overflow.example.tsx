@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import textB from "@destack/icon/phosphor/text-b";
 import textItalic from "@destack/icon/phosphor/text-italic";
 import textUnderline from "@destack/icon/phosphor/text-underline";
@@ -44,7 +45,7 @@ const VIEWS = ["Overview", "Roadmap", "Issues", "Releases", "Members", "Billing"
 export const overflowTabs = defineExample({
     of: Overflow,
     name: "tabs",
-    description: "a project's views as tabs, the ones that do not fit in a menu",
+    description: t`A project's views as tabs, the ones that do not fit in a menu.`,
     render: () => (
         <Tabs defaultValue="Overview">
             <Overflow>
@@ -64,7 +65,7 @@ export const overflowTabs = defineExample({
 export const overflowNarrow = defineExample({
     of: Overflow,
     name: "narrow",
-    description: "a project's views in a column too narrow for them",
+    description: t`A project's views in a column too narrow for them.`,
     render: () => (
         <div style={{ width: "320px" }}>
             <Tabs defaultValue="Overview">
@@ -86,7 +87,7 @@ export const overflowNarrow = defineExample({
 export const overflowBreadcrumb = defineExample({
     of: Overflow,
     name: "breadcrumb",
-    description: "the pages above a page, the ones after the first in a menu",
+    description: t`The pages above a page, the ones after the first in a menu.`,
     render: () => (
         <Breadcrumb>
             <Overflow>
@@ -97,7 +98,7 @@ export const overflowBreadcrumb = defineExample({
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
                         <OverflowMenu>
-                            <OverflowMenuTrigger size="icon-sm" />
+                            <OverflowMenuTrigger isIconOnly size="sm" />
                             <OverflowMenuContent />
                         </OverflowMenu>
                     </BreadcrumbItem>
@@ -143,7 +144,7 @@ const COMMANDS = [
 export const overflowToolbar = defineExample({
     of: Overflow,
     name: "toolbar",
-    description: "a toolbar whose buttons hide where they do not fit, its send button never",
+    description: t`A toolbar whose buttons hide where they do not fit, its send button never.`,
     render: () => (
         <Toolbar aria-label="Format">
             <Overflow>
@@ -174,7 +175,7 @@ export const overflowToolbar = defineExample({
 export const overflowMenubar = defineExample({
     of: Overflow,
     name: "menubar",
-    description: "an app's menus, the ones that do not fit opening from one more",
+    description: t`An app's menus, the ones that do not fit opening from one more.`,
     render: () => (
         <Overflow>
             <Menubar>
@@ -199,7 +200,7 @@ export const overflowMenubar = defineExample({
 export const overflowCustom = defineExample({
     of: Overflow,
     name: "custom",
-    description: "badges in a row, with a trigger that counts and a menu of its own",
+    description: t`Badges in a row, with a trigger that counts and a menu of its own.`,
     properties: {},
     render: (properties) => <Labels {...properties} />,
 });

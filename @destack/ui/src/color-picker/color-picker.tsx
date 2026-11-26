@@ -501,8 +501,8 @@ export function ColorThumb(properties: ColorElementProperties): JSX.Element {
                         <input
                             type="range"
                             ref={thumb.take}
-                            aria-label={locale.render(t`Color`)}
-                            aria-roledescription={locale.render(t`2D slider`)}
+                            aria-label={locale.render(t.context("label")`Color`)}
+                            aria-roledescription={locale.render(t.context("title")`2D slider`)}
                             {...thumb.attributes()}
                             onInput={(event) => thumb.set(Number(event.currentTarget.value))}
                             onKeyDown={thumb.press}
@@ -646,7 +646,7 @@ function ColorTextField(properties: Omit<InputProperties, "value">): JSX.Element
     return (
         <Input
             data-slot="color-field"
-            aria-label={locale.render(t`Color`)}
+            aria-label={locale.render(t.context("label")`Color`)}
             spellcheck={false}
             dir="ltr"
             autocomplete="off"
@@ -733,7 +733,9 @@ export function ColorSwatch(properties: ColorSwatchProperties): JSX.Element {
         get "aria-label"() {
             const read = Color.read(shown() ?? "");
 
-            return read === undefined ? locale.render(t`Color`) : nameOf(read, locale);
+            return read === undefined
+                ? locale.render(t.context("label")`Color`)
+                : nameOf(read, locale);
         },
         get children() {
             return (
@@ -769,7 +771,7 @@ export function ColorEyeDropper(properties: ButtonProperties): JSX.Element {
         setDropper(() => window?.EyeDropper);
     });
     const rest = merge(
-        { variant: "outline" as const, size: "icon" as const },
+        { variant: "outline" as const, isIconOnly: true },
         omit(properties, "children"),
     );
     const take = async (): Promise<void> => {

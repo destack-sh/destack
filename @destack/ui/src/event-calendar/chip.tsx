@@ -363,7 +363,10 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                             {/* An event in a list: its time or all day, then its color's dot */}
                             <Show when={properties.layout === "list"}>
                                 <span {...style.attrs(styles.time, styles.below)}>
-                                    <Show when={timed()} fallback={locale.render(t`All day`)}>
+                                    <Show
+                                        when={timed()}
+                                        fallback={locale.render(t.context("option")`All day`)}
+                                    >
                                         {(current) => (
                                             <>
                                                 {locale.dateRange(current().start, current().end, {
@@ -408,7 +411,9 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                                     properties.layout === "inline" && styles.clipped,
                                 )}
                             >
-                                {isBusy() ? locale.render(t`Busy`) : properties.event.title}
+                                {isBusy()
+                                    ? locale.render(t.context("option")`Busy`)
+                                    : properties.event.title}
                             </span>
 
                             {/* A timed event in a column: its start and end */}
@@ -517,7 +522,8 @@ export function EventCalendarPreview(properties: {
                                     action={action}
                                     element={chip()}
                                     icon={icon}
-                                    size="icon-sm"
+                                    isIconOnly
+                                    size="sm"
                                     variant="ghost"
                                 />
                             </Show>

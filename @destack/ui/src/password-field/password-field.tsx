@@ -44,8 +44,9 @@ export function PasswordField(properties: PasswordFieldProperties): JSX.Element 
             />
             <InputGroupAddon align="inline-end">
                 <InputGroupButton
-                    size="icon-sm"
-                    aria-label={locale.render(t`Show password`)}
+                    isIconOnly
+                    size="sm"
+                    aria-label={locale.render(t.context("action")`Show password`)}
                     aria-pressed={isVisible() ? "true" : "false"}
                     disabled={properties.disabled === true || field?.isDisabled() === true}
                     onClick={() => setVisible(!isVisible())}

@@ -115,7 +115,7 @@ export function CommentBox(properties: {
                             </Button>
                         )}
                     </Show>
-                    <ComposerSubmit size="icon-sm" disabled={words().trim() === ""} />
+                    <ComposerSubmit isIconOnly size="sm" disabled={words().trim() === ""} />
                 </ComposerFooter>
             </ComposerFrame>
         </Composer>
@@ -257,13 +257,15 @@ function Comment(properties: {
                 <ActionButton
                     action={reactToComment}
                     icon={smiley}
-                    size="icon-sm"
+                    isIconOnly
+                    size="sm"
                     variant="ghost"
                 />
                 <ActionButton
                     action={answerComment}
                     icon={arrowBendUpLeft}
-                    size="icon-sm"
+                    isIconOnly
+                    size="sm"
                     variant="ghost"
                 />
                 <DropdownMenu>
@@ -271,7 +273,8 @@ function Comment(properties: {
                         render={(attributes) => (
                             <ToolbarButton
                                 {...attributes}
-                                size="icon-sm"
+                                isIconOnly
+                                size="sm"
                                 variant="ghost"
                                 aria-label="More"
                             >

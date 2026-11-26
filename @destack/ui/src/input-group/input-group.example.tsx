@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/ui/icon";
 import { Kbd } from "../kbd/index.ts";
@@ -12,8 +13,8 @@ import {
 /** A note search with a leading icon, its shortcut and a clear button. */
 export const inputGroupNoteSearch = defineExample({
     of: InputGroup,
-    name: "note-search",
-    description: "a note search with a leading icon, its shortcut and a clear button",
+    name: "noteSearch",
+    description: t`A note search with a leading icon, its shortcut and a clear button.`,
     render: () => (
         <InputGroup>
             <InputGroupInput type="search" placeholder="Search notes" aria-label="Search notes" />
@@ -24,7 +25,7 @@ export const inputGroupNoteSearch = defineExample({
             </InputGroupAddon>
             <InputGroupAddon align="inline-end">
                 <Kbd>⌘K</Kbd>
-                <InputGroupButton size="icon-sm" aria-label="Clear search">
+                <InputGroupButton isIconOnly size="sm" aria-label="Clear search">
                     <Icon name="x" />
                 </InputGroupButton>
             </InputGroupAddon>
@@ -35,8 +36,8 @@ export const inputGroupNoteSearch = defineExample({
 /** The note search marked invalid. */
 export const inputGroupNoteSearchInvalid = defineExample({
     of: InputGroup,
-    name: "note-search-invalid",
-    description: "the note search marked invalid",
+    name: "noteSearchInvalid",
+    description: t`The note search marked invalid.`,
     render: () => (
         <InputGroup>
             <InputGroupInput

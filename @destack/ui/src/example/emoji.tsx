@@ -24,7 +24,8 @@ export function EmojiButton(properties: {
                     // fill the button the caller renders, or a round one
                     const button: ButtonProperties = merge(attributes, {
                         variant: "ghost" as const,
-                        size: "icon-sm" as const,
+                        size: "sm" as const,
+                        isIconOnly: true,
                         get "aria-label"() {
                             return properties.label;
                         },

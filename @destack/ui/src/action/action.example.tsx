@@ -34,51 +34,59 @@ const STATUSES = [
 /** Change the task's status. */
 const changeStatus = defineAction({
     name: "change-status",
-    title: t`Change status`,
+    title: t.context("action")`Change status`,
     keybinding: "s",
-    input: { status: field.enum(["Backlog", "Todo", "Doing", "Done"]).labeled(t`Status`) },
+    input: {
+        status: field
+            .enum(["Backlog", "Todo", "Doing", "Done"])
+            .labeled(t.context("label")`Status`),
+    },
 });
 
 /** Assign the task to a person. */
 const assign = defineAction({
     name: "assign",
-    title: t`Assign`,
+    title: t.context("action")`Assign`,
     keybinding: "a",
-    input: { person: field.string(schema.string()).labeled(t`Person`) },
+    input: { person: field.string(schema.string()).labeled(t.context("label")`Person`) },
 });
 
 /** Plan the task. */
 const plan = defineAction({
     name: "plan",
-    title: t`Plan`,
+    title: t.context("action")`Plan`,
     keybinding: "p",
     input: {
-        title: field.string(schema.string()).labeled(t`Title`),
-        status: field.enum(["Backlog", "Todo", "Doing"]).labeled(t`Status`),
-        points: field.integer().labeled(t`Points`),
-        due: field.time().labeled(t`Due`),
-        isUrgent: field.boolean().labeled(t`Urgent`),
+        title: field.string(schema.string()).labeled(t.context("label")`Title`),
+        status: field.enum(["Backlog", "Todo", "Doing"]).labeled(t.context("label")`Status`),
+        points: field.integer().labeled(t.context("label")`Points`),
+        due: field.time().labeled(t.context("label")`Due`),
+        isUrgent: field.boolean().labeled(t.context("label")`Urgent`),
     },
 });
 
 /** Star the task. */
-const star = defineAction({ name: "task.star", title: t`Star`, keybinding: "b" });
+const star = defineAction({
+    name: "task.star",
+    title: t.context("action")`Star`,
+    keybinding: "b",
+});
 
 /** Postpone the task. */
 const postpone = defineAction({
     name: "task.postpone",
-    title: t`Postpone`,
+    title: t.context("action")`Postpone`,
     summary: t`Postpone by ${plural(argument("days"), { one: "# day", other: "# days" })}`,
-    input: { days: field.integer().labeled(t`Days`) },
+    input: { days: field.integer().labeled(t.context("label")`Days`) },
 });
 
 /** Publish the task, which its space refuses. */
-const publish = defineAction({ name: "publish", title: t`Publish` });
+const publish = defineAction({ name: "publish", title: t.context("action")`Publish` });
 
 /** Remove the task. */
 const remove = defineAction({
     name: "remove",
-    title: t`Delete`,
+    title: t.context("action")`Delete`,
     keybinding: "delete",
     isDestructive: true,
 });
@@ -116,7 +124,7 @@ function TaskProperties(): JSX.Element {
 export const actionSelectTask = defineExample({
     of: ActionSelect,
     name: "select",
-    description: "a task's status and person, each shown on the button that picks another",
+    description: t`A task's status and person, each shown on the button that picks another.`,
     render: () => <TaskProperties />,
 });
 
@@ -157,7 +165,7 @@ function TaskActions(): JSX.Element {
                     Assign to Ada
                 </ActionButton>
                 <ActionButton action={publish} variant="outline" />
-                <ActionButton action={star} icon={starIcon} size="icon" variant="ghost" />
+                <ActionButton action={star} icon={starIcon} isIconOnly variant="ghost" />
                 <DropdownMenu>
                     <DropdownMenuTrigger
                         render={(attributes) => <Button {...attributes} variant="outline" />}
@@ -172,7 +180,7 @@ function TaskActions(): JSX.Element {
                         <MenuAction action={remove} />
                     </DropdownMenuContent>
                 </DropdownMenu>
-                <ActionButton action={remove} icon={trash} size="icon" variant="ghost" />
+                <ActionButton action={remove} icon={trash} isIconOnly variant="ghost" />
             </Cluster>
             <output>{done()}</output>
             <ActionDialog />
@@ -184,7 +192,7 @@ function TaskActions(): JSX.Element {
 export const actionButtonTask = defineExample({
     of: ActionButton,
     name: "task",
-    description: "a task's actions as buttons with their keys, asking for a person or a plan",
+    description: t`A task's actions as buttons with their keys, asking for a person or a plan.`,
     render: () => (
         <Toaster>
             <TaskActions />

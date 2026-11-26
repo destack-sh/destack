@@ -270,11 +270,12 @@ export function MessageView(properties: {
                         }
                     >
                         <MessageFooter>
-                            <CopyButton value={words()} label="Copy" size="icon-sm" />
+                            <CopyButton value={words()} label="Copy" isIconOnly size="sm" />
                             <ActionButton
                                 action={retryAnswer}
                                 icon={arrowsClockwise}
-                                size="icon-sm"
+                                isIconOnly
+                                size="sm"
                                 variant="ghost"
                             />
                             <AnswerPicker chat={chat} message={message()} />
@@ -287,14 +288,16 @@ export function MessageView(properties: {
                             <ActionButton
                                 action={reactToMessage}
                                 icon={smiley}
-                                size="icon-sm"
+                                isIconOnly
+                                size="sm"
                                 variant="ghost"
                             />
                             <Show when={properties.onThread !== undefined}>
                                 <ActionButton
                                     action={replyInThread}
                                     icon={arrowBendUpLeft}
-                                    size="icon-sm"
+                                    isIconOnly
+                                    size="sm"
                                     variant="ghost"
                                 />
                             </Show>
@@ -304,7 +307,8 @@ export function MessageView(properties: {
                                 render={(attributes) => (
                                     <ToolbarButton
                                         {...attributes}
-                                        size="icon-sm"
+                                        isIconOnly
+                                        size="sm"
                                         variant="ghost"
                                         aria-label="More"
                                     >

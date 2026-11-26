@@ -103,7 +103,7 @@ test("render a conversation as a log in a region, with a button out of reach at 
             '<div data-slot="message-scroller-content" role="log" aria-relevant="additions" aria-busy="true">',
             '<div data-slot="message-scroller-item" tabindex="0" data-message-id="a" data-scroll-anchor="">Hello</div></div>',
             '<div aria-hidden="true" data-slot="message-scroller-spacer"></div></div>',
-            '<button data-variant="outline" data-size="icon-sm" type="button" data-slot="message-scroller-button" data-direction="end" data-active="false" aria-label="Jump to latest message" inert="" tabindex="-1">',
+            '<button data-variant="outline" data-size="sm" type="button" data-slot="message-scroller-button" data-direction="end" data-active="false" aria-label="Jump to latest message" inert="" tabindex="-1">',
             '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg>',
             "</button></div>",
         ].join(""),

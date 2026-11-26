@@ -182,7 +182,7 @@ export function MessageScrollerViewport(properties: MessageScrollerElementProper
             role: "region" as const,
             tabindex: 0,
             get "aria-label"() {
-                return locale.render(t`Messages`);
+                return locale.render(t.context("title")`Messages`);
             },
         }),
     );
@@ -298,7 +298,8 @@ export function MessageScrollerButton(properties: MessageScrollerButtonPropertie
             data-direction={isStart() ? "start" : "end"}
             data-active={isIdle() ? "false" : "true"}
             variant="outline"
-            size={unseen() > 0 ? "sm" : "icon-sm"}
+            size="sm"
+            isIconOnly={unseen() === 0}
             aria-label={label()}
             inert={isIdle()}
             tabindex={isIdle() ? -1 : undefined}

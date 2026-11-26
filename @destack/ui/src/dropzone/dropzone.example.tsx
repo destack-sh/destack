@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import paperclip from "@destack/icon/phosphor/paperclip";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For } from "@destack/view";
@@ -19,7 +20,7 @@ import { Dropzone, DropzoneOverlay, DropzoneRefusal, DropzoneTrigger } from "./d
 export const dropzonePhotos = defineExample({
     of: Dropzone,
     name: "photos",
-    description: "a trip's photos, dropped or chosen and shown at once",
+    description: t`A trip's photos, dropped or chosen and shown at once.`,
     layout: "padded",
     render: () => {
         const [files, setFiles] = createSignal<readonly File[]>([]);
@@ -54,8 +55,7 @@ export const dropzonePhotos = defineExample({
 export const dropzoneMessage = defineExample({
     of: Dropzone,
     name: "message",
-    description:
-        "a message's text that takes files dropped anywhere on it, pasted into it or chosen beside it",
+    description: t`A message's text that takes files dropped anywhere on it, pasted into it or chosen beside it.`,
     layout: "padded",
     render: () => {
         const [files, setFiles] = createSignal<readonly File[]>([]);
@@ -74,7 +74,8 @@ export const dropzoneMessage = defineExample({
                                 render={(attributes) => (
                                     <InputGroupButton
                                         {...attributes}
-                                        size="icon-sm"
+                                        isIconOnly
+                                        size="sm"
                                         aria-label="Add files"
                                     >
                                         <Icon icon={paperclip} />
@@ -100,7 +101,7 @@ export const dropzoneMessage = defineExample({
 export const dropzoneTicket = defineExample({
     of: Dropzone,
     name: "ticket",
-    description: "a ticket in one row, which takes a PDF or a picture",
+    description: t`A ticket in one row, which takes a PDF or a picture.`,
     layout: "padded",
     render: () => (
         <Dropzone
@@ -115,7 +116,7 @@ export const dropzoneTicket = defineExample({
 export const dropzoneFiles = defineExample({
     of: Dropzone,
     name: "files",
-    description: "files of any kind, and a zone that takes none now",
+    description: t`Files of any kind, and a zone that takes none now.`,
     layout: "padded",
     render: () => (
         <Stack space="3">
@@ -129,7 +130,7 @@ export const dropzoneFiles = defineExample({
 export const dropzoneForm = defineExample({
     of: Dropzone,
     name: "form",
-    description: "an application's documents, two to four of them, which its form submits",
+    description: t`An application's documents, two to four of them, which its form submits.`,
     layout: "padded",
     render: () => {
         const [files, setFiles] = createSignal<readonly File[]>([]);
@@ -192,7 +193,7 @@ export const dropzoneForm = defineExample({
 export const dropzonePage = defineExample({
     of: Dropzone,
     name: "page",
-    description: "a page that takes a folder dropped anywhere on it",
+    description: t`A page that takes a folder dropped anywhere on it.`,
     layout: "padded",
     render: () => {
         const [paths, setPaths] = createSignal<readonly string[]>([]);

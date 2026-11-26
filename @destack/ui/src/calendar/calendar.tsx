@@ -520,7 +520,7 @@ function CalendarMonth(properties: {
                         {name(properties.month, { month: "long", year: "numeric" })}
                     </span>
                     <Select
-                        aria-label={locale.render(t`Month`)}
+                        aria-label={locale.render(t.context("label")`Month`)}
                         value={String(PlainDate.month(properties.month))}
                         onValueChange={(month) =>
                             month !== undefined &&
@@ -545,7 +545,7 @@ function CalendarMonth(properties: {
                         </For>
                     </Select>
                     <Select
-                        aria-label={locale.render(t`Year`)}
+                        aria-label={locale.render(t.context("label")`Year`)}
                         value={String(PlainDate.year(properties.month))}
                         onValueChange={(year) =>
                             year !== undefined &&
@@ -662,7 +662,7 @@ function CalendarWeekdays(properties: {
             <tr>
                 <Show when={properties.weekNumbers}>
                     <th scope="col" {...style.attrs(text.xs, styles.weekday)}>
-                        <VisuallyHidden>{locale.render(t`Week`)}</VisuallyHidden>
+                        <VisuallyHidden>{locale.render(t.context("label")`Week`)}</VisuallyHidden>
                     </th>
                 </Show>
                 <For each={properties.week}>
@@ -702,7 +702,7 @@ function CalendarHeader(properties: {
                 disabled={!properties.canMove(-1)}
                 onClick={() => properties.onMove(-1)}
                 {...style.attrs(
-                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    buttonVariants({ variant: "ghost", isIconOnly: true }),
                     styles.navigation,
                 )}
             >
@@ -715,7 +715,7 @@ function CalendarHeader(properties: {
                 disabled={!properties.canMove(1)}
                 onClick={() => properties.onMove(1)}
                 {...style.attrs(
-                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    buttonVariants({ variant: "ghost", isIconOnly: true }),
                     styles.navigation,
                 )}
             >
@@ -765,7 +765,7 @@ function CalendarCell(properties: {
                 onFocus={() => properties.focus.focusIn(properties.day)}
                 onClick={() => properties.onSelect(properties.day)}
                 {...style.attrs(
-                    buttonVariants({ variant: "ghost", size: "icon" }),
+                    buttonVariants({ variant: "ghost", isIconOnly: true }),
                     state.unframed,
                     styles.day,
                     isOutside() && styles.outside,

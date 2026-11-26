@@ -442,18 +442,21 @@ function CodeView(properties: {
     return (
         <CodeBlock xstyle={properties.isNew && styles.fading}>
             <CodeBlockHeader>
-                <CodeBlockTitle>{language() ?? locale.render(t`Code`)}</CodeBlockTitle>
+                <CodeBlockTitle>
+                    {language() ?? locale.render(t.context("title")`Code`)}
+                </CodeBlockTitle>
                 <CopyButton
                     value={plainOf(properties.block.spans)}
-                    label={locale.render(t`Copy code`)}
-                    size="icon-sm"
+                    label={locale.render(t.context("action")`Copy code`)}
+                    isIconOnly
+                    size="sm"
                     disabled={isStreaming()}
                 />
             </CodeBlockHeader>
             <CodeBlockContent
                 code={plainOf(properties.block.spans)}
                 grammar={colored()}
-                label={language() ?? locale.render(t`Code`)}
+                label={language() ?? locale.render(t.context("title")`Code`)}
             />
         </CodeBlock>
     );

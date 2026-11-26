@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import arrowBendUpLeftIcon from "@destack/icon/phosphor/arrow-bend-up-left";
 import dotsThreeIcon from "@destack/icon/phosphor/dots-three";
 import smileyIcon from "@destack/icon/phosphor/smiley";
@@ -29,7 +30,7 @@ const MINUTE = 60_000;
 export const messageChannel = defineExample({
     of: Message,
     name: "channel",
-    description: "two messages of a team's channel, with actions over the one pointed at",
+    description: t`Two messages of a team's channel, with actions over the one pointed at.`,
     layout: "padded",
     render: () => {
         const { clock } = useEnvironment();
@@ -62,13 +63,13 @@ export const messageChannel = defineExample({
                         </ReactionGroup>
                     </MessageContent>
                     <MessageToolbar aria-label="Actions">
-                        <ToolbarButton variant="ghost" size="icon-sm" aria-label="React">
+                        <ToolbarButton variant="ghost" isIconOnly size="sm" aria-label="React">
                             <Icon icon={smileyIcon} />
                         </ToolbarButton>
-                        <ToolbarButton variant="ghost" size="icon-sm" aria-label="Reply">
+                        <ToolbarButton variant="ghost" isIconOnly size="sm" aria-label="Reply">
                             <Icon icon={arrowBendUpLeftIcon} />
                         </ToolbarButton>
-                        <ToolbarButton variant="ghost" size="icon-sm" aria-label="More">
+                        <ToolbarButton variant="ghost" isIconOnly size="sm" aria-label="More">
                             <Icon icon={dotsThreeIcon} />
                         </ToolbarButton>
                     </MessageToolbar>
@@ -97,7 +98,7 @@ export const messageChannel = defineExample({
 export const messageDirect = defineExample({
     of: Message,
     name: "direct",
-    description: "a conversation in bubbles, one's own at the end, with whether it was read",
+    description: t`A conversation in bubbles, one's own at the end, with whether it was read.`,
     layout: "padded",
     render: () => (
         <Stack space="4">

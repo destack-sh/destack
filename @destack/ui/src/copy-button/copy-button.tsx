@@ -51,11 +51,15 @@ export function CopyButton(properties: CopyButtonProperties): JSX.Element {
         );
     };
     const isAlone = (): boolean => properties.children === undefined;
-    const label = (): string => properties.label ?? locale.render(t`Copy`);
+    const label = (): string => properties.label ?? locale.render(t.context("action")`Copy`);
     const told = (): string =>
         outcome() === "none"
             ? ""
-            : locale.render(outcome() === "copied" ? t`Copied` : t`Not copied`);
+            : locale.render(
+                  outcome() === "copied"
+                      ? t.context("option")`Copied`
+                      : t.context("option")`Not copied`,
+              );
     const button = (attributes: JSX.ButtonHTMLAttributes<HTMLButtonElement>): JSX.Element => (
         <Button
             {...attributes}
@@ -64,7 +68,8 @@ export function CopyButton(properties: CopyButtonProperties): JSX.Element {
             aria-label={isAlone() ? label() : undefined}
             {...rest}
             variant={properties.variant ?? "ghost"}
-            size={properties.size ?? (isAlone() ? "icon" : "default")}
+            size={properties.size ?? "default"}
+            isIconOnly={isAlone()}
             onClick={copy}
         >
             <Show when={outcome() !== "none"} fallback={<Icon icon={copyIcon} />}>

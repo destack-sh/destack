@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import warningCircleIcon from "@destack/icon/phosphor/warning-circle";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
@@ -434,7 +435,8 @@ function Payload(properties: { readonly title: string; readonly value: StepValue
                 <CopyButton
                     value={JSON.stringify(properties.value, null, 2)}
                     label={`Copy the ${properties.title.toLowerCase()}`}
-                    size="icon-sm"
+                    isIconOnly
+                    size="sm"
                 />
             </h4>
             <Show
@@ -547,7 +549,7 @@ function Details(properties: { readonly step: Step }): JSX.Element {
 export const sceneTrace = defineExample({
     of: Timeline,
     name: "viewer",
-    description: "an agent's run as a thread, a timeline and lanes, one step chosen across all",
+    description: t`An agent's run as a thread, a timeline and lanes, one step chosen across all.`,
     layout: "fullscreen",
     render: () => {
         const [step, setStep] = createSignal("rates-1");

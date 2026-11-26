@@ -73,7 +73,7 @@ export function Pagination(
 
     return renderPart("nav", "pagination", properties, styles.pagination, {
         get "aria-label"() {
-            return locale.render(t`Pagination`);
+            return locale.render(t.context("title")`Pagination`);
         },
     });
 }
@@ -103,7 +103,8 @@ export function PaginationLink(properties: PaginationLinkProperties): JSX.Elemen
         () => [
             buttonVariants({
                 variant: properties.active === true ? "outline" : "ghost",
-                size: properties.size ?? "icon",
+                size: properties.size ?? "default",
+                isIconOnly: true,
             }),
             properties.active === true && styles.current,
         ],
@@ -134,7 +135,9 @@ export function PaginationPrevious(
             xstyle={[styles.step, properties.xstyle]}
         >
             <Icon icon={locale.direction === "rtl" ? caretRight : caretLeft} />
-            <span {...style.attrs(styles.label)}>{locale.render(t`Previous`)}</span>
+            <span {...style.attrs(styles.label)}>
+                {locale.render(t.context("action")`Previous`)}
+            </span>
         </PaginationLink>
     );
 }
@@ -154,7 +157,7 @@ export function PaginationNext(
             {...rest}
             xstyle={[styles.step, properties.xstyle]}
         >
-            <span {...style.attrs(styles.label)}>{locale.render(t`Next`)}</span>
+            <span {...style.attrs(styles.label)}>{locale.render(t.context("action")`Next`)}</span>
             <Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />
         </PaginationLink>
     );
@@ -172,7 +175,7 @@ export function PaginationEllipsis(
                 <>
                     <Icon name="dots-three" />
                     <span {...style.attrs(visuallyHiddenStyle())}>
-                        {locale.render(t`More pages`)}
+                        {locale.render(t.context("title")`More pages`)}
                     </span>
                 </>
             );

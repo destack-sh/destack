@@ -38,8 +38,10 @@ export interface ActionButtonProperties<Inputs extends ActionInputs = ActionInpu
     readonly given?: Partial<ValuesOf<Inputs>>;
     /** Where it runs, where the button stands or the person last was by default. */
     readonly element?: Element | null;
-    /** The icon, beside the title or alone in an icon size. */
+    /** The icon, beside the title, or alone where it shows only its icon. */
     readonly icon?: IconBodies;
+    /** Whether it shows only its icon, square, its title in its tooltip. */
+    readonly isIconOnly?: boolean;
     /** The weight the icon is drawn in, regular by default. */
     readonly weight?: IconWeight;
     /** The address a press follows as a link, doing what the action does. */
@@ -67,10 +69,11 @@ export function ActionButton<Inputs extends ActionInputs>(
         "download",
         "variant",
         "children",
+        "isIconOnly",
     );
     const title = () => locale.render(properties.action.title);
     const keys = () => actions.keybindings(properties.action, isCommand())[0];
-    const isAlone = () => properties.size?.startsWith("icon") === true;
+    const isAlone = () => properties.isIconOnly === true;
     const [button, setButton] = createSignal<Element | undefined>(undefined, { ownedWrite: true });
     const place = () => {
         // find where a press would run it
@@ -133,6 +136,7 @@ export function ActionButton<Inputs extends ActionInputs>(
                         {...(properties.href === undefined ? {} : { render: link })}
                         data-action={properties.action.name}
                         aria-label={isAlone() ? title() : undefined}
+                        isIconOnly={isAlone()}
                         aria-pressed={pressed()}
                         variant={
                             own.isOn() === true ? "secondary" : (properties.variant ?? "default")

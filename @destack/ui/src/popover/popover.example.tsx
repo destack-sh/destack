@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import linkIcon from "@destack/icon/phosphor/link";
 import textBIcon from "@destack/icon/phosphor/text-b";
 import textItalicIcon from "@destack/icon/phosphor/text-italic";
@@ -32,8 +33,8 @@ const PEOPLE = [
 /** A popover that edits the size of an image in a note. */
 export const popoverImageSize = defineExample({
     of: Popover,
-    name: "image-size",
-    description: "a popover that edits the size of an image in a note",
+    name: "imageSize",
+    description: t`A popover that edits the size of an image in a note.`,
     render: () => (
         <Popover>
             <PopoverTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
@@ -52,8 +53,8 @@ export const popoverImageSize = defineExample({
 /** The image size popover open beside its trigger. */
 export const popoverImageSizeOpen = defineExample({
     of: Popover,
-    name: "image-size-open",
-    description: "the image size popover open beside its trigger",
+    name: "imageSizeOpen",
+    description: t`The image size popover open beside its trigger.`,
     properties: {
         defaultOpen: true,
     },
@@ -75,8 +76,8 @@ export const popoverImageSizeOpen = defineExample({
 /** A modal popover that renames a note, the page behind it inert while it is open. */
 export const popoverRenameModal = defineExample({
     of: Popover,
-    name: "rename-modal",
-    description: "a modal popover that renames a note, the page behind it inert while it is open",
+    name: "renameModal",
+    description: t`A modal popover that renames a note, the page behind it inert while it is open.`,
     properties: {
         modal: true,
         defaultOpen: true,
@@ -104,9 +105,8 @@ export const popoverRenameModal = defineExample({
 /** A popover titled and described for assistive technology, with a button that closes it. */
 export const popoverLinkSharing = defineExample({
     of: Popover,
-    name: "link-sharing",
-    description:
-        "a popover titled and described for assistive technology, with a button that closes it",
+    name: "linkSharing",
+    description: t`A popover titled and described for assistive technology, with a button that closes it.`,
     properties: {
         defaultOpen: true,
     },
@@ -134,7 +134,7 @@ export const popoverLinkSharing = defineExample({
 export const popoverPeople = defineExample({
     of: Popover,
     name: "people",
-    description: "the people of a list, who share one popover that glides from one to the next",
+    description: t`The people of a list, who share one popover that glides from one to the next.`,
     render: () => {
         const card = new PopoverControl<(typeof PEOPLE)[number]>();
 
@@ -176,7 +176,7 @@ export const popoverPeople = defineExample({
 export const popoverSelection = defineExample({
     of: Popover,
     name: "selection",
-    description: "the toolbar of a text's selection, beside the words a person selects",
+    description: t`The toolbar of a text's selection, beside the words a person selects.`,
     layout: "padded",
     render: () => {
         // follow the words selected, once the press that selects them ends
@@ -202,13 +202,13 @@ export const popoverSelection = defineExample({
                 >
                     <PopoverContent anchor={box()} side="top" width="fit">
                         <Toolbar aria-label="Format">
-                            <ToolbarButton size="icon-sm" variant="ghost" aria-label="Bold">
+                            <ToolbarButton isIconOnly size="sm" variant="ghost" aria-label="Bold">
                                 <Icon icon={textBIcon} />
                             </ToolbarButton>
-                            <ToolbarButton size="icon-sm" variant="ghost" aria-label="Italic">
+                            <ToolbarButton isIconOnly size="sm" variant="ghost" aria-label="Italic">
                                 <Icon icon={textItalicIcon} />
                             </ToolbarButton>
-                            <ToolbarButton size="icon-sm" variant="ghost" aria-label="Link">
+                            <ToolbarButton isIconOnly size="sm" variant="ghost" aria-label="Link">
                                 <Icon icon={linkIcon} />
                             </ToolbarButton>
                         </Toolbar>

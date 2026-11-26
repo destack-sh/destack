@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import type { LineRange } from "@destack/code";
 import tsx from "@destack/code/grammar/tsx";
 import { defineExample } from "@destack/package/declare";
@@ -34,12 +35,12 @@ export default defineView({ type: note }, (properties: { readonly id: string }) 
 export const codeBlockView = defineExample({
     of: CodeBlock,
     name: "view",
-    description: "a note's view, numbered under its file name",
+    description: t`A note's view, numbered under its file name.`,
     render: () => (
         <CodeBlock>
             <CodeBlockHeader>
                 <CodeBlockTitle>note.tsx</CodeBlockTitle>
-                <CopyButton value={VIEW} label="Copy the view" size="icon-sm" />
+                <CopyButton value={VIEW} label="Copy the view" isIconOnly size="sm" />
             </CodeBlockHeader>
             <CodeBlockContent code={VIEW} grammar={tsx} isNumbered label="note.tsx" />
         </CodeBlock>
@@ -49,8 +50,8 @@ export const codeBlockView = defineExample({
 /** A note's view without a grammar or line numbers. */
 export const codeBlockViewPlain = defineExample({
     of: CodeBlock,
-    name: "view-plain",
-    description: "a note's view without a grammar or line numbers",
+    name: "viewPlain",
+    description: t`A note's view without a grammar or line numbers.`,
     render: () => (
         <CodeBlock>
             <CodeBlockHeader>
@@ -65,8 +66,7 @@ export const codeBlockViewPlain = defineExample({
 export const codeBlockLines = defineExample({
     of: CodeBlock,
     name: "lines",
-    description:
-        "some lines of a file, with a marked one and those a person selects by their numbers",
+    description: t`Some lines of a file, with a marked one and those a person selects by their numbers.`,
     render: () => {
         const [selection, setSelection] = createSignal<LineRange | undefined>({
             start: 7,
@@ -77,7 +77,7 @@ export const codeBlockLines = defineExample({
             <CodeBlock>
                 <CodeBlockHeader>
                     <CodeBlockTitle>src/view/note.tsx</CodeBlockTitle>
-                    <CopyButton value={VIEW} label="Copy the view" size="icon-sm" />
+                    <CopyButton value={VIEW} label="Copy the view" isIconOnly size="sm" />
                 </CodeBlockHeader>
                 <CodeBlockContent
                     code={VIEW}

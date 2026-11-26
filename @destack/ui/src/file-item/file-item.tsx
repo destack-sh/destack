@@ -637,7 +637,8 @@ export function FileItemAction(properties: ButtonProperties): JSX.Element {
             tabindex={item.isActive ? undefined : -1}
             {...rest}
             variant={properties.variant ?? "ghost"}
-            size={properties.size ?? "icon-sm"}
+            size={properties.size ?? "sm"}
+            isIconOnly={properties.isIconOnly ?? true}
             xstyle={[styles.action, item.layout === "card" && styles.actionCard, properties.xstyle]}
         />
     );
@@ -758,7 +759,11 @@ function describeFailure({ error, reason }: FileItemControl, locale: Localizatio
         return describeReason(error, locale);
     }
 
-    return locale.render(reason === "connection" ? t`Connection lost` : t`Not sent`);
+    return locale.render(
+        reason === "connection"
+            ? t.context("option")`Connection lost`
+            : t.context("option")`Not sent`,
+    );
 }
 
 /** Write what a file is, how far it is sent, or why it failed. */
@@ -768,7 +773,9 @@ function describe(item: FileItemControl, locale: Localization): string {
     if (item.isFailed) {
         return describeFailure(item, locale);
     } else if (item.isWaiting) {
-        const word = locale.render(status === "paused" ? t`Paused` : t`Sending`);
+        const word = locale.render(
+            status === "paused" ? t.context("option")`Paused` : t.context("option")`Sending`,
+        );
 
         return item.share === 0
             ? word
