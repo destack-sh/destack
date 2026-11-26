@@ -1,3 +1,4 @@
+import { IconName } from "@destack/icon";
 import { NumberInput } from "./number.ts";
 import { Condition, type JsonCondition } from "@destack/db";
 import { Message } from "@destack/locale";
@@ -79,10 +80,15 @@ export class ActionInput {
     readonly value: ActionValue;
     /** The key of the variable places give it by, absent for any other input. */
     readonly variable: string | undefined;
+    /** The icon beside its name, absent for none. */
+    readonly icon: IconName | undefined;
+    /** One sentence on what it takes and when to change it, absent for none. */
+    readonly description: Message | undefined;
 
     /** Create an input. */
     constructor(
         definition: Pick<ActionInput, "name" | "label" | "presence" | "value"> &
+            Partial<Pick<ActionInput, "icon" | "description">> &
             Partial<Pick<ActionInput, "variable">>,
     ) {
         // take the name, the label, the presence and the value
@@ -91,6 +97,8 @@ export class ActionInput {
         this.presence = definition.presence;
         this.value = definition.value;
         this.variable = definition.variable;
+        this.icon = definition.icon;
+        this.description = definition.description;
     }
 
     /** Read an input as its definition declares it. */
@@ -204,13 +212,15 @@ export class ActionInput {
     /** Describe the input by its name, its label, its presence and what it takes. */
     describe(): ActionInputDescription {
         // describe its choices, or its objects
-        const { name, label, presence, value, variable } = this;
+        const { name, label, presence, value, variable, icon, description } = this;
         const shared = {
             name,
             ...(label === undefined ? {} : { label }),
             presence,
             kind: value.kind,
             ...(variable === undefined ? {} : { variable }),
+            ...(icon === undefined ? {} : { icon }),
+            ...(description === undefined ? {} : { description }),
         };
         if (value.kind === "choice") {
             return { ...shared, choices: [...value.choices] };
@@ -236,7 +246,7 @@ export class ActionInput {
         typeOf: (reference: ObjectTypeReference) => ObjectType,
     ): ActionInput {
         // read its choices, or its objects
-        const { name, label, presence, kind } = description;
+        const { name, label, presence, kind, icon } = description;
         const value: ActionValue =
             kind === "choice"
                 ? { kind, choices: description.choices ?? [] }
@@ -251,7 +261,15 @@ export class ActionInput {
                     ? { kind, ...description.numbers }
                     : { kind };
 
-        return new ActionInput({ name, label, presence, value, variable: description.variable });
+        return new ActionInput({
+            name,
+            label,
+            presence,
+            value,
+            variable: description.variable,
+            icon,
+            description: description.description,
+        });
     }
 
     /** Read an input a JSON Schema takes. */
@@ -293,6 +311,10 @@ export const ActionInputDescription = schema.object({
     source: schema.enum(["selected", "current", "picked"]).exactOptional(),
     /** The condition an object meets. */
     where: Condition.schema.exactOptional(),
+    /** The icon beside its name. */
+    icon: IconName.exactOptional(),
+    /** One sentence on what it takes and when to change it. */
+    description: Message.exactOptional(),
 });
 /** An input of an action, as its declaration describes it. */
 export type ActionInputDescription = schema.Infer<typeof ActionInputDescription>;

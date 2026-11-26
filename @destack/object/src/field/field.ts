@@ -1,3 +1,4 @@
+import type { IconName } from "@destack/icon";
 import {
     ActionInput,
     type InputPresence,
@@ -250,6 +251,7 @@ export const FIELD_MODIFIERS = [
     "sensitive",
     "personal",
     "labeled",
+    "described",
     "formatted",
     "open",
     "caller",
@@ -476,6 +478,10 @@ interface FieldOptions<Configuration extends FieldConfiguration> {
     readonly isPersonal?: boolean;
     /** The field's name as people read it. */
     readonly label?: Message;
+    /** The icon beside the field's name. */
+    readonly icon?: IconName;
+    /** One sentence on what the field stores and when to change it. */
+    readonly description?: Message;
     /** How people read a number field's values. */
     readonly format?: NumberFormat;
     /** Whether a subject field accepts the subjects and sets other types contribute. */
@@ -512,6 +518,10 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly isPersonal: boolean;
     /** The field's name as people read it, absent to read it from its property. */
     readonly label: Message | undefined;
+    /** The icon beside the field's name, absent for none. */
+    readonly icon: IconName | undefined;
+    /** One sentence on what the field stores and when to change it, absent for none. */
+    readonly description: Message | undefined;
     /** How people read a number field's values, absent for plain numbers and other fields. */
     readonly format: NumberFormat | undefined;
     /** Whether a subject field accepts contributed subjects and sets. */
@@ -535,6 +545,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         this.initial = definition.initial;
         this.isPersonal = definition.isPersonal ?? false;
         this.label = definition.label;
+        this.icon = definition.icon;
+        this.description = definition.description;
         this.format = definition.format;
         this.isOpen = definition.isOpen ?? false;
         this.encryption = definition.encryption ?? "randomized";
@@ -598,7 +610,14 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
                       };
         const declared = this.isDefault ? "default" : this.required ? "required" : "optional";
 
-        return new ActionInput({ name, label: this.label, presence: presence ?? declared, value });
+        return new ActionInput({
+            name,
+            label: this.label,
+            presence: presence ?? declared,
+            value,
+            icon: this.icon,
+            description: this.description,
+        });
     }
 
     /** The aggregate function maintaining the value. */
@@ -707,9 +726,19 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return new Field<Configuration>({ ...this.#options, ...this.#flags, isPersonal: true });
     }
 
-    /** Label the field as people read it, such as Due at. */
-    labeled(label: Message): Field<Configuration> {
-        return new Field<Configuration>({ ...this.#options, ...this.#flags, label });
+    /** Label the field as people read it, such as Due at, with an icon beside the label. */
+    labeled(label: Message, icon?: IconName): Field<Configuration> {
+        return new Field<Configuration>({
+            ...this.#options,
+            ...this.#flags,
+            label,
+            ...(icon === undefined ? {} : { icon }),
+        });
+    }
+
+    /** Describe in one sentence what the field stores and when to change it. */
+    described(description: Message): Field<Configuration> {
+        return new Field<Configuration>({ ...this.#options, ...this.#flags, description });
     }
 
     /** Write the field's numbers as people read them, such as a share or an amount. */
@@ -826,7 +855,18 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.isPersonal && !plain.isPersonal
                 ? [{ builder: "personal", arguments: [] }]
                 : []),
-            ...(this.label === undefined ? [] : [{ builder: "labeled", arguments: [this.label] }]),
+            ...(this.label === undefined
+                ? []
+                : [
+                      {
+                          builder: "labeled",
+                          arguments:
+                              this.icon === undefined ? [this.label] : [this.label, this.icon],
+                      },
+                  ]),
+            ...(this.description === undefined
+                ? []
+                : [{ builder: "described", arguments: [this.description] }]),
             ...(this.format === undefined
                 ? []
                 : [{ builder: "formatted", arguments: [this.format] }]),
@@ -1001,6 +1041,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.initial === undefined ? {} : { initial: this.initial }),
             isPersonal: this.isPersonal,
             ...(this.label === undefined ? {} : { label: this.label }),
+            ...(this.icon === undefined ? {} : { icon: this.icon }),
+            ...(this.description === undefined ? {} : { description: this.description }),
             ...(this.format === undefined ? {} : { format: this.format }),
             isOpen: this.isOpen,
             encryption: this.encryption,

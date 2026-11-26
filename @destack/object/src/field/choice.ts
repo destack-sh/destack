@@ -9,6 +9,8 @@ export const ChoiceDefinition = schema.object({
     title: Message,
     /** The icon, by its name in the icon set. */
     icon: IconName.exactOptional(),
+    /** One sentence on when to choose it. */
+    description: Message.exactOptional(),
     /** The color. */
     color: Hue.exactOptional(),
 });
@@ -23,6 +25,8 @@ export const FieldChoice = schema.object({
     title: Message.exactOptional(),
     /** The icon, by its name in the icon set. */
     icon: IconName.exactOptional(),
+    /** One sentence on when to choose it. */
+    description: Message.exactOptional(),
     /** The color. */
     color: Hue.exactOptional(),
 });
