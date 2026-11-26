@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import { renderPart } from "../part/index.ts";
 import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
@@ -29,7 +30,15 @@ import { Focus, type KeyboardDelegate } from "../focus/index.ts";
 import { Button } from "../button/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import type { Direction } from "@destack/locale";
-import { PlainDate, TimeZone, type Weekday, Week, WEEK_DAYS, MonthGrid } from "@destack/schema";
+import {
+    PlainDate,
+    TimeZone,
+    type Weekday,
+    Week,
+    WEEK_DAYS,
+    MonthGrid,
+    schema,
+} from "@destack/schema";
 import {
     isDays,
     nextValue,
@@ -40,6 +49,11 @@ import {
     type DayState,
 } from "./selection.ts";
 import { VisuallyHidden, visuallyHiddenStyle } from "../visually-hidden/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The query of a page too narrow for two months beside each other. */
 const NARROW_QUERY = "@media (max-width: 47.999rem)";
@@ -152,8 +166,36 @@ const MOVES: Readonly<Record<string, (day: PlainDate, isShift: boolean) => Plain
     PageDown: (day, isShift) => PlainDate.add(day, { months: isShift ? 12 : 1 }),
 };
 
-/** The properties of a calendar: its look and the selection of its mode. */
-export type CalendarProperties = Omit<
+/** The properties people change in a calendar's controls and inspector. */
+const CALENDAR_PROPERTIES = {
+    numberOfMonths: field
+        .integer(schema.number().int().min(1).max(3))
+        .labeled(t.context("label")`Months`)
+        .described(t`The months shown side by side.`)
+        .default(1),
+    captionLayout: field
+        .enum({
+            label: {
+                title: t.context("option")`Label`,
+                description: t`The month's name.`,
+            },
+            dropdown: {
+                title: t.context("option")`Dropdown`,
+                description: t`A month and a year picker.`,
+            },
+        })
+        .labeled(t.context("label")`Caption`)
+        .described(t`How each month's caption reads.`)
+        .default("label"),
+    showWeekNumber: field
+        .boolean()
+        .labeled(t.context("label")`Week numbers`)
+        .described(t`Numbers each week in a column, by ISO 8601.`)
+        .default(false),
+};
+
+/** The properties of a calendar besides its declared ones: its selection, limits and attributes. */
+export type CalendarAttributes = Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "ref" | "onSelect"
 > & {
@@ -165,16 +207,10 @@ export type CalendarProperties = Omit<
     readonly weekStartsOn?: Weekday;
     /** The day the calendar counts as today, the page clock's by default. */
     readonly today?: PlainDate;
-    /** The months shown side by side, one by default. */
-    readonly numberOfMonths?: number;
     /** The earliest day that can be selected or shown. */
     readonly min?: PlainDate;
     /** The latest day that can be selected or shown. */
     readonly max?: PlainDate;
-    /** How each month's caption reads: its name, or a month and a year picker. */
-    readonly captionLayout?: "label" | "dropdown";
-    /** Whether a column numbers each week by ISO 8601. */
-    readonly showWeekNumber?: boolean;
     /** Whether the days of neighbouring months fill the first and last weeks, true by default. */
     readonly showOutsideDays?: boolean;
     /** Whether the focused day takes the focus once the calendar mounts. */
@@ -186,7 +222,7 @@ export type CalendarProperties = Omit<
 /** The selection, focused day and months shown of a calendar, which its months and grids share. */
 export class CalendarControl {
     /** The calendar's properties, read for its mode, limits and change handler. */
-    readonly properties: CalendarProperties;
+    readonly properties: RenderProperties<CalendarAttributes, typeof CALENDAR_PROPERTIES>;
     /** The selection. */
     readonly value: Accessor<CalendarValue>;
     /** The focused day, which has the tab stop. */
@@ -201,7 +237,11 @@ export class CalendarControl {
     #selected: CalendarValue = undefined;
 
     /** Create the state of a calendar from its properties, showing a first month at first. */
-    constructor(properties: CalendarProperties, week: Accessor<Week>, month: PlainDate) {
+    constructor(
+        properties: RenderProperties<CalendarAttributes, typeof CALENDAR_PROPERTIES>,
+        week: Accessor<Week>,
+        month: PlainDate,
+    ) {
         // follow the controlled selection or the calendar's own
         const [value, setValue] = createControllableSignal<CalendarValue>({
             isControlled: () => "selected" in properties,
@@ -244,7 +284,7 @@ export class CalendarControl {
 
     /** The number of months shown side by side. */
     count(): number {
-        return Math.max(this.properties.numberOfMonths ?? 1, 1);
+        return this.properties.numberOfMonths;
     }
 
     /** The months shown, from the first. */
@@ -309,14 +349,18 @@ export class CalendarControl {
 /** The days a calendar's keys move the focus through. */
 class CalendarDelegate implements KeyboardDelegate<PlainDate> {
     /** The calendar's properties, read for its limits. */
-    readonly #properties: CalendarProperties;
+    readonly #properties: RenderProperties<CalendarAttributes, typeof CALENDAR_PROPERTIES>;
     /** The weekday weeks start on. */
     readonly #week: Accessor<Week>;
     /** The day the focus starts on. */
     readonly #start: Accessor<PlainDate>;
 
     /** Move through a calendar's days within its limits. */
-    constructor(properties: CalendarProperties, week: Accessor<Week>, start: Accessor<PlainDate>) {
+    constructor(
+        properties: RenderProperties<CalendarAttributes, typeof CALENDAR_PROPERTIES>,
+        week: Accessor<Week>,
+        start: Accessor<PlainDate>,
+    ) {
         this.#properties = properties;
         this.#week = week;
         this.#start = start;
@@ -343,39 +387,50 @@ class CalendarDelegate implements KeyboardDelegate<PlainDate> {
 }
 
 /** Render a month grid of days, which arrow keys, Page Up, Page Down, Home and End move through. */
-export function Calendar(properties: CalendarProperties): JSX.Element {
-    // read today once mounted, so the server and the browser render the same
-    const environment = useEnvironment();
-    const now = useNow();
-    const today = createMemo((): PlainDate | undefined => {
-        // take the given day, else the clock's once the view knows the time
-        if (properties.today !== undefined) {
-            return properties.today;
-        }
-        const time = now();
+export const Calendar = defineComponent({
+    name: "calendar",
+    properties: CALENDAR_PROPERTIES,
+    render(
+        properties: RenderProperties<CalendarAttributes, typeof CALENDAR_PROPERTIES>,
+    ): JSX.Element {
+        // read today once mounted, so the server and the browser render the same
+        const environment = useEnvironment();
+        const now = useNow();
+        const today = createMemo((): PlainDate | undefined => {
+            // take the given day, else the clock's once the view knows the time
+            if (properties.today !== undefined) {
+                return properties.today;
+            }
+            const time = now();
 
-        return time === undefined ? undefined : TimeZone.date(environment.timeZone, time);
-    });
+            return time === undefined ? undefined : TimeZone.date(environment.timeZone, time);
+        });
 
-    // take the first start: the given month, the selection's, or today's once known
-    const given = untrack(
-        () =>
-            properties.defaultMonth ??
-            firstOf("selected" in properties ? properties.selected : properties.defaultSelected),
-    );
-    const start = createMemo<PlainDate | undefined>((previous) => previous ?? given ?? today());
+        // take the first start: the given month, the selection's, or today's once known
+        const given = untrack(
+            () =>
+                properties.defaultMonth ??
+                firstOf(
+                    "selected" in properties ? properties.selected : properties.defaultSelected,
+                ),
+        );
+        const start = createMemo<PlainDate | undefined>((previous) => previous ?? given ?? today());
 
-    return (
-        <Show when={start()} keyed>
-            {(month) => <CalendarMonths calendar={properties} month={month} today={today} />}
-        </Show>
-    );
-}
+        return (
+            <Show when={start()} keyed>
+                {(month) => <CalendarMonths calendar={properties} month={month} today={today} />}
+            </Show>
+        );
+    },
+});
+
+/** The properties of a calendar: its look and the selection of its mode. */
+export type CalendarProperties = ComponentProperties<typeof Calendar>;
 
 /** Render a started calendar's months from its first month, marking today once known. */
 function CalendarMonths(properties: {
     /** The calendar's properties. */
-    readonly calendar: CalendarProperties;
+    readonly calendar: RenderProperties<CalendarAttributes, typeof CALENDAR_PROPERTIES>;
     /** The first month shown at first. */
     readonly month: PlainDate;
     /** The day it is, absent before the view knows the time. */
@@ -421,7 +476,7 @@ function CalendarMonths(properties: {
                             {(month) => (
                                 <CalendarMonth
                                     month={month}
-                                    layout={calendar.captionLayout ?? "label"}
+                                    layout={calendar.captionLayout}
                                     min={calendar.min}
                                     max={calendar.max}
                                     onPick={(picked) =>
@@ -443,7 +498,7 @@ function CalendarMonths(properties: {
                                                 stateOf(calendar, control.value(), day)
                                             }
                                             today={today()}
-                                            weekNumbers={calendar.showWeekNumber === true}
+                                            weekNumbers={calendar.showWeekNumber}
                                             outsideDays={calendar.showOutsideDays !== false}
                                             isDisabled={(day) => control.isUnavailable(day)}
                                             onSelect={(day) => control.select(day)}

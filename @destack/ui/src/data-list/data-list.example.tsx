@@ -49,3 +49,26 @@ export const dataListNoteProperties = defineExample({
         </DataList>
     ),
 });
+
+/** A note's properties, its tags lined up on their own. */
+export const dataListItemDefault = defineExample({
+    of: DataListItem,
+    name: "default",
+    description: t`A note's properties, its tags lined up on their own.`,
+    render: (properties) => (
+        <DataList>
+            <DataListItem>
+                <DataListLabel>Created</DataListLabel>
+                <DataListValue>October 4</DataListValue>
+            </DataListItem>
+            <DataListItem {...properties}>
+                <DataListLabel>Tags</DataListLabel>
+                <DataListValue>
+                    travel
+                    <br />
+                    lisbon
+                </DataListValue>
+            </DataListItem>
+        </DataList>
+    ),
+});

@@ -1,14 +1,16 @@
+import { field } from "@destack/object";
+import { type Axis, ORIENTATION } from "../position/index.ts";
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, merge, omit } from "@destack/view";
+import { type JSX, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-
-/** The orientation of a data list that sets none. */
-const DEFAULTS: Required<Pick<DataListProperties, "orientation">> = { orientation: "horizontal" };
-
-/** The alignment of a data list's item that sets none. */
-const ITEM_DEFAULTS: Required<Pick<DataListItemProperties, "align">> = { align: "baseline" };
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The selector of an item in a vertical data list. */
 const VERTICAL = ":is([data-orientation=vertical] > *)";
@@ -58,7 +60,7 @@ const alignments = style.create({
 });
 
 /** The axis a data list sets each label and value along: side by side, or the label above. */
-export type DataListOrientation = "horizontal" | "vertical";
+export type DataListOrientation = Axis;
 
 /** The properties of an element of a data list, the native element's attributes included. */
 export type DataListElementProperties<Target extends HTMLElement = HTMLElement> = Omit<
@@ -67,45 +69,76 @@ export type DataListElementProperties<Target extends HTMLElement = HTMLElement> 
 > &
     ElementPartProperties;
 
-/** The properties of a data list, the native element's attributes included. */
-export interface DataListProperties extends DataListElementProperties<HTMLDListElement> {
-    /** The axis of each label and value, horizontal by default. */
-    readonly orientation?: DataListOrientation;
-}
+/** The properties people change in a data list's controls and inspector. */
+const DATA_LIST_PROPERTIES = {
+    orientation: ORIENTATION.described(
+        t`Whether each label sits beside its value or above it.`,
+    ).default("horizontal"),
+};
+
+/** The properties of a data list besides its declared ones: its native attributes. */
+export interface DataListAttributes extends DataListElementProperties<HTMLDListElement> {}
 
 /** Render a list of labelled values, such as an error's code and request id, after Radix's. */
-export function DataList(properties: DataListProperties): JSX.Element {
-    const list = merge(DEFAULTS, properties);
-    const rest = omit(list, "orientation");
+export const DataList = defineComponent({
+    name: "dataList",
+    properties: DATA_LIST_PROPERTIES,
+    render(
+        properties: RenderProperties<DataListAttributes, typeof DATA_LIST_PROPERTIES>,
+    ): JSX.Element {
+        const rest = omit(properties, "orientation");
 
-    return renderPart(
-        "dl",
-        "data-list",
-        rest,
-        () => [text.sm, styles.list, styles[list.orientation]],
-        {
-            get "data-orientation"() {
-                return list.orientation;
+        return renderPart(
+            "dl",
+            "data-list",
+            rest,
+            () => [text.sm, styles.list, styles[properties.orientation]],
+            {
+                get "data-orientation"() {
+                    return properties.orientation;
+                },
             },
-        },
-    );
-}
+        );
+    },
+});
 
-/** The properties of a data list's item, the native element's attributes included. */
-export interface DataListItemProperties extends DataListElementProperties<HTMLDivElement> {
-    /** The alignment of the label with its value, on their baseline by default. */
-    readonly align?: keyof typeof alignments;
-}
+/** The properties of a data list, its native attributes included. */
+export type DataListProperties = ComponentProperties<typeof DataList>;
+
+/** The properties people change in a data list entry's controls and inspector. */
+const DATA_LIST_ITEM_PROPERTIES = {
+    align: field
+        .enum({
+            start: { title: t.context("option")`Start` },
+            center: { title: t.context("option")`Center` },
+            end: { title: t.context("option")`End` },
+            baseline: { title: t.context("option")`Baseline` },
+            stretch: { title: t.context("option")`Stretch` },
+        })
+        .labeled(t.context("label")`Align`)
+        .described(t`How the label lines up with its value.`)
+        .default("baseline"),
+};
+
+/** The properties of a data list entry besides its declared ones: its native attributes. */
+export interface DataListItemAttributes extends DataListElementProperties<HTMLDivElement> {}
 
 /** Render one label and its value of a data list, laid along the list's orientation. */
-export function DataListItem(properties: DataListItemProperties): JSX.Element {
-    const item = merge(ITEM_DEFAULTS, properties);
+export const DataListItem = defineComponent({
+    name: "dataListItem",
+    properties: DATA_LIST_ITEM_PROPERTIES,
+    render(
+        properties: RenderProperties<DataListItemAttributes, typeof DATA_LIST_ITEM_PROPERTIES>,
+    ): JSX.Element {
+        return renderPart("div", "data-list-item", omit(properties, "align"), () => [
+            styles.item,
+            alignments[properties.align],
+        ]);
+    },
+});
 
-    return renderPart("div", "data-list-item", omit(item, "align"), () => [
-        styles.item,
-        alignments[item.align],
-    ]);
-}
+/** The properties of a data list entry, its native attributes included. */
+export type DataListItemProperties = ComponentProperties<typeof DataListItem>;
 
 /** Render the label of a data list's item. */
 export function DataListLabel(properties: DataListElementProperties): JSX.Element {

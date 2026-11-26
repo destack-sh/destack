@@ -11,7 +11,7 @@ import {
     ListBox,
     type ListBoxElementProperties,
     ListBoxItem,
-    type ListBoxItemProperties,
+    type ListBoxItemAttributes,
     useListBox,
 } from "../list-box/index.ts";
 import { ColorPickerContext } from "../color-picker/control.ts";
@@ -51,7 +51,7 @@ export interface ColorSwatchPickerAttributes extends ListBoxElementProperties<
 }
 
 /** The properties of a swatch, the option's included. */
-export interface ColorSwatchPickerItemProperties extends Omit<ListBoxItemProperties, "value"> {
+export interface ColorSwatchPickerItemAttributes extends Omit<ListBoxItemAttributes, "value"> {
     /** The theme's hue or the CSS color the swatch shows and stands for. */
     readonly value: string;
 }
@@ -177,34 +177,50 @@ export const ColorSwatchPicker = defineComponent({
 export type ColorSwatchPickerProperties = ComponentProperties<typeof ColorSwatchPicker>;
 
 /** Render one swatch of the nearest swatch picker. */
-export function ColorSwatchPickerItem(properties: ColorSwatchPickerItemProperties): JSX.Element {
-    // stand for the color as the picker around it writes it
-    const picker = useContext(ColorPickerContext);
-    const locale = useLocale();
-    const rest = omit(properties, "value", "xstyle", "children");
-    const value = (): string =>
-        picker === null ? properties.value : colorOf(properties.value).toString(picker.format());
-    const fill = (): string =>
-        picker === null && isHue(properties.value) ? swatch[`${properties.value}Solid`] : value();
-    const label = (): string =>
-        isHue(properties.value)
-            ? locale.render(HUE_NAMES[properties.value])
-            : nameOf(colorOf(properties.value), locale);
+export const ColorSwatchPickerItem = defineComponent({
+    name: "colorSwatchPickerItem",
+    properties: ListBoxItem.properties,
+    render(
+        properties: RenderProperties<
+            ColorSwatchPickerItemAttributes,
+            typeof ListBoxItem.properties
+        >,
+    ): JSX.Element {
+        // stand for the color as the picker around it writes it
+        const picker = useContext(ColorPickerContext);
+        const locale = useLocale();
+        const rest = omit(properties, "value", "disabled", "xstyle", "children");
+        const value = (): string =>
+            picker === null
+                ? properties.value
+                : colorOf(properties.value).toString(picker.format());
+        const fill = (): string =>
+            picker === null && isHue(properties.value)
+                ? swatch[`${properties.value}Solid`]
+                : value();
+        const label = (): string =>
+            isHue(properties.value)
+                ? locale.render(HUE_NAMES[properties.value])
+                : nameOf(colorOf(properties.value), locale);
 
-    return (
-        <ListBoxItem
-            aria-label={label()}
-            data-slot="color-swatch-picker-item"
-            data-swatch={properties.value}
-            value={value()}
-            disabled={picker?.isDisabled() === true}
-            {...rest}
-            xstyle={[styles.swatch, fills.fill(fill()), properties.xstyle]}
-        >
-            {properties.children}
-        </ListBoxItem>
-    );
-}
+        return (
+            <ListBoxItem
+                aria-label={label()}
+                data-slot="color-swatch-picker-item"
+                data-swatch={properties.value}
+                value={value()}
+                {...rest}
+                disabled={properties.disabled || picker?.isDisabled() === true}
+                xstyle={[styles.swatch, fills.fill(fill()), properties.xstyle]}
+            >
+                {properties.children}
+            </ListBoxItem>
+        );
+    },
+});
+
+/** The properties of a swatch, the list box option's included. */
+export type ColorSwatchPickerItemProperties = ComponentProperties<typeof ColorSwatchPickerItem>;
 
 /** Render the hidden input that submits the nearest swatch picker's chosen swatch with its form. */
 function ColorSwatchPickerInput(properties: {

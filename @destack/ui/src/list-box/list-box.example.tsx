@@ -24,12 +24,13 @@ export const listBoxNotebook = defineExample({
     name: "notebook",
     layout: "padded",
     description: t`The notebook a note files into, one chosen at a time, with an archived one unavailable.`,
-    render: () => {
+    render: (properties) => {
         const [notebook, setNotebook] = createSignal<string>();
 
         return (
             <>
                 <ListBox
+                    {...properties}
                     xstyle={styles.list}
                     aria-label="Notebook"
                     selection={{ defaultValue: "work", onValueChange: setNotebook }}
@@ -58,8 +59,9 @@ export const listBoxTags = defineExample({
     name: "tags",
     layout: "padded",
     description: t`A note's tags, several chosen at a time.`,
-    render: () => (
+    render: (properties) => (
         <ListBox
+            {...properties}
             xstyle={styles.list}
             aria-label="Tags"
             selection={{ multiple: true, defaultValue: ["travel", "food"] }}
@@ -76,10 +78,11 @@ export const listBoxLabelGrid = defineExample({
     of: ListBox,
     name: "labelGrid",
     description: t`Six labels in a grid of three columns, which every arrow key moves through.`,
-    render: () => (
+    properties: { layout: "grid" },
+    render: (properties) => (
         <ListBox
+            {...properties}
             aria-label="Label"
-            layout="grid"
             columns={3}
             selectionBehavior="replace"
             selection={{ defaultValue: "urgent" }}
@@ -105,6 +108,22 @@ export const listBoxEmpty = defineExample({
     render: (properties) => (
         <ListBox {...properties}>
             <ListBoxEmpty>No notebooks</ListBoxEmpty>
+        </ListBox>
+    ),
+});
+
+/** A note's notebooks, the archived one set on its own. */
+export const listBoxItemDefault = defineExample({
+    of: ListBoxItem,
+    name: "default",
+    description: t`A note's notebooks, the archived one set on its own.`,
+    properties: { disabled: true },
+    render: (properties) => (
+        <ListBox aria-label="Notebook" selection={{ defaultValue: "trips" }}>
+            <ListBoxItem value="trips">Trips</ListBoxItem>
+            <ListBoxItem value="archive" {...properties}>
+                Archive
+            </ListBoxItem>
         </ListBox>
     ),
 });

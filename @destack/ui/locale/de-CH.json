@@ -10,10 +10,6 @@
             "source": "Ask to close a controlled dropdown menu on Escape, with the focus inside until its owner closes it.",
             "translation": "Das Schliessen eines gesteuerten Dropdown-Menüs mit Escape anfragen, mit dem Fokus darin, bis sein Besitzer es schliesst."
         },
-        "10teahnr0ixg1": {
-            "source": "The icons of three pages at the extra large size.",
-            "translation": "Die Symbole dreier Seiten in sehr grosser Grösse."
-        },
         "11czoh83cmrdf": {
             "source": "Close a modal popover from its close button and hand the focus back to its trigger.",
             "translation": "Ein modales Popover über seine Schliessen-Schaltfläche schliessen und den Fokus an seinen Auslöser zurückgeben."
@@ -203,6 +199,19 @@
         "1oi3djad8hl80": {
             "source": "How it collapses as a person closes it.",
             "translation": "Wie sie sich einklappt, wenn man sie schliesst."
+        },
+        "sxn2evt28295": {
+            "source": "Extra large",
+            "context": "option",
+            "translation": "Sehr gross"
+        },
+        "3h57t0rbzshdc": {
+            "source": "How large the glyph draws.",
+            "translation": "Wie gross das Glyph gezeichnet wird."
+        },
+        "3sw97ikc47d7v": {
+            "source": "The smallest unit written, below which it is now.",
+            "translation": "Die kleinste geschriebene Einheit, darunter heisst es jetzt."
         }
     }
 }

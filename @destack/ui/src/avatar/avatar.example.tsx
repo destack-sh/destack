@@ -31,14 +31,13 @@ export const avatarInitials = defineExample({
     ),
 });
 
-/** A person's picture with a mark on its corner. */
+/** A person's initials with a mark on their corner. */
 export const avatarBadge = defineExample({
     of: Avatar,
     name: "badge",
-    description: t`Ada's picture with a mark on its corner, as for someone online.`,
+    description: t`Ada's initials with a mark on their corner, as for someone online.`,
     render: (properties) => (
         <Avatar {...properties}>
-            <AvatarImage src={PICTURES.ada} alt="Ada Lovelace" />
             <AvatarFallback>AL</AvatarFallback>
             <AvatarBadge />
         </Avatar>

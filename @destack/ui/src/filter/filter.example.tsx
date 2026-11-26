@@ -127,11 +127,11 @@ export const filterTasks = defineExample({
 
 /** Conditions of every kind, with a set of which any holds. */
 export const filterSets = defineExample({
-    of: Filter,
+    of: FilterList,
     name: "sets",
     description: t`Conditions of every kind, with a set of which any holds.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Filter
             fields={FIELDS}
             defaultValue={{
@@ -144,7 +144,7 @@ export const filterSets = defineExample({
                 ],
             }}
         >
-            <FilterList />
+            <FilterList {...properties} />
             <FilterAdd groups />
             <FilterMatch />
             <FilterClear />

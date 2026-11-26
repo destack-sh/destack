@@ -43,3 +43,17 @@ export const colorSwatchPickerProjectColorUnset = defineExample({
     },
     render: (properties) => <ColorSwatchPicker {...properties} />,
 });
+
+/** A label's colors, orange set on its own. */
+export const colorSwatchPickerItemDefault = defineExample({
+    of: ColorSwatchPickerItem,
+    name: "default",
+    description: t`A label's colors, orange set on its own.`,
+    properties: { disabled: true },
+    render: (properties) => (
+        <ColorSwatchPicker aria-label="Label color" defaultValue="cyan">
+            <ColorSwatchPickerItem value="cyan" />
+            <ColorSwatchPickerItem value="orange" {...properties} />
+        </ColorSwatchPicker>
+    ),
+});

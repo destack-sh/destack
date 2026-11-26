@@ -471,3 +471,19 @@ export const commandSearchDetail = defineExample({
         );
     },
 });
+
+/** A note's commands, deleting it set on its own. */
+export const commandItemDefault = defineExample({
+    of: CommandItem,
+    name: "default",
+    description: t`A note's commands, deleting it set on its own.`,
+    properties: { disabled: true },
+    render: (properties) => (
+        <Command aria-label="Commands">
+            <CommandList>
+                <CommandItem>New note</CommandItem>
+                <CommandItem {...properties}>Delete note</CommandItem>
+            </CommandList>
+        </Command>
+    ),
+});

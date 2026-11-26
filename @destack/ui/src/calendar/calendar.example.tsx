@@ -43,7 +43,15 @@ export const calendarLateOctober = defineExample({
     of: Calendar,
     name: "lateOctober",
     description: t`A calendar at the end of October with the thirtieth selected and the fourth as today.`,
-    render: () => <Calendar defaultSelected={"2026-10-30"} today={"2026-10-04"} />,
+    render: (properties) => (
+        <Calendar
+            numberOfMonths={properties.numberOfMonths}
+            captionLayout={properties.captionLayout}
+            showWeekNumber={properties.showWeekNumber}
+            defaultSelected={"2026-10-30"}
+            today={"2026-10-04"}
+        />
+    ),
 });
 
 /** A calendar that picks a stay across two months shown side by side. */
@@ -51,10 +59,13 @@ export const calendarStayTwoMonths = defineExample({
     of: Calendar,
     name: "stayTwoMonths",
     description: t`A calendar that picks a stay across two months shown side by side.`,
-    render: () => (
+    properties: { numberOfMonths: 2 },
+    render: (properties) => (
         <Calendar
+            numberOfMonths={properties.numberOfMonths}
+            captionLayout={properties.captionLayout}
+            showWeekNumber={properties.showWeekNumber}
             mode="range"
-            numberOfMonths={2}
             defaultSelected={{
                 from: "2026-10-28",
                 to: "2026-11-03",
@@ -69,10 +80,12 @@ export const calendarBirthday = defineExample({
     of: Calendar,
     name: "birthday",
     description: t`A birthday calendar with month and year pickers, numbered weeks and no later day than today.`,
-    render: () => (
+    properties: { captionLayout: "dropdown", showWeekNumber: true },
+    render: (properties) => (
         <Calendar
-            captionLayout="dropdown"
-            showWeekNumber
+            numberOfMonths={properties.numberOfMonths}
+            captionLayout={properties.captionLayout}
+            showWeekNumber={properties.showWeekNumber}
             showOutsideDays={false}
             max={"2026-10-04"}
             today={"2026-10-04"}

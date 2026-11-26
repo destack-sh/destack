@@ -56,10 +56,6 @@
             "source": "The notebook combobox unavailable.",
             "translation": "La liste déroulante des carnets, indisponible."
         },
-        "10teahnr0ixg1": {
-            "source": "The icons of three pages at the extra large size.",
-            "translation": "Les icônes de trois pages en très grande taille."
-        },
         "10tit9r3tuf0o": {
             "source": "Ask the assistant to send a mail, which it asks about first, and let it.",
             "translation": "Demander à l'assistant d'envoyer un mail, ce qu'il demande d'abord, et le laisser faire."
@@ -332,10 +328,6 @@
             "source": "Month",
             "context": "option",
             "translation": "Mois"
-        },
-        "1amdcmeiiksoo": {
-            "source": "A day and someone joining between two lines, and a row above a line.",
-            "translation": "Un jour et une arrivée entre deux lignes, et une rangée au-dessus d'une ligne."
         },
         "1aw48k88061g2": {
             "source": "An error's details beside their labels, to read out to support.",
@@ -741,10 +733,6 @@
         "1lnsjpv595aij": {
             "source": "A draft's files in small, beside its text.",
             "translation": "Les fichiers d'un brouillon, en petit, à côté de son texte."
-        },
-        "1lplgymj9w18y": {
-            "source": "Each status an alert shows, from a plain notice to a failure.",
-            "translation": "Chaque statut qu'une alerte montre, d'une simple note à un échec."
         },
         "1lpyg2lle6zzu": {
             "source": "Go to the backlog",
@@ -1176,10 +1164,6 @@
             "source": "Clear selection",
             "context": "action",
             "translation": "Effacer la sélection"
-        },
-        "1xxzdtvqhm817": {
-            "source": "The same moments in the fewest letters, such as beside a message.",
-            "translation": "Les mêmes moments en un minimum de lettres, comme à côté d'un message."
         },
         "1y28ymvc0tb3o": {
             "source": "Position",
@@ -3136,10 +3120,6 @@
         "3hyrikis1vinp": {
             "source": "Add a value by its name, then a text by its field, and remove both by the keyboard.",
             "translation": "Ajouter une valeur par son nom, puis un texte par son champ, et retirer les deux au clavier."
-        },
-        "3i93d68whzjs9": {
-            "source": "Ada's picture with a mark on its corner, as for someone online.",
-            "translation": "La photo d'Ada avec une marque dans le coin, comme pour quelqu'un en ligne."
         },
         "3iatwq7s2e8gz": {
             "source": "starts with",
@@ -5635,6 +5615,402 @@
         "q4anqcu705s4": {
             "source": "Refuses presses on every tool, each still in reach of the keys.",
             "translation": "Refuse les appuis sur chaque outil, chacun restant accessible au clavier."
+        },
+        "3fysy1tdeezfk": {
+            "source": "Info",
+            "context": "option",
+            "translation": "Info"
+        },
+        "2yncof4virg31": {
+            "source": "News a person may want to know.",
+            "translation": "Des nouvelles qu'on peut vouloir connaître."
+        },
+        "2yeityv9zgp2v": {
+            "source": "Success",
+            "context": "option",
+            "translation": "Succès"
+        },
+        "23mkk5h0cr7w9": {
+            "source": "Work that went well.",
+            "translation": "Un travail qui s'est bien passé."
+        },
+        "1opx2bmnqagb4": {
+            "source": "Warning",
+            "context": "option",
+            "translation": "Avertissement"
+        },
+        "ig94b67fhxo1": {
+            "source": "Something to look at before it goes wrong.",
+            "translation": "Quelque chose à regarder avant que ça tourne mal."
+        },
+        "2zn4fh5w854n9": {
+            "source": "Something that went wrong or cannot be undone.",
+            "translation": "Quelque chose qui a mal tourné ou ne peut être annulé."
+        },
+        "3w3p6yohvlvkt": {
+            "source": "How urgent the alert is, which sets its color and how it is announced.",
+            "translation": "L'urgence de l'alerte, qui fixe sa couleur et sa façon d'être annoncée."
+        },
+        "1jgtwhl33mwd": {
+            "source": "How much the badge stands out.",
+            "translation": "À quel point le badge ressort."
+        },
+        "zsk25ocm1w3o": {
+            "source": "The hue it tints itself in, such as a tag's, the variant's colors when absent.",
+            "translation": "La teinte qu'il prend, comme celle d'une étiquette, les couleurs de la variante s'il n'est pas indiqué."
+        },
+        "1t09opustaljk": {
+            "source": "Months",
+            "context": "label",
+            "translation": "Mois"
+        },
+        "3ns7f0i9xf7fr": {
+            "source": "The months shown side by side.",
+            "translation": "Les mois affichés côte à côte."
+        },
+        "74u8f0ngbhxl": {
+            "source": "The month's name.",
+            "translation": "Le nom du mois."
+        },
+        "f4g35467wgo9": {
+            "source": "Dropdown",
+            "context": "option",
+            "translation": "Liste déroulante"
+        },
+        "2b0lh8sdddd3f": {
+            "source": "A month and a year picker.",
+            "translation": "Un sélecteur de mois et d'année."
+        },
+        "3dmr14c59l1kn": {
+            "source": "Caption",
+            "context": "label",
+            "translation": "Légende"
+        },
+        "24vc1th75f8gv": {
+            "source": "How each month's caption reads.",
+            "translation": "Comment se lit la légende de chaque mois."
+        },
+        "2hg7e58g1jb3l": {
+            "source": "Week numbers",
+            "context": "label",
+            "translation": "Numéros de semaine"
+        },
+        "1wzawlicyjdbr": {
+            "source": "Numbers each week in a column, by ISO 8601.",
+            "translation": "Numérote chaque semaine dans une colonne, selon ISO 8601."
+        },
+        "qyomj5graeps": {
+            "source": "Dense, such as a stat tile.",
+            "translation": "Dense, comme une tuile de statistique."
+        },
+        "2ang82a1l7rxy": {
+            "source": "How much room the card leaves around its content.",
+            "translation": "L'espace que la carte laisse autour de son contenu."
+        },
+        "2j37m17fp5umf": {
+            "source": "Line numbers",
+            "context": "label",
+            "translation": "Numéros de ligne"
+        },
+        "38f6ub8f5j8bc": {
+            "source": "Shows each line's number beside it.",
+            "translation": "Affiche le numéro de chaque ligne à côté."
+        },
+        "3fnnzf5q0w2yd": {
+            "source": "Scroll",
+            "context": "option",
+            "translation": "Défiler"
+        },
+        "2fmjrqeaceizs": {
+            "source": "Wrap",
+            "context": "option",
+            "translation": "Retour à la ligne"
+        },
+        "160kme39w8urx": {
+            "source": "Overflow",
+            "context": "label",
+            "translation": "Débordement"
+        },
+        "2ngnq0elgdvk8": {
+            "source": "Whether long lines scroll sideways or wrap.",
+            "translation": "Si les longues lignes défilent sur le côté ou passent à la ligne."
+        },
+        "1ws7z2aob7dkb": {
+            "source": "A label's colors, orange set on its own.",
+            "translation": "Les couleurs d'une étiquette, l'orange réglé à part."
+        },
+        "30asbenlm3hou": {
+            "source": "The notebooks a note moves to, the archive set on its own.",
+            "translation": "Les carnets vers lesquels va une note, l'archive réglée à part."
+        },
+        "e4mm98uq02bs": {
+            "source": "A note's commands, deleting it set on its own.",
+            "translation": "Les commandes d'une note, la suppression réglée à part."
+        },
+        "25dg5c17v0fic": {
+            "source": "A note's properties, its tags lined up on their own.",
+            "translation": "Les propriétés d'une note, ses étiquettes alignées à part."
+        },
+        "3pz3uvtb6l8kq": {
+            "source": "Whether each label sits beside its value or above it.",
+            "translation": "Si chaque libellé se place à côté de sa valeur ou au-dessus."
+        },
+        "3d6c8644bxn4j": {
+            "source": "Baseline",
+            "context": "option",
+            "translation": "Ligne de base"
+        },
+        "1r100d8hrrb6h": {
+            "source": "Stretch",
+            "context": "option",
+            "translation": "Étirer"
+        },
+        "1f04clj3j5vhl": {
+            "source": "How the label lines up with its value.",
+            "translation": "Comment le libellé s'aligne sur sa valeur."
+        },
+        "o6p9fx2ewcp6": {
+            "source": "Bare, as an illustration.",
+            "translation": "Sans cadre, comme une illustration."
+        },
+        "aj4n6bscx668": {
+            "source": "An icon on a muted tile.",
+            "translation": "Une icône sur une tuile atténuée."
+        },
+        "2v7hlivj67zk5": {
+            "source": "Whether the media stands bare or as an icon on a tile.",
+            "translation": "Si le média se présente sans cadre ou en icône sur une tuile."
+        },
+        "2q5uuyuf49v5z": {
+            "source": "Whether the conditions sit beside each other, or below with how they combine before each.",
+            "translation": "Si les conditions se placent côte à côte, ou dessous avec leur combinaison avant chacune."
+        },
+        "sxn2evt28295": {
+            "source": "Extra large",
+            "context": "option",
+            "translation": "Très grand"
+        },
+        "3h57t0rbzshdc": {
+            "source": "How large the glyph draws.",
+            "translation": "La taille à laquelle le glyphe se dessine."
+        },
+        "gr0687p3we27": {
+            "source": "Thin",
+            "context": "option",
+            "translation": "Fin"
+        },
+        "18sz0n3ogbc40": {
+            "source": "Regular",
+            "context": "option",
+            "translation": "Normal"
+        },
+        "j7370ma8gdvr": {
+            "source": "Bold",
+            "context": "option",
+            "translation": "Gras"
+        },
+        "agek3oi7yoig": {
+            "source": "Duotone",
+            "context": "option",
+            "translation": "Bicolore"
+        },
+        "3mc428nj4vber": {
+            "source": "Weight",
+            "context": "label",
+            "translation": "Graisse"
+        },
+        "1nood9nmmbteg": {
+            "source": "How heavy the icon's strokes are, or whether it is filled.",
+            "translation": "L'épaisseur des traits de l'icône, ou si elle est pleine."
+        },
+        "1y188gggn1y0s": {
+            "source": "A note's row, its picture framed on its own.",
+            "translation": "La ligne d'une note, son image encadrée à part."
+        },
+        "7osrdixak28j": {
+            "source": "Muted",
+            "context": "option",
+            "translation": "Atténué"
+        },
+        "3n3z2g35j4x8n": {
+            "source": "Bare, as an avatar.",
+            "translation": "Sans cadre, comme un avatar."
+        },
+        "13yclj9bt0rcp": {
+            "source": "Image",
+            "context": "option",
+            "translation": "Image"
+        },
+        "p4qreg0cj4tr": {
+            "source": "A cropped picture.",
+            "translation": "Une image recadrée."
+        },
+        "349ny0knvnwo8": {
+            "source": "Whether the item stands bare, outlined or on a muted fill.",
+            "translation": "Si l'élément se présente sans cadre, bordé ou sur un fond atténué."
+        },
+        "xf99gz4ju459": {
+            "source": "How much room the item leaves around its content.",
+            "translation": "L'espace que l'élément laisse autour de son contenu."
+        },
+        "1g8f26z31ybha": {
+            "source": "How the media is framed beside the item's content.",
+            "translation": "Comment le média est encadré à côté du contenu de l'élément."
+        },
+        "1klcgpbt8w6um": {
+            "source": "A note's notebooks, the archived one set on its own.",
+            "translation": "Les carnets d'une note, celui archivé réglé à part."
+        },
+        "22c9eb8cf8ixw": {
+            "source": "List",
+            "context": "option",
+            "translation": "Liste"
+        },
+        "30pd0ll0rvuhi": {
+            "source": "One after another.",
+            "translation": "L'un après l'autre."
+        },
+        "5867rrfbzkvg": {
+            "source": "Grid",
+            "context": "option",
+            "translation": "Grille"
+        },
+        "3v796rxqo8w1g": {
+            "source": "In rows of a column count.",
+            "translation": "En lignes d'un nombre de colonnes."
+        },
+        "92udouqbbyal": {
+            "source": "Layout",
+            "context": "label",
+            "translation": "Disposition"
+        },
+        "2ta9sb58y3un4": {
+            "source": "Whether the options run one after another or in rows.",
+            "translation": "Si les options se suivent ou se placent en lignes."
+        },
+        "3bii52j4bbak": {
+            "source": "Refuses the option where it cannot be chosen now.",
+            "translation": "Refuse l'option lorsqu'elle ne peut pas être choisie pour l'instant."
+        },
+        "2ffqbsq5khs1b": {
+            "source": "In line with the stream.",
+            "translation": "Dans le fil du flux."
+        },
+        "1mcn6qz05rrua": {
+            "source": "Border",
+            "context": "option",
+            "translation": "Bordure"
+        },
+        "2wlad0v3ey7ib": {
+            "source": "With a line below.",
+            "translation": "Avec une ligne en dessous."
+        },
+        "2tli2wus0yg8j": {
+            "source": "Separator",
+            "context": "option",
+            "translation": "Séparateur"
+        },
+        "2sl7cgcjodtjz": {
+            "source": "Between two lines, as a day is.",
+            "translation": "Entre deux lignes, comme un jour."
+        },
+        "xjwaol7iihwr": {
+            "source": "Running",
+            "context": "option",
+            "translation": "En cours"
+        },
+        "2erj650e5hidm": {
+            "source": "Error",
+            "context": "option",
+            "translation": "Erreur"
+        },
+        "1c4pjjropo4r8": {
+            "source": "Whether the marker sits in line, above a line or between two.",
+            "translation": "Si le repère se place dans le fil, au-dessus d'une ligne ou entre deux."
+        },
+        "4dbndu178pyc": {
+            "source": "The work it reports, which its words say too.",
+            "translation": "Le travail qu'il signale, que ses mots disent aussi."
+        },
+        "2vsg168kku9mi": {
+            "source": "Long",
+            "context": "option",
+            "translation": "Long"
+        },
+        "vi2vgzsgcspq": {
+            "source": "In full words.",
+            "translation": "En mots complets."
+        },
+        "269dtozudyop2": {
+            "source": "Short",
+            "context": "option",
+            "translation": "Court"
+        },
+        "22nap4m0cbjix": {
+            "source": "In shortened words.",
+            "translation": "En mots abrégés."
+        },
+        "13cfztygg1kfv": {
+            "source": "Narrow",
+            "context": "option",
+            "translation": "Étroit"
+        },
+        "hdgtbkd68qg": {
+            "source": "In the fewest letters.",
+            "translation": "Avec le moins de lettres."
+        },
+        "1sxojnumjno87": {
+            "source": "Length",
+            "context": "label",
+            "translation": "Longueur"
+        },
+        "1m4rldplf2adn": {
+            "source": "How long the words are.",
+            "translation": "La longueur des mots."
+        },
+        "s3grau4q5qq0": {
+            "source": "Second",
+            "context": "option",
+            "translation": "Seconde"
+        },
+        "3hs7fslioopp8": {
+            "source": "Minute",
+            "context": "option",
+            "translation": "Minute"
+        },
+        "2x7sbjtj5o21e": {
+            "source": "Hour",
+            "context": "option",
+            "translation": "Heure"
+        },
+        "3bubdenvmzcl5": {
+            "source": "Precision",
+            "context": "label",
+            "translation": "Précision"
+        },
+        "3sw97ikc47d7v": {
+            "source": "The smallest unit written, below which it is now.",
+            "translation": "La plus petite unité écrite, en dessous de laquelle c'est maintenant."
+        },
+        "28ct7fh6gtjvv": {
+            "source": "Whether the line runs across or down.",
+            "translation": "Si la ligne va en travers ou vers le bas."
+        },
+        "3diunsxm2tnlw": {
+            "source": "Whether the fields lie in a row or a column.",
+            "translation": "Si les champs sont en ligne ou en colonne."
+        },
+        "1hnsikjntjn8d": {
+            "source": "A trip's steps, their list laid out on its own.",
+            "translation": "Les étapes d'un voyage, leur liste disposée à part."
+        },
+        "3pwn2f5w0vz7u": {
+            "source": "Whether its items lie in a column or a row.",
+            "translation": "Si ses éléments sont en colonne ou en ligne."
+        },
+        "fa5qqy09m1cy": {
+            "source": "Ada's initials with a mark on their corner, as for someone online.",
+            "translation": "Les initiales d'Ada avec une marque dans le coin, comme pour quelqu'un en ligne."
         }
     }
 }

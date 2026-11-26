@@ -1,7 +1,8 @@
+import { field } from "@destack/object";
 import check from "@destack/icon/phosphor/check";
 import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
-import type { Direction } from "@destack/locale";
+import { type Direction, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, space, stroke, weight, size } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -25,6 +26,11 @@ import { Collection, CollectionBuilder, type CollectionSection } from "../collec
 import { Focus, GridDelegate, ListDelegate, type Orientation } from "../focus/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The key of the section of options outside any section. */
 const UNSECTIONED = "";
@@ -83,7 +89,7 @@ const styles = style.create({
 });
 
 /** How a list box lays out its options for the keyboard. */
-export type ListBoxLayout = "list" | "grid";
+export type ListBoxLayout = keyof typeof LIST_BOX_LAYOUTS;
 
 /** Whether choosing an option adds it to the selection or drops it. */
 export type SelectionBehavior = "toggle" | "replace";
@@ -298,17 +304,47 @@ interface ListBoxSectionControl {
 export type ListBoxElementProperties<Attributes> = Omit<Attributes, "class"> &
     ElementPartProperties;
 
-/** The properties of a list box: its selection, layout and focus. */
-export type ListBoxProperties = ListBoxElementProperties<JSX.HTMLAttributes<HTMLDivElement>> &
-    Omit<ListBoxOptions, "selection" | "autocomplete"> & {
+/** The layouts of a list box's options. */
+const LIST_BOX_LAYOUTS = {
+    list: {
+        title: t.context("option")`List`,
+        description: t`One after another.`,
+    },
+    grid: {
+        title: t.context("option")`Grid`,
+        description: t`In rows of a column count.`,
+    },
+};
+
+/** The properties people change in a list box's controls and inspector. */
+const LIST_BOX_PROPERTIES = {
+    layout: field
+        .enum(LIST_BOX_LAYOUTS)
+        .labeled(t.context("label")`Layout`)
+        .described(t`Whether the options run one after another or in rows.`)
+        .default("list"),
+};
+
+/** The properties of a list box besides its declared ones: its selection and focus. */
+export type ListBoxAttributes = ListBoxElementProperties<JSX.HTMLAttributes<HTMLDivElement>> &
+    Omit<ListBoxOptions, "selection" | "autocomplete" | "layout"> & {
         /** The list box state a composite created. */
         readonly control?: ListBoxControl;
         /** The selected values, none for a list box of actions. */
         readonly selection?: SelectionProperties;
     };
 
-/** The properties of an option of a list box, the native element's attributes included. */
-export interface ListBoxItemProperties extends ListBoxElementProperties<
+/** The properties people change in a list box option's controls and inspector. */
+const LIST_BOX_ITEM_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Refuses the option where it cannot be chosen now.`)
+        .default(false),
+};
+
+/** The properties of an option besides its declared ones: its value, words and attributes. */
+export interface ListBoxItemAttributes extends ListBoxElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onSelect">
 > {
     /** The value the option stands for, its text by default. */
@@ -317,8 +353,6 @@ export interface ListBoxItemProperties extends ListBoxElementProperties<
     readonly textValue?: string;
     /** Further words a search matches, such as synonyms. */
     readonly keywords?: readonly string[];
-    /** Whether the option is unavailable. */
-    readonly disabled?: boolean;
     /** Whether the option shows whatever the search. */
     readonly forceMount?: boolean;
     /** Handle the option being chosen with a click or Enter. */
@@ -346,66 +380,75 @@ export function useListBox(): ListBoxControl {
 }
 
 /** Render a list box of options, or a composite's list box state. */
-export function ListBox(properties: ListBoxProperties): JSX.Element {
-    // take a composite's state, else the list box's selection and focus under any search around it
-    const locale = useLocale();
-    const autocomplete = useContext(AutocompleteContext) ?? undefined;
-    const control = untrack(
-        () =>
-            properties.control ??
-            new ListBoxControl({
-                ...ownOptions(properties),
-                autocomplete,
-                selection:
-                    properties.selection === undefined
-                        ? undefined
-                        : new Selection(merge(() => properties.selection ?? {})),
-            }),
-    );
-    const rest = omit(
-        properties,
-        "control",
-        "selection",
-        "selectionBehavior",
-        "layout",
-        "columns",
-        "orientation",
-        "isLooping",
-        "activeValue",
-        "defaultActiveValue",
-        "onActiveChange",
-        "onAction",
-    );
-    const isGrid = (): boolean => properties.layout === "grid";
-
-    return (
-        <ListBoxContext value={control}>
-            {renderPart(
-                "div",
-                "list-box",
-                rest,
-                () => [styles.listBox, isGrid() && styles.grid(properties.columns ?? 1)],
-                {
-                    id: control.id,
-                    role: "listbox" as const,
-                    get "aria-multiselectable"() {
-                        return control.selection?.isMultiple() === true ? "true" : undefined;
-                    },
-                    get "aria-orientation"() {
-                        return isGrid() || properties.orientation === "both"
+export const ListBox = defineComponent({
+    name: "listBox",
+    properties: LIST_BOX_PROPERTIES,
+    render(
+        properties: RenderProperties<ListBoxAttributes, typeof LIST_BOX_PROPERTIES>,
+    ): JSX.Element {
+        // take a composite's state, else the list box's selection and focus under any search around it
+        const locale = useLocale();
+        const autocomplete = useContext(AutocompleteContext) ?? undefined;
+        const control = untrack(
+            () =>
+                properties.control ??
+                new ListBoxControl({
+                    ...ownOptions(properties),
+                    autocomplete,
+                    selection:
+                        properties.selection === undefined
                             ? undefined
-                            : properties.orientation;
+                            : new Selection(merge(() => properties.selection ?? {})),
+                }),
+        );
+        const rest = omit(
+            properties,
+            "control",
+            "selection",
+            "selectionBehavior",
+            "layout",
+            "columns",
+            "orientation",
+            "isLooping",
+            "activeValue",
+            "defaultActiveValue",
+            "onActiveChange",
+            "onAction",
+        );
+        const isGrid = (): boolean => properties.layout === "grid";
+
+        return (
+            <ListBoxContext value={control}>
+                {renderPart(
+                    "div",
+                    "list-box",
+                    rest,
+                    () => [styles.listBox, isGrid() && styles.grid(properties.columns ?? 1)],
+                    {
+                        id: control.id,
+                        role: "listbox" as const,
+                        get "aria-multiselectable"() {
+                            return control.selection?.isMultiple() === true ? "true" : undefined;
+                        },
+                        get "aria-orientation"() {
+                            return isGrid() || properties.orientation === "both"
+                                ? undefined
+                                : properties.orientation;
+                        },
+                        get "data-layout"() {
+                            return properties.layout;
+                        },
+                        onKeyDown: (event) => steer(event, control, locale.direction),
+                        onFocusOut: (event) => control.focus.focusOut(event),
                     },
-                    get "data-layout"() {
-                        return properties.layout ?? "list";
-                    },
-                    onKeyDown: (event) => steer(event, control, locale.direction),
-                    onFocusOut: (event) => control.focus.focusOut(event),
-                },
-            )}
-        </ListBoxContext>
-    );
-}
+                )}
+            </ListBoxContext>
+        );
+    },
+});
+
+/** The properties of a list box: its selection, layout and focus. */
+export type ListBoxProperties = ComponentProperties<typeof ListBox>;
 
 /** Render a section of options under a heading, hidden while the search shows none of them. */
 export function ListBoxSection(properties: ListBoxSectionProperties): JSX.Element {
@@ -466,110 +509,119 @@ export function ListBoxSectionHeading(
 }
 
 /** Render an option the search filters and a click or Enter chooses. */
-export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
-    // join the list box with the option's value, its text unless one is passed
-    const control = useListBox();
-    const rest = omit(
-        properties,
-        "value",
-        "textValue",
-        "keywords",
-        "disabled",
-        "forceMount",
-        "onSelect",
-        "children",
-    );
-    let element: HTMLDivElement | undefined;
-    const [content, setContent] = createSignal("", { ownedWrite: true });
-    onSettled(() => {
-        setContent(element?.textContent?.trim() ?? "");
-    });
-    const option: ListBoxOption = {
-        key: createUniqueId(),
-        section: useContext(ListBoxSectionContext)?.key ?? UNSECTIONED,
-        value: () => properties.value ?? content(),
-        text: () => properties.textValue ?? content(),
-        keywords: () => properties.keywords ?? [],
-        isDisabled: () => properties.disabled === true,
-        isForced: () => properties.forceMount === true,
-        act: () => properties.onSelect?.(option.value()),
-        element: () => element,
-    };
-    control.options.add(option);
-    control.focus.bind(() => option.key, option.element);
-    const isActive = (): boolean => control.focus.isActive(option.key);
-    const isVirtual = control.focus.mode === "virtual";
+export const ListBoxItem = defineComponent({
+    name: "listBoxItem",
+    properties: LIST_BOX_ITEM_PROPERTIES,
+    render(
+        properties: RenderProperties<ListBoxItemAttributes, typeof LIST_BOX_ITEM_PROPERTIES>,
+    ): JSX.Element {
+        // join the list box with the option's value, its text unless one is passed
+        const control = useListBox();
+        const rest = omit(
+            properties,
+            "value",
+            "textValue",
+            "keywords",
+            "disabled",
+            "forceMount",
+            "onSelect",
+            "children",
+        );
+        let element: HTMLDivElement | undefined;
+        const [content, setContent] = createSignal("", { ownedWrite: true });
+        onSettled(() => {
+            setContent(element?.textContent?.trim() ?? "");
+        });
+        const option: ListBoxOption = {
+            key: createUniqueId(),
+            section: useContext(ListBoxSectionContext)?.key ?? UNSECTIONED,
+            value: () => properties.value ?? content(),
+            text: () => properties.textValue ?? content(),
+            keywords: () => properties.keywords ?? [],
+            isDisabled: () => properties.disabled,
+            isForced: () => properties.forceMount === true,
+            act: () => properties.onSelect?.(option.value()),
+            element: () => element,
+        };
+        control.options.add(option);
+        control.focus.bind(() => option.key, option.element);
+        const isActive = (): boolean => control.focus.isActive(option.key);
+        const isVirtual = control.focus.mode === "virtual";
 
-    // mark a chosen option: filled where the choice follows the focus or in a grid, else by a check
-    const isChosen = (): boolean =>
-        control.selection !== undefined && !isVirtual && control.isSelected(option);
-    const isFilled = control.isGrid || control.isFollowing;
+        // mark a chosen option: filled where the choice follows the focus or in a grid, else by a check
+        const isChosen = (): boolean =>
+            control.selection !== undefined && !isVirtual && control.isSelected(option);
+        const isFilled = control.isGrid || control.isFollowing;
 
-    return renderPart(
-        "div",
-        "list-box-item",
-        rest,
-        () => [
-            state.focus,
-            styles.option,
-            isVirtual && isActive() && state.selected,
-            isChosen() && isFilled && state.selected,
-            properties.disabled === true && state.inert,
-        ],
-        {
-            get id() {
-                return control.focus.id(option.key);
+        return renderPart(
+            "div",
+            "list-box-item",
+            rest,
+            () => [
+                state.focus,
+                styles.option,
+                isVirtual && isActive() && state.selected,
+                isChosen() && isFilled && state.selected,
+                properties.disabled && state.inert,
+            ],
+            {
+                get id() {
+                    return control.focus.id(option.key);
+                },
+                role: "option" as const,
+                get "aria-selected"() {
+                    return control.isSelected(option) ? "true" : "false";
+                },
+                get "aria-disabled"() {
+                    return properties.disabled ? "true" : undefined;
+                },
+                get tabindex() {
+                    return isVirtual ? undefined : isActive() ? 0 : -1;
+                },
+                get hidden() {
+                    return !control.isShown(option.key);
+                },
+                get "data-highlighted"() {
+                    return isActive() ? "" : undefined;
+                },
+                get "data-disabled"() {
+                    return properties.disabled ? "" : undefined;
+                },
+                get "data-value"() {
+                    return option.value();
+                },
+                ref: (item) => (element = item),
+                onPointerDown: (event) => {
+                    // leave the focus in the search field of a virtual list box
+                    if (isVirtual) {
+                        event.preventDefault();
+                    }
+                },
+                onPointerMove: () => {
+                    // focus an available option under the pointer behind a search field
+                    if (isVirtual && !option.isDisabled()) {
+                        control.focus.focus(option.key);
+                    }
+                },
+                onFocus: () => control.focus.focusIn(option.key),
+                onClick: () => control.choose(option.key),
+                get children() {
+                    return (
+                        <>
+                            {properties.children}
+                            <Show when={isChosen() && !isFilled}>
+                                <Icon icon={check} xstyle={styles.check} />
+                            </Show>
+                        </>
+                    );
+                },
             },
-            role: "option" as const,
-            get "aria-selected"() {
-                return control.isSelected(option) ? "true" : "false";
-            },
-            get "aria-disabled"() {
-                return properties.disabled === true ? "true" : undefined;
-            },
-            get tabindex() {
-                return isVirtual ? undefined : isActive() ? 0 : -1;
-            },
-            get hidden() {
-                return !control.isShown(option.key);
-            },
-            get "data-highlighted"() {
-                return isActive() ? "" : undefined;
-            },
-            get "data-disabled"() {
-                return properties.disabled === true ? "" : undefined;
-            },
-            get "data-value"() {
-                return option.value();
-            },
-            ref: (item) => (element = item),
-            onPointerDown: (event) => {
-                // leave the focus in the search field of a virtual list box
-                if (isVirtual) {
-                    event.preventDefault();
-                }
-            },
-            onPointerMove: () => {
-                // focus an available option under the pointer behind a search field
-                if (isVirtual && !option.isDisabled()) {
-                    control.focus.focus(option.key);
-                }
-            },
-            onFocus: () => control.focus.focusIn(option.key),
-            onClick: () => control.choose(option.key),
-            get children() {
-                return (
-                    <>
-                        {properties.children}
-                        <Show when={isChosen() && !isFilled}>
-                            <Icon icon={check} xstyle={styles.check} />
-                        </Show>
-                    </>
-                );
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of an option of a list box, the native element's attributes included. */
+export type ListBoxItemProperties = ComponentProperties<typeof ListBoxItem>;
 
 /** Render a message while no option shows, such as when the search matches none. */
 export function ListBoxEmpty(
@@ -610,7 +662,9 @@ export function ListBoxSeparator(
 }
 
 /** Read the list box options a list box's properties have, without its element's attributes. */
-function ownOptions(properties: ListBoxProperties): ListBoxOptions {
+function ownOptions(
+    properties: RenderProperties<ListBoxAttributes, typeof LIST_BOX_PROPERTIES>,
+): ListBoxOptions {
     return {
         get selectionBehavior() {
             return properties.selectionBehavior;

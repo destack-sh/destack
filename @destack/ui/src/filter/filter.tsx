@@ -1,3 +1,4 @@
+import { ORIENTATION } from "../position/index.ts";
 import groupIcon from "@destack/icon/phosphor/list-plus";
 import plusIcon from "@destack/icon/phosphor/plus";
 import funnelIcon from "@destack/icon/phosphor/funnel-simple";
@@ -65,6 +66,11 @@ import {
     useFilter,
 } from "./control.ts";
 import { FILTER_SPANS, type FilterOperatorDefinition } from "./operator.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** How many chosen values a filter lists before it counts them. */
 const LISTED = 2;
@@ -210,67 +216,81 @@ export function Filter(properties: FilterProperties): JSX.Element {
     );
 }
 
-/** The properties of a list of conditions. */
-export interface FilterListProperties {
-    /** Whether conditions sit beside each other, or below with how they combine before each. */
-    readonly orientation?: "horizontal" | "vertical";
+/** The properties people change in a filter list's controls and inspector. */
+const FILTER_LIST_PROPERTIES = {
+    orientation: ORIENTATION.described(
+        t`Whether the conditions sit beside each other, or below with how they combine before each.`,
+    ).default("horizontal"),
+};
+
+/** The properties of a filter list besides its declared ones: how it renders a condition. */
+export interface FilterListAttributes {
     /** Render a condition, the usual parts by default. */
     readonly children?: (item: Accessor<FilterEntry>) => JSX.Element;
 }
 
 /** Render the conditions of the nearest set. */
-export function FilterList(properties: FilterListProperties): JSX.Element {
-    // follow each condition by its id as it changes
-    const control = useFilter();
-    const set = useContext(SetContext) ?? (() => control.root());
-    const ids = createMemo(() => set().items.map(({ id }) => id));
-    const isVertical = (): boolean => properties.orientation === "vertical";
+export const FilterList = defineComponent({
+    name: "filterList",
+    properties: FILTER_LIST_PROPERTIES,
+    render(
+        properties: RenderProperties<FilterListAttributes, typeof FILTER_LIST_PROPERTIES>,
+    ): JSX.Element {
+        // follow each condition by its id as it changes
+        const control = useFilter();
+        const set = useContext(SetContext) ?? (() => control.root());
+        const ids = createMemo(() => set().items.map(({ id }) => id));
+        const isVertical = (): boolean => properties.orientation === "vertical";
 
-    return (
-        <For each={ids()}>
-            {(id, index) => {
-                let last = untrack(() => set().items.find((each) => each.id === id));
-                const item = (): FilterEntry | undefined => {
-                    last = set().items.find((each) => each.id === id) ?? last;
+        return (
+            <For each={ids()}>
+                {(id, index) => {
+                    let last = untrack(() => set().items.find((each) => each.id === id));
+                    const item = (): FilterEntry | undefined => {
+                        last = set().items.find((each) => each.id === id) ?? last;
 
-                    return last;
-                };
+                        return last;
+                    };
 
-                return (
-                    <Show when={item()}>
-                        {(entry) => (
-                            <ItemContext value={entry}>
-                                <Show
-                                    when={isVertical()}
-                                    fallback={
-                                        properties.children?.(entry) ??
-                                        (untrack(entry).kind === "set" ? (
-                                            <FilterSummary />
-                                        ) : (
-                                            <FilterItem />
-                                        ))
-                                    }
-                                >
-                                    <div data-slot="filter-row" {...style.attrs(styles.row)}>
-                                        <IndexContext value={index}>
-                                            <FilterMatch />
-                                        </IndexContext>
-                                        {properties.children?.(entry) ??
+                    return (
+                        <Show when={item()}>
+                            {(entry) => (
+                                <ItemContext value={entry}>
+                                    <Show
+                                        when={isVertical()}
+                                        fallback={
+                                            properties.children?.(entry) ??
                                             (untrack(entry).kind === "set" ? (
-                                                <FilterGroup />
+                                                <FilterSummary />
                                             ) : (
                                                 <FilterItem />
-                                            ))}
-                                    </div>
-                                </Show>
-                            </ItemContext>
-                        )}
-                    </Show>
-                );
-            }}
-        </For>
-    );
-}
+                                            ))
+                                        }
+                                    >
+                                        <div data-slot="filter-row" {...style.attrs(styles.row)}>
+                                            <IndexContext value={index}>
+                                                <FilterMatch />
+                                            </IndexContext>
+                                            {properties.children?.(entry) ??
+                                                (untrack(entry).kind === "set" ? (
+                                                    <FilterGroup />
+                                                ) : (
+                                                    <FilterItem />
+                                                ))}
+                                        </div>
+                                    </Show>
+                                </ItemContext>
+                            )}
+                        </Show>
+                    );
+                }}
+            </For>
+        );
+    },
+});
+
+/** The properties of a list of conditions. */
+export type FilterListProperties = ComponentProperties<typeof FilterList>;
 
 /** The properties of an element of a filter, with its own attributes. */
 export type FilterElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &

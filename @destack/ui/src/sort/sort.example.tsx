@@ -47,9 +47,9 @@ export const sortRow = defineExample({
     name: "row",
     description: t`An order beside each other, its fields dragged.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Sort fields={FIELDS} defaultValue={{ due: "asc", estimate: "desc" }}>
-            <SortList />
+            <SortList {...properties} />
             <SortAdd />
             <SortClear />
         </Sort>

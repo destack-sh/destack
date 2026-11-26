@@ -25,7 +25,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { AutocompleteContext, AutocompleteControl } from "../autocomplete/index.ts";
-import { badgeVariants } from "../badge/index.ts";
+import { Badge } from "../badge/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import type { InputProperties } from "../input/index.ts";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../input-group/index.ts";
@@ -36,7 +36,7 @@ import {
     ListBoxControl,
     ListBoxEmpty,
     ListBoxItem,
-    type ListBoxItemProperties,
+    type ListBoxItemAttributes,
     ListBoxLoading,
     ListBoxSection,
     type ListBoxSectionProperties,
@@ -45,6 +45,11 @@ import {
 import { Position } from "../position/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
 import { useFieldValue, readChoices } from "../field/control.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The combobox of the nearest combobox root, null outside one. */
 const ComboboxContext = createContext<ComboboxControl | null>(null);
@@ -460,26 +465,35 @@ export function ComboboxContent(
 }
 
 /** Render an option that a click or Enter chooses as the combobox's value. */
-export function ComboboxItem(properties: ListBoxItemProperties): JSX.Element {
-    // join the combobox's items under the item's value
-    const control = useCombobox();
-    const value = untrack(() => properties.value);
-    if (value !== undefined) {
-        control.items.add(value);
-    }
-    const isChosen = (): boolean =>
-        properties.value !== undefined && control.selection.isSelected(properties.value);
+export const ComboboxItem = defineComponent({
+    name: "comboboxItem",
+    properties: ListBoxItem.properties,
+    render(
+        properties: RenderProperties<ListBoxItemAttributes, typeof ListBoxItem.properties>,
+    ): JSX.Element {
+        // join the combobox's items under the item's value
+        const control = useCombobox();
+        const value = untrack(() => properties.value);
+        if (value !== undefined) {
+            control.items.add(value);
+        }
+        const isChosen = (): boolean =>
+            properties.value !== undefined && control.selection.isSelected(properties.value);
 
-    return (
-        <ComboboxItemContext value={isChosen}>
-            <ListBoxItem
-                data-slot="combobox-item"
-                data-selected={isChosen() ? "" : undefined}
-                {...properties}
-            />
-        </ComboboxItemContext>
-    );
-}
+        return (
+            <ComboboxItemContext value={isChosen}>
+                <ListBoxItem
+                    data-slot="combobox-item"
+                    data-selected={isChosen() ? "" : undefined}
+                    {...properties}
+                />
+            </ComboboxItemContext>
+        );
+    },
+});
+
+/** The properties of a combobox's option, the list box option's included. */
+export type ComboboxItemProperties = ComponentProperties<typeof ComboboxItem>;
 
 /** Whether the nearest combobox item is chosen, null outside one. */
 const ComboboxItemContext = createContext<Accessor<boolean> | null>(null);
@@ -612,7 +626,7 @@ export function ComboboxChip(properties: ComboboxChipProperties): JSX.Element {
                 "span",
                 "combobox-chip",
                 rest,
-                () => [badgeVariants({ variant: "secondary" }), styles.chip],
+                () => [Badge.styles({ variant: "secondary" }), styles.chip],
                 {
                     get children() {
                         return contentOr(properties, () => (

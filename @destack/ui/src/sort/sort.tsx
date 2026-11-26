@@ -1,3 +1,4 @@
+import { ORIENTATION } from "../position/index.ts";
 import ascendingIcon from "@destack/icon/phosphor/arrow-up";
 import descendingIcon from "@destack/icon/phosphor/arrow-down";
 import plusIcon from "@destack/icon/phosphor/plus";
@@ -54,6 +55,11 @@ import {
 } from "../sortable/index.ts";
 import { ValueIcon } from "../value-field/index.ts";
 import { SortContext, SortControl, type SortOptions, useSort } from "./control.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The styles of a sort and its parts. */
 const styles = style.create({
@@ -137,46 +143,60 @@ export function Sort(properties: SortProperties): JSX.Element {
     );
 }
 
-/** The properties of a list of the fields rows sort by. */
-export interface SortListProperties {
-    /** The direction its items lay out along, horizontal by default. */
-    readonly orientation?: "horizontal" | "vertical";
+/** The properties people change in a sort list's controls and inspector. */
+const SORT_LIST_PROPERTIES = {
+    orientation: ORIENTATION.described(t`Whether the fields lie in a row or a column.`).default(
+        "horizontal",
+    ),
+};
+
+/** The properties of a sort list besides its declared ones: how it renders a field. */
+export interface SortListAttributes {
     /** Render a field, the usual parts by default. */
     readonly children?: (field: string) => JSX.Element;
 }
 
 /** Render the fields rows sort by, dragged into another order. */
-export function SortList(properties: SortListProperties): JSX.Element {
-    // follow each field by its name
-    const control = useSort();
-    const locale = useLocale();
-    const names = createMemo(() => control.keys().map(({ field }) => field));
-    const orientation = () => properties.orientation ?? "horizontal";
+export const SortList = defineComponent({
+    name: "sortList",
+    properties: SORT_LIST_PROPERTIES,
+    render(
+        properties: RenderProperties<SortListAttributes, typeof SORT_LIST_PROPERTIES>,
+    ): JSX.Element {
+        // follow each field by its name
+        const control = useSort();
+        const locale = useLocale();
+        const names = createMemo(() => control.keys().map((key) => key.field));
+        const orientation = () => properties.orientation;
 
-    return (
-        <Show when={names().length > 0}>
-            <Sortable
-                onMove={(move) => control.move(move.id, move.next)}
-                xstyle={orientation() === "vertical" && styles.wide}
-            >
-                <SortableContainer
-                    id="sort"
-                    label={locale.render(t.context("action")`Sort`)}
-                    orientation={orientation()}
-                    xstyle={[styles.list, orientation() === "vertical" && styles.vertical]}
+        return (
+            <Show when={names().length > 0}>
+                <Sortable
+                    onMove={(move) => control.move(move.id, move.next)}
+                    xstyle={orientation() === "vertical" && styles.wide}
                 >
-                    <For each={names()}>
-                        {(name) => (
-                            <ItemContext value={name}>
-                                {properties.children?.(name) ?? <SortItem />}
-                            </ItemContext>
-                        )}
-                    </For>
-                </SortableContainer>
-            </Sortable>
-        </Show>
-    );
-}
+                    <SortableContainer
+                        id="sort"
+                        label={locale.render(t.context("action")`Sort`)}
+                        orientation={orientation()}
+                        xstyle={[styles.list, orientation() === "vertical" && styles.vertical]}
+                    >
+                        <For each={names()}>
+                            {(name) => (
+                                <ItemContext value={name}>
+                                    {properties.children?.(name) ?? <SortItem />}
+                                </ItemContext>
+                            )}
+                        </For>
+                    </SortableContainer>
+                </Sortable>
+            </Show>
+        );
+    },
+});
+
+/** The properties of a list of the fields rows sort by. */
+export type SortListProperties = ComponentProperties<typeof SortList>;
 
 /** Render the nearest field rows sort by, joined into one control: its parts, or the usual ones. */
 export function SortItem(properties: SortElementProperties): JSX.Element {

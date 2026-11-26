@@ -122,3 +122,22 @@ export const comboboxMoveNoteDisabled = defineExample({
         </Combobox>
     ),
 });
+
+/** The notebooks a note moves to, the archive set on its own. */
+export const comboboxItemDefault = defineExample({
+    of: ComboboxItem,
+    name: "default",
+    description: t`The notebooks a note moves to, the archive set on its own.`,
+    properties: { disabled: true },
+    render: (properties) => (
+        <Combobox defaultOpen>
+            <ComboboxInput aria-label="Notebook" placeholder="Move to notebook" />
+            <ComboboxContent>
+                <ComboboxItem value="Trips">Trips</ComboboxItem>
+                <ComboboxItem value="Archive" {...properties}>
+                    Archive
+                </ComboboxItem>
+            </ComboboxContent>
+        </Combobox>
+    ),
+});

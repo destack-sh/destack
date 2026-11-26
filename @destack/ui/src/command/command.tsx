@@ -41,7 +41,7 @@ import {
     ListBoxControl,
     ListBoxEmpty,
     ListBoxItem,
-    type ListBoxItemProperties,
+    type ListBoxItemAttributes,
     ListBoxLoading,
     ListBoxSection,
     ListBoxSectionHeading,
@@ -385,7 +385,7 @@ export type CommandElementProperties<Attributes> = Omit<Attributes, "class"> & {
 };
 
 /** The properties of a command option. */
-export interface CommandItemProperties extends ListBoxItemProperties {
+export interface CommandItemAttributes extends ListBoxItemAttributes {
     /** The icon before its title, whose room a dialog's options keep without one. */
     readonly icon?: JSX.Element;
 }
@@ -620,30 +620,39 @@ export function CommandGroupHeading(
 }
 
 /** Render an option that the search filters and a click or Enter chooses. */
-export function CommandItem(properties: CommandItemProperties): JSX.Element {
-    const isDialog = useContext(CommandDialogContext);
-    const rest = omit(properties, "icon", "xstyle", "children");
+export const CommandItem = defineComponent({
+    name: "commandItem",
+    properties: ListBoxItem.properties,
+    render(
+        properties: RenderProperties<CommandItemAttributes, typeof ListBoxItem.properties>,
+    ): JSX.Element {
+        const isDialog = useContext(CommandDialogContext);
+        const rest = omit(properties, "icon", "xstyle", "children");
 
-    return (
-        <ListBoxItem
-            data-slot="command-item"
-            {...rest}
-            xstyle={[isDialog && dialogStyles.item, properties.xstyle]}
-        >
-            {/* The icon, below the search's in a dialog, where every title starts on one edge */}
-            <Show when={isDialog || properties.icon !== undefined}>
-                <span
-                    data-slot="command-item-icon"
-                    aria-hidden="true"
-                    {...style.attrs(styles.icon, isDialog && dialogStyles.icon)}
-                >
-                    {properties.icon}
-                </span>
-            </Show>
-            {properties.children}
-        </ListBoxItem>
-    );
-}
+        return (
+            <ListBoxItem
+                data-slot="command-item"
+                {...rest}
+                xstyle={[isDialog && dialogStyles.item, properties.xstyle]}
+            >
+                {/* The icon, below the search's in a dialog, where every title starts on one edge */}
+                <Show when={isDialog || properties.icon !== undefined}>
+                    <span
+                        data-slot="command-item-icon"
+                        aria-hidden="true"
+                        {...style.attrs(styles.icon, isDialog && dialogStyles.icon)}
+                    >
+                        {properties.icon}
+                    </span>
+                </Show>
+                {properties.children}
+            </ListBoxItem>
+        );
+    },
+});
+
+/** The properties of a command, the list box option's included. */
+export type CommandItemProperties = ComponentProperties<typeof CommandItem>;
 
 /** Render a line between groups of options while the search is empty. */
 export function CommandSeparator(

@@ -1,5 +1,5 @@
 import { state } from "@destack/theme/state";
-import type { Axis } from "../position/index.ts";
+import { type Axis, ORIENTATION } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -42,6 +42,11 @@ import {
 } from "../part/index.ts";
 import { type VirtualHost, VirtualHostContext, type VirtualWindow } from "../virtual-list/index.ts";
 import { CollectionBuilder, inDocumentOrder } from "../collection/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The distance in pixels a pointer moves past an item's start to nest under it in a tree. */
 const NEST_DISTANCE = 32;
@@ -824,14 +829,19 @@ export interface SortableProperties extends SortableElementProperties<
     readonly indicator?: SortableIndicator;
 }
 
-/** The properties of a sortable's container, the native element's attributes included. */
-export interface SortableContainerProperties extends SortableElementProperties<
+/** The properties people change in a sortable container's controls and inspector. */
+const SORTABLE_CONTAINER_PROPERTIES = {
+    orientation: ORIENTATION.described(t`Whether its items lie in a column or a row.`).default(
+        "vertical",
+    ),
+};
+
+/** The properties of a sortable container besides its declared ones: its id and name. */
+export interface SortableContainerAttributes extends SortableElementProperties<
     JSX.HTMLAttributes<HTMLDivElement>
 > {
     /** The container's id. */
     readonly id: string;
-    /** The direction its items lay out along, vertical by default. */
-    readonly orientation?: Axis;
     /** The name announcements call it by, a generic one by default. */
     readonly label?: string;
     /** The types of items it takes. */
@@ -922,149 +932,162 @@ export function Sortable(properties: SortableProperties): JSX.Element {
 }
 
 /** Render a container of the nearest sortable. */
-export function SortableContainer(properties: SortableContainerProperties): JSX.Element {
-    // join the sortable under the item the container nests in, if any
-    const control = useSortable();
-    const locale = useLocale();
-    const parent = useContext(SortableItemContext);
-    const rest = omit(
-        properties,
-        "id",
-        "orientation",
-        "label",
-        "accepts",
-        "height",
-        "group",
-        "isEndOnly",
-        "allows",
-        "target",
-    );
-    let element: HTMLElement | undefined;
+export const SortableContainer = defineComponent({
+    name: "sortableContainer",
+    properties: SORTABLE_CONTAINER_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            SortableContainerAttributes,
+            typeof SORTABLE_CONTAINER_PROPERTIES
+        >,
+    ): JSX.Element {
+        // join the sortable under the item the container nests in, if any
+        const control = useSortable();
+        const locale = useLocale();
+        const parent = useContext(SortableItemContext);
+        const rest = omit(
+            properties,
+            "id",
+            "orientation",
+            "label",
+            "accepts",
+            "height",
+            "group",
+            "isEndOnly",
+            "allows",
+            "target",
+        );
+        let element: HTMLElement | undefined;
 
-    // read the container's id and the sortable's nesting once
-    const id = untrack(() => properties.id);
-    const isNesting = untrack(() => control.properties.nesting === true);
+        // read the container's id and the sortable's nesting once
+        const id = untrack(() => properties.id);
+        const isNesting = untrack(() => control.properties.nesting === true);
 
-    // leave an item's children to its own droppable, or add the container's own
-    const isChildren = isNesting && parent?.id === id;
+        // leave an item's children to its own droppable, or add the container's own
+        const isChildren = isNesting && parent?.id === id;
 
-    // take the window of the one virtual list inside
-    const outer = useContext(VirtualHostContext);
-    const windows = new CollectionBuilder<VirtualWindow>();
-    const window = (): VirtualWindow | undefined => windows.items()[0];
-    const [focused, setFocused] = createSignal<string | undefined>(undefined, { ownedWrite: true });
-    const host: VirtualHost = {
-        add: (each) => {
-            // take the window, refusing one in an item's children, which reads no window
-            if (isChildren) {
-                throw new TypeError(`sortable children of '${id}' are invalid: a virtual list`);
-            }
-            // refuse a second window
-            else if (untrack(window) !== undefined) {
-                throw new TypeError(`sortable container '${id}' has several virtual lists`);
-            }
-            windows.add(each);
-            outer?.add(each);
-        },
-        persisted: () => {
-            // mount the dragged and the focused item, and those the list around asks for
-            const dragged = control.manager.item();
-            const each = focused();
-
-            return [
-                ...(dragged === undefined ? [] : [dragged]),
-                ...(each === undefined ? [] : [each]),
-                ...(outer?.persisted() ?? []),
-            ];
-        },
-    };
-
-    // add the container's droppable, leaving an item's children to the item's
-    if (!isChildren) {
-        control.addList({
-            id,
-            parent: parent?.id,
-            element: () =>
-                element !== undefined && properties.target !== undefined
-                    ? properties.target(element)
-                    : element,
-            orientation: () => properties.orientation ?? "vertical",
-            label: () => properties.label ?? locale.render(t.context("title")`the list`),
-            accepts: () => properties.accepts ?? [DEFAULT_TYPE],
-            height: () => properties.height ?? 0,
-            allows: (item) => properties.allows?.(item) !== false,
-            group: () => properties.group ?? (properties.accepts ?? [DEFAULT_TYPE]).join(" "),
-            isEndOnly: () => properties.isEndOnly === true,
-            window,
+        // take the window of the one virtual list inside
+        const outer = useContext(VirtualHostContext);
+        const windows = new CollectionBuilder<VirtualWindow>();
+        const window = (): VirtualWindow | undefined => windows.items()[0];
+        const [focused, setFocused] = createSignal<string | undefined>(undefined, {
+            ownedWrite: true,
         });
-    }
+        const host: VirtualHost = {
+            add: (each) => {
+                // take the window, refusing one in an item's children, which reads no window
+                if (isChildren) {
+                    throw new TypeError(`sortable children of '${id}' are invalid: a virtual list`);
+                }
+                // refuse a second window
+                else if (untrack(window) !== undefined) {
+                    throw new TypeError(`sortable container '${id}' has several virtual lists`);
+                }
+                windows.add(each);
+                outer?.add(each);
+            },
+            persisted: () => {
+                // mount the dragged and the focused item, and those the list around asks for
+                const dragged = control.manager.item();
+                const each = focused();
 
-    // mark the empty container a drag lands in, its line at its start, as items mark theirs
-    const isEmptyTarget = () => !isChildren && control.dropOf(id) === "inside";
+                return [
+                    ...(dragged === undefined ? [] : [dragged]),
+                    ...(each === undefined ? [] : [each]),
+                    ...(outer?.persisted() ?? []),
+                ];
+            },
+        };
 
-    // mark the container a drag aims at, and one refusing the dragged item
-    const stateOf = (): "over" | "refused" | "idle" => {
-        const dragged = control.manager.operation()?.item;
-        if (control.manager.targetIn(id) !== undefined) {
-            return "over";
-        } else if (dragged !== undefined && properties.allows?.(dragged) === false) {
-            return "refused";
+        // add the container's droppable, leaving an item's children to the item's
+        if (!isChildren) {
+            control.addList({
+                id,
+                parent: parent?.id,
+                element: () =>
+                    element !== undefined && properties.target !== undefined
+                        ? properties.target(element)
+                        : element,
+                orientation: () => properties.orientation,
+                label: () => properties.label ?? locale.render(t.context("title")`the list`),
+                accepts: () => properties.accepts ?? [DEFAULT_TYPE],
+                height: () => properties.height ?? 0,
+                allows: (item) => properties.allows?.(item) !== false,
+                group: () => properties.group ?? (properties.accepts ?? [DEFAULT_TYPE]).join(" "),
+                isEndOnly: () => properties.isEndOnly === true,
+                window,
+            });
         }
 
-        return "idle";
-    };
+        // mark the empty container a drag lands in, its line at its start, as items mark theirs
+        const isEmptyTarget = () => !isChildren && control.dropOf(id) === "inside";
 
-    return (
-        <SortableContainerContext
-            value={{ id, orientation: () => properties.orientation ?? "vertical" }}
-        >
-            <VirtualHostContext value={host}>
-                {renderPart(
-                    "div",
-                    "sortable-container",
-                    rest,
-                    () =>
-                        isEmptyTarget() && [
-                            styles.empty,
-                            properties.orientation === "horizontal"
-                                ? styles.emptyInline
-                                : styles.emptyBlock,
-                        ],
-                    {
-                        get "data-over"() {
-                            return stateOf() === "over" ? "" : undefined;
+        // mark the container a drag aims at, and one refusing the dragged item
+        const stateOf = (): "over" | "refused" | "idle" => {
+            const dragged = control.manager.operation()?.item;
+            if (control.manager.targetIn(id) !== undefined) {
+                return "over";
+            } else if (dragged !== undefined && properties.allows?.(dragged) === false) {
+                return "refused";
+            }
+
+            return "idle";
+        };
+
+        return (
+            <SortableContainerContext value={{ id, orientation: () => properties.orientation }}>
+                <VirtualHostContext value={host}>
+                    {renderPart(
+                        "div",
+                        "sortable-container",
+                        rest,
+                        () =>
+                            isEmptyTarget() && [
+                                styles.empty,
+                                properties.orientation === "horizontal"
+                                    ? styles.emptyInline
+                                    : styles.emptyBlock,
+                            ],
+                        {
+                            get "data-over"() {
+                                return stateOf() === "over" ? "" : undefined;
+                            },
+                            get "data-drop"() {
+                                return isEmptyTarget() ? "inside" : undefined;
+                            },
+                            get "data-refused"() {
+                                return stateOf() === "refused" ? "" : undefined;
+                            },
+                            get "data-orientation"() {
+                                return properties.orientation;
+                            },
+                            onFocusIn: (event: FocusEvent) =>
+                                setFocused(control.idOf(event.target)),
+                            onFocusOut: (event: FocusEvent) => {
+                                // forget the focused item once the focus leaves the container
+                                if (
+                                    !(event.relatedTarget instanceof Node) ||
+                                    element?.contains(event.relatedTarget) !== true
+                                ) {
+                                    setFocused(undefined);
+                                }
+                            },
+                            ref: (created: HTMLElement) => {
+                                element = created;
+                                if (isChildren) {
+                                    parent.setChildren(created);
+                                }
+                            },
                         },
-                        get "data-drop"() {
-                            return isEmptyTarget() ? "inside" : undefined;
-                        },
-                        get "data-refused"() {
-                            return stateOf() === "refused" ? "" : undefined;
-                        },
-                        get "data-orientation"() {
-                            return properties.orientation ?? "vertical";
-                        },
-                        onFocusIn: (event: FocusEvent) => setFocused(control.idOf(event.target)),
-                        onFocusOut: (event: FocusEvent) => {
-                            // forget the focused item once the focus leaves the container
-                            if (
-                                !(event.relatedTarget instanceof Node) ||
-                                element?.contains(event.relatedTarget) !== true
-                            ) {
-                                setFocused(undefined);
-                            }
-                        },
-                        ref: (created: HTMLElement) => {
-                            element = created;
-                            if (isChildren) {
-                                parent.setChildren(created);
-                            }
-                        },
-                    },
-                )}
-            </VirtualHostContext>
-        </SortableContainerContext>
-    );
-}
+                    )}
+                </VirtualHostContext>
+            </SortableContainerContext>
+        );
+    },
+});
+
+/** The properties of a sortable container, its native attributes included. */
+export type SortableContainerProperties = ComponentProperties<typeof SortableContainer>;
 
 /** Render an item of the nearest container. */
 export function SortableItem(properties: SortableItemProperties): JSX.Element {

@@ -20,7 +20,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { badgeVariants } from "../badge/index.ts";
+import { Badge } from "../badge/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { type FieldControl, useFieldControl, useFieldValue } from "../field/control.ts";
 import { Icon } from "../icon/index.ts";
@@ -621,7 +621,7 @@ export function TagFieldItem(properties: TagFieldItemProperties): JSX.Element {
                 "span",
                 "tag-field-item",
                 rest,
-                () => [badgeVariants({ variant: "secondary" }), state.focus, styles.tag],
+                () => [Badge.styles({ variant: "secondary" }), state.focus, styles.tag],
                 {
                     role: "listitem" as const,
                     tabindex: -1,

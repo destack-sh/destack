@@ -168,3 +168,23 @@ export const sortableLongList = defineExample({
         );
     },
 });
+
+/** A trip's steps, their list laid out on its own. */
+export const sortableContainerDefault = defineExample({
+    of: SortableContainer,
+    name: "default",
+    description: t`A trip's steps, their list laid out on its own.`,
+    render: (properties) => (
+        <Sortable>
+            <SortableContainer id="steps" label="Steps" {...properties}>
+                <For each={["Pack", "Check in", "Board"]}>
+                    {(step) => (
+                        <SortableItem id={step}>
+                            <SortableHandle /> {step}
+                        </SortableItem>
+                    )}
+                </For>
+            </SortableContainer>
+        </Sortable>
+    ),
+});
