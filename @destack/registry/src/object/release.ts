@@ -77,7 +77,7 @@ export const release = defineObject(
         }),
         /** Find a package's published release of a version, or of the version a tag points at. */
         resolve: method.query({
-            title: t`Resolve`,
+            title: t.context("action")`Resolve`,
             permission: "read",
             target: "scope",
             input: schema.object({
@@ -88,7 +88,7 @@ export const release = defineObject(
             }),
         }),
         deprecate: method.mutation({
-            title: t`Deprecate`,
+            title: t.context("action")`Deprecate`,
             permission: "publish",
             input: schema.object({
                 /** The warning installers show, or null to withdraw the deprecation. */
@@ -96,7 +96,7 @@ export const release = defineObject(
             }),
         }),
         yank: method.mutation({
-            title: t`Yank`,
+            title: t.context("action")`Yank`,
             permission: "publish",
             input: schema.object({
                 /** Whether new installs skip the release, false to restore it. */

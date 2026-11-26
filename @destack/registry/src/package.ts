@@ -5,7 +5,7 @@ import { packageObject, reference, release, repository, tag } from "./object/ind
 
 /** The registry protocol: packages, releases, tags, repositories, references and pushed builds. */
 export default definePackage({
-    title: t`Registry`,
+    title: t.context("title")`Registry`,
     description: t`Publish and resolve packages, releases and tags, and push builds and Git, through the registry a space installs.`,
     icon: "package",
     color: "green",

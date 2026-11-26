@@ -147,7 +147,7 @@ export const packageObject = defineObject(
         }),
         /** Publish an account's packages in a pushed image under a tag, required ones first. */
         publish: method.mutation({
-            title: t`Publish`,
+            title: t.context("action")`Publish`,
             permission: "publish",
             target: "scope",
             prepared: schema.array(Publication).readonly(),
@@ -173,7 +173,7 @@ export const packageObject = defineObject(
         list: method.list("discover"),
         /** Find the package of a global name, `@<account handle>/<name>`. */
         resolve: method.query({
-            title: t`Resolve`,
+            title: t.context("action")`Resolve`,
             permission: "read",
             target: "scope",
             input: schema.object({
@@ -184,7 +184,7 @@ export const packageObject = defineObject(
         }),
         /** Read the version the next release of a package name takes, published yet or not. */
         next: method.query({
-            title: t`Next`,
+            title: t.context("action")`Next`,
             permission: "read",
             target: "scope",
             input: schema.object({
@@ -198,7 +198,7 @@ export const packageObject = defineObject(
         }),
         /** Point a distribution tag at a published version, creating the tag the first time. */
         point: method.mutation({
-            title: t`Point`,
+            title: t.context("action")`Point`,
             permission: "publish",
             input: schema.object({
                 /** The distribution tag. */

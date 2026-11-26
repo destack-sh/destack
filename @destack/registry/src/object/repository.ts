@@ -261,7 +261,7 @@ export const repository = defineObject(
         }),
         /** Lease short-lived, direct access to read the repository, as a fetch takes it. */
         pull: method.query({
-            title: t`Pull`,
+            title: t.context("action")`Pull`,
             permission: "pull",
             output: Lease,
             prepared: Lease,
@@ -269,7 +269,7 @@ export const repository = defineObject(
         }),
         /** Lease short-lived, direct access to write the repository, as a push takes it. */
         push: method.query({
-            title: t`Push`,
+            title: t.context("action")`Push`,
             permission: "push",
             output: Lease,
             prepared: Lease,
@@ -277,12 +277,16 @@ export const repository = defineObject(
         }),
         /** Observe the origin's references and default branch. */
         refresh: method.mutation({
-            title: t`Refresh`,
+            title: t.context("action")`Refresh`,
             permission: "refresh",
             prepared: GitListing,
         }),
         /** Record the references the repository's machine observed. */
-        report: method.mutation({ title: t`Report`, permission: "report", input: GitListing }),
+        report: method.mutation({
+            title: t.context("action")`Report`,
+            permission: "report",
+            input: GitListing,
+        }),
         update: method.update("update", {
             fields: ["name", ...MOVABLE_ORIGIN_FIELDS],
             input: schema.object({
