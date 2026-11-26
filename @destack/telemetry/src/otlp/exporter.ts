@@ -26,6 +26,9 @@ import { TailSampler } from "../trace/tail.ts";
 import { StackFrame, type Symbolicator } from "@destack/package/stack";
 import type { LineExporter } from "@destack/environment/line";
 
+/** The most bytes a keepalive request carries, as browsers refuse a larger body (Fetch). */
+const KEEPALIVE_BYTES = 65_536;
+
 /** How long one export may take by default before it fails: OTLP's OTEL_EXPORTER_OTLP_TIMEOUT. */
 const EXPORT_TIMEOUT_MILLISECONDS = 10_000;
 
@@ -273,13 +276,14 @@ export class OtlpExporter {
         }
         const bytes = new Uint8Array(buffer, body.byteOffset, body.byteLength);
 
-        // post the request to the signal's path
+        // post the request to the signal's path, outliving the page only within the browsers' keepalive quota
+        const isKeepalive = target.isKeepalive === true && bytes.byteLength <= KEEPALIVE_BYTES;
         const request = new Request(`${target.endpoint}/v1/${signal}`, {
             method: "POST",
             headers: { "content-type": "application/json", ...target.headers?.() },
             body: bytes,
             signal: abort,
-            ...(target.isKeepalive === true ? { keepalive: true } : {}),
+            ...(isKeepalive ? { keepalive: true } : {}),
         });
         const response = await target.fetch(request);
 
