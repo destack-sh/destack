@@ -1,3 +1,6 @@
+import linkIcon from "@destack/icon/phosphor/link";
+import textBIcon from "@destack/icon/phosphor/text-b";
+import textItalicIcon from "@destack/icon/phosphor/text-italic";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For } from "@destack/view";
 import { Button } from "../button/index.ts";
@@ -5,7 +8,8 @@ import { Field, FieldLabel } from "../field/index.ts";
 import { Stack } from "../stack/index.ts";
 import { Input } from "../input/index.ts";
 import type { AnchorBox } from "../position/index.ts";
-import { Tooltip, TooltipContent } from "../tooltip/index.ts";
+import { Toolbar, ToolbarButton } from "../toolbar/index.ts";
+import { Icon } from "../icon/index.ts";
 import {
     Popover,
     PopoverClose,
@@ -175,6 +179,7 @@ export const popoverSelection = defineExample({
     description: "the toolbar of a text's selection, beside the words a person selects",
     layout: "padded",
     render: () => {
+        // follow the words selected, once the press that selects them ends
         const [box, setBox] = createSignal<AnchorBox>();
         const select = (event: { readonly currentTarget: HTMLElement }) => {
             const selection = event.currentTarget.ownerDocument.getSelection();
@@ -184,14 +189,31 @@ export const popoverSelection = defineExample({
 
         return (
             <>
-                <p onPointerUp={select} onKeyUp={select}>
+                <p onClick={select} onKeyUp={select}>
                     Take the early tram to the lake, then walk up to the pass before noon.
                 </p>
-                <Tooltip open={box() !== undefined}>
-                    <TooltipContent anchor={box()} side="top">
-                        Bold, italic, link
-                    </TooltipContent>
-                </Tooltip>
+                <Popover
+                    open={box() !== undefined}
+                    onOpenChange={(isOpen) => {
+                        if (!isOpen) {
+                            setBox(undefined);
+                        }
+                    }}
+                >
+                    <PopoverContent anchor={box()} side="top" width="fit">
+                        <Toolbar aria-label="Format">
+                            <ToolbarButton size="icon-sm" variant="ghost" aria-label="Bold">
+                                <Icon icon={textBIcon} />
+                            </ToolbarButton>
+                            <ToolbarButton size="icon-sm" variant="ghost" aria-label="Italic">
+                                <Icon icon={textItalicIcon} />
+                            </ToolbarButton>
+                            <ToolbarButton size="icon-sm" variant="ghost" aria-label="Link">
+                                <Icon icon={linkIcon} />
+                            </ToolbarButton>
+                        </Toolbar>
+                    </PopoverContent>
+                </Popover>
             </>
         );
     },

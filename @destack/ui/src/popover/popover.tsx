@@ -38,9 +38,10 @@ import { Viewport } from "./viewport.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The side and alignment of a popover that sets neither. */
-const DEFAULTS: Required<Pick<PopoverContentProperties, "side" | "align">> = {
+const DEFAULTS: Required<Pick<PopoverContentProperties, "side" | "align" | "width">> = {
     side: "bottom",
     align: "center",
+    width: "fixed",
 };
 
 /** The popover of the nearest popover root, null outside one. */
@@ -48,6 +49,11 @@ const PopoverContext = createContext<PopoverControl | null>(null);
 
 /** The styles every popover shares. */
 const styles = style.create({
+    // hug a few controls, as a bar beside selected words does
+    fit: {
+        width: "fit-content",
+        padding: space[1],
+    },
     content: {
         outlineStyle: "none",
         width: width.popover,
@@ -563,6 +569,8 @@ export interface PopoverContentProperties extends Omit<
     readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
     readonly align?: Align;
+    /** How wide it is: a form's width, or as wide as a few controls in it, fixed by default. */
+    readonly width?: "fixed" | "fit";
     /** The gap from the trigger in pixels, 4 by default. */
     readonly sideOffset?: number;
     /** The StyleX styles applied after the popover's styles. */
@@ -642,7 +650,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
     // read the popover and its placement
     const popover = usePopover();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "anchor", "side", "align", "sideOffset", "onToggle");
+    const rest = omit(content, "anchor", "side", "align", "sideOffset", "onToggle", "width");
     const modalRest = omit(rest, "tabindex");
     const label = (): string | undefined =>
         properties["aria-label"] === undefined
@@ -669,6 +677,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                     () => [
                         text.sm,
                         styles.content,
+                        content.width === "fit" && styles.fit,
                         Position.beside(content.side, content.align),
                         Position.offset(content.side, content.sideOffset),
                     ],
@@ -725,6 +734,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                         [
                             text.sm,
                             styles.content,
+                            content.width === "fit" && styles.fit,
                             transition.modalPopover,
                             styles.modal,
                             Position.area(content.side, content.align),
