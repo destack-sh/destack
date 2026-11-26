@@ -120,11 +120,6 @@
             "translation": "Pessoas",
             "state": "machine"
         },
-        "11yqst59h5xvt": {
-            "source": "A note's tabs beside their panels.",
-            "translation": "Os separadores de uma nota junto aos seus painéis.",
-            "state": "machine"
-        },
         "125sdekm0fdhb": {
             "source": "Quote",
             "context": "action",
@@ -339,11 +334,6 @@
             "source": "vibrant",
             "context": "option",
             "translation": "vivo",
-            "state": "machine"
-        },
-        "17ig45mx0rsia": {
-            "source": "Ada's picture, large.",
-            "translation": "A foto da Ada, grande.",
             "state": "machine"
         },
         "17mzqepdfdkq6": {
@@ -1749,11 +1739,6 @@
             "translation": "Mover o realce para a última opção ativa com Fim e voltar à primeira com Início.",
             "state": "machine"
         },
-        "23e00tmgk4kkc": {
-            "source": "The people sharing a notebook, large.",
-            "translation": "As pessoas que partilham um caderno, em grande.",
-            "state": "machine"
-        },
         "23milrlqum0fq": {
             "source": "is after",
             "context": "option",
@@ -2544,11 +2529,6 @@
             "translation": "Cenário",
             "state": "machine"
         },
-        "2ld3t8cqjdjr9": {
-            "source": "The search box unavailable.",
-            "translation": "A caixa de pesquisa, indisponível.",
-            "state": "machine"
-        },
         "2lfsy7assbc93": {
             "source": "A dot per note of its length against its edits.",
             "translation": "Um ponto por nota, o comprimento face às edições.",
@@ -2647,11 +2627,6 @@
             "source": "Collapse",
             "context": "action",
             "translation": "Recolher",
-            "state": "machine"
-        },
-        "2nbm4gbzncg9s": {
-            "source": "The people sharing a notebook, small.",
-            "translation": "As pessoas que partilham um caderno, em pequeno.",
             "state": "machine"
         },
         "2nczhctu41hwb": {
@@ -2831,11 +2806,6 @@
         "2sejtdp42jhev": {
             "source": "Move between a menubar's triggers and cross from one open menu to the next.",
             "translation": "Mover-se entre os botões de uma barra de menus e passar de um menu aberto para o seguinte.",
-            "state": "machine"
-        },
-        "2sfc09mo3m96a": {
-            "source": "A person's initials in a color of their choosing.",
-            "translation": "As iniciais de uma pessoa numa cor à sua escolha.",
             "state": "machine"
         },
         "2sfu2ta6j6z6t": {
@@ -3796,11 +3766,6 @@
             "translation": "Remover {$p0}",
             "state": "machine"
         },
-        "3e354cjwidzkq": {
-            "source": "A note's tabs on no ground of their own.",
-            "translation": "Os separadores de uma nota sem fundo próprio.",
-            "state": "machine"
-        },
         "3e3iho6vspkv0": {
             "source": "A note whose edits outlive the page, and which asks before it is left.",
             "translation": "Uma nota cujas edições sobrevivem à página e que pergunta antes de se sair.",
@@ -3923,11 +3888,6 @@
             "translation": "A atividade de um espaço que carrega entradas seguintes quando o fim se aproxima.",
             "state": "machine"
         },
-        "3gy5feraaitrp": {
-            "source": "A note's tabs in a narrow row, which shrink below their words.",
-            "translation": "Os separadores de uma nota numa fila estreita, que encolhem abaixo das palavras.",
-            "state": "machine"
-        },
         "3gyc99802sx8n": {
             "source": "Change the skin tone",
             "translation": "Alterar o tom de pele",
@@ -3936,11 +3896,6 @@
         "3h47c9ggsyrpa": {
             "source": "Focus a cell and move along its row, down a column across a section's heading and to the row's end, and pick it with Enter.",
             "translation": "Focar uma célula e percorrer a linha, descer uma coluna através do título de uma secção até ao fim da linha, e escolher com Enter.",
-            "state": "machine"
-        },
-        "3hcsn2405cfm2": {
-            "source": "A note's tabs, the selected one underlined.",
-            "translation": "Os separadores de uma nota, o selecionado sublinhado.",
             "state": "machine"
         },
         "3hq0quychji8g": {
@@ -3958,11 +3913,6 @@
             "source": "yyyy",
             "context": "label",
             "translation": "aaaa",
-            "state": "machine"
-        },
-        "3hwi2mmab8da2": {
-            "source": "A select-all box composed from its root and indicator, showing a partial selection.",
-            "translation": "Uma caixa de selecionar tudo composta por raiz e indicador, que mostra uma seleção parcial.",
             "state": "machine"
         },
         "3hxxesyxq5exy": {
@@ -4096,11 +4046,6 @@
         "3l06sm8wi4n41": {
             "source": "A note search with a leading icon, its shortcut and a clear button.",
             "translation": "Uma pesquisa de notas com um ícone à frente, o seu atalho e um botão para limpar.",
-            "state": "machine"
-        },
-        "3l5aw4ut394ca": {
-            "source": "Ada's picture, small.",
-            "translation": "A foto da Ada, pequena.",
             "state": "machine"
         },
         "3laofdz0vb3y5": {
@@ -4304,11 +4249,6 @@
         "3ovhbs3y3gexl": {
             "source": "A launch's tasks with a filter, resizable pinned columns, editable titles and row actions.",
             "translation": "As tarefas de um lançamento com um filtro, colunas fixas redimensionáveis, títulos editáveis e ações de linha.",
-            "state": "machine"
-        },
-        "3oxmd2znb31u5": {
-            "source": "A note's tabs as cards, the selected one joined to its panel.",
-            "translation": "Os separadores de uma nota como cartões, o selecionado ligado ao seu painel.",
             "state": "machine"
         },
         "3oy4kj0m95r5u": {
@@ -4798,11 +4738,6 @@
             "translation": "Cadernos como árvore, viagens recolhido e trabalho expandido, indicando o item escolhido.",
             "state": "machine"
         },
-        "8cvp3dkyznar": {
-            "source": "A note's tabs in a narrow row, each as wide as the others.",
-            "translation": "Os separadores de uma nota numa fila estreita, todos da mesma largura.",
-            "state": "machine"
-        },
         "8ep4u833z0yy": {
             "source": "A switch that turns notifications on and off.",
             "translation": "Um interruptor que liga e desliga as notificações.",
@@ -5002,11 +4937,6 @@
         "cu6ur4vd1q1y": {
             "source": "A board of two columns whose cards move within and between the columns.",
             "translation": "Um quadro de duas colunas cujos cartões se movem dentro e entre as colunas.",
-            "state": "machine"
-        },
-        "cyapftqsu652": {
-            "source": "The terms checkbox unavailable.",
-            "translation": "A caixa dos termos, indisponível.",
             "state": "machine"
         },
         "dculu1llebrk": {
@@ -6161,6 +6091,403 @@
             "source": "Set {$p0}",
             "context": "action",
             "translation": "Definir {$p0}",
+            "state": "machine"
+        },
+        "1a1ej6zpmlnre": {
+            "source": "A field without a frame, as in a toolbar or a search bar.",
+            "translation": "Um campo sem moldura, como numa barra de ferramentas ou de pesquisa.",
+            "state": "machine"
+        },
+        "2cozjm6ge447r": {
+            "source": "A framed field, as in a form.",
+            "translation": "Um campo com moldura, como num formulário.",
+            "state": "machine"
+        },
+        "u7fhm918ttbr": {
+            "source": "Activation",
+            "context": "label",
+            "translation": "Ativação",
+            "state": "machine"
+        },
+        "2hkvdlqpw4dpo": {
+            "source": "Align",
+            "context": "label",
+            "translation": "Alinhamento",
+            "state": "machine"
+        },
+        "31ffbw49pyckq": {
+            "source": "An item that deletes or cannot be undone.",
+            "translation": "Um item que elimina ou não pode ser anulado.",
+            "state": "machine"
+        },
+        "1neahrhidwhae": {
+            "source": "Asks for a value before its form submits.",
+            "translation": "Pede um valor antes de o formulário ser enviado.",
+            "state": "machine"
+        },
+        "1tk8p1xmbruly": {
+            "source": "Asks for it to be checked before its form submits.",
+            "translation": "Pede que esteja marcado antes de o formulário ser enviado.",
+            "state": "machine"
+        },
+        "1uuycns67k2az": {
+            "source": "Automatic",
+            "context": "option",
+            "translation": "Automático",
+            "state": "machine"
+        },
+        "3ipfimnoulopg": {
+            "source": "Bottom center",
+            "context": "option",
+            "translation": "Em baixo ao centro",
+            "state": "machine"
+        },
+        "3lfs9h3ebystc": {
+            "source": "Bottom left",
+            "context": "option",
+            "translation": "Em baixo à esquerda",
+            "state": "machine"
+        },
+        "19f6lxha2v65x": {
+            "source": "Bottom right",
+            "context": "option",
+            "translation": "Em baixo à direita",
+            "state": "machine"
+        },
+        "36r2rw386rxsn": {
+            "source": "Bottom",
+            "context": "option",
+            "translation": "Em baixo",
+            "state": "machine"
+        },
+        "27ko7khds42vm": {
+            "source": "Card",
+            "context": "option",
+            "translation": "Cartão",
+            "state": "machine"
+        },
+        "1mz0be0sw91cl": {
+            "source": "Center",
+            "context": "option",
+            "translation": "Centro",
+            "state": "machine"
+        },
+        "1iem8ic4moxpz": {
+            "source": "Close button",
+            "context": "label",
+            "translation": "Botão de fechar",
+            "state": "machine"
+        },
+        "dr1mz7ws6hdf": {
+            "source": "Duration",
+            "context": "label",
+            "translation": "Duração",
+            "state": "machine"
+        },
+        "3odqd7u6y5jw8": {
+            "source": "Each tab as wide as its label.",
+            "translation": "Cada separador tão largo quanto o seu rótulo.",
+            "state": "machine"
+        },
+        "1638n20wo7e5a": {
+            "source": "Every tab as wide as the others.",
+            "translation": "Cada separador tão largo quanto os outros.",
+            "state": "machine"
+        },
+        "2pu1ypeqs6c3n": {
+            "source": "Fit",
+            "context": "option",
+            "translation": "Ajustado",
+            "state": "machine"
+        },
+        "8xp2fupo3412": {
+            "source": "Fixed",
+            "context": "option",
+            "translation": "Fixo",
+            "state": "machine"
+        },
+        "18fgyh586jcyc": {
+            "source": "How large each picture or initials show.",
+            "translation": "O tamanho de cada imagem ou iniciais.",
+            "state": "machine"
+        },
+        "117xhikxgmh7q": {
+            "source": "How large the picture or initials show.",
+            "translation": "O tamanho da imagem ou das iniciais.",
+            "state": "machine"
+        },
+        "1pa6jgrm1qkbm": {
+            "source": "How long a toast shows before it goes, in milliseconds.",
+            "translation": "Quanto tempo um aviso aparece antes de desaparecer, em milissegundos.",
+            "state": "machine"
+        },
+        "2sgxqet0bays6": {
+            "source": "How many toasts show at once before the rest wait.",
+            "translation": "Quantos avisos aparecem de uma vez antes de os outros esperarem.",
+            "state": "machine"
+        },
+        "2gl3otoppxb4e": {
+            "source": "How the tabs set the shown one apart.",
+            "translation": "Como os separadores destacam o que está à vista.",
+            "state": "machine"
+        },
+        "2xrhv42dn55li": {
+            "source": "How wide each tab is.",
+            "translation": "A largura de cada separador.",
+            "state": "machine"
+        },
+        "1sgbkde1g6gma": {
+            "source": "Indeterminate",
+            "context": "label",
+            "translation": "Indeterminado",
+            "state": "machine"
+        },
+        "1keao8q2dypf1": {
+            "source": "Left",
+            "context": "option",
+            "translation": "Esquerda",
+            "state": "machine"
+        },
+        "22fpzvo0ihvku": {
+            "source": "Line",
+            "context": "option",
+            "translation": "Linha",
+            "state": "machine"
+        },
+        "2ldwe2t0h2f8q": {
+            "source": "Manual",
+            "context": "option",
+            "translation": "Manual",
+            "state": "machine"
+        },
+        "2p4vy2qfxb18c": {
+            "source": "Placeholder",
+            "context": "label",
+            "translation": "Marcador de posição",
+            "state": "machine"
+        },
+        "2f0rsv5q9guco": {
+            "source": "Plain",
+            "context": "option",
+            "translation": "Simples",
+            "state": "machine"
+        },
+        "qqzkbjfbi1s9": {
+            "source": "Quiet tabs, the shown one filled.",
+            "translation": "Separadores discretos, o que está à vista preenchido.",
+            "state": "machine"
+        },
+        "1kjt8umxwpssr": {
+            "source": "Read only",
+            "context": "label",
+            "translation": "Só de leitura",
+            "state": "machine"
+        },
+        "3dsg83q1bc0q6": {
+            "source": "Refuses input where the value cannot change now.",
+            "translation": "Recusa a introdução quando o valor não pode mudar agora.",
+            "state": "machine"
+        },
+        "56a032e5z7sl": {
+            "source": "Refuses presses on every checkbox of the group.",
+            "translation": "Recusa toques em cada caixa do grupo.",
+            "state": "machine"
+        },
+        "2jyp410vdhgmw": {
+            "source": "Refuses the focus and presses where the tab cannot show now.",
+            "translation": "Recusa o foco e os toques quando o separador não pode aparecer agora.",
+            "state": "machine"
+        },
+        "3qdrx8eqq6g8f": {
+            "source": "Refuses the item where its action cannot run now.",
+            "translation": "Recusa o item quando a sua ação não pode ser executada agora.",
+            "state": "machine"
+        },
+        "39yeoc79lnva8": {
+            "source": "Renders only the rows in view, for long tables.",
+            "translation": "Desenha só as linhas visíveis, para tabelas longas.",
+            "state": "machine"
+        },
+        "2h7c2xfg2tr1e": {
+            "source": "Required",
+            "context": "label",
+            "translation": "Obrigatório",
+            "state": "machine"
+        },
+        "n86zgfxn6nc6": {
+            "source": "Right",
+            "context": "option",
+            "translation": "Direita",
+            "state": "machine"
+        },
+        "kp7u3jomqdkt": {
+            "source": "Shows a button in its corner that closes the dialog.",
+            "translation": "Mostra no canto um botão que fecha a caixa de diálogo.",
+            "state": "machine"
+        },
+        "5k6fpubcu2le": {
+            "source": "Shows a dash, as for a group of which some are checked.",
+            "translation": "Mostra um traço, como num grupo em que algumas estão marcadas.",
+            "state": "machine"
+        },
+        "3ekmprmbslx1j": {
+            "source": "Shows each state, which a person cannot change.",
+            "translation": "Mostra cada estado, que ninguém pode mudar.",
+            "state": "machine"
+        },
+        "1caa7v0dt9kj7": {
+            "source": "Shows the state, which a person cannot change.",
+            "translation": "Mostra o estado, que ninguém pode mudar.",
+            "state": "machine"
+        },
+        "us7bzt175sko": {
+            "source": "Shows the value, which a person can select but not change.",
+            "translation": "Mostra o valor, que se pode selecionar mas não mudar.",
+            "state": "machine"
+        },
+        "2t1xd2v35jfmt": {
+            "source": "Shrink",
+            "context": "option",
+            "translation": "Encolher",
+            "state": "machine"
+        },
+        "1dm0xt91umbrw": {
+            "source": "Side",
+            "context": "label",
+            "translation": "Lado",
+            "state": "machine"
+        },
+        "1nv86867d9o09": {
+            "source": "Sizing",
+            "context": "label",
+            "translation": "Dimensionamento",
+            "state": "machine"
+        },
+        "1l2x9jlv99wbd": {
+            "source": "Subtle",
+            "context": "option",
+            "translation": "Discreto",
+            "state": "machine"
+        },
+        "1x4s6g9trdmby": {
+            "source": "Tabs as the tops of cards, the shown one joined to its panel.",
+            "translation": "Separadores como o topo de cartões, o que está à vista ligado ao seu painel.",
+            "state": "machine"
+        },
+        "3jja4pe46yas9": {
+            "source": "Tabs narrow to fit their list, their labels cut short.",
+            "translation": "Os separadores estreitam para caber na lista, com os rótulos cortados.",
+            "state": "machine"
+        },
+        "273vzdhyn4x2c": {
+            "source": "Tabs on a track, the shown one raised.",
+            "translation": "Separadores numa faixa, o que está à vista elevado.",
+            "state": "machine"
+        },
+        "2704qeya2n6mi": {
+            "source": "Tabs over a rule, the shown one underlined.",
+            "translation": "Separadores sobre uma linha, o que está à vista sublinhado.",
+            "state": "machine"
+        },
+        "3e5v2c1sphva9": {
+            "source": "The arrow keys move the focus, and Enter or Space shows the tab.",
+            "translation": "As setas movem o foco, e Enter ou Espaço mostram o separador.",
+            "state": "machine"
+        },
+        "3vcbfpn56xtm4": {
+            "source": "The arrow keys show each tab as they reach it.",
+            "translation": "As setas mostram cada separador ao chegarem a ele.",
+            "state": "machine"
+        },
+        "19ajulznc4pvl": {
+            "source": "The corner or edge of the screen the toasts stack at.",
+            "translation": "O canto ou a margem do ecrã onde os avisos se empilham.",
+            "state": "machine"
+        },
+        "2ao18ezrv47q9": {
+            "source": "The hint the field shows while it is empty.",
+            "translation": "A dica que o campo mostra enquanto está vazio.",
+            "state": "machine"
+        },
+        "2ahucb0bdppbs": {
+            "source": "The hue the initials show on, where there is no picture.",
+            "translation": "A tonalidade sobre a qual aparecem as iniciais quando não há imagem.",
+            "state": "machine"
+        },
+        "1gvhi80lruej2": {
+            "source": "The side of its trigger the menu opens on, where it fits.",
+            "translation": "O lado do seu acionador onde o menu abre, se couber.",
+            "state": "machine"
+        },
+        "34l19jm9wy458": {
+            "source": "Top center",
+            "context": "option",
+            "translation": "Em cima ao centro",
+            "state": "machine"
+        },
+        "ncrbebhnl1e0": {
+            "source": "Top left",
+            "context": "option",
+            "translation": "Em cima à esquerda",
+            "state": "machine"
+        },
+        "3rmius9myh70d": {
+            "source": "Top right",
+            "context": "option",
+            "translation": "Em cima à direita",
+            "state": "machine"
+        },
+        "czgx29x8htnj": {
+            "source": "Top",
+            "context": "option",
+            "translation": "Em cima",
+            "state": "machine"
+        },
+        "1rkhtp2tb9jr6": {
+            "source": "Virtual",
+            "context": "label",
+            "translation": "Virtual",
+            "state": "machine"
+        },
+        "3e93aqt0crunh": {
+            "source": "Visible toasts",
+            "context": "label",
+            "translation": "Avisos visíveis",
+            "state": "machine"
+        },
+        "18fn7rb2t2i1d": {
+            "source": "When a tab the keys reach shows its panel.",
+            "translation": "Quando um separador alcançado pelas teclas mostra o seu painel.",
+            "state": "machine"
+        },
+        "3gqn9bvcl96aj": {
+            "source": "Where along its trigger the menu lines up.",
+            "translation": "Onde o menu se alinha ao longo do seu acionador.",
+            "state": "machine"
+        },
+        "3akpbdixtevq8": {
+            "source": "Whether the field shows its frame.",
+            "translation": "Se o campo mostra a sua moldura.",
+            "state": "machine"
+        },
+        "pzovenyeyz93": {
+            "source": "Whether the item marks a destructive action.",
+            "translation": "Se o item assinala uma ação destrutiva.",
+            "state": "machine"
+        },
+        "6re0lokweb7h": {
+            "source": "Whether the tabs lie in a row or a column.",
+            "translation": "Se os separadores ficam numa linha ou numa coluna.",
+            "state": "machine"
+        },
+        "2ekp8t3lz9vas": {
+            "source": "A note's tabs in a narrow row, laid out by their list's variant and sizing.",
+            "translation": "Os separadores de uma nota numa linha estreita, dispostos pela variante e dimensionamento da sua lista.",
+            "state": "machine"
+        },
+        "2f83n8r6psr41": {
+            "source": "A note's actions open beside their button, laid out by the menu's side and alignment.",
+            "translation": "As ações de uma nota abertas ao lado do seu botão, dispostas pelo lado e alinhamento do menu.",
             "state": "machine"
         }
     }

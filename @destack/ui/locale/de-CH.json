@@ -37,11 +37,6 @@
             "translation": "Die Liste eines Kombinationsfelds beim Tippen öffnen, eine Option wählen und sie schliessen.",
             "state": "machine"
         },
-        "17ig45mx0rsia": {
-            "source": "Ada's picture, large.",
-            "translation": "Adas Bild, gross.",
-            "state": "machine"
-        },
         "1don1gxlmc74u": {
             "source": "Size",
             "context": "label",
@@ -91,11 +86,6 @@
         "1ygghgiuzxrid": {
             "source": "A popover titled and described for assistive technology, with a button that closes it.",
             "translation": "Ein Popover, für assistive Technologien betitelt und beschrieben, mit einer Schaltfläche, die es schliesst.",
-            "state": "machine"
-        },
-        "23e00tmgk4kkc": {
-            "source": "The people sharing a notebook, large.",
-            "translation": "Die Personen, die ein Notizbuch teilen, gross.",
             "state": "machine"
         },
         "26cp87up1qsnf": {

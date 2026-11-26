@@ -120,11 +120,6 @@
             "translation": "Mensen",
             "state": "machine"
         },
-        "11yqst59h5xvt": {
-            "source": "A note's tabs beside their panels.",
-            "translation": "De tabbladen van een notitie naast hun panelen.",
-            "state": "machine"
-        },
         "125sdekm0fdhb": {
             "source": "Quote",
             "context": "action",
@@ -339,11 +334,6 @@
             "source": "vibrant",
             "context": "option",
             "translation": "levendig",
-            "state": "machine"
-        },
-        "17ig45mx0rsia": {
-            "source": "Ada's picture, large.",
-            "translation": "De foto van Ada, groot.",
             "state": "machine"
         },
         "17mzqepdfdkq6": {
@@ -1749,11 +1739,6 @@
             "translation": "De markering met End naar de laatste beschikbare optie en met Home terug naar de eerste bewegen.",
             "state": "machine"
         },
-        "23e00tmgk4kkc": {
-            "source": "The people sharing a notebook, large.",
-            "translation": "De mensen die een notitieboek delen, groot.",
-            "state": "machine"
-        },
         "23milrlqum0fq": {
             "source": "is after",
             "context": "option",
@@ -2544,11 +2529,6 @@
             "translation": "Scenario",
             "state": "machine"
         },
-        "2ld3t8cqjdjr9": {
-            "source": "The search box unavailable.",
-            "translation": "Het zoekveld, niet beschikbaar.",
-            "state": "machine"
-        },
         "2lfsy7assbc93": {
             "source": "A dot per note of its length against its edits.",
             "translation": "Een punt per notitie, de lengte tegenover de bewerkingen.",
@@ -2647,11 +2627,6 @@
             "source": "Collapse",
             "context": "action",
             "translation": "Samenvouwen",
-            "state": "machine"
-        },
-        "2nbm4gbzncg9s": {
-            "source": "The people sharing a notebook, small.",
-            "translation": "De mensen die een notitieboek delen, klein.",
             "state": "machine"
         },
         "2nczhctu41hwb": {
@@ -2831,11 +2806,6 @@
         "2sejtdp42jhev": {
             "source": "Move between a menubar's triggers and cross from one open menu to the next.",
             "translation": "Tussen de knoppen van een menubalk gaan en van het ene open menu naar het volgende.",
-            "state": "machine"
-        },
-        "2sfc09mo3m96a": {
-            "source": "A person's initials in a color of their choosing.",
-            "translation": "De initialen van een persoon in een kleur naar keuze.",
             "state": "machine"
         },
         "2sfu2ta6j6z6t": {
@@ -3796,11 +3766,6 @@
             "translation": "{$p0} verwijderen",
             "state": "machine"
         },
-        "3e354cjwidzkq": {
-            "source": "A note's tabs on no ground of their own.",
-            "translation": "De tabbladen van een notitie zonder eigen achtergrond.",
-            "state": "machine"
-        },
         "3e3iho6vspkv0": {
             "source": "A note whose edits outlive the page, and which asks before it is left.",
             "translation": "Een notitie waarvan de bewerkingen de pagina overleven en die vraagt voordat je weggaat.",
@@ -3923,11 +3888,6 @@
             "translation": "De activiteit van een ruimte die latere items laadt als het einde in zicht scrolt.",
             "state": "machine"
         },
-        "3gy5feraaitrp": {
-            "source": "A note's tabs in a narrow row, which shrink below their words.",
-            "translation": "De tabbladen van een notitie in een smalle rij, die krimpen tot onder hun woorden.",
-            "state": "machine"
-        },
         "3gyc99802sx8n": {
             "source": "Change the skin tone",
             "translation": "Huidskleur wijzigen",
@@ -3936,11 +3896,6 @@
         "3h47c9ggsyrpa": {
             "source": "Focus a cell and move along its row, down a column across a section's heading and to the row's end, and pick it with Enter.",
             "translation": "Een cel focussen en langs de rij gaan, een kolom af over de kop van een sectie tot het eind van de rij, en kiezen met Enter.",
-            "state": "machine"
-        },
-        "3hcsn2405cfm2": {
-            "source": "A note's tabs, the selected one underlined.",
-            "translation": "De tabbladen van een notitie, het geselecteerde onderstreept.",
             "state": "machine"
         },
         "3hq0quychji8g": {
@@ -3958,11 +3913,6 @@
             "source": "yyyy",
             "context": "label",
             "translation": "jjjj",
-            "state": "machine"
-        },
-        "3hwi2mmab8da2": {
-            "source": "A select-all box composed from its root and indicator, showing a partial selection.",
-            "translation": "Een alles-selecteren-vakje uit root en indicator, dat een gedeeltelijke selectie toont.",
             "state": "machine"
         },
         "3hxxesyxq5exy": {
@@ -4096,11 +4046,6 @@
         "3l06sm8wi4n41": {
             "source": "A note search with a leading icon, its shortcut and a clear button.",
             "translation": "Een notitiezoekveld met een pictogram vooraan, de sneltoets en een wisknop.",
-            "state": "machine"
-        },
-        "3l5aw4ut394ca": {
-            "source": "Ada's picture, small.",
-            "translation": "De foto van Ada, klein.",
             "state": "machine"
         },
         "3laofdz0vb3y5": {
@@ -4304,11 +4249,6 @@
         "3ovhbs3y3gexl": {
             "source": "A launch's tasks with a filter, resizable pinned columns, editable titles and row actions.",
             "translation": "De taken van een lancering met een filter, vastgezette kolommen van aanpasbare breedte, bewerkbare titels en rijacties.",
-            "state": "machine"
-        },
-        "3oxmd2znb31u5": {
-            "source": "A note's tabs as cards, the selected one joined to its panel.",
-            "translation": "De tabbladen van een notitie als kaarten, het geselecteerde verbonden met zijn paneel.",
             "state": "machine"
         },
         "3oy4kj0m95r5u": {
@@ -4798,11 +4738,6 @@
             "translation": "Notitieboeken als boom, reizen ingeklapt en werk uitgeklapt, met het gekozen item gemeld.",
             "state": "machine"
         },
-        "8cvp3dkyznar": {
-            "source": "A note's tabs in a narrow row, each as wide as the others.",
-            "translation": "De tabbladen van een notitie in een smalle rij, allemaal even breed.",
-            "state": "machine"
-        },
         "8ep4u833z0yy": {
             "source": "A switch that turns notifications on and off.",
             "translation": "Een schakelaar die meldingen aan- en uitzet.",
@@ -5002,11 +4937,6 @@
         "cu6ur4vd1q1y": {
             "source": "A board of two columns whose cards move within and between the columns.",
             "translation": "Een bord met twee kolommen waarvan de kaarten binnen en tussen de kolommen bewegen.",
-            "state": "machine"
-        },
-        "cyapftqsu652": {
-            "source": "The terms checkbox unavailable.",
-            "translation": "Het voorwaardenvakje, niet beschikbaar.",
             "state": "machine"
         },
         "dculu1llebrk": {
@@ -6161,6 +6091,403 @@
             "source": "Set {$p0}",
             "context": "action",
             "translation": "Stel {$p0} in",
+            "state": "machine"
+        },
+        "1a1ej6zpmlnre": {
+            "source": "A field without a frame, as in a toolbar or a search bar.",
+            "translation": "Een veld zonder kader, zoals in een werkbalk of zoekbalk.",
+            "state": "machine"
+        },
+        "2cozjm6ge447r": {
+            "source": "A framed field, as in a form.",
+            "translation": "Een omkaderd veld, zoals in een formulier.",
+            "state": "machine"
+        },
+        "u7fhm918ttbr": {
+            "source": "Activation",
+            "context": "label",
+            "translation": "Activering",
+            "state": "machine"
+        },
+        "2hkvdlqpw4dpo": {
+            "source": "Align",
+            "context": "label",
+            "translation": "Uitlijning",
+            "state": "machine"
+        },
+        "31ffbw49pyckq": {
+            "source": "An item that deletes or cannot be undone.",
+            "translation": "Een item dat verwijdert of niet ongedaan kan worden gemaakt.",
+            "state": "machine"
+        },
+        "1neahrhidwhae": {
+            "source": "Asks for a value before its form submits.",
+            "translation": "Vraagt om een waarde voordat het formulier wordt verzonden.",
+            "state": "machine"
+        },
+        "1tk8p1xmbruly": {
+            "source": "Asks for it to be checked before its form submits.",
+            "translation": "Vraagt om aanvinken voordat het formulier wordt verzonden.",
+            "state": "machine"
+        },
+        "1uuycns67k2az": {
+            "source": "Automatic",
+            "context": "option",
+            "translation": "Automatisch",
+            "state": "machine"
+        },
+        "3ipfimnoulopg": {
+            "source": "Bottom center",
+            "context": "option",
+            "translation": "Onder midden",
+            "state": "machine"
+        },
+        "3lfs9h3ebystc": {
+            "source": "Bottom left",
+            "context": "option",
+            "translation": "Linksonder",
+            "state": "machine"
+        },
+        "19f6lxha2v65x": {
+            "source": "Bottom right",
+            "context": "option",
+            "translation": "Rechtsonder",
+            "state": "machine"
+        },
+        "36r2rw386rxsn": {
+            "source": "Bottom",
+            "context": "option",
+            "translation": "Onder",
+            "state": "machine"
+        },
+        "27ko7khds42vm": {
+            "source": "Card",
+            "context": "option",
+            "translation": "Kaart",
+            "state": "machine"
+        },
+        "1mz0be0sw91cl": {
+            "source": "Center",
+            "context": "option",
+            "translation": "Midden",
+            "state": "machine"
+        },
+        "1iem8ic4moxpz": {
+            "source": "Close button",
+            "context": "label",
+            "translation": "Sluitknop",
+            "state": "machine"
+        },
+        "dr1mz7ws6hdf": {
+            "source": "Duration",
+            "context": "label",
+            "translation": "Duur",
+            "state": "machine"
+        },
+        "3odqd7u6y5jw8": {
+            "source": "Each tab as wide as its label.",
+            "translation": "Elk tabblad zo breed als zijn label.",
+            "state": "machine"
+        },
+        "1638n20wo7e5a": {
+            "source": "Every tab as wide as the others.",
+            "translation": "Elk tabblad even breed als de andere.",
+            "state": "machine"
+        },
+        "2pu1ypeqs6c3n": {
+            "source": "Fit",
+            "context": "option",
+            "translation": "Passend",
+            "state": "machine"
+        },
+        "8xp2fupo3412": {
+            "source": "Fixed",
+            "context": "option",
+            "translation": "Vast",
+            "state": "machine"
+        },
+        "18fgyh586jcyc": {
+            "source": "How large each picture or initials show.",
+            "translation": "Hoe groot elke afbeelding of initialen worden getoond.",
+            "state": "machine"
+        },
+        "117xhikxgmh7q": {
+            "source": "How large the picture or initials show.",
+            "translation": "Hoe groot de afbeelding of initialen worden getoond.",
+            "state": "machine"
+        },
+        "1pa6jgrm1qkbm": {
+            "source": "How long a toast shows before it goes, in milliseconds.",
+            "translation": "Hoe lang een melding zichtbaar is voordat hij verdwijnt, in milliseconden.",
+            "state": "machine"
+        },
+        "2sgxqet0bays6": {
+            "source": "How many toasts show at once before the rest wait.",
+            "translation": "Hoeveel meldingen tegelijk verschijnen voordat de rest wacht.",
+            "state": "machine"
+        },
+        "2gl3otoppxb4e": {
+            "source": "How the tabs set the shown one apart.",
+            "translation": "Hoe de tabbladen het getoonde onderscheiden.",
+            "state": "machine"
+        },
+        "2xrhv42dn55li": {
+            "source": "How wide each tab is.",
+            "translation": "Hoe breed elk tabblad is.",
+            "state": "machine"
+        },
+        "1sgbkde1g6gma": {
+            "source": "Indeterminate",
+            "context": "label",
+            "translation": "Onbepaald",
+            "state": "machine"
+        },
+        "1keao8q2dypf1": {
+            "source": "Left",
+            "context": "option",
+            "translation": "Links",
+            "state": "machine"
+        },
+        "22fpzvo0ihvku": {
+            "source": "Line",
+            "context": "option",
+            "translation": "Lijn",
+            "state": "machine"
+        },
+        "2ldwe2t0h2f8q": {
+            "source": "Manual",
+            "context": "option",
+            "translation": "Handmatig",
+            "state": "machine"
+        },
+        "2p4vy2qfxb18c": {
+            "source": "Placeholder",
+            "context": "label",
+            "translation": "Tijdelijke tekst",
+            "state": "machine"
+        },
+        "2f0rsv5q9guco": {
+            "source": "Plain",
+            "context": "option",
+            "translation": "Eenvoudig",
+            "state": "machine"
+        },
+        "qqzkbjfbi1s9": {
+            "source": "Quiet tabs, the shown one filled.",
+            "translation": "Rustige tabbladen, het getoonde gevuld.",
+            "state": "machine"
+        },
+        "1kjt8umxwpssr": {
+            "source": "Read only",
+            "context": "label",
+            "translation": "Alleen-lezen",
+            "state": "machine"
+        },
+        "3dsg83q1bc0q6": {
+            "source": "Refuses input where the value cannot change now.",
+            "translation": "Weigert invoer waar de waarde nu niet kan veranderen.",
+            "state": "machine"
+        },
+        "56a032e5z7sl": {
+            "source": "Refuses presses on every checkbox of the group.",
+            "translation": "Weigert klikken op elk selectievakje van de groep.",
+            "state": "machine"
+        },
+        "2jyp410vdhgmw": {
+            "source": "Refuses the focus and presses where the tab cannot show now.",
+            "translation": "Weigert focus en klikken waar het tabblad nu niet kan worden getoond.",
+            "state": "machine"
+        },
+        "3qdrx8eqq6g8f": {
+            "source": "Refuses the item where its action cannot run now.",
+            "translation": "Weigert het item waar de actie nu niet kan worden uitgevoerd.",
+            "state": "machine"
+        },
+        "39yeoc79lnva8": {
+            "source": "Renders only the rows in view, for long tables.",
+            "translation": "Tekent alleen de zichtbare rijen, voor lange tabellen.",
+            "state": "machine"
+        },
+        "2h7c2xfg2tr1e": {
+            "source": "Required",
+            "context": "label",
+            "translation": "Verplicht",
+            "state": "machine"
+        },
+        "n86zgfxn6nc6": {
+            "source": "Right",
+            "context": "option",
+            "translation": "Rechts",
+            "state": "machine"
+        },
+        "kp7u3jomqdkt": {
+            "source": "Shows a button in its corner that closes the dialog.",
+            "translation": "Toont in de hoek een knop die het dialoogvenster sluit.",
+            "state": "machine"
+        },
+        "5k6fpubcu2le": {
+            "source": "Shows a dash, as for a group of which some are checked.",
+            "translation": "Toont een streepje, zoals bij een groep waarvan sommige zijn aangevinkt.",
+            "state": "machine"
+        },
+        "3ekmprmbslx1j": {
+            "source": "Shows each state, which a person cannot change.",
+            "translation": "Toont elke status, die niemand kan veranderen.",
+            "state": "machine"
+        },
+        "1caa7v0dt9kj7": {
+            "source": "Shows the state, which a person cannot change.",
+            "translation": "Toont de status, die niemand kan veranderen.",
+            "state": "machine"
+        },
+        "us7bzt175sko": {
+            "source": "Shows the value, which a person can select but not change.",
+            "translation": "Toont de waarde, die je kunt selecteren maar niet wijzigen.",
+            "state": "machine"
+        },
+        "2t1xd2v35jfmt": {
+            "source": "Shrink",
+            "context": "option",
+            "translation": "Krimpen",
+            "state": "machine"
+        },
+        "1dm0xt91umbrw": {
+            "source": "Side",
+            "context": "label",
+            "translation": "Zijde",
+            "state": "machine"
+        },
+        "1nv86867d9o09": {
+            "source": "Sizing",
+            "context": "label",
+            "translation": "Afmeting",
+            "state": "machine"
+        },
+        "1l2x9jlv99wbd": {
+            "source": "Subtle",
+            "context": "option",
+            "translation": "Subtiel",
+            "state": "machine"
+        },
+        "1x4s6g9trdmby": {
+            "source": "Tabs as the tops of cards, the shown one joined to its panel.",
+            "translation": "Tabbladen als bovenkant van kaarten, het getoonde verbonden met zijn paneel.",
+            "state": "machine"
+        },
+        "3jja4pe46yas9": {
+            "source": "Tabs narrow to fit their list, their labels cut short.",
+            "translation": "Tabbladen worden smaller om in hun lijst te passen, hun labels ingekort.",
+            "state": "machine"
+        },
+        "273vzdhyn4x2c": {
+            "source": "Tabs on a track, the shown one raised.",
+            "translation": "Tabbladen op een balk, het getoonde verhoogd.",
+            "state": "machine"
+        },
+        "2704qeya2n6mi": {
+            "source": "Tabs over a rule, the shown one underlined.",
+            "translation": "Tabbladen boven een lijn, het getoonde onderstreept.",
+            "state": "machine"
+        },
+        "3e5v2c1sphva9": {
+            "source": "The arrow keys move the focus, and Enter or Space shows the tab.",
+            "translation": "De pijltoetsen verplaatsen de focus, en Enter of Spatie toont het tabblad.",
+            "state": "machine"
+        },
+        "3vcbfpn56xtm4": {
+            "source": "The arrow keys show each tab as they reach it.",
+            "translation": "De pijltoetsen tonen elk tabblad zodra ze het bereiken.",
+            "state": "machine"
+        },
+        "19ajulznc4pvl": {
+            "source": "The corner or edge of the screen the toasts stack at.",
+            "translation": "De hoek of rand van het scherm waar de meldingen zich stapelen.",
+            "state": "machine"
+        },
+        "2ao18ezrv47q9": {
+            "source": "The hint the field shows while it is empty.",
+            "translation": "De hint die het veld toont zolang het leeg is.",
+            "state": "machine"
+        },
+        "2ahucb0bdppbs": {
+            "source": "The hue the initials show on, where there is no picture.",
+            "translation": "De tint waarop de initialen verschijnen als er geen afbeelding is.",
+            "state": "machine"
+        },
+        "1gvhi80lruej2": {
+            "source": "The side of its trigger the menu opens on, where it fits.",
+            "translation": "De kant van de trigger waar het menu opent, als het past.",
+            "state": "machine"
+        },
+        "34l19jm9wy458": {
+            "source": "Top center",
+            "context": "option",
+            "translation": "Boven midden",
+            "state": "machine"
+        },
+        "ncrbebhnl1e0": {
+            "source": "Top left",
+            "context": "option",
+            "translation": "Linksboven",
+            "state": "machine"
+        },
+        "3rmius9myh70d": {
+            "source": "Top right",
+            "context": "option",
+            "translation": "Rechtsboven",
+            "state": "machine"
+        },
+        "czgx29x8htnj": {
+            "source": "Top",
+            "context": "option",
+            "translation": "Boven",
+            "state": "machine"
+        },
+        "1rkhtp2tb9jr6": {
+            "source": "Virtual",
+            "context": "label",
+            "translation": "Virtueel",
+            "state": "machine"
+        },
+        "3e93aqt0crunh": {
+            "source": "Visible toasts",
+            "context": "label",
+            "translation": "Zichtbare meldingen",
+            "state": "machine"
+        },
+        "18fn7rb2t2i1d": {
+            "source": "When a tab the keys reach shows its panel.",
+            "translation": "Wanneer een tabblad dat de toetsen bereiken zijn paneel toont.",
+            "state": "machine"
+        },
+        "3gqn9bvcl96aj": {
+            "source": "Where along its trigger the menu lines up.",
+            "translation": "Waar het menu langs de trigger uitlijnt.",
+            "state": "machine"
+        },
+        "3akpbdixtevq8": {
+            "source": "Whether the field shows its frame.",
+            "translation": "Of het veld zijn kader toont.",
+            "state": "machine"
+        },
+        "pzovenyeyz93": {
+            "source": "Whether the item marks a destructive action.",
+            "translation": "Of het item een destructieve actie markeert.",
+            "state": "machine"
+        },
+        "6re0lokweb7h": {
+            "source": "Whether the tabs lie in a row or a column.",
+            "translation": "Of de tabbladen in een rij of een kolom liggen.",
+            "state": "machine"
+        },
+        "2ekp8t3lz9vas": {
+            "source": "A note's tabs in a narrow row, laid out by their list's variant and sizing.",
+            "translation": "De tabbladen van een notitie in een smalle rij, geordend naar de variant en afmeting van hun lijst.",
+            "state": "machine"
+        },
+        "2f83n8r6psr41": {
+            "source": "A note's actions open beside their button, laid out by the menu's side and alignment.",
+            "translation": "De acties van een notitie open naast hun knop, geordend naar de kant en uitlijning van het menu.",
             "state": "machine"
         }
     }
