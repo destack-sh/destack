@@ -1,6 +1,7 @@
 import {
     type ActionInput,
     Casing,
+    Field,
     type ObjectFileLimits,
     isAccepted,
     type ObjectType,
@@ -15,7 +16,7 @@ import {
     TABLE,
 } from "@destack/db";
 import { type JsonObject, type JsonValue, present, schema, nth, WEEK_DAYS } from "@destack/schema";
-import { Scope, Subject } from "@destack/sync";
+import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { GLOBAL_OPTIONS, CommandOption, type CommandCall } from "../command/command.ts";
 
 import { CliError } from "../error/index.ts";
@@ -243,6 +244,63 @@ export class FileFlag extends Flag {
     }
 }
 
+/** A flag of a time field, taking a date or a day such as @tomorrow. */
+export class TimeFlag extends Flag {
+    /** Refer to a time field by its name and path. */
+    constructor(name: string, path: readonly string[]) {
+        super(name, path, { type: "integer", isKeyed: false });
+    }
+
+    /** Describe the flag's command-line option: the dates and days it takes. */
+    override option(): CommandOption {
+        const words = this.name.replaceAll("-", " ");
+
+        return {
+            type: "string",
+            description: `The ${words}: a date such as 2026-10-09, or a day such as @tomorrow`,
+            argument: "date|@day",
+        };
+    }
+}
+
+/** A flag of a subject field, taking a person by handle, email or identifier. */
+export class SubjectFlag extends Flag {
+    /** The input columns the subject's reference fills, by the reference's property. */
+    readonly columns: ReturnType<typeof Field.columnsOf>;
+
+    /** Refer to a subject field by its flag's name and its property. */
+    constructor(name: string, property: string) {
+        super(name, [property], { type: "string", isKeyed: false });
+        this.columns = Field.columnsOf(property);
+    }
+
+    /** Report whether an input has every column of a subject property. */
+    static isIn(property: string, properties: Readonly<Record<string, unknown>>): boolean {
+        return Object.values(Field.columnsOf(property)).every((column) => column in properties);
+    }
+
+    /** Write a subject's reference, or null, as its columns. */
+    write(reference: ObjectReference | null): JsonObject {
+        return {
+            [this.columns.packageId]: reference?.packageId ?? null,
+            [this.columns.type]: reference?.type ?? null,
+            [this.columns.scope]: reference?.scope ?? null,
+            [this.columns.id]: reference?.id ?? null,
+        };
+    }
+
+    /** Describe the flag's command-line option: the person it takes. */
+    override option(): CommandOption {
+        const words = this.name.replaceAll("-", " ");
+
+        return {
+            type: "string",
+            description: `The ${words}: a person's @handle, email or identifier`,
+            argument: "@handle|email|id",
+        };
+    }
+}
+
 /** The flags of a type's fields: a list's restrictions or a method's input. */
 export class FlagSet {
     /** The object type whose fields the flags refer to. */
@@ -274,10 +332,22 @@ export class FlagSet {
             );
         }
 
-        // collect a flag per path, structured fields included
+        // take each subject whose columns the input has as one flag of a person, its id column relating its property
+        const subjects = Object.values(type.fields)
+            .flatMap((field) =>
+                field.type === "subject" && field.relation !== undefined ? [field.relation] : [],
+            )
+            .filter((property) => SubjectFlag.isIn(property, properties))
+            .map((property) => new SubjectFlag(Casing.kebab(property), property));
+        const columns = new Set(subjects.flatMap((flag) => Object.values(flag.columns)));
+        const rest = Object.fromEntries(
+            Object.entries(properties).filter(([property]) => !columns.has(property)),
+        );
+
+        // collect a flag per other path, structured fields included
         const routed = [type.route.field, "id"].filter((field) => field !== undefined);
 
-        return new FlagSet(type, FlagSet.#collect(type, properties, routed, [], true));
+        return new FlagSet(type, [...FlagSet.#collect(type, rest, routed, [], true), ...subjects]);
     }
 
     /** Read an action's flags, one per input given beside its object, and the object's revision. */
@@ -387,6 +457,26 @@ export class FlagSet {
         return identified;
     }
 
+    /** Read the people the subject flags give as their columns, cleared by null. */
+    async address(
+        options: CommandCall["options"],
+        subject: (named: string) => Promise<ObjectReference>,
+    ): Promise<JsonObject> {
+        // address each given subject flag's person, else clear it
+        const written = await Promise.all(
+            this.flags.map(async (flag) => {
+                const given = options[flag.name];
+                if (!(flag instanceof SubjectFlag) || typeof given !== "string") {
+                    return {};
+                }
+
+                return flag.write(given === "null" ? null : await subject(given));
+            }),
+        );
+
+        return Object.fromEntries(written.flatMap((columns) => Object.entries(columns)));
+    }
+
     /** Read the columns --fields names, refusing a field the rows lack, absent without it. */
     columns(options: CommandCall["options"]): string[] | undefined {
         // take the named columns, refusing a property the rows lack
@@ -453,9 +543,10 @@ export class FlagSet {
     input(options: CommandCall["options"], base: JsonObject, filter: FilterOptions): JsonObject {
         let input: JsonObject = base;
         for (const flag of this.flags) {
-            // read each given flag as its path's value
+            // read each given flag as its path's value, files and people read apart
             const given = options[flag.name];
-            if (given !== undefined && !(flag instanceof FileFlag)) {
+            const isApart = flag instanceof FileFlag || flag instanceof SubjectFlag;
+            if (given !== undefined && !isApart) {
                 const value = typeof given === "boolean" ? given : flag.value(given, filter);
                 input = FlagSet.#assign(input, flag.path, value);
             }
@@ -534,10 +625,12 @@ export class FlagSet {
                 return [];
             }
 
-            // take a file, sent from a path
+            // take a file, sent from a path, and a time, written as a date or a day
             const field = isNested && prefix.length === 0 ? type.fields[property] : undefined;
             if (field?.limits !== undefined) {
                 return [new FileFlag(name, path, field.limits)];
+            } else if (prefix.length === 0 && type.fields[property]?.type === "time") {
+                return [new TimeFlag(name, path)];
             }
 
             // take a scalar, and the scalars of a structured value where nested

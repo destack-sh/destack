@@ -34,6 +34,19 @@ const task = defineObject(
     }),
 );
 
+/** A card with an owner, any principal, which a flag takes as a person. */
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
+        scope: space,
+        fields: { title: field.string(), owner: field.subject().optional() },
+        access: { permissions: { read: relation("owner"), edit: relation("owner") } },
+    },
+    (method) => ({ create: method.create("edit") }),
+);
+
 /** Tuesday 6 October 2026, 15:00 local time, when the flags are read. */
 const NOW = Date.UTC(2026, 9, 6, 15, 0);
 
@@ -84,6 +97,7 @@ test("build a method's input from flags over a JSON input, refusing values outsi
 
     // write the flags over the JSON input, leaving the scope and request to the call
     expect(Object.keys(flags.options())).toEqual(["title", "assignee", "due", "priority"]);
+    expect(flags.options()["due"]?.argument).toEqual("date|@day");
     expect(
         flags.input(
             { title: "Ship it", assignee: "@me", due: "@tomorrow", priority: "high" },
@@ -122,4 +136,31 @@ test("read today and the coming days in the person's time zone, across a change 
         Date.UTC(2026, 9, 25, 23, 0),
         Date.UTC(2026, 9, 24, 22, 0),
     ]);
+});
+
+test("take a subject as one flag of a person, written into its columns, and clear it by null", async () => {
+    const flags = FlagSet.input(card, "create");
+    const filter = flags.filter("user-1", NOW, "UTC");
+
+    // address the person of a handle, as the command line resolves it, apart from the other flags
+    const ben = principal.user.reference("universe", "user-2");
+    const given = { title: "Ship", owner: "@ben" };
+    expect({
+        options: Object.keys(flags.options()),
+        argument: flags.options()["owner"]?.argument,
+        input: flags.input(given, {}, filter),
+        addressed: await flags.address(given, async () => ben),
+        cleared: await flags.address({ owner: "null" }, async () => ben),
+    }).toEqual({
+        options: ["title", "owner"],
+        argument: "@handle|email|id",
+        input: { title: "Ship" },
+        addressed: {
+            ownerPackageId: ben.packageId,
+            ownerType: "user",
+            ownerScope: "universe",
+            ownerId: "user-2",
+        },
+        cleared: { ownerPackageId: null, ownerType: null, ownerScope: null, ownerId: null },
+    });
 });

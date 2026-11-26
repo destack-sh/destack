@@ -1,6 +1,7 @@
 import {
     type BoardGroup,
     BoardLayout,
+    Casing,
     type Choice,
     type Layout,
     ObjectAppearance,
@@ -162,11 +163,11 @@ export class Frame {
         return typeof value === "string" ? value : JSON.stringify(value);
     }
 
-    /** Read the columns a table shows: its layout's, else the title, first fields and id. */
+    /** Read the columns a table shows: its layout's, else the title, key fields and id. */
     static columns(type: ObjectType, layout: TableLayout): readonly string[] {
-        // take the layout's columns as named, else the title, the first shown fields and the identifier
+        // take the layout's columns as named, else the title, the key fields a card shows and the identifier
         const title = type.presentation.title;
-        const shown = TableLayout.columns({ kind: "table" }, ObjectDetail.shown(type));
+        const shown = ObjectDetail.keys(type);
 
         return (
             layout.fields ??
@@ -235,7 +236,10 @@ export class Frame {
         const field = type.fields[column];
         const name = field?.reference === undefined ? column : field.relationAt(column);
 
-        return field?.label === undefined ? name : this.terminal.localization.render(field.label);
+        // write a field without a label as its words, such as due at for dueAt
+        return field?.label === undefined
+            ? Casing.kebab(name).replaceAll("-", " ")
+            : this.terminal.localization.render(field.label);
     }
 
     /** Read the identifier people use for a row, such as TRK-214. */
@@ -279,13 +283,16 @@ export class Frame {
 
     /** Draw one object as its fields, one a line, under its title for a person. */
     record(row: JsonObject, type: ObjectType): string {
-        // head a person's record with the object's title and identifier, its other fields below
+        // head a person's record with the object's title and identifier
         const { terminal } = this;
         const title = type.presentation.title;
         const headed = terminal.isTerminal && title !== undefined && typeof row[title] === "string";
-        const fields = Object.keys(row).filter(
-            (field) => !headed || (field !== title && field !== "id"),
-        );
+        const shown = new Set(ObjectDetail.shown(type));
+
+        // show a person the shown fields under the heading, and a program every column
+        const fields = terminal.isTerminal
+            ? Object.keys(row).filter((field) => shown.has(field) && (!headed || field !== title))
+            : Object.keys(row);
         const width = Math.max(...fields.map((field) => Cell.width(this.heading(type, field))));
         const head = headed
             ? [

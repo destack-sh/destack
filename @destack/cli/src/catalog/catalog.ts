@@ -301,8 +301,7 @@ export class Catalog {
             const same = owned.filter(
                 (other) =>
                     other.entry.packageId === noun.entry.packageId &&
-                    other.entry.type === noun.entry.type &&
-                    other.qualifier === noun.qualifier,
+                    other.entry.type === noun.entry.type,
             );
 
             return same.every((other) => STORES.indexOf(other.store) <= STORES.indexOf(noun.store));

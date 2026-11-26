@@ -7,6 +7,7 @@ import { CommandOption, type CommandCall, type CommandBody } from "../command/co
 import type { CommandContext } from "../command/context.ts";
 
 import { RequestId } from "@destack/sync";
+import { Account } from "@destack/account/object";
 import { LocalCheckout } from "./checkout.ts";
 import { InstallationStatus } from "../catalog/status.ts";
 import stackPackage from "@destack/stack/package";
@@ -60,9 +61,10 @@ export const devCommand: CommandBody = {
 
         // show the installation at each change, failures included, while pushing each change, until interrupted
         using interrupt = new Interrupt(context.environment.process);
+        const live = terminal.live(json);
         const showing = (async () => {
             for await (const status of InstallationStatus.follow(id, context, interrupt.signal)) {
-                await terminal.print(status.show(json, context));
+                await live.show(status.show(json, context));
             }
         })();
         await checkout.watch(context, interrupt.signal, async (commit) => {
@@ -76,6 +78,9 @@ export const devCommand: CommandBody = {
                           `installation '${name}'`,
                       ),
             );
+
+            // draw the next state below the push
+            live.release();
         });
         await showing;
         interrupt.require();
@@ -93,6 +98,7 @@ export const buildCommand: CommandBody = {
             present(directory, "the package argument"),
             json,
             options,
+            await context.requireSpace(),
         );
         await context.terminal.print(
             json
@@ -120,21 +126,26 @@ export const publishCommand: CommandBody = {
     },
 };
 
-/** Build a checkout's package in a space and publish it with its unpublished dependencies. */
+/** Build a checkout's package in its account's home and publish it with its dependencies. */
 async function publish(
     context: CommandContext,
     directory: string,
     json: boolean,
     values: CommandCall["options"],
 ): Promise<void> {
-    // build the package, and read the account of its name's handle
+    // build the package in the home of its name's account, whose forge holds its repository and releases
     const native = await context.native();
-    const built = await build(context, directory, json, values, "release");
-    const accountId = await native.resolve(PackageName.split(built.package.name).handle);
+    const read = await readPackageJson(
+        await context.environment.files.realPath(directory),
+        context.environment.files,
+    );
+    const accountId = await native.resolve(PackageName.split(read.package.name).handle);
+    const home = Account.home(accountId);
+    const built = await build(context, directory, json, values, home, "release");
 
     // publish the build and the account's builds it pins that the forge lacks, as the person
     const consent = values["yes"] === true ? "approve" : "ask";
-    const stack = await context.package(stackPackage, await context.locate(), consent);
+    const stack = await context.package(stackPackage, await native.locate(home), consent);
     const tag = CommandOption.string(values["tag"], "tag");
     const published = await stack.build.publish({
         spaceId: built.space,
@@ -169,6 +180,7 @@ async function build(
     directory: string,
     json: boolean,
     values: CommandCall["options"],
+    space: Identifier<"space">,
     version: "development" | "release" = "development",
 ): Promise<{
     readonly space: string;
@@ -177,16 +189,15 @@ async function build(
     readonly package: PackageJson["package"];
 }> {
     // draw request identifiers from the device's environment
-    const { environment } = await context.native();
-    const space = await context.requireSpace();
+    const native = await context.native();
+    const { environment } = native;
 
     // push the checkout's working tree, or its HEAD for a release, which refuses uncommitted changes
     const checkout = await LocalCheckout.open(directory, context);
     const { commit } = await checkout.push(context, version === "release" ? "head" : "tree");
 
     // read the space and the outputs
-    const location = await context.locate();
-    const stack = await context.package(stackPackage, location);
+    const stack = await context.package(stackPackage, await native.locate(space));
     const named = CommandOption.string(values["outputs"], "outputs");
     const read = await readPackageJson(
         await context.environment.files.realPath(directory),
@@ -212,7 +223,7 @@ async function build(
     });
 
     // follow it until it finishes
-    const finished = await follow(context, created.id, json);
+    const finished = await follow(context, space, created.id, json);
 
     return {
         space,
@@ -225,11 +236,11 @@ async function build(
 /** Show each state of a space's build until it finishes, leaving it running on an interrupt. */
 async function follow(
     context: CommandContext,
+    space: Identifier<"space">,
     id: Identifier<"build">,
     json: boolean,
 ): Promise<stackObject.Build> {
     // copy the space's builds until an interrupt, which leaves the build running for whoever shares it
-    const space = await context.requireSpace();
     const client = await context.native();
     const launcher = await context.launcher();
     await using opened = new AsyncDisposableStack();

@@ -231,6 +231,17 @@ test("refuse a list's zero limit and a dash value without an equals sign", async
     ]);
 });
 
+test("refuse a word in place of an unkeyed object's identifier, pointing at the list", async () => {
+    // show a card by the word list, as one might mean to list them
+    const terminal = await open(WORK_BOARD);
+    const { code, error } = await line(terminal, ["card", "list"]);
+
+    expect([code, error.trim()]).toEqual([
+        2,
+        "error  identifier 'list' is invalid: 'cards' have no key, so give an identifier, or list them with 'cards'",
+    ]);
+});
+
 test("report a refused call with its service code, exiting with 1", async () => {
     // update a card at a revision it moved past
     const terminal = await open(WORK_BOARD);
@@ -450,9 +461,11 @@ test("create a platform repository in the account's registry by its noun, and li
     const terminal = await open();
     const { account } = terminal.computer.world.owner;
     const repository = ["--account", account, "--name", "site", "--hosting", "platform"];
-    // list the registry's repositories after creating one, its noun named by package beside the forge's
-    const created = await line(terminal, ["registry:repository", "new", ...repository, "--json"]);
-    const listed = await line(terminal, ["registry:repositories", "--json"]);
+    // list the registry's repositories after creating one
+    const created = await line(terminal, ["repository", "new", ...repository, "--json"]);
+    const listed = await line(terminal, ["repositories", "--json"]);
+    const named = ["--account", "owner", "--name", "docs", "--hosting", "platform"];
+    const refused = await line(terminal, ["repository", "new", ...named]);
     const Repository = schema.looseObject({ name: schema.string(), hosting: schema.string() });
 
     // expect the repository created, and listed by its name and hosting
@@ -462,7 +475,16 @@ test("create a platform repository in the account's registry by its noun, and li
             .array(Repository)
             .parse(JSON.parse(listed.output))
             .map(({ name, hosting }) => [name, hosting]),
-    }).toEqual({ created: [0, "", "site"], listed: [["site", "platform"]] });
+        // refuse a name for an account, which accounts have no key for, before any call
+        refused: [refused.code, refused.error.trim()],
+    }).toEqual({
+        created: [0, "", "site"],
+        listed: [["site", "platform"]],
+        refused: [
+            2,
+            "error  identifier 'owner' is invalid: 'accounts' have no key, so give an identifier, or list them with 'accounts'",
+        ],
+    });
 });
 
 test("watch a noun's objects as JSON lines, printing them again at each change, until interrupted", async () => {

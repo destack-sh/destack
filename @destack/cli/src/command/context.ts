@@ -12,14 +12,18 @@ import {
     type Device,
     type MachineCredential,
 } from "@destack/machine/device";
-import type { StepUp } from "@destack/access";
+import { Contact, principal, type StepUp } from "@destack/access";
 import { type Identifier, schema, Version } from "@destack/schema";
 
 import type { Catalog } from "../catalog/catalog.ts";
 import { Terminal } from "../terminal/index.ts";
 import type { Decision, GrantRequest } from "@destack/account/authentication";
 import type {} from "@destack/package/import-meta";
+import { type ObjectReference, Scope } from "@destack/sync";
 import { CliError } from "../error/index.ts";
+
+/** The prefix of a person's handle, as people write it. */
+const HANDLE_PREFIX = "@";
 
 /** The environment capabilities a command line runs with. */
 export type CommandEnvironment = Environment<"files" | "process" | "host" | "opener" | "server">;
@@ -189,6 +193,29 @@ export class CommandContext implements AsyncDisposable {
         const location = await this.locate();
 
         return schema.identifier("account").parse(location.placement.scope);
+    }
+
+    /** Read the principal a person writes: a handle's user, an email's contact, or a user. */
+    async subject(named: string): Promise<ObjectReference> {
+        // take a handle's person, an email's contact, else a user's identifier
+        const email = schema.email().safeParse(named);
+        const user = schema.identifier("user").safeParse(named);
+        if (named.startsWith(HANDLE_PREFIX)) {
+            const native = await this.native();
+            const accountId = await native.resolve(named.slice(HANDLE_PREFIX.length));
+
+            return principal.user.reference(Scope.universe.id, Account.person(accountId));
+        } else if (email.success) {
+            return Contact.subject(Contact.email(email.data));
+        } else if (user.success) {
+            return principal.user.reference(Scope.universe.id, user.data);
+        }
+
+        // refuse other text
+        throw CliError.of(
+            "USAGE_INVALID",
+            `person '${named}' is invalid: give a @handle, an email or a user identifier`,
+        );
     }
 
     /** Open the registry of a package name's account, in its region's home, as the person. */

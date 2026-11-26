@@ -83,7 +83,7 @@ test("show a person a table with the identifiers last and the rows counted", () 
     );
 });
 
-test("show a person one object under its title and identifier, and a program every field", () => {
+test("show a person one object under its title and identifier with its shown fields, and a program every field", () => {
     const [launch] = cards;
     expect({
         person: new Frame(TerminalFixture.terminal(TerminalSize.VT100), NOW, new Map()).record(
@@ -92,13 +92,7 @@ test("show a person one object under its title and identifier, and a program eve
         ),
         program: new Frame(TerminalFixture.terminal(), NOW, new Map()).record(launch ?? {}, card),
     }).toEqual({
-        person: [
-            "  Launch  card-1",
-            "",
-            "  author  ada",
-            "  body    Write the post",
-            "  color   –",
-        ].join("\n"),
+        person: ["  Launch  card-1", "", "  author  ada", "  body    Write the post"].join("\n"),
         program: "id\tcard-1\nheadline\tLaunch\nauthor\tada\nbody\tWrite the post\ncolor\t-",
     });
 });

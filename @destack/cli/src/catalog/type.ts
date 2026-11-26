@@ -148,16 +148,22 @@ export class CatalogType {
         return found[0];
     }
 
+    /** Refuse a key the type cannot find: one that is no identifier of a type without keys. */
+    requireFindable(key: string): void {
+        if (!this.type.identifies(key) && this.type.keyed === undefined) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `identifier '${key}' is invalid: '${this.plural}' have no key, so give an identifier, or list them with '${this.plural}'`,
+            );
+        }
+    }
+
     /** Find an object's identifier by its identifier or key, refusing keys of unkeyed types. */
     async identify(key: string, context: CommandContext): Promise<string> {
         // take an identifier as given, and require a declared key for anything else
+        this.requireFindable(key);
         if (this.type.identifies(key)) {
             return key;
-        } else if (this.type.keyed === undefined) {
-            throw CliError.of(
-                "USAGE_INVALID",
-                `'${this.plural}' is invalid: they have no key, so give the identifier`,
-            );
         }
 
         // get the object by its key, which its get method resolves
@@ -675,6 +681,7 @@ function getCommand(noun: CatalogType, id: string): Command {
             }
             // read it once through the noun's get method
             else {
+                noun.requireFindable(id);
                 const row = await remote.run(noun.type, noun.method("get"), { id });
                 await context.terminal.print(await show(schema.jsonObject().parse(row)));
             }
@@ -852,7 +859,18 @@ async function methodInput(
             path === undefined ? null : await sendFile(noun, flag, path, context);
     }
 
-    return { ...flags.input(options, given, filter), ...sent };
+    // refuse a key of a listed type without keys, leaving the server to resolve the others
+    const checked = await flags.identify(options, async (identity, value) => {
+        const listed = (await context.catalog()).identity(identity);
+        await listed?.open(context).then((found) => found.requireFindable(value));
+
+        return value;
+    });
+
+    // address the people the subject flags give
+    const people = await flags.address(checked, (named) => context.subject(named));
+
+    return { ...flags.input(checked, given, filter), ...people, ...sent };
 }
 
 /** Send a file at a path to a type's store, refusing a path without one. */

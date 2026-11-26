@@ -226,6 +226,8 @@ export class Live {
     readonly #isJson: boolean;
     /** The lines the last drawing took on the terminal. */
     #lines: number;
+    /** The last rendering appended elsewhere, absent before the first. */
+    #last: string | undefined;
 
     /** Start with nothing drawn on a standard output, as text or JSON. */
     constructor(output: TerminalProcess["stdout"], json: boolean) {
@@ -242,8 +244,9 @@ export class Live {
             await this.#output.write(`${erase}${text}\n`);
             this.#lines = text.split("\n").length;
         }
-        // append each rendering elsewhere, as NDJSON when the text is JSON
-        else {
+        // append each changed rendering elsewhere, as NDJSON when the text is JSON
+        else if (text !== this.#last) {
+            this.#last = text;
             await this.#output.write(`${text}\n`);
         }
     }
