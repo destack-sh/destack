@@ -138,8 +138,8 @@ export class Tray {
         const line = {
             serving: localization.render(SERVING, count),
             syncing: localization.render(SYNCING, count),
-            paused: localization.render(t`Paused`),
-            offline: localization.render(t`Offline`),
+            paused: localization.render(t.context("option")`Paused`),
+            offline: localization.render(t.context("option")`Offline`),
             error: localization.render(t`This computer left its account`),
         }[status];
 

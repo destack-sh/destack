@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { desktopInteraction } from "../scenario/interaction.ts";
 import { Desktop } from "./desktop.ts";
@@ -6,9 +7,8 @@ import { Desktop } from "./desktop.ts";
 export const startQuitAndRestart = defineScenario({
     of: Desktop,
     interaction: desktopInteraction,
-    name: "start-quit-and-restart",
-    description:
-        "start the desktop on a laptop until its first window opens, quit it, and start it again",
+    name: "startQuitAndRestart",
+    description: t`Start the desktop on a laptop until its first window opens, quit it, and start it again.`,
     given: { examples: [] },
     parameters: {},
     when: [

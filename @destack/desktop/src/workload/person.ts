@@ -416,7 +416,7 @@ export class Person {
             {
                 kind: "action",
                 id: "open",
-                title: localization.render(t`Settings…`),
+                title: localization.render(t.context("action")`Settings…`),
                 shortcut: "mod+,",
                 run: () => this.#desktop.openSettings(),
             },
@@ -502,7 +502,9 @@ export class Person {
         // show it under its space's or installation's name, the palette under its link's title
         else {
             const title =
-                row.kind === "palette" ? localization.render(t`Commands`) : Link.title(address);
+                row.kind === "palette"
+                    ? localization.render(t.context("action")`Commands`)
+                    : Link.title(address);
             this.#windows.set(row.id, { kind: "launching" });
             try {
                 const launching = {

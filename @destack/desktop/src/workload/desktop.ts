@@ -178,20 +178,22 @@ export class Desktop implements AsyncDisposable {
                 {
                     kind: "action",
                     id: "switch",
-                    title: localization.render(t`Switch Account…`),
+                    title: localization.render(t.context("action")`Switch Account…`),
                     run: () => desktop.switch(),
                 },
                 {
                     kind: "action",
                     id: "signOut",
-                    title: localization.render(t`Sign Out`),
+                    title: localization.render(t.context("action")`Sign Out`),
                     run: () => desktop.signOut(),
                 },
             ];
         }
         // show the sign-in running
         else if (session.status === "signingIn") {
-            return [{ kind: "label", title: localization.render(t`Signing In…`) }];
+            return [
+                { kind: "label", title: localization.render(t.context("option")`Signing In…`) },
+            ];
         }
         // offer signing in to nobody
         else {
@@ -199,7 +201,7 @@ export class Desktop implements AsyncDisposable {
                 {
                     kind: "action",
                     id: "signIn",
-                    title: localization.render(t`Sign In…`),
+                    title: localization.render(t.context("action")`Sign In…`),
                     run: () => desktop.signIn(),
                 },
             ];
@@ -211,8 +213,8 @@ export class Desktop implements AsyncDisposable {
         // title the shell's built-in menu items in the host's language
         await this.shell.send({
             action: "menu.title",
-            start: this.localization.render(t`New Window`),
-            quit: this.localization.render(t`Quit`),
+            start: this.localization.render(t.context("action")`New Window`),
+            quit: this.localization.render(t.context("action")`Quit`),
         });
 
         // follow the person signed in, the update commands and the autostart toggle

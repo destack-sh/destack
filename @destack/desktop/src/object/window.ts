@@ -61,7 +61,7 @@ export const window = defineObject(
         /** Open a window at a link, where its bounds place it, a view's unless a palette. */
         open: method.create("open", { fields: ["link", "kind", "bounds"] }),
         /** Ask the desktop to bring the window into focus. */
-        focus: method.mutation({ title: t`Focus`, permission: "update" }),
+        focus: method.mutation({ title: t.context("action")`Focus`, permission: "update" }),
         /** Move or resize the window. */
         place: method.update("update", { fields: ["bounds"] }),
         /** Close the window. */
