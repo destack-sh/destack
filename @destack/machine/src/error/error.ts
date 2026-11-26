@@ -95,6 +95,7 @@ const machineError = defineErrorFamily({
 
         // unavailable
         DEPLOYMENT_UNAVAILABLE: { data: RetryAfter.partial() },
+        ENTITLEMENTS_UNAVAILABLE: {},
         INSTALLATION_UNAVAILABLE: {},
         INSTANCE_UNAVAILABLE: {},
         MACHINE_UNAVAILABLE: {},

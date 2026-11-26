@@ -1,3 +1,4 @@
+import { entitlementFollow } from "@destack/finance/object";
 import {
     PROCESS_RUNTIME,
     installation,
@@ -15,7 +16,6 @@ import {
     profileShape,
     spaceShape,
     user,
-    Entitlement,
 } from "@destack/account/object";
 import { type Identifier, schema } from "@destack/schema";
 import { RequestId, type Subject, Scope } from "@destack/sync";
@@ -73,10 +73,10 @@ function stackServer(
         objects: [...own, ...externalObjects(start, own)],
         external: start.external,
         providers: listed,
-        // follow the space's row, and the entitlements on a primary
+        // follow the space's row, and its account's plan on a primary
         follows: [
             ...(isPrimary || isStandby ? spaceFollows(space, start) : []),
-            ...(isPrimary ? [Entitlement.follow, ...start.follows] : []),
+            ...(isPrimary ? [entitlementFollow, ...start.follows] : []),
         ],
         // answer moving spaces' targets and installations' hook sessions
         mounts: {

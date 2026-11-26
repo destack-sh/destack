@@ -3,7 +3,7 @@ import { TelemetryScope } from "@destack/telemetry";
 import { type SpaceProvider, gitStorage } from "@destack/stack/object";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { Connector } from "@destack/resource";
-import { Entitlement } from "@destack/account/object";
+import { capRetention } from "../space/entitlement.ts";
 import { SettingValue } from "@destack/setting/object";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -171,9 +171,10 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
                         kinds: this.kinds,
                         files: () => segments,
                         personal: new DatabasePersonalKeyring(database, keyring, environment),
-                        settings: Entitlement.capRetention(
+                        settings: capRetention(
                             database,
                             SettingValue.retention(database),
+                            environment.clock,
                         ),
                     });
 

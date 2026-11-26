@@ -1,5 +1,7 @@
 import { installation, installationRevision, Installation } from "@destack/stack/object";
-import { Entitlement, Space, space } from "@destack/account/object";
+import { Space, space } from "@destack/account/object";
+import { Entitlement } from "@destack/finance/object";
+import { enforceSpace } from "./entitlement.ts";
 import { eq } from "@destack/db";
 import type { ObjectController, ObjectReconciliation, Observation } from "@destack/object";
 import { present, type UuidEnvironment, type JsonObject } from "@destack/schema";
@@ -34,7 +36,7 @@ function limit(options: Parameters<typeof implementSpace>[0]): ObjectController<
         reads: [
             ...Space.serving,
             ...Scheduler.watches,
-            ...(isEnforcingEntitlements ? Entitlement.watches() : []),
+            ...(isEnforcingEntitlements ? Entitlement.watches : []),
             // look again at a deleting space as each of its uninstalling installations changes
             {
                 table: installation.table,
@@ -61,9 +63,7 @@ function limit(options: Parameters<typeof implementSpace>[0]): ObjectController<
             await mirrorSuspension(row, { database, store, now });
 
             // decide the entitlements' conditions and schedule the space
-            const allowed = isEnforcingEntitlements
-                ? await Entitlement.enforce(row, database, now)
-                : {};
+            const allowed = isEnforcingEntitlements ? await enforceSpace(row, database, now) : {};
             const placed = await Scheduler.schedule(row, store);
             const conditions = { ...allowed, [PLACEMENT_CONDITION]: placed };
 

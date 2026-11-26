@@ -1,3 +1,4 @@
+import { PLAN_PACKAGE } from "@destack/universe/test";
 import accountPackage from "@destack/account/package";
 import { TestDns } from "@destack/account/test";
 import type { DatabaseConnection } from "@destack/db/database";
@@ -234,9 +235,15 @@ export class TestRoute implements AsyncDisposable {
 
     /** Claim a domain for an account as its owner and verify it by its published TXT record. */
     async #verify(dns: TestDns, accountId: Identifier<"account">, name: string): Promise<void> {
-        // let the account's plan allow custom domains, as the platform's merchant entitles it
+        // let the account's plan allow custom domains
         const space = found(this.#spaces, this.spaceIds[0]);
-        await space.universe.entitle(accountId, "domain", { kind: "static", value: true });
+        await space.universe.grant(accountId, {
+            packageId: PLAN_PACKAGE,
+            feature: "domain",
+            value: null,
+            kind: "boolean",
+            resource: "domain",
+        });
 
         // claim the domain, then publish its challenge record
         const accounts = space.owner.client(accountPackage);

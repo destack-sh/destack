@@ -1,8 +1,12 @@
+import { PLAN_PACKAGE } from "@destack/universe/test";
 import { space, SPACE_RESOURCES, type SpaceResource } from "@destack/account/object";
 import { eq } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { ids, TestSpace } from "../test/index.ts";
+
+/** The limit of each metered resource feature a test grants. */
+const LIMIT = 1000;
 
 /** Serve the fixture's space on a machine that enforces its account's entitlements. */
 async function open() {
@@ -24,10 +28,22 @@ async function open() {
         );
     };
 
-    // set the account within its plan until a test changes an entitlement, as its region's home does
+    // grant the account a metered feature per resource, within its plan until a test moves its quota, as finance's home does
     const entitlement = (resource: SpaceResource, state: "within" | "blocked") =>
-        fixture.universe.entitle(ids.account, resource, { kind: "metered", limit: 1000, state });
+        fixture.universe.quota(ids.account, {
+            packageId: PLAN_PACKAGE,
+            feature: resource,
+            limit: LIMIT,
+            state,
+        });
     for (const resource of ["database", "bucket", "compute", "network"] as const) {
+        await fixture.universe.grant(ids.account, {
+            packageId: PLAN_PACKAGE,
+            feature: resource,
+            value: LIMIT,
+            kind: "metered",
+            resource,
+        });
         await entitlement(resource, "within");
     }
 

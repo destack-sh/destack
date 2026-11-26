@@ -8,7 +8,7 @@ import { BuildStore } from "@destack/build/store";
 import type { BuildLayer } from "@destack/package/manifest";
 import type { Connector } from "@destack/resource";
 import type * as Cloudflare from "@cloudflare/workers-types";
-import { Entitlement } from "@destack/account/object";
+import { capRetention } from "../space/entitlement.ts";
 import { SettingValue } from "@destack/setting/object";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event/store";
 import { bucketOperation, databaseOperation } from "@destack/telemetry/meter";
@@ -301,7 +301,7 @@ export class DurableObjectVolume implements Volume {
             files: () => fields.bucket,
             prefix: `${prefix}events`,
             personal: new DatabasePersonalKeyring(database, options.keyring, environment),
-            settings: Entitlement.capRetention(database, SettingValue.retention(database)),
+            settings: capRetention(database, SettingValue.retention(database), environment.clock),
         });
         this.blobs = new BucketBlobStorage(fields.bucket, `${prefix}blobs/`, environment.random);
 

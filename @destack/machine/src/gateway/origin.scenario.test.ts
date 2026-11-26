@@ -1,4 +1,4 @@
-import { TEST_UNIVERSE } from "@destack/universe/test";
+import { PLAN_PACKAGE, TEST_UNIVERSE } from "@destack/universe/test";
 import { describedTables, testIdentity } from "@destack/object/test";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import { type Crypto, WebSocketUpgrade } from "@destack/environment";
@@ -1861,7 +1861,13 @@ async function verifyHostname(served: Served, name: string): Promise<void> {
     });
 
     // claim and verify the domain as the owner, entitled to custom domains, then add the hostname
-    await universe.entitle(owner.account, "domain", { kind: "static", value: true });
+    await universe.grant(owner.account, {
+        packageId: PLAN_PACKAGE,
+        feature: "domain",
+        value: null,
+        kind: "boolean",
+        resource: "domain",
+    });
     const accounts = owner.client(accountPackage);
     const requestId = () => RequestId.create(universe.environment);
     const claimed = await accounts.domain.create({

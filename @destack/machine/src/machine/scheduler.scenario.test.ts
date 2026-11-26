@@ -1,3 +1,4 @@
+import { PLAN_PACKAGE } from "@destack/universe/test";
 import { principal } from "@destack/access";
 import { Tenancy, space } from "@destack/account/object";
 import { eq } from "@destack/db";
@@ -15,7 +16,13 @@ const LAPTOP_ENDPOINT = "https://laptop.test";
 async function open(classes: readonly Tenancy[]) {
     // grant the account the plan's tenancies at the universe and refuse the others
     const fixture = await TestSpace.open();
-    await fixture.universe.entitle(ids.account, "tenancy", { kind: "static", value: [...classes] });
+    await fixture.universe.grant(ids.account, {
+        packageId: PLAN_PACKAGE,
+        feature: "tenancy",
+        value: [...classes],
+        kind: "static",
+        resource: "tenancy",
+    });
 
     // serve the space on its region's cloud machine next to the owner's laptop, placing it as each change settles
     const laptop = await fixture.universe.enroll(fixture.owner, ids.account, LAPTOP_ENDPOINT);

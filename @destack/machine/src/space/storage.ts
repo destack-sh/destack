@@ -2,7 +2,8 @@ import { type Follow, type Package, tablesOf, call, type ObjectType } from "@des
 import type { SpaceProvider, StoreProvider } from "@destack/stack/object";
 import type { SocketRegistry } from "./socket.ts";
 import { MAIN_DATABASE } from "@destack/stack/declare";
-import { claim, entitlement, organization } from "@destack/account/object";
+import { claim, organization } from "@destack/account/object";
+import { entitlementShape } from "@destack/finance/object";
 import { identityKey } from "@destack/account/identity";
 import { spaceReplicated, spaceTables } from "@destack/stack/stack";
 import { reference, tag } from "@destack/registry/object";
@@ -23,7 +24,7 @@ import type { Reading } from "../meter/index.ts";
 const KERNEL_REPLICATED: readonly Table[] = [
     ...spaceReplicated,
     organization.table,
-    entitlement.table,
+    ...entitlementShape.objects.map((type) => type.table),
     reference.table,
     tag.table,
     claim.table,

@@ -57,7 +57,8 @@ import {
     type VersionRange,
     Version,
 } from "@destack/schema";
-import { TestEntitlement } from "@destack/account/test";
+import { entitlementShape } from "@destack/finance/object";
+import { TestPlan } from "@destack/finance/test/plan";
 import {
     AccessContext,
     accessGrant,
@@ -1922,11 +1923,24 @@ test("deploy a capability only once the account is entitled", async () => {
         ).map((row) => row.enabled);
 
     // deploy with the account replicated without the feature, then once it is entitled to it
-    await TestEntitlement.set(
+    const plan = {
+        shape: entitlementShape,
+        key: { account: ids.account },
+        scope: Scope.universe.id,
+    };
+    const home = Identifier.create("space", fixture.machine.environment);
+    await TestPlan.grant(
         database,
         ids.account,
-        "database",
-        { kind: "boolean" },
+        {
+            packageId: feature.packageId,
+            feature: "database",
+            value: null,
+            kind: "boolean",
+            resource: "database",
+        },
+        plan,
+        home,
         fixture.machine.environment,
     );
     await fixture.simulation.idle();
@@ -1941,11 +1955,18 @@ test("deploy a capability only once the account is entitled", async () => {
         ready: await readiness(database, notes.id),
         deployed: await deployed(),
     };
-    await TestEntitlement.set(
+    await TestPlan.grant(
         database,
         ids.account,
-        { feature },
-        { kind: "boolean" },
+        {
+            packageId: feature.packageId,
+            feature: feature.name,
+            value: null,
+            kind: "boolean",
+            resource: null,
+        },
+        plan,
+        home,
         fixture.machine.environment,
     );
     await fixture.simulation.idle();

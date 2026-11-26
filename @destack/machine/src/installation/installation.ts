@@ -36,7 +36,8 @@ import {
     type ResultOf,
     changeRequest,
 } from "@destack/object";
-import { Entitlement, entitlement, Space, space } from "@destack/account/object";
+import { Space, space } from "@destack/account/object";
+import { quota, subscription } from "@destack/finance/object";
 import { ViewDescription } from "@destack/package/manifest";
 import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
 import { Approval } from "./approval.ts";
@@ -475,11 +476,11 @@ const FOLLOWERS: Relation = {
     on: { kind: "key", column: "versionId", parent: "id" },
 };
 
-/** The spaces of the account an entitlement limits. */
-const ENTITLED_SPACES: Relation = {
+/** The spaces of the account a subscription or quota of its plan limits. */
+const PLANNED_SPACES: Relation = {
     table: space.table,
     cardinality: "many",
-    on: { kind: "key", column: "scope", parent: "scope" },
+    on: { kind: "key", column: "scope", parent: "accountId" },
 };
 
 /** The installations of a build's space that have not applied the revision they target. */
@@ -591,11 +592,17 @@ function resumeWatches(waited: readonly ObjectType[]): ObjectWatch[] {
         // the space's installations once its row or a setting value changes
         { table: space.table, fields: ["stack", "approval"], on: { scope: "id" } },
         { table: setting.table, fields: ["value"], on: { scope: "scope" } },
-        // the account's installations once an entitlement changes
+        // the account's installations once its plan's subscriptions or quotas change
         {
-            table: entitlement.table,
-            fields: Entitlement.decided,
-            path: [ENTITLED_SPACES],
+            table: subscription.table,
+            fields: ["status"],
+            path: [PLANNED_SPACES],
+            on: { scope: "id" },
+        },
+        {
+            table: quota.table,
+            fields: ["state", "limit"],
+            path: [PLANNED_SPACES],
             on: { scope: "id" },
         },
     ];

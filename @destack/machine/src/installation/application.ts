@@ -16,7 +16,8 @@ import {
     PROCESS_RUNTIME,
 } from "@destack/stack/object";
 import { type RevisionOptions, InstallationTarget } from "./target.ts";
-import { account, Entitlement, space } from "@destack/account/object";
+import { account, space } from "@destack/account/object";
+import { planOf } from "../space/entitlement.ts";
 import {
     ObjectDescription,
     ObjectType,
@@ -973,9 +974,10 @@ export class ApplicationInstallation {
         );
         const accountId = account.identifier(placed.scope);
         for (const { name, feature } of needed) {
-            const condition = await Entitlement.check(this.#options.database, accountId, {
-                feature,
-            });
+            const condition = await planOf(this.#options.database, accountId).decide(
+                { kind: "feature", feature },
+                call.now,
+            );
             if (condition.status !== "true") {
                 return StackError.of(
                     "CAPABILITY_BLOCKED",
