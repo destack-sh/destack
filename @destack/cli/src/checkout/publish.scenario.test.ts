@@ -1,4 +1,4 @@
-import { Observation } from "@destack/object";
+import { Status } from "@destack/object";
 import { join } from "node:path";
 import { type JsonValue, present, schema } from "@destack/schema";
 import type { Installation } from "@destack/stack/object";
@@ -92,7 +92,7 @@ function readiness(target: Installation) {
 
 /** Report whether an installation is current with its latest change. */
 function isReady(target: Installation): boolean {
-    return Observation.progress(target) === "current";
+    return Status.progress(target) === "current";
 }
 
 test("follow a published release's tag, then pin the installation to the release", async () => {

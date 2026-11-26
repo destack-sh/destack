@@ -5,7 +5,7 @@ import type { ClientOf, ObjectClient } from "@destack/object/client";
 import type registryPackage from "@destack/registry/package";
 import { PackageName } from "@destack/package";
 import type { Setting } from "@destack/setting";
-import type { PlacementEndpoint } from "@destack/account/object";
+import { Account, type PlacementEndpoint } from "@destack/account/object";
 import {
     type Launcher,
     type LauncherConsent,
@@ -26,7 +26,7 @@ export type CommandEnvironment = Environment<"files" | "process" | "host" | "ope
 
 /** What a command line acts in: its environment, this computer's device, the person and a space. */
 export class CommandContext implements AsyncDisposable {
-    /** The space --space names: an address, identifier, alias, home, residency or bare name. */
+    /** The space --space names: an address, identifier, alias, home, region or bare name. */
     readonly spaceOption: string | undefined;
     /** The command line's clock, network, files, processes and platform. */
     readonly environment: CommandEnvironment;
@@ -191,26 +191,26 @@ export class CommandContext implements AsyncDisposable {
         return schema.identifier("account").parse(location.placement.scope);
     }
 
-    /** Open the registry of a package name's account, in its residency's home, as the person. */
+    /** Open the registry of a package name's account, in its region's home, as the person. */
     async registry(name: string): Promise<{
         /** The registry's client. */
         readonly client: ClientOf<typeof registryPackage>;
-        /** The residency's home serving the registry. */
+        /** The region's home serving the registry. */
         readonly home: Identifier<"space">;
         /** The account of the name's handle. */
         readonly accountId: Identifier<"account">;
     }> {
-        // find the account of the name's handle and its residency's home
+        // find the account of the name's handle and its home, whose forge serves its packages
         const native = await this.native();
-        const launcher = await this.launcher();
         const accountId = await native.resolve(PackageName.split(name).handle);
-        const home = await launcher.residency(accountId);
+        const home = Account.home(accountId);
 
         // call the registry the home serves
         const { createClient } = await this.module(() => import("@destack/object/client"));
         const { default: registryPackage } = await this.module(
             () => import("@destack/registry/package"),
         );
+        const launcher = await this.launcher();
         const endpoint = await launcher.package(home, registryPackage.id);
 
         return {
@@ -218,13 +218,6 @@ export class CommandContext implements AsyncDisposable {
             home,
             accountId,
         };
-    }
-
-    /** Read the residency home serving finance for the account, else for the person's account. */
-    async residency(): Promise<Identifier<"space">> {
-        const launcher = await this.launcher();
-
-        return await launcher.residency(await this.account());
     }
 
     /** Open some local object types of a package as this computer's client, closed with a stack. */

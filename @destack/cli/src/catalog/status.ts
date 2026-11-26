@@ -2,7 +2,7 @@ import { Installation, installation, bucket, database } from "@destack/stack/obj
 import { GitReference } from "@destack/git";
 import { RelationalQuery } from "@destack/object/client";
 import { principal } from "@destack/access";
-import { approval, Observation, type Progress, type Resource } from "@destack/object";
+import { approval, type Progress, type Resource, Status } from "@destack/object";
 import { Plan, type Risk, type StepKind } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import objectPackage from "@destack/object/package";
@@ -12,7 +12,7 @@ import { reference, release, tag } from "@destack/registry/object";
 import { schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { vault } from "@destack/vault/object";
-import type { EventState, Status, Terminal, Tone } from "../terminal/index.ts";
+import type { EventState, ListState, Terminal, Tone } from "../terminal/index.ts";
 import type { CommandContext } from "../command/context.ts";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
@@ -33,7 +33,7 @@ const PROGRESS_EVENTS: Readonly<Record<Progress, readonly [string, EventState]>>
 };
 
 /** How a resource stands for each progress of its record. */
-const RESOURCE_STATUSES: Readonly<Record<Progress, Status>> = {
+const RESOURCE_STATUSES: Readonly<Record<Progress, ListState>> = {
     current: "ready",
     waiting: "busy",
     approval: "busy",
@@ -162,7 +162,7 @@ export class InstallationStatus {
 
             // read the plan, its digest and the approval it asks while the installation awaits approval
             const planned =
-                Observation.progress(installed) === "approval"
+                Status.progress(installed) === "approval"
                     ? await stack.installation.plan({ scope: space, id })
                     : undefined;
             const waiting =
@@ -275,12 +275,12 @@ export class InstallationStatus {
 
     /** Read how far the installation is with its latest change. */
     get progress(): Progress {
-        return Observation.progress(this.installation);
+        return Status.progress(this.installation);
     }
 
     /** Read what the installation reports: its failure, else what its ready condition says. */
     get message(): string {
-        return Observation.message(this.installation);
+        return Status.message(this.installation);
     }
 
     /** Render the installation's progress, its resources' readiness and the plan it waits on. */
@@ -291,7 +291,7 @@ export class InstallationStatus {
         const named = `installation '${installed.name ?? installed.scope}'`;
         const said = message === "" ? named : `${named}: ${message}`;
         const lines = [
-            terminal.event(word, state, said, Observation.condition(installed)?.reason),
+            terminal.event(word, state, said, Status.condition(installed)?.reason),
             `  ${terminal.style("dim", "version ")}  ${this.version}`,
             `  ${terminal.style("dim", "revision")}  ${this.installation.appliedRevisionId ?? "-"}`,
         ];
@@ -301,9 +301,9 @@ export class InstallationStatus {
             const width = Math.max(...resources.map((resource) => resource.name.length));
             lines.push("");
             for (const resource of resources) {
-                const status = RESOURCE_STATUSES[Observation.progress(resource)];
-                const reported = Observation.message(resource);
-                const reason = Observation.condition(resource)?.reason;
+                const status = RESOURCE_STATUSES[Status.progress(resource)];
+                const reported = Status.message(resource);
+                const reason = Status.condition(resource)?.reason;
                 const facts = [
                     ...(reported === "" ? [] : [reported]),
                     ...(reason === undefined ? [] : [terminal.style("dim", reason)]),

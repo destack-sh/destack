@@ -141,21 +141,11 @@ test("sign in again after signing out the person the login setting picked", asyn
     });
 });
 
-test("sign a new person up with a handle and a residency, then show who they are and their spaces", async () => {
+test("sign a new person up with a handle and a region, then show who they are and their spaces", async () => {
     // sign Ada up with a mailed code, then show the login and list the spaces
     const terminal = await TerminalFixture.open();
     const email = "ada@example.test";
-    const words = [
-        "login",
-        "--email",
-        email,
-        "--handle",
-        "ada",
-        "--residency",
-        "eu",
-        "--name",
-        "Ada",
-    ];
+    const words = ["login", "--email", email, "--handle", "ada", "--region", "eu", "--name", "Ada"];
     const signedUp = await terminal.signIn(words, email, [], typed);
     const whoami = await terminal.printed(["whoami", "--json"]);
     const spaces = await terminal.printed(["spaces", "--json"]);

@@ -2,6 +2,8 @@ import { TerminalSize } from "@destack/environment";
 import { join } from "node:path";
 import { card } from "@example/board/object";
 import { PART_BYTES } from "@destack/object";
+import { placement } from "@destack/account/object";
+import { TestMachine } from "@destack/universe/test";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, single, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
@@ -10,6 +12,9 @@ import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 
 /** A bucket identifier for reading its verbs' help. */
 const BUCKET = "bucket-01996ab0-0000-7000-8000-000000000001";
+
+/** The origin of the owner's laptop, which a test enrolls in the owner's account. */
+const LAPTOP_ORIGIN = "https://laptop.test";
 
 /** A printed object's identifier. */
 const Printed = schema.looseObject({ id: schema.string() });
@@ -319,29 +324,41 @@ Usage: destack card new
     });
 });
 
-test("pass a flag with an object's identifier or key, refusing an unknown key", async () => {
-    // create spaces on the computer's cloud machine by its identifier and by its declared name
+test("pass a flag with an object's identifier or key, refusing a key of another account", async () => {
+    // create spaces on the region's pool machine by its identifier, and on the owner's laptop by its name
     const terminal = await open();
-    const machine = terminal.computer.machine.id;
-    const { machines } = terminal.computer.world.universe.universe.definition.platform;
-    const { name } = single(machines.filter((declared) => declared.id === machine));
+    const { universe, owner } = terminal.computer.world;
+    const pool = terminal.computer.machine.id;
+    const { machines } = universe.universe.definition.platform;
+    const { name: poolName } = single(machines.filter((declared) => declared.id === pool));
+    const laptop = await universe.enroll(owner, owner.account, LAPTOP_ORIGIN);
     const createOn = (space: string, on: string) =>
         terminal.printed(["space", "create", "--name", space, "--machine", on, "--json"]);
-    const byIdentifier = await createOn("notes", machine);
-    const byName = await createOn("tasks", name);
-    const unknown = await createOn("chat", "laptop");
+    const byIdentifier = await createOn("notes", pool);
+    const byName = await createOn("tasks", TestMachine.nameOf(laptop.id));
+    const foreign = await createOn("chat", poolName);
 
-    // print each created space as a read of it does, and refuse the unknown key
-    const read = async (created: { readonly output: string }) =>
-        (await terminal.printed(["space", Printed.parse(JSON.parse(created.output)).id, "--json"]))
-            .output;
-    expect({ byIdentifier, byName, unknown }).toEqual({
-        byIdentifier: { code: 0, output: await read(byIdentifier), error: "" },
-        byName: { code: 0, output: await read(byName), error: "" },
-        unknown: {
+    // place each created space on its machine, and refuse the platform account's name for the pool
+    const placedOn = async (created: { readonly code: number; readonly output: string }) => {
+        const { id } = Printed.parse(JSON.parse(created.output));
+        const placed = await universe.storage.database
+            .snapshot()
+            .read(placement.table)
+            .findFirst({ where: { spaceId: schema.identifier("space").parse(id) } });
+
+        return [created.code, placed?.machineId];
+    };
+    expect({
+        byIdentifier: await placedOn(byIdentifier),
+        byName: await placedOn(byName),
+        foreign,
+    }).toEqual({
+        byIdentifier: [0, pool],
+        byName: [0, laptop.id],
+        foreign: {
             code: 1,
             output: "",
-            error: failure("NOT_FOUND", "'machine' with key 'laptop' not found"),
+            error: failure("NOT_FOUND", `'machine' with key '${poolName}' not found`),
         },
     });
 });
@@ -429,13 +446,13 @@ test("run a declared action without a target as a verb of its noun, setting its 
 });
 
 test("create a platform repository in the account's registry by its noun, and list it", async () => {
-    // create a platform repository of the owner's account, whose registry its residency's home serves
+    // create a platform repository of the owner's account, whose registry its region's home serves
     const terminal = await open();
     const { account } = terminal.computer.world.owner;
     const repository = ["--account", account, "--name", "site", "--hosting", "platform"];
-    // list the registry's repositories after creating one
-    const created = await line(terminal, ["repository", "new", ...repository, "--json"]);
-    const listed = await line(terminal, ["repositories", "--json"]);
+    // list the registry's repositories after creating one, its noun named by package beside the forge's
+    const created = await line(terminal, ["registry:repository", "new", ...repository, "--json"]);
+    const listed = await line(terminal, ["registry:repositories", "--json"]);
     const Repository = schema.looseObject({ name: schema.string(), hosting: schema.string() });
 
     // expect the repository created, and listed by its name and hosting

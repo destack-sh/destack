@@ -1,3 +1,4 @@
+import { Account } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import machinePackage from "@destack/machine/package";
 import updatePackage from "@destack/update/package";
@@ -162,9 +163,9 @@ export class CatalogEntry {
         else if (others.length > 0) {
             throw CliError.of("USAGE_INVALID", refusal);
         }
-        // read the residency home serving the account's registry
+        // read the home serving the account's registry
         else if (level === "space" && this.store === "registry") {
-            return context.residency();
+            return Account.home(await context.account());
         }
         // read the space the command line acts in
         else if (level === "space") {
@@ -234,9 +235,11 @@ export class CatalogEntry {
         if (store === "universe") {
             return launcher.connect({ scope: scope ?? Scope.universe.id }, packageId, { elevate });
         }
-        // connect to the registry the account's residency home serves, by its protocol
+        // connect to the registry the account's home serves, by its protocol
         else if (store === "registry") {
-            return launcher.connect({ space: await context.residency() }, packageId, { elevate });
+            const home = Account.home(await context.account());
+
+            return launcher.connect({ space: home }, packageId, { elevate });
         }
 
         // connect to a named installation of the space at its origin, else to the space's own package where it is
@@ -280,7 +283,7 @@ export class Catalog {
                 store,
                 description:
                     store === "registry"
-                        ? Catalog.#registry(await context.residency())
+                        ? Catalog.#registry(Account.home(await context.account()))
                         : await Catalog.describe(context, store),
             })),
         );

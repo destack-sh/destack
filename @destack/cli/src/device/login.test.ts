@@ -15,48 +15,44 @@ function environment(variables: Readonly<Record<string, string>> = {}) {
     };
 }
 
-test("ask a new person's residency and name to sign them up by handle", async () => {
+test("ask a new person's region and name to sign them up by handle", async () => {
     // answer each question in turn, recording it
     const asked: string[] = [];
     const prompt = answering(asked, "eu", "Bea");
 
     // sign Bea up by her handle
-    const signUp = await new SignInPrompt({ handle: "bea" }, prompt, environment()).signUp(
-        residencies,
-    );
+    const signUp = await new SignInPrompt({ handle: "bea" }, prompt, environment()).signUp(regions);
 
     // take the time zone and locale this terminal runs in
     const { timeZone, locale } = environment();
     expect({ signUp, asked }).toEqual({
-        signUp: { name: "Bea", handle: "bea", residencyId: "eu", timeZone, locale },
-        asked: ["Residency: eu (Europe)", "Name"],
+        signUp: { name: "Bea", handle: "bea", regionId: "eu", timeZone, locale },
+        asked: ["Region: eu (Europe)", "Name"],
     });
 });
 
-test("refuse a sign-up's unknown residency and empty name", async () => {
+test("refuse a sign-up's unknown region and empty name", async () => {
     // answer each question in turn, recording it
     const asked: string[] = [];
 
-    // sign up on another residency, then with an empty name
-    const residency = await refusal(
-        new SignInPrompt(
-            { handle: "bea", residency: "mars" },
-            answering(asked),
-            environment(),
-        ).signUp(residencies),
+    // sign up on another region, then with an empty name
+    const region = await refusal(
+        new SignInPrompt({ handle: "bea", region: "mars" }, answering(asked), environment()).signUp(
+            regions,
+        ),
     );
     const name = await refusal(
         new SignInPrompt(
-            { handle: "bea", residency: "eu" },
+            { handle: "bea", region: "eu" },
             answering(asked, ""),
             environment(),
-        ).signUp(residencies),
+        ).signUp(regions),
     );
-    expect({ residency, name, asked }).toEqual({
-        residency: [
+    expect({ region, name, asked }).toEqual({
+        region: [
             "BAD_REQUEST",
             "USAGE_INVALID",
-            "residency 'mars' is invalid: choose one of 'eu (Europe)'",
+            "region 'mars' is invalid: choose one of 'eu (Europe)'",
         ],
         name: [
             "BAD_REQUEST",
@@ -73,7 +69,7 @@ test("sign in without a sign-up when no handle is given", async () => {
 
     // read the sign-up of a person giving only an email
     const signUp = await new SignInPrompt({ email: EMAIL }, answering(asked), environment()).signUp(
-        residencies,
+        regions,
     );
     expect({ signUp, asked }).toEqual({ signUp: undefined, asked: [] });
 });
@@ -110,7 +106,7 @@ function answering(asked: string[], ...answers: string[]) {
     };
 }
 
-/** List the universe's one residency. */
-async function residencies() {
+/** List the universe's one region. */
+async function regions() {
     return [{ code: "eu", name: "Europe" }];
 }

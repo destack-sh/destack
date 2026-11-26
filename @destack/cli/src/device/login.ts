@@ -1,5 +1,5 @@
 import { currentLogin, currentSpace, type Login } from "@destack/account/native";
-import { Account, DisplayName, NAME_LENGTH, type Residency } from "@destack/account/object";
+import { Account, DisplayName, NAME_LENGTH, type Region } from "@destack/account/object";
 import type { SignUp } from "@destack/account/better-auth";
 import type { schema } from "@destack/schema";
 
@@ -16,7 +16,7 @@ import type { Terminal } from "../terminal/index.ts";
 const ENVIRONMENT = {
     email: "DESTACK_EMAIL",
     handle: "DESTACK_HANDLE",
-    residency: "DESTACK_RESIDENCY",
+    region: "DESTACK_REGION",
     name: "DESTACK_NAME",
 } as const;
 
@@ -58,7 +58,7 @@ export class SignInPrompt {
 
     /** Read a new person's sign-up from their handle, nothing for a person signing in. */
     async signUp(
-        residencies: () => Promise<readonly Pick<Residency, "code" | "name">[]>,
+        regions: () => Promise<readonly Pick<Region, "code" | "name">[]>,
     ): Promise<schema.Input<typeof SignUp> | undefined> {
         // sign a person in without a handle
         const handle = this.#given("handle");
@@ -66,17 +66,14 @@ export class SignInPrompt {
             return undefined;
         }
 
-        // ask for the residency among the universe's, refusing another
-        const offered = await residencies();
-        const listed = offered
-            .map((residency) => `${residency.code} (${residency.name})`)
-            .join(", ");
-        const residencyId =
-            this.#given("residency") ?? (await this.#prompt.ask(`Residency: ${listed}`));
-        if (!offered.some((residency) => residency.code === residencyId)) {
+        // ask for the region among the universe's, refusing another
+        const offered = await regions();
+        const listed = offered.map((region) => `${region.code} (${region.name})`).join(", ");
+        const regionId = this.#given("region") ?? (await this.#prompt.ask(`Region: ${listed}`));
+        if (!offered.some((region) => region.code === regionId)) {
             throw CliError.of(
                 "USAGE_INVALID",
-                `residency '${residencyId}' is invalid: choose one of '${listed}'`,
+                `region '${regionId}' is invalid: choose one of '${listed}'`,
             );
         }
 
@@ -92,7 +89,7 @@ export class SignInPrompt {
         // take the time zone and locale this terminal runs in
         const { timeZone, locale } = this.#environment;
 
-        return { name, handle, residencyId, timeZone, locale };
+        return { name, handle, regionId, timeZone, locale };
     }
 
     /** Read the mailed code. */
@@ -123,7 +120,7 @@ export const loginCommand: CommandBody = {
             description: "The handle a new person signs up with, such as florian",
             argument: "handle",
         },
-        residency: {
+        region: {
             type: "string",
             description: "The jurisdiction a new person's account stores data in, such as eu",
             argument: "code",
@@ -232,7 +229,7 @@ async function signInMethod(
     // sign in with a mailed code, or sign a new person up with their handle
     else if (prompt.isEmail()) {
         const email = await prompt.email();
-        const signUp = await prompt.signUp(() => client.residencies());
+        const signUp = await prompt.signUp(() => client.regions());
 
         return signUp === undefined ? { kind: "email", email } : { kind: "signUp", email, signUp };
     }
