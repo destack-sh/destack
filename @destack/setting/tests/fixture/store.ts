@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { connectBunSqlite } from "@destack/db/bun";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import { TestObjectStore } from "@destack/object/test";
 import { Identifier } from "@destack/schema";
 import { onTestFinished } from "@destack/test";
