@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { repository } from "@destack/registry/object";
 import { forgeInteraction } from "./interaction.ts";
@@ -9,8 +10,8 @@ const PARAMETERS = { runs: 3, warmup: 1 };
 export const workOnRepository = defineScenario({
     of: repository,
     interaction: forgeInteraction,
-    name: "work-on-repository",
-    description: "create a platform repository, push to it, clone it and pull it",
+    name: "workOn",
+    description: t`Create a platform repository, push to it, clone it and pull it.`,
     given: { examples: [] },
     parameters: PARAMETERS,
     when: [
