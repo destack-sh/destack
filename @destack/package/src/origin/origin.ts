@@ -18,6 +18,6 @@ export const OriginPath = {
     asset: "/.destack/asset",
     /** Serve an image's modules. */
     module: "/.destack/module",
-    /** Frame one example or scenario of a development build, which the query selects. */
-    frame: "/.destack/frame",
+    /** Show one example or scenario of a development build, which the query gives. */
+    example: "/.destack/example",
 } as const;

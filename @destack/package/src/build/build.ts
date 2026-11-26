@@ -125,6 +125,8 @@ export interface Compilation {
     readonly declarations: readonly DeclarationDescription[];
     /** Locate the module and export with one of the package's own declarations. */
     readonly locate: (declaration: DeclarationDescription) => DeclarationModule;
+    /** Read the package's examples and scenarios, each by its name with the module exporting it. */
+    readonly definitions: () => Promise<readonly DefinitionModule[]>;
     /** Emit a module as a chunk the package exports under an entrypoint, such as `./view/notes`. */
     readonly entry: (entrypoint: string, module: string) => void;
 }
@@ -139,8 +141,8 @@ export interface CompiledOutput {
     readonly stylesheets: (entrypoint: string) => string[];
 }
 
-/** The workloads and views an extension describes in one output. */
-export type OutputDescription = Partial<Pick<PackageOutput, "workloads" | "views" | "frame">>;
+/** The workloads, views and example page an extension describes in one output. */
+export type OutputDescription = Partial<Pick<PackageOutput, "workloads" | "views" | "example">>;
 
 /** A package's own declaration, located by the module exporting it. */
 export interface DeclarationModule {
@@ -148,4 +150,12 @@ export interface DeclarationModule {
     readonly file: string;
     /** The module's export with the declaration. */
     readonly export: string;
+}
+
+/** An example or scenario of the package, by its name with the module exporting it. */
+export interface DefinitionModule extends DeclarationModule {
+    /** The name, as `<shown>.<member>`. */
+    readonly name: string;
+    /** Whether it is an example or a scenario. */
+    readonly kind: "example" | "scenario";
 }

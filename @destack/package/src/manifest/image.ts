@@ -222,7 +222,7 @@ export const BuildImage = Object.assign(image, {
         read: (manifest: Digest) => Promise<PackageManifest | undefined>,
         entries: "run" | "export" = "run",
     ): Promise<ReadonlySet<Digest>> {
-        // start at each output's workloads and the exports its views and frame mount, or at every export
+        // start at each output's workloads and the exports its views and example page mount, or at every export
         const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
         const once = (digest: Digest) => {
             const reading = manifests.get(digest) ?? read(digest);
@@ -238,7 +238,7 @@ export const BuildImage = Object.assign(image, {
             const mounted = new Set(
                 [
                     ...Object.values(output.views),
-                    ...(output.frame === undefined ? [] : [output.frame]),
+                    ...(output.example === undefined ? [] : [output.example]),
                 ].map((view) => view.entrypoint),
             );
             const started =
