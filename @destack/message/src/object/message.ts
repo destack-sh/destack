@@ -233,7 +233,7 @@ export const message = defineObject(
             }),
         }),
         /** Record a desktop client showing a sent message, as its receipt. */
-        receive: method.mutation({ title: t`Receive`, permission: "read" }),
+        receive: method.mutation({ title: t.context("action")`Receive`, permission: "read" }),
     }),
 ).implement({
     methods: {

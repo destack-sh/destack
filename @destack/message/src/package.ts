@@ -13,7 +13,7 @@ export const outboundMail = defineMail({ name: "outbound" });
 
 /** The handle stores serve messages, their attempts and webhook endpoints through. */
 export default definePackage({
-    title: t`Messages`,
+    title: t.context("title")`Messages`,
     description: t`Send messages on a channel, email, push, webhook or a desktop.`,
     icon: "chat-circle",
     color: "purple",
