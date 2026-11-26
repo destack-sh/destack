@@ -1,5 +1,5 @@
 import type { StepUp } from "@destack/access";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import { Identifier, schema, Uuid } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { untilAborted } from "@destack/environment";
