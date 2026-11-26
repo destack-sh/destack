@@ -9,7 +9,7 @@ import {
 } from "@destack/package/declare";
 import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
 import { ActionInput, type ActionInputDescription, Field } from "@destack/object";
-import { type ComponentProperties, isComponent } from "../declare/component.ts";
+import { Component, type ComponentProperties } from "../declare/component.ts";
 import { Catalog } from "@destack/locale";
 import type { PackageId } from "@destack/package";
 import { CONTEXT_ELEMENT, ViewContext } from "../declare/context.ts";
@@ -20,7 +20,7 @@ import { Globals, type Locator, OBSERVED_STATES, Observation, Step } from "../sc
 import { Keyboard } from "./keyboard.ts";
 import { Pointer } from "./pointer.ts";
 import { renderExample } from "./frame.ts";
-import { renderMatrix } from "./matrix.ts";
+import { Matrix } from "./matrix.ts";
 import { ExampleRequest, MatrixAxes, ExampleEvent } from "../page/message.ts";
 import type { IndexEntry } from "../page/example.ts";
 
@@ -81,7 +81,7 @@ export class Stage {
         const examples = new Map<string, Rendered>();
         for (const example of given.examples) {
             // render the example over the properties a set step or a host changes: its own and its component's
-            const definitions = isComponent(example.of) ? example.of.properties : {};
+            const definitions = Component.is(example.of) ? example.of.properties : {};
             const declared = [
                 ...new Set([...Object.keys(example.properties), ...Object.keys(definitions)]),
             ];
@@ -573,44 +573,29 @@ interface Showing {
 function showMatrix(
     example: Example<object, JSX.Element>,
     given: JsonObject,
-    initial: MatrixAxes,
+    axes: MatrixAxes,
     page: Showing,
 ): Presentation {
-    // render every cell of the axes with the example's values, telling the host the cell picked
-    const { element, catalogs, environment, globals } = page;
-    let values = valuesOf(example, given);
-    let axes = initial;
-    const render = () =>
-        renderMatrix(
-            element,
-            { example, globals, catalogs, properties: values },
-            axes,
-            environment,
-            {
-                choose: (chosen) =>
-                    ExampleEvent.send({ destack: "cell", values: chosen }, page.origin),
-                open: (opened) =>
-                    ExampleEvent.send({ destack: "open", values: opened }, page.origin),
-            },
-        );
-    let dispose = render();
-    tellExample(example, values, page.origin);
+    // draw every cell of the axes with the example's values, telling the host the cell picked
+    const { element, catalogs, environment, globals, origin } = page;
+    const values = valuesOf(example, given);
+    const matrix = new Matrix(element, { example, globals, catalogs }, values, axes, environment, {
+        choose: (chosen) => ExampleEvent.send({ destack: "cell", values: chosen }, origin),
+        open: (opened) => ExampleEvent.send({ destack: "open", values: opened }, origin),
+    });
+    tellExample(example, values, origin);
 
     return {
         receive: (request) => {
-            // take changed values or other axes, then lay the cells out again
+            // take changed values or other axes
             if (request.destack === "set") {
-                values = { ...values, ...request.properties };
+                matrix.set(request.properties);
             } else if (request.destack === "axes") {
-                axes = request.axes;
-            } else {
-                return;
+                matrix.arrange(request.axes);
             }
-            dispose();
-            dispose = render();
         },
         dispose: () => {
-            dispose();
+            matrix.dispose();
             element.remove();
         },
     };
@@ -698,7 +683,7 @@ function stageOf(given: Given<JSX.Element, Globals>, page: Showing): Stage {
 
 /** Read an example's values: its component's defaults, its own properties, then those given. */
 function valuesOf(example: Example<object, JSX.Element>, given: JsonObject): JsonObject {
-    const definitions = isComponent(example.of) ? example.of.properties : {};
+    const definitions = Component.is(example.of) ? example.of.properties : {};
 
     return schema
         .jsonObject()
@@ -754,7 +739,7 @@ async function fetchCatalogs(
 /** Describe the inputs a host changes an example's component by, objects aside. */
 function inputsOf(example: Example): ActionInputDescription[] {
     // describe each property of the component the example shows, none for anything else
-    const definitions = isComponent(example.of) ? example.of.properties : {};
+    const definitions = Component.is(example.of) ? example.of.properties : {};
 
     return Object.entries(definitions).flatMap(([name, definition]) => {
         const input = definition === undefined ? undefined : ActionInput.of(name, definition);

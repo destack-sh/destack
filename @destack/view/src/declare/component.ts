@@ -44,7 +44,10 @@ export function defineComponent<Render extends ComponentRender>(
     return Object.assign(render, { kind: "component" as const, package: owner, properties });
 }
 
-/** Report whether a value is a declared component. */
-export function isComponent(value: unknown): value is Component {
-    return typeof value === "function" && Reflect.get(value, "kind") === "component";
-}
+/** A component a package declares, as a value to tell components by. */
+export const Component = {
+    /** Report whether a value is a declared component. */
+    is(value: unknown): value is Component {
+        return typeof value === "function" && Reflect.get(value, "kind") === "component";
+    },
+};
