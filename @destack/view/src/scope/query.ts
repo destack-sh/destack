@@ -25,14 +25,17 @@ export function useQuery<Object extends ObjectType, Value>(
     options: ScopeOptions = {},
 ): Accessor<Value> {
     const nodes = useNode(object, options);
+    const node = createMemo(() => nodes().node);
 
     return createMemo(() => {
-        // follow the query on the current node until either changes or the component goes
-        const node = nodes();
+        // build the query on the opened node, tracking what it reads
+        const built = query(node().queryType(object));
+
+        // follow it until the node or what it reads changes, or the component goes
         const stopping = new AbortController();
         onCleanup(() => stopping.abort());
 
-        return follow(node.node, (opened) => query(opened.queryType(object)), stopping.signal);
+        return follow(built, stopping.signal);
     });
 }
 
@@ -126,15 +129,12 @@ export function scopeOf(view: ViewContext, object: ObjectType, options: ScopeOpt
     }
 }
 
-/** Follow one query on a node until the signal aborts. */
+/** Follow one query until the signal aborts. */
 async function* follow<Value>(
-    node: ObjectNode | Promise<ObjectNode>,
-    query: (node: ObjectNode) => RelationalQuery<Value>,
+    query: RelationalQuery<Value>,
     signal: AbortSignal,
-    options: SubscribeOptions = {},
-    onReady?: () => void,
 ): AsyncGenerator<Value> {
-    const live = query(await node).subscribe();
+    const live = query.subscribe();
     try {
         for await (const value of live.watch(signal)) {
             yield value;

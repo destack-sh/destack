@@ -10,6 +10,7 @@ import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
 import { Errored, For, Loading } from "../solid/flow.ts";
+import { createSignal } from "../solid/reactive.ts";
 import { useMutation, useQuery, useSetting } from "./index.ts";
 import { defineSetting } from "@destack/setting/declare";
 import { deviceSetting, setting } from "@destack/setting/object";
@@ -179,6 +180,69 @@ test("show a query's rows after loading, and re-render only the row a predicted 
     apples.click();
     await changed(element, () => element.textContent === "Apples!Bread", RENDER_MILLISECONDS);
     expect(element.querySelectorAll("li")[1]).toBe(bread);
+});
+
+test("follow another query as a filter changes, showing the last rows until it reads", async () => {
+    // follow the cards with one title under a loading boundary
+    const { simulation, tab } = testWorld();
+    const client = await openClient(simulation.environment("view"));
+    await client.mutate(card).create({ title: "Apples" }).predicted;
+    await client.mutate(card).create({ title: "Bread" }).predicted;
+    const [title, setTitle] = createSignal("Apples");
+    const element = document.createElement("main");
+    onTestFinished(
+        renderView(
+            () => {
+                const cards = useQuery(card, (query) =>
+                    query.findMany({ where: { title: title() } }),
+                );
+
+                return (
+                    <Loading fallback={<p>Loading</p>}>
+                        <p>
+                            {cards()
+                                .map((entry) => entry.title)
+                                .join()}
+                        </p>
+                    </Loading>
+                );
+            },
+            element,
+            {
+                package: import.meta.destack.package,
+                actions: new ActionRegistry(),
+                mount: {
+                    context: CONTEXT,
+                    clients: new Map([[BOARD_ID, client]]),
+                    packages: new Map(),
+                    open: noSpace,
+                    origin: noOrigin,
+                    connect: noConnect,
+                },
+                localization: Localization.of(SOURCE_LOCALE, []),
+                environment: tab,
+            },
+        ),
+    );
+    const shown: string[] = [];
+    const settle = async (expected: string) => {
+        await changed(
+            element,
+            () => {
+                shown.push(element.textContent);
+
+                return element.textContent === expected;
+            },
+            RENDER_MILLISECONDS,
+        );
+    };
+    await settle("Apples");
+
+    // filter by another title, showing the last rows until the next read
+    shown.length = 0;
+    setTitle("Bread");
+    await settle("Bread");
+    expect([...new Set(shown)]).toEqual(["Apples", "Bread"]);
 });
 
 test("open and close another space with a component", async () => {
