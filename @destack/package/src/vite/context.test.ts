@@ -56,7 +56,7 @@ test("frame each async function, suspending and resuming around its awaits, loop
     // expect the prelude, a frame per async function, and the plain function untouched
     expect(framed?.toString()).toEqual(
         [
-            `const __destackContext = globalThis[globalThis.Symbol.for("destack.context")];`,
+            `const __destackContext = { enter: () => globalThis[globalThis.Symbol.for("destack.context")].enter() };`,
             `async function read(source) { const __destackFrame = __destackContext.enter(); try { try { return __destackFrame.resume(await __destackFrame.suspend(source.read())); } catch { __destackFrame.resume(); return undefined; } } finally { __destackFrame.exit(); } }`,
             `const wait = async () => { const __destackFrame = __destackContext.enter(); try { return ( ({ at: __destackFrame.resume(await __destackFrame.suspend(clock.now())) })); } finally { __destackFrame.exit(); } };`,
             `function sync() { return 1; }`,

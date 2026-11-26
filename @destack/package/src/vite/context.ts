@@ -2,14 +2,14 @@ import MagicString from "magic-string";
 import { type ESTree, parseSync } from "rolldown/utils";
 import type { Plugin } from "vite";
 
-/** The module-level binding of the realm's context, which the environment's baseline installs. */
+/** The module-level binding opening a frame in the realm's context. */
 const CONTEXT_BINDING = "__destackContext";
 
 /** The binding of an async function call's frame. */
 const FRAME_BINDING = "__destackFrame";
 
-/** The statement reading the realm's context once per module. */
-const CONTEXT_PRELUDE = `const ${CONTEXT_BINDING} = globalThis[globalThis.Symbol.for("destack.context")];\n`;
+/** The statement defining the binding, reading the realm's context at each call. */
+const CONTEXT_PRELUDE = `const ${CONTEXT_BINDING} = { enter: () => globalThis[globalThis.Symbol.for("destack.context")].enter() };\n`;
 
 /** The modules a browser build compiles, by their path's extension. */
 const MODULE_PATTERN = /\.(?:[cm]?[jt]sx?)(?:\?.*)?$/u;
