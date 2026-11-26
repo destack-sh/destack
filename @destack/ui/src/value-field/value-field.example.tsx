@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import type { JsonValue } from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
@@ -23,7 +24,7 @@ const PEOPLE = ["Ada", "Grace", "Barbara"].map((name) => ({ value: name, title: 
 export const valueFieldKinds = defineExample({
     of: ValueField,
     name: "kinds",
-    description: "the input of each kind of value, with what it gives",
+    description: t`The input of each kind of value, with what it gives.`,
     layout: "padded",
     render: () => {
         // keep what the inputs give
@@ -92,7 +93,7 @@ export const valueFieldKinds = defineExample({
 export const valueFieldReplaced = defineExample({
     of: ValueFieldProvider,
     name: "replaced",
-    description: "a number an app takes by an input of its own",
+    description: t`A number an app takes by an input of its own.`,
     render: () => (
         <ValueFieldProvider
             inputs={{

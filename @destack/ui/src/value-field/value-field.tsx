@@ -2,11 +2,12 @@ import { type NumberFormat, t } from "@destack/locale";
 import type { ActionValue, Choice } from "@destack/object";
 import { type JsonValue, schema } from "@destack/schema";
 import * as style from "@destack/style";
-import { font } from "@destack/theme/tokens.stylex";
+import { color, font } from "@destack/theme/tokens.stylex";
 import {
     createContext,
     createSignal,
     For,
+    Show,
     type JSX,
     untrack,
     useContext,
@@ -22,15 +23,27 @@ import {
 } from "../combobox/index.ts";
 import { DateTimeField } from "../date-time-field/index.ts";
 import { Input } from "../input/index.ts";
-import { NumberField } from "../number-field/index.ts";
+import { NumberField, NumberFieldInput, NumberFieldScrubArea } from "../number-field/index.ts";
+import { InputGroup, InputGroupAddon } from "../input-group/index.ts";
+import { Icon } from "@destack/ui/icon";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../select/index.ts";
 import { Switch } from "../switch/index.ts";
+import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import { Textarea } from "../textarea/index.ts";
+
+/** The most choices laid out side by side as segments, past which they go in a menu. */
+const SEGMENTS = 4;
 
 /** The styles of inputs of values. */
 const styles = style.create({
     control: {
         width: "100%",
+    },
+    scrub: {
+        display: "inline-flex",
+        alignItems: "center",
+        color: color.mutedForeground,
     },
     code: {
         fontFamily: font.code,
@@ -54,6 +67,8 @@ export interface ValueFieldProperties<Type extends ActionValue = ActionValue> {
     readonly onSearch?: ((text: string) => void) | undefined;
     /** What it is called, where no label beside it says so. */
     readonly "aria-label"?: string | undefined;
+    /** The id of the element describing the value, none without one. */
+    readonly "aria-describedby"?: string | undefined;
     /** Whether a form needs a value. */
     readonly required?: boolean | undefined;
     /** Whether it takes no input. */
@@ -126,6 +141,7 @@ function TextInput(properties: ValueFieldProperties): JSX.Element {
     return (
         <Input
             aria-label={properties["aria-label"]}
+            aria-describedby={properties["aria-describedby"]}
             required={properties.required}
             disabled={properties.disabled}
             value={typeof properties.value === "string" ? properties.value : ""}
@@ -138,13 +154,14 @@ function TextInput(properties: ValueFieldProperties): JSX.Element {
     );
 }
 
-/** Render the input of a number, within its limits and in its format. */
+/** Render the input of a number, typed or scrubbed by dragging its leading handle sideways. */
 function NumberInput(
     properties: ValueFieldProperties<ActionValue & { readonly kind: "number" }>,
 ): JSX.Element {
     return (
         <NumberField
             aria-label={properties["aria-label"]}
+            aria-describedby={properties["aria-describedby"]}
             value={typeof properties.value === "number" ? properties.value : undefined}
             min={properties.type.minimum}
             max={properties.type.maximum}
@@ -153,8 +170,18 @@ function NumberInput(
             format={formatOf(properties.type)}
             required={properties.required}
             disabled={properties.disabled}
-            onValueChange={(value) => properties.onValueChange(value)}
-        />
+            onValueChange={(changed) => properties.onValueChange(changed)}
+        >
+            {/* Handle, then the typed number */}
+            <InputGroup>
+                <InputGroupAddon>
+                    <NumberFieldScrubArea xstyle={styles.scrub}>
+                        <Icon name="arrows-left-right" />
+                    </NumberFieldScrubArea>
+                </InputGroupAddon>
+                <NumberFieldInput />
+            </InputGroup>
+        </NumberField>
     );
 }
 
@@ -163,6 +190,7 @@ function BooleanInput(properties: ValueFieldProperties): JSX.Element {
     return (
         <Switch
             aria-label={properties["aria-label"]}
+            aria-describedby={properties["aria-describedby"]}
             checked={properties.value === true}
             disabled={properties.disabled}
             onCheckedChange={(isOn) => properties.onValueChange(isOn)}
@@ -175,6 +203,7 @@ function TimeInput(properties: ValueFieldProperties): JSX.Element {
     return (
         <DateTimeField
             aria-label={properties["aria-label"]}
+            aria-describedby={properties["aria-describedby"]}
             value={typeof properties.value === "number" ? properties.value : undefined}
             required={properties.required}
             disabled={properties.disabled}
@@ -187,27 +216,77 @@ function TimeInput(properties: ValueFieldProperties): JSX.Element {
 function ChoiceInput(properties: ValueFieldProperties): JSX.Element {
     // write each choice by its value
     const locale = useLocale();
+    const choices = () => properties.choices ?? [];
 
     return (
-        <Select
-            xstyle={styles.control}
-            required={properties.required}
-            disabled={properties.disabled}
-            value={keyOf(properties.value)}
-            onValueChange={(key) => properties.onValueChange(valueOf(properties, key))}
+        <Show
+            when={choices().length <= SEGMENTS}
+            fallback={
+                <Select
+                    xstyle={styles.control}
+                    aria-label={properties["aria-label"]}
+                    aria-describedby={properties["aria-describedby"]}
+                    required={properties.required}
+                    disabled={properties.disabled}
+                    value={keyOf(properties.value)}
+                    onValueChange={(key) => properties.onValueChange(valueOf(properties, key))}
+                >
+                    <SelectTrigger>
+                        <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="">
+                            {locale.render(t.context("option")`Choose…`)}
+                        </SelectItem>
+                        <For each={choices()}>
+                            {(choice) => (
+                                <SelectItem value={keyOf(choice.value)}>{choice.title}</SelectItem>
+                            )}
+                        </For>
+                    </SelectContent>
+                </Select>
+            }
         >
-            <SelectTrigger aria-label={properties["aria-label"]}>
-                <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectItem value="">{locale.render(t`Choose…`)}</SelectItem>
-                <For each={properties.choices ?? []}>
-                    {(choice) => (
-                        <SelectItem value={keyOf(choice.value)}>{choice.title}</SelectItem>
-                    )}
+            {/* Segments, for a few choices side by side */}
+            <ToggleGroup
+                variant="segmented"
+                size="sm"
+                xstyle={styles.control}
+                aria-label={properties["aria-label"]}
+                aria-describedby={properties["aria-describedby"]}
+                disabled={properties.disabled === true}
+                disallowEmptySelection={properties.required === true}
+                value={keyOf(properties.value)}
+                onValueChange={(key) => properties.onValueChange(valueOf(properties, key))}
+            >
+                <For each={choices()}>
+                    {(choice) => {
+                        // show the choice's icon and title, and its description when pointed at
+                        const segment = (
+                            attributes: JSX.HTMLAttributes<HTMLButtonElement> = {},
+                        ) => (
+                            <ToggleGroupItem {...attributes} value={keyOf(choice.value)}>
+                                <Show when={choice.icon}>
+                                    <ChoiceIcon choice={choice} />
+                                </Show>
+                                {choice.title}
+                            </ToggleGroupItem>
+                        );
+
+                        return (
+                            <Show when={choice.description} fallback={segment()}>
+                                {(description) => (
+                                    <Tooltip>
+                                        <TooltipTrigger render={segment} />
+                                        <TooltipContent>{description()}</TooltipContent>
+                                    </Tooltip>
+                                )}
+                            </Show>
+                        );
+                    }}
                 </For>
-            </SelectContent>
-        </Select>
+            </ToggleGroup>
+        </Show>
     );
 }
 
@@ -226,12 +305,13 @@ function FoundInput(properties: ValueFieldProperties): JSX.Element {
         >
             <ComboboxInput
                 aria-label={properties["aria-label"]}
+                aria-describedby={properties["aria-describedby"]}
                 required={properties.required}
                 disabled={properties.disabled}
-                placeholder={locale.render(t`Choose…`)}
+                placeholder={locale.render(t.context("label")`Choose…`)}
             />
             <ComboboxContent>
-                <ComboboxEmpty>{locale.render(t`No results.`)}</ComboboxEmpty>
+                <ComboboxEmpty>{locale.render(t.context("title")`No results.`)}</ComboboxEmpty>
                 <For each={properties.choices ?? []}>
                     {(choice) => (
                         <ComboboxItem value={keyOf(choice.value)} textValue={choice.title}>
@@ -271,6 +351,7 @@ function JsonInput(properties: ValueFieldProperties): JSX.Element {
     return (
         <Textarea
             aria-label={properties["aria-label"]}
+            aria-describedby={properties["aria-describedby"]}
             required={properties.required}
             disabled={properties.disabled}
             spellcheck="false"
