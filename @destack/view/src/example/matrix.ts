@@ -3,14 +3,22 @@ import type { JsonObject } from "@destack/schema";
 import type { MatrixAxes } from "../page/message.ts";
 import { type ExampleFrame, frameStyle, renderExample } from "./frame.ts";
 
-/** The side of a framed cell's page: room for a 10rem by 11rem menu on any side of its trigger. */
-const FRAME_SIZE = "25rem";
+/** The smallest side of a framed cell's page in CSS pixels, 25rem. */
+const FRAME_MINIMUM = 400;
+
+/** The room around an overlay in its frame, in CSS pixels. */
+const FRAME_MARGIN = 16;
+
+/** The window a framed fullscreen example fills, a small laptop's in CSS pixels. */
+const WINDOW = { width: 1024, height: 640 };
 
 /** An open overlay in the top layer, which covers the page instead of its cell. */
 const OVERLAY = ":modal, :popover-open";
 
 /** How a matrix draws its cells: in its own page, or each in a frame of the example's page. */
-type MatrixLayout = "page" | "frame";
+type MatrixLayout =
+    | { readonly kind: "page" }
+    | { readonly kind: "frame"; readonly width: number; readonly height: number };
 
 /** What a matrix tells about its cells: the one a person picks, and the one they open. */
 export interface MatrixHandlers {
@@ -63,7 +71,8 @@ export class Matrix {
         this.#axes = axes;
         this.#grid = undefined;
         this.#disposals = [];
-        this.#layout = "page";
+        this.#layout =
+            frame.example.layout === "fullscreen" ? { kind: "frame", ...WINDOW } : { kind: "page" };
         this.#draw();
     }
 
@@ -164,10 +173,14 @@ export class Matrix {
                 grid.append(cell);
 
                 // frame the example's page with the cell's values, scaled to the cell's width
-                if (this.#layout === "frame") {
-                    body.append(this.#page(values));
+                const layout = this.#layout;
+                if (layout.kind === "frame") {
+                    body.append(this.#page(values, layout));
                     Object.assign(body.style, { alignSelf: "stretch", justifySelf: "stretch" });
-                    Object.assign(cell.style, { containerType: "inline-size", aspectRatio: "1" });
+                    Object.assign(cell.style, {
+                        containerType: "inline-size",
+                        aspectRatio: `${String(layout.width)} / ${String(layout.height)}`,
+                    });
                 }
                 // render the example in the page once the cell is in it, as a dialog opens only there
                 else {
@@ -184,9 +197,10 @@ export class Matrix {
                     );
                 }
 
-                // draw every cell in a frame once one opens an overlay over the page
-                if (body.querySelector(OVERLAY) !== null) {
-                    this.#layout = "frame";
+                // draw every cell in a frame sized to the overlay once one opens over the page
+                const overlay = body.querySelector(OVERLAY);
+                if (overlay !== null) {
+                    this.#layout = frameOf(body, overlay);
                     this.dispose();
                     this.#draw();
 
@@ -213,7 +227,10 @@ export class Matrix {
     }
 
     /** Create a frame of the example's page alone, with a cell's values. */
-    #page(values: JsonObject): HTMLIFrameElement {
+    #page(
+        values: JsonObject,
+        layout: Extract<MatrixLayout, { readonly kind: "frame" }>,
+    ): HTMLIFrameElement {
         // address the example's page alone and look-only, with its globals and the cell's values
         const url = new URL(this.#environment.navigation.currentEntry.url);
         url.search = new URLSearchParams({
@@ -227,17 +244,40 @@ export class Matrix {
         const page = this.element.ownerDocument.createElement("iframe");
         page.src = url.href;
         page.title = this.name;
+        const width = `${String(layout.width)}px`;
         Object.assign(page.style, {
             display: "block",
-            width: FRAME_SIZE,
-            height: FRAME_SIZE,
+            width,
+            height: `${String(layout.height)}px`,
             border: "0",
             transformOrigin: "0 0",
-            scale: `calc(100cqi / ${FRAME_SIZE})`,
+            scale: `calc(100cqi / ${width})`,
         });
 
         return page;
     }
+}
+
+/** Size an example's frames by its open overlay: a modal alone, an anchored one on any side. */
+function frameOf(body: HTMLElement, overlay: Element): MatrixLayout {
+    // measure what opens the overlay, and the overlay
+    const anchor = body.getBoundingClientRect();
+    const open = overlay.getBoundingClientRect();
+    const isModal = overlay.matches(":modal");
+
+    // leave a modal room for itself, an anchored one room on each side of its anchor
+    const width = isModal
+        ? open.width + 2 * FRAME_MARGIN
+        : anchor.width + 2 * (open.width + FRAME_MARGIN);
+    const height = isModal
+        ? open.height + 2 * FRAME_MARGIN
+        : anchor.height + 2 * (open.height + FRAME_MARGIN);
+
+    return {
+        kind: "frame",
+        width: Math.ceil(Math.max(width, FRAME_MINIMUM)),
+        height: Math.ceil(Math.max(height, FRAME_MINIMUM)),
+    };
 }
 
 /** Create the caption of a column or a row. */

@@ -133,7 +133,13 @@ export class Stage {
         const { origin } = url;
 
         // keep a look-only page, such as a matrix's cell, out of the focus and the pointer
-        element.inert = url.searchParams.has("inert");
+        const isInert = url.searchParams.has("inert");
+        element.inert = isInert;
+
+        // let go of the focus a modal dialog takes, which the platform exempts from inertness
+        if (isInert) {
+            element.ownerDocument.addEventListener("focusin", release, { capture: true });
+        }
         let current = await show(element, library, catalogs, environment, origin, {
             name: present(url.searchParams.get("name"), "the shown name"),
             globals: schema.json().parse(JSON.parse(url.searchParams.get("globals") ?? "{}")),
@@ -780,3 +786,10 @@ const ObservedCheck = schema.object({
     /** The value it expects. */
     is: schema.json(),
 });
+
+/** Let go of the focus that landed on an element of a look-only page. */
+function release(event: FocusEvent): void {
+    if (event.target instanceof HTMLElement) {
+        event.target.blur();
+    }
+}
