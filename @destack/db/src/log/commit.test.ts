@@ -165,6 +165,11 @@ function insertRecord(id: string) {
     };
 }
 
+/** Write the board's label named urgent, archived at a moment or live. */
+function urgent(id: string, archivedAt: number | null) {
+    return { id, scope: "board", folder: null, name: "urgent", archivedAt };
+}
+
 test("commit a transaction's changes, seeing its writes through its overlay, recording each row's first and last image and leaving rows it put back unchanged", async () => {
     const { database, base } = await open();
 
@@ -873,6 +878,32 @@ test("refuse a unique key a commit took after the transaction checked it as a lo
     await database.commit((transaction) => transaction.write(name("a")));
 
     // refuse the commit's failed insert as a lost race, a run repeating it
+    expect(await refusal(late.commit())).toEqual([
+        "CONFLICT",
+        "UPDATE_CONFLICT",
+        "cannot commit the transaction: another commit changed what it read in 'commit_label'",
+    ]);
+});
+
+test("refuse a unique key a commit's update took after the transaction checked it as a lost race", async () => {
+    // archive a label holding the name, so the name is free
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const storage = await TestDatabase.create([label], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.commit((transaction) =>
+        transaction.write({ table: label, before: null, after: urgent("a", 1) }),
+    );
+
+    // check the name free in a transaction, then let another commit restore the archived label
+    const late = await Transaction.open(database);
+    await late.write({ table: label, before: null, after: urgent("b", null) });
+    await database.commit((transaction) =>
+        transaction.write({ table: label, before: urgent("a", 1), after: urgent("a", null) }),
+    );
+
+    // refuse the commit's failed insert as a lost race, as the restore moved a row into the key
     expect(await refusal(late.commit())).toEqual([
         "CONFLICT",
         "UPDATE_CONFLICT",
