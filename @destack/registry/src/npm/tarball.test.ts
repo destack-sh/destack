@@ -72,10 +72,10 @@ test("pack an image's root build below package/ in path order, with what a listi
         read.push([entry.path, new TextDecoder().decode(await TarballEntry.bytes(entry))]);
     }
 
-    // release the package file at the linked version, the default tag where the image links none
+    // release the package file with its workspace dependencies as the default tag
     const released = {
         ...authored,
-        dependencies: { "@destack/object": ">=2026.11.2", zod: "4.1.0" },
+        dependencies: { "@destack/object": "latest", zod: "4.1.0" },
         peerDependencies: { "@destack/test": "*" },
         devDependencies: { "@destack/test": "latest" },
     };
