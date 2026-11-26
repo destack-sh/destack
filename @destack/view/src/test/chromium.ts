@@ -3,8 +3,14 @@ import { CompilerPool, outputsOf, Workspace } from "@destack/build";
 import { testStore } from "@destack/build/test";
 import { Toolchain } from "@destack/check/toolchain";
 import { OriginPath } from "@destack/package";
-import { BuildImage, type BuildReader } from "@destack/package/manifest";
-import { Digest, present, schema } from "@destack/schema";
+import {
+    BuildImage,
+    type BuildReader,
+    MODULE_TYPE,
+    ModuleResolution,
+    PackageManifest,
+} from "@destack/package/manifest";
+import { present, schema } from "@destack/schema";
 import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { chromium } from "playwright";
@@ -45,10 +51,18 @@ export default async function setup(project: TestProject): Promise<() => Promise
     }
     const image = await store.image(await workspace.image(await reader.digest()));
 
-    // map the package's imports below the build path, builtins at their linked builds
+    // resolve the package's modules, builtins at their linked builds
     const base = `${OriginPath.build}/`;
     const map = await BuildImage.imports(image, "browser", base, linked, (digest) =>
         store.get(digest),
+    );
+    const host = testHost();
+    const resolution = await ModuleResolution.of(
+        map,
+        image.root,
+        { builds: base, modules: `${OriginPath.module}/` },
+        async (build) => PackageManifest.dependencies(await store.get(build), "browser"),
+        host.crypto,
     );
     const frame = present(reader.manifest.outputs["browser"]?.frame, "the package's frame");
     const context = {
@@ -63,20 +77,25 @@ export default async function setup(project: TestProject): Promise<() => Promise
         catalogs: [],
     } satisfies ViewContext;
 
-    // answer the frame's document, the package's files, and its dependencies' files below the build path
-    const server = testHost().server.http({
+    // answer the frame, the modules and the package's files
+    const server = host.server.http({
         hostname: "127.0.0.1",
         port: 0,
         async fetch(request) {
             const { pathname } = new URL(request.url);
             // answer the frame's document
             if (pathname === OriginPath.frame) {
-                return ViewContext.document(context, frame.entrypoint, frame.stylesheets, map);
+                const entry = resolution.url(image.root, frame.entrypoint);
+                return ViewContext.document(context, entry, frame.stylesheets, []);
             }
-            // answer a dependency's file below the build path
-            else if (pathname.startsWith(base)) {
-                const [digest = "", ...path] = pathname.slice(base.length).split("/");
-                return await serve(await store.contents(Digest.parse(digest)), path.join("/"));
+            // answer a module
+            else if (pathname.startsWith(resolution.prefixes.modules)) {
+                const located = present(resolution.locate(pathname), `module '${pathname}'`);
+                const build = await store.contents(located.build);
+                const served = await serve(build, located.path);
+                return served.headers.get("content-type") === MODULE_TYPE
+                    ? new Response(await resolution.rewrite(await served.text(), pathname), served)
+                    : served;
             }
             // answer a file of the package
             else {

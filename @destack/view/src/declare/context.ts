@@ -1,5 +1,4 @@
 import { DeclarationName, OriginPath } from "@destack/package";
-import { ImportMap } from "@destack/package/manifest";
 import { Digest, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { ViewError } from "../error/error.ts";
@@ -119,18 +118,19 @@ export const ViewContext = Object.assign(viewContext, {
         return found;
     },
 
-    /** Write the document mounting a view with its context, import map, stylesheets and entry. */
+    /** Write the document mounting a view. */
     document(
         context: ViewContext,
-        entrypoint: string,
+        entry: string,
         stylesheets: readonly string[],
-        map: ImportMap,
+        preloads: readonly string[],
     ): Response {
         // escape the context for its script element, and link the stylesheets below the base
         const json = JSON.stringify(viewContext.parse(context)).replaceAll("<", "\\u003c");
         const links = stylesheets.map(
             (stylesheet) => `<link rel="stylesheet" href="${context.base}/${stylesheet}">\n`,
         );
+        const preloaded = preloads.map((module) => `<link rel="modulepreload" href="${module}">\n`);
         const html = `<!doctype html>
 <html>
 <head>
@@ -138,8 +138,7 @@ export const ViewContext = Object.assign(viewContext, {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <script type="application/json" id="${CONTEXT_ELEMENT}">${json}</script>
-${ImportMap.script(map)}
-${links.join("")}<script type="module" src="${context.base}/${entrypoint}"></script>
+${links.join("")}${preloaded.join("")}<script type="module" src="${entry}"></script>
 </head>
 <body></body>
 </html>

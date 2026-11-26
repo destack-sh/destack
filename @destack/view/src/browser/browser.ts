@@ -67,12 +67,7 @@ export async function mount(
     const requested = Promise.withResolvers<JsonObject>();
     const election = DeviceElection.start(
         deviceName,
-        BrowserTab.worker(
-            workerOf(deviceWorker, context),
-            deviceName,
-            requested.promise,
-            environment,
-        ),
+        BrowserTab.worker(deviceWorker, deviceName, requested.promise, environment),
         environment,
     );
 
@@ -693,18 +688,4 @@ function typeOf(
     { packageId, type }: Pick<ObjectTypeReference, "packageId" | "type">,
 ): ObjectType | undefined {
     return view.objects.find((each) => each.package.id === packageId && each.name === type);
-}
-
-/** Point a device worker at its module below the page's image, where the origin resolves it. */
-function workerOf(worker: URL, context: ViewContext): URL {
-    // move the module's path below the page's base into the image's worker namespace
-    const resolved = new URL(worker);
-    const entry = new URL(present(worker.searchParams.get("entry"), "the device module"));
-    const path = entry.pathname.slice(context.base.length);
-    resolved.searchParams.set(
-        "entry",
-        new URL(`${context.base}${OriginPath.worker}/${context.build}${path}`, entry).href,
-    );
-
-    return resolved;
 }
