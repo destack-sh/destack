@@ -6,7 +6,6 @@ export function describeAuditAction(action: AuditAction): AuditActionDescription
     return AuditActionDescription.parse({
         name: action.name,
         package: action.package,
-        ...(action.description === undefined ? {} : { description: action.description }),
         target: toJsonSchema(action.target),
         details: toJsonSchema(action.details),
     });

@@ -13,8 +13,6 @@ export const AuditActionDescription = schema.object({
     name: AuditActionName,
     /** The declaring package. */
     package: PackageVersion,
-    /** A short description. */
-    description: schema.string().exactOptional(),
     /** The JSON Schema of the object each call acts on. */
     target: schema.json(),
     /** The JSON Schema of the action details. */
@@ -32,8 +30,6 @@ export interface AuditAction<
     readonly package: PackageVersion;
     /** The package-local noun.verb action name. */
     readonly name: string;
-    /** A short description for inspection. */
-    readonly description?: string;
     /** The object each call acts on. */
     readonly target: Target;
     /** The serializable action details. */
