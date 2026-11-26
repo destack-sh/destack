@@ -17,6 +17,8 @@ export class BuildDirectory {
     readonly #retained = new Map<string, Uint8Array<ArrayBuffer>>();
     /** The copies of source files started so far, by package path. */
     readonly #copies = new Map<string, Promise<void>>();
+    /** The latest write or copy of each path, which the next one of the path waits for. */
+    readonly #pending = new Map<string, Promise<void>>();
 
     /** Collect the files of a build directory. */
     constructor(directory: string, environment: Environment<"files">) {
@@ -54,9 +56,11 @@ export class BuildDirectory {
         this.#retained.set(path, bytes);
     }
 
-    /** Write a file once, accepting a second write of equal bytes. */
+    /** Write a file once, accepting a second write of equal bytes, after any copy of the path. */
     async write(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
-        await this.#writer.write(path, bytes);
+        await this.#serialize(path, async () => {
+            await this.#writer.write(path, bytes);
+        });
     }
 
     /** Copy a source file into the build once and record it, however many outputs reference it. */
@@ -67,17 +71,34 @@ export class BuildDirectory {
             return started;
         }
 
-        // copy the file below its package path, then record it
+        // copy the file below its package path and record it, unless an output wrote the path already
         const { files } = this.environment;
         const destination = join(this.directory, path);
-        const copying = (async () => {
-            await files.mkdir(dirname(destination), { recursive: true });
-            await files.copyFile(source, destination);
-            await this.record(path);
-        })();
+        const copying = this.#serialize(path, async () => {
+            if (!this.#writer.has(path)) {
+                await files.mkdir(dirname(destination), { recursive: true });
+                await files.copyFile(source, destination);
+                await this.record(path);
+            }
+        });
         this.#copies.set(path, copying);
 
         return copying;
+    }
+
+    /** Run a write or copy of a path after the path's previous one, whatever its outcome. */
+    #serialize(path: string, run: () => Promise<void>): Promise<void> {
+        // chain the run after the path's previous one, a failed one included
+        const previous = this.#pending.get(path) ?? Promise.resolve();
+        const next = previous.catch(() => {}).then(run);
+        this.#pending.set(path, next);
+
+        return next;
+    }
+
+    /** Record a file another build stores, by its description, without writing its bytes here. */
+    add(file: PackageFile): void {
+        this.#writer.add(file);
     }
 
     /** Record a file a compiler wrote, hashing it without reading it whole into memory. */
