@@ -1,3 +1,4 @@
+import { Color } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -127,12 +128,12 @@ export const DOT_GRID_PROPERTIES = {
     ...PATTERN_SIZING_PROPERTIES,
     colorBack: COLOR_BACK.default("#000000"),
     colorFill: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Fill`)
         .described(t`The color inside each shape.`)
         .default("#ffffff"),
     colorStroke: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Stroke`)
         .described(t`The color of each shape's outline.`)
         .default("#ffaa00"),

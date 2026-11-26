@@ -1,5 +1,5 @@
 import { ActionInput } from "@destack/object";
-import { JsonValue } from "@destack/schema";
+import { JsonValue, LocalReference } from "@destack/schema";
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import type { Component } from "@destack/view/declare";
@@ -94,9 +94,9 @@ function otherValue(
         return value.choices.find((choice) => choice.value !== current)?.value ?? "";
     } else if (value.kind === "boolean") {
         return current !== true;
-    } else if (value.kind === "color") {
+    } else if (value.kind === "json" && LocalReference.root(value.schema) === "color") {
         return CHANGED_COLOR;
-    } else if (value.kind === "colors") {
+    } else if (value.kind === "json" && LocalReference.root(value.schema) === "palette") {
         return [CHANGED_COLOR];
     } else if (value.kind === "number") {
         const low = value.minimum ?? 0;

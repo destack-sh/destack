@@ -1,3 +1,4 @@
+import { Color } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -531,17 +532,17 @@ export const PAPER_TEXTURE_PROPERTIES = {
     ...SIZING_PROPERTIES,
     scale: SIZING_PROPERTIES.scale.default(0.9),
     colorBack: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Background`)
         .described(t`The color behind the paper sheet.`)
         .default("#d3d2ab"),
     colorPaper: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Paper`)
         .described(t`The color of the paper sheet.`)
         .default("#ffffff"),
     colorShadow: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Shadow`)
         .described(t`The color of the patterns on the paper.`)
         .default("#cccccc"),

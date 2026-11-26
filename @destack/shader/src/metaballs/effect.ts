@@ -1,3 +1,4 @@
+import { Palette } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -119,7 +120,7 @@ export const METABALLS_PROPERTIES = {
     ...SIZING_PROPERTIES,
     colorBack: COLOR_BACK.default("#000000"),
     colors: field
-        .colors({ minimum: 1, maximum: METABALLS_MAX_COLOR_COUNT })
+        .json(Palette.min(1).max(METABALLS_MAX_COLOR_COUNT))
         .labeled(t.context("label")`Colors`)
         .described(t`The colors the effect blends, in order.`)
         .default(["#6e33cc", "#ff5500", "#ffc105", "#ffc800", "#f585ff"]),

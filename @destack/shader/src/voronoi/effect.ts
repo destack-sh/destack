@@ -1,3 +1,4 @@
+import { Color, Palette } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -144,7 +145,7 @@ export const VORONOI_PROPERTIES = {
     ...PATTERN_SIZING_PROPERTIES,
     scale: PATTERN_SIZING_PROPERTIES.scale.default(0.5),
     colors: field
-        .colors({ minimum: 1, maximum: VORONOI_MAX_COLOR_COUNT })
+        .json(Palette.min(1).max(VORONOI_MAX_COLOR_COUNT))
         .labeled(t.context("label")`Colors`)
         .described(t`The colors the effect blends, in order.`)
         .default(["#ff8247", "#ffe53d"]),
@@ -154,12 +155,12 @@ export const VORONOI_PROPERTIES = {
         .described(t`How many colors lie between each two given ones.`)
         .default(3),
     colorGlow: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Glow color`)
         .described(t`The color of the glow inside each cell.`)
         .default("#ffffff"),
     colorGap: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Gap color`)
         .described(t`The color of the gaps between cells.`)
         .default("#2e0000"),

@@ -1,3 +1,4 @@
+import { Color } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -313,22 +314,22 @@ export const HALFTONE_CMYK_PROPERTIES = {
     fit: SIZING_PROPERTIES.fit.default("cover"),
     colorBack: COLOR_BACK.default("#fbfaf5"),
     colorC: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Cyan`)
         .described(t`The cyan ink.`)
         .default("#00b4ff"),
     colorM: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Magenta`)
         .described(t`The magenta ink.`)
         .default("#fc519f"),
     colorY: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Yellow`)
         .described(t`The yellow ink.`)
         .default("#ffd800"),
     colorK: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Black`)
         .described(t`The black ink.`)
         .default("#231f20"),

@@ -1,3 +1,4 @@
+import { Color, Palette } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -140,12 +141,12 @@ export const GOD_RAYS_PROPERTIES = {
     offsetY: SIZING_PROPERTIES.offsetY.default(-0.55),
     colorBack: COLOR_BACK.default("#000000"),
     colorBloom: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Bloom color`)
         .described(t`The color blended over the rays.`)
         .default("#0000ff"),
     colors: field
-        .colors({ minimum: 1, maximum: GOD_RAYS_MAX_COLOR_COUNT })
+        .json(Palette.min(1).max(GOD_RAYS_MAX_COLOR_COUNT))
         .labeled(t.context("label")`Colors`)
         .described(t`The colors the effect blends, in order.`)
         .default(["#a600ff6e", "#6200fff0", "#ffffff", "#33fff5"]),

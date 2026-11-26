@@ -1,16 +1,17 @@
+import { Color } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
 
 /** An effect's background, each effect giving its default. */
 export const COLOR_BACK = field
-    .color()
+    .json(Color.schema)
     .labeled(t.context("label")`Background`)
     .described(t`The color behind the effect.`);
 
 /** An effect's foreground, each effect giving its default. */
 export const COLOR_FRONT = field
-    .color()
+    .json(Color.schema)
     .labeled(t.context("label")`Foreground`)
     .described(t`The color the effect draws in.`);
 
@@ -22,7 +23,7 @@ export const DOT_SIZE = field
 
 /** An effect's highlight, each effect giving its default. */
 export const COLOR_HIGHLIGHT = field
-    .color()
+    .json(Color.schema)
     .labeled(t.context("label")`Highlight`)
     .described(t`The color of the highlights.`);
 

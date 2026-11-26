@@ -1,3 +1,4 @@
+import { Palette } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -97,7 +98,7 @@ export const SIMPLEX_NOISE_PROPERTIES = {
     ...PATTERN_SIZING_PROPERTIES,
     scale: PATTERN_SIZING_PROPERTIES.scale.default(0.6),
     colors: field
-        .colors({ minimum: 1, maximum: SIMPLEX_NOISE_MAX_COLOR_COUNT })
+        .json(Palette.min(1).max(SIMPLEX_NOISE_MAX_COLOR_COUNT))
         .labeled(t.context("label")`Colors`)
         .described(t`The colors the effect blends, in order.`)
         .default(["#4449CF", "#FFD1E0", "#F94446", "#FFD36B", "#FFFFFF"]),

@@ -1,3 +1,4 @@
+import { Color } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -394,7 +395,7 @@ export const FLUTED_GLASS_PROPERTIES = {
     fit: SIZING_PROPERTIES.fit.default("cover"),
     colorBack: COLOR_BACK.default("#00000000"),
     colorShadow: field
-        .color()
+        .json(Color.schema)
         .labeled(t.context("label")`Shadow`)
         .described(t`The color of the shadows.`)
         .default("#000000"),

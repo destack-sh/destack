@@ -1,3 +1,4 @@
+import { Palette } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -134,7 +135,7 @@ export const STATIC_MESH_GRADIENT_PROPERTIES = {
     ...SIZING_PROPERTIES,
     rotation: SIZING_PROPERTIES.rotation.default(270),
     colors: field
-        .colors({ minimum: 1, maximum: STATIC_MESH_GRADIENT_MAX_COLOR_COUNT })
+        .json(Palette.min(1).max(STATIC_MESH_GRADIENT_MAX_COLOR_COUNT))
         .labeled(t.context("label")`Colors`)
         .described(t`The colors the effect blends, in order.`)
         .default(["#ffad0a", "#6200ff", "#e2a3ff", "#ff99fd"]),
