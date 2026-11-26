@@ -13,6 +13,7 @@
         "./motion": "./src/motion/index.ts",
         "./text": "./src/text/index.ts",
         "./state": "./src/state/index.ts",
+        "./swatch": "./src/swatch/index.ts",
         "./code": "./src/code/index.ts",
         "./theme.css": "./src/theme/theme.css",
         "./tokens.json": "./src/token/tokens.json",
