@@ -16,6 +16,7 @@ import { Scope } from "@destack/sync";
 import type { ObjectRemote } from "@destack/object/client";
 import { account } from "../object/account.ts";
 import { region } from "../object/region.ts";
+import { organization } from "../object/organization.ts";
 import { space } from "../object/space.ts";
 import { claim } from "../object/claim.ts";
 import { machine } from "../object/machine.ts";
@@ -74,6 +75,7 @@ export const TestDirectory = {
                 implementSpace(STACKS, (accountId) => entitlement.of(accountId)),
                 relationship,
             ]),
+            policies: [account, organization],
             claims: { object: claim },
             database,
             callKey: testCallKey,
@@ -100,8 +102,8 @@ export const TestDirectory = {
         };
     },
 
-    /** Place a space on a machine at an epoch, moving to a target by a transfer when given. */
-    async place(
+    /** Write the rows of a space placed on a machine, moving to a target when given. */
+    async writePlacement(
         database: DatabaseConnection,
         placed: Placement,
         clock: Clock,
@@ -112,8 +114,34 @@ export const TestDirectory = {
             readonly transferId: Identifier<"transfer">;
         } | null = null,
     ): Promise<void> {
-        // write the space a placement belongs to once, then the placement or a replacement of it
+        // write the placed space's region, organization and account once, then its placement
         const now = clock.now();
+        const placedRegion = {
+            id: Identifier.derive("region", Identifier.uuid(placed.scope)),
+            scope: Scope.universe.id,
+            code: "eu",
+            name: "Europe",
+            relay: "https://relay.test/",
+            createdAt: now,
+            updatedAt: now,
+        };
+        const placedOrganization = {
+            id: Identifier.derive("organization", Identifier.uuid(placed.scope)),
+            scope: Scope.universe.id,
+            name: "Placed",
+            payer: placed.scope,
+            createdAt: now,
+            updatedAt: now,
+        };
+        const placedAccount = {
+            id: placed.scope,
+            scope: placedOrganization.id,
+            handle: `placed-${placed.scope.slice(-12)}`,
+            name: "Placed",
+            regionId: placedRegion.id,
+            createdAt: now,
+            updatedAt: now,
+        };
         const stored = {
             id: placed.space,
             scope: placed.scope,
@@ -134,7 +162,29 @@ export const TestDirectory = {
             } as const,
         };
         await database.transaction(async (transaction) => {
-            // store the space once, then its placement
+            // store the region, the organization, its account and the space once, then its placement
+            await transaction.insert(region.table).values(placedRegion).onConflictDoNothing();
+            await transaction
+                .insert(organization.table)
+                .values(placedOrganization)
+                .onConflictDoNothing();
+            await transaction.insert(account.table).values(placedAccount).onConflictDoNothing();
+            for (const [type, scope, parent, ancestors] of [
+                ["organization", placedOrganization.id, Scope.universe.id, []],
+                ["account", placed.scope, placedOrganization.id, [placedOrganization.id]],
+            ] as const) {
+                await transaction
+                    .insert(Scope.table)
+                    .values({
+                        scope,
+                        parent,
+                        partition: Scope.universe.id,
+                        packageId: accountPackage.id,
+                        type,
+                        ancestors: [...ancestors],
+                    })
+                    .onConflictDoNothing();
+            }
             await transaction.insert(space.table).values(stored).onConflictDoNothing();
             await transaction
                 .insert(placement.table)
@@ -166,11 +216,26 @@ export const TestDirectory = {
             await transaction
                 .insert(accessRelationship)
                 .values(Relationship.encode(serving, scope));
+
+            // let it serve the space's account once, as the placement relates it
+            const server = {
+                id: Identifier.derive("relationship", Identifier.uuid(placed.machine), 1),
+                object: account.reference(placedAccount.scope, placed.scope),
+                relation: "server",
+                subject: principal.machine.reference(Scope.universe.id, placed.machine),
+                createdAt: now,
+                expiresAt: null,
+            };
+            const accountScope = await Relationship.scope(transaction.snapshot(), server);
+            await transaction
+                .insert(accessRelationship)
+                .values(Relationship.encode(server, accountScope))
+                .onConflictDoNothing();
         });
     },
 
-    /** Store a machine answering at a URL, or answering nowhere. */
-    async publish(
+    /** Write the rows of a machine answering at a URL, or answering nowhere. */
+    async writeMachine(
         database: DatabaseConnection,
         id: Identifier<"machine">,
         scope: Identifier<"account">,
@@ -227,7 +292,7 @@ export const TestDirectory = {
         // store the machine, and let machines start and extend identities as the universe's machine role does
         const { clock } = environment;
         const serving = principal.machine.reference(Scope.universe.id, machineId);
-        await TestDirectory.publish(database, machineId, accountId, null, clock);
+        await TestDirectory.writeMachine(database, machineId, accountId, null, clock);
         const access = new TestAccess(database, environment);
         await access.replicateRelationship(
             Scope.universe,

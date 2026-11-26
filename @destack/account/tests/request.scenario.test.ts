@@ -397,7 +397,13 @@ test("locate a signed-in person's Home once its machine reports it serving, star
                 .where(eq(placement.table.spaceId, home)),
     );
     const serving = await located();
-    await TestDirectory.publish(fixture.database, row.machineId, row.scope, null, fixture.clock);
+    await TestDirectory.writeMachine(
+        fixture.database,
+        row.machineId,
+        row.scope,
+        null,
+        fixture.clock,
+    );
     const unanswered = await located();
     const signedOut = await fixture.browser().fetch(HOME_LOCATION_PATH);
 
