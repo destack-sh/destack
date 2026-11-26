@@ -43,7 +43,7 @@ export const PackageOutput = schema.object({
 export type PackageOutput = schema.Infer<typeof PackageOutput>;
 
 /** A specifier a module resolves against its own path: one starting at a directory or the root. */
-const RELATIVE_SPECIFIER = /^(?:\.{1,2})?\//u;
+export const RELATIVE_SPECIFIER = /^(?:\.{1,2})?\//u;
 
 /** The start of an import expression, which a module may give a computed name. */
 const IMPORT_CALL = /^import\s*\(/u;
@@ -261,7 +261,7 @@ function resolveIn(
 }
 
 /** Parse a module's imports, loading the lexer only once a caller reads a module. */
-async function parseImports(
+export async function parseImports(
     code: string,
 ): Promise<ReturnType<typeof import("es-module-lexer/js").parse>> {
     const lexer = await import("es-module-lexer/js");

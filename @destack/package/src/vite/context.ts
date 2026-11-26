@@ -178,7 +178,7 @@ function isDisposing(block: ESTree.BlockStatement): boolean {
 }
 
 /** List a node's child nodes in source order. */
-function children(node: ESTree.Node): ESTree.Node[] {
+export function children(node: ESTree.Node): ESTree.Node[] {
     // take each property holding a node or a list of nodes
     const found: ESTree.Node[] = [];
     for (const [key, value] of Object.entries(node)) {

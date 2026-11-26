@@ -1,6 +1,6 @@
 import { Digest, type DigestCrypto, present } from "@destack/schema";
 import { DependencyName } from "../definition/index.ts";
-import { ImportMap } from "./output.ts";
+import { ImportMap, RELATIVE_SPECIFIER } from "./output.ts";
 
 /** The hex digits of a resolution digest in a module URL: 64 bits. */
 const RESOLUTION_LENGTH = 16;
@@ -136,6 +136,23 @@ export class ModuleResolution {
         const build = this.#segments.get(segment);
 
         return build === undefined ? undefined : { build: build.digest, path: path.join("/") };
+    }
+
+    /** Resolve a specifier a module imports to a module URL, absent for one the image lacks. */
+    resolve(specifier: string, importer: string): string | undefined {
+        // resolve a bare specifier through the importer's build, a relative one against the importer
+        const located = present(this.locate(importer), `module '${importer}' of the image`);
+        const build = present(this.#builds.get(located.build), "the module's build");
+        const mapped = ImportMap.resolve(
+            { imports: build.imports, scopes: {} },
+            specifier,
+            importer,
+        );
+        const isRelative = RELATIVE_SPECIFIER.test(specifier);
+
+        return (
+            mapped ?? (isRelative ? new URL(specifier, `file://${importer}`).pathname : undefined)
+        );
     }
 
     /** Rewrite a module's bare imports to module URLs. */

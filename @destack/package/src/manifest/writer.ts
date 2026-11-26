@@ -113,6 +113,11 @@ export class BuildWriter {
         }
     }
 
+    /** Report whether a file is written, or being written, at a path. */
+    has(path: string): boolean {
+        return this.#files.has(path);
+    }
+
     /** Read the description of a written file. */
     file(path: string): PackageFile {
         const file = this.#files.get(path);

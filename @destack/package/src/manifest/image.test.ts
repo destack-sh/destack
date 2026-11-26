@@ -96,12 +96,17 @@ function written(
     crypto: Crypto,
     outputs: Readonly<Record<string, PackageOutput>> = {},
     built: PackageManifest["package"] = ANSWER,
+    requires: Readonly<Record<string, string>> = {},
 ): Promise<BuildReader> {
     const files = Object.entries(sources).map(
         ([path, text]) => [path, new TextEncoder().encode(text)] as const,
     );
 
-    return MemoryBuild.write(new Map(files), { role: "app", package: built, outputs }, crypto);
+    return MemoryBuild.write(
+        new Map(files),
+        { role: "app", package: built, outputs, requires },
+        crypto,
+    );
 }
 
 /** Keep written builds in memory by digest, reading each manifest back. */
@@ -355,5 +360,65 @@ test("map a builtin at its linked build in every scope, with the builds it impor
             },
         },
         builds: new Set([application, middle, linked, deep]),
+    });
+});
+
+test("map an npm package at the platform's unit where the range accepts it, else at the image's own", async () => {
+    // store an npm unit the application links, and the platform's unit of the same package a builtin links
+    const { crypto } = testSimulation().environment("test");
+    const { put, read } = stored();
+    const tiny = { name: "tiny", version: "1.0.0", integrity: "sha512-tiny" };
+    const own = await put(
+        await written({ "src/own.ts": "export {};\n" }, crypto, browserOutputs({ ".": [] }), tiny),
+    );
+    const platform = await put(
+        await written(
+            { "src/platform.ts": "export {};\n" },
+            crypto,
+            browserOutputs({ ".": [] }),
+            tiny,
+        ),
+    );
+    const builtin = {
+        id: PackageId.parse("package-00000000-0000-7000-8000-00000000a006"),
+        name: "@example/builtin",
+        version: "2026.11.0",
+    };
+    const linked = await put(
+        await written(
+            { "src/builtin.ts": "export {};\n" },
+            crypto,
+            browserOutputs({ ".": ["tiny"] }),
+            builtin,
+        ),
+    );
+    const application = (range: string) =>
+        written(
+            SOURCES,
+            crypto,
+            browserOutputs({ "./view": ["tiny", "@example/builtin"] }, "./view"),
+            ANSWER,
+            { tiny: range },
+        );
+    const accepting = await put(await application("^1.0.0"));
+    const refusing = await put(await application("^2.0.0"));
+
+    // map each application's npm import: the platform's unit where its range accepts it, else its own
+    const builtins = new Map([
+        [builtin.name, BuildImage.of(linked, { [linked]: { tiny: platform }, [platform]: {} })],
+    ]);
+    const mapped = (root: typeof accepting) =>
+        BuildImage.imports(
+            imageOf(root, { tiny: own }),
+            "browser",
+            "/.destack/build/",
+            builtins,
+            read,
+        );
+    const [accepted, refused] = await Promise.all([mapped(accepting), mapped(refusing)]);
+
+    expect({ accepted: accepted.imports["tiny"], refused: refused.imports["tiny"] }).toEqual({
+        accepted: `/.destack/build/${platform}/browser/index.js`,
+        refused: `/.destack/build/${own}/browser/index.js`,
     });
 });

@@ -7,12 +7,16 @@ import { Edge } from "../graph/edge.ts";
 import { PackageError } from "../error/index.ts";
 import { PackageLocation, PackageManifest } from "./manifest.ts";
 import type { Runtime } from "../runtime/runtime.ts";
+import { parseImports } from "./output.ts";
 
 /** The path of a build's root manifest beside its files, in stores and running workloads. */
 export const MANIFEST_PATH = "manifest.json";
 
 /** The runtimes that load a build's modules by import from the store. */
 export const LOADED_RUNTIMES: ReadonlySet<Runtime> = new Set<Runtime>(["workerd", "browser"]);
+
+/** A specifier naming a package by name: no relative or absolute path, and no URL scheme. */
+const BARE_SPECIFIER = /^(?![./]|[a-z][a-z0-9+.-]*:)/u;
 
 /** The suffix of a module's source map beside it. */
 const MAP_SUFFIX = ".map";
@@ -137,6 +141,24 @@ export class BuildReader {
         return new Set(names);
     }
 
+    /** List the bare specifiers the build's modules on a runtime import by a literal name. */
+    async specifiers(runtime: Runtime): Promise<ReadonlySet<string>> {
+        // parse each module's imports, keeping the literal ones naming no path or URL
+        const specifiers = new Set<string>();
+        const build = await this.digest();
+        for (const name of await this.modules(runtime)) {
+            const code = new TextDecoder().decode(await this.load(name.slice(build.length + 1)));
+            const [imports] = await parseImports(code);
+            for (const { specifier } of imports) {
+                if (typeof specifier === "string" && BARE_SPECIFIER.test(specifier)) {
+                    specifiers.add(specifier);
+                }
+            }
+        }
+
+        return specifiers;
+    }
+
     /** Name the modules the build runs by itself: all of an output with workloads or views. */
     async entries(runtime: Runtime): Promise<string[]> {
         // take every module of an output that starts workloads or mounts views, as documents name them by URL
@@ -206,6 +228,15 @@ export class BuildReader {
         await PackageFile.verify(file, bytes.subarray(0, size), this.#crypto);
 
         return bytes;
+    }
+
+    /** Report whether the build distributes a file at a path. */
+    async has(path: string): Promise<boolean> {
+        const listed = await this.#listed.get(
+            async () => new Map((await this.files()).map((file) => [file.path, file])),
+        );
+
+        return this.lists().some((file) => file.path === path) || listed.has(path);
     }
 
     /** Read a distributed file's listing by its path, refusing an unlisted path. */

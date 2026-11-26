@@ -1,5 +1,5 @@
 import type { Crypto } from "@destack/environment";
-import { canonicalize, Digest, present, schema } from "@destack/schema";
+import { canonicalize, Digest, present, schema, Version } from "@destack/schema";
 import type { DependencyRelease } from "../definition/dependency.ts";
 import { DependencyName } from "../definition/package.ts";
 import { PackageManifest } from "./manifest.ts";
@@ -44,6 +44,28 @@ export const BuildImage = Object.assign(image, {
         builds: Readonly<Record<Digest, Readonly<Record<string, Digest>>>> = {},
     ): BuildImage {
         return { formatVersion: IMAGE_FORMAT, root, builds: { [root]: {}, ...builds } };
+    },
+
+    /** Make an image with some builds replaced by others, in its builds and its links. */
+    relinked(value: BuildImage, replaced: ReadonlyMap<Digest, Digest>): BuildImage {
+        const replace = (digest: Digest) => replaced.get(digest) ?? digest;
+        const builds = Object.fromEntries(
+            Object.entries(value.builds).map(([digest, links]) => [
+                replace(Digest.parse(digest)),
+                Object.fromEntries(
+                    Object.entries(links).map(([name, target]) => [name, replace(target)]),
+                ),
+            ]),
+        );
+
+        return BuildImage.of(replace(value.root), builds);
+    },
+
+    /** Make an image of the same builds on another root build, linking what the root linked. */
+    rooted(value: BuildImage, root: Digest): BuildImage {
+        const { [value.root]: links = {}, ...others } = value.builds;
+
+        return BuildImage.of(root, { ...others, [root]: links });
     },
 
     /** Make an image of a root with one build per package, hoisted as npm does, linked by name. */
@@ -308,11 +330,23 @@ export const BuildImage = Object.assign(image, {
         base: string,
         linked: ReadonlyMap<string, BuildImage>,
         read: (manifest: Digest) => Promise<PackageManifest>,
+        entries: "run" | "export" = "run",
     ): Promise<ImportMap> {
-        // read the builds the root's modules import on the runtime
-        const loaded = await BuildImage.loads(value, runtime, read);
+        // read the builds the root's modules import on the runtime, from what it runs or from every export
+        const loaded = await BuildImage.loads(value, runtime, read, entries);
         const links = [...linked.values()].flatMap((each) => Object.entries(each.builds));
         const builtins = BuildImage.of(value.root, Object.fromEntries(links));
+
+        // read the npm units the linked builtins link, by package name, which the root's side takes when they meet its range
+        const platform = new Map<string, { readonly digest: Digest; readonly version: string }[]>();
+        for (const [build] of links) {
+            const digest = Digest.parse(build);
+            const manifest = await read(digest);
+            if (!PackageManifest.isPackage(manifest)) {
+                const { name, version } = manifest.package;
+                platform.set(name, [...(platform.get(name) ?? []), { digest, version }]);
+            }
+        }
 
         // map each dependency's exports in its dependent's scope
         const map: ImportMap = { imports: {}, scopes: {} };
@@ -332,6 +366,18 @@ export const BuildImage = Object.assign(image, {
                     // take the build itself for its package's name, as a package imports its exports by it
                     if (name === own) {
                         return [{ name, manifest: digest, isLinked }];
+                    }
+
+                    // take the platform's build of an npm package it links at a version the dependent accepts, so the page loads one copy
+                    const range = dependent.requires[name];
+                    const unit =
+                        isLinked || range === undefined
+                            ? undefined
+                            : platform
+                                  .get(name)
+                                  ?.find((each) => Version.meets(each.version, range));
+                    if (unit !== undefined) {
+                        return [{ name, manifest: unit.digest, isLinked: true }];
                     }
 
                     // take the image's build of a name
