@@ -6,6 +6,7 @@
     "description": "Name Phosphor icons and store their SVG bodies, each one loaded only where it is used.",
     "exports": {
         ".": "./src/index.ts",
+        "./name": "./src/name/index.ts",
         "./phosphor/*": "./src/phosphor/icon/*.ts",
         "./icons": "./src/phosphor/icons.ts"
     },
