@@ -5,10 +5,9 @@ import type { Environment } from "@destack/environment";
 import type { BrowserCapability, BrowserEnvironment } from "@destack/environment/browser";
 import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
-import { present, schema, Version } from "@destack/schema";
+import { type JsonObject, present, schema, Version } from "@destack/schema";
 import { OriginPath, PackageId } from "@destack/package";
-import { ImportMap } from "@destack/package/manifest";
-import { BrowserTab } from "@destack/object/browser";
+import { BrowserTab, DeviceElection } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
@@ -63,6 +62,20 @@ export async function mount(
     const context = ViewContext.parse(JSON.parse(element.textContent));
     const release = view.package.version;
 
+    // stand for the person's device of this installation at once, its worker loading while the page asks for its request
+    const deviceName = `${context.installation}.${context.user.id}`;
+    const requested = Promise.withResolvers<JsonObject>();
+    const election = DeviceElection.start(
+        deviceName,
+        BrowserTab.worker(
+            workerOf(deviceWorker, context),
+            deviceName,
+            requested.promise,
+            environment,
+        ),
+        environment,
+    );
+
     // export the page's telemetry and uncaught failures to its origin, which stamps the build it serves
     const { network, navigation } = environment;
     const exporter = OtlpExporter.http(
@@ -79,191 +92,216 @@ export async function mount(
         window,
     );
 
-    // open the view's scopes below the page's base, a person's own scope on this browser's device
-    const origin = new URL(navigation.currentEntry.url).origin;
-    const root = `${origin}${context.base}`;
-    const isPerson = principal.user.is(context.user);
-    const device = isPerson
-        ? await new BrowserClient({
-              path: `${context.base}${OriginPath.session}`,
-              origin,
-              environment,
-          }).device()
-        : undefined;
-    const authorization = new PageAuthorization(root, environment);
-    const call = pageOrigin(root, authorization);
-    const { tabs, open } = await openTabs(
-        context,
-        view,
-        { device, root, worker: deviceWorker },
-        environment,
-    );
-    const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
-    const packages = mountPackages(view.packages, context.space, call);
-    const connections = new Map<string, ObjectConnection>();
-    const connect = (path: string, scope: string): ObjectConnection => {
-        // connect to each path's store once for the page, each scope over its socket
-        const known = connections.get(path);
-        if (known !== undefined) {
-            return known.at(scope);
-        }
-        const connection = ObjectConnection.open({
-            scope,
-            url: ObjectConnection.url(`${root}${path}`),
-            homes: (home) => connect(ScopePath.of(home), home),
-            environment,
-        });
-        connections.set(path, connection);
+    // mount the page in a span, each of its phases in its own
+    const instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
 
-        return connection;
-    };
+    return await instruments.span(
+        "destack.page.mount",
+        { "destack.view.name": view.name },
+        async () => {
+            // load the view's component beside the tabs, as it needs none of them
+            const component = instruments.span("destack.page.component", {}, () =>
+                view.component(),
+            );
 
-    // resolve what the page shows its person, or a visitor under the package's theme, else Destack's
-    const stopping = new AbortController();
-    const theme = declared.theme === undefined ? destackTheme : new Theme(declared.theme);
-    const page = { context, packageId: view.package.id, theme };
-    const shown =
-        device === undefined
-            ? visitor(page, environment.locale)
-            : follow(
-                  present(tabs.get(context.user.id), "the person's own scope"),
-                  page,
-                  device,
-                  stopping.signal,
-              );
-    const opened = await shown.next();
-    if (opened.done === true) {
-        throw new TypeError("the person's presentation ended before the page showed");
-    }
-    const first = opened.value;
-    restyle(first);
-
-    // reload a development build once its origin serves another build, as live reload servers do
-    if (release === Version.development) {
-        void reloadOnChange(
-            `${root}${OriginPath.reload}`,
-            context.build,
-            environment,
-            stopping.signal,
-        );
-    }
-
-    // render the root component under the view, its clients and its actions, once its package's catalogs arrive
-    const { default: Component } = await view.component();
-    const [keybindings, setKeybindings] = createSignal(first.keybindings, { ownedWrite: true });
-    const actions = new ActionRegistry(keybindings);
-    actions.attach({ clients, scope: context.space });
-
-    // act on the object the view opened for, and offer the package's actions on the types it opens
-    const { target } = context;
-    if (target !== undefined) {
-        actions.provide(() => Place.showing(target));
-    }
-    for (const { name, description } of declared.actions) {
-        const types = [
-            description.call,
-            ...(description.call?.inputs.map(({ type }) => type) ?? []),
-        ];
-        const isOpened = types.every(
-            (type) => type === undefined || typeOf(view, type) !== undefined,
-        );
-        if (isOpened) {
-            const read = (type: ObjectTypeReference) =>
-                present(typeOf(view, type), `the type ${type.type}`);
-            actions.offer(Action.of(name, description, read));
-        }
-    }
-    const rendering = await LocalizedRendering.open(
-        (locale, localization) =>
-            renderView(Component, document.body, {
-                package: { ...view.package, version: release },
-                environment: { ...environment, telemetry },
-                localization,
-                actions,
-                mount: {
+            // open the view's scopes below the page's base, a person's own scope on this browser's device
+            const origin = new URL(navigation.currentEntry.url).origin;
+            const root = `${origin}${context.base}`;
+            const isPerson = principal.user.is(context.user);
+            const device = isPerson
+                ? await instruments.span("destack.page.session", {}, () =>
+                      new BrowserClient({
+                          path: `${context.base}${OriginPath.session}`,
+                          origin,
+                          environment,
+                      }).device(),
+                  )
+                : undefined;
+            const authorization = new PageAuthorization(root, environment);
+            const call = pageOrigin(root, authorization);
+            const { tabs, open } = await instruments.span("destack.page.tabs", {}, () =>
+                openTabs(
                     context,
-                    clients,
-                    open,
-                    packages,
-                    origin: call,
-                    connect,
+                    view,
+                    { device, root, name: deviceName, election, request: requested.resolve },
+                    { ...environment, telemetry },
+                ),
+            );
+            const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
+            const packages = mountPackages(view.packages, context.space, call);
+            const connections = new Map<string, ObjectConnection>();
+            const connect = (path: string, scope: string): ObjectConnection => {
+                // connect to each path's store once for the page, each scope over its socket
+                const known = connections.get(path);
+                if (known !== undefined) {
+                    return known.at(scope);
+                }
+                const connection = ObjectConnection.open({
+                    scope,
+                    url: ObjectConnection.url(`${root}${path}`),
+                    homes: (home) => connect(ScopePath.of(home), home),
+                    environment,
+                });
+                connections.set(path, connection);
+
+                return connection;
+            };
+
+            // resolve what the page shows its person, or a visitor under the package's theme, else Destack's
+            const stopping = new AbortController();
+            const theme = declared.theme === undefined ? destackTheme : new Theme(declared.theme);
+            const page = { context, packageId: view.package.id, theme };
+            const shown =
+                device === undefined
+                    ? visitor(page, environment.locale)
+                    : follow(
+                          present(tabs.get(context.user.id), "the person's own scope"),
+                          page,
+                          device,
+                          stopping.signal,
+                      );
+            const opened = await instruments.span("destack.page.presentation", {}, () =>
+                shown.next(),
+            );
+            if (opened.done === true) {
+                throw new TypeError("the person's presentation ended before the page showed");
+            }
+            const first = opened.value;
+            restyle(first);
+
+            // reload a development build once its origin serves another build, as live reload servers do
+            if (release === Version.development) {
+                void reloadOnChange(
+                    `${root}${OriginPath.reload}`,
+                    context.build,
+                    environment,
+                    stopping.signal,
+                );
+            }
+
+            // render the root component under the view, its clients and its actions, once its package's catalogs arrive
+            const { default: Component } = await component;
+            const [keybindings, setKeybindings] = createSignal(first.keybindings, {
+                ownedWrite: true,
+            });
+            const actions = new ActionRegistry(keybindings);
+            actions.attach({ clients, scope: context.space });
+
+            // act on the object the view opened for, and offer the package's actions on the types it opens
+            const { target } = context;
+            if (target !== undefined) {
+                actions.provide(() => Place.showing(target));
+            }
+            for (const { name, description } of declared.actions) {
+                const types = [
+                    description.call,
+                    ...(description.call?.inputs.map(({ type }) => type) ?? []),
+                ];
+                const isOpened = types.every(
+                    (type) => type === undefined || typeOf(view, type) !== undefined,
+                );
+                if (isOpened) {
+                    const read = (type: ObjectTypeReference) =>
+                        present(typeOf(view, type), `the type ${type.type}`);
+                    actions.offer(Action.of(name, description, read));
+                }
+            }
+            const rendering = await instruments.span("destack.page.render", {}, () =>
+                LocalizedRendering.open(
+                    (locale, localization) =>
+                        renderView(Component, document.body, {
+                            package: { ...view.package, version: release },
+                            environment: { ...environment, telemetry },
+                            localization,
+                            actions,
+                            mount: {
+                                context,
+                                clients,
+                                open,
+                                packages,
+                                origin: call,
+                                connect,
+                            },
+                        }),
+                    {
+                        owner: view.package.id,
+                        locale: first.locale,
+                        signal: stopping.signal,
+                        environment,
+                        origin: root,
+                        catalogs: new Set(context.catalogs),
+                    },
+                ),
+            );
+
+            // run the person's key combinations and open the command palette over the view
+            let presented = first;
+            const overlay = new PaletteOverlay({
+                actions,
+                declared: declared.actions,
+                navigation,
+                localization: () => rendering.localization,
+                presentation: () => presented,
+            });
+            overlay.listen(stopping.signal);
+
+            // handle the standard actions: undo and redo across the page's scopes, a group per gesture, and the palette
+            const pageUndo = new PageUndo([...clients.values()].map((client) => client.undoStack));
+            pageUndo.listen(stopping.signal);
+            actions.handle(undo, {
+                run: async () => {
+                    await pageUndo.undo();
                 },
-            }),
-        {
-            owner: view.package.id,
-            locale: first.locale,
-            signal: stopping.signal,
-            environment,
-            origin: root,
-            catalogs: new Set(context.catalogs),
+                isEnabled: pageUndo.canUndo,
+            });
+            actions.handle(redo, {
+                run: async () => {
+                    await pageUndo.redo();
+                },
+                isEnabled: pageUndo.canRedo,
+            });
+            actions.handle(palette, { run: (event) => overlay.open(event.element) });
+
+            // restyle on each change, render again in a new language and follow the keybindings
+            void (async () => {
+                for await (const next of shown) {
+                    restyle(next);
+                    rendering.switch(next.locale);
+                    presented = next;
+                    setKeybindings(next.keybindings);
+                }
+            })().catch((error: unknown) => {
+                if (!stopping.signal.aborted) {
+                    globalThis.reportError(error);
+                }
+            });
+
+            // record a visit of the view as it loads and each time it moves to another path
+            const scope = TelemetryScope.of({ ...view.package, version: release }, telemetry);
+            recordVisits(view.name, scope, environment, stopping.signal);
+
+            // release the page's rendering, connections, tabs and telemetry on unmount
+            const unmount = async () => {
+                // stop the page's work and close its connections
+                stopping.abort();
+                rendering.dispose();
+                for (const connection of connections.values()) {
+                    connection.close();
+                }
+                try {
+                    await Promise.all([...tabs.values()].map((tab) => tab.close()));
+                    await election.close();
+                } finally {
+                    await telemetry.shutdown();
+                }
+            };
+
+            // unmount once the page goes
+            window.addEventListener("pagehide", () => void unmount(), { once: true });
+
+            return unmount;
         },
     );
-
-    // run the person's key combinations and open the command palette over the view
-    let presented = first;
-    const overlay = new PaletteOverlay({
-        actions,
-        declared: declared.actions,
-        navigation,
-        localization: () => rendering.localization,
-        presentation: () => presented,
-    });
-    overlay.listen(stopping.signal);
-
-    // handle the standard actions: undo and redo across the page's scopes, a group per gesture, and the palette
-    const pageUndo = new PageUndo([...clients.values()].map((client) => client.undoStack));
-    pageUndo.listen(stopping.signal);
-    actions.handle(undo, {
-        run: async () => {
-            await pageUndo.undo();
-        },
-        isEnabled: pageUndo.canUndo,
-    });
-    actions.handle(redo, {
-        run: async () => {
-            await pageUndo.redo();
-        },
-        isEnabled: pageUndo.canRedo,
-    });
-    actions.handle(palette, { run: (event) => overlay.open(event.element) });
-
-    // restyle on each change, render again in a new language and follow the keybindings
-    void (async () => {
-        for await (const next of shown) {
-            restyle(next);
-            rendering.switch(next.locale);
-            presented = next;
-            setKeybindings(next.keybindings);
-        }
-    })().catch((error: unknown) => {
-        if (!stopping.signal.aborted) {
-            globalThis.reportError(error);
-        }
-    });
-
-    // record a visit of the view as it loads and each time it moves to another path
-    const scope = TelemetryScope.of({ ...view.package, version: release }, telemetry);
-    recordVisits(view.name, scope, environment, stopping.signal);
-
-    // release the page's rendering, connections, tabs and telemetry on unmount
-    const unmount = async () => {
-        // stop the page's work and close its connections
-        stopping.abort();
-        rendering.dispose();
-        for (const connection of connections.values()) {
-            connection.close();
-        }
-        try {
-            await Promise.all([...tabs.values()].map((tab) => tab.close()));
-        } finally {
-            await telemetry.shutdown();
-        }
-    };
-
-    // unmount once the page goes
-    window.addEventListener("pagehide", () => void unmount(), { once: true });
-
-    return unmount;
 }
 
 /** Where a rendering's catalogs sit, the language it starts in and how long it lives. */
@@ -553,7 +591,9 @@ async function openTabs(
     devices: {
         readonly device: Subject | undefined;
         readonly root: string;
-        readonly worker: URL;
+        readonly name: string;
+        readonly election: DeviceElection;
+        readonly request: (request: JsonObject) => void;
     },
     environment: Environment<"workers" | BrowserCapability>,
 ): Promise<{
@@ -574,44 +614,37 @@ async function openTabs(
         }
     }
 
-    // ask for the person's device of this installation, which its tabs share, as installations below one origin keep apart
-    const name = `${context.installation}.${context.user.id}`;
-    const request = {
-        name,
-        caller: context.user,
-        ...(device === undefined ? {} : { device }),
-        root: devices.root,
-        space: context.space,
-    };
-
-    // start the device worker with the page's import map, which it loads the device module through
-    const script = present(
-        document.querySelector('script[type="importmap"]'),
-        "the page's import map",
-    );
-    const map = ImportMap.parse(JSON.parse(script.textContent));
-    const worker = BrowserTab.worker(
-        devices.worker,
-        name,
-        { map, request: schema.jsonObject().parse(DeviceRequest.parse(request)) },
-        environment,
+    // ask the leading worker for the person's device of this installation, which its tabs share, as installations below one origin keep apart
+    const { name, election } = devices;
+    devices.request(
+        schema.jsonObject().parse(
+            DeviceRequest.parse({
+                name,
+                caller: context.user,
+                ...(device === undefined ? {} : { device }),
+                root: devices.root,
+                space: context.space,
+            }),
+        ),
     );
 
-    // open a scope's tab over the device, ready once its access replica holds the scope's chain
-    const openTab = async (scope: string, played: readonly DeviceRole[]) => {
-        const tab = await BrowserTab.open({
-            name,
-            worker,
-            objects: deviceObjects(view.objects, played),
-            scope,
-            caller: context.user,
-            ...(device === undefined ? {} : { device }),
-            environment,
+    // open a scope's tab over the device in a span, ready once its access replica holds the scope's chain
+    const instruments = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    const openTab = (scope: string, played: readonly DeviceRole[]) =>
+        instruments.span("destack.tab.open", { "destack.scope.id": scope }, async () => {
+            const tab = await BrowserTab.open({
+                name,
+                election,
+                objects: deviceObjects(view.objects, played),
+                scope,
+                caller: context.user,
+                ...(device === undefined ? {} : { device }),
+                environment,
+            });
+            await instruments.span("destack.tab.ready", {}, () => tab.ready);
+
+            return tab;
         });
-        await tab.ready;
-
-        return tab;
-    };
 
     // open another space of the person while a component asks, closing its tab once it stops
     const open = async (scope: string, signal: AbortSignal) => {
@@ -660,4 +693,18 @@ function typeOf(
     { packageId, type }: Pick<ObjectTypeReference, "packageId" | "type">,
 ): ObjectType | undefined {
     return view.objects.find((each) => each.package.id === packageId && each.name === type);
+}
+
+/** Point a device worker at its module below the page's image, where the origin resolves it. */
+function workerOf(worker: URL, context: ViewContext): URL {
+    // move the module's path below the page's base into the image's worker namespace
+    const resolved = new URL(worker);
+    const entry = new URL(present(worker.searchParams.get("entry"), "the device module"));
+    const path = entry.pathname.slice(context.base.length);
+    resolved.searchParams.set(
+        "entry",
+        new URL(`${context.base}${OriginPath.worker}/${context.build}${path}`, entry).href,
+    );
+
+    return resolved;
 }

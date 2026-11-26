@@ -1,5 +1,4 @@
 import { join, sep } from "node:path";
-import { fileURLToPath } from "node:url";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import type {
     BuildExtension,
@@ -44,9 +43,6 @@ const DEVICE_ENTRYPOINT = "./device";
 
 /** The generated module starting the device worker, which loads the device module. */
 const WORKER_MODULE = `${GENERATED}worker`;
-
-/** The module loading modules through an import map in a worker, which browsers do not do yet. */
-const MODULE_SHIMS = "es-module-shims/wasm";
 
 /** The generated module of a browser output's frame, rendering the example or scenario it names. */
 const FRAME_MODULE = `${GENERATED}frame`;
@@ -499,24 +495,15 @@ function frameModule(): string {
     ].join("\n");
 }
 
-/** Write the device worker's start: take the tab's request, then load the device module. */
+/** Write the device worker's start: load the device module, then serve the tab's request. */
 function workerModule(): string {
-    // import the shims from the view package's own dependencies, which the compiled package may lack
-    const shims = fileURLToPath(import.meta.resolve(MODULE_SHIMS));
-
-    // tell the tab why the device module did not load, in BrowserDevice.failed's form, which cannot load before it
+    // tell the tab why the device did not load or serve, in BrowserDevice.failed's form, which cannot load before it
     return [
-        `import ${JSON.stringify(shims)};`,
-        ``,
-        `const request = new Promise((resolve) => self.addEventListener("message", (event) => resolve(event.data), { once: true }));`,
-        `try {`,
-        `    const started = await request;`,
-        `    importShim.addImportMap(started.map);`,
-        `    const device = await importShim(new URL(self.location.href).searchParams.get("entry"));`,
-        `    device.serve(self, started.request);`,
-        `} catch (error) {`,
-        `    self.postMessage({ kind: "failed", message: error instanceof Error ? \`\${error.name}: \${error.message}\` : String(error) });`,
-        `}`,
+        `const failed = (error) => self.postMessage({ kind: "failed", message: error instanceof Error ? \`\${error.name}: \${error.message}\` : String(error) });`,
+        `const started = performance.timeOrigin;`,
+        `const loading = import(new URL(self.location.href).searchParams.get("entry")).then((device) => ({ device, loaded: performance.timeOrigin + performance.now() }));`,
+        `loading.catch(failed);`,
+        `self.addEventListener("message", (event) => loading.then(({ device, loaded }) => device.serve(self, event.data, { start: started, end: loaded }), failed), { once: true });`,
         ``,
     ].join("\n");
 }
@@ -584,8 +571,8 @@ function deviceModule(views: readonly LocatedView[], compilation: ViewPackage): 
         `import { BrowserEnvironment, serveDevice } from "${VIEW_PACKAGE}/device";`,
         ...imports,
         ``,
-        `export function serve(scope, request) {`,
-        `    serveDevice([${served.join(", ")}], scope, request, BrowserEnvironment.system);`,
+        `export function serve(scope, request, loading) {`,
+        `    serveDevice([${served.join(", ")}], scope, request, ${JSON.stringify(compilation.package)}, loading, BrowserEnvironment.system);`,
         `}`,
         ``,
     ].join("\n");
