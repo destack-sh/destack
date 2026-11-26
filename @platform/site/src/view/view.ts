@@ -5,7 +5,7 @@ import { t } from "@destack/locale";
 /** The website: every page prerendered as HTML, its interactive parts hydrating as islands. */
 export const site = defineView({
     name: "site",
-    title: t`Site`,
+    title: t.context("title")`Site`,
     component: () => import("./app.tsx"),
     render: {
         mode: "static",

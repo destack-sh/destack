@@ -12,7 +12,7 @@ import { visuallyHiddenStyle } from "@destack/ui/visually-hidden";
 const COPIED_DURATION = 2000;
 
 /** The size and variant of a copy button unless set. */
-const DEFAULTS = { size: "icon-sm", variant: "ghost" } as const;
+const DEFAULTS = { size: "sm", isIconOnly: true, variant: "ghost" } as const;
 
 /** A copy to the clipboard that shows as copied for a moment. */
 export interface Copy {

@@ -3,7 +3,7 @@ import { definePackage } from "@destack/object";
 
 /** The handle clients import to address this package. */
 export default definePackage({
-    title: t`Destack`,
+    title: t.context("title")`Destack`,
     description: t`Read about Destack on its website, documentation and blog at destack.sh.`,
     icon: "planet",
     color: "pink",
