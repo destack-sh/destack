@@ -1,6 +1,7 @@
+import { swatches } from "@destack/theme/swatch";
 import { renderPart } from "../part/index.ts";
 import * as style from "@destack/style";
-import { radius, space, swatch } from "@destack/theme/tokens.stylex";
+import { radius, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { For, type JSX, omit } from "@destack/view";
 import { Checkbox } from "../checkbox/index.ts";
@@ -58,9 +59,7 @@ export function EventCalendarSourceList(properties: EventCalendarPartProperties)
                                     aria-hidden="true"
                                     {...style.attrs(
                                         styles.swatch,
-                                        places.swatch(
-                                            swatch[`${source.color ?? DEFAULT_COLOR}Mark`],
-                                        ),
+                                        places.swatch(swatches[source.color ?? DEFAULT_COLOR].mark),
                                     )}
                                 />
                                 {source.label}

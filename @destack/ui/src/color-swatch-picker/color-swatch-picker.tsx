@@ -1,3 +1,4 @@
+import { swatches } from "@destack/theme/swatch";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -5,7 +6,7 @@ import { contentOr } from "../part/index.ts";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { Color, DEFAULT_HUES, HUES, type Hue } from "@destack/color";
-import { color, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { For, type JSX, omit, Show, useContext, useLocale } from "@destack/view";
 import {
     ListBox,
@@ -195,9 +196,7 @@ export const ColorSwatchPickerItem = defineComponent({
                 ? properties.value
                 : colorOf(properties.value).toString(picker.format());
         const fill = (): string =>
-            picker === null && isHue(properties.value)
-                ? swatch[`${properties.value}Solid`]
-                : value();
+            picker === null && isHue(properties.value) ? swatches[properties.value].solid : value();
         const label = (): string =>
             isHue(properties.value)
                 ? locale.render(HUE_NAMES[properties.value])

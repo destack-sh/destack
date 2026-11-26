@@ -1,3 +1,4 @@
+import { swatches } from "@destack/theme/swatch";
 import { state } from "@destack/theme/state";
 import type { Hue } from "@destack/color";
 import { t } from "@destack/locale";
@@ -325,12 +326,10 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
             state.focus,
             styles.event,
             layouts[properties.layout],
-            isTinted() &&
-                !isBusy() &&
-                fills.tint(swatch[`${hue()}Tint`], swatch[`${hue()}TintText`]),
-            properties.layout === "block" && !isBusy() && fills.edge(swatch[`${hue()}Mark`]),
+            isTinted() && !isBusy() && fills.tint(swatches[hue()].tint, swatches[hue()].tintText),
+            properties.layout === "block" && !isBusy() && fills.edge(swatches[hue()].mark),
             properties.layout === "inline" &&
-                !isBusy() && [styles.edged, fills.edge(swatch[`${hue()}Mark`])],
+                !isBusy() && [styles.edged, fills.edge(swatches[hue()].mark)],
             isBusy() && styles.busy,
             control.selection.isSelected(properties.event.key) && styles.selected,
             !properties.isEnd && styles.continues,
@@ -379,7 +378,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                                     </Show>
                                 </span>
                                 <span
-                                    {...style.attrs(styles.dot, fills.dot(swatch[`${hue()}Mark`]))}
+                                    {...style.attrs(styles.dot, fills.dot(swatches[hue()].mark))}
                                 />
                             </Show>
 
@@ -392,7 +391,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                                                 {...style.attrs(
                                                     styles.dot,
                                                     styles.lone,
-                                                    fills.dot(swatch[`${hue()}Mark`]),
+                                                    fills.dot(swatches[hue()].mark),
                                                 )}
                                             />
                                         </Show>
@@ -508,7 +507,7 @@ export function EventCalendarPreview(properties: {
                     aria-hidden="true"
                     {...style.attrs(
                         styles.mark,
-                        fills.dot(swatch[`${control.colorOf(properties.event)}Mark`]),
+                        fills.dot(swatches[control.colorOf(properties.event)].mark),
                     )}
                 />
                 <strong data-slot="event-calendar-preview-title" {...style.attrs(styles.heading)}>
@@ -596,7 +595,7 @@ export function EventCalendarBackground(
         () => [
             text.xs,
             styles.background,
-            fills.shade(swatch[`${hue()}Tint`], swatch[`${hue()}TintText`]),
+            fills.shade(swatches[hue()].tint, swatches[hue()].tintText),
         ],
         {
             get "data-color"() {

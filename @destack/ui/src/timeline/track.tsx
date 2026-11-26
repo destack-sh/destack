@@ -1,3 +1,4 @@
+import { swatches } from "@destack/theme/swatch";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -198,7 +199,7 @@ export function TimelineBarList(properties: TimelineBarListProperties): JSX.Elem
                                 control.window.share(control.tree.drawn(item).end) -
                                     control.window.share(control.tree.drawn(item).start),
                             ),
-                            places.fill(swatch[`${TimelineItem.hue(item)}Mark`], color.background),
+                            places.fill(swatches[TimelineItem.hue(item)].mark, color.background),
                         )}
                     />
                 )}
@@ -369,7 +370,7 @@ function TrackParts(): JSX.Element {
                         at={milestone.at}
                         xstyle={[
                             styles.inlineMilestone,
-                            places.fill(swatch[`${hue()}Solid`], swatch[`${hue()}Label`]),
+                            places.fill(swatches[hue()].solid, swatches[hue()].label),
                         ]}
                     />
                 )}

@@ -1,3 +1,4 @@
+import { swatches } from "@destack/theme/swatch";
 import { renderPart } from "../part/index.ts";
 import { TimeScale } from "@destack/schema";
 import * as style from "@destack/style";
@@ -150,7 +151,7 @@ export function TimelineMinimap(properties: TimelinePartProperties): JSX.Element
                                         (index() + 0.5) / dated().length,
                                         control.tree.isSummary(item)
                                             ? color.mutedForeground
-                                            : swatch[`${TimelineItem.hue(item)}Mark`],
+                                            : swatches[TimelineItem.hue(item)].mark,
                                     ),
                                 )}
                             />

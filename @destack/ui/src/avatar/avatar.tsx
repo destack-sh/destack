@@ -1,3 +1,4 @@
+import { swatches } from "@destack/theme/swatch";
 import { Hue } from "@destack/color";
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
@@ -262,8 +263,7 @@ export function AvatarFallback(properties: AvatarFallbackProperties): JSX.Elemen
                     text.xs,
                     state.framed,
                     styles.fallback,
-                    tint !== undefined &&
-                        styles.tinted(swatch[`${tint}Solid`], swatch[`${tint}Label`]),
+                    tint !== undefined && styles.tinted(swatches[tint].solid, swatches[tint].label),
                 ];
             })}
         </Show>

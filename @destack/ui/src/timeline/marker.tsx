@@ -1,3 +1,4 @@
+import { swatches } from "@destack/theme/swatch";
 import type { Hue } from "@destack/color";
 import { t } from "@destack/locale";
 import type { TimeScale } from "@destack/schema";
@@ -411,8 +412,8 @@ export function TimelineRange(properties: TimelineRangeProperties): JSX.Element 
                     properties.color === undefined
                         ? styles.tint(color.muted, color.mutedForeground)
                         : styles.tint(
-                              swatch[`${properties.color}Tint`],
-                              swatch[`${properties.color}TintText`],
+                              swatches[properties.color].tint,
+                              swatches[properties.color].tintText,
                           ),
                 ],
                 mergeProperties(slide === undefined ? {} : slide.attributes, {

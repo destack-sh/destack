@@ -1,7 +1,8 @@
+import { swatches } from "@destack/theme/swatch";
 import { renderPart, type Render } from "../part/index.ts";
 import type { Hue } from "@destack/color";
 import * as style from "@destack/style";
-import { color, radius, space, swatch } from "@destack/theme/tokens.stylex";
+import { color, radius, space } from "@destack/theme/tokens.stylex";
 import { type JSX, omit, Show } from "@destack/view";
 import { Glyph, type GlyphValue } from "../glyph/index.ts";
 
@@ -67,7 +68,7 @@ export function ObjectChip(properties: ObjectChipProperties): JSX.Element {
             </Show>
             <span {...style.attrs(styles.title)}>{properties.title}</span>
             <Show when={properties.color}>
-                {(accent) => <span {...style.attrs(styles.dot(swatch[`${accent()}Mark`]))} />}
+                {(accent) => <span {...style.attrs(styles.dot(swatches[accent()].mark))} />}
             </Show>
         </>
     );

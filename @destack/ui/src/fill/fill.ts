@@ -1,3 +1,4 @@
+import { swatches } from "@destack/theme/swatch";
 import type { Hue } from "@destack/color";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -54,15 +55,15 @@ export const Fill = {
         }
         // fill with the hue
         else if (fill === "solid") {
-            return hues.paint(swatch[`${hue}Solid`], swatch[`${hue}Label`], "transparent");
+            return hues.paint(swatches[hue].solid, swatches[hue].label, "transparent");
         }
         // fill with the hue's tint
         else if (fill === "soft") {
-            return hues.paint(swatch[`${hue}Tint`], swatch[`${hue}TintText`], "transparent");
+            return hues.paint(swatches[hue].tint, swatches[hue].tintText, "transparent");
         }
         // draw the edge in the hue
         else {
-            const foreground = swatch[`${hue}Text`];
+            const foreground = swatches[hue].text;
 
             return hues.paint(
                 "transparent",

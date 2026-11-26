@@ -1,5 +1,6 @@
+import { swatches } from "@destack/theme/swatch";
 import * as style from "@destack/style";
-import { radius, space, swatch } from "@destack/theme/tokens.stylex";
+import { radius, space } from "@destack/theme/tokens.stylex";
 import type { Choice } from "@destack/object";
 import { createMemo, type JSX, Show } from "@destack/view";
 import { Glyph } from "../glyph/index.ts";
@@ -38,7 +39,7 @@ export function ChoiceIcon(properties: {
     const tint = () => {
         const own = hue();
 
-        return own === undefined ? undefined : swatch[`${own}Mark`];
+        return own === undefined ? undefined : swatches[own].mark;
     };
 
     return (

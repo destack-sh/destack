@@ -1,3 +1,4 @@
+import { swatches } from "@destack/theme/swatch";
 import { Hue } from "@destack/color";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
@@ -5,7 +6,7 @@ import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { state } from "@destack/theme/state";
 import { text } from "@destack/theme/text";
-import { color, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import { color, radius, space, stroke } from "@destack/theme/tokens.stylex";
 import { createContext, type JSX, omit, useContext } from "@destack/view";
 import { MESSAGE_ALIGNS, type MessageAlign, useMessageAlign } from "../message/index.ts";
 import { messageMarker } from "../message/marker.stylex.ts";
@@ -234,10 +235,7 @@ export function BubbleContent(properties: BubbleElementProperties): JSX.Element 
         styles.content,
         isGrouped && (bubble.align === "end" ? styles.endCorners : styles.startCorners),
         bubble.variant === "ghost"
-            ? [
-                  styles.ghost,
-                  bubble.color !== undefined && styles.ink(swatch[`${bubble.color}Text`]),
-              ]
+            ? [styles.ghost, bubble.color !== undefined && styles.ink(swatches[bubble.color].text)]
             : Fill.styles(bubble.variant, bubble.color),
         properties.render !== undefined && [state.focus, styles.interactive],
     ]);
