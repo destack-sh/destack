@@ -15,6 +15,7 @@
         "./avatar": "./src/avatar/index.ts",
         "./badge": "./src/badge/index.ts",
         "./breadcrumb": "./src/breadcrumb/index.ts",
+        "./inspector": "./src/inspector/index.ts",
         "./markdown": "./src/markdown/index.ts",
         "./marker": "./src/marker/index.ts",
         "./message": "./src/message/index.ts",
