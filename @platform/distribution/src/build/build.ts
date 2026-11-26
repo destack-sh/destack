@@ -24,7 +24,7 @@ import {
 } from "@destack/package";
 import { type BuildReader, LAYER_INDEX, PackageManifest } from "@destack/package/manifest";
 import { Runtime } from "@destack/package/runtime";
-import { Digest, found, present, schema } from "@destack/schema";
+import { Digest, found, present, schema, Version } from "@destack/schema";
 import { RemoteBuildStore } from "@destack/build/store";
 import { createClient } from "@destack/object/client";
 import type { MethodInput } from "@destack/object";
@@ -81,10 +81,12 @@ export type PublishOptions = Pick<
 >;
 
 /** How a platform build builds: its releases' version, and whether they build unreleased. */
-export type PlatformBuildOptions = Pick<WorkspaceUnitOptions, "isUnreleased"> & {
-    /** The version every release has. */
+export interface PlatformBuildOptions {
+    /** The version every release has, dev for unreleased builds. */
     readonly version: string;
-};
+    /** Where the inputs build from: their pinned commits, or their checkouts as they are. */
+    readonly inputs: "pinned" | "checkout";
+}
 
 /** The first-party releases a universe's homes run and its forge publishes. */
 export class PlatformBuild implements AsyncDisposable {
@@ -137,8 +139,11 @@ export class PlatformBuild implements AsyncDisposable {
         const store = opened.use(await LocalBuildStore.open(join(root, RELEASES_DIRECTORY), host));
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
+        // stamp the units at the version, unreleased ones at dev
+        const { version, inputs } = options;
+        const unitOptions: WorkspaceUnitOptions = { isUnreleased: !Version.isRelease(version) };
+
         // read the workspace once at the release's version, and the packages of the stacks, the desktop and the template
-        const { version, ...unitOptions } = options;
         const workspace = await Workspace.open(root, compilers, { version });
         const packages = [
             await workspace.package(join(root, STACK)),
@@ -176,9 +181,7 @@ export class PlatformBuild implements AsyncDisposable {
             }
             const directory = resolve(root, checkout);
             const commit =
-                unitOptions.isUnreleased === true
-                    ? undefined
-                    : await readReleaseCommit(directory, host);
+                inputs === "checkout" ? undefined : await readReleaseCommit(directory, host);
             if (commit !== undefined && commit !== input.commit) {
                 throw new Error(
                     `input '${name}' is at '${commit}', not its pinned '${input.commit}'`,

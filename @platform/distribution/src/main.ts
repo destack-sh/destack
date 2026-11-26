@@ -9,7 +9,7 @@ import { verifyInstallation } from "./distribution/install.ts";
 import { openDistribution } from "./distribution/open.ts";
 import { packDistribution } from "./distribution/pack.ts";
 import { provisionGithubCredential } from "./github/credential.ts";
-import { prepareRelease } from "./release/prepare.ts";
+import { prepareRelease, printReleaseVersion } from "./release/prepare.ts";
 import { recordRelease } from "./release/record.ts";
 import { buildInstaller } from "./installer/build.ts";
 import { runCeremony } from "./key/ceremony.ts";
@@ -52,6 +52,7 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "signing sign": signPlatform,
 
     "release prepare": prepareRelease,
+    "release version": printReleaseVersion,
     "release record": recordRelease,
     "github credential": provisionGithubCredential,
 

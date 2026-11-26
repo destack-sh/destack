@@ -1,4 +1,5 @@
 import type { Environment, HostCapability } from "@destack/environment";
+import { Version } from "@destack/schema";
 import { Release } from "@destack/update/release";
 import { run } from "../distribution/command.ts";
 import { print } from "../distribution/output.ts";
@@ -65,18 +66,18 @@ export async function prepareRelease(environment: Environment<HostCapability>): 
     );
 }
 
+/** Print the version a release built here takes: this month's first, as no feed precedes it. */
+export async function printReleaseVersion(environment: Environment<HostCapability>): Promise<void> {
+    print(selectRelease(undefined, environment).version, environment);
+}
+
 /** Select the release after the feed's published one in its month, else this month's first. */
 function selectRelease(published: string | undefined, environment: Environment): Release {
-    // read this month and the published release's month and number
-    const now = new Date(environment.clock.now());
-    const month = `${now.getUTCFullYear()}.${now.getUTCMonth() + 1}`;
-    const matched =
-        published === undefined ? null : /^(\d{4}\.\d+)\.(0|[1-9]\d*)$/u.exec(published);
+    // take the release after the published one in this month, else this month's first
+    const first = Version.first(environment.clock.now());
+    const isThisMonth = published !== undefined && Version.compare(published, first) >= 0;
 
-    // take the number after the published one in its month, else start the month at 0
-    const next = matched?.[1] === month ? Number(matched[2]) + 1 : 0;
-
-    return new Release(`${month}.${next}`, "aarch64-apple-darwin");
+    return new Release(isThisMonth ? Version.next(published) : first, "aarch64-apple-darwin");
 }
 
 /** Describe each installer's build: its format, name, runner, signer and the artifacts it reads. */
