@@ -3,6 +3,7 @@ import type { Action, ObjectType } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import {
     createEffect,
+    createMemo,
     createSignal,
     handleOnPage,
     type JSX,
@@ -26,8 +27,11 @@ import {
 import { ChoiceIcon } from "./choice-icon.tsx";
 import { titleOf } from "./search-title.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
-import type { PaletteGroup, PaletteItem } from "../palette/index.ts";
+import type { PaletteGroup, PaletteItem, PalettePage } from "../palette/index.ts";
 import { CommandPalette } from "../palette/index.ts";
+
+/** The list of no entries, the same each time. */
+const NONE: readonly PaletteItem[] = [];
 
 /** The most objects it finds, as many as a person reads. */
 const FOUND = 20;
@@ -127,8 +131,14 @@ export function ActionPalette(properties: ActionPaletteProperties): JSX.Element 
             },
         },
     );
-    const objects = (): readonly PaletteItem[] =>
-        (found.choices() ?? []).map((choice) => ({
+    const objects = createMemo((): readonly PaletteItem[] => {
+        // keep one empty list while nothing is found, so the palette ranks nothing anew
+        const choices = found.choices() ?? [];
+        if (choices.length === 0) {
+            return NONE;
+        }
+
+        return choices.map((choice) => ({
             id: JSON.stringify(choice.value),
             title: choice.title,
             ...(choice.excerpt === undefined ? {} : { subtitle: choice.excerpt }),
@@ -141,6 +151,32 @@ export function ActionPalette(properties: ActionPaletteProperties): JSX.Element 
                 },
             ],
         }));
+    });
+
+    // keep one page, its groups changing with the owner's, so a title alone ranks nothing anew
+    const shared: readonly PaletteGroup[] = [
+        { id: "actions", title: locale.render(t`Actions`), items },
+        {
+            id: "objects",
+            get title() {
+                return titleOf(found, locale) ?? locale.render(t`Results`);
+            },
+            items: objects,
+            text: found.text,
+            ranking: "owner",
+            isPending: found.isPending,
+        },
+    ];
+    const groups = createMemo(() => [...shared, ...(properties.groups ?? [])]);
+    const root: PalettePage = {
+        id: "root",
+        get title() {
+            return properties.title;
+        },
+        get groups() {
+            return groups();
+        },
+    };
 
     return (
         <CommandPalette
@@ -148,22 +184,7 @@ export function ActionPalette(properties: ActionPaletteProperties): JSX.Element 
             open={isOpen()}
             onOpenChange={(next) => void setOpen(next)}
             onSearchChange={(typed) => void setText(typed)}
-            root={{
-                id: "root",
-                title: properties.title,
-                groups: [
-                    { id: "actions", title: locale.render(t`Actions`), items },
-                    {
-                        id: "objects",
-                        title: titleOf(found, locale) ?? locale.render(t`Results`),
-                        items: objects,
-                        text: found.text,
-                        ranking: "owner",
-                        isPending: found.isPending,
-                    },
-                    ...(properties.groups ?? []),
-                ],
-            }}
+            root={root}
         />
     );
 }

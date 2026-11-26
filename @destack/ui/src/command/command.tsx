@@ -155,6 +155,7 @@ const styles = style.create({
         color: color.mutedForeground,
         whiteSpace: "nowrap",
         textOverflow: "ellipsis",
+        unicodeBidi: "plaintext",
     },
     meta: {
         display: "flex",
@@ -322,7 +323,10 @@ export class CommandControl {
 
     /** Start over on the root, with an empty search. */
     restart(): void {
-        this.#setPages([]);
+        // leave the pages where there are any, so the root's readers stay
+        if (untrack(this.pages).length > 0) {
+            this.#setPages([]);
+        }
         this.search.type("");
     }
 
