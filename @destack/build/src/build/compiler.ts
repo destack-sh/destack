@@ -31,6 +31,14 @@ import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import { OtlpExport } from "@destack/telemetry/otlp";
 
+/**
+ * How long rolldown's allocator waits before returning freed memory: not at all.
+ *
+ * mimalloc waits 10 ms by default, which a compiler bundling back to back never idles for.
+ * Returning freed pages at once keeps a worker building `@destack/ui` near 1.8 GB instead of 3 GB.
+ */
+const PURGE_DELAY = "0";
+
 /** The most diagnostics a compiler retains, 1 MiB. */
 const MAX_DIAGNOSTICS = 1_048_576;
 
@@ -748,6 +756,7 @@ function spawn(
                 HOME: temporary,
                 TMPDIR: temporary,
                 NO_COLOR: "1",
+                MIMALLOC_PURGE_DELAY: PURGE_DELAY,
                 ...compiler.variables,
             },
             read: [...read],
