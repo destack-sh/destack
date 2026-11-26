@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { databaseInteraction } from "../scenario/interaction.ts";
 import { DatabaseConnection } from "./connection.ts";
@@ -6,9 +7,8 @@ import { DatabaseConnection } from "./connection.ts";
 export const insertUpdateAndTransact = defineScenario({
     of: DatabaseConnection,
     interaction: databaseInteraction,
-    name: "insert-update-and-transact",
-    description:
-        "insert, read and update notes among a thousand, and insert them in log transactions",
+    name: "insertUpdateAndTransact",
+    description: t`Insert, read and update notes among a thousand, and insert them in log transactions.`,
     given: { examples: [] },
     parameters: { notes: 1000, times: 100 },
     when: [

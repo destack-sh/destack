@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { databaseInteraction } from "../scenario/interaction.ts";
 import { BlobStore } from "./store.ts";
@@ -6,8 +7,8 @@ import { BlobStore } from "./store.ts";
 export const storeAndFetchModules = defineScenario({
     of: BlobStore,
     interaction: databaseInteraction,
-    name: "store-and-fetch-modules",
-    description: "store blobs the size of build modules and fetch them back",
+    name: "storeAndFetchModules",
+    description: t`Store blobs the size of build modules and fetch them back.`,
     given: { examples: [] },
     parameters: { bytes: 65_536, times: 100, warmup: 1 },
     when: [

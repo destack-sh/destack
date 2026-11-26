@@ -44,6 +44,7 @@
         }
     },
     "devDependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/test": "workspace:*",
         "@sqlite.org/sqlite-wasm": "3.53.4-build1",
         "@types/bun": "1.4.4",
