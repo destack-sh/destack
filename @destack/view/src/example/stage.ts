@@ -131,6 +131,9 @@ export class Stage {
         // show what the address gives, talking to a host of the page's own origin
         const url = new URL(environment.navigation.currentEntry.url);
         const { origin } = url;
+
+        // keep a look-only page, such as a matrix's cell, out of the focus and the pointer
+        element.inert = url.searchParams.has("inert");
         let current = await show(element, library, catalogs, environment, origin, {
             name: present(url.searchParams.get("name"), "the shown name"),
             globals: schema.json().parse(JSON.parse(url.searchParams.get("globals") ?? "{}")),
@@ -553,7 +556,7 @@ async function show(
 
     // lay an example out along its axes, else show it alone, else play a scenario
     if (value.kind === "example" && address.matrix !== null) {
-        return showMatrix(value, address.properties, address.matrix, page);
+        return showMatrix(value, name, address.properties, address.matrix, page);
     } else if (value.kind === "example") {
         return showExample(value, address.properties, page);
     } else {
@@ -580,6 +583,7 @@ interface Page {
 /** Lay an example out along its axes, laying the cells out again as its values or axes change. */
 function showMatrix(
     example: Example<object, JSX.Element>,
+    name: string,
     given: JsonObject,
     axes: MatrixAxes,
     page: Page,
@@ -587,10 +591,18 @@ function showMatrix(
     // draw every cell of the axes with the example's values, telling the host the cell picked
     const { element, catalogs, environment, globals, origin } = page;
     const values = valuesOf(example, given);
-    const matrix = new Matrix(element, { example, globals, catalogs }, values, axes, environment, {
-        choose: (chosen) => ExampleEvent.send({ destack: "cell", values: chosen }, origin),
-        open: (opened) => ExampleEvent.send({ destack: "open", values: opened }, origin),
-    });
+    const matrix = new Matrix(
+        element,
+        name,
+        { example, globals, catalogs },
+        values,
+        axes,
+        environment,
+        {
+            choose: (chosen) => ExampleEvent.send({ destack: "cell", values: chosen }, origin),
+            open: (opened) => ExampleEvent.send({ destack: "open", values: opened }, origin),
+        },
+    );
     tellExample(example, values, origin);
 
     return {

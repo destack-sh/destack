@@ -3,6 +3,15 @@ import type { JsonObject } from "@destack/schema";
 import type { MatrixAxes } from "../page/message.ts";
 import { type ExampleFrame, frameStyle, renderExample } from "./frame.ts";
 
+/** The side of a framed cell's page: room for a 10rem by 11rem menu on any side of its trigger. */
+const FRAME_SIZE = "25rem";
+
+/** An open overlay in the top layer, which covers the page instead of its cell. */
+const OVERLAY = ":modal, :popover-open";
+
+/** How a matrix draws its cells: in its own page, or each in a frame of the example's page. */
+type MatrixLayout = "page" | "frame";
+
 /** What a matrix tells about its cells: the one a person picks, and the one they open. */
 export interface MatrixHandlers {
     /** Handle a person picking a cell: the values it lays out. */
@@ -15,6 +24,8 @@ export interface MatrixHandlers {
 export class Matrix {
     /** The element the matrix draws in. */
     readonly element: HTMLElement;
+    /** The name of the example in its page's library. */
+    readonly name: string;
     /** The example and how each cell frames it. */
     readonly #frame: ExampleFrame;
     /** The environment each cell renders in. */
@@ -29,10 +40,13 @@ export class Matrix {
     #grid: HTMLElement | undefined;
     /** The unmounting of each cell's example. */
     #disposals: (() => void)[];
+    /** How the cells draw, in frames once an example opens an overlay. */
+    #layout: MatrixLayout;
 
     /** Draw an example's matrix in an element, from its values along its axes. */
     constructor(
         element: HTMLElement,
+        name: string,
         frame: ExampleFrame,
         values: JsonObject,
         axes: MatrixAxes,
@@ -41,6 +55,7 @@ export class Matrix {
     ) {
         // store the frame, the values and the axes, then draw
         this.element = element;
+        this.name = name;
         this.#frame = frame;
         this.#environment = environment;
         this.#on = on;
@@ -48,6 +63,7 @@ export class Matrix {
         this.#axes = axes;
         this.#grid = undefined;
         this.#disposals = [];
+        this.#layout = "page";
         this.#draw();
     }
 
@@ -140,20 +156,44 @@ export class Matrix {
                           }
                         : {}),
                 });
+
+                // keep the cell's example look-only, out of the focus and the pointer
                 const body = document.createElement("div");
-                body.style.pointerEvents = "none";
+                body.inert = true;
                 cell.append(body);
-                this.#disposals.push(
-                    renderExample(
-                        body,
-                        {
-                            ...frame,
-                            example: { ...frame.example, layout: "padded" },
-                            properties: values,
-                        },
-                        this.#environment,
-                    ),
-                );
+                grid.append(cell);
+
+                // frame the example's page with the cell's values, scaled to the cell's width
+                if (this.#layout === "frame") {
+                    body.append(this.#page(values));
+                    Object.assign(body.style, { alignSelf: "stretch", justifySelf: "stretch" });
+                    Object.assign(cell.style, { containerType: "inline-size", aspectRatio: "1" });
+                }
+                // render the example in the page once the cell is in it, as a dialog opens only there
+                else {
+                    this.#disposals.push(
+                        renderExample(
+                            body,
+                            {
+                                ...frame,
+                                example: { ...frame.example, layout: "padded" },
+                                properties: values,
+                            },
+                            this.#environment,
+                        ),
+                    );
+                }
+
+                // draw every cell in a frame once one opens an overlay over the page
+                if (body.querySelector(OVERLAY) !== null) {
+                    this.#layout = "frame";
+                    this.dispose();
+                    this.#draw();
+
+                    return;
+                }
+
+                // pick the cell on a press, open it on a double press
                 const pick = document.createElement("button");
                 pick.type = "button";
                 pick.ariaPressed = isChosen ? "true" : "false";
@@ -168,9 +208,35 @@ export class Matrix {
                 pick.addEventListener("click", () => this.#on.choose(values));
                 pick.addEventListener("dblclick", () => this.#on.open(values));
                 cell.append(pick);
-                grid.append(cell);
             }
         }
+    }
+
+    /** Create a frame of the example's page alone, with a cell's values. */
+    #page(values: JsonObject): HTMLIFrameElement {
+        // address the example's page alone and look-only, with its globals and the cell's values
+        const url = new URL(this.#environment.navigation.currentEntry.url);
+        url.search = new URLSearchParams({
+            name: this.name,
+            globals: JSON.stringify(this.#frame.globals ?? {}),
+            properties: JSON.stringify(values),
+            inert: "",
+        }).toString();
+
+        // fill the cell with it
+        const page = this.element.ownerDocument.createElement("iframe");
+        page.src = url.href;
+        page.title = this.name;
+        Object.assign(page.style, {
+            display: "block",
+            width: FRAME_SIZE,
+            height: FRAME_SIZE,
+            border: "0",
+            transformOrigin: "0 0",
+            scale: `calc(100cqi / ${FRAME_SIZE})`,
+        });
+
+        return page;
     }
 }
 
