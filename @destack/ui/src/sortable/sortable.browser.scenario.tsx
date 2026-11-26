@@ -117,7 +117,13 @@ export const sortableDragPastWindow = defineScenario({
     when: [
         { step: { action: "pointerMove", target: { role: "button", name: "Move", nth: 0 } } },
         { step: { action: "pointerDown" } },
-        { step: { action: "pointerMove", target: { role: "button", name: "Move", nth: 3 } } },
+        {
+            step: {
+                action: "pointerMove",
+                target: { css: "[data-slot=sortable-item]", nth: 3 },
+                position: { x: 8, y: 27 },
+            },
+        },
         { step: { action: "wheel", deltaY: 3600 } },
         {
             step: { action: "pause", milliseconds: 100 },
