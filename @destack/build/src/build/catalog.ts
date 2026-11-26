@@ -1,12 +1,12 @@
 import { join } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
-import { Catalog } from "@destack/locale";
+import { Catalog, CatalogSource } from "@destack/locale";
 import type { PackageId } from "@destack/package";
 import { CATALOG_DIRECTORY } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 
-/** Read a package's catalogs by path, refusing other files, packages or misnamed catalogs. */
-export async function readCatalogs(
+/** Compile a package's catalog sources by path, refusing other files, packages or misnamed ones. */
+export async function compileCatalogs(
     directory: string,
     owner: PackageId,
     files: FileSystem,
@@ -23,9 +23,12 @@ export async function readCatalogs(
                 `catalog path '${path}' is invalid: it is not a catalog`,
             );
         }
-        const bytes = await files.readFile(join(directory, path));
+        // compile its source to the catalog the build ships, each message's translation alone
+        const text = await files.readTextFile(join(directory, path));
+        let catalog: Catalog;
         try {
-            Catalog.of(path, JSON.parse(new TextDecoder().decode(bytes)), owner);
+            const source = CatalogSource.parse(JSON.parse(text));
+            catalog = Catalog.of(path, CatalogSource.compile(source), owner);
         } catch (cause) {
             throw BuildError.of(
                 "CATALOG_INVALID",
@@ -33,7 +36,7 @@ export async function readCatalogs(
                 { cause },
             );
         }
-        catalogs.set(path, bytes);
+        catalogs.set(path, new TextEncoder().encode(JSON.stringify(catalog)));
     }
 
     return catalogs;

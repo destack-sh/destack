@@ -21,7 +21,7 @@ import { type ModuleInfo, type OutputBundle, type OutputChunk, RUNTIME_MODULE_ID
 import { type ESTree, Visitor } from "rolldown/utils";
 import { found, Text, type Version } from "@destack/schema";
 import { Catalog } from "@destack/locale";
-import { readCatalogs } from "../build/catalog.ts";
+import { compileCatalogs } from "../build/catalog.ts";
 
 /** The module identifiers a parsed module imports, statically and dynamically. */
 type ModuleImports = Pick<ModuleInfo, "importedIds" | "dynamicallyImportedIds">;
@@ -417,7 +417,7 @@ class DependencyRecorder {
 
     /** Store an unpublished dependency's catalogs in its snapshot and in the build. */
     async #storeCatalogs(snapshot: SourceSnapshot, directory: string): Promise<void> {
-        const catalogs = await readCatalogs(directory, snapshot.package.id, this.resolver.files);
+        const catalogs = await compileCatalogs(directory, snapshot.package.id, this.resolver.files);
         for (const [path, bytes] of catalogs) {
             addFile(
                 snapshot,
@@ -435,7 +435,7 @@ class DependencyRecorder {
     /** Write a bundled package's catalogs where the build's views read them. */
     async #bundleCatalogs(directory: string, packageId: PackageId): Promise<void> {
         const owner = this.project.packageJson.package.id;
-        for (const [, bytes] of await readCatalogs(directory, packageId, this.resolver.files)) {
+        for (const [, bytes] of await compileCatalogs(directory, packageId, this.resolver.files)) {
             const catalog = Catalog.parse(JSON.parse(new TextDecoder().decode(bytes)));
             this.files.set(Catalog.path(catalog, owner), bytes);
         }

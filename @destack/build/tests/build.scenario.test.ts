@@ -65,7 +65,7 @@ test.concurrent("relocate the library build and call its exports, refusing corru
 test.concurrent("ship a package's catalogs in its build, refusing a misnamed one and another package's", async ({
     expect,
 }) => {
-    // write a German catalog of the library's messages
+    // write a German catalog source of the library's messages, its one translation a machine's
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
@@ -73,13 +73,17 @@ test.concurrent("ship a package's catalogs in its build, refusing a misnamed one
     const owner = PackageDefinition.read(
         await files.readTextFile(join(input.source, "destack.json")),
     ).id;
-    const german = { package: owner, locale: "de", messages: { a1: "Notiz" }, drafts: ["a1"] };
+    const german = {
+        package: owner,
+        locale: "de",
+        messages: { a1: { source: "Note", translation: "Notiz", state: "machine" } },
+    };
     const write = (name: string, catalog: object) =>
         files.writeTextFile(join(input.source, "locale", name), JSON.stringify(catalog));
     await files.mkdir(join(input.source, "locale"));
     await write("de.json", german);
 
-    // read the shipped catalog back from the build
+    // read the catalog the build compiles and ships, its draft listed
     const build = await input.build(library.request);
     const shipped = await Catalog.read(build);
 
@@ -98,7 +102,9 @@ test.concurrent("ship a package's catalogs in its build, refusing a misnamed one
         "CATALOG_INVALID",
         "catalog 'locale/de.json' is invalid: it does not parse",
     ]);
-    expect(shipped).toEqual([german]);
+    expect(shipped).toEqual([
+        { package: owner, locale: "de", messages: { a1: "Notiz" }, drafts: ["a1"] },
+    ]);
 });
 
 test.concurrent("pin the compiler's version to the output it compiles", async ({ expect }) => {
