@@ -44,7 +44,6 @@
         "@destack/identity": "workspace:*",
         "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
         "magic-string": "1.4.1",
         "oxfmt": "0.68.0",
         "rolldown": "1.3.3"
@@ -63,9 +62,6 @@
             "optional": true
         },
         "@destack/test": {
-            "optional": true
-        },
-        "@destack/universe": {
             "optional": true
         },
         "magic-string": {
