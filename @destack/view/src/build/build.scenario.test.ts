@@ -131,6 +131,7 @@ test("bundle an app's release image, its browser output importing builtins alone
         shared: {
             "@destack/account": ["@noble/ciphers/chacha.js", "@noble/ciphers/utils.js", "zod"],
             "@destack/db": ["@noble/ciphers/aes.js"],
+            "@destack/object": ["@lezer/common", "@lezer/markdown"],
             "@destack/environment": [
                 "@opentelemetry/api",
                 "@opentelemetry/core",
@@ -160,6 +161,7 @@ test("bundle an app's release image, its browser output importing builtins alone
         .map((file) => file.path);
     // expect every module with code mapped but the export facades, which only re-export shared chunks, and the device worker's start, which its build ships unmapped
     expect(unmapped).toEqual([
+        "output/browser/asset/worker-CkluHXXU-CKSzFt8K.js",
         "output/browser/asset/worker-CkluHXXU.js",
         "output/browser/src/object/index.js",
         "output/browser/src/view/index.js",
@@ -179,6 +181,7 @@ test("bundle an app's release image, its browser output importing builtins alone
             "@destack/account/browser",
             "@destack/account/object",
             "@destack/color",
+            "@destack/db",
             "@destack/db/browser",
             "@destack/environment/baseline",
             "@destack/environment/browser",
