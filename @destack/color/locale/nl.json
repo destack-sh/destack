@@ -87,6 +87,46 @@
         "grxnb7v3cs5s": {
             "source": "By its hue, saturation and lightness, as CSS writes it.",
             "translation": "Naar tint, verzadiging en lichtheid, zoals CSS het schrijft."
+        },
+        "3po2g6ygmrtx9": {
+            "source": "OKLab",
+            "context": "option",
+            "translation": "OKLab"
+        },
+        "tonoxiy8ldfk": {
+            "source": "Evenly as people see it, without passing through other hues.",
+            "translation": "Gelijkmatig, zoals mensen het zien, zonder langs andere tinten te gaan."
+        },
+        "2umid9ws71bqx": {
+            "source": "Round the hue wheel as people see it, keeping colors vivid.",
+            "translation": "Rond het kleurenwiel, zoals mensen het zien, met levendige kleuren."
+        },
+        "1ht8r6kcea2pw": {
+            "source": "sRGB",
+            "context": "option",
+            "translation": "sRGB"
+        },
+        "a4xuqjdq4oln": {
+            "source": "By its red, green and blue light, as older tools blend.",
+            "translation": "Via rood, groen en blauw licht, zoals oudere tools mengen."
+        },
+        "i7jra9jmt241": {
+            "source": "Shorter",
+            "context": "option",
+            "translation": "Korter"
+        },
+        "1t10ewefd4hcu": {
+            "source": "The shorter way round the wheel.",
+            "translation": "De kortere weg rond het wiel."
+        },
+        "16ahzp4p0xajx": {
+            "source": "Longer",
+            "context": "option",
+            "translation": "Langer"
+        },
+        "38uw04ovaf0ax": {
+            "source": "The longer way round the wheel, through more hues.",
+            "translation": "De langere weg rond het wiel, langs meer tinten."
         }
     }
 }

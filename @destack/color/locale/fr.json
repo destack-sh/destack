@@ -87,6 +87,46 @@
         "grxnb7v3cs5s": {
             "source": "By its hue, saturation and lightness, as CSS writes it.",
             "translation": "Par sa teinte, sa saturation et sa luminosité, comme CSS l'écrit."
+        },
+        "3po2g6ygmrtx9": {
+            "source": "OKLab",
+            "context": "option",
+            "translation": "OKLab"
+        },
+        "tonoxiy8ldfk": {
+            "source": "Evenly as people see it, without passing through other hues.",
+            "translation": "De façon régulière, comme on le perçoit, sans passer par d'autres teintes."
+        },
+        "2umid9ws71bqx": {
+            "source": "Round the hue wheel as people see it, keeping colors vivid.",
+            "translation": "Autour de la roue chromatique, comme on le perçoit, en gardant des couleurs vives."
+        },
+        "1ht8r6kcea2pw": {
+            "source": "sRGB",
+            "context": "option",
+            "translation": "sRGB"
+        },
+        "a4xuqjdq4oln": {
+            "source": "By its red, green and blue light, as older tools blend.",
+            "translation": "Par sa lumière rouge, verte et bleue, comme mélangent les outils plus anciens."
+        },
+        "i7jra9jmt241": {
+            "source": "Shorter",
+            "context": "option",
+            "translation": "Plus court"
+        },
+        "1t10ewefd4hcu": {
+            "source": "The shorter way round the wheel.",
+            "translation": "Le chemin le plus court autour de la roue."
+        },
+        "16ahzp4p0xajx": {
+            "source": "Longer",
+            "context": "option",
+            "translation": "Plus long"
+        },
+        "38uw04ovaf0ax": {
+            "source": "The longer way round the wheel, through more hues.",
+            "translation": "Le chemin le plus long autour de la roue, par plus de teintes."
         }
     }
 }

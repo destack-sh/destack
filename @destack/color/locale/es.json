@@ -87,6 +87,46 @@
         "grxnb7v3cs5s": {
             "source": "By its hue, saturation and lightness, as CSS writes it.",
             "translation": "Por su tono, saturación y luminosidad, como lo escribe CSS."
+        },
+        "3po2g6ygmrtx9": {
+            "source": "OKLab",
+            "context": "option",
+            "translation": "OKLab"
+        },
+        "tonoxiy8ldfk": {
+            "source": "Evenly as people see it, without passing through other hues.",
+            "translation": "De forma uniforme, como lo ven las personas, sin pasar por otros tonos."
+        },
+        "2umid9ws71bqx": {
+            "source": "Round the hue wheel as people see it, keeping colors vivid.",
+            "translation": "Alrededor del círculo cromático, como lo ven las personas, con colores vivos."
+        },
+        "1ht8r6kcea2pw": {
+            "source": "sRGB",
+            "context": "option",
+            "translation": "sRGB"
+        },
+        "a4xuqjdq4oln": {
+            "source": "By its red, green and blue light, as older tools blend.",
+            "translation": "Por su luz roja, verde y azul, como mezclan las herramientas antiguas."
+        },
+        "i7jra9jmt241": {
+            "source": "Shorter",
+            "context": "option",
+            "translation": "Más corto"
+        },
+        "1t10ewefd4hcu": {
+            "source": "The shorter way round the wheel.",
+            "translation": "El camino más corto alrededor del círculo."
+        },
+        "16ahzp4p0xajx": {
+            "source": "Longer",
+            "context": "option",
+            "translation": "Más largo"
+        },
+        "38uw04ovaf0ax": {
+            "source": "The longer way round the wheel, through more hues.",
+            "translation": "El camino más largo alrededor del círculo, por más tonos."
         }
     }
 }
