@@ -86,7 +86,7 @@ export const Controlled = {
     /** Record a controller's conditions of its target at the generation it evaluated. */
     observe: controlledMethod
         .mutation({
-            title: t`Observe`,
+            title: t.context("action")`Observe`,
             permission: "control",
             input: Observation.extend({
                 /** The desired generation the controller evaluated. */
@@ -136,7 +136,7 @@ export const Controlled = {
     /** Remove a record with a requested deletion after its controller finishes. */
     finalize: controlledMethod
         .mutation({
-            title: t`Finalize`,
+            title: t.context("action")`Finalize`,
             permission: "control",
             output: schema.object({}),
         })
@@ -158,7 +158,7 @@ export const Controlled = {
     /** Accept a plan digest for the controller to apply once it plans the same steps again. */
     approvePlan: approvalMethod
         .mutation({
-            title: t`Approve plan`,
+            title: t.context("action")`Approve plan`,
             permission: "approve",
             visibility: "installation",
             input: schema.object({

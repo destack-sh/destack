@@ -20,7 +20,7 @@ export const claimMethods = {
     /** Reserve an object's names until its write commits. */
     reserve: Execution.handle(
         claimMethod.mutation({
-            title: t`Reserve`,
+            title: t.context("action")`Reserve`,
             permission: "claim",
             target: "scope",
             input: Claimant.extend(ReservedBy.shape),
@@ -41,7 +41,7 @@ export const claimMethods = {
     /** Settle an object's names once its write committed, releasing those it dropped. */
     confirm: Execution.handle(
         claimMethod.mutation({
-            title: t`Confirm`,
+            title: t.context("action")`Confirm`,
             permission: "claim",
             target: "scope",
             input: Claimant.extend(ReservedBy.shape),
@@ -62,7 +62,7 @@ export const claimMethods = {
     /** Release an object's names a failed write reserved. */
     release: Execution.handle(
         claimMethod.mutation({
-            title: t`Release`,
+            title: t.context("action")`Release`,
             permission: "claim",
             target: "scope",
             input: Claimant.pick({ objectId: true, owner: true }).extend(ReservedBy.shape),
@@ -81,7 +81,7 @@ export const claimMethods = {
     /** Replace an object's names after a write that reserved none. */
     replace: Execution.handle(
         claimMethod.mutation({
-            title: t`Replace`,
+            title: t.context("action")`Replace`,
             permission: "claim",
             target: "scope",
             input: Claimant,
@@ -101,7 +101,7 @@ export const claimMethods = {
     /** Find the object an active name resolves to. */
     owner: Execution.handle(
         claimMethod.query({
-            title: t`Read owner`,
+            title: t.context("action")`Read owner`,
             permission: "resolve",
             target: "scope",
             input: Claim.pick({ index: true, key: true }),

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { objectInteraction } from "../scenario/interaction.ts";
 import { trackerExample } from "../test/tracker.ts";
@@ -38,8 +39,8 @@ const inside = {
 export const typeIntoPages = defineScenario({
     of: ObjectType,
     interaction: objectInteraction,
-    name: "type-into-pages",
-    description: "type a sentence into empty pages, each edit within its statements",
+    name: "typeIntoPages",
+    description: t`Type a sentence into empty pages, each edit within its statements.`,
     given: { examples: [trackerExample] },
     parameters: { calls: 10 },
     when: [
@@ -59,8 +60,8 @@ export const typeIntoPages = defineScenario({
 export const typeInsideText = defineScenario({
     of: ObjectType,
     interaction: objectInteraction,
-    name: "type-inside-text",
-    description: "type a word inside each page's earlier sentence, each edit within its statements",
+    name: "typeInsideText",
+    description: t`Type a word inside each page's earlier sentence, each edit within its statements.`,
     given: { examples: [trackerExample] },
     parameters: { calls: 10 },
     when: [
@@ -81,9 +82,8 @@ export const typeInsideText = defineScenario({
 export const deletePieces = defineScenario({
     of: ObjectType,
     interaction: objectInteraction,
-    name: "delete-pieces",
-    description:
-        "delete each page's quick, keeping the word another person typed inside it, each edit within its statements",
+    name: "deletePieces",
+    description: t`Delete each page's quick, keeping the word another person typed inside it, each edit within its statements.`,
     given: { examples: [trackerExample] },
     parameters: { calls: 10 },
     when: [

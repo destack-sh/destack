@@ -61,7 +61,7 @@ export const branch = defineObject(
         create: method.create("push", { fields: ["title"] }),
         /** Append calls to an open branch as the caller's, and put their rows over the branch's. */
         push: method.mutation({
-            title: t`Push`,
+            title: t.context("action")`Push`,
             permission: "push",
             input: schema.object({
                 /** The calls to append, in order. */
@@ -70,14 +70,14 @@ export const branch = defineObject(
         }),
 
         /** Merge an open branch: run its calls in one mutation as their authors and close it. */
-        merge: method.mutation({ title: t`Merge`, permission: "merge" }),
+        merge: method.mutation({ title: t.context("action")`Merge`, permission: "merge" }),
 
         /** Close an open branch without replaying its calls. */
-        discard: method.mutation({ title: t`Discard`, permission: "discard" }),
+        discard: method.mutation({ title: t.context("action")`Discard`, permission: "discard" }),
 
         /** Rebuild an open branch's rows once the main line changed a table they read. */
         rebuild: method.mutation({
-            title: t`Rebuild`,
+            title: t.context("action")`Rebuild`,
             permission: "rebuild",
             visibility: "package",
         }),

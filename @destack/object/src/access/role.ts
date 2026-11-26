@@ -38,7 +38,7 @@ export const role = defineObject(
             target: "object";
             table: typeof accessRole;
         }>({
-            title: t`Get`,
+            title: t.context("action")`Get`,
             kind: "custom",
             permission: "read",
             input: Empty,
@@ -116,7 +116,7 @@ export const role = defineObject(
             target: "scope";
             table: typeof accessRole;
         }>({
-            title: t`Declare`,
+            title: t.context("action")`Declare`,
             kind: "custom",
             permission: "update",
             input: ManagedRole,

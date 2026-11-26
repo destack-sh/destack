@@ -81,7 +81,8 @@ export const Archivable = {
         const inverse = kind === "archive" ? "unarchive" : "archive";
 
         return defineMethod<ArchiveConfiguration<Permission> & { table: ArchivableTable }>({
-            title: kind === "archive" ? t`Archive` : t`Unarchive`,
+            title:
+                kind === "archive" ? t.context("action")`Archive` : t.context("action")`Unarchive`,
             kind,
             permission,
             mutates: true,

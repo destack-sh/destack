@@ -199,7 +199,7 @@ export const Recoverable = {
         // restore within the recovery window, undone by deleting again
         if (kind === "restore") {
             return defineMethod<RestorationConfiguration & { table: RecoverableTable }>({
-                title: t`Restore`,
+                title: t.context("action")`Restore`,
                 ...restorationShape(kind, permission),
                 isPredicted: true,
                 result: "object",
@@ -215,7 +215,7 @@ export const Recoverable = {
         // purge a retained record by the type's handler, which destroys its content
         else if (options.retain === "record") {
             return defineMethod<RestorationConfiguration & { table: RetainedTable }>({
-                title: t`Purge`,
+                title: t.context("action")`Purge`,
                 ...restorationShape(kind, permission),
                 isPredicted: false,
                 result: "value",
@@ -236,7 +236,7 @@ export const Recoverable = {
         // purge any other object, removing it
         else {
             return defineMethod<RestorationConfiguration & { table: RecoverableTable }>({
-                title: t`Restoration`,
+                title: t.context("title")`Restoration`,
                 ...restorationShape(kind, permission),
                 isPredicted: true,
                 result: "value",
@@ -249,7 +249,12 @@ export const Recoverable = {
     /** Remove a purged record at the loaded revision, by holders of the purge permission. */
     discard<const Permission extends string>(permission: Permission) {
         return retainedMethod
-            .mutation({ title: t`Discard`, permission, visibility: "package", output: Empty })
+            .mutation({
+                title: t.context("action")`Discard`,
+                permission,
+                visibility: "package",
+                output: Empty,
+            })
             .handle(async (context) => {
                 // require a purged record
                 if (!Recoverable.isPurged(context.target)) {

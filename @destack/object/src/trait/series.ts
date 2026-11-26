@@ -78,7 +78,7 @@ export const Series = {
     /** Fold the events a condition selects by keys the caller may read, per step and group. */
     method: Execution.handle(
         method.query({
-            title: t`Read series`,
+            title: t.context("action")`Read series`,
             permission: "read",
             target: "scope",
             selected: (input): Row => Series.selectedKeys(SeriesQuery.parse(input).where),

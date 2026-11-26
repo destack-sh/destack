@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { objectInteraction } from "../scenario/interaction.ts";
 import { trackerExample } from "../test/tracker.ts";
@@ -7,9 +8,8 @@ import { ObjectType } from "../object/object.ts";
 export const archiveIssues = defineScenario({
     of: ObjectType,
     interaction: objectInteraction,
-    name: "archive-issues",
-    description:
-        "archive issues, list them from the archive and unarchive them, each verb within its statements",
+    name: "archiveIssues",
+    description: t`Archive issues, list them from the archive and unarchive them, each verb within its statements.`,
     given: { examples: [trackerExample] },
     parameters: { calls: 10 },
     when: [

@@ -97,6 +97,6 @@ export const notesDatabase = defineDatabase({
 export const notesExample = defineExample({
     of: notesPackage,
     name: "notes",
-    description: "notebooks and notes, with their sharing, trash and sync",
+    description: t`Notebooks and notes, with their sharing, trash and sync.`,
     render: () => notesPackage,
 });

@@ -78,7 +78,7 @@ export const Fencing = {
     ): FenceScopeMethod<Permission> =>
         Execution.handle(
             method.mutation({
-                title: t`Fence scope`,
+                title: t.context("action")`Fence scope`,
                 permission,
                 input: FenceInput,
                 visibility: "installation",
@@ -100,7 +100,7 @@ export const Fencing = {
     ): UnfenceScopeMethod<Permission> =>
         Execution.handle(
             method.mutation({
-                title: t`Unfence scope`,
+                title: t.context("action")`Unfence scope`,
                 permission,
                 visibility: "installation",
                 isPredicted: false,

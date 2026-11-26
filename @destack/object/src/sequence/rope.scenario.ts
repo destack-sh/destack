@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { textInteraction } from "../scenario/text.ts";
 import { TextRope } from "./rope.ts";
@@ -6,9 +7,8 @@ import { TextRope } from "./rope.ts";
 export const editCharacters = defineScenario({
     of: TextRope,
     interaction: textInteraction,
-    name: "edit-characters",
-    description:
-        "append, prepend, insert at random places and delete characters one change at a time",
+    name: "editCharacters",
+    description: t`Append, prepend, insert at random places and delete characters one change at a time.`,
     given: { examples: [] },
     parameters: { times: 2000 },
     when: [
@@ -24,9 +24,8 @@ export const editCharacters = defineScenario({
 export const editLongText = defineScenario({
     of: TextRope,
     interaction: textInteraction,
-    name: "edit-long-text",
-    description:
-        "build a text of about fifty thousand characters with marks and paragraphs, then type, delete, mark, unmark, insert and change nodes, and read spans in it",
+    name: "editLongText",
+    description: t`Build a text of about fifty thousand characters with marks and paragraphs, then type, delete, mark, unmark, insert and change nodes, and read spans in it.`,
     given: { examples: [] },
     parameters: { times: 200 },
     when: [
@@ -54,9 +53,8 @@ export const editLongText = defineScenario({
 export const editLargeText = defineScenario({
     of: TextRope,
     interaction: textInteraction,
-    name: "edit-large-text",
-    description:
-        "build a text of about a million characters with marks and paragraphs, then type, delete, mark, unmark, insert and change nodes, and read spans in it",
+    name: "editLargeText",
+    description: t`Build a text of about a million characters with marks and paragraphs, then type, delete, mark, unmark, insert and change nodes, and read spans in it.`,
     given: { examples: [] },
     parameters: { times: 200 },
     when: [
@@ -78,8 +76,8 @@ export const editLargeText = defineScenario({
 export const mergeConcurrentEdits = defineScenario({
     of: TextRope,
     interaction: textInteraction,
-    name: "merge-concurrent-edits",
-    description: "merge the edits two and then twenty parties made concurrently on one base",
+    name: "mergeConcurrentEdits",
+    description: t`Merge the edits two and then twenty parties made concurrently on one base.`,
     given: { examples: [] },
     parameters: { times: 20 },
     when: [

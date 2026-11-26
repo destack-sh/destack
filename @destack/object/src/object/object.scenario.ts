@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { objectInteraction } from "../scenario/interaction.ts";
 import { notesExample } from "../test/note.ts";
@@ -7,9 +8,8 @@ import { ObjectType } from "./object.ts";
 export const runEachVerb = defineScenario({
     of: ObjectType,
     interaction: objectInteraction,
-    name: "run-each-verb",
-    description:
-        "create, get, list, update, nest and delete notebooks as one person, each verb within its statements",
+    name: "runEachVerb",
+    description: t`Create, get, list, update, nest and delete notebooks as one person, each verb within its statements.`,
     given: { examples: [notesExample] },
     parameters: { calls: 10 },
     when: [

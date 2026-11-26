@@ -239,13 +239,17 @@ const provisionedMethod = new MethodBuilder<ResourceTable<unknown>>();
 
 /** Cancel a retiring resource's deletion, as its declaration declares it again. */
 const restore = provisionedMethod
-    .mutation({ title: t`Restore`, permission: "declare", visibility: "installation" })
+    .mutation({
+        title: t.context("action")`Restore`,
+        permission: "declare",
+        visibility: "installation",
+    })
     .handle((context) => context.update({ deletedAt: null }));
 
 /** Write the desired states' digests and the approval threshold. */
 const specify = Execution.handle(
     provisionedMethod.mutation({
-        title: t`Specify`,
+        title: t.context("action")`Specify`,
         permission: "declare",
         visibility: "installation",
         input: schema.object({

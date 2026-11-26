@@ -137,7 +137,7 @@ export const Move = {
         const { nesting, ordering, fields } = movement;
 
         return defineMethod<{ kind: "move"; permission: string; mutates: true }>({
-            title: t`Move`,
+            title: t.context("action")`Move`,
             kind: "move",
             permission: movement.permission,
             mutates: true,

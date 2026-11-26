@@ -37,7 +37,7 @@ export const invitation = defineObject(
             target: "scope";
             table: typeof accessInvitation;
         }>({
-            title: t`Create`,
+            title: t.context("action")`Create`,
             kind: "custom",
             permission: "grant",
             input: InvitationInput,
@@ -84,7 +84,7 @@ export const invitation = defineObject(
             target: "object";
             table: typeof accessInvitation;
         }>({
-            title: t`Accept`,
+            title: t.context("action")`Accept`,
             kind: "custom",
             permission: "read",
             input: Empty,
@@ -123,7 +123,7 @@ export const invitation = defineObject(
             target: "object";
             table: typeof accessInvitation;
         }>({
-            title: t`Delete`,
+            title: t.context("action")`Delete`,
             kind: "custom",
             permission: "read",
             input: Empty,

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { objectInteraction } from "../scenario/interaction.ts";
 import { trackerExample } from "../test/tracker.ts";
@@ -7,9 +8,8 @@ import { ObjectType } from "../object/object.ts";
 export const numberIssues = defineScenario({
     of: ObjectType,
     interaction: objectInteraction,
-    name: "number-issues",
-    description:
-        "create issues numbered within a team and move them to another, each verb within its statements",
+    name: "numberIssues",
+    description: t`Create issues numbered within a team and move them to another, each verb within its statements.`,
     given: { examples: [trackerExample] },
     parameters: { calls: 10 },
     when: [

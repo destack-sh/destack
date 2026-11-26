@@ -12,7 +12,7 @@ import { activity } from "./history/activity.ts";
 
 /** The handle a space and a machine serve their call log and access objects through. */
 export default definePackage({
-    title: t`Objects`,
+    title: t.context("title")`Objects`,
     description: t`Declare object types with access, methods and sync, and call them from anywhere.`,
     icon: "cube",
     color: "blue",

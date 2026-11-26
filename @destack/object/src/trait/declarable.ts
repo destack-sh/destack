@@ -14,7 +14,7 @@ export const declarable = callableTrait("declarable", {});
 export const Declarable = {
     /** Stop the declaration managing a record, which callers may then change. */
     detach: managerMethod
-        .mutation({ title: t`Detach`, permission: "manage" })
+        .mutation({ title: t.context("action")`Detach`, permission: "manage" })
         .handle(async (context) => {
             // refuse a record no declaration manages, and leave a detached one as it is
             const { target } = context;
@@ -32,7 +32,7 @@ export const Declarable = {
 
     /** Hand a detached record back to its declaration, which takes it over on its next apply. */
     attach: managerMethod
-        .mutation({ title: t`Attach`, permission: "manage" })
+        .mutation({ title: t.context("action")`Attach`, permission: "manage" })
         .handle(async (context) => {
             // refuse a record no declaration manages, and leave an attached one as it is
             const { target } = context;

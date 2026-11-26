@@ -51,7 +51,7 @@ export const relationship = defineObject(
             target: "scope";
             table: typeof accessRelationship;
         }>({
-            title: t`Check`,
+            title: t.context("action")`Check`,
             kind: "custom",
             permission: "read",
             input: CheckInput,
@@ -77,7 +77,7 @@ export const relationship = defineObject(
             target: "scope";
             table: typeof accessRelationship;
         }>({
-            title: t`Lookup`,
+            title: t.context("action")`Lookup`,
             kind: "custom",
             permission: "read",
             input: LookupInput,
@@ -103,7 +103,7 @@ export const relationship = defineObject(
             target: "object";
             table: typeof accessRelationship;
         }>({
-            title: t`Get`,
+            title: t.context("action")`Get`,
             kind: "custom",
             permission: "read",
             input: Empty,
@@ -131,7 +131,7 @@ export const relationship = defineObject(
             target: "scope";
             table: typeof accessRelationship;
         }>({
-            title: t`Create`,
+            title: t.context("action")`Create`,
             kind: "custom",
             permission: "grant",
             input: RelationshipInput,
@@ -164,7 +164,7 @@ export const relationship = defineObject(
             target: "scope";
             table: typeof accessRelationship;
         }>({
-            title: t`Touch`,
+            title: t.context("action")`Touch`,
             kind: "custom",
             permission: "grant",
             input: RelationshipInput,
@@ -197,7 +197,7 @@ export const relationship = defineObject(
             target: "object";
             table: typeof accessRelationship;
         }>({
-            title: t`Delete`,
+            title: t.context("action")`Delete`,
             kind: "custom",
             permission: "read",
             input: Empty,

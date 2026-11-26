@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { objectInteraction } from "../scenario/interaction.ts";
 import { trackerExample } from "../test/tracker.ts";
@@ -7,9 +8,8 @@ import { ObjectType } from "./object.ts";
 export const renameKeys = defineScenario({
     of: ObjectType,
     interaction: objectInteraction,
-    name: "rename-keys",
-    description:
-        "rename teams' keys and get the teams by their former keys, each verb within its statements",
+    name: "renameKeys",
+    description: t`Rename teams' keys and get the teams by their former keys, each verb within its statements.`,
     given: { examples: [trackerExample] },
     parameters: { calls: 10 },
     when: [

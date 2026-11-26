@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineScenario } from "@destack/package/declare";
 import { clientInteraction } from "../scenario/interaction.ts";
 import { notesExample } from "../test/note.ts";
@@ -7,9 +8,8 @@ import { ObjectClient } from "./client.ts";
 export const predictAndConfirm = defineScenario({
     of: ObjectClient,
     interaction: clientInteraction,
-    name: "predict-and-confirm",
-    description:
-        "create notebooks through a person's client, waiting for the prediction or the confirmation, and read them back",
+    name: "predictAndConfirm",
+    description: t`Create notebooks through a person's client, waiting for the prediction or the confirmation, and read them back.`,
     given: { examples: [notesExample] },
     parameters: { calls: 10 },
     when: [

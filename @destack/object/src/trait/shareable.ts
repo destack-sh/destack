@@ -469,7 +469,7 @@ export const Shareable = {
                 },
             ),
             explain: defineMethod<SharingConfiguration>({
-                title: t`Explain`,
+                title: t.context("action")`Explain`,
                 kind: "explain",
                 permission: read,
                 mutates: false,

@@ -68,7 +68,10 @@ export const BoardLayout = Object.assign(boardLayout, {
         const rest = rows.filter((row) =>
             choices.every((choice) => choice.value !== row[layout.by]),
         );
-        const none: Choice = { value: null, title: localization.render(t`No value`) };
+        const none: Choice = {
+            value: null,
+            title: localization.render(t.context("option")`No value`),
+        };
 
         return rest.length === 0 ? shown : [{ choice: none, rows: rest }, ...shown];
     },

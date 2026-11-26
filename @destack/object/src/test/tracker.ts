@@ -82,6 +82,6 @@ export const trackerPackage = definePackage(
 export const trackerExample = defineExample({
     of: trackerPackage,
     name: "tracker",
-    description: "keyed teams, their numbered and archived issues, and pages written together",
+    description: t`Keyed teams, their numbered and archived issues, and pages written together.`,
     render: () => trackerPackage,
 });

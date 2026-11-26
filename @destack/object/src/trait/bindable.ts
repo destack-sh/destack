@@ -101,7 +101,7 @@ export const Bindable = {
         visibility: "installation";
         target: "scope";
     }>({
-        title: t`Bind`,
+        title: t.context("action")`Bind`,
         kind: "bind",
         permission: "bind",
         mutates: true,
@@ -145,7 +145,10 @@ export const Bindable = {
 
         return method
             .mutation({
-                title: action === "bind" ? t`Bind consumer` : t`Release consumer`,
+                title:
+                    action === "bind"
+                        ? t.context("action")`Bind consumer`
+                        : t.context("action")`Release consumer`,
                 permission,
                 input: ConsumerInput,
                 inverse,

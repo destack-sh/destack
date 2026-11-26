@@ -49,7 +49,12 @@ export const Suspendable = {
         const inverse = kind === "suspend" ? "resume" : "suspend";
 
         return Execution.handle(
-            method.mutation({ title: t`Change`, permission, inverse, isPredicted: false }),
+            method.mutation({
+                title: t.context("action")`Change`,
+                permission,
+                inverse,
+                isPredicted: false,
+            }),
             async (call, execution) => {
                 // record it on the row, which the scope's home follows, and on the scope where it is home here
                 const store = Execution.store(execution, call);

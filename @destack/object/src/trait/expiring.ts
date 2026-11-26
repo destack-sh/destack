@@ -50,7 +50,7 @@ export const expiring = callableTrait("expiring", expiringTrait);
 export const Expiring = {
     /** Remove an expired object at any revision, past the trash. */
     expire: defineMethod<{ kind: "delete"; permission: "expire"; mutates: true }>({
-        title: t`Expire`,
+        title: t.context("action")`Expire`,
         kind: "delete",
         permission: "expire",
         visibility: "package",

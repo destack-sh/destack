@@ -63,7 +63,7 @@ export const Tracked = {
     /** Revert an object's written fields to a position. */
     revert(permission: string): Method {
         return defineMethod<{ kind: "revert" }>({
-            title: t`Revert`,
+            title: t.context("action")`Revert`,
             kind: "revert",
             permission,
             mutates: true,

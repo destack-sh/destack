@@ -157,7 +157,7 @@ export const Text = {
             output: typeof Undo;
             mutates: true;
         }>({
-            title: t`Edit`,
+            title: t.context("action")`Edit`,
             kind: "edit",
             permission: required,
             mutates: true,
@@ -229,7 +229,7 @@ export const Text = {
             output: typeof Containment;
             mutates: false;
         }>({
-            title: t`Check containment`,
+            title: t.context("action")`Check containment`,
             kind: "contains",
             permission: TEXT_READ,
             mutates: false,
