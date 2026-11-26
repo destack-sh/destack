@@ -31,7 +31,7 @@ export const vault = defineObject(
     (method) => ({
         /** Read a version of the vault's secret of a name, as the secret's readers. */
         read: method.query({
-            title: t`Read`,
+            title: t.context("action")`Read`,
             permission: "read",
             input: VaultSelection,
             output: SecretReading,
@@ -39,7 +39,7 @@ export const vault = defineObject(
         }),
         /** Put a value as the one live version of a secret of the vault, as its consumer. */
         put: method.mutation({
-            title: t`Put`,
+            title: t.context("action")`Put`,
             permission: "write",
             visibility: "installation",
             input: schema.object({
@@ -53,7 +53,7 @@ export const vault = defineObject(
         }),
         /** Remove a secret of the vault with its versions, releasing them, if it exists. */
         remove: method.mutation({
-            title: t`Remove`,
+            title: t.context("action")`Remove`,
             permission: "write",
             visibility: "installation",
             input: schema.object({

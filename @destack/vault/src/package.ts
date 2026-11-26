@@ -5,7 +5,7 @@ import { secret, secretVersion, vault } from "./object/index.ts";
 
 /** The vault package, which machines serve and clients call. */
 export default definePackage({
-    title: t`Vault`,
+    title: t.context("title")`Vault`,
     description: t`Keep secrets as encrypted versions and rotate them without redeploying.`,
     icon: "vault",
     color: "blue",

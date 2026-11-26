@@ -135,7 +135,7 @@ export const secret = defineObject(
         get: method.get("get"),
         list: method.list("list"),
         read: method.query({
-            title: t`Read`,
+            title: t.context("action")`Read`,
             permission: "read",
             input: SecretSelection,
             output: SecretReading,
@@ -143,20 +143,24 @@ export const secret = defineObject(
         }),
         /** Read the selected version and the earlier ones still retiring, newest first. */
         versions: method.query({
-            title: t`List versions`,
+            title: t.context("action")`List versions`,
             permission: "read",
             input: SecretSelection,
             output: schema.tuple([SecretReading], SecretReading),
         }),
         /** Write a generated first version of a secret without one. */
         generate: method.mutation({
-            title: t`Generate`,
+            title: t.context("action")`Generate`,
             permission: "provision",
             visibility: "installation",
             input: SecretGeneration.pick({ algorithm: true }),
         }),
         /** Make a new version current, the previous one readable until its overlap ends. */
-        rotate: method.mutation({ title: t`Rotate`, permission: "rotate", input: SecretRotation }),
+        rotate: method.mutation({
+            title: t.context("action")`Rotate`,
+            permission: "rotate",
+            input: SecretRotation,
+        }),
         /** Rename a secret, or point its `current` alias at a readable version. */
         update: method.update("update", { fields: ["name", "currentVersion"] }),
     }),
@@ -226,14 +230,18 @@ export const secretVersion = defineObject(
         list: method.list("list"),
         /** Set when the version's reads end, as a rotation retires it. */
         expire: method.mutation({
-            title: t`Expire`,
+            title: t.context("action")`Expire`,
             permission: "rotate",
             input: schema.object({ expiresAt: schema.number().int() }),
         }),
-        disable: method.mutation({ title: t`Disable`, permission: "disable" }),
-        enable: method.mutation({ title: t`Enable`, permission: "enable" }),
-        destroy: method.mutation({ title: t`Destroy`, permission: "destroy" }),
+        disable: method.mutation({ title: t.context("action")`Disable`, permission: "disable" }),
+        enable: method.mutation({ title: t.context("action")`Enable`, permission: "enable" }),
+        destroy: method.mutation({ title: t.context("action")`Destroy`, permission: "destroy" }),
         /** Destroy a version's value as its secret's purge does. */
-        erase: method.mutation({ title: t`Erase`, permission: "erase", visibility: "package" }),
+        erase: method.mutation({
+            title: t.context("action")`Erase`,
+            permission: "erase",
+            visibility: "package",
+        }),
     }),
 );
