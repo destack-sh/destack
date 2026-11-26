@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
 import { isBuiltin } from "node:module";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname, join, posix, relative, sep } from "node:path";
 import * as lexer from "cjs-module-lexer";
 import MagicString from "magic-string";
 import { type Plugin, rolldown } from "rolldown";
@@ -45,6 +45,12 @@ const IMPLIED_EXPORTS: ReadonlySet<string> = new Set(["default", "module.exports
 
 /** The suffixes Node tries for a relative require, in order. */
 const RESOLVED_SUFFIXES = ["", ".js", ".cjs", ".json", "/index.js", "/index.cjs"];
+
+/** A package file holding a module, which a package without exports lets importers name by path. */
+const MODULE_FILE = /\.[cm]?js$/u;
+
+/** A file a module names by URL beside itself, as a worker's script or a wasm binary. */
+const URL_FILE = /new URL\(\s*["'`]([^"'`]+)["'`]\s*,\s*import\.meta\.url\s*\)/gu;
 
 /** The package.json fields with a package's main module, browser first as bundlers read them. */
 const MAIN_FIELDS = ["browser", "module", "main"];
@@ -329,13 +335,20 @@ export class NpmConversion {
         const main = MAIN_FIELDS.map((field) => Reflect.get(manifest, field)).find(
             (value): value is string => typeof value === "string",
         );
+
+        // export a package without exports at its main module and its other modules by path, as Node resolves them
+        const paths = [...files.keys()].filter((path) => path !== "package.json");
         const subpaths =
             manifest.exports === undefined
-                ? [[".", main ?? "index.js"] as const]
+                ? [
+                      [".", main ?? "index.js"] as const,
+                      ...NpmConversion.#importable(
+                          paths,
+                          files,
+                          Reflect.get(manifest, "browser"),
+                      ).map((path) => [`./${path}`, `./${path}`] as const),
+                  ]
                 : this.#subpaths(manifest.exports);
-
-        // map each export to its file
-        const paths = [...files.keys()].filter((path) => path !== "package.json");
         const exported = new Map<string, string>();
         for (const [subpath, target] of subpaths) {
             // take a plain target
@@ -360,6 +373,39 @@ export class NpmConversion {
         }
 
         return exported;
+    }
+
+    /** List the modules others may import by path, but URL-loaded and browser-mapped ones. */
+    static #importable(
+        paths: readonly string[],
+        files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+        browser: unknown,
+    ): string[] {
+        // read the files the browser field maps to another module or to none, named with or without their extension
+        const mapped = new Set(
+            typeof browser === "object" && browser !== null
+                ? Object.keys(browser).map((path) => NpmConversion.#bare(path))
+                : [],
+        );
+
+        // read the files each module names by URL beside itself
+        const modules = paths.filter((path) => MODULE_FILE.test(path));
+        const loaded = new Set(
+            modules.flatMap((path) =>
+                [...new TextDecoder().decode(files.get(path)).matchAll(URL_FILE)].map(
+                    ([, url = ""]) => posix.normalize(posix.join(posix.dirname(path), url)),
+                ),
+            ),
+        );
+
+        return modules.filter(
+            (path) => !loaded.has(path) && !mapped.has(NpmConversion.#bare(path)),
+        );
+    }
+
+    /** Name a package path as resolution reads it, its module extension left off. */
+    static #bare(path: string): string {
+        return posix.normalize(path).replace(MODULE_FILE, "");
     }
 
     /** List an exports field's subpaths with the target each maps to. */
@@ -519,10 +565,9 @@ export class NpmConversion {
                 `${HELPER_DIRECTORY}/${name.replaceAll(/[^\w]/gu, "_").replace(rooted, "")}-[hash].js`;
             const generated = await bundle.generate({
                 format: "esm",
+                // name an export's chunk by the export's path, which a browser field may alias to another module
                 entryFileNames: (chunk) =>
-                    chunk.facadeModuleId?.startsWith(`${root}${sep}`) === true
-                        ? relative(root, chunk.facadeModuleId)
-                        : shared(chunk.name),
+                    modules.includes(chunk.name) ? chunk.name : shared(chunk.name),
                 chunkFileNames: (chunk) => shared(chunk.name),
             });
 

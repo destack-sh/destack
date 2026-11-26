@@ -55,7 +55,7 @@ test("convert a CommonJS package to ESM for workerd while the world's time stand
         elapsed: environment.clock.now() - started,
         isFired,
     }).toEqual({
-        exports: { ".": "index.js" },
+        exports: { ".": "index.js", "./index.js": "index.js" },
         paths: ["index.js"],
         elapsed: 0,
         isFired: false,
@@ -135,8 +135,8 @@ test("keep the converted modules with the files they load and the license, leavi
         files,
     );
 
-    // bundle the module into the export's chunk, its URLs resolved from there, keeping the files they load beside it
-    const chunk = new TextDecoder().decode(converted.files.get("index.js"));
+    // bundle the module into its own chunk, importable by path, its URLs resolved from there, keeping the files they load beside it
+    const chunk = new TextDecoder().decode(converted.files.get("lib/engine.js"));
     expect({
         paths: [...converted.files.keys()].toSorted(),
         urls: [...chunk.matchAll(/new URL\("([^"]+)", import\.meta\.url\)/gu)].map(
@@ -147,10 +147,12 @@ test("keep the converted modules with the files they load and the license, leavi
             "LICENSE",
             "index.js",
             "lib/data.bin",
+            "lib/engine.js",
             "lib/engine.wasm",
             "lib/worker.js",
             "style.css",
+            "unused.js",
         ],
-        urls: ["lib/engine.wasm", "lib/worker.js"],
+        urls: ["engine.wasm", "worker.js"],
     });
 });
