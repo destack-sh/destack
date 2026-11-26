@@ -93,10 +93,6 @@ export const Cell = {
         else if (value.kind === "choice") {
             return Cell.plain(value.title);
         }
-        // write colors as CSS writes them, in order
-        else if (value.kind === "colors") {
-            return Cell.plain(value.value.join(", "));
-        }
         // write structure as JSON, dim
         else if (value.kind === "json") {
             return { ...Cell.plain(JSON.stringify(value.value)), paint: dim };
