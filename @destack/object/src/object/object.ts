@@ -945,6 +945,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.derived.scopes();
     }
 
+    /** Report whether the objects live in scopes of a type: in any scope, or in that type's. */
+    livesInType(type: ObjectType): boolean {
+        return this.scopes.length === 0 || this.scopes.some((each) => each.same(type));
+    }
+
     /** The parent of nested objects. */
     get parent(): ObjectParent {
         return this.derived.parent();

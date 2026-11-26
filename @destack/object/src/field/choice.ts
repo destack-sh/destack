@@ -1,5 +1,5 @@
 import { Hue } from "@destack/color";
-import { IconName } from "@destack/icon";
+import { IconName } from "@destack/icon/name";
 import { Message } from "@destack/locale";
 import { schema } from "@destack/schema";
 

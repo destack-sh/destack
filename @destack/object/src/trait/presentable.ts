@@ -1,5 +1,5 @@
 import { callableTrait } from "./trait.ts";
-import { IconName } from "@destack/icon";
+import { IconName } from "@destack/icon/name";
 import { Hue, HUES } from "@destack/color";
 import { type JsonValue, schema } from "@destack/schema";
 import { type Localization, Message } from "@destack/locale";

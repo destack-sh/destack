@@ -6,6 +6,7 @@
     "description": "Declare object types with access, methods and sync, and call them from anywhere.",
     "exports": {
         ".": "./src/index.ts",
+        "./build": "./src/build/index.ts",
         "./error": "./src/error/index.ts",
         "./destack.json": "./destack.json",
         "./package": "./src/package.ts",
@@ -43,6 +44,7 @@
         "@orpc/shared": "1.15.1",
         "@orpc/standard-server": "1.15.1",
         "@orpc/standard-server-peer": "1.15.1",
+        "@sqlite.org/sqlite-wasm": "3.53.4-build1",
         "fractional-indexing": "3.2.0"
     },
     "devDependencies": {

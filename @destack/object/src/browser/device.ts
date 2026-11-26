@@ -72,30 +72,26 @@ export class BrowserDevice<
     }
 
     /** Open the device a starting tab asks for, tell the tab it serves or why not, and run it. */
-    static listen(
+    static answer(
         scope: DeviceWorkerScope,
         open: (message: unknown) => Promise<BrowserDevice>,
+        message: unknown,
     ): void {
-        scope.addEventListener(
-            "message",
-            (event: MessageEvent<unknown>) => {
-                open(event.data).then(
-                    (device) => {
-                        scope.postMessage({ kind: "serving" });
-                        void device.run(new AbortController().signal);
-                    },
-                    (error: unknown) =>
-                        scope.postMessage({
-                            kind: "failed",
-                            message:
-                                error instanceof Error
-                                    ? `${error.name}: ${error.message}`
-                                    : String(error),
-                        }),
-                );
+        open(message).then(
+            (device) => {
+                scope.postMessage({ kind: "serving" });
+                void device.run(new AbortController().signal);
             },
-            { once: true },
+            (error: unknown) => scope.postMessage(BrowserDevice.failed(error)),
         );
+    }
+
+    /** Write the message telling a starting tab why its device does not serve. */
+    static failed(error: unknown): { readonly kind: "failed"; readonly message: string } {
+        return {
+            kind: "failed",
+            message: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+        };
     }
 
     /** Push the tabs' writes and follow their queries until aborted, capturing a final failure. */

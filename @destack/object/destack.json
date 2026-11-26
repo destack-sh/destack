@@ -6,6 +6,10 @@
     "entrypoints": ["src/bun/host.ts", "src/cloudflare/host.ts"],
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
+        "./build": {
+            "runtimes": ["bun"],
+            "internal": true
+        },
         "./browser": {
             "runtimes": ["browser"],
             "internal": true
@@ -34,6 +38,7 @@
             "internal": true
         }
     },
+    "build": "./build#objectExtension",
     "declarations": {
         "defineInstallationBinding": {
             "describes": [
