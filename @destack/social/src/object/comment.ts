@@ -134,10 +134,10 @@ export const comment = defineObject(
     },
     (method) => ({
         create: method.create("comment", { fields: ["body", "selection"] }),
-        resolve: method.mutation({ title: t`Resolve`, permission: "resolve" }),
-        reopen: method.mutation({ title: t`Reopen`, permission: "resolve" }),
+        resolve: method.mutation({ title: t.context("action")`Resolve`, permission: "resolve" }),
+        reopen: method.mutation({ title: t.context("action")`Reopen`, permission: "resolve" }),
         reply: method.mutation({
-            title: t`Reply`,
+            title: t.context("action")`Reply`,
             permission: "comment",
             input: Body.extend({ mentions: Body.shape.mentions.default([]) }),
         }),
@@ -316,7 +316,7 @@ export type Excerpt = schema.Infer<typeof Excerpt>;
 /** Reply in a comment's thread. */
 export const answer = defineAction({
     name: "comment.reply",
-    title: t`Reply`,
+    title: t.context("action")`Reply`,
     input: { comments: selected(comment), text: Body.shape.text },
     call: ({ comments, text }) => comments.prepare("reply", { text }),
 });
@@ -331,12 +331,12 @@ const answerInThread = {
 /** A comment mentions the recipient. */
 export const mention = defineNotification({
     name: "mention",
-    title: t`Mentions`,
+    title: t.context("action")`Mentions`,
     description: t`Someone mentions you in a comment.`,
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: { title: t`New mention`, body: t`${argument("text")}` },
+    content: { title: t.context("title")`New mention`, body: t`${argument("text")}` },
     summary: t`${plural(argument("count"), { one: "# mention", other: "# mentions" })}`,
     actions: [answerInThread],
 });
@@ -344,12 +344,12 @@ export const mention = defineNotification({
 /** A comment starts a thread on a subscribed object. */
 export const thread = defineNotification({
     name: "thread",
-    title: t`Threads`,
+    title: t.context("title")`Threads`,
     description: t`Someone starts a comment thread on something you subscribe to.`,
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: { title: t`New thread`, body: t`${argument("text")}` },
+    content: { title: t.context("title")`New thread`, body: t`${argument("text")}` },
     summary: t`${plural(argument("count"), { one: "# thread", other: "# threads" })}`,
     actions: [answerInThread],
 });
@@ -357,12 +357,12 @@ export const thread = defineNotification({
 /** A comment replies in a subscribed thread. */
 export const reply = defineNotification({
     name: "reply",
-    title: t`Replies`,
+    title: t.context("title")`Replies`,
     description: t`Someone replies in a comment thread you subscribe to.`,
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: { title: t`New reply`, body: t`${argument("text")}` },
+    content: { title: t.context("title")`New reply`, body: t`${argument("text")}` },
     summary: t`${plural(argument("count"), { one: "# reply", other: "# replies" })}`,
     actions: [answerInThread],
 });

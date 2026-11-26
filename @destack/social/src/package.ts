@@ -5,7 +5,7 @@ import { comment, favourite, presence, reaction, receipt } from "./object/index.
 
 /** The social package: comments, reactions, read receipts, favourites and presence. */
 export default definePackage({
-    title: t`Social`,
+    title: t.context("title")`Social`,
     description: t`Attach comments, reactions, receipts, favourites and presence to any object, notifying mentioned and participating principals.`,
     icon: "chats-teardrop",
     color: "purple",
