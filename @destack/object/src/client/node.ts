@@ -13,7 +13,7 @@ import type {
     ObjectAccess,
     ObjectQueries,
     Submission,
-} from "./client.ts";
+} from "./access.ts";
 import type { ObjectQueryBuilder, Subscriber } from "./query.ts";
 import type { TextDocument } from "./text.ts";
 import type { UndoStack } from "./undo.ts";

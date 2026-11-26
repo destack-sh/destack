@@ -10,11 +10,14 @@
             "runtimes": ["bun"],
             "internal": true
         },
-        "./browser": {
+        "./client/browser": {
             "runtimes": ["browser"],
             "internal": true
         },
         "./device": {
+            "internal": true
+        },
+        "./device/browser": {
             "runtimes": ["browser"],
             "internal": true
         },

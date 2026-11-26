@@ -8,7 +8,7 @@ import type { ObjectType } from "../object/object.ts";
 import type { ObjectQuery } from "../replica/replica.ts";
 import type { AggregateOptions, FindOptions, FindResult } from "../query/item.ts";
 import { type NestedItem, relateItems } from "../query/item.ts";
-import type { LiveQuery, ObjectQueries } from "./client.ts";
+import type { LiveQuery, ObjectQueries } from "./access.ts";
 
 /** How long a closed live query stays followed: for a while, always, or not at all when absent. */
 export interface SubscribeOptions {

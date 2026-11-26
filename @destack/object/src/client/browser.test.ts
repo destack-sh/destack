@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { testSimulation } from "../test/index.ts";
-import { BrowserTab } from "./tab.ts";
+import { BrowserTab } from "./browser.ts";
 
 /** The module the world defines the device worker's body for. */
 const DEVICE = new URL("https://app.test/device.worker.js");

@@ -7,7 +7,7 @@ import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import {
     defineAction,
     defineObject,

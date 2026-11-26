@@ -32,7 +32,7 @@ import type { EventKeyFields, EventKind } from "@destack/event";
 import type { BranchEntry } from "../branch/entry.ts";
 import { ViewSubscriber } from "./query.ts";
 import type { RelationGraph } from "../query/query.ts";
-import type { ObjectQueries } from "../client/client.ts";
+import type { ObjectQueries } from "../client/access.ts";
 import type { ObjectQueryBuilder } from "../client/query.ts";
 import { found, Identifier, present, schema, type JsonObject, JsonValue } from "@destack/schema";
 import type { Action } from "../declare/action.ts";

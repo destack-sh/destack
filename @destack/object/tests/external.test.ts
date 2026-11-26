@@ -18,7 +18,7 @@ import { RequestId, Scope } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { implementPackage } from "../src/server/index.ts";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import { definePackage, type MethodVisibility } from "@destack/object";
 import { notebook, notesPackage } from "../src/test/note.ts";
 import objectPackage from "../src/package.ts";

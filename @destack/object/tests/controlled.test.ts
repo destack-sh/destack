@@ -10,7 +10,8 @@ import { TestDatabase } from "@destack/db/test";
 import { Identifier, present, schema } from "@destack/schema";
 
 import { defineObject, device, field, tablesOf, controlled } from "../src/index.ts";
-import { ObjectClient, ObjectRemote } from "../src/client/index.ts";
+import { ObjectRemote } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import { connectBunSqlite } from "@destack/db/bun";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";

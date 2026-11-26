@@ -11,10 +11,10 @@ import {
     type ObjectMutators,
     type ObjectQueries,
     type Submission,
-} from "../client/client.ts";
-import { ObjectNode } from "../client/node.ts";
-import { ObjectQueryBuilder, type Subscriber } from "../client/query.ts";
-import { TextDocument } from "../client/text.ts";
+} from "./access.ts";
+import { ObjectNode } from "./node.ts";
+import { ObjectQueryBuilder, type Subscriber } from "./query.ts";
+import { TextDocument } from "./text.ts";
 import type { Action } from "../declare/action.ts";
 import type { ActionArguments } from "../declare/call.ts";
 import type { Place } from "../declare/place.ts";

@@ -2372,6 +2372,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return row["scope"] as string;
     }
 
+    /** Key object types by their package-qualified types, keeping same-named ones apart. */
+    static keyed(objects: readonly ObjectType[]): Readonly<Record<string, ObjectType>> {
+        return Object.fromEntries(
+            objects.map((object) => [ObjectTypeReference.key(object.typeReference), object]),
+        );
+    }
+
     /** Find the type of a call's method among some types. */
     static find(types: readonly ObjectType[], call: Pick<Call, "type">): ObjectType | undefined {
         return types.find((type) => type.isTypeOf(call));

@@ -23,7 +23,8 @@ import {
     type ObjectType,
 } from "../src/index.ts";
 import { implementPackage, EphemeralStorage } from "../src/server/index.ts";
-import { type LiveQuery, ObjectClient, type ObjectConnection } from "../src/client/index.ts";
+import { type LiveQuery, type ObjectConnection } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import { definePackage } from "@destack/object";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";

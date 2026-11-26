@@ -2,7 +2,7 @@ import { Uuid } from "@destack/schema";
 import type { ObjectOf, ObjectType } from "../object/index.ts";
 import { TextRope, TextSequence, type TextChange, type TextEdit } from "../sequence/index.ts";
 import { chunk } from "../text/table.ts";
-import type { LiveQuery, Submission } from "./client.ts";
+import type { LiveQuery, Submission } from "./access.ts";
 import type { ObjectNode } from "./node.ts";
 import { Observable } from "./observable.ts";
 

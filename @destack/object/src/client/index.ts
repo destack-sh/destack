@@ -1,4 +1,4 @@
-export * from "./client.ts";
+export * from "./access.ts";
 export * from "./text.ts";
 export { UndoStack } from "./undo.ts";
 export * from "./query.ts";

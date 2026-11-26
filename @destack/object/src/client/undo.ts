@@ -26,7 +26,8 @@ import * as sync from "@destack/sync";
 
 import type { Step } from "../method/step.ts";
 
-import type { ObjectClient, Submission } from "./client.ts";
+import type { ObjectClient } from "../device/client.ts";
+import type { Submission } from "./access.ts";
 
 /** How long an undo group stays open in ms, as ProseMirror's newGroupDelay. */
 const UNDO_DELAY = 500;

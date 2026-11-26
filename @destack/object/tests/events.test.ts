@@ -9,7 +9,7 @@ import { testCallKey } from "@destack/object/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, field, tablesOf } from "../src/index.ts";
 import { EventView } from "../src/query/event.ts";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import objectPackage from "../src/package.ts";

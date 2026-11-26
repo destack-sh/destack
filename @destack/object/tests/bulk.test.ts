@@ -18,7 +18,7 @@ import { definePackage } from "@destack/object";
 import { schema, nth, type Identifier } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users, userName } from "./fixture/user.ts";

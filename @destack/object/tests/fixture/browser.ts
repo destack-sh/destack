@@ -2,9 +2,10 @@ import type { DatabaseConnection } from "@destack/db/database";
 import { broadcastChannel, connectWasmSqlite, WasmClient } from "@destack/db/browser";
 import type { SimulatedBrowserEnvironment } from "@destack/environment/browser/simulation";
 import type { Subject } from "@destack/sync";
-import { type BrowserTabWorker } from "../../src/browser/index.ts";
-import { BrowserDevice } from "../../src/browser/device.ts";
-import { ObjectClient, type ObjectRemote } from "../../src/client/index.ts";
+import { type BrowserTabWorker } from "../../src/client/browser.ts";
+import { BrowserDevice } from "../../src/device/browser.ts";
+import { type ObjectRemote } from "../../src/client/index.ts";
+import { ObjectClient } from "../../src/device/index.ts";
 import type { ObjectType } from "../../src/object/object.ts";
 import { spaceId } from "./device.ts";
 

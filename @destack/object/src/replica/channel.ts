@@ -14,7 +14,7 @@ import * as sync from "@destack/sync";
 import type { Subject } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
 import { traceCalls } from "../procedure/telemetry.ts";
-import type { LiveQuery, MutationContext, Submission, Writer } from "../client/client.ts";
+import type { LiveQuery, MutationContext, Submission, Writer } from "../client/access.ts";
 import { undoEntry } from "../client/undo.ts";
 import { Method } from "../method/method.ts";
 import type { ObjectNode } from "../client/node.ts";

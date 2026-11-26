@@ -15,7 +15,8 @@ import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
 import { definePackage } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
-import { ObjectClient, type ObjectConnection } from "../src/client/index.ts";
+import { type ObjectConnection } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import {
     chunk,
     CHUNK_CHARACTERS,

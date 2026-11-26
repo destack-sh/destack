@@ -8,7 +8,7 @@ import {
 import { waitAborted } from "@destack/environment";
 import { included, type Item, type Query } from "@destack/sync";
 import { type LiveItems, type Subscriber, ObjectQueryBuilder } from "../client/query.ts";
-import type { ObjectQueries } from "../client/client.ts";
+import type { ObjectQueries } from "../client/access.ts";
 import { ObjectError } from "../error/error.ts";
 import type { RelationGraph } from "../query/query.ts";
 import type { ObjectType } from "../object/object.ts";

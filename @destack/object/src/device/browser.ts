@@ -4,7 +4,7 @@ import type { Environment } from "@destack/environment";
 import type {} from "@destack/environment/browser";
 import type { Duration } from "@destack/schema";
 import type { Subject } from "@destack/sync";
-import { ObjectClient } from "../client/client.ts";
+import { ObjectClient } from "./client.ts";
 import type { ObjectType } from "../object/object.ts";
 import { ChannelRemote } from "../replica/channel.ts";
 import { TelemetryScope } from "@destack/telemetry";

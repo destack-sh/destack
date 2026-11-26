@@ -2,8 +2,7 @@ import { argument, plural, t } from "@destack/locale";
 import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { field } from "../field/index.ts";
-import { defineObject } from "../object/index.ts";
-import { ObjectClient } from "./client.ts";
+import { defineObject, ObjectType } from "../object/index.ts";
 
 /** Declare a note type of a package, as two packages may both name one. */
 function noteOf(id: string, name: string) {
@@ -27,6 +26,6 @@ test("key two packages' same-named object types apart, keeping both", () => {
     const journal = noteOf("package-01996ab0-0000-7000-8000-0000000000a2", "@example/journal");
 
     // keep both notes, each under its package-qualified key
-    const keyed = ObjectClient.keyed([notes, journal]);
+    const keyed = ObjectType.keyed([notes, journal]);
     expect(Object.values(keyed)).toEqual([notes, journal]);
 });

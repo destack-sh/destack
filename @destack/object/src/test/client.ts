@@ -6,7 +6,7 @@ import { Identifier, type JsonValue, present, schema } from "@destack/schema";
 import type { Driver } from "@destack/test";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { ObjectClient } from "../client/index.ts";
+import { ObjectClient } from "../device/index.ts";
 import type { ObjectPackage } from "../server/index.ts";
 import { ObjectType } from "../object/index.ts";
 import {
@@ -182,7 +182,7 @@ export class ClientDriver implements Driver<ClientStep, ObjectObservation> {
     async #open(name: string): Promise<PersonClient> {
         // store the client's replica in a database of its own
         const { environment } = this.#store;
-        const objects = ObjectClient.keyed([...this.#types.values()]);
+        const objects = ObjectType.keyed([...this.#types.values()]);
         const storage = await TestDatabase.create(ObjectClient.tables(objects), {
             environment,
             dialect: "sqlite",

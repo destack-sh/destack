@@ -9,7 +9,7 @@ import { TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import { undoEntry } from "../src/client/undo.ts";
 import {
     defineObject,

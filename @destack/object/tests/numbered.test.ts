@@ -5,7 +5,8 @@ import { RequestId, Scope } from "@destack/sync";
 import { expect, refusal, test, onTestFinished } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { type Identifier, present, schema } from "@destack/schema";
-import { ObjectClient, type ObjectConnection } from "../src/client/index.ts";
+import { type ObjectConnection } from "../src/client/index.ts";
+import { ObjectClient } from "../src/device/index.ts";
 import {
     ObjectAppearance,
     defineObject,

@@ -144,7 +144,7 @@ export async function finishTask(
 ```ts
 import { argument, plural, t } from "@destack/locale";
 import { defineObject, field, RICH_TEXT, TextTypes } from "@destack/object";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 
 // declare pages with a rich body
 const page = defineObject(
@@ -230,7 +230,7 @@ A trait adds fields, methods and rules to a type, each declared with its options
 ```ts
 import { argument, plural, t } from "@destack/locale";
 import { defineObject, field, orderable } from "@destack/object";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 
 /** A task on a board, ordered within its state. */
 export const task = defineObject({
@@ -918,7 +918,7 @@ Its queries follow the replica, and its writes show at once and settle later.
 ```ts
 import { argument, plural, t } from "@destack/locale";
 import { defineObject, field } from "@destack/object";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 
 // declare notes that can be starred
 const note = defineObject(
@@ -961,7 +961,8 @@ An `ObjectFileClient` sends a file in parts, each again until it arrives, and a 
 ```ts
 import { argument, plural, t } from "@destack/locale";
 import { defineObject, field } from "@destack/object";
-import type { ObjectFileClient, ObjectClient } from "@destack/object/client";
+import type { ObjectFileClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import type { ObjectReference } from "@destack/sync";
 
 // declare photos of at most 20 MB
