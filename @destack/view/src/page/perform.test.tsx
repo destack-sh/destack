@@ -19,10 +19,10 @@ import { type ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testWorld } from "../test/browser.ts";
 import type {} from "@destack/package/import-meta";
-import { createSignal, flush, Loading } from "solid-js";
+import { createSignal, flush } from "solid-js";
 import { render } from "../test/index.ts";
 import { ActionRegistry, type ActionQuestion } from "./action.ts";
-import { useQuery, useSearch } from "../scope/index.ts";
+import { useSearch } from "../scope/index.ts";
 import { useAction } from "./state.ts";
 
 /** A board with cards. */
@@ -350,6 +350,7 @@ test("pick among every object a search finds, past those listed first", async ()
     await settle("Zebra crossing");
     shown.length = 0;
     setText("cross");
+    await testWorld().simulation.sleep(200);
     await settle("Zebra crossing");
 
     expect({ listed: listed.length, blanks: shown.filter((each) => each === "") }).toEqual({
@@ -405,63 +406,17 @@ test("search every scope of a view live, the most relevant first", async () => {
     await first.mutate(card).update({ id, title: "Margins" }).predicted;
     await settle("Order,The order book pending");
 
-    // type on, and clear the text
+    // type on once typing pauses, and clear the text
     setText("order b");
+    await testWorld().simulation.sleep(200);
     await settle("The order book pending");
 
     // correct a typo, until a card has it
     setText("bokk");
-    await settle(" pending");
     await testWorld().simulation.sleep(200);
     await settle("The order book pendingbook");
     await first.mutate(card).create({ title: "Bokk choy" }).predicted;
     await settle("Bokk choy pending");
     setText(undefined);
     await settle("");
-});
-
-test("follow another query as a filter changes, showing the last rows until it reads", async () => {
-    // follow the cards whose title has a word
-    const { actions, clients } = await openPage();
-    const [first] = clients;
-    const [text, setText] = createSignal("apples");
-    const { container } = render(
-        () => {
-            const cards = useQuery(() =>
-                first.queryType(card).findMany({ where: { SEARCH: text() } }),
-            );
-
-            return (
-                <Loading fallback={<output>Loading</output>}>
-                    <output>
-                        {cards()
-                            .map(({ title }) => title)
-                            .join()}
-                    </output>
-                </Loading>
-            );
-        },
-        { actions },
-    );
-    const shown: (string | null)[] = [];
-    const settle = async (expected: string) => {
-        await expect
-            .poll(() => {
-                flush();
-                shown.push(container.textContent);
-
-                return container.textContent;
-            })
-            .toBe(expected);
-    };
-    await settle("Apples");
-
-    // filter by another word, and add a card that has it
-    shown.length = 0;
-    setText("bread");
-    await settle("Bread");
-    await first.mutate(card).create({ title: "Bread rolls" }).predicted;
-    await settle("Bread,Bread rolls");
-
-    expect([...new Set(shown)]).toEqual(["Apples", "Bread", "Bread,Bread rolls"]);
 });

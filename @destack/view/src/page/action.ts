@@ -198,9 +198,9 @@ export class ActionRegistry {
     /** Replace the count of changes. */
     readonly #setRevision: Setter<number>;
     /** The clients of the scopes the page opens, which searches follow. */
-    readonly #clients: Accessor<readonly ObjectClient[]>;
+    readonly #clients: Accessor<readonly ObjectNode[]>;
     /** Replace the clients. */
-    readonly #setClients: Setter<readonly ObjectClient[]>;
+    readonly #setClients: Setter<readonly ObjectNode[]>;
 
     /** Create a page's registry without handlers, its keys the person's, else the declared ones. */
     constructor(keybindings: Accessor<Readonly<Record<string, Shortcut | null>>> = () => ({})) {
@@ -211,7 +211,7 @@ export class ActionRegistry {
         this.#setRevision = setRevision;
 
         // follow the clients apart from the handlers, which change far more
-        const [clients, setClients] = createSignal<readonly ObjectClient[]>([], {
+        const [clients, setClients] = createSignal<readonly ObjectNode[]>([], {
             ownedWrite: true,
         });
         this.#clients = clients;
@@ -460,11 +460,12 @@ export class ActionRegistry {
         if (client === undefined) {
             return [];
         }
-        const live = client.search("", { types: [type], where, limit: CHOICES }).subscribe();
+        const live = client.search("", { types: [type], where, limit: CHOICES });
         const { hits } = await live.read();
         await live.close();
+        const { moment } = client.context();
 
-        return hits.map((hit) => client.choice(hit, localization));
+        return hits.map((hit) => Choice.hit(hit, moment, localization));
     }
 
     /** Find the space an input's objects are in: the one its action is on, else the page's. */
@@ -601,7 +602,7 @@ export class ActionRegistry {
     }
 
     /** List the clients of the scopes the page opens. */
-    clients(): readonly ObjectClient[] {
+    clients(): readonly ObjectNode[] {
         return this.#clients();
     }
 
