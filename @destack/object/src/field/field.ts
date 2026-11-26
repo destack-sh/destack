@@ -4,7 +4,9 @@ import {
     type InputPresence,
     type ActionValue,
     type VALUE_KINDS,
+    type ColorsInput,
 } from "../declare/input.ts";
+import { Color } from "@destack/color";
 import { NumberInput } from "../declare/number.ts";
 import { PackageId } from "@destack/package";
 import {
@@ -69,6 +71,8 @@ export const FIELD_TYPES = [
     "boolean",
     "binary",
     "time",
+    "color",
+    "colors",
     "enum",
     "json",
     "message",
@@ -96,6 +100,8 @@ const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     binary: "binary",
     boolean: "boolean",
     time: "time",
+    color: "color",
+    colors: "colors",
     fractionalIndex: "fractionalIndex",
     text: "text",
     count: "integer",
@@ -121,6 +127,7 @@ const VALUE_KIND: Readonly<Partial<Record<FieldType, (typeof VALUE_KINDS)[number
     text: "text",
     boolean: "boolean",
     time: "time",
+    color: "color",
     subject: "person",
 };
 
@@ -205,6 +212,7 @@ export type FieldSource =
               | "binary"
               | "boolean"
               | "time"
+              | "color"
               | "fractionalIndex"
               | "message"
               | "count"
@@ -225,6 +233,7 @@ export type FieldSource =
           readonly arguments: readonly [schema.Schema] | readonly [schema.Schema, JsonOptions];
       }
     | { readonly builder: "file"; readonly arguments: readonly [ObjectFileLimits] }
+    | { readonly builder: "colors"; readonly arguments: readonly [ColorsInput] }
     | {
           readonly builder: "text";
           readonly arguments: readonly [] | readonly [readonly (TextMarkType | TextNodeType)[]];
@@ -602,12 +611,14 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
                   ? { kind: "choice", choices: this.choices ?? [] }
                   : source.builder === "integer" || source.builder === "number"
                     ? { kind: "number", ...Field.numbers(source, this.format) }
-                    : {
-                          kind:
-                              this.principals === undefined
-                                  ? (VALUE_KIND[this.type] ?? "json")
-                                  : "person",
-                      };
+                    : source.builder === "colors"
+                      ? { kind: "colors", ...source.arguments[0] }
+                      : {
+                            kind:
+                                this.principals === undefined
+                                    ? (VALUE_KIND[this.type] ?? "json")
+                                    : "person",
+                        };
         const declared = this.isDefault ? "default" : this.required ? "required" : "optional";
 
         return new ActionInput({
@@ -1448,6 +1459,23 @@ export const field = {
     /** An instant in UTC epoch milliseconds. */
     time() {
         return Field.required({ builder: "time", arguments: [] }, integer);
+    },
+
+    /** A color CSS writes: hexadecimal, rgb(), hsl() or oklch(). */
+    color() {
+        return Field.required({ builder: "color", arguments: [] }, (name) =>
+            Field.validated(name, Color.schema),
+        );
+    },
+
+    /** Colors in order, such as a gradient's, between the fewest and the most it takes. */
+    colors(count: ColorsInput = {}) {
+        const fewest = schema.array(Color.schema).min(count.minimum ?? 0);
+        const sized = count.maximum === undefined ? fewest : fewest.max(count.maximum);
+
+        return Field.required({ builder: "colors", arguments: [count] }, (name) =>
+            json(name, sized),
+        );
     },
 
     /** One of a fixed set of strings: a list, or each value with how it looks. */

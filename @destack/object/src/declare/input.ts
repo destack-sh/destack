@@ -1,3 +1,4 @@
+import { Color } from "@destack/color";
 import { IconName } from "@destack/icon";
 import { NumberInput } from "./number.ts";
 import { Condition, type JsonCondition } from "@destack/db";
@@ -15,7 +16,7 @@ import {
 } from "./variable.ts";
 
 /** The kinds of value a person gives, objects and choices aside. */
-export const VALUE_KINDS = ["text", "boolean", "time", "person", "json"] as const;
+export const VALUE_KINDS = ["text", "boolean", "time", "person", "color", "json"] as const;
 
 /** The type of the JSON value of each kind a person gives. */
 const VALUE_TYPES = {
@@ -23,6 +24,16 @@ const VALUE_TYPES = {
     boolean: "boolean",
     time: "number",
 } as const;
+
+/** How many colors an input takes. */
+export const ColorsInput = schema.object({
+    /** The fewest colors. */
+    minimum: schema.number().int().min(0).exactOptional(),
+    /** The most colors. */
+    maximum: schema.number().int().min(1).exactOptional(),
+});
+/** How many colors an input takes. */
+export type ColorsInput = schema.Infer<typeof ColorsInput>;
 
 /** What a schema that wraps another says of a value's presence, by its type. */
 const PRESENCES: Readonly<Partial<Record<string, InputPresence>>> = {
@@ -57,6 +68,7 @@ export type InputPresence = "required" | "optional" | "default";
 export type ActionValue =
     | { readonly kind: (typeof VALUE_KINDS)[number] }
     | (NumberInput & { readonly kind: "number" })
+    | (ColorsInput & { readonly kind: "colors" })
     | { readonly kind: "choice"; readonly choices: readonly FieldChoice[] }
     | {
           readonly kind: "object";
@@ -205,6 +217,18 @@ export class ActionInput {
         else if (taken.kind === "number") {
             return typeof value === "number" && NumberInput.takes(taken, value);
         }
+        // take a color CSS writes, or as many as the input takes
+        else if (taken.kind === "color") {
+            return Color.schema.safeParse(value).success;
+        } else if (taken.kind === "colors") {
+            const colors = schema.array(Color.schema).safeParse(value).data;
+
+            return (
+                colors !== undefined &&
+                colors.length >= (taken.minimum ?? 0) &&
+                colors.length <= (taken.maximum ?? colors.length)
+            );
+        }
 
         return taken.kind === "json" || typeof value === VALUE_TYPES[taken.kind];
     }
@@ -228,6 +252,10 @@ export class ActionInput {
             const { kind: _kind, ...numbers } = value;
 
             return Object.keys(numbers).length === 0 ? shared : { ...shared, numbers };
+        } else if (value.kind === "colors") {
+            const { kind: _kind, ...colors } = value;
+
+            return Object.keys(colors).length === 0 ? shared : { ...shared, colors };
         } else if (value.kind === "object") {
             return {
                 ...shared,
@@ -259,7 +287,9 @@ export class ActionInput {
                     }
                   : kind === "number"
                     ? { kind, ...description.numbers }
-                    : { kind };
+                    : kind === "colors"
+                      ? { kind, ...description.colors }
+                      : { kind };
 
         return new ActionInput({
             name,
@@ -298,11 +328,13 @@ export const ActionInputDescription = schema.object({
     /** Whether the person must give it, may, or leaves it to its default. */
     presence: schema.enum(["required", "optional", "default"]),
     /** What it takes. */
-    kind: schema.enum([...VALUE_KINDS, "number", "choice", "object"]),
+    kind: schema.enum([...VALUE_KINDS, "number", "colors", "choice", "object"]),
     /** The key of the variable places give it by. */
     variable: schema.string().min(1).exactOptional(),
     /** The numbers of a number, any when absent. */
     numbers: NumberInput.exactOptional(),
+    /** How many colors a list of colors takes, any when absent. */
+    colors: ColorsInput.exactOptional(),
     /** The choices of a choice. */
     choices: schema.array(FieldChoice).exactOptional(),
     /** The type of an object. */

@@ -261,3 +261,31 @@ test("read a column outside the fields by its JSON type: the identifier as text,
         { kind: "json", value: { area: "launch" } },
     ]);
 });
+
+test("read a color and a list of colors as colors, refusing other text", () => {
+    const label = defineObject({
+        name: "label",
+        plural: "labels",
+        title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
+        scope: space,
+        fields: { name: field.string(), color: field.color(), gradient: field.colors() },
+        access: {
+            permissions: { read: through("scope", "read"), write: through("scope", "read") },
+        },
+    });
+
+    // a color reads as itself, and text that is no color fails loudly
+    expect([
+        ObjectValue.of(label, "color", "#f76b15", SOURCE),
+        ObjectValue.of(label, "gradient", ["#e0eaff", "#241d9a"], SOURCE),
+    ]).toEqual([
+        { kind: "color", value: "#f76b15" },
+        { kind: "colors", value: ["#e0eaff", "#241d9a"] },
+    ]);
+    const refusal = [
+        { code: "custom", path: [], message: "a color is hexadecimal, rgb(), hsl() or oklch()" },
+    ];
+    expect(() => ObjectValue.of(label, "color", "orange", SOURCE)).toThrow(
+        expect.objectContaining({ issues: refusal }),
+    );
+});
