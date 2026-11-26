@@ -56,7 +56,7 @@ import {
     TARGET_PARAMETER,
     TOKEN_PARAMETER,
     ViewAddress,
-    FRAME_VIEW,
+    EXAMPLE_VIEW,
     ViewContext,
     ViewPath,
     ViewState,
@@ -1352,18 +1352,18 @@ export class InstallationOriginServer {
             );
         }
 
-        // answer a development build's frame at its reserved path, as a view serving people
+        // answer a development build's example page at its reserved path, as a view serving people
         const opened = { request, url, page, policy, resolution, builds };
-        if (pathname === OriginPath.frame) {
-            const frame = reader.manifest.outputs["browser"]?.frame;
-            if (frame === undefined) {
+        if (pathname === OriginPath.example) {
+            const example = reader.manifest.outputs["browser"]?.example;
+            if (example === undefined) {
                 throw MachineError.of(
                     "VIEW_NOT_FOUND",
-                    `frame of '${found.name}' not found: it runs no development build`,
+                    `example page of '${found.name}' not found: it runs no development build`,
                 );
             }
 
-            return this.#document(opened, { name: FRAME_VIEW, audience: "person", ...frame });
+            return this.#document(opened, { name: EXAMPLE_VIEW, audience: "person", ...example });
         }
 
         // find the view a route fixes, else the one the path's first segment names, the main view at the root
@@ -1394,7 +1394,7 @@ export class InstallationOriginServer {
         return this.#document(opened, { name, ...view });
     }
 
-    /** Answer a view's or a frame's document in its context, signing a visitor in first. */
+    /** Answer a view's or an example page's document in its context, signing a visitor in first. */
     async #document(
         opened: {
             readonly request: Request;

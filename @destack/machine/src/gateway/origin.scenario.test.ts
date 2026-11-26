@@ -41,7 +41,7 @@ import { expect, refusal, test } from "@destack/test";
 import {
     type Address,
     BUILD_PARAMETER,
-    FRAME_VIEW,
+    EXAMPLE_VIEW,
     RELOAD_EVENT,
     ScopePath,
     ViewAddress,
@@ -1872,8 +1872,8 @@ test("serve a view's modules at URLs of their build and resolution, gzipped wher
     });
 });
 
-test("serve a development build's frame, and refuse one of a build without a frame", async () => {
-    // install a development build with a frame and a build without one
+test("serve a development build's example page, and refuse one of a build without one", async () => {
+    // install a development build with an example page and a build without one
     const { crypto } = testHost();
     const greeting = await TestViewBuild.of(
         GREETING,
@@ -1890,16 +1890,16 @@ test("serve a development build's frame, and refuse one of a build without a fra
                 render: { mode: "client" },
             },
         },
-        { frame: { entrypoint: "browser/frame.js", stylesheets: ["browser/frame.css"] } },
+        { example: { entrypoint: "browser/example.js", stylesheets: ["browser/example.css"] } },
         crypto,
     );
     const opened = await openHome();
     await install(opened, greeting, "greeting");
     await install(opened, await notesBuild(crypto), "notes");
 
-    // open the frame of an example at each installation's origin
+    // open the example page at each installation's origin
     const query = new URLSearchParams({ module: "src/greeting.example.tsx", name: "hello" });
-    const frameOf = async (installation: string, view: string) => {
+    const exampleOf = async (installation: string, view: string) => {
         const page = await openPage(opened, {
             space: opened.address,
             installation,
@@ -1908,28 +1908,28 @@ test("serve a development build's frame, and refuse one of a build without a fra
         });
 
         return await page.fetch(
-            new Request(`${page.origin}${OriginPath.frame}?${query.toString()}`),
+            new Request(`${page.origin}${OriginPath.example}?${query.toString()}`),
         );
     };
-    const framed = await frameOf("greeting", "greeting");
-    const text = await framed.clone().text();
-    const context = schema.looseObject({ view: schema.string() }).parse(await contextOf(framed));
+    const served = await exampleOf("greeting", "greeting");
+    const text = await served.clone().text();
+    const context = schema.looseObject({ view: schema.string() }).parse(await contextOf(served));
     const loaded = [...text.matchAll(/(?:src|href)="([^"]+)"/gu)].map((match) => match[1]);
-    const unframed = await frameOf("notes", "home");
+    const refused = await exampleOf("notes", "home");
 
-    // load the frame's module and styles in the frame's context, and refuse a build without a frame
+    // load the page's module and styles in its context, and refuse a build without one
     expect({
-        framed: [framed.status, context.view],
+        served: [served.status, context.view],
         loaded: loaded.map((path) => path?.replace(MODULE_PREFIX, "/.destack/module/<build>/")),
-        unframed: await summary(unframed),
+        refused: await summary(refused),
     }).toEqual({
-        framed: [200, FRAME_VIEW],
-        loaded: ["/browser/frame.css", "/.destack/module/<build>/browser/frame.js"],
-        unframed: answered(
+        served: [200, EXAMPLE_VIEW],
+        loaded: ["/browser/example.css", "/.destack/module/<build>/browser/example.js"],
+        refused: answered(
             "NOT_FOUND",
             "VIEW_NOT_FOUND",
             404,
-            "frame of 'notes' not found: it runs no development build",
+            "example page of 'notes' not found: it runs no development build",
         ),
     });
 });

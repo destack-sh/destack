@@ -12,8 +12,8 @@ import { describePackage } from "@destack/object/inspect";
 import { graph, type PackageVersion } from "@destack/package";
 import {
     type BuildReader,
-    type FrameDescription,
     PackageManifest,
+    type PackageOutput,
     type ViewDescription,
     type ViewRender,
 } from "@destack/package/manifest";
@@ -49,8 +49,8 @@ export const TestViewBuild = {
             readonly dependencies?: readonly BuildReader[];
             /** The other declarations it makes, such as commands, each at an export. */
             readonly declarations?: readonly Omit<graph.Declaration, "moniker" | "symbol">[];
-            /** The frame of a development build, which its origin serves. */
-            readonly frame?: FrameDescription;
+            /** The example page of a development build, which its origin serves. */
+            readonly example?: PackageOutput["example"];
         },
         crypto: Crypto,
     ): Promise<BuildReader> {
@@ -60,7 +60,7 @@ export const TestViewBuild = {
         const entries = [
             BROWSER_MAIN,
             ...Object.values(views).map((view) => view.entrypoint),
-            ...(options.frame === undefined ? [] : [options.frame.entrypoint]),
+            ...(options.example === undefined ? [] : [options.example.entrypoint]),
         ];
         for (const entry of entries.filter((path) => !files.has(path))) {
             files.set(entry, module);
@@ -126,8 +126,8 @@ export const TestViewBuild = {
         for (const [name, view] of Object.entries(views)) {
             exports[`./${name}`] = { path: view.entrypoint, imports };
         }
-        if (options.frame !== undefined) {
-            exports["./frame"] = { path: options.frame.entrypoint, imports };
+        if (options.example !== undefined) {
+            exports["./example"] = { path: options.example.entrypoint, imports };
         }
 
         return MemoryBuild.of(built, declared, crypto, {
@@ -140,7 +140,7 @@ export const TestViewBuild = {
                     emit: true,
                     workloads: {},
                     views,
-                    ...(options.frame === undefined ? {} : { frame: options.frame }),
+                    ...(options.example === undefined ? {} : { example: options.example }),
                     directory: "browser",
                     exports,
                     peers: {},
