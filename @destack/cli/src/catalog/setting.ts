@@ -12,7 +12,8 @@ import type { CommandContext } from "../command/context.ts";
 import type { Terminal } from "../terminal/index.ts";
 
 import { LIST_OPTIONS } from "../catalog/flag.ts";
-import type { ObjectClient, ObjectConnection } from "@destack/object/client";
+import type { ObjectConnection } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import type { CatalogType } from "./type.ts";
 import { Cell } from "../terminal/cell.ts";
 import { Grid } from "../terminal/grid.ts";

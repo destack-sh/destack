@@ -1,7 +1,14 @@
 import { Condition, TABLE } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { ObjectClient, type ObjectConnection } from "@destack/object/client";
-import { CalendarLayout, type Layout, ObjectView, type ObjectQuery } from "@destack/object";
+import { type ObjectConnection } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
+import {
+    CalendarLayout,
+    type Layout,
+    ObjectType,
+    ObjectView,
+    type ObjectQuery,
+} from "@destack/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { type JsonObject, JsonValue, nth, present, schema, type TimeScale } from "@destack/schema";
@@ -21,7 +28,6 @@ import {
     Casing,
     type MethodKind,
     type ObjectFile,
-    type ObjectType,
     type PackageImplementationDescription,
 } from "@destack/object";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
@@ -971,7 +977,7 @@ async function* watch(
 ): AsyncGenerator<readonly JsonObject[]> {
     // replicate the type's rows in memory as the person signed in
     const { environment } = await context.native();
-    const objects = ObjectClient.keyed([noun.type]);
+    const objects = ObjectType.keyed([noun.type]);
     const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
         environment,
     });

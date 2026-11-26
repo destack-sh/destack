@@ -1,7 +1,8 @@
 import type { Login } from "@destack/account/native";
 import type { Environment } from "@destack/environment";
 import { type ObjectType, type Package } from "@destack/object";
-import type { ClientOf, ObjectClient } from "@destack/object/client";
+import type { ClientOf } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import type registryPackage from "@destack/registry/package";
 import { PackageName } from "@destack/package";
 import type { Setting } from "@destack/setting";
