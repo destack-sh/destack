@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import {
     defineExample,
     defineScenario,
@@ -56,8 +57,8 @@ function createTally(properties: { readonly marks: number }): Tally {
 /** A tally starting at two marks. */
 export const createTallyTwoMarks = defineExample({
     of: createTally,
-    name: "two-marks",
-    description: "a tally starting at two marks",
+    name: "twoMarks",
+    description: t`A tally starting at two marks.`,
     properties: { marks: 2 },
     render: (properties) => createTally({ marks: 0, ...properties }),
 });
@@ -66,8 +67,8 @@ export const createTallyTwoMarks = defineExample({
 export const createTallyMarkTwice = defineScenario({
     of: createTally,
     interaction: tallyInteraction,
-    name: "mark-twice",
-    description: "mark a tally twice, then set it back",
+    name: "markTwice",
+    description: t`Mark a tally twice, then set it back.`,
     given: { examples: [createTallyTwoMarks] },
     parameters: {},
     when: [
@@ -85,7 +86,7 @@ export const markTally = defineScenario({
     of: createTally,
     interaction: tallyInteraction,
     name: "tally",
-    description: "mark a tally twice, then measure marking it four times after one warm-up mark",
+    description: t`Mark a tally twice, then measure marking it four times after one warm-up mark.`,
     given: { examples: [createTallyTwoMarks] },
     parameters: { marks: 4 },
     when: [
@@ -212,7 +213,7 @@ test("measure an operation in Go benchmark lines", async () => {
         "pkg: @destack/test",
         "database: sqlite",
         "",
-        "BenchmarkTally/marks=4/op=tally.mark 4 N sec/op N p50-sec/op N p95-sec/op N cpu-sec/op 0 world-sec/op N start-unix-ms 1 tally.marks/op 1 tally.marks@tally/op",
+        "BenchmarkCreateTallyTally/marks=4/op=tally.mark 4 N sec/op N p50-sec/op N p95-sec/op N cpu-sec/op 0 world-sec/op N start-unix-ms 1 tally.marks/op 1 tally.marks@tally/op",
         "",
     ]);
 });

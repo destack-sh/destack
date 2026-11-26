@@ -502,10 +502,10 @@ function labelOf(entry: unknown): string {
         : JSON.stringify(Operation.is(entry) ? entry.step : entry);
 }
 
-/** Write a kebab-case name in PascalCase, as Go names benchmarks. */
+/** Write a kebab-case or dotted name in PascalCase, as Go names benchmarks. */
 function pascal(name: string): string {
     return name
-        .split("-")
+        .split(/[-.]/u)
         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
         .join("");
 }

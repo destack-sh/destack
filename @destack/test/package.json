@@ -27,6 +27,7 @@
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@vitest/coverage-v8": "5.0.1",
         "@vitest/ui": "5.1.0"
     },
