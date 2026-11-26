@@ -33,10 +33,10 @@ import {
 import {
     type ClientOptions,
     createClient,
-    ObjectClient,
     ObjectStoreDescription,
     ObjectConnection,
 } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import { PackageVersion, PackageId } from "@destack/package";
 import {
     type ViewCategory,

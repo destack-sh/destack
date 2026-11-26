@@ -3,7 +3,7 @@ import { AccessContext, Caller, principal } from "@destack/access";
 import { eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import { graph, PackageId } from "@destack/package";
 import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";

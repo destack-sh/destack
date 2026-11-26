@@ -37,7 +37,8 @@ import {
 import objectPackage from "@destack/object/package";
 import { distribution } from "@destack/update/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
-import { ObjectClient, ObjectRemote, Bookmark, createClient } from "@destack/object/client";
+import { ObjectRemote, Bookmark, createClient } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import { PackageVersion, PackageId } from "@destack/package";
 import { Identifier, nth, present, schema } from "@destack/schema";
 import { RequestId, Scope, Subject } from "@destack/sync";

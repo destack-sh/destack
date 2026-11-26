@@ -1,5 +1,5 @@
 import { intersection, principal, relation, through } from "@destack/access";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient } from "@destack/object/device";
 import type { Select } from "@destack/db";
 import { defineObject, device, field } from "@destack/object";
 import { Identifier, schema, type Uuid } from "@destack/schema";

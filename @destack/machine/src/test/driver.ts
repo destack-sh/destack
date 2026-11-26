@@ -1,10 +1,6 @@
 import { principal, StepUp, Role } from "@destack/access";
-import {
-    createClient,
-    ObjectClient,
-    ObjectConnection,
-    type TextDocument,
-} from "@destack/object/client";
+import { createClient, ObjectConnection, type TextDocument } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import { space } from "@destack/account/object";
 import type { Login } from "@destack/account/native";
 import type { Workspace } from "@destack/build";
