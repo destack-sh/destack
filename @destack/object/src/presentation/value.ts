@@ -65,7 +65,7 @@ export const ObjectValue = {
         }
         // read a number column as a number
         else if (field === undefined && typeof value === "number") {
-            return { kind: "number", value };
+            return { kind: "number", value, format: undefined };
         }
         // read any other column as JSON
         else if (field === undefined) {
