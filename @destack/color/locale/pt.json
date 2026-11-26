@@ -5,62 +5,88 @@
         "p3yp08zrcycw": {
             "source": "Blue",
             "context": "option",
-            "translation": "Azul",
-            "state": "machine"
+            "translation": "Azul"
         },
         "2p4cygffd1s6w": {
             "source": "Brown",
             "context": "option",
-            "translation": "Castanho",
-            "state": "machine"
+            "translation": "Castanho"
         },
         "39dz0dh81e7wr": {
             "source": "Cyan",
             "context": "option",
-            "translation": "Ciano",
-            "state": "machine"
+            "translation": "Ciano"
         },
         "5a99v9trd4gj": {
             "source": "Gray",
             "context": "option",
-            "translation": "Cinzento",
-            "state": "machine"
+            "translation": "Cinzento"
         },
         "3a6lwsshpk9on": {
             "source": "Green",
             "context": "option",
-            "translation": "Verde",
-            "state": "machine"
+            "translation": "Verde"
         },
         "3rmvvpb9ro0mu": {
             "source": "Orange",
             "context": "option",
-            "translation": "Laranja",
-            "state": "machine"
+            "translation": "Laranja"
         },
         "1fblbb1sawels": {
             "source": "Pink",
             "context": "option",
-            "translation": "Rosa",
-            "state": "machine"
+            "translation": "Rosa"
         },
         "2friqu6yy71gu": {
             "source": "Purple",
             "context": "option",
-            "translation": "Roxo",
-            "state": "machine"
+            "translation": "Roxo"
         },
         "14jty1vehivsr": {
             "source": "Red",
             "context": "option",
-            "translation": "Vermelho",
-            "state": "machine"
+            "translation": "Vermelho"
         },
         "2ugjzyqio9xi4": {
             "source": "Yellow",
             "context": "option",
-            "translation": "Amarelo",
-            "state": "machine"
+            "translation": "Amarelo"
+        },
+        "14rovmpcp3qq7": {
+            "source": "RGB",
+            "context": "option",
+            "translation": "RGB"
+        },
+        "164yanamjka3h": {
+            "source": "By its hue, saturation and brightness, as design tools pick it.",
+            "translation": "Pelo tom, saturação e brilho, como as ferramentas de design o escolhem."
+        },
+        "1y1br123k66bn": {
+            "source": "HSL",
+            "context": "option",
+            "translation": "HSL"
+        },
+        "1y1bwhhmbuyj1": {
+            "source": "HSB",
+            "context": "option",
+            "translation": "HSB"
+        },
+        "2c28n5ml2qapv": {
+            "source": "By its red, green and blue light, as screens mix it.",
+            "translation": "Pela sua luz vermelha, verde e azul, como os ecrãs a misturam."
+        },
+        "3pvxfbwuhowwt": {
+            "source": "OKLCH",
+            "context": "option",
+            "translation": "OKLCH"
+        },
+        "5jrmelh09fnb": {
+            "source": "By its lightness, chroma and hue, as people see it.",
+            "translation": "Pela luminosidade, croma e tom, como as pessoas o veem."
+        },
+        "grxnb7v3cs5s": {
+            "source": "By its hue, saturation and lightness, as CSS writes it.",
+            "translation": "Pelo tom, saturação e luminosidade, como o CSS o escreve."
         }
     }
 }

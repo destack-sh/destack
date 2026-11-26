@@ -5,62 +5,88 @@
         "p3yp08zrcycw": {
             "source": "Blue",
             "context": "option",
-            "translation": "Blauw",
-            "state": "machine"
+            "translation": "Blauw"
         },
         "2p4cygffd1s6w": {
             "source": "Brown",
             "context": "option",
-            "translation": "Bruin",
-            "state": "machine"
+            "translation": "Bruin"
         },
         "39dz0dh81e7wr": {
             "source": "Cyan",
             "context": "option",
-            "translation": "Cyaan",
-            "state": "machine"
+            "translation": "Cyaan"
         },
         "5a99v9trd4gj": {
             "source": "Gray",
             "context": "option",
-            "translation": "Grijs",
-            "state": "machine"
+            "translation": "Grijs"
         },
         "3a6lwsshpk9on": {
             "source": "Green",
             "context": "option",
-            "translation": "Groen",
-            "state": "machine"
+            "translation": "Groen"
         },
         "3rmvvpb9ro0mu": {
             "source": "Orange",
             "context": "option",
-            "translation": "Oranje",
-            "state": "machine"
+            "translation": "Oranje"
         },
         "1fblbb1sawels": {
             "source": "Pink",
             "context": "option",
-            "translation": "Roze",
-            "state": "machine"
+            "translation": "Roze"
         },
         "2friqu6yy71gu": {
             "source": "Purple",
             "context": "option",
-            "translation": "Paars",
-            "state": "machine"
+            "translation": "Paars"
         },
         "14jty1vehivsr": {
             "source": "Red",
             "context": "option",
-            "translation": "Rood",
-            "state": "machine"
+            "translation": "Rood"
         },
         "2ugjzyqio9xi4": {
             "source": "Yellow",
             "context": "option",
-            "translation": "Geel",
-            "state": "machine"
+            "translation": "Geel"
+        },
+        "14rovmpcp3qq7": {
+            "source": "RGB",
+            "context": "option",
+            "translation": "RGB"
+        },
+        "164yanamjka3h": {
+            "source": "By its hue, saturation and brightness, as design tools pick it.",
+            "translation": "Naar tint, verzadiging en helderheid, zoals ontwerptools het kiezen."
+        },
+        "1y1br123k66bn": {
+            "source": "HSL",
+            "context": "option",
+            "translation": "HSL"
+        },
+        "1y1bwhhmbuyj1": {
+            "source": "HSB",
+            "context": "option",
+            "translation": "HSB"
+        },
+        "2c28n5ml2qapv": {
+            "source": "By its red, green and blue light, as screens mix it.",
+            "translation": "Naar rood, groen en blauw licht, zoals schermen het mengen."
+        },
+        "3pvxfbwuhowwt": {
+            "source": "OKLCH",
+            "context": "option",
+            "translation": "OKLCH"
+        },
+        "5jrmelh09fnb": {
+            "source": "By its lightness, chroma and hue, as people see it.",
+            "translation": "Naar lichtheid, chroma en tint, zoals mensen het zien."
+        },
+        "grxnb7v3cs5s": {
+            "source": "By its hue, saturation and lightness, as CSS writes it.",
+            "translation": "Naar tint, verzadiging en lichtheid, zoals CSS het schrijft."
         }
     }
 }

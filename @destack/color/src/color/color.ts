@@ -1,3 +1,5 @@
+import { type Message, t } from "@destack/locale";
+
 /** The channels of each color space, in the order CSS writes them. */
 export const COLOR_CHANNELS = {
     rgb: ["red", "green", "blue"],
@@ -8,6 +10,29 @@ export const COLOR_CHANNELS = {
 
 /** A way to say a color in three numbers: by its light, or as people see it. */
 export type ColorSpace = keyof typeof COLOR_CHANNELS;
+
+/** The ways to say a color in three numbers, with their choice in pickers. */
+export const ColorSpace = {
+    /** Each color space as a picker offers it: its name and how it says a color. */
+    choices: {
+        rgb: {
+            title: t.context("option")`RGB`,
+            description: t`By its red, green and blue light, as screens mix it.`,
+        },
+        hsl: {
+            title: t.context("option")`HSL`,
+            description: t`By its hue, saturation and lightness, as CSS writes it.`,
+        },
+        hsb: {
+            title: t.context("option")`HSB`,
+            description: t`By its hue, saturation and brightness, as design tools pick it.`,
+        },
+        oklch: {
+            title: t.context("option")`OKLCH`,
+            description: t`By its lightness, chroma and hue, as people see it.`,
+        },
+    } satisfies Record<ColorSpace, { readonly title: Message; readonly description: Message }>,
+};
 
 /** One number of a color. */
 export type ColorChannel = (typeof COLOR_CHANNELS)[ColorSpace][number] | "alpha";
