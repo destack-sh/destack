@@ -424,6 +424,7 @@ export const WaitingReason = schema.enum([
     "WaitingForSpace",
     "WaitingForStack",
     "WaitingForBuild",
+    "WaitingForTag",
 ]);
 /** Why an installation is not ready yet. */
 export type WaitingReason = schema.Infer<typeof WaitingReason>;
@@ -473,6 +474,11 @@ export const Installation = {
         const message = `waiting for build ${image}, which this machine does not have yet`;
 
         return Installation.waiting("WaitingForBuild", message);
+    },
+
+    /** Describe an installation's condition waiting for the tag it follows to reach its space. */
+    waitingForTag(): Decision {
+        return Installation.waiting("WaitingForTag", "waiting for its tag to reach the space");
     },
 
     /** Report whether one following the host's release runs an image this machine does not. */
