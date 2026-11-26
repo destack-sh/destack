@@ -95,24 +95,24 @@ export type IssueExcerpt = schema.Infer<typeof IssueExcerpt>;
 /** A resolved issue fails again. */
 export const regressedIssue = defineNotification({
     name: "regressedIssue",
-    title: t`Regressions`,
+    title: t.context("title")`Regressions`,
     description: t`An issue you follow fails again after its resolution.`,
     payload: IssueExcerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: { title: t`Regressed`, body: t`${argument("title")}` },
+    content: { title: t.context("option")`Regressed`, body: t`${argument("title")}` },
     summary: t`${plural(argument("count"), { one: "# issue", other: "# issues" })} regressed`,
 });
 
 /** Someone resolves an issue. */
 export const resolvedIssue = defineNotification({
     name: "resolvedIssue",
-    title: t`Resolutions`,
+    title: t.context("title")`Resolutions`,
     description: t`Someone resolves an issue you follow.`,
     payload: IssueExcerpt,
     interruption: "passive",
     preference: { channels: ["desktop"], delivery: "immediate" },
-    content: { title: t`Resolved`, body: t`${argument("title")}` },
+    content: { title: t.context("option")`Resolved`, body: t`${argument("title")}` },
     summary: t`${plural(argument("count"), { one: "# issue", other: "# issues" })} resolved`,
 });
 
@@ -276,7 +276,7 @@ export const issue = defineObject(
         }),
         /** Count further exceptions and the people they affected into an issue. */
         occur: method.mutation({
-            title: t`Occur`,
+            title: t.context("action")`Occur`,
             permission: "detect",
             visibility: "package",
             input: schema.object({
@@ -294,7 +294,7 @@ export const issue = defineObject(
         }),
         /** Record exceptions into their issue, opening or reopening it, as its reader does. */
         record: method.mutation({
-            title: t`Record`,
+            title: t.context("action")`Record`,
             permission: "detect",
             visibility: "package",
             target: "scope",
@@ -312,7 +312,7 @@ export const issue = defineObject(
         }),
         /** Count a claimed page of a space's exceptions into their issues, as their reader does. */
         count: method.mutation({
-            title: t`Count`,
+            title: t.context("action")`Count`,
             permission: "detect",
             visibility: "package",
             target: "scope",

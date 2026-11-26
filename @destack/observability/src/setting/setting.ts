@@ -5,7 +5,7 @@ import { t } from "@destack/locale";
 /** How many days a space's logs, spans and metric points stay. */
 export const telemetryRetention = defineSetting({
     name: "telemetry.retention",
-    title: t`Telemetry retention`,
+    title: t.context("title")`Telemetry retention`,
     description: t`How many days logs, traces and metrics stay.`,
     schema: schema.number().int().min(1).max(3650),
     default: 30,
@@ -15,7 +15,7 @@ export const telemetryRetention = defineSetting({
 /** How many days a space's visits and actions stay. */
 export const analyticsRetention = defineSetting({
     name: "analytics.retention",
-    title: t`Analytics retention`,
+    title: t.context("title")`Analytics retention`,
     description: t`How many days visits and actions stay.`,
     schema: schema.number().int().min(1).max(3650),
     default: 395,

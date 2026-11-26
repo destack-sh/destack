@@ -67,7 +67,7 @@ export const span = defineObject(
             views: [
                 {
                     name: "waterfall",
-                    title: t`Waterfall`,
+                    title: t.context("option")`Waterfall`,
                     layout: {
                         kind: "timeline",
                         start: "time",
@@ -78,7 +78,7 @@ export const span = defineObject(
                 },
                 {
                     name: "tree",
-                    title: t`Tree`,
+                    title: t.context("option")`Tree`,
                     layout: { kind: "tree", id: "span", parent: "parent" },
                 },
             ],

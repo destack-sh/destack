@@ -42,7 +42,7 @@ export type AlertExcerpt = schema.Infer<typeof AlertExcerpt>;
 /** An alert rule fires. */
 export const firingAlert = defineNotification({
     name: "firingAlert",
-    title: t`Alerts`,
+    title: t.context("title")`Alerts`,
     description: t`An alert rule you follow fires.`,
     payload: AlertExcerpt,
     interruption: "timeSensitive",
@@ -54,7 +54,7 @@ export const firingAlert = defineNotification({
 /** A firing alert resolves. */
 export const resolvedAlert = defineNotification({
     name: "resolvedAlert",
-    title: t`Resolved alerts`,
+    title: t.context("title")`Resolved alerts`,
     description: t`An alert of a rule you follow resolves.`,
     payload: AlertExcerpt,
     interruption: "passive",
@@ -127,7 +127,7 @@ export const alert = defineObject(
         }),
         /** Announce a firing alert and start its response once, after any silence on it ends. */
         announce: method.mutation({
-            title: t`Announce`,
+            title: t.context("action")`Announce`,
             permission: "detect",
             visibility: "package",
             input: schema.object({}),
@@ -146,7 +146,7 @@ const RespondInput = schema.object({
 /** Run a fired alert's calls as the rule's author, each waiting on any approval it needs. */
 export const respond = defineWorkflow({
     name: "respond",
-    title: t`Respond`,
+    title: t.context("title")`Respond`,
     input: RespondInput,
     output: NO_OUTPUT,
 });
