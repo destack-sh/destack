@@ -111,10 +111,11 @@ export function renderExample<Properties extends object>(
         container.style.width = `${given.width}px`;
     }
 
-    // centre a centred example in the window, and give a padded one room, as Storybook's layouts do
+    // centre a centred example as one group, and give a padded one room, as Storybook's layouts do
     if (frame.example.layout === "centered") {
         container.style.display = "grid";
         container.style.placeItems = "center";
+        container.style.placeContent = "center";
         container.style.minHeight = "100dvh";
         container.style.padding = "var(--destack-space-6)";
         container.style.boxSizing = "border-box";
