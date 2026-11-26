@@ -17,6 +17,7 @@ import { stripeWebhook } from "../declare/webhook.ts";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
 import type {} from "@destack/package/import-meta";
+import { WebhookServer } from "@destack/workflow/server";
 
 /** Implement the finance package in a home: its types, the provider's webhook, its cursors. */
 export function implementFinance(
@@ -30,10 +31,11 @@ export function implementFinance(
     const webhook =
         charging === undefined
             ? undefined
-            : stripeWebhook.serve(
+            : new WebhookServer(
+                  stripeWebhook,
                   (delivery, store) => ProviderEvent.receive(home, charging, delivery, store),
                   server,
-              );
+              ).fetch;
 
     return {
         objects: [
