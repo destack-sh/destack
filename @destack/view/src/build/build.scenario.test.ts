@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { expect, refusal, test } from "@destack/test";
+import { Digest, present, Version } from "@destack/schema";
 import { fileURLToPath } from "node:url";
 import { Workspace, CompilerPool } from "@destack/build";
 import { testStore, testSimulation } from "@destack/build/test";
@@ -14,6 +15,9 @@ import { Toolchain } from "@destack/check/toolchain";
 
 /** The notebook package, whose view module declares its notebooks view. */
 const NOTEBOOK = fileURLToPath(new URL("../../tests/fixture/notebook/", import.meta.url));
+
+/** The notes app, the notebook's views in an installable app. */
+const NOTES = fileURLToPath(new URL("../../tests/fixture/notes/", import.meta.url));
 
 /** Flatten plugin options into their plugins, refusing pending ones. */
 function flatten(options: readonly PluginOption[]): Plugin[] {
@@ -84,6 +88,121 @@ test("split each view into a browser chunk, starting the device worker from its 
         entrypoint === "output/browser/view-notebooks.js",
         workers.toSorted(),
     ]).toEqual([["notebooks"], true, true, true, ["worker"]]);
+});
+
+test("bundle an app's release image, its browser output importing builtins alone", async () => {
+    // build the notes app and make its release image on its stored dependency builds
+    await using simulation = testSimulation();
+    await using store = await testStore();
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const version = Version.first(simulation.environment("test").clock.now());
+    const workspace = await Workspace.open(NOTES, compilers, { version });
+    const units = await (await workspace.package()).imageUnits({});
+    const { image } = present(units.get("@destack/view-notes-fixture"), "the app's image");
+    const root = await store.root(image);
+
+    // read the npm packages each builtin's release imports, and the modules of schema's zod
+    const shared: Record<string, readonly string[]> = {};
+    for (const [name, unit] of units) {
+        const { manifest } = await store.root(unit.image);
+        const browser = manifest.outputs["browser"];
+        if (manifest.role === "builtin" && browser !== undefined) {
+            const imports = Object.values(browser.exports).flatMap((each) => each.imports);
+            const npm = imports.filter((each) => !each.startsWith("@destack/"));
+            if (npm.length > 0) {
+                shared[name] = [...new Set(npm)].toSorted();
+            }
+        }
+    }
+    const schema = await store.image(present(units.get("@destack/schema"), "schema").image);
+    const zod = await Promise.all(
+        Object.keys(schema.builds).map(async (digest) => {
+            const reader = await store.contents(Digest.parse(digest));
+            const modules = (await reader.files()).filter(
+                (file) => file.path.startsWith("browser/") && /\.[cm]?js$/u.test(file.path),
+            );
+
+            return reader.manifest.package.name === "zod" ? [modules.length] : [];
+        }),
+    );
+
+    // expect builtins to import only the npm units several of them share, and zod in one module
+    expect({ shared, zod: zod.flat() }).toEqual({
+        shared: {
+            "@destack/account": ["@noble/ciphers/chacha.js", "@noble/ciphers/utils.js", "zod"],
+            "@destack/db": ["@noble/ciphers/aes.js"],
+            "@destack/environment": [
+                "@opentelemetry/api",
+                "@opentelemetry/core",
+                "@opentelemetry/sdk-logs",
+                "@opentelemetry/sdk-trace",
+            ],
+            "@destack/package": ["destack:distribution"],
+            "@destack/schema": ["zod"],
+            "@destack/telemetry": [
+                "@opentelemetry/api",
+                "@opentelemetry/core",
+                "@opentelemetry/resources",
+                "@opentelemetry/sdk-logs",
+                "@opentelemetry/sdk-trace",
+            ],
+        },
+        zod: [1],
+    });
+
+    // read the browser modules the release root ships and the ones it maps to their sources
+    const scripts = (await root.files()).filter(
+        (file) => file.path.startsWith("output/browser/") && /\.[cm]?js$/u.test(file.path),
+    );
+    const mapped = new Set((await root.sourceMaps()).map((each) => each.generated));
+    const unmapped = scripts
+        .filter((file) => file.size > 0 && !mapped.has(file.path))
+        .map((file) => file.path);
+    // expect every module with code mapped but the export facades, which only re-export shared chunks, and the device worker's start, which its build ships unmapped
+    expect(unmapped).toEqual([
+        "output/browser/asset/worker-CkluHXXU.js",
+        "output/browser/src/object/index.js",
+        "output/browser/src/view/index.js",
+    ]);
+
+    // expect the exports to import builtins alone, every other module bundled in, and no development frame
+    const output = present(root.manifest.outputs["browser"], "the browser output");
+    const imported = Object.values(output.exports).flatMap((each) => each.imports);
+    expect({
+        exports: Object.keys(output.exports).toSorted(),
+        imported: [...new Set(imported)].toSorted(),
+        isFramed: output.frame !== undefined,
+    }).toEqual({
+        exports: ["./device", "./object", "./objects", "./package", "./view", "./view/notebooks"],
+        imported: [
+            "@destack/access",
+            "@destack/account/address",
+            "@destack/account/browser",
+            "@destack/account/object",
+            "@destack/color",
+            "@destack/db/browser",
+            "@destack/environment/baseline",
+            "@destack/environment/browser",
+            "@destack/error",
+            "@destack/locale",
+            "@destack/object",
+            "@destack/object/client",
+            "@destack/object/client/browser",
+            "@destack/object/device",
+            "@destack/object/device/browser",
+            "@destack/package",
+            "@destack/package/declare",
+            "@destack/package/manifest",
+            "@destack/schema",
+            "@destack/setting/declare",
+            "@destack/setting/object",
+            "@destack/sync",
+            "@destack/telemetry",
+            "@destack/telemetry/browser",
+            "@destack/telemetry/otlp",
+        ],
+        isFramed: false,
+    });
 });
 
 test("generate a view's mount with its theme, actions and capabilities", () => {
@@ -224,7 +343,7 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
             ``,
         ],
         [
-            'import { BrowserEnvironment, serveDevice } from "@destack/view/device";',
+            'import { BrowserEnvironment, serveDevice } from "@destack/view/device/browser";',
             'import { note as module0 } from "/package/src/note.ts";',
             ``,
             `export function serve(scope, request, loading) {`,
