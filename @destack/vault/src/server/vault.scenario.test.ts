@@ -1,5 +1,5 @@
 import { Account } from "@destack/account/object";
-import { type Table } from "@destack/db";
+import { eq, type Table } from "@destack/db";
 import { type Identifier } from "@destack/schema";
 import { PackageVersion } from "@destack/package";
 import { ids, TestSpace } from "@destack/machine/test";
@@ -8,7 +8,7 @@ import { expect, refusal, single, test } from "@destack/test";
 import { defineSecret, defineVault } from "../declare/index.ts";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import vaultPackage from "../package.ts";
-import { TestPackage, VAULT } from "@destack/machine/test";
+import { FORGE_HOME_STACK, FORGE_HOME_TYPES, TestPackage, VAULT } from "@destack/machine/test";
 import { APPLICATION, CONSUMER, CREDENTIAL, CREDENTIALS, TestVault } from "../test/index.ts";
 
 /** A vault the space's stack declares beside the application's, deleted at once on removal. */
@@ -407,14 +407,16 @@ test("store a vault the account's home declares in the enclosing scope in the ac
     });
     await home.serve();
     await home.install(VAULT.build, { isolation: "host" });
-    const credentials = defineVault({ name: "credentials" });
-    await home.apply([vaultPackage], {
-        vaults: { credentials: { ...credentials.provision(), scope: "enclosing" } },
+    const keys = defineVault({ name: "keys" });
+    await home.apply([...FORGE_HOME_TYPES], {
+        ...FORGE_HOME_STACK,
+        vaults: { ...FORGE_HOME_STACK.vaults, keys: { ...keys.provision(), scope: "enclosing" } },
     });
 
-    // store the vault in the account, below the home
+    // store the vault in the account, below the home, beside the forge's own
     const rows = await home.database
         .select({ scope: vault.table.scope, name: vault.table.name })
-        .from(vault.table);
-    expect(rows).toEqual([{ scope: ids.account, name: "credentials" }]);
+        .from(vault.table)
+        .where(eq(vault.table.name, "keys"));
+    expect(rows).toEqual([{ scope: ids.account, name: "keys" }]);
 });
