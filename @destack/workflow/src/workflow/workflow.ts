@@ -374,7 +374,7 @@ function declareRun(
             }),
             /** Run a run again from a step, forgetting that step and every later one. */
             reset: method.mutation({
-                title: t`Reset`,
+                title: t.context("action")`Reset`,
                 permission: "control",
                 input: schema.object({ step: schema.string().min(1) }),
                 output: schema.object({ forgotten: schema.number().int() }),
@@ -468,7 +468,7 @@ function declareStep(
             delete: method.delete("advance", { visibility: "package" }),
             /** Forward a call as the run's actor for the step's runner, answering it unrecorded. */
             forward: method.mutation({
-                title: t`Forward`,
+                title: t.context("action")`Forward`,
                 permission: "end",
                 input: schema.object({ call: Call }),
                 output: schema.json(),
@@ -476,14 +476,14 @@ function declareStep(
             }),
             /** Record a placed step's output, as its runner's function returned it. */
             complete: method.mutation({
-                title: t`Complete`,
+                title: t.context("action")`Complete`,
                 permission: "end",
                 input: schema.object({ output: schema.json() }),
                 output: schema.object({}),
             }),
             /** Record a placed step's failure, as its runner's function threw it. */
             fail: method.mutation({
-                title: t`Fail`,
+                title: t.context("action")`Fail`,
                 permission: "end",
                 input: schema.object({ failure: Failure }),
                 output: schema.object({}),
