@@ -1,14 +1,10 @@
 import { BuildImage } from "@destack/package/manifest";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { Miniflare } from "miniflare";
-import { fileURLToPath } from "node:url";
 import { eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import type { DurableObjectNamespace } from "@destack/db/cloudflare";
 import { graph, PackageVersion } from "@destack/package";
-import { modulePlugin } from "@destack/package/vite";
-import { ModuleTransformer } from "@destack/package/transform";
-import { rolldown } from "rolldown";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "@destack/object/test";
 import { MemoryBuild } from "@destack/package/test";
@@ -18,6 +14,7 @@ import { build, Build, declaration } from "@destack/stack/object";
 import { spaceTables } from "@destack/stack/stack";
 import { ids } from "../test/index.ts";
 import { DurableObjectGraphStorage } from "./graph.ts";
+import { bundleWorker } from "./test/bundle.ts";
 
 /** How long the index objects keep an index past its last view in the test: 300 ms. */
 const LEASE_MILLISECONDS = 300;
@@ -153,20 +150,12 @@ async function readNotification(graphs: DurableObjectGraphStorage, id: Identifie
 /** Run the index objects in the Workers runtime, answered from here, until the test ends. */
 async function indexes(): Promise<DurableObjectNamespace> {
     // bundle the scenario Worker exporting the index object for workerd
-    const bundle = await rolldown({
-        input: fileURLToPath(new URL("./test/graph.ts", import.meta.url)),
-        platform: "browser",
-        resolve: { conditionNames: ["workerd", "worker", "browser"] },
-        external: [/^node:/u, /^cloudflare:/u],
-        plugins: [modulePlugin(new ModuleTransformer(testHost()))],
-    });
-    const { output } = await bundle.generate({ format: "esm" });
-    const [chunk] = output;
+    const script = await bundleWorker(new URL("./test/graph.ts", import.meta.url));
 
     // run it with the index objects
     const worker = new Miniflare({
         modules: true,
-        script: chunk.code,
+        script,
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
         durableObjects: { GRAPH: { className: "GraphIndexObject", useSQLite: true } },

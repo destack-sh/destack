@@ -14,7 +14,7 @@ export async function bundleWorker(module: URL): Promise<string> {
         external: [/^node:/u, /^cloudflare:/u],
         plugins: [modulePlugin(new ModuleTransformer(testHost()))],
     });
-    const { output } = await bundle.generate({ format: "esm" });
+    const { output } = await bundle.generate({ format: "esm", codeSplitting: false });
     const [chunk] = output;
 
     return chunk.code;
