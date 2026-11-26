@@ -35,6 +35,12 @@ import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import { Checkout } from "@destack/check/workspace";
 
+/** The name and dependencies of a package file a frozen install reads without a lockfile. */
+const UnlockedPackage = schema.looseObject({
+    name: schema.string(),
+    dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+});
+
 /** The lockfile Bun writes at a workspace's root. */
 const LOCKFILE = "bun.lock";
 
@@ -194,10 +200,22 @@ export class Workspace {
         environment: Environment<"files" | "process">,
         options: { readonly isFrozen: boolean; readonly signal: AbortSignal },
     ): Promise<string | undefined> {
-        // install at the lockfile's workspace, else at the directory, leaving a frozen install without one
+        // install at the lockfile's workspace, else at the directory
         const { files, process } = environment;
         const lockfile = await readLockfileMaybe(directory, files);
+
+        // refuse a frozen install of a package with dependencies and no lockfile, leaving one without any
         if (lockfile === undefined && options.isFrozen) {
+            const authored = UnlockedPackage.parse(
+                JSON.parse(await files.readTextFile(join(directory, "package.json"))),
+            );
+            if (Object.keys(authored.dependencies ?? {}).length > 0) {
+                throw BuildError.of(
+                    "DEPENDENCY_INVALID",
+                    `dependencies of '${authored.name}' are invalid: it has no lockfile, so run bun install and commit bun.lock`,
+                );
+            }
+
             return undefined;
         }
         const root = lockfile === undefined ? directory : await Workspace.#locate(lockfile, files);
