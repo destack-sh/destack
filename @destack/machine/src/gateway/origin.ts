@@ -40,6 +40,8 @@ import accountPackage from "@destack/account/package";
 import {
     type BuildReader,
     ImportMap,
+    MODULE_TYPE,
+    ModuleResolution,
     PackageManifest,
     ViewDescription,
 } from "@destack/package/manifest";
@@ -134,6 +136,10 @@ export class InstallationOriginServer {
     readonly #builds = new Map<string, Promise<Pick<Page, "image" | "reader">>>();
     /** The browser import map of each image served so far, by image and base. */
     readonly #maps = new Map<string, Promise<ImportMap>>();
+    /** The module URLs of each image's builds, by image and base. */
+    readonly #resolutions = new Map<string, Promise<ModuleResolution>>();
+    /** The modules each entry preloads, by image, base and entry. */
+    readonly #preloads = new Map<string, Promise<string[]>>();
     /** The builds each image's page loads, its own and its map's, by image and base. */
     readonly #loaded = new Map<string, Promise<ReadonlySet<Digest>>>();
     /** The assets of the builds each image's map points into, by mount base, indexed once. */
@@ -1163,35 +1169,35 @@ export class InstallationOriginServer {
         return Response.json({});
     }
 
-    /** Serve a worker's module below its image, its imports resolved through the image's map. */
-    async #worker(request: Request, url: URL, page: Page, map: ImportMap): Promise<Response> {
-        // refuse an image the page no longer serves, as its worker resolved modules for another
-        const { base } = page.mount;
-        const [image = "", ...path] = InstallationOriginServer.#decoded(url)
-            .slice(`${OriginPath.worker}/`.length)
-            .split("/");
-        if (image !== page.image) {
-            throw MachineError.of("VIEW_NOT_FOUND", `image '${image}' of the views not found`);
+    /** Serve a module URL's file. */
+    async #module(
+        request: Request,
+        url: string,
+        resolution: ModuleResolution,
+        policy: string,
+    ): Promise<Response> {
+        // refuse a module the image lacks
+        const located = resolution.locate(url);
+        if (located === undefined) {
+            throw MachineError.of("VIEW_NOT_FOUND", `module '${url}' of the views not found`);
         }
+        const build = await this.#reader(located.build);
+        const file = await build.file(located.path);
+        const headers = { "cache-control": IMMUTABLE, "permissions-policy": policy };
 
-        // serve the file as its own path does, rewriting a module's imports into the namespace
-        const inner = new URL(`${base}/${path.join("/")}${url.search}`, url);
-        const asked = new Request(inner.href, { method: request.method, headers: request.headers });
-        const served = await this.#view(asked, inner, page);
-        const type = served.headers.get("content-type") ?? "";
-        if (!served.ok || !type.startsWith("text/javascript")) {
-            return served;
-        }
-        const namespace = `${base}${OriginPath.worker}/${image}`;
-        const code = await ImportMap.apply(
-            ImportMap.rebase(map, base, namespace),
-            await served.text(),
-            inner.pathname,
+        // serve a module rewritten, any other file as is
+        const rewritten =
+            file.mediaType === MODULE_TYPE
+                ? { rewrite: (code: string) => resolution.rewrite(code, url) }
+                : undefined;
+
+        return InstallationOriginServer.#file(
+            request,
+            file,
+            () => build.load(file.path),
+            headers,
+            rewritten,
         );
-        const headers = new Headers(served.headers);
-        headers.delete("content-length");
-
-        return new Response(code, { status: served.status, headers });
     }
 
     /** Serve a file of the installation's build, else the document of the view its path names. */
@@ -1210,29 +1216,32 @@ export class InstallationOriginServer {
         const map = await InstallationOriginServer.#memo(this.#maps, `${page.image} ${base}`, () =>
             this.#space.imports(page.image, "browser", prefix),
         );
-        // serve a module of a worker's graph below the image it resolves for, its imports resolved through the image's map
-        if (pathname.startsWith(`${OriginPath.worker}/`)) {
-            return await this.#worker(request, url, page, map);
+        const resolution = await InstallationOriginServer.#memo(
+            this.#resolutions,
+            `${page.image} ${base}`,
+            async () =>
+                ModuleResolution.of(
+                    map,
+                    await reader.digest(),
+                    { builds: prefix, modules: `${base}${OriginPath.module}/` },
+                    async (build) =>
+                        PackageManifest.dependencies(
+                            (await this.#reader(build)).manifest,
+                            "browser",
+                        ),
+                    this.#space.machine.environment.crypto,
+                ),
+        );
+
+        // serve a module of the image below its build and resolution
+        if (pathname.startsWith(`${OriginPath.module}/`)) {
+            return await this.#module(request, `${base}${pathname}`, resolution, policy);
         }
         const builds = await InstallationOriginServer.#memo(
             this.#loaded,
             `${page.image} ${base}`,
             async () => new Set([await reader.digest(), ...ImportMap.builds(map, prefix)]),
         );
-        if (pathname.startsWith(`${OriginPath.build}/`)) {
-            const [digest = "", ...path] = pathname.slice(`${OriginPath.build}/`.length).split("/");
-            const reached = Digest.safeParse(digest);
-            if (!reached.success || !builds.has(reached.data)) {
-                throw MachineError.of("VIEW_NOT_FOUND", `build '${digest}' of the views not found`);
-            }
-            const dependency = await this.#reader(reached.data);
-            const file = await dependency.file(path.join("/"));
-
-            return InstallationOriginServer.#file(request, file, () => dependency.load(file.path), {
-                "cache-control": IMMUTABLE,
-                "permissions-policy": policy,
-            });
-        }
 
         // serve an asset of the installation's build or of a build its import map reaches, unchanging under its name
         const assets = await InstallationOriginServer.#memo(
@@ -1316,8 +1325,8 @@ export class InstallationOriginServer {
 
             return asset.path.endsWith(".html")
                 ? InstallationOriginServer.#file(request, asset, load, siteHeaders, {
-                      map,
-                      build: page.image,
+                      rewrite: (html) => resolution.document(html, base),
+                      version: page.image,
                   })
                 : InstallationOriginServer.#file(request, asset, load, siteHeaders);
         } else if (resolved?.kind === "redirect") {
@@ -1358,7 +1367,7 @@ export class InstallationOriginServer {
         }
 
         // answer a development build's frame at its reserved path, as a view serving people
-        const opened = { request, url, page, policy, map, builds };
+        const opened = { request, url, page, policy, resolution, builds };
         if (pathname === OriginPath.frame) {
             const frame = reader.manifest.outputs["browser"]?.frame;
             if (frame === undefined) {
@@ -1383,8 +1392,8 @@ export class InstallationOriginServer {
             const load = () => reader.load(missing.path);
 
             return InstallationOriginServer.#file(request, missing, load, siteHeaders, {
-                map,
-                build: page.image,
+                rewrite: (html) => resolution.document(html, base),
+                version: page.image,
                 status: 404,
             });
         }
@@ -1406,7 +1415,7 @@ export class InstallationOriginServer {
             readonly url: URL;
             readonly page: Page;
             readonly policy: string;
-            readonly map: ImportMap;
+            readonly resolution: ModuleResolution;
             readonly builds: ReadonlySet<Digest>;
         },
         shown: {
@@ -1417,7 +1426,7 @@ export class InstallationOriginServer {
         },
     ): Promise<Response> {
         // read the page and what it shows
-        const { request, url, page, policy, map, builds } = opened;
+        const { request, url, page, policy, resolution, builds } = opened;
         const { reader, installation: found } = page;
         const { base } = page.mount;
         const { name } = shown;
@@ -1440,6 +1449,7 @@ export class InstallationOriginServer {
             this.#space.database.snapshot(),
             this.#space.id,
         );
+        const entry = resolution.url(resolution.root, shown.entrypoint);
         const document = ViewContext.document(
             {
                 installation: found.id,
@@ -1466,9 +1476,23 @@ export class InstallationOriginServer {
                     : { user: ANONYMOUS }),
                 ...(target === undefined ? {} : { target }),
             },
-            view.entrypoint,
+            entry,
             view.stylesheets,
-            map,
+            await InstallationOriginServer.#memo(
+                this.#preloads,
+                `${page.image} ${base} ${entry}`,
+                () =>
+                    resolution.preloads(entry, async (module) => {
+                        // read a module's code
+                        const located = present(resolution.locate(module), `module '${module}'`);
+                        const build = await this.#reader(located.build);
+                        const file = await build.file(located.path);
+
+                        return file.mediaType === MODULE_TYPE
+                            ? new TextDecoder().decode(await build.load(file.path))
+                            : undefined;
+                    }),
+            ),
         );
         document.headers.set("permissions-policy", policy);
 
@@ -1689,17 +1713,22 @@ export class InstallationOriginServer {
         }
     }
 
-    /** Answer a file under its ETag: unchanged with 304, else its bytes or a page with its map. */
+    /** Answer a file under its ETag. */
     static async #file(
         request: Request,
         file: PackageFile,
         load: () => Promise<Uint8Array<ArrayBuffer>>,
         headers: Readonly<Record<string, string>>,
-        page?: { readonly map: ImportMap; readonly build: Digest; readonly status?: number },
+        rewritten?: {
+            readonly rewrite: (text: string) => Promise<string>;
+            readonly version?: string;
+            readonly status?: number;
+        },
     ): Promise<Response> {
-        // answer an unchanged file as such, a page's map following from its build
-        const status = page?.status ?? 200;
-        const etag = page === undefined ? `"${file.digest}"` : `"${file.digest}.${page.build}"`;
+        // answer an unchanged file as such, a rewritten one's tag following from what it is rewritten for
+        const status = rewritten?.status ?? 200;
+        const version = rewritten?.version;
+        const etag = version === undefined ? `"${file.digest}"` : `"${file.digest}.${version}"`;
         const described = {
             ...headers,
             "content-type": file.mediaType,
@@ -1714,9 +1743,9 @@ export class InstallationOriginServer {
         if (request.method === "HEAD") {
             return new Response(null, { status, headers: described });
         }
-        // answer a page with the map at the start of its head
-        else if (page !== undefined) {
-            const body = ImportMap.insert(new TextDecoder().decode(await load()), page.map);
+        // answer a rewritten file's text
+        else if (rewritten !== undefined) {
+            const body = await rewritten.rewrite(new TextDecoder().decode(await load()));
 
             return new Response(body, { status, headers: described });
         }

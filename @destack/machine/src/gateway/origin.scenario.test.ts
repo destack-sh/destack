@@ -28,7 +28,6 @@ import {
 import { createClient, ObjectFileClient, ObjectConnection } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
 import { OriginPath, PackageId, PackageVersion, Sandbox } from "@destack/package";
-import { ImportMap } from "@destack/package/manifest";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
@@ -232,6 +231,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
     ];
 
     return MemoryBuild.of(tasks, declared, crypto, {
+        files: new Map([[board.entrypoint, new TextEncoder().encode("export {};\n")]]),
         tables: describedTables(declared, tasks.id, KNOWN_TYPES),
         outputs: {
             browser: {
@@ -1742,12 +1742,18 @@ test("serve a library's catalogs and assets at its dependent's origin, and its h
     });
 });
 
-test("serve a worker's modules below the page's image with their imports resolved through its map, refusing another image", async () => {
-    // install a greeting whose device module imports the widget library and a chunk of its own
+test("serve a view's modules at URLs of their build and resolution, its document preloading them without an import map", async () => {
+    // install a greeting importing the widget library
     const { crypto } = testHost();
     const widgets = await TestViewBuild.of(WIDGETS, {}, {}, crypto);
-    const device =
-        'import { close } from "@example/widgets";\nimport "./chunk/shared-Bq3x9Zk1.js";\n';
+    const files: [string, string][] = [
+        ["browser/greeting.js", 'import "./device.js";\n'],
+        [
+            "browser/device.js",
+            'import { close } from "@example/widgets";\nimport "./chunk/shared.js";\n',
+        ],
+        ["browser/chunk/shared.js", "export const shared = 1;\n"],
+    ];
     const greeting = await TestViewBuild.of(
         GREETING,
         {
@@ -1765,7 +1771,10 @@ test("serve a worker's modules below the page's image with their imports resolve
         },
         {
             files: new Map([
-                ["browser/device.js", new TextEncoder().encode(device)],
+                ...files.map(([path, code]): [string, Uint8Array<ArrayBuffer>] => [
+                    path,
+                    new TextEncoder().encode(code),
+                ]),
                 ["locale/de.json", catalog(GREETING.id, "Willkommen zurück")],
             ]),
             dependencies: [widgets],
@@ -1777,7 +1786,7 @@ test("serve a worker's modules below the page's image with their imports resolve
     await opened.cloud.publish(await world.distribution.image(widgets), world.owner);
     await install(opened, greeting, "greeting", [widgets]);
 
-    // read the page's image and import map from its document
+    // read the document's entry and preloads
     const page = await openPage(opened, {
         space: opened.address,
         installation: "greeting",
@@ -1786,42 +1795,49 @@ test("serve a worker's modules below the page's image with their imports resolve
     });
     const address = new URL(header(page.traded, "location"), page.launched.url).href;
     const document = await (await page.fetch(new Request(address))).text();
-    const context = ViewContext.parse(
-        JSON.parse(
-            nth(present(/id="destack-view">(.*)<\/script>/u.exec(document), "the context"), 1),
-        ),
+    const entry = nth(
+        present(/<script type="module" src="([^"]+)">/u.exec(document), "the entry"),
+        1,
     );
-    const map = ImportMap.parse(
-        JSON.parse(
-            nth(present(/<script type="importmap">(.*?)<\/script>/u.exec(document), "the map"), 1),
-        ),
+    const preloads = [...document.matchAll(/<link rel="modulepreload" href="([^"]+)">/gu)].map(
+        (match) => nth(match, 1),
     );
-    const namespace = `${OriginPath.worker}/${context.build}`;
+    const root = entry.slice(0, -"browser/greeting.js".length);
 
-    // read the device module and a catalog below the image, then the module below another image
+    // read a module, a catalog and a stale module
     const read = async (path: string) => {
         const response = await page.fetch(new Request(new URL(path, address).href));
 
         return [response.status, response.headers.get("cache-control"), await response.text()];
     };
-    const module = await read(`${namespace}/browser/device.js`);
-    const catalogued = await read(`${namespace}/locale/de.json`);
-    const stale = await read(`${OriginPath.worker}/${"0".repeat(64)}/browser/device.js`);
+    const module = await read(`${root}browser/device.js`);
+    const catalogued = await read(`${root}locale/de.json`);
+    const stale = await read(
+        `${OriginPath.module}/${"0".repeat(64)}.${"0".repeat(16)}/browser/device.js`,
+    );
 
-    // expect the library's specifier resolved into the namespace, the relative chunk left to resolve in it, the catalog as served
-    const library = present(map.imports["@example/widgets"], "the library's target");
-    expect({ module, catalogued: catalogued.slice(0, 2), stale: stale[0] }).toEqual({
+    // expect module URLs and no import map
+    const widget = present(preloads[1], "the library's module");
+    const located = MODULE_PREFIX;
+    expect({
+        isMapped: document.includes("importmap"),
+        isRootLocated: located.test(root),
+        isWidgetLocated: located.test(widget) && widget.endsWith("/browser/index.js"),
+        preloads,
+        module,
+        catalogued: catalogued.slice(0, 2),
+        stale: stale[0],
+    }).toEqual({
+        isMapped: false,
+        isRootLocated: true,
+        isWidgetLocated: true,
+        preloads: [`${root}browser/device.js`, widget, `${root}browser/chunk/shared.js`],
         module: [
             200,
-            "no-cache",
-            `import { close } from "${namespace}${library}";\nimport "./chunk/shared-Bq3x9Zk1.js";\n`,
+            "public, max-age=31536000, immutable",
+            `import { close } from "${widget}";\nimport "./chunk/shared.js";\n`,
         ],
-        catalogued: [
-            200,
-            (await page.fetch(new Request(new URL("/locale/de.json", address).href))).headers.get(
-                "cache-control",
-            ),
-        ],
+        catalogued: [200, "public, max-age=31536000, immutable"],
         stale: 404,
     });
 });
@@ -1874,11 +1890,11 @@ test("serve a development build's frame, and refuse one of a build without a fra
     // load the frame's module and styles in the frame's context, and refuse a build without a frame
     expect({
         framed: [framed.status, context.view],
-        loaded,
+        loaded: loaded.map((path) => path?.replace(MODULE_PREFIX, "/.destack/module/<build>/")),
         unframed: await summary(unframed),
     }).toEqual({
         framed: [200, FRAME_VIEW],
-        loaded: ["/browser/frame.css", "/browser/frame.js"],
+        loaded: ["/browser/frame.css", "/.destack/module/<build>/browser/frame.js"],
         unframed: answered(
             "NOT_FOUND",
             "VIEW_NOT_FOUND",
@@ -1887,6 +1903,9 @@ test("serve a development build's frame, and refuse one of a build without a fra
         ),
     });
 });
+
+/** The prefix of a module URL. */
+const MODULE_PREFIX = /^\/\.destack\/module\/[0-9a-f]{64}\.[0-9a-f]{16}\//u;
 
 /** The resolver the universe reads DNS over HTTPS from, Cloudflare's. */
 const RESOLVER = "cloudflare-dns.com";
@@ -2051,7 +2070,7 @@ test("serve a site at a verified hostname's route", async () => {
         await computer.computer.fetch(new Request(`https://${hostname}/assets/site.js`))
     ).headers.get("etag");
 
-    // serve pages with the installation's import map and assets as Cloudflare's auto-trailing-slash does, revalidated by ETag, reads only, no source,
+    // serve pages and assets as Cloudflare's auto-trailing-slash does, revalidated by ETag, reads only, no source,
     //  the site's headers below the installation's browser features, redirects staying on the origin,
     //  and refuse a launch and a link, which the installation's own origin takes
     expect({
@@ -2082,10 +2101,7 @@ test("serve a site at a verified hostname's route", async () => {
         launched: await visit("/?token=forged"),
         linked: await visit(`/?link=${"a".repeat(64)}`),
     }).toEqual({
-        root: [
-            200,
-            '<head><script type="importmap">{"imports":{},"scopes":{}}</script></head><h1>Home</h1>',
-        ],
+        root: [200, "<head></head><h1>Home</h1>"],
         slashed: [200, "<h1>Hello</h1>"],
         unslashed: [307, "/blog/hello/"],
         index: [307, "/blog/hello/"],

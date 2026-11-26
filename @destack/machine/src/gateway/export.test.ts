@@ -2,13 +2,14 @@ import { join } from "node:path";
 import { TestBuildStore } from "@destack/build/test";
 import { PackageVersion, Sandbox } from "@destack/package";
 import { BuildImage } from "@destack/package/manifest";
+import { nth, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { MachineError } from "../error/index.ts";
 import { StaticExport } from "./export.ts";
 import { TestViewBuild } from "./test/view.ts";
 
-test("export a static view as a static host serves it: pages with the import map, assets, builds and headers", async () => {
+test("export a static view as a static host serves it: pages with module URLs, assets, modules and headers", async () => {
     // store a site's build with its pages, an asset, a redirect and its own headers
     const host = testHost();
     await using store = await TestBuildStore.create(host);
@@ -44,7 +45,12 @@ test("export a static view as a static host serves it: pages with the import map
         },
         {
             files: new Map([
-                ["browser/view/site/index.html", encoder.encode("<head></head><h1>Home</h1>")],
+                [
+                    "browser/view/site/index.html",
+                    encoder.encode(
+                        '<head><script type="module" src="/browser/assets/hydrate.js"></script></head><h1>Home</h1>',
+                    ),
+                ],
                 ["browser/view/site/blog/index.html", encoder.encode("<h1>Blog</h1>")],
                 ["browser/view/site/404.html", encoder.encode("<h1>Not found</h1>")],
                 ["browser/view/site/_redirects", encoder.encode("/old /blog/ 301\n")],
@@ -77,9 +83,26 @@ test("export a static view as a static host serves it: pages with the import map
         const index = await host.files.readTextFile(join(directory, "index.html"));
         const headers = await host.files.readTextFile(join(directory, "_headers"));
 
-        // expect the pages at the root, its asset and its library's below the asset path, and every build below its digest
-        const built = (path: string, digest?: string) => `.destack/build/${digest ?? root}/${path}`;
-        expect({ paths, isMapped: index.includes(`"importmap"`), headers }).toEqual({
+        // read each build's module prefix
+        const segment = (digest: string) =>
+            nth(
+                present(
+                    paths
+                        .map((path) =>
+                            new RegExp(`^\\.destack/module/(${digest}\\.[0-9a-f]{16})/`, "u").exec(
+                                path,
+                            ),
+                        )
+                        .find((match) => match !== null),
+                    `the module prefix of '${digest}'`,
+                ),
+                1,
+            );
+
+        // expect pages, assets and modules at their paths
+        const built = (path: string, digest?: string) =>
+            `.destack/module/${segment(digest ?? root)}/${path}`;
+        expect({ paths, index, headers }).toEqual({
             paths: [
                 ".destack/asset/font.woff2",
                 ".destack/asset/type.woff2",
@@ -113,13 +136,13 @@ test("export a static view as a static host serves it: pages with the import map
                 "browser/view/site/index.html",
                 "index.html",
             ].toSorted(),
-            isMapped: true,
+            index: `<head><script type="module" src="/${built("browser/assets/hydrate.js")}"></script></head><h1>Home</h1>`,
             headers: [
                 "/blog/*",
                 "  X-Robots-Tag: noindex",
                 "/*",
                 `  Permissions-Policy: ${Sandbox.policy(Sandbox.merge({}))}`,
-                "/.destack/build/*",
+                "/.destack/module/*",
                 "  Cache-Control: public, max-age=31536000, immutable",
                 "/*.html",
                 "  Content-Type: text/html",

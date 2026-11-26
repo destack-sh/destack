@@ -6,7 +6,9 @@ import {
     type BuildReader,
     ImportMap,
     BuildImage,
-    type PackageManifest,
+    MODULE_TYPE,
+    ModuleResolution,
+    PackageManifest,
     ViewDescription,
 } from "@destack/package/manifest";
 import { OriginPath, Sandbox } from "@destack/package";
@@ -14,15 +16,15 @@ import type { Digest } from "@destack/schema";
 import { MachineError } from "../error/index.ts";
 import { HEADERS_FILE, StaticHost, AssetIndex } from "./host.ts";
 
-/** The headers of a dependency build's files, which never change under its digest. */
+/** The headers of an image's modules, which never change. */
 const BUILD_HEADERS = "  Cache-Control: public, max-age=31536000, immutable";
 
 /** The files whose text refers to other files of the site: pages and stylesheets. */
 const REFERRING = new Set([".html", ".css"]);
 
-/** A disk path or a path below the asset or build path, where a page or stylesheet loads a file. */
+/** A disk path, asset path or module path a page or stylesheet loads. */
 const REFERENCE =
-    /(?:\b(?:href|src)=["']|url\(["']?)(file:\/\/[^"'\s)<>]+|\/\.destack\/(?:asset|build)\/[^"'\s)<>?#]+)/gu;
+    /(?:\b(?:href|src)=["']|url\(["']?)(file:\/\/[^"'\s)<>]+|\/\.destack\/(?:asset|module)\/[^"'\s)<>?#]+)/gu;
 
 /** A static view written out as files, as a static host serves them and a machine's origin does. */
 export class StaticExport {
@@ -67,24 +69,32 @@ export class StaticExport {
             throw MachineError.of("VIEW_NOT_FOUND", `static view '${view}' of the build not found`);
         }
 
-        // map the modules the pages import below the build path, as the origin does
+        // resolve the pages' modules
         const prefix = `${OriginPath.build}/`;
         const map = await BuildImage.imports(opened, "browser", prefix, linked, (digest) =>
             this.#builds.get(digest),
         );
         const builds = new Set([opened.root, ...ImportMap.builds(map, prefix)]);
+        const resolution = await ModuleResolution.of(
+            map,
+            opened.root,
+            { builds: prefix, modules: `${OriginPath.module}/` },
+            async (build) => PackageManifest.dependencies(await this.#builds.get(build), "browser"),
+            this.#environment.crypto,
+        );
+        const page = (text: string) => resolution.document(text, "");
 
-        // write the build's public files at their paths, then the site's files at the paths it answers, pages with the map
+        // write the public files, then the site's files
         for (const file of files.values()) {
             await this.#copy(reader, file, `/${file.path}`);
         }
         for (const { path, file } of [...site.paths(), ...site.configuration()]) {
-            await this.#copy(reader, file, path, file.path.endsWith(".html") ? map : undefined);
+            await this.#copy(reader, file, path, file.path.endsWith(".html") ? page : undefined);
         }
 
-        // write each build the pages import below its digest, the view's own among them
+        // write each build's modules
         for (const digest of builds) {
-            await this.#copyBuild(digest);
+            await this.#copyBuild(digest, resolution);
         }
 
         // write each asset the builds emit below the asset path, by its name
@@ -107,19 +117,19 @@ export class StaticExport {
         await this.#writeHeaders(StaticExport.#policy(reader.manifest));
     }
 
-    /** Copy one file of a build to a path, a page with the import map at the start of its head. */
+    /** Copy one file of a build to a path, rewriting its text if given. */
     async #copy(
         reader: BuildReader,
         file: PackageFile,
         path: string,
-        map?: ImportMap,
+        rewrite?: (text: string) => Promise<string>,
     ): Promise<void> {
-        // read the bytes, inserting the map into a page
+        // read the bytes, rewriting a page's or a module's text
         const bytes = await reader.load(file.path);
         const written =
-            map === undefined
+            rewrite === undefined
                 ? bytes
-                : new TextEncoder().encode(ImportMap.insert(new TextDecoder().decode(bytes), map));
+                : new TextEncoder().encode(await rewrite(new TextDecoder().decode(bytes)));
 
         // note the addresses a page or stylesheet refers to, by the first file referring to each
         if (REFERRING.has(extname(path))) {
@@ -140,11 +150,16 @@ export class StaticExport {
         this.#types.set(extname(path), file.mediaType);
     }
 
-    /** Copy the files a browser loads of a build below the build path, under its digest. */
-    async #copyBuild(digest: Digest): Promise<void> {
+    /** Copy a build's browser files to their module URLs. */
+    async #copyBuild(digest: Digest, resolution: ModuleResolution): Promise<void> {
         const reader = await this.#builds.contents(digest);
         for (const file of StaticExport.#browserFiles(reader.manifest, await reader.files())) {
-            await this.#copy(reader, file, `${OriginPath.build}/${digest}/${file.path}`);
+            const url = resolution.url(digest, file.path);
+            const rewrite =
+                file.mediaType === MODULE_TYPE
+                    ? (text: string) => resolution.rewrite(text, url)
+                    : undefined;
+            await this.#copy(reader, file, url, rewrite);
         }
     }
 
@@ -177,7 +192,7 @@ export class StaticExport {
             .map(([extension, type]) => `/*${extension}\n  Content-Type: ${type}`);
         const rules = [
             `/*\n  Permissions-Policy: ${policy}`,
-            `${OriginPath.build}/*\n${BUILD_HEADERS}`,
+            `${OriginPath.module}/*\n${BUILD_HEADERS}`,
             ...types,
         ];
         const text = [...(own === undefined ? [] : [own.trimEnd()]), ...rules].join("\n");

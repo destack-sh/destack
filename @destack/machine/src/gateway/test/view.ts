@@ -54,15 +54,16 @@ export const TestViewBuild = {
         },
         crypto: Crypto,
     ): Promise<BuildReader> {
-        // write its main module and each view's beside the other files
+        // add empty entries the files lack
         const module = new TextEncoder().encode("export {};\n");
         const files = new Map(options.files);
-        files.set(BROWSER_MAIN, module);
-        for (const view of Object.values(views)) {
-            files.set(view.entrypoint, module);
-        }
-        if (options.frame !== undefined) {
-            files.set(options.frame.entrypoint, module);
+        const entries = [
+            BROWSER_MAIN,
+            ...Object.values(views).map((view) => view.entrypoint),
+            ...(options.frame === undefined ? [] : [options.frame.entrypoint]),
+        ];
+        for (const entry of entries.filter((path) => !files.has(path))) {
+            files.set(entry, module);
         }
 
         // declare the package, its object types, its resources and its views, as its build would
