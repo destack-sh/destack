@@ -567,7 +567,7 @@ function deviceModule(views: readonly LocatedView[], compilation: ViewPackage): 
     });
 
     return [
-        `import { BrowserEnvironment, serveDevice } from "${VIEW_PACKAGE}/device";`,
+        `import { BrowserEnvironment, serveDevice } from "${VIEW_PACKAGE}/device/browser";`,
         ...imports,
         ``,
         `export function serve(scope, request, loading) {`,

@@ -10,7 +10,7 @@
             "runtimes": ["browser"],
             "internal": true
         },
-        "./device": {
+        "./device/browser": {
             "runtimes": ["browser"],
             "internal": true
         },

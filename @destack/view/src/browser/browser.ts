@@ -7,7 +7,7 @@ import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
 import { type JsonObject, present, schema, Version } from "@destack/schema";
 import { OriginPath, PackageId } from "@destack/package";
-import { BrowserTab, DeviceElection } from "@destack/object/browser";
+import { BrowserTab, DeviceElection } from "@destack/object/client/browser";
 import { BrowserClient } from "@destack/account/browser";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
@@ -32,7 +32,7 @@ import type { View } from "../declare/view.ts";
 import type { ViewMount } from "../page/context.ts";
 import { renderView } from "../page/mount.ts";
 import { recordVisits } from "./visit.ts";
-import { DeviceRequest, DeviceRole, deviceObjects } from "./device.ts";
+import { DeviceRequest, DeviceRole } from "./request.ts";
 import { mountPackages } from "../page/view.ts";
 import { PageAuthorization } from "./authorization.ts";
 import { PaletteOverlay } from "../palette/overlay.ts";
@@ -639,7 +639,7 @@ async function openTabs(
             const tab = BrowserTab.open({
                 name,
                 election,
-                objects: deviceObjects(view.objects, played),
+                objects: DeviceRole.objects(view.objects, played),
                 scope,
                 caller: context.user,
                 ...(device === undefined ? {} : { device }),

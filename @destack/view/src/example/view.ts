@@ -3,8 +3,9 @@ import { principal } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import { WasmClient } from "@destack/db/browser";
 import { SqliteDatabase } from "@destack/db/sqlite";
-import type { ObjectType } from "@destack/object";
-import { ObjectClient, ObjectConnection, ObjectRemote } from "@destack/object/client";
+import { ObjectType } from "@destack/object";
+import { ObjectConnection, ObjectRemote } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/device";
 import type { ExampleObjects } from "@destack/package/declare";
 import { Digest } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -151,7 +152,7 @@ async function openScope(
     signal: AbortSignal,
 ): Promise<ObjectClient> {
     // keep the objects in memory, keyed by their package-qualified types
-    const named = ObjectClient.keyed(objects);
+    const named = ObjectType.keyed(objects);
     const memory = await WasmClient.memory(environment);
     const database = new SqliteDatabase(memory, ObjectClient.tables(named), "embedded", "writer", {
         environment,
