@@ -297,7 +297,7 @@ function FieldLabel(properties: {
     return (
         <>
             <Show when={field()?.icon ?? field()?.type}>
-                <ValueIcon kind={field()?.type?.kind ?? "text"} icon={field()?.icon} />
+                <ValueIcon type={field()?.type ?? { kind: "text" }} icon={field()?.icon} />
             </Show>
             {field()?.label ?? properties.name}
         </>

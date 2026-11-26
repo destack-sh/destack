@@ -4,7 +4,7 @@ import minusIcon from "@destack/icon/phosphor/minus";
 import plusIcon from "@destack/icon/phosphor/plus";
 import { type NumberFormat, t } from "@destack/locale";
 import type { ActionValue, Choice } from "@destack/object";
-import { type JsonValue, schema } from "@destack/schema";
+import { type JsonObject, type JsonValue, LocalReference, schema } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, font, radius, space } from "@destack/theme/tokens.stylex";
 import {
@@ -90,6 +90,9 @@ const styles = style.create({
     },
 });
 
+/** What a JSON input takes: JSON its schema takes. */
+type JsonValueType = ActionValue & { readonly kind: "json" };
+
 /** The kinds of values a person gives. */
 export type ValueKind = ActionValue["kind"];
 
@@ -171,12 +174,8 @@ export function ValueField(properties: ValueFieldProperties): JSX.Element {
             return <inputs.person {...properties} type={{ kind: "person" }} />;
         case "object":
             return <inputs.object {...properties} type={type} />;
-        case "color":
-            return <inputs.color {...properties} type={{ kind: "color" }} />;
-        case "colors":
-            return <inputs.colors {...properties} type={type} />;
         case "json":
-            return <inputs.json {...properties} type={{ kind: "json" }} />;
+            return <inputs.json {...properties} type={type} />;
     }
 }
 
@@ -242,6 +241,14 @@ function BooleanInput(properties: ValueFieldProperties): JSX.Element {
     );
 }
 
+/** The input of each named schema, such as a color's, beside the JSON typed for any other. */
+const NAMED_INPUTS: Readonly<
+    Partial<Record<string, (properties: ValueFieldProperties<JsonValueType>) => JSX.Element>>
+> = {
+    color: ColorInput,
+    palette: PaletteInput,
+};
+
 /** Render the input of a color: its swatch and text, which open a picker. */
 function ColorInput(properties: ValueFieldProperties): JSX.Element {
     const value = (): string | undefined =>
@@ -275,9 +282,7 @@ function ColorInput(properties: ValueFieldProperties): JSX.Element {
 }
 
 /** Render a palette: swatches a drag reorders, each picked or removed in its popover. */
-function ColorsInput(
-    properties: ValueFieldProperties<ActionValue & { readonly kind: "colors" }>,
-): JSX.Element {
+function PaletteInput(properties: ValueFieldProperties<JsonValueType>): JSX.Element {
     // key each color by its value and how often it came before, as colors repeat
     const locale = useLocale();
     const colors = (): readonly string[] =>
@@ -295,8 +300,10 @@ function ColorsInput(
 
     // write the colors back changed, within the fewest and the most
     const write = (next: readonly string[]): void => properties.onValueChange([...next]);
-    const isFewest = (): boolean => colors().length <= (properties.type.minimum ?? 0);
-    const isMost = (): boolean => colors().length >= (properties.type.maximum ?? Infinity);
+    const isFewest = (): boolean =>
+        colors().length <= limitOf(properties.type.schema, "minItems", 0);
+    const isMost = (): boolean =>
+        colors().length >= limitOf(properties.type.schema, "maxItems", Infinity);
     const move = ({ id, previous }: SortableMove): void => {
         // place the moved color after the one it lands after
         const rest = entries().filter((entry) => entry.key !== id);
@@ -590,8 +597,28 @@ function FoundInput(properties: ValueFieldProperties): JSX.Element {
     );
 }
 
-/** Render the input of a value without a form of its own, written as JSON. */
-function JsonInput(properties: ValueFieldProperties): JSX.Element {
+/** Render the input of JSON: its named schema's own, such as a color's, else the JSON typed. */
+function JsonInput(properties: ValueFieldProperties<JsonValueType>): JSX.Element {
+    const Named = NAMED_INPUTS[untrack(() => LocalReference.root(properties.type.schema)) ?? ""];
+
+    return Named === undefined ? <JsonText {...properties} /> : <Named {...properties} />;
+}
+
+/** Read a limit of a schema, such as its most items, at its root or in its named definition. */
+function limitOf(description: JsonObject, keyword: "minItems" | "maxItems", none: number): number {
+    // take the root's own, then the named definition's
+    const name = LocalReference.root(description);
+    const definitions = schema
+        .record(schema.string(), schema.jsonObject())
+        .safeParse(description["$defs"]).data;
+    const definition = name === null ? undefined : definitions?.[name];
+    const found = description[keyword] ?? definition?.[keyword];
+
+    return typeof found === "number" ? found : none;
+}
+
+/** Render JSON as text, kept while it is typed and given once it parses. */
+function JsonText(properties: ValueFieldProperties): JSX.Element {
     // show the text typed while it is of the value, else the value's own
     const [typed, setTyped] = createSignal<string | undefined>(undefined, { ownedWrite: true });
     const shown = (): string => {
@@ -673,7 +700,5 @@ const DEFAULTS: ValueFields = {
     choice: ChoiceInput,
     person: FoundInput,
     object: FoundInput,
-    color: ColorInput,
-    colors: ColorsInput,
     json: JsonInput,
 };

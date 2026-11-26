@@ -353,7 +353,7 @@ export function FilterField(properties: FilterElementProperties): JSX.Element {
                 >
                     {(each) => (
                         <>
-                            <ValueIcon kind={each().type.kind} icon={each().icon} />
+                            <ValueIcon type={each().type} icon={each().icon} />
                             {each().label}
                         </>
                     )}
@@ -501,7 +501,7 @@ export function FilterEditor(properties: {
 
         return type === undefined || type.kind === "choice" || type.kind === "object"
             ? undefined
-            : type.kind === "number"
+            : type.kind === "number" || type.kind === "json"
               ? type
               : { kind: type.kind };
     };
@@ -727,7 +727,7 @@ export function FilterAdd(properties: FilterAddProperties): JSX.Element {
                                             add((id) => control.add(name, [], id), true)
                                         }
                                     >
-                                        <ValueIcon kind={field.type.kind} icon={field.icon} />
+                                        <ValueIcon type={field.type} icon={field.icon} />
                                         {field.label}
                                     </CommandItem>
                                 )}
@@ -755,7 +755,7 @@ export function FilterAdd(properties: FilterAddProperties): JSX.Element {
                                                     }
                                                 >
                                                     <ValueIcon
-                                                        kind={field.type.kind}
+                                                        type={field.type}
                                                         icon={field.icon}
                                                     />
                                                     <span {...style.attrs(styles.of)}>

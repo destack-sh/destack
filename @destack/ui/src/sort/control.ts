@@ -16,7 +16,7 @@ export interface SortFieldDefinition {
     /** What it is called. */
     readonly label: string;
     /** What it has, which words its directions, such as from A to Z. */
-    readonly type?: Pick<ActionValue, "kind"> | undefined;
+    readonly type?: ActionValue | undefined;
     /** Its icon, its kind's by default. */
     readonly icon?: IconBodies | undefined;
 }

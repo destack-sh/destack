@@ -1,5 +1,6 @@
+import { Color, Palette } from "@destack/color";
 import { t } from "@destack/locale";
-import type { JsonValue } from "@destack/schema";
+import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -33,7 +34,7 @@ export const valueFieldKinds = defineExample({
             pinned: true,
             person: "Ada",
             label: "#f76b15",
-            gradient: ["#e0eaff", "#241d9a", "#f75092"],
+            palette: ["#e0eaff", "#241d9a", "#f75092"],
         });
         const of = (name: string) => ({
             get value() {
@@ -87,13 +88,16 @@ export const valueFieldKinds = defineExample({
                 </Field>
                 <Field>
                     <FieldLabel>Label</FieldLabel>
-                    <ValueField type={{ kind: "color" }} {...of("label")} />
+                    <ValueField
+                        type={{ kind: "json", schema: describe(Color.schema) }}
+                        {...of("label")}
+                    />
                 </Field>
                 <Field>
-                    <FieldLabel>Gradient</FieldLabel>
+                    <FieldLabel>Palette</FieldLabel>
                     <ValueField
-                        type={{ kind: "colors", minimum: 2, maximum: 5 }}
-                        {...of("gradient")}
+                        type={{ kind: "json", schema: describe(Palette.min(2).max(5)) }}
+                        {...of("palette")}
                     />
                 </Field>
                 <output>{JSON.stringify(given())}</output>
@@ -131,3 +135,8 @@ export const valueFieldReplaced = defineExample({
         </ValueFieldProvider>
     ),
 });
+
+/** Describe a schema as the JSON Schema a JSON input carries. */
+function describe(definition: schema.Schema): JsonObject {
+    return JsonValue.object(toJsonSchema(definition));
+}

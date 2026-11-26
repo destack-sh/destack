@@ -63,6 +63,13 @@ const LARGE_STEP = 10;
 /** The squares behind a color that lets them through. */
 const CHECKERS = `repeating-conic-gradient(color-mix(in oklab, ${color.mutedForeground} 35%, ${color.background}) 0% 25%, ${color.background} 0% 50%) 50% / ${space[2]} ${space[2]}`;
 
+/** The squares behind colors that let them through, for any part that shows one. */
+export const checkers = style.create({
+    backdrop: {
+        background: CHECKERS,
+    },
+});
+
 /** The edge of a thumb, seen on any color. */
 const THUMB_EDGE = "0 0 0 1px rgb(0 0 0 / 0.5), inset 0 0 0 1px rgb(0 0 0 / 0.5)";
 

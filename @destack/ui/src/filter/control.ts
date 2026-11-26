@@ -1,7 +1,7 @@
 import { Condition, type JsonCondition, Predicate } from "@destack/db";
 import type { IconBodies } from "@destack/icon";
 import { type Localization, t } from "@destack/locale";
-import { Choice, type FieldChoice, type NumberInput } from "@destack/object";
+import { type ActionValue, Choice, type FieldChoice, type NumberInput } from "@destack/object";
 import type { JsonValue } from "@destack/schema";
 import {
     type Accessor,
@@ -20,8 +20,9 @@ const COMBINING: ReadonlySet<string> = new Set(["AND", "OR", "NOT"]);
 
 /** What a field has: its kind, with a number's format or the values of a choice. */
 export type FilterType =
-    | { readonly kind: Exclude<ValueKind, "number" | "choice"> }
+    | { readonly kind: Exclude<ValueKind, "number" | "choice" | "json"> }
     | (NumberInput & { readonly kind: "number" })
+    | Extract<ActionValue, { readonly kind: "json" }>
     | { readonly kind: "choice"; readonly choices?: readonly FieldChoice[] };
 
 /** A field a person filters by. */

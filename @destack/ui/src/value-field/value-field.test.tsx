@@ -1,6 +1,6 @@
+import { Color, Palette } from "@destack/color";
 import type { ActionValue, Choice } from "@destack/object";
-import type { JsonValue } from "@destack/schema";
-import { present } from "@destack/schema";
+import { type JsonObject, JsonValue, present, schema, toJsonSchema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
@@ -40,7 +40,7 @@ test("give text, numbers and JSON", () => {
     text.type("");
     const number = draw({ kind: "number", format: { style: "percent" } });
     number.type("25%");
-    const json = draw({ kind: "json" });
+    const json = draw({ kind: "json", schema: describe(schema.json()) });
     json.type('{"count": 1}');
     json.type("{");
 
@@ -100,7 +100,7 @@ test("show the title of a person, and keep them as other text is typed", () => {
 });
 
 test("keep JSON as it is typed", () => {
-    const { container, type } = draw({ kind: "json" }, [1]);
+    const { container, type } = draw({ kind: "json", schema: describe(schema.json()) }, [1]);
     const shown = () => container.querySelector("textarea")?.value;
     const before = shown();
     type("[1,  2]");
@@ -112,7 +112,7 @@ test("keep JSON as it is typed", () => {
 
 test("give a color typed in its picker, the swatch and text showing it", () => {
     stubPopovers();
-    const { container, given } = draw({ kind: "color" }, "#f76b15");
+    const { container, given } = draw({ kind: "json", schema: describe(Color.schema) }, "#f76b15");
 
     // open the picker and type a color into its text
     container.querySelector<HTMLButtonElement>("button")?.click();
@@ -133,7 +133,7 @@ test("give a color typed in its picker, the swatch and text showing it", () => {
 
 test("add, move and remove the colors of a palette between the fewest and the most", () => {
     stubPopovers();
-    const { container, given } = draw({ kind: "colors", minimum: 2, maximum: 3 }, [
+    const { container, given } = draw({ kind: "json", schema: describe(Palette.min(2).max(3)) }, [
         "#e0eaff",
         "#241d9a",
     ]);
@@ -174,4 +174,9 @@ function press(root: Element, label: string, popover?: string): void {
         `the button ${label}`,
     ).click();
     flush();
+}
+
+/** Describe a schema as the JSON Schema a JSON input carries. */
+function describe(definition: schema.Schema): JsonObject {
+    return JsonValue.object(toJsonSchema(definition));
 }
