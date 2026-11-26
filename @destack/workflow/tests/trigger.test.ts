@@ -1,3 +1,4 @@
+import { implementWorkflow } from "../src/server/index.ts";
 import { ResourceHandle, Secret } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { schema } from "@destack/schema";
@@ -267,8 +268,8 @@ test("start one run per note a change trigger admits, from now on", async () => 
 
 test("start a run in each workflow whose trigger of one name admits a change", async () => {
     // serve urgent and alarm, both with a trigger named urgent
-    const fixture = await openServed(urgent, urgent.implement({ run: async () => {} }), [
-        { workflow: alarm, served: alarm.implement({ run: async () => {} }) },
+    const fixture = await openServed(urgent, implementWorkflow(urgent, { run: async () => {} }), [
+        { workflow: alarm, served: implementWorkflow(alarm, { run: async () => {} }) },
     ]);
     await fixture.waitUntil(() => true);
 

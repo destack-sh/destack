@@ -1,11 +1,14 @@
+import { Schedule } from "../server/schedule.ts";
 import { DeclarationReference } from "@destack/package/declare";
 import { type Trigger, TriggerDescription } from "../trigger/trigger.ts";
 
 /** Describe a workflow's trigger by what fires it, checking a schedule's timing. */
 export function describeTrigger<Input>(trigger: Trigger<Input>): TriggerDescription {
-    // describe a schedule as declared
+    // describe a schedule as declared, refusing a calendar or time zone nobody knows
     const { name } = trigger;
     if (trigger.kind === "schedule") {
+        Schedule.require(trigger.schedule.timing);
+
         return TriggerDescription.parse({ name, kind: "schedule", schedule: trigger.schedule });
     }
     // describe the changed object type by reference

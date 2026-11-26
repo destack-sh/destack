@@ -1,5 +1,6 @@
 import { expect, refusal, test } from "@destack/test";
-import { Schedule, type ScheduleTiming } from "./schedule.ts";
+import { Schedule } from "./schedule.ts";
+import type { ScheduleTiming } from "../trigger/schedule.ts";
 
 /** Nine in the morning in Berlin. */
 const MORNING: ScheduleTiming = { timing: "cron", cron: "0 9 * * *", timezone: "Europe/Berlin" };

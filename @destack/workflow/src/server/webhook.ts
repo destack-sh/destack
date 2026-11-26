@@ -2,7 +2,7 @@ import { refusal } from "@destack/object";
 import type { MountFetch } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { SecretReading } from "@destack/resource";
-import type { Webhook, WebhookReceive } from "./webhook.ts";
+import type { Webhook, WebhookReceive } from "../webhook/webhook.ts";
 
 /** The status of an accepted delivery (RFC 9110 15.3.3). */
 const ACCEPTED = 202;

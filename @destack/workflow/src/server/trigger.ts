@@ -31,12 +31,19 @@ import { Manager } from "@destack/access";
 import { canonicalize, present, schema } from "@destack/schema";
 import { LIVE_STATES } from "../run/run.ts";
 import type { TriggerType, Workflow } from "../workflow/workflow.ts";
-import type { ChangeOperation, ObjectChange } from "./change.ts";
-import { Schedule, ScheduleOn, ScheduleSkip } from "./schedule.ts";
-import { ChangeTrigger, ScheduleTrigger, type Trigger, WebhookTrigger } from "./trigger.ts";
+import type { ChangeOperation, ObjectChange } from "../trigger/change.ts";
+import { Schedule } from "./schedule.ts";
+import { ScheduleOn, ScheduleSkip } from "../trigger/schedule.ts";
+import {
+    ChangeTrigger,
+    ScheduleTrigger,
+    type Trigger,
+    WebhookTrigger,
+} from "../trigger/trigger.ts";
 import type { WebhookDelivery } from "../webhook/webhook.ts";
 import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
+import { WebhookServer } from "./webhook.ts";
 
 /** The parts of a workflow its triggers start runs through. */
 type StartedWorkflow<Input> = Pick<
@@ -195,7 +202,7 @@ export class TriggerServer<Input> {
                 ? []
                 : [...webhooks].map(([webhook, fired]) => [
                       webhook.name,
-                      webhook.serve(receive(fired), server),
+                      new WebhookServer(webhook, receive(fired), server).fetch,
                   ]),
         );
     }

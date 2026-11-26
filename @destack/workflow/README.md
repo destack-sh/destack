@@ -7,6 +7,7 @@ import { t } from "@destack/locale";
 import { schema } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import { defineWorkflow, NO_OUTPUT } from "@destack/workflow";
+import { implementWorkflow } from "@destack/workflow/server";
 
 // declared apart from its implementation, unlike @DBOS.workflow()
 export const summarize = defineWorkflow({
@@ -16,7 +17,7 @@ export const summarize = defineWorkflow({
     output: NO_OUTPUT,
 });
 
-export const served = summarize.implement({
+export const served = implementWorkflow(summarize, {
     run: async (step, input) => {
         // recorded once across replays, as @DBOS.step()
         await step.run("count", schema.number(), async () => input.text.length);
@@ -39,6 +40,7 @@ import { argument, plural, t } from "@destack/locale";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { defineWorkflow } from "@destack/workflow";
+import { implementWorkflow } from "@destack/workflow/server";
 
 const note = defineObject(
     {
@@ -64,7 +66,7 @@ const draft = defineWorkflow({
     waits: [note],
 });
 
-export const drafting = draft.implement({
+export const drafting = implementWorkflow(draft, {
     run: async (step, input, context) => {
         const { scope } = context;
         const written = await step.call("write", note.call("create", { scope, title: input.title }));
@@ -88,6 +90,7 @@ import { t } from "@destack/locale";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { defineWorkflow, recorded } from "@destack/workflow";
+import { implementWorkflow } from "@destack/workflow/server";
 
 const render = defineWorkflow({
     name: "render",
@@ -96,7 +99,7 @@ const render = defineWorkflow({
     output: schema.object({ bytes: schema.number() }),
 });
 
-export const rendering = render.implement({
+export const rendering = implementWorkflow(render, {
     run: (step, input) => {
         const runner = principal.machine.reference(Scope.universe.id, input.machine);
         const work = { function: "render.page", input: recorded({ page: input.page }) };
@@ -114,6 +117,7 @@ export const rendering = render.implement({
 import { t } from "@destack/locale";
 import { schema } from "@destack/schema";
 import { defineWorkflow } from "@destack/workflow";
+import { implementWorkflow } from "@destack/workflow/server";
 
 const Value = schema.object({ value: schema.number().int() });
 const double = defineWorkflow({ name: "double", title: t`Double`, input: Value, output: Value });
@@ -125,7 +129,7 @@ const sum = defineWorkflow({
     waits: [double.run],
 });
 
-export const summing = sum.implement({
+export const summing = implementWorkflow(sum, {
     run: async (step, input) => {
         const left = await step.invoke("left", double, { value: input.left });
         const right = await step.invoke("right", double, { value: input.right });
@@ -146,6 +150,7 @@ import type { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 import { defineWorkflow } from "@destack/workflow";
+import { implementWorkflow } from "@destack/workflow/server";
 
 export function reviewWorkflow(notes: PackageId, approvers: readonly Subject[]) {
     const review = defineWorkflow({
@@ -156,7 +161,7 @@ export function reviewWorkflow(notes: PackageId, approvers: readonly Subject[]) 
         waits: [approval],
     });
 
-    return review.implement({
+    return implementWorkflow(review, {
         run: (step, input, context) =>
             step.approve(
                 "review",

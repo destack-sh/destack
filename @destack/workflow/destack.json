@@ -16,6 +16,10 @@
         "./inspect": {
             "runtimes": ["bun"],
             "internal": true
+        },
+        "./server": {
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         }
     },
     "declarations": {
@@ -24,17 +28,17 @@
                 {
                     "kind": "object",
                     "package": "@destack/object",
-                    "value": "./inspect#workflowRun"
+                    "member": "run"
                 },
                 {
                     "kind": "object",
                     "package": "@destack/object",
-                    "value": "./inspect#workflowStep"
+                    "member": "step"
                 },
                 {
                     "kind": "object",
                     "package": "@destack/object",
-                    "value": "./inspect#workflowTrigger"
+                    "member": "trigger"
                 },
                 {
                     "kind": "workflow",

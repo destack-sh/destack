@@ -1,3 +1,4 @@
+import { implementWorkflow } from "../src/server/index.ts";
 import { Failure } from "@destack/error";
 import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
@@ -33,7 +34,7 @@ const sum = defineWorkflow(
 function openSum(doubled: (value: number) => number = (value) => 2 * value) {
     return openServed(
         sum,
-        sum.implement({
+        implementWorkflow(sum, {
             run: async (step, input) => {
                 const left = await step.invoke("left", double, { value: input.left });
                 const right = await step.invoke("right", double, { value: input.right });
@@ -44,7 +45,7 @@ function openSum(doubled: (value: number) => number = (value) => 2 * value) {
         [
             {
                 workflow: double,
-                served: double.implement({
+                served: implementWorkflow(double, {
                     run: async (_step, input) => {
                         if (input.value < 0) {
                             throw CallError.http("BAD_REQUEST", { message: "a negative number" });
@@ -137,7 +138,7 @@ test("cancel a child run once its parent is cancelled, and leave an abandoned on
     // start a watch that cancels its nap with it, and one that abandons it
     const fixture = await openServed(
         watch,
-        watch.implement({
+        implementWorkflow(watch, {
             run: async (step, input) => {
                 const onParentClose = input.isAbandoned ? "abandon" : "cancel";
                 await step.invoke("nap", nap, {}, { onParentClose });
@@ -146,7 +147,7 @@ test("cancel a child run once its parent is cancelled, and leave an abandoned on
         [
             {
                 workflow: nap,
-                served: nap.implement({
+                served: implementWorkflow(nap, {
                     run: async (step) => {
                         await step.sleep("nap", { hours: 1 });
                     },

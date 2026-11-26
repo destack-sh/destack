@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import type {} from "@destack/package/import-meta";
 import { defineWorkflow } from "../workflow/workflow.ts";
 import { describeWorkflow } from "./workflow.ts";
@@ -104,5 +104,37 @@ test("describe a workflow's schemas, retries, timeout, expiry, limits and trigge
             ],
         },
         { rate: { count: 1, every: 1000, burst: 5 }, key: "caller" },
+    ]);
+});
+
+test("refuse describing a schedule whose calendar the cron parser does not know", async () => {
+    // declare a workflow on minute 61, which no hour has, and which the declaration takes as given
+    const nightly = defineWorkflow(
+        {
+            name: "nightly",
+            title: t`Nightly`,
+            input: schema.object({}),
+            output: NO_OUTPUT,
+            triggers: [
+                {
+                    name: "late",
+                    kind: "schedule",
+                    schedule: {
+                        timing: { timing: "cron", cron: "61 * * * *", timezone: "UTC" },
+                        concurrency: "allow",
+                        deadline: 60_000,
+                    },
+                    input: () => ({}),
+                },
+            ],
+        },
+        MODULE,
+    );
+
+    // refuse it once the build describes it
+    expect(await refusal((async () => describeWorkflow(nightly))())).toEqual([
+        "BAD_REQUEST",
+        "TIMING_INVALID",
+        "schedule timing is invalid: its calendar and time zone must be known",
     ]);
 });

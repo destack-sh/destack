@@ -24,9 +24,9 @@ import { Identifier, schema } from "@destack/schema";
 import { type Call, ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
 import { Table } from "@destack/db";
 import { onTestFinished } from "@destack/test";
+import { implementWorkflow, type Step } from "../src/server/index.ts";
 import type {
     RunContext,
-    Step,
     WaitOf,
     Workflow,
     WorkflowDeclaration,
@@ -153,7 +153,7 @@ export async function openWorkflow<Input, Output, Waits extends ObjectType>(
 
     return openServed(
         workflow,
-        workflow.implement({ run: code, ...served }),
+        implementWorkflow(workflow, { run: code, ...served }),
         [],
         objects,
         simulation,

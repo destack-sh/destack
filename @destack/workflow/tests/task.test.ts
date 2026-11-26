@@ -1,3 +1,4 @@
+import { implementWorkflow } from "../src/server/index.ts";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Task, TaskInput, TaskOutput, defineWorkflow } from "../src/index.ts";
@@ -16,7 +17,7 @@ test("make a task's call once at its time as its actor, answering the call's res
     // start a note's creation as alice to run in a minute
     const fixture = await openServed(
         task,
-        task.implement({ run: (step, input) => new Task(step, input).run() }),
+        implementWorkflow(task, { run: (step, input) => new Task(step, input).run() }),
     );
     await fixture.start((spaceId) =>
         task.start(

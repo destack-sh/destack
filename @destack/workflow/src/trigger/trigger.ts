@@ -2,7 +2,7 @@ import type { Condition } from "@destack/db";
 import { DeclarationName } from "@destack/package";
 import { schema } from "@destack/schema";
 import { ChangeOn, type ChangeOperation, type ObjectChange } from "./change.ts";
-import { Schedule, ScheduleOn } from "./schedule.ts";
+import { ScheduleOn } from "./schedule.ts";
 import { type Declaration, DeclarationReference } from "@destack/package/declare";
 import type { Webhook, WebhookDelivery } from "../webhook/webhook.ts";
 
@@ -70,11 +70,10 @@ export class ScheduleTrigger<Input = unknown> {
 
     /** Check a schedule trigger as its workflow declares it. */
     constructor(name: string, definition: Omit<ScheduleTrigger<Input>, "name" | "kind">) {
-        // check the name and the schedule
+        // check the name and the schedule's shape, its calendar checked as the build describes it
         this.kind = "schedule";
         this.name = DeclarationName.parse(name);
         this.schedule = ScheduleOn.parse(definition.schedule);
-        Schedule.require(this.schedule.timing);
         this.input = definition.input;
     }
 

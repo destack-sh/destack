@@ -1,14 +1,11 @@
-import type { MountFetch, ObjectStore } from "@destack/object/server";
-import type { ServerContext } from "@destack/object/workload";
+import type { ObjectStore } from "@destack/object/server";
 import { DeclarationName, defineKind, ModuleMetadata } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import type { MountDeclaration } from "@destack/object";
 import type { ResourceHandle, Secret } from "@destack/resource";
 import { Instant, nth, schema } from "@destack/schema";
-import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
 import type { WebhookSignature } from "./signature.ts";
-import { WebhookServer } from "./server.ts";
 
 /** A path template of literal and `{name}` segments, or only `/`. */
 const PATH_PATTERN = /^\/$|^(?:\/(?:[\w.~-]+|\{[a-z][A-Za-z0-9]*\}))+$/u;
@@ -66,11 +63,6 @@ export interface Webhook extends MountDeclaration {
     readonly signature: WebhookSignature;
     /** The secret the deliveries are signed with, which the installation binds. */
     readonly secret: ResourceHandle<Secret>;
-    /** Answer the deliveries of an installation, verifying each before handing it over. */
-    readonly serve: (
-        receive: WebhookReceive,
-        server: Pick<ServerContext, "resources">,
-    ) => MountFetch;
 }
 
 /** What a webhook declares. */
@@ -137,7 +129,7 @@ export class WebhookPath {
 
 /** Declare a webhook of the calling package, verified with the secret its installations bind. */
 export function defineWebhook(definition: WebhookDefinition, module?: ModuleMetadata): Webhook {
-    // answer each installation's deliveries through the webhook's server
+    // stamp the declaring package and check the name
     const owner = ModuleMetadata.require(module, "defineWebhook").package;
     const checked = DeclarationName.parse(definition.name);
     const { signature, secret } = definition;
@@ -149,8 +141,6 @@ export function defineWebhook(definition: WebhookDefinition, module?: ModuleMeta
         template: new WebhookPath(definition.template ?? "/"),
         signature,
         secret,
-        serve: (receive: WebhookReceive, server: Pick<ServerContext, "resources">) =>
-            new WebhookServer(webhook, receive, server).fetch,
     });
 
     return webhook;

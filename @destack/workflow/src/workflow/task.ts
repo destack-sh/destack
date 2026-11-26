@@ -1,6 +1,6 @@
 import { type JsonValue, schema } from "@destack/schema";
 import { Call } from "@destack/sync";
-import type { Step } from "../step/step.ts";
+import type { Step } from "../server/step.ts";
 import type { WaitOf } from "./workflow.ts";
 
 /** The input of a task's run: the call it makes. */
