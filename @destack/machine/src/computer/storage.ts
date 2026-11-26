@@ -6,13 +6,18 @@ import type { Connector } from "@destack/resource";
 import { capRetention } from "../space/entitlement.ts";
 import { SettingValue } from "@destack/setting/object";
 import { join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import { LOOPBACK_DOMAIN, S3Origin } from "@destack/account/address";
 import { LocalBlobStorage, LocalBucket, LocalBucketHost } from "@destack/bucket/bun";
 import type { S3Credentials } from "@destack/bucket/s3";
-import { databaseProvider, Tracker } from "@destack/db/database";
+import {
+    type DatabaseCluster,
+    type DatabaseConnection,
+    databaseProvider,
+    Tracker,
+} from "@destack/db/database";
 import { BunSqliteDatabaseHost, connectBunSqlite } from "@destack/db/bun";
-import type { SqliteDatabase } from "@destack/db/sqlite";
+import { PostgresDatabaseHost } from "@destack/db/postgres";
 import type { Environment } from "@destack/environment";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event/store";
 import { LocalGitStorage, localGitProvider } from "@destack/git/local";
@@ -30,6 +35,9 @@ import { SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/index.ts"
 /** The memory a local instance's run time counts in GB-seconds at: 128 MB. */
 const INSTANCE_GIGABYTES = 0.125;
 
+/** The name prefix of a space's identifier, which its schema in a cluster is named by. */
+const SPACE_PREFIX = "space-";
+
 /** The region a machine's S3 requests are signed for. */
 const S3_REGION = "local";
 
@@ -45,9 +53,11 @@ export interface LocalSpaceStorageOptions {
     readonly environment: Environment<"files" | "process" | "host" | "server">;
     /** The transport the spaces' mail goes out through, such as printing it. */
     readonly mail: Connector<MailTransport>;
+    /** Where the spaces' databases live: SQLite files below the directory, or a cluster. */
+    readonly databases: "files" | URL;
 }
 
-/** The spaces' storage on a computer: SQLite files, local buckets and Git, under one directory. */
+/** The spaces' storage on a computer: SQLite files or schemas, local buckets and Git. */
 export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
     /** The main database every space stores. */
     readonly main: SpaceStorage["main"];
@@ -59,8 +69,8 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
     readonly ephemeral: SpaceStorage["ephemeral"];
     /** What the host stores the spaces with. */
     readonly #options: LocalSpaceStorageOptions;
-    /** The databases of the spaces and their installations, as SQLite files. */
-    readonly #databases: BunSqliteDatabaseHost;
+    /** The databases of the spaces and their installations, as SQLite files or schemas. */
+    readonly #databases: DatabaseCluster;
     /** The live sockets of the spaces, in memory. */
     readonly #sockets: SocketRegistry;
     /** The providers of the spaces' resources: SQLite files, Git and mail. */
@@ -70,7 +80,7 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
     private constructor(
         options: LocalSpaceStorageOptions,
         opened: Pick<SpaceStorage, "main" | "replicated" | "kinds" | "ephemeral"> & {
-            readonly databases: BunSqliteDatabaseHost;
+            readonly databases: DatabaseCluster;
             readonly sockets: SocketRegistry;
             readonly providers: readonly SpaceProvider[];
         },
@@ -88,16 +98,19 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
 
     /** Open the spaces' stores under a directory. */
     static async open(options: LocalSpaceStorageOptions): Promise<LocalSpaceStorage> {
-        // provide the spaces' databases as SQLite files below the directory, Git and mail
-        const databases = new BunSqliteDatabaseHost(
-            pathToFileURL(`${options.directory}/`),
-            options.environment,
-        );
+        // provide the spaces' databases as SQLite files below the directory or a cluster's schemas, Git and mail
+        const databases: DatabaseCluster =
+            options.databases === "files"
+                ? new BunSqliteDatabaseHost(
+                      pathToFileURL(`${options.directory}/`),
+                      options.environment,
+                  )
+                : new PostgresDatabaseHost(options.databases, options.environment);
         const providers = [
             databaseProvider(databases, stackObject.database),
             databaseProvider(
                 new SpaceDatabaseHost(databases, (spaceId) =>
-                    LocalSpaceStorage.#reference(spaceId),
+                    databases.reference(spaceId, spaceId),
                 ),
                 stackObject.database,
             ),
@@ -118,20 +131,14 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
         return new LocalSpaceStorage(options, { ...declared, databases, sockets, providers });
     }
 
-    /** List the spaces whose database files the host stores. */
+    /** List the spaces whose own databases the host keeps. */
     async list(): Promise<readonly Identifier<"space">[]> {
-        // list none before the first space's file
-        const { files } = this.#options.environment;
-        const directory = this.#directory("databases");
-        const entries = (await files.exists(directory)) ? await files.readDirectory(directory) : [];
+        const scopes = await this.#databases.scopes(SPACE_PREFIX);
 
-        return entries
-            .map((entry) => entry.name)
-            .filter((file) => file.endsWith(".db"))
-            .map((file) => schema.identifier("space").parse(file.slice(0, -3)));
+        return scopes.map((scope) => schema.identifier("space").parse(scope));
     }
 
-    /** Open a space's volume: its database file migrated to its tables, its events and blobs. */
+    /** Open a space's volume: its database migrated to its tables, its events and blobs. */
     open(space: Identifier<"space">): Promise<LocalVolume> {
         // open the space's volume in its span, timed by the provider
         return TelemetryScope.of(
@@ -141,18 +148,12 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
             "destack.volume.open",
             { "destack.space.id": space, "destack.volume.provider": "local" },
             async () => {
-                // open and migrate the space's database file, closed last
+                // open and migrate the space's database, closed last
                 const { environment, keyring } = this.#options;
                 const lifetime = new AsyncDisposableStack();
                 try {
-                    await environment.files.mkdir(this.#directory("databases"), {
-                        recursive: true,
-                    });
                     const definition = this.main;
-                    const file = fileURLToPath(
-                        this.#databases.resolve(LocalSpaceStorage.#reference(space)),
-                    );
-                    const database = await connectBunSqlite(file, definition, { environment });
+                    const database = await this.#connect(space, definition);
                     lifetime.defer(() => database.close());
                     await database.migrate(definition.tables);
                     await database.declareApplied(this.replicated);
@@ -208,14 +209,11 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
         );
     }
 
-    /** Delete a closed space's databases, events and blobs. */
+    /** Delete a closed space's own database, events and blobs. */
     async delete(space: Identifier<"space">): Promise<void> {
-        // delete the space's own database files and its installations' databases
+        // drop the space's own database and its folder, its other databases dropped by their providers before
         const { files } = this.#options.environment;
-        const file = fileURLToPath(this.#databases.resolve(LocalSpaceStorage.#reference(space)));
-        for (const path of [file, `${file}-wal`, `${file}-shm`]) {
-            await files.remove(path, { force: true });
-        }
+        await this.#databases.drop(this.#databases.reference(space, space));
         await files.remove(join(this.#options.directory, space), { recursive: true, force: true });
 
         // delete its events and blobs
@@ -229,26 +227,33 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
         });
     }
 
-    /** Close the spaces' sockets. */
+    /** Close the spaces' sockets and their databases' host. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.#sockets[Symbol.asyncDispose]();
+        await this.#databases[Symbol.asyncDispose]();
     }
 
-    /** Refer to a space's own database file below the host's root. */
-    static #reference(space: Identifier<"space">): string {
-        return `databases/${space}.db`;
+    /** Open a space's own database, created empty once, its log started by its migration. */
+    async #connect(
+        space: Identifier<"space">,
+        definition: SpaceStorage["main"],
+    ): Promise<DatabaseConnection & { readonly close: () => Promise<void> }> {
+        const reference = this.#databases.reference(space, space);
+        await this.#databases.create(reference);
+
+        return await this.#databases.connect(reference, definition);
     }
 
     /** Locate one of the host's directories. */
-    #directory(name: "databases" | "events" | "buckets" | "git"): string {
+    #directory(name: "events" | "buckets" | "git"): string {
         return join(this.#options.directory, name);
     }
 }
 
-/** A space's volume on a computer: its SQLite file, events, blobs, buckets and graphs. */
+/** A space's volume on a computer: its database, events, blobs, buckets and graphs. */
 export class LocalVolume implements Volume {
-    /** The space's database file. */
-    readonly database: SqliteDatabase;
+    /** The space's database: its SQLite file, or its schema in a cluster. */
+    readonly database: DatabaseConnection & { readonly close: () => Promise<void> };
     /** The space's events, their segments in a bucket of its own. */
     readonly events: EventStore;
     /** The space's blobs, in a directory of its own. */
@@ -263,8 +268,8 @@ export class LocalVolume implements Volume {
     readonly #space: Identifier<"space">;
     /** What the host stores the spaces with. */
     readonly #options: LocalSpaceStorageOptions;
-    /** The databases of the space's installations, measured by their files. */
-    readonly #databases: BunSqliteDatabaseHost;
+    /** The databases of the space's installations, measured by their files or schemas. */
+    readonly #databases: DatabaseCluster;
     /** What the volume opened, closed once the space stops. */
     readonly #lifetime: AsyncDisposableStack;
     /** The space's buckets, once served. */
@@ -280,7 +285,7 @@ export class LocalVolume implements Volume {
         > & {
             readonly space: Identifier<"space">;
             readonly options: LocalSpaceStorageOptions;
-            readonly databases: BunSqliteDatabaseHost;
+            readonly databases: DatabaseCluster;
             readonly lifetime: AsyncDisposableStack;
         },
     ) {

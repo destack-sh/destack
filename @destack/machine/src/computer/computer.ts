@@ -336,6 +336,7 @@ export class Computer implements AsyncDisposable {
                         directory: join(options.directory, "spaces"),
                         endpoint: origin,
                         keyring,
+                        databases: "files",
                         // print the spaces' mail, as a computer sends none
                         mail: mailConnector(
                             "print",
@@ -388,7 +389,7 @@ export class Computer implements AsyncDisposable {
                             state.device,
                             await Computer.#enrollment(state.device.database.snapshot(), machineId),
                         ),
-                    volumes: spaces,
+                    storage: spaces,
                     builds,
                     targets: COMPUTER_RUNTIMES,
                     isRunner: true,
