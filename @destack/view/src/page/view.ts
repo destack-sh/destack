@@ -1,5 +1,5 @@
 import { useContext } from "solid-js";
-import type { ObjectClient, ObjectConnection } from "@destack/object/client";
+import type { ObjectConnection, ObjectNode } from "@destack/object/client";
 import { type Client, type Package, type ProcedureRouter, PackageMount } from "@destack/object";
 import { type ClientOptions, createClient, type Endpoint } from "@destack/object/client";
 import { ScopePath } from "../declare/context.ts";
@@ -17,7 +17,7 @@ export function useConnect(): (path: string, scope: string) => ObjectConnection 
 }
 
 /** Read the open client of one of the mounted view's scopes. */
-export function useClient(scope: string): ObjectClient {
+export function useClient(scope: string): ObjectNode {
     const client = useContext(ViewMountContext).clients.get(scope);
     if (client === undefined) {
         throw ViewError.of(

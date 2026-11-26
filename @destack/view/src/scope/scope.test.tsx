@@ -9,7 +9,7 @@ import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
 import { Errored, For, Loading } from "../solid/flow.ts";
-import { useQuery, useScope, useSetting, useSpace } from "./index.ts";
+import { useMutation, useQuery, useSetting } from "./index.ts";
 import { defineSetting } from "@destack/setting/declare";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { changed } from "../test/dom.ts";
@@ -109,9 +109,8 @@ async function openClient(
 
 /** List the board's cards by title, renaming one through the view's mutations. */
 function Cards() {
-    const space = useSpace({ card });
-    const cards = useQuery(space.query.card.findMany({ orderBy: { title: "asc" } }));
-    const update = space.mutate.card.update;
+    const cards = useQuery(card, (query) => query.findMany({ orderBy: { title: "asc" } }));
+    const update = useMutation(card, "update");
 
     return (
         <ul>
@@ -199,8 +198,9 @@ test("open and close another space with a component", async () => {
 
     // list the space's cards by its identifier
     const Opened = () => {
-        const space = useScope(() => BOARD_ID, { card });
-        const cards = useQuery(() => space().query.card.findMany({ orderBy: { title: "asc" } }));
+        const cards = useQuery(card, (query) => query.findMany({ orderBy: { title: "asc" } }), {
+            scope: () => BOARD_ID,
+        });
 
         return <For each={cards()}>{(entry) => <li>{entry.title}</li>}</For>;
     };
@@ -244,7 +244,7 @@ test("fail access to an object type the view's space does not hold into the erro
             () => (
                 <Errored fallback={(error) => <p>{failureMessage(error())}</p>}>
                     {(() => {
-                        useQuery(useSpace({ board }).query.board.findMany());
+                        useQuery(board, (query) => query.findMany());
 
                         return <p>Boards</p>;
                     })()}
@@ -267,7 +267,7 @@ test("fail access to an object type the view's space does not hold into the erro
             },
         ),
     );
-    expect(element.textContent).toBe("the client has no object board");
+    expect(element.textContent).toBe("the node has no object board");
 });
 
 /** An editor mode the person sets, which a device may override. */

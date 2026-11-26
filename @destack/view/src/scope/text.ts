@@ -1,16 +1,7 @@
 import { type ObjectType, TextChange } from "@destack/object";
 import type { Submission, TextDocument } from "@destack/object/client";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
-import type { ContextScope } from "../declare/context.ts";
-import { useView } from "../page/context.ts";
-import { useClient } from "../page/view.ts";
-import { ViewContext } from "../declare/context.ts";
-
-/** Where a text field is followed. */
-export interface ScopeOptions {
-    /** The view's scope with the object, its space by default. */
-    readonly scope?: ContextScope;
-}
+import { type ScopeOptions, useNode } from "./query.ts";
 
 /** A text field followed live and replaced by whole values. */
 export interface TextField {
@@ -27,23 +18,39 @@ export function useText(
     field: string,
     options: ScopeOptions = {},
 ): TextField {
-    // open the field in the object's scope for the component's lifetime
-    const client = useClient(ViewContext.scope(useView(), options.scope ?? "space"));
-    const followed = client.text(object, id, field);
-    onCleanup(() => void followed.close());
+    // open the field on the node of the object's scope for the component's lifetime
+    const nodes = useNode(object, options);
+    const opened = createMemo(async () => {
+        // register the close while the memo owns its cleanup, before the node opens
+        const closing = new AbortController();
+        onCleanup(() => closing.abort());
+        const followed = (await nodes().node).text(object, id, field);
+        if (closing.signal.aborted) {
+            await followed.close();
+        } else {
+            closing.signal.addEventListener("abort", () => void followed.close(), { once: true });
+        }
+
+        return followed;
+    });
 
     // follow the text
     const text = createMemo(() => {
-        // follow the field until the component goes
+        // follow the field until it reopens or the component goes
         const stopping = new AbortController();
         onCleanup(() => stopping.abort());
 
-        return follow(followed, stopping.signal);
+        return follow(opened(), stopping.signal);
     });
 
     return {
         text,
-        replace: (value) => followed.change(TextChange.between(followed.rope.read().text(), value)),
+        replace: (value) => {
+            // replace the opened field's text
+            const followed = opened();
+
+            return followed.change(TextChange.between(followed.rope.read().text(), value));
+        },
     };
 }
 

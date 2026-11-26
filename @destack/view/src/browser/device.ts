@@ -1,7 +1,7 @@
 import type { Environment } from "@destack/environment";
 import type { BrowserCapability } from "@destack/environment/browser";
 import { broadcastChannel, connectWasmSqlite, WasmClient } from "@destack/db/browser";
-import { BrowserDevice, type DeviceWorkerScope } from "@destack/object/browser";
+import { BrowserDevice, type DeviceWorkerScope } from "@destack/object/device";
 import { ObjectClient, ObjectConnection } from "@destack/object/client";
 import type { ObjectType } from "@destack/object";
 import { OriginPath, type PackageVersion } from "@destack/package";
@@ -88,14 +88,16 @@ export function serveDevice(
                 // open the device's database file with the tables of the object types it stores
                 const { name } = request;
                 const stored = storedObjects(objects, request);
-                const database = await instruments.span("destack.device.database", {}, async () => {
-                    const file = await WasmClient.opfs(name, traced);
-
-                    return connectWasmSqlite(file, ObjectClient.tables(stored), {
-                        name,
-                        environment: traced,
-                    });
-                });
+                const database = await instruments.span("destack.device.database", {}, async () =>
+                    connectWasmSqlite(
+                        await WasmClient.opfs(name, traced),
+                        ObjectClient.tables(stored),
+                        {
+                            name,
+                            environment: traced,
+                        },
+                    ),
+                );
 
                 // follow and write every scope over one connection to the package's origin, connecting to enclosing homes below its home path
                 const connection = ObjectConnection.open({

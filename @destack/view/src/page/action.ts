@@ -18,7 +18,7 @@ import {
     selected,
     type ValuesOf,
 } from "@destack/object";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectNode } from "@destack/object/client";
 import { FamilyError } from "@destack/error";
 import { JsonValue, mapValues, schema } from "@destack/schema";
 import { ActionRegistryContext } from "./context.ts";
@@ -98,7 +98,7 @@ interface Provision {
 /** What a page calls methods with: its clients, and the space it is in. */
 export interface ActionHost {
     /** The clients of the scopes the page opens, by scope. */
-    readonly clients: ReadonlyMap<string, ObjectClient>;
+    readonly clients: ReadonlyMap<string, ObjectNode>;
     /** The space the page is in. */
     readonly scope: string;
 }
@@ -599,7 +599,7 @@ export class ActionRegistry {
     async #perform(
         action: Action,
         call: ActionCall,
-        client: ObjectClient,
+        client: ObjectNode,
         resolved: ActionResolution,
     ): Promise<readonly unknown[]> {
         // call a method on a scope at once
@@ -633,7 +633,7 @@ export class ActionRegistry {
     /** Perform a call, answering its prediction, and tell the person once it is refused. */
     #predicted(
         action: Action,
-        client: ObjectClient,
+        client: ObjectNode,
         resolved: ActionResolution,
     ): Promise<readonly unknown[]> {
         // tell of a refusal after the prediction, whose own failure the caller takes
@@ -666,13 +666,13 @@ export class ActionRegistry {
     }
 
     /** Find the client with the type an action calls: the page's space's, else another's. */
-    #client(call: ActionCall): ObjectClient | undefined {
+    #client(call: ActionCall): ObjectNode | undefined {
         return this.#clientOf(call.object, this.#host?.scope);
     }
 
     /** Find the client with a type: a scope's, else the page's space's, else another's. */
-    #clientOf(type: ObjectType, scope: string | undefined): ObjectClient | undefined {
-        const { clients = new Map<string, ObjectClient>(), scope: own } = this.#host ?? {};
+    #clientOf(type: ObjectType, scope: string | undefined): ObjectNode | undefined {
+        const { clients = new Map<string, ObjectNode>(), scope: own } = this.#host ?? {};
         const ordered = [clients.get(scope ?? ""), clients.get(own ?? ""), ...clients.values()];
 
         return ordered.find((client) => client?.objects.some((each) => each.same(type)) === true);

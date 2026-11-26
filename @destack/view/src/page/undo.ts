@@ -1,5 +1,8 @@
-import type { UndoStack } from "@destack/object/client";
+import type { ObjectNode } from "@destack/object/client";
 import { type Accessor, createSignal, type Setter } from "solid-js";
+
+/** The undo and redo of one scope's node. */
+type UndoStack = ObjectNode["undoStack"];
 
 /** The events starting a new gesture, which closes every open group. */
 const GESTURES = ["pointerdown", "focusin", "paste", "drop", "cut"] as const;

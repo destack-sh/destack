@@ -5,7 +5,7 @@ import { defineExample } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 import { onTestFinished, test } from "@destack/test";
 import { defineView } from "../declare/view.ts";
-import { useQuery, useSpace } from "../scope/index.ts";
+import { useQuery } from "../scope/index.ts";
 import { For } from "../solid/flow.ts";
 import { renderExample } from "./frame.ts";
 import { changed } from "../test/dom.ts";
@@ -36,7 +36,7 @@ const card = defineObject(
 
 /** List the space's cards by title. */
 function Cards() {
-    const cards = useQuery(useSpace({ card }).query.card.findMany({ orderBy: { title: "asc" } }));
+    const cards = useQuery(card, (query) => query.findMany({ orderBy: { title: "asc" } }));
 
     return (
         <ul>

@@ -13,8 +13,8 @@ Packages declare views:
 
 Components read and change objects live:
 
-- `useSpace`, `useAccount` and `useHome`: typed access to the space's, account's or home's objects.
-- `useQuery`: a relational query, followed live.
+- `useQuery`: a relational query of an object type, followed live.
+- `useMutation`: a mutating method of an object type, predicted at once.
 - `useForm` and `useText`: a method's input as a form, and a collaborative text field.
 - `useSetting`: a person's setting, followed live.
 - `handleAction`: run an action while the component is mounted.
@@ -36,7 +36,7 @@ Declare a notes view that lists and renames notes live:
 ```tsx
 import { argument, plural, t } from "@destack/locale";
 import { defineObject, field, shareable } from "@destack/object";
-import { useQuery, useSpace } from "@destack/view";
+import { useMutation, useQuery } from "@destack/view";
 import { defineView } from "@destack/view/declare";
 
 // declare a note type
@@ -52,9 +52,9 @@ const note = defineObject({
 /** List the notes, live. */
 function Notes() {
     // read the notes in title order, and rename one
-    const space = useSpace({ note });
-    const notes = useQuery(space.query.note.findMany({ orderBy: { title: "asc" } }));
-    const rename = (id: string) => space.mutate.note.update({ id, title: "Groceries" });
+    const notes = useQuery(note, (query) => query.findMany({ orderBy: { title: "asc" } }));
+    const update = useMutation(note, "update");
+    const rename = (id: string) => update({ id, title: "Groceries" });
 
     return <p>{notes().length} notes</p>;
 }
@@ -91,8 +91,9 @@ A static view has an `origin`, `pages` with its paths, an optional `document`, a
 
 ### Live data
 
-`useSpace({ note })` answers `query.note.findMany(…)`, as in `@destack/db`, and `mutate.note.update(…)`, as in `@destack/object`.
-`useQuery(query)` follows a query, pending until the replica has it, and writes show at once.
+`useQuery(note, (query) => query.findMany(…))` follows a query of notes, as in `@destack/db`, on the person's device.
+`useMutation(note, "update")` calls a method of notes, as in `@destack/object`, its prediction showing at once.
+Each reads and writes the scope the type lives in for the view, or `{ scope }`: `"home"`, `"account"`, or a space's identifier.
 `useFiles(note)` sends files of notes and writes their addresses, as `ObjectFileClient` in `@destack/object`.
 
 ### Actions
@@ -201,7 +202,7 @@ export function Editor(properties: {
 import { argument, plural, t } from "@destack/locale";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Show, useForm, useSpace } from "@destack/view";
+import { Show, useForm, useMutation } from "@destack/view";
 import { useBlocker } from "@destack/view/router";
 
 // declare notes with a short title
@@ -220,10 +221,10 @@ const note = defineObject(
 /** Rename a note, asking before leaving with unsaved edits. */
 export function RenameNote(properties: { readonly id: string; readonly title: string }) {
     // edit the update's input, submitted on save
-    const space = useSpace({ note });
+    const update = useMutation(note, "update");
     const form = useForm(note, "update", {
         values: () => ({ id: properties.id, title: properties.title }),
-        submit: (input) => space.mutate.note.update(input),
+        submit: (input) => update(input),
     });
     const title = form.field("title");
 

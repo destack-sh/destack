@@ -11,7 +11,7 @@ import { BrowserTab, DeviceElection } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
-import { type Endpoint, ObjectConnection } from "@destack/object/client";
+import { type Endpoint, ObjectConnection, type ObjectNode } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import {
@@ -24,7 +24,7 @@ import {
 import type { ActionDeclaration } from "../palette/keybinding.ts";
 import { PageUndo } from "../page/undo.ts";
 import { account, space, user } from "@destack/account/object";
-import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
+import { setting, SettingValue } from "@destack/setting/object";
 import { Theme, type ThemeDescription } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
 import { Presentation, type Page, PRESENTED_SETTINGS } from "./presentation.ts";
@@ -122,7 +122,7 @@ export async function mount(
                     { ...environment, telemetry },
                 ),
             );
-            const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
+            const clients: ReadonlyMap<string, ObjectNode> = tabs;
             const packages = mountPackages(view.packages, context.space, call);
             const connections = new Map<string, ObjectConnection>();
             const connect = (path: string, scope: string): ObjectConnection => {
@@ -441,43 +441,52 @@ class LocalizedRendering {
     }
 }
 
-/** Follow the person's own scope, presenting the page again after each change. */
+/** Follow the person's own scope at the device, presenting the page again after each change. */
 async function* follow(
     tab: BrowserTab,
     page: Page,
     device: Subject,
     signal: AbortSignal,
 ): AsyncGenerator<Presentation, void> {
-    // present the page to its person
-    const { database } = tab.client;
+    // follow the person's presented settings along their chain and on this device, and their profile's language
     const person = schema.identifier("user").parse(page.context.user.id);
+    const at = { scope: person, device: schema.identifier("device").parse(device.id) };
+    const settings = SettingValue.follow(tab, PRESENTED_SETTINGS, at, signal)[
+        Symbol.asyncIterator
+    ]();
+    const profile = tab
+        .queryType(user)
+        .findFirst({ scopes: "every", where: { id: person } })
+        .subscribe();
+    const locales = profile.watch(signal)[Symbol.asyncIterator]();
 
-    // present the person's settings along their chain in their language
-    const presented = async (): Promise<Presentation> => {
-        // read the values along their chain and their profile's language from one snapshot
-        const snapshot = database.snapshot();
-        const { chain, values } = await SettingValue.list(snapshot, PRESENTED_SETTINGS, person);
-        const row = await snapshot.read(user.table).findFirst({ where: { id: person } });
-        const locale = present(row, "the person's profile").locale;
+    // present the page from the latest of each, again after either changes
+    try {
+        let placed = await settings.next();
+        let read = await locales.next();
+        let nextPlaced = settings.next();
+        let nextRead = locales.next();
+        while (placed.done !== true && read.done !== true) {
+            // present the latest settings in the person's language
+            const { chain, values, device: own } = placed.value;
+            const row = present(read.value, "the person's profile");
+            yield Presentation.resolve(page, { locale: row.locale, chain }, values, own);
 
-        // read the values this browser's device keeps for itself, from the same snapshot
-        const kept = await snapshot.read(deviceSetting.table).findMany({
-            where: { scope: schema.identifier("device").parse(device.id) },
-        });
-
-        return Presentation.resolve(page, { locale, chain }, values, kept);
-    };
-
-    // present now, then after each change of their settings, their device's or their language
-    const { sequence } = await database.log.position();
-    yield await presented();
-    for await (const changed of database.log.follow(
-        { tables: [setting.table, deviceSetting.table, user.table], after: sequence },
-        signal,
-    )) {
-        if (changed.changes.length > 0) {
-            yield await presented();
+            // take whichever changes next, asking that one for its following change
+            const settled = await Promise.race([
+                nextPlaced.then((step) => ({ kind: "settings" as const, step })),
+                nextRead.then((step) => ({ kind: "locale" as const, step })),
+            ]);
+            if (settled.kind === "settings") {
+                placed = settled.step;
+                nextPlaced = settings.next();
+            } else {
+                read = settled.step;
+                nextRead = locales.next();
+            }
         }
+    } finally {
+        await profile.close();
     }
 }
 
@@ -627,7 +636,7 @@ async function openTabs(
     const instruments = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     const openTab = (scope: string, played: readonly DeviceRole[]) =>
         instruments.span("destack.tab.open", { "destack.scope.id": scope }, async () => {
-            const tab = await BrowserTab.open({
+            const tab = BrowserTab.open({
                 name,
                 election,
                 objects: deviceObjects(view.objects, played),
@@ -646,7 +655,7 @@ async function openTabs(
         const tab = await openTab(scope, ["space"]);
         signal.addEventListener("abort", () => void tab.close(), { once: true });
 
-        return tab.client;
+        return tab;
     };
 
     // open the context's scopes, each in the parts it plays
@@ -657,7 +666,7 @@ async function openTabs(
 
                 // keep the person's own settings and profile synced for the page, once their first rows arrive
                 if (scope === context.user.id) {
-                    const { query } = tab.client;
+                    const { query } = tab;
                     const profileKey = ObjectTypeReference.key(user.typeReference);
                     const settingKey = ObjectTypeReference.key(setting.typeReference);
                     const profile = present(query[profileKey], "the person's profile type");
