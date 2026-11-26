@@ -1,3 +1,4 @@
+import type { LocaleTag } from "@destack/locale";
 import { createContext, useContext } from "solid-js";
 
 /** An example or scenario a page shows, by its name and its kind. */
@@ -8,10 +9,18 @@ export interface IndexEntry {
     readonly kind: "example" | "scenario";
 }
 
-/** The examples and scenarios of the example page an example renders on. */
-export const ExampleIndexContext = createContext<readonly IndexEntry[]>([]);
+/** The example page an example renders on: what it shows, and the languages it translates into. */
+export interface ExamplePage {
+    /** The examples and scenarios it shows. */
+    readonly index: readonly IndexEntry[];
+    /** The locales its catalogs translate into, the source locale aside. */
+    readonly locales: readonly LocaleTag[];
+}
 
-/** Read the examples and scenarios of the example page an example renders on. */
-export function useExampleIndex(): readonly IndexEntry[] {
-    return useContext(ExampleIndexContext);
+/** The example page an example renders on, none outside one. */
+export const ExamplePageContext = createContext<ExamplePage>({ index: [], locales: [] });
+
+/** Read the example page an example renders on. */
+export function useExamplePage(): ExamplePage {
+    return useContext(ExamplePageContext);
 }

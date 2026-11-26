@@ -1,4 +1,6 @@
 import { Message } from "@destack/package";
+import { SetStep } from "@destack/package/declare";
+import { Step } from "../scenario/step.ts";
 import { ActionInputDescription } from "@destack/object";
 import { schema } from "@destack/schema";
 
@@ -27,6 +29,16 @@ export const MatrixAxes = schema.object({
 });
 /** The axes a matrix lays an example out along. */
 export type MatrixAxes = schema.Infer<typeof MatrixAxes>;
+
+/** What a scenario's check saw, and whether that is what it expects. */
+export const CheckResult = schema.object({
+    /** The value the check saw. */
+    seen: schema.json(),
+    /** Whether it is the value the check expects. */
+    isPassed: schema.boolean(),
+});
+/** What a scenario's check saw, and whether that is what it expects. */
+export type CheckResult = schema.Infer<typeof CheckResult>;
 
 /** A request of a host, such as the editor, to its example page: what to show and how. */
 const exampleRequest = schema.discriminatedUnion("destack", [
@@ -83,18 +95,16 @@ const exampleEvent = schema.discriminatedUnion("destack", [
         name: schema.string().min(1),
         /** Its description. */
         description: Message,
-        /** Its steps, each with the checks it makes. */
-        steps: schema.array(
-            schema.object({ step: schema.json(), checks: schema.array(schema.json()) }),
-        ),
+        /** Its steps, in order. */
+        steps: schema.array(schema.union([SetStep, Step])),
     }),
     schema.object({
-        /** A scenario's step was acted. */
-        destack: schema.literal("acted"),
+        /** A scenario's step ran. */
+        destack: schema.literal("step"),
         /** The step's position. */
         index: schema.number().int().min(0),
-        /** What each of its checks saw, and whether that passed. */
-        observed: schema.array(schema.object({ seen: schema.json(), isPassed: schema.boolean() })),
+        /** The result of each of its checks. */
+        results: schema.array(CheckResult),
     }),
     schema.object({
         /** A person picked a cell of the matrix, or opened it on its own. */

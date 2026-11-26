@@ -21,7 +21,7 @@ import { Keyboard } from "./keyboard.ts";
 import { Pointer } from "./pointer.ts";
 import { renderExample } from "./frame.ts";
 import { Matrix } from "./matrix.ts";
-import { ExampleRequest, MatrixAxes, ExampleEvent } from "../page/message.ts";
+import { type CheckResult, ExampleRequest, MatrixAxes, ExampleEvent } from "../page/message.ts";
 import type { IndexEntry } from "../page/example.ts";
 
 /** The global a page exposes its stage as. */
@@ -120,7 +120,7 @@ export class Stage {
     /** Host a page's examples: show the one its address gives, then each one its host asks for. */
     static async host(
         element: HTMLElement,
-        shown: Shown,
+        library: Library,
         owner: PackageId,
         environment: BrowserEnvironment,
     ): Promise<void> {
@@ -130,7 +130,7 @@ export class Stage {
         // show what the address gives, talking to a host of the page's own origin
         const url = new URL(environment.navigation.currentEntry.url);
         const { origin } = url;
-        let current = await show(element, shown, catalogs, environment, origin, {
+        let current = await show(element, library, catalogs, environment, origin, {
             name: present(url.searchParams.get("name"), "the shown name"),
             globals: schema.json().parse(JSON.parse(url.searchParams.get("globals") ?? "{}")),
             properties: schema
@@ -153,7 +153,14 @@ export class Stage {
             // show another example or scenario, one at a time in the order asked, taking the last down once the next is drawn
             if (request.destack === "show") {
                 showing = showing.then(async () => {
-                    const next = await show(element, shown, catalogs, environment, origin, request);
+                    const next = await show(
+                        element,
+                        library,
+                        catalogs,
+                        environment,
+                        origin,
+                        request,
+                    );
                     current.dispose();
                     current = next;
                 });
@@ -165,18 +172,18 @@ export class Stage {
         });
     }
 
-    /** Act one step of a scenario, returning what each of its checks saw and if it passed. */
+    /** Act one step of a scenario, returning the result of each of its checks. */
     async play(
-        steps: readonly { readonly step: unknown; readonly checks: readonly unknown[] }[],
+        steps: readonly { readonly step: SetStep | Step; readonly checks: readonly unknown[] }[],
         index: number,
         pause: (milliseconds: number) => Promise<void>,
-    ): Promise<{ readonly seen: JsonValue; readonly isPassed: boolean }[]> {
+    ): Promise<CheckResult[]> {
         // act the step, waiting out a pause by the page's clock
         const { step, checks } = present(steps[index], `step ${String(index)} of the scenario`);
-        await this.act(schema.union([SetStep, Step]).parse(step), pause);
+        await this.act(step, pause);
 
         // observe each check, comparing what it saw with what it expects
-        const observed = checks.flatMap((check) => {
+        const results = checks.flatMap((check) => {
             // skip a check that reads telemetry, which a page does not record
             const parsed = ObservedCheck.safeParse(check);
             if (!parsed.success) {
@@ -189,7 +196,7 @@ export class Stage {
             return [{ seen, isPassed: JSON.stringify(seen) === JSON.stringify(parsed.data.is) }];
         });
 
-        return observed;
+        return results;
     }
 
     /** Take one step on the examples as a person would, waiting out a pause by a clock. */
@@ -505,7 +512,7 @@ function isShowable(
 }
 
 /** A page's examples and scenarios by name, each with its kind and how to load it. */
-type Shown = Readonly<
+type Library = Readonly<
     Record<string, Omit<IndexEntry, "name"> & { readonly load: () => Promise<unknown> }>
 >;
 
@@ -523,7 +530,7 @@ interface Presentation {
 /** Show an example alone, laid out as a matrix, or a scenario, telling the host what it may do. */
 async function show(
     container: HTMLElement,
-    shown: Shown,
+    library: Library,
     catalogs: readonly Catalog[],
     environment: BrowserEnvironment,
     origin: string,
@@ -531,7 +538,7 @@ async function show(
 ): Promise<Presentation> {
     // load the declaration by its name, refusing one that is no example or scenario
     const { name } = address;
-    const entry = present(shown[name], `the example or scenario '${name}' of the page`);
+    const entry = present(library[name], `the example or scenario '${name}' of the page`);
     const value = await entry.load();
     if (!isShowable(value)) {
         throw new TypeError(`'${name}' is invalid: it is no example or scenario`);
@@ -541,7 +548,7 @@ async function show(
     const element = container.ownerDocument.createElement("div");
     container.append(element);
     const globals = Globals.parse(address.globals);
-    const page = { element, shown, catalogs, environment, origin, globals };
+    const page = { element, library, catalogs, environment, origin, globals };
 
     // lay an example out along its axes, else show it alone, else play a scenario
     if (value.kind === "example" && address.matrix !== null) {
@@ -553,12 +560,12 @@ async function show(
     }
 }
 
-/** Where and with what a page shows an example or scenario. */
-interface Showing {
+/** The page an example or scenario shows on: its element, library, catalogs and globals. */
+interface Page {
     /** The element it shows in, which it removes once taken down. */
     readonly element: HTMLElement;
     /** The page's examples and scenarios. */
-    readonly shown: Shown;
+    readonly library: Library;
     /** The catalogs translating them. */
     readonly catalogs: readonly Catalog[];
     /** The page's environment. */
@@ -574,7 +581,7 @@ function showMatrix(
     example: Example<object, JSX.Element>,
     given: JsonObject,
     axes: MatrixAxes,
-    page: Showing,
+    page: Page,
 ): Presentation {
     // draw every cell of the axes with the example's values, telling the host the cell picked
     const { element, catalogs, environment, globals, origin } = page;
@@ -605,7 +612,7 @@ function showMatrix(
 function showExample(
     example: Example<object, JSX.Element>,
     given: JsonObject,
-    page: Showing,
+    page: Page,
 ): Presentation {
     // stage the example, starting from the properties given
     const stage = stageOf({ examples: [example], globals: page.globals }, page);
@@ -630,18 +637,25 @@ function showExample(
 /** Show a scenario's examples, telling the host its steps, and act each one the host asks for. */
 function showScenario(
     scenario: Scenario<unknown, unknown, Globals, JSX.Element>,
-    page: Showing,
+    page: Page,
 ): Presentation {
-    // stage its examples and tell the host its steps with their checks
+    // stage its examples and read its steps once, each with its checks
     const stage = stageOf(scenario.given, page);
     const entries = scenario.when.map((each) => Reference.resolve(each, scenario.parameters));
     const steps = entries.map((each) => ({
-        step: schema.json().parse(Operation.step(each)),
-        checks: schema.array(schema.json()).parse(Operation.is(each) ? (each.then ?? []) : []),
+        step: schema.union([SetStep, Step]).parse(Operation.step(each)),
+        checks: Operation.is(each) ? (each.then ?? []) : [],
     }));
+
+    // tell the host its steps
     const description = scenario.description;
     ExampleEvent.send(
-        { destack: "scenario", name: scenario.name, description, steps },
+        {
+            destack: "scenario",
+            name: scenario.name,
+            description,
+            steps: steps.map(({ step }) => step),
+        },
         page.origin,
     );
 
@@ -656,8 +670,8 @@ function showScenario(
             // act the step asked for, then tell the host what its checks saw
             if (request.destack === "act") {
                 const { index } = request;
-                void stage.play(steps, index, pause).then((observed) => {
-                    ExampleEvent.send({ destack: "acted", index, observed }, page.origin);
+                void stage.play(steps, index, pause).then((results) => {
+                    ExampleEvent.send({ destack: "step", index, results }, page.origin);
                 });
             }
         },
@@ -669,9 +683,9 @@ function showScenario(
 }
 
 /** Stage examples on a page, exposing the stage to a test's driver. */
-function stageOf(given: Given<JSX.Element, Globals>, page: Showing): Stage {
+function stageOf(given: Given<JSX.Element, Globals>, page: Page): Stage {
     // render the examples with the page's index, and expose the stage
-    const index = Object.entries(page.shown).map(([name, { kind }]) => ({ name, kind }));
+    const index = Object.entries(page.library).map(([name, { kind }]) => ({ name, kind }));
     const stage = Stage.render(page.element, given, page.environment, {
         catalogs: page.catalogs,
         index,

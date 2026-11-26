@@ -506,10 +506,10 @@ function exampleModule(
         `import { Stage } from "${VIEW_PACKAGE}/example";`,
         ``,
         `appendFaces(document, destackFonts);`,
-        `const shown = {`,
+        `const library = {`,
         ...loaders,
         `};`,
-        `await Stage.host(document.body, shown, ${JSON.stringify(owner)}, BrowserEnvironment.system);`,
+        `await Stage.host(document.body, library, ${JSON.stringify(owner)}, BrowserEnvironment.system);`,
         ``,
     ].join("\n");
 }

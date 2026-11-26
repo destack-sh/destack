@@ -2,7 +2,7 @@ import type { BrowserEnvironment } from "@destack/environment/browser";
 import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
-import { ExampleIndexContext, type IndexEntry } from "../page/example.ts";
+import { ExamplePageContext, type IndexEntry } from "../page/example.ts";
 import { type Catalog, Localization, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { LocaleContext } from "../page/locale.ts";
 import { ActionRegistry } from "../page/action.ts";
@@ -93,6 +93,11 @@ export function renderExample<Properties extends object>(
     // frame the example in the locale and the direction components read, styled with the theme's variables and the width
     const direction = given.direction === undefined ? {} : { direction: given.direction };
     const localization = Localization.of(locale, frame.catalogs ?? [], direction);
+
+    // tell examples what their page shows and the languages its catalogs translate into
+    const catalogs = frame.catalogs ?? [];
+    const locales = [...new Set(catalogs.map((catalog) => catalog.locale))];
+    const page = { index: frame.index ?? [], locales };
     const container = document.createElement("div");
     container.dataset["slot"] = "example";
     container.lang = locale;
@@ -142,8 +147,8 @@ export function renderExample<Properties extends object>(
                     return createComponent(LocaleContext, {
                         value: localization,
                         get children() {
-                            return createComponent(ExampleIndexContext, {
-                                value: frame.index ?? [],
+                            return createComponent(ExamplePageContext, {
+                                value: page,
                                 get children() {
                                     return renderFrame(frame);
                                 },
