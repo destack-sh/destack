@@ -36,8 +36,7 @@ const MAIL = ModuleMetadata.parse({
 
 /** Write the notes package's plural message about archiving notes into a notebook. */
 function archived(count: number): Message {
-    return Message.context(
-        "",
+    return t.withModule(
         NOTES,
     )`Archived ${plural(count, { one: "# note", other: "# notes" })} in ${"Trips"}`;
 }
@@ -75,7 +74,7 @@ test("render a message no catalog translates in its source text and language", (
     expect([
         Localization.of("en-GB", [GERMAN]).render(archived(1)),
         Localization.of("fr", [GERMAN]).render(archived(2)),
-        Localization.of("de", [GERMAN]).render(Message.context("", NOTES)`Saved`),
+        Localization.of("de", [GERMAN]).render(t.withModule(NOTES)`Saved`),
     ]).toEqual([
         `Archived 1 note in ${OPEN}Trips${CLOSE}`,
         `Archived 2 notes in ${OPEN}Trips${CLOSE}`,
@@ -85,8 +84,8 @@ test("render a message no catalog translates in its source text and language", (
 
 test("translate the same source text of two packages by each package's own catalogs", () => {
     // write "Close" in both packages, each translated differently into German
-    const notes = Message.context("", NOTES)`Close`;
-    const mail = Message.context("", MAIL)`Close`;
+    const notes = t.withModule(NOTES)`Close`;
+    const mail = t.withModule(MAIL)`Close`;
     const catalogs: Catalog[] = [
         { package: NOTES.package.id, locale: "de", messages: { [notes.id]: "Schließen" } },
         { package: MAIL.package.id, locale: "de", messages: { [mail.id]: "Zumachen" } },
@@ -106,7 +105,7 @@ test("ask for the catalogs of a package whose message renders without any", () =
     const german = Localization.of("de", [GERMAN], {
         request: (packageId) => requested.push(packageId),
     });
-    const rendered = [german.render(archived(1)), german.render(Message.context("", MAIL)`Close`)];
+    const rendered = [german.render(archived(1)), german.render(t.withModule(MAIL)`Close`)];
 
     expect({ rendered, requested }).toEqual({
         rendered: [`1 Notiz in ${OPEN}Trips${CLOSE} archiviert`, "Close"],
@@ -187,8 +186,7 @@ test("write an instant relative to now in its largest whole unit, past and futur
 
 test("render a message with the arguments its reader supplies, refusing one left out", () => {
     // render the notes' shared message for ada's two notes
-    const shared = Message.context(
-        "",
+    const shared = t.withModule(
         NOTES,
     )`${argument("author")} shared ${plural(argument("count"), { one: "# note", other: "# notes" })}`;
     const localization = Localization.of("en", []);

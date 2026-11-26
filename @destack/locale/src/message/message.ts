@@ -1,4 +1,4 @@
-import { ModuleMetadata, PackageId } from "@destack/package";
+import * as definition from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
 
 /** An argument's name: a camel case MessageFormat 2 variable name. */
@@ -23,7 +23,7 @@ type SelectCases = Readonly<Record<string, string>> & {
 declare const ARGUMENTS: unique symbol;
 
 /** A localizable message: its identifier, MessageFormat 2 source and the JSON values it formats. */
-export type Message<Names extends string = string> = schema.Infer<typeof messageSchema> & {
+export type Message<Names extends string = string> = definition.Message & {
     /** The names of the arguments its readers supply when rendering it. */
     readonly [ARGUMENTS]?: Names;
 };
@@ -95,11 +95,23 @@ export const t = Object.assign(
         ...parts: Parts
     ): Message<ArgumentName<Parts[number]>> =>
         // refuse a template the module transform did not stamp
-        Message.context("", ModuleMetadata.require(undefined, "t"))(strings, ...parts),
+        Message.of(strings, parts, "", definition.ModuleMetadata.require(undefined, "t")),
     {
         /** Build the template tag writing a module's messages, as the module transform calls it. */
-        withModule(module: ModuleMetadata): MessageTag {
-            return Message.context("", module);
+        withModule(module: definition.ModuleMetadata): MessageTag {
+            return (strings, ...parts) => Message.of(strings, parts, "", module);
+        },
+
+        /** Build a template tag writing a module's messages in a context, with a note. */
+        context(
+            context: MessageContext,
+            options?: MessageOptions,
+            module?: definition.ModuleMetadata,
+        ): MessageTag {
+            // refuse a context the module transform did not stamp
+            const stamped = definition.ModuleMetadata.require(module, "t.context");
+
+            return (strings, ...parts) => Message.of(strings, parts, context, stamped);
         },
     },
 );
@@ -109,27 +121,15 @@ export function verbatim(strings: TemplateStringsArray, ...parts: readonly unkno
     return String.raw({ raw: strings }, ...parts);
 }
 
-/** A localizable message: its identifier, MessageFormat 2 source and the JSON values it formats. */
-const messageSchema = schema.object({
-    /** The package that wrote it, whose catalogs translate it. */
-    package: PackageId,
-    /** The stable identifier catalogs translate it under. */
-    id: schema.string().min(1),
-    /** The source text in the package's language, as MessageFormat 2. */
-    source: schema.string(),
-    /** The values of its placeholders and selectors, by variable name. */
-    values: schema.jsonObject(),
-});
-
-/** The messages a package writes, rendered where they are read. */
-export const Message = Object.assign(messageSchema, {
+/** The messages a package writes, on a copy of the package's shape so it stays as it is. */
+export const Message = Object.assign(definition.Message.extend({}), {
     /** Build a message of a module's package from a template's text and interpolations. */
     of(
         strings: readonly string[],
         parts: readonly unknown[],
         context: string,
-        module: ModuleMetadata,
-    ): schema.Infer<typeof messageSchema> {
+        module: definition.ModuleMetadata,
+    ): definition.Message {
         const { source, values } = Message.template(strings, parts);
         const id = Message.identify(source, context);
 
@@ -140,7 +140,7 @@ export const Message = Object.assign(messageSchema, {
     template(
         strings: readonly string[],
         parts: readonly unknown[],
-    ): Pick<schema.Infer<typeof messageSchema>, "source" | "values"> {
+    ): Pick<definition.Message, "source" | "values"> {
         // name each interpolation: an argument by its own name, any other value by its position
         const values: Record<string, JsonValue> = {};
         const selectors: { readonly name: string; readonly variant: Variant }[] = [];
@@ -178,15 +178,19 @@ export const Message = Object.assign(messageSchema, {
 
         return hash.toString(36);
     },
-
-    /** Build a template tag that writes a module's messages under a context. */
-    context(context: string, module?: ModuleMetadata): MessageTag {
-        // refuse a context the module transform did not stamp
-        const stamped = ModuleMetadata.require(module, "Message.context");
-
-        return (strings, ...parts) => Message.of(strings, parts, context, stamped);
-    },
 });
+
+/** What a short message is where it shows: an action, a label, an option or a title. */
+export const MESSAGE_CONTEXTS = ["action", "label", "option", "title"] as const;
+
+/** What a short message is where it shows, which tells its translators the word to choose. */
+export type MessageContext = (typeof MESSAGE_CONTEXTS)[number];
+
+/** What a message's writer tells its translators beyond its context. */
+export interface MessageOptions {
+    /** A sentence for translators, which the check copies into catalogs and no id reads. */
+    readonly note?: string;
+}
 
 /** Require a message value to be JSON, which the message travels as. */
 function jsonOf(name: string, value: unknown): JsonValue {

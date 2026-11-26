@@ -6,6 +6,6 @@
     "runtimes": ["browser", "bun", "workerd"],
     "stamps": {
         "t": { "module": 0 },
-        "Message.context": { "module": 1 }
+        "t.context": { "module": 2 }
     }
 }

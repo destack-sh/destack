@@ -41,7 +41,7 @@ const price = localization.money(1200, "EUR");
 ### t
 
 `t` writes a `Message` from a template, tagged with the module's package.
-`Message.context(context)` gives the same text separate identifiers, such as a button's "Save" and a menu's.
+`t.context(context, { note })` says what a short message is where it shows, and tells its translators more.
 
 | Part                               | Becomes                                                                           |
 | ---------------------------------- | --------------------------------------------------------------------------------- |
@@ -141,13 +141,23 @@ export const shared = t`${select(argument("pronoun"), { woman: "She", man: "He",
 
 ### Tell two messages with one text apart
 
-`Message.context` gives the same text separate identifiers, so a button's "Save" and a menu's can translate differently.
+`t.context` gives a short message one of four contexts, after gettext's `msgctxt`: `action`, `label`, `option` or `title`.
+The same text in two contexts has two identifiers, so "Default" as a size and "Default" as a menu entry can translate differently.
+A note tells translators where the message shows, after FormatJS's `description`, and never changes its identifier.
+
+| Context  | What the message is                     | Such as             |
+| -------- | --------------------------------------- | ------------------- |
+| `action` | a verb a person runs: a button, an item | Archive, Pin, Reset |
+| `label`  | the name of a field or property         | Variant, Status     |
+| `option` | a value among choices                   | Default, Low, Done  |
+| `title`  | the heading or name of a place          | Properties, Steps   |
 
 ```ts
-import { Message } from "@destack/locale";
+import { t } from "@destack/locale";
 
-// title the save button under its own context
-export const save = Message.context("button")`Save`;
+// run the archive action, and offer low among a task's priorities
+export const archive = t.context("action")`Archive`;
+export const low = t.context("option", { note: "A task's priority" })`Low`;
 ```
 
 ### Format values for a reader
@@ -190,11 +200,11 @@ This is `locale/de.json` for the overview's `archived` message, as a draft.
 `t`, `plural` and `select` basically follow Lingui's macros, with messages in MessageFormat 2 instead of ICU MessageFormat.
 Messages are JSON, rendered by each reader.
 
-| Lingui                         | `@destack/locale`                 | Difference                                                      |
-| ------------------------------ | --------------------------------- | --------------------------------------------------------------- |
-| `` t`…` ``                     | `` t`…` ``                        | Writes a `Message` as JSON instead of the rendered text.        |
-| `plural`, `select`             | the same                          | The same.                                                       |
-| `t({ message, context })`      | `` Message.context(context)`…` `` | A tag of its own for each context.                              |
-| ICU MessageFormat              | MessageFormat 2                   | Rendered by the `messageformat` library.                        |
-| `locales/<locale>/messages.po` | `locale/<tag>.json`               | JSON, with machine translations marked as `drafts`.             |
-| `i18n.number`, `i18n.date`     | `Localization.number`, `date`, …  | Adds `money` in minor units and `relative` in the largest unit. |
+| Lingui                         | `@destack/locale`                | Difference                                                      |
+| ------------------------------ | -------------------------------- | --------------------------------------------------------------- |
+| `` t`…` ``                     | `` t`…` ``                       | Writes a `Message` as JSON instead of the rendered text.        |
+| `plural`, `select`             | the same                         | The same.                                                       |
+| `t({ message, context })`      | `` t.context(context)`…` ``      | A tag of its own for each of four contexts, with a note.        |
+| ICU MessageFormat              | MessageFormat 2                  | Rendered by the `messageformat` library.                        |
+| `locales/<locale>/messages.po` | `locale/<tag>.json`              | JSON, with machine translations marked as `drafts`.             |
+| `i18n.number`, `i18n.date`     | `Localization.number`, `date`, … | Adds `money` in minor units and `relative` in the largest unit. |

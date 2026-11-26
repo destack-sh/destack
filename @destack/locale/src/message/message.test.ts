@@ -60,13 +60,13 @@ test("leave each argument's value to the reader, naming its placeholder and its 
 test("identify a message by its source and context alone, not its values", () => {
     expect([
         t`Archived ${"Trips"}`.id === t`Archived ${"Work"}`.id,
-        t`Open`.id === Message.context("button")`Open`.id,
-        Message.context("button")`Open`.id === Message.context("button")`Open`.id,
+        t`Open`.id === t.context("action")`Open`.id,
+        t.context("action")`Open`.id === t.context("action")`Open`.id,
     ]).toEqual([true, false, true]);
 });
 
 test("stamp messages with the package of the module writing them", () => {
-    expect([t`Open`.package, Message.context("button")`Open`.package]).toEqual([LOCALE, LOCALE]);
+    expect([t`Open`.package, t.context("action")`Open`.package]).toEqual([LOCALE, LOCALE]);
 });
 
 test("refuse to write a message without the module the transform passes", async () => {
@@ -77,10 +77,10 @@ test("refuse to write a message without the module the transform passes", async 
         "DEFINITION_INVALID",
         "call 't' is invalid: the Destack module transform passed it no module",
     ]);
-    expect(await refusal(() => Message.context("button", undefined))).toEqual([
+    expect(await refusal(() => t.context("action", undefined, undefined))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "call 'Message.context' is invalid: the Destack module transform passed it no module",
+        "call 't.context' is invalid: the Destack module transform passed it no module",
     ]);
 });
 
