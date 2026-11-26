@@ -31,17 +31,13 @@
     },
     "peerDependencies": {
         "@destack/environment": "workspace:*",
-        "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*"
+        "@destack/test": "workspace:*"
     },
     "peerDependenciesMeta": {
         "@destack/environment": {
             "optional": true
         },
         "@destack/test": {
-            "optional": true
-        },
-        "@destack/universe": {
             "optional": true
         }
     },
