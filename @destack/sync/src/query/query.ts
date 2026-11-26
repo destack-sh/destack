@@ -1,5 +1,13 @@
-import { type FindOptions, type Relation, Relations, type Row, type Table } from "@destack/db";
-import type { Aggregate, AggregateGroup } from "./aggregate.ts";
+import {
+    ColumnValue,
+    type FindOptions,
+    type Relation,
+    Relations,
+    type Row,
+    type Table,
+} from "@destack/db";
+import { schema } from "@destack/schema";
+import { type Aggregate, AggregateGroup } from "./aggregate.ts";
 
 /** What a subscriber's query selects at one level: a relational read, or aggregates of its rows. */
 export interface QuerySelection extends FindOptions {
@@ -30,6 +38,18 @@ export type Item = {
     /** Each aggregate include's groups, a whole include's measures as one ungrouped group. */
     readonly measures: Readonly<Record<string, readonly AggregateGroup[]>>;
 };
+
+/** One result of a query, as it crosses a channel. */
+export const Item: schema.Schema<Item> = schema.lazy(() =>
+    schema.object({
+        /** The row's readable columns and computed values. */
+        row: schema.record(schema.string(), ColumnValue),
+        /** Each include's items. */
+        with: schema.record(schema.string(), schema.array(Item)),
+        /** Each aggregate include's groups. */
+        measures: schema.record(schema.string(), schema.array(AggregateGroup)),
+    }),
+);
 
 /** Resolve a query's included relation as a query of the related table, with the relation. */
 export function included(

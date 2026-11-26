@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import type { ConditionOf, Model, Scalar } from "@destack/db";
+import { type ConditionOf, type Model, Scalar } from "@destack/db";
 
 /** One measure of a group: its row count, or a function of one column. */
 export const Measure = schema.discriminatedUnion("function", [
@@ -46,6 +46,14 @@ export type AggregateGroup<Options extends Aggregate = Aggregate> = {
             : Scalar;
     };
 };
+
+/** One group of an aggregate's rows, as it crosses a channel. */
+export const AggregateGroup: schema.Schema<AggregateGroup> = schema.object({
+    /** The values of the group columns. */
+    group: schema.record(schema.string(), Scalar),
+    /** The measures, by name. */
+    values: schema.record(schema.string(), Scalar),
+});
 
 /** The group columns of an aggregate, any column for an aggregate not known statically. */
 type GroupColumnOf<Options extends Aggregate> = Aggregate extends Options
