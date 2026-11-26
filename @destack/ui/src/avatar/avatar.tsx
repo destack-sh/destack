@@ -1,4 +1,4 @@
-import { HUES, type Hue } from "@destack/color";
+import { Hue } from "@destack/color";
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
@@ -196,7 +196,7 @@ export const Avatar = defineComponent(
             .described(t`How large the picture or initials show.`)
             .default("default"),
         color: field
-            .enum(HUES)
+            .enum(Hue.choices)
             .labeled(t.context("label")`Color`)
             .described(t`The hue the initials show on, where there is no picture.`)
             .optional(),
