@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import {
     Select,
@@ -11,41 +12,13 @@ import {
 } from "./select.tsx";
 
 /** The sort order of a note list. */
-export const selectSortOrder = defineExample({
+export const selectDefault = defineExample({
     of: Select,
-    name: "sort-order",
-    description: "the sort order of a note list",
+    name: "default",
+    description: t`The sort order of a note list.`,
     properties: {
         name: "sort",
         "aria-label": "Sort by",
-    },
-    render: (properties) => (
-        <Select {...properties}>
-            <SelectTrigger>
-                <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-                <SelectGroup>
-                    <SelectLabel>Date</SelectLabel>
-                    <SelectItem value="updated">Last edited</SelectItem>
-                    <SelectItem value="created">Created</SelectItem>
-                </SelectGroup>
-                <SelectSeparator />
-                <SelectItem value="title">Title</SelectItem>
-            </SelectContent>
-        </Select>
-    ),
-});
-
-/** The sort order of a note list unavailable. */
-export const selectSortOrderDisabled = defineExample({
-    of: Select,
-    name: "sort-order-disabled",
-    description: "the sort order of a note list unavailable",
-    properties: {
-        name: "sort",
-        "aria-label": "Sort by",
-        disabled: true,
     },
     render: (properties) => (
         <Select {...properties}>
@@ -66,10 +39,10 @@ export const selectSortOrderDisabled = defineExample({
 });
 
 /** The sort order of a note list before one is chosen. */
-export const selectSortOrderPlaceholder = defineExample({
+export const selectEmpty = defineExample({
     of: Select,
-    name: "sort-order-placeholder",
-    description: "the sort order of a note list before one is chosen",
+    name: "empty",
+    description: t`The sort order of a note list before one is chosen.`,
     properties: {
         name: "sort",
         "aria-label": "Sort by",
@@ -89,10 +62,10 @@ export const selectSortOrderPlaceholder = defineExample({
 });
 
 /** The tags of a note, several chosen at once. */
-export const selectNoteTags = defineExample({
+export const selectMultiple = defineExample({
     of: Select,
-    name: "note-tags",
-    description: "the tags of a note, several chosen at once",
+    name: "multiple",
+    description: t`The tags of a note, several chosen at once.`,
     render: () => (
         <Select name="tags" aria-label="Tags" multiple defaultValue={["travel", "family"]}>
             <SelectItem value="travel">Travel</SelectItem>
@@ -103,10 +76,10 @@ export const selectNoteTags = defineExample({
 });
 
 /** The sort order of a note list marked invalid. */
-export const selectSortOrderInvalid = defineExample({
+export const selectInvalid = defineExample({
     of: Select,
-    name: "sort-order-invalid",
-    description: "the sort order of a note list marked invalid",
+    name: "invalid",
+    description: t`The sort order of a note list marked invalid.`,
     properties: {
         name: "sort",
         "aria-label": "Sort by",

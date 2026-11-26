@@ -3,7 +3,7 @@ import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createEffect, type JSX, omit, Show } from "@destack/view";
+import { createContext, createEffect, type JSX, omit, Show, useContext } from "@destack/view";
 import {
     SELECTION_OPTIONS,
     Selection,
@@ -14,6 +14,14 @@ import { readChoices, useFieldControl, useFieldValue } from "../field/control.ts
 import { inputStyle } from "../input/index.ts";
 import { useJoin } from "../join/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import { defineComponent } from "@destack/view/declare";
+import { schema } from "@destack/schema";
+
+/** The heights of a select. */
+const SELECT_SIZES = ["default", "sm"] as const;
+
+/** The looks of a select: framed as an input, or quiet as a toolbar's button. */
+const SELECT_VARIANTS = ["outline", "ghost"] as const;
 
 /** The styles of a select, its picker and its options. */
 const styles = style.create({
@@ -27,6 +35,15 @@ const styles = style.create({
         height: size[1],
         paddingBlock: 0,
         paddingInline: space[2],
+    },
+    // drop the frame until a pointer rests on it, as a toolbar's buttons do
+    ghost: {
+        borderColor: "transparent",
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.hover },
+        },
+        boxShadow: "none",
     },
     multiple: {
         appearance: "auto",
@@ -77,7 +94,10 @@ const styles = style.create({
 });
 
 /** The height of a select. */
-export type SelectSize = "default" | "sm";
+export type SelectSize = (typeof SELECT_SIZES)[number];
+
+/** The look of a select. */
+export type SelectVariant = (typeof SELECT_VARIANTS)[number];
 
 /** The properties of a select, the native select's attributes included. */
 export type SelectProperties = Omit<
@@ -88,6 +108,8 @@ export type SelectProperties = Omit<
     readonly placeholder?: string;
     /** The height, default by default. */
     readonly size?: SelectSize;
+    /** The look, outline by default. */
+    readonly variant?: SelectVariant;
     /** The StyleX styles applied after the select's styles. */
     readonly xstyle?: style.Styles;
 } & SelectionProperties;
@@ -95,90 +117,106 @@ export type SelectProperties = Omit<
 /** The properties of an element of a select, the native element's attributes included. */
 export type SelectElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
+/** The selection of the nearest select, which its options follow, null outside one. */
+const SelectContext = createContext<Selection | null>(null);
+
 /** Render a native select whose button and picker take the theme where the browser allows. */
-export function Select(given: SelectProperties): JSX.Element {
-    // edit the value of the field's form
-    const properties = useFieldValue(given, {
-        value: "value",
-        change: "onValueChange",
-        read: readChoices,
-        settles: true,
-    });
+export const Select = defineComponent(
+    "select",
+    function Select(given: SelectProperties): JSX.Element {
+        // edit the value of the field's form
+        const properties = useFieldValue(given, {
+            value: "value",
+            change: "onValueChange",
+            read: readChoices,
+            settles: true,
+        });
 
-    // take the id and state of the nearest field
-    const field = useFieldControl();
-    const join = useJoin();
-    const rest = omit(
-        properties,
-        ...SELECTION_OPTIONS,
-        "placeholder",
-        "size",
-        "children",
-        "xstyle",
-        "style",
-    );
-    const isInvalid = (): boolean =>
-        field?.isInvalid() === true || properties["aria-invalid"] === "true";
+        // take the id and state of the nearest field
+        const field = useFieldControl();
+        const join = useJoin();
+        const rest = omit(
+            properties,
+            ...SELECTION_OPTIONS,
+            "placeholder",
+            "size",
+            "variant",
+            "children",
+            "xstyle",
+            "style",
+        );
+        const isInvalid = (): boolean =>
+            field?.isInvalid() === true || properties["aria-invalid"] === "true";
 
-    // follow the controlled values or the select's own
-    const selection = new Selection(properties);
+        // follow the controlled values or the select's own
+        const selection = new Selection(properties);
 
-    // show the chosen options on the element once its options exist
-    let element: HTMLSelectElement | undefined;
-    createEffect(selection.values, (values) => {
-        if (element !== undefined) {
-            choose(element, values);
-        }
-    });
+        // show the chosen options on the element once its options exist
+        let element: HTMLSelectElement | undefined;
+        createEffect(selection.values, (values) => {
+            if (element !== undefined) {
+                choose(element, values);
+            }
+        });
 
-    return (
-        <select
-            data-slot="select"
-            multiple={properties.multiple}
-            {...field?.attributes()}
-            {...mergeProperties(
-                {
-                    ref: (created: HTMLSelectElement) => {
-                        element = created;
-                    },
-                },
-                rest,
-            )}
-            onChange={(event) => {
-                // record the person's choice and show the owner's until the owner takes it
-                const select = event.currentTarget;
-                selection.replace(
-                    [...select.options]
-                        .filter((option) => option.selected)
-                        .map((option) => option.value),
-                );
-                if ("value" in properties) {
-                    choose(select, valuesOf(properties.value));
-                }
-            }}
-            {...style.attributes(
-                [
-                    inputStyle({ invalid: isInvalid() }),
-                    styles.select,
-                    properties.size === "sm" && styles.sm,
-                    properties.multiple === true && styles.multiple,
-                    join(),
-                    properties.xstyle,
-                ],
-                properties.style,
-            )}
-        >
-            {properties.children}
-            <Show when={properties.multiple === true ? undefined : properties.placeholder}>
-                {(placeholder) => (
-                    <option value="" disabled hidden data-slot="select-placeholder">
-                        {placeholder()}
-                    </option>
-                )}
-            </Show>
-        </select>
-    );
-}
+        return (
+            <SelectContext value={selection}>
+                <select
+                    data-slot="select"
+                    multiple={properties.multiple}
+                    {...field?.attributes()}
+                    {...mergeProperties(
+                        {
+                            ref: (created: HTMLSelectElement) => {
+                                element = created;
+                            },
+                        },
+                        rest,
+                    )}
+                    onChange={(event) => {
+                        // record the person's choice and show the owner's until the owner takes it
+                        const select = event.currentTarget;
+                        selection.replace(
+                            [...select.options]
+                                .filter((option) => option.selected)
+                                .map((option) => option.value),
+                        );
+                        if ("value" in properties) {
+                            choose(select, valuesOf(properties.value));
+                        }
+                    }}
+                    {...style.attributes(
+                        [
+                            inputStyle({ invalid: isInvalid() }),
+                            styles.select,
+                            properties.size === "sm" && styles.sm,
+                            properties.variant === "ghost" && styles.ghost,
+                            properties.multiple === true && styles.multiple,
+                            join(),
+                            properties.xstyle,
+                        ],
+                        properties.style,
+                    )}
+                >
+                    {properties.children}
+                    <Show when={properties.multiple === true ? undefined : properties.placeholder}>
+                        {(placeholder) => (
+                            <option value="" disabled hidden data-slot="select-placeholder">
+                                {placeholder()}
+                            </option>
+                        )}
+                    </Show>
+                </select>
+            </SelectContext>
+        );
+    },
+    {
+        size: schema.enum(SELECT_SIZES).default("default"),
+        variant: schema.enum(SELECT_VARIANTS).default("outline"),
+        placeholder: schema.string().exactOptional(),
+        disabled: schema.boolean().default(false),
+    },
+);
 
 /** Choose exactly the options of a select whose values are listed, the placeholder when none is. */
 function choose(select: HTMLSelectElement, values: readonly string[]): void {
@@ -216,7 +254,23 @@ export function SelectContent(properties: { readonly children?: JSX.Element }): 
 export function SelectItem(
     properties: SelectElementProperties<JSX.OptionHTMLAttributes<HTMLOptionElement>>,
 ): JSX.Element {
-    return renderPart("option", "select-item", properties, [state.disabled, styles.item]);
+    // follow the select's selection from the moment the option exists, however late it renders
+    const selection = useContext(SelectContext);
+    let option: HTMLOptionElement | undefined;
+    createEffect(
+        () => selection?.isSelected(String(properties.value ?? "")),
+        (isSelected) => {
+            if (option !== undefined && isSelected !== undefined) {
+                option.selected = isSelected;
+            }
+        },
+    );
+
+    return renderPart("option", "select-item", properties, [state.disabled, styles.item], {
+        ref: (created: HTMLOptionElement) => {
+            option = created;
+        },
+    });
 }
 
 /** Render a group of a select's options under a label. */
