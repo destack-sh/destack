@@ -80,11 +80,11 @@ export const fileItemRows = defineExample({
     name: "rows",
     description: t`A trip's files in rows, which open and download.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <FileItemGroup aria-label="Files">
             <For each={FILES}>
                 {(file) => (
-                    <FileItem file={file} onOpen={() => {}}>
+                    <FileItem {...properties} file={file} onOpen={() => {}}>
                         <FileItemOpen />
                         <FileItemMedia />
                         <FileItemContent>
@@ -104,23 +104,26 @@ export const fileItemRows = defineExample({
 });
 
 /** A trip's photos as cards, which a person opens and removes. */
-export const fileItemCards = defineExample({
-    of: FileItem,
+export const fileItemGroupCards = defineExample({
+    of: FileItemGroup,
     name: "cards",
     description: t`A trip's photos as cards, which a person opens and removes.`,
     layout: "padded",
-    render: () => {
+    properties: {
+        layout: "card",
+    },
+    render: (properties) => {
         const [photos, setPhotos] = createSignal<readonly (typeof PHOTOS)[number][]>(PHOTOS);
         const viewer = new ViewerControl({ items: photos, key: (photo) => photo.name });
 
         return (
             <>
-                <FileItemGroup layout="card" aria-label="Photos">
+                <FileItemGroup {...properties} aria-label="Photos">
                     <For each={photos()}>
                         {(photo) => (
                             <FileItem
                                 ref={viewer.thumbnail(photo)}
-                                layout="card"
+
                                 file={photo}
                                 source={photo.source}
                                 onOpen={() => viewer.open(photo)}
@@ -170,9 +173,9 @@ export const fileItemParts = defineExample({
     name: "parts",
     description: t`A trip's recordings of other parts: a drawn wave, who sent it and when.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <FileItemGroup aria-label="Recordings">
-            <FileItem file={FILES[3]} onOpen={() => {}} onRemove={() => {}}>
+            <FileItem {...properties} file={FILES[3]} onOpen={() => {}} onRemove={() => {}}>
                 <FileItemOpen aria-label="Play fado.mp3" />
                 <FileItemMedia>
                     <Icon icon={waveform} />
@@ -198,46 +201,28 @@ export const fileItemSending = defineExample({
     name: "sending",
     description: t`A message's files on their way: sent, paused and failed, in rows and as cards.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Stack space="4">
             <FileItemGroup aria-label="Files">
-                <FileItem file={FILES[0]} upload={SENDING} onRemove={() => {}} />
+                <FileItem {...properties} file={FILES[0]} upload={SENDING} onRemove={() => {}} />
                 <FileItem file={FILES[4]} upload={PAUSED} onRemove={() => {}} />
                 <FileItem file={FILES[5]} upload={LOST} onRetry={() => {}} onRemove={() => {}} />
             </FileItemGroup>
             <FileItemGroup layout="card" aria-label="Photos">
                 <FileItem
-                    layout="card"
                     file={PHOTOS[0]}
                     source={PICTURES.alfama}
                     upload={SENDING}
                     onRemove={() => {}}
                 />
                 <FileItem
-                    layout="card"
                     file={PHOTOS[1]}
                     source={PICTURES.tram}
                     error={REFUSED}
                     onRemove={() => {}}
                 />
-                <FileItem layout="card" file={FILES[0]} upload={SENDING} onRemove={() => {}} />
+                <FileItem file={FILES[0]} upload={SENDING} onRemove={() => {}} />
             </FileItemGroup>
         </Stack>
-    ),
-});
-
-/** A draft's files in small, beside its text. */
-export const fileItemSmall = defineExample({
-    of: FileItem,
-    name: "small",
-    description: t`A draft's files in small, beside its text.`,
-    layout: "padded",
-    render: () => (
-        <FileItemGroup aria-label="Files">
-            <FileItem size="sm" file={PHOTOS[0]} source={PICTURES.alfama} onRemove={() => {}} />
-            <FileItem size="sm" file={FILES[0]} onRemove={() => {}} />
-            <FileItem size="sm" file={FILES[1]} onRemove={() => {}} />
-            <FileItem size="sm" file={FILES[3]} upload={SENDING} onRemove={() => {}} />
-        </FileItemGroup>
     ),
 });

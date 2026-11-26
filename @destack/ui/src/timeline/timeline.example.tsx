@@ -9,6 +9,9 @@ import { color, swatch } from "@destack/theme/tokens.stylex";
 import {
     Timeline,
     TimelineAxis,
+    TimelineBar,
+    TimelineBarAddon,
+    TimelineBarList,
     TimelineCell,
     TimelineColumn,
     TimelineBody,
@@ -549,4 +552,36 @@ export const timelineTeam = defineExample({
             </Timeline>
         );
     },
+});
+
+/** An agent's run, each step's time beside its bar. */
+export const timelineBarAddonTime = defineExample({
+    of: TimelineBarAddon,
+    name: "time",
+    description: t`An agent's run, each step's time beside its bar.`,
+    layout: "padded",
+    render: (properties) => (
+        <Timeline items={TRACE} axis="offset">
+            <TimelineBody>
+                <TimelineRowList>
+                    {(node) => (
+                        <TimelineRow>
+                            <TimelineRowLabel>{node().item.label}</TimelineRowLabel>
+                            <TimelineTrack>
+                                <TimelineBarList>
+                                    {(item) => (
+                                        <TimelineBar>
+                                            <TimelineBarAddon {...properties}>
+                                                {`${String(((item().end ?? 0) - (item().start ?? 0)) / 1_000)}s`}
+                                            </TimelineBarAddon>
+                                        </TimelineBar>
+                                    )}
+                                </TimelineBarList>
+                            </TimelineTrack>
+                        </TimelineRow>
+                    )}
+                </TimelineRowList>
+            </TimelineBody>
+        </Timeline>
+    ),
 });

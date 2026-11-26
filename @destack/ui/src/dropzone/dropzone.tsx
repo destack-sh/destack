@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import prohibit from "@destack/icon/phosphor/prohibit";
 import uploadSimple from "@destack/icon/phosphor/upload-simple";
 import { type Localization, t } from "@destack/locale";
@@ -46,16 +47,21 @@ import {
     fileOf,
     useDropzone,
 } from "./control.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** What a zone that sets nothing takes, and how it looks. */
 const DEFAULTS: Required<
-    Pick<DropzoneProperties, "limits" | "variant" | "size" | "multiple" | "disabled" | "target">
+    Pick<
+        RenderProperties<DropzoneAttributes, typeof DROPZONE_PROPERTIES>,
+        "limits" | "multiple" | "target"
+    >
 > = {
     limits: {},
-    variant: "outline",
-    size: "default",
     multiple: false,
-    disabled: false,
     target: "zone",
 };
 
@@ -195,8 +201,33 @@ export type DropzoneElementProperties<Element extends HTMLElement = HTMLDivEleme
 > &
     ElementPartProperties;
 
-/** The properties of a zone, with its element's attributes. */
-export interface DropzoneProperties
+/** The properties people change in a dropzone's controls and inspector. */
+const DROPZONE_PROPERTIES = {
+    variant: field
+        .enum({
+            outline: { title: t.context("option")`Outline` },
+            plain: { title: t.context("option")`Plain` },
+        })
+        .labeled(t.context("label")`Variant`)
+        .described(t`Whether it is a dashed box, or none, as around a page or a message.`)
+        .default("outline"),
+    size: field
+        .enum({
+            default: { title: t.context("option")`Default` },
+            sm: { title: t.context("option")`Small` },
+        })
+        .labeled(t.context("label")`Size`)
+        .described(t`Its box at full height, or small in one row.`)
+        .default("default"),
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Takes no file now.`)
+        .default(false),
+};
+
+/** The properties of a zone besides its declared ones: its limits, files and handlers. */
+export interface DropzoneAttributes
     extends
         Omit<DropzoneElementProperties, "onError" | "onReset">,
         Omit<DropzoneOptions, "limits" | "multiple" | "disabled"> {
@@ -216,188 +247,191 @@ export interface DropzoneProperties
     readonly onError?: (error: unknown) => void;
     /** Where files may be dropped and pasted, on the zone by default. */
     readonly target?: DropzoneTarget;
-    /** Its look, a dashed box by default. */
-    readonly variant?: DropzoneVariant;
-    /** The size of its box, default by default. */
-    readonly size?: DropzoneSize;
-    /** Whether it takes no file now. */
-    readonly disabled?: boolean;
     /** Its parts, or what it stands around, the usual parts by default. */
     readonly children?: JSX.Element;
 }
 
 /** Render a zone that takes files dropped, pasted or chosen, and says why it refuses one. */
-export function Dropzone(properties: DropzoneProperties): JSX.Element {
-    // take every file, one at a time, unless it sets otherwise
-    const field = useFieldControl();
-    const given = merge(DEFAULTS, properties);
-    const zone = merge(given, {
-        get disabled() {
-            return given.disabled || field?.isDisabled() === true;
-        },
-    });
-    const rest = omit(
-        zone,
-        "onFiles",
-        "onRefuse",
-        "onError",
-        "onReset",
-        "validate",
-        "files",
-        "limits",
-        "multiple",
-        "name",
-        "required",
-        "form",
-        "directory",
-        "capture",
-        "target",
-        "variant",
-        "size",
-        "disabled",
-        "children",
-    );
-    const dropzone = createDropzone({
-        isReadingFolders: () => zone.directory === true,
-        onDrop: (dropped) => control.take(dropped),
-        onError: (error) => zone.onError?.(error),
-    });
-    const control = new DropzoneControl(zone, dropzone.isDragging, dropzone.offered);
-    const paste = (event: ClipboardEvent): void => {
-        // leave what a zone or a field inside took
-        const pasted = [...(event.clipboardData?.files ?? [])];
-        if (pasted.length > 0 && !event.defaultPrevented) {
-            event.preventDefault();
-            control.take(pasted.map((file) => fileOf(file)));
-        }
-    };
-    const reset = (): void => control.reset();
-    const isOutline = (): boolean => zone.variant === "outline";
-    const isPage = (): boolean => zone.target === "page";
+export const Dropzone = defineComponent({
+    name: "dropzone",
+    properties: DROPZONE_PROPERTIES,
+    render(
+        properties: RenderProperties<DropzoneAttributes, typeof DROPZONE_PROPERTIES>,
+    ): JSX.Element {
+        // take every file, one at a time, unless it sets otherwise
+        const formField = useFieldControl();
+        const given = merge(DEFAULTS, properties);
+        const zone = merge(given, {
+            get disabled() {
+                return given.disabled || formField?.isDisabled() === true;
+            },
+        });
+        const rest = omit(
+            zone,
+            "onFiles",
+            "onRefuse",
+            "onError",
+            "onReset",
+            "validate",
+            "files",
+            "limits",
+            "multiple",
+            "name",
+            "required",
+            "form",
+            "directory",
+            "capture",
+            "target",
+            "variant",
+            "size",
+            "disabled",
+            "children",
+        );
+        const dropzone = createDropzone({
+            isReadingFolders: () => zone.directory === true,
+            onDrop: (dropped) => control.take(dropped),
+            onError: (error) => zone.onError?.(error),
+        });
+        const control = new DropzoneControl(zone, dropzone.isDragging, dropzone.offered);
+        const paste = (event: ClipboardEvent): void => {
+            // leave what a zone or a field inside took
+            const pasted = [...(event.clipboardData?.files ?? [])];
+            if (pasted.length > 0 && !event.defaultPrevented) {
+                event.preventDefault();
+                control.take(pasted.map((file) => fileOf(file)));
+            }
+        };
+        const reset = (): void => control.reset();
+        const isOutline = (): boolean => zone.variant === "outline";
+        const isPage = (): boolean => zone.target === "page";
 
-    // take files dropped and pasted anywhere on the page
-    createEffect(isPage, (isWhole) => {
-        if (!isWhole) {
-            return undefined;
-        }
-        dropzone.ref(document.documentElement);
-        document.addEventListener("paste", paste);
+        // take files dropped and pasted anywhere on the page
+        createEffect(isPage, (isWhole) => {
+            if (!isWhole) {
+                return undefined;
+            }
+            dropzone.ref(document.documentElement);
+            document.addEventListener("paste", paste);
 
-        return () => document.removeEventListener("paste", paste);
-    });
+            return () => document.removeEventListener("paste", paste);
+        });
 
-    // submit the files there are, and forget them as the form resets
-    createEffect(
-        () => ({ files: control.files, name: zone.name }),
-        ({ files, name }) => (name === undefined ? undefined : control.submit(files)),
-    );
-    createEffect(
-        () => ({ name: zone.name, form: zone.form }),
-        ({ name }) => {
-            // listen to the form of a zone with a name
-            const form = name === undefined ? null : (input?.form ?? null);
-            form?.addEventListener("reset", reset);
+        // submit the files there are, and forget them as the form resets
+        createEffect(
+            () => ({ files: control.files, name: zone.name }),
+            ({ files, name }) => (name === undefined ? undefined : control.submit(files)),
+        );
+        createEffect(
+            () => ({ name: zone.name, form: zone.form }),
+            ({ name }) => {
+                // listen to the form of a zone with a name
+                const form = name === undefined ? null : (input?.form ?? null);
+                form?.addEventListener("reset", reset);
 
-            return () => form?.removeEventListener("reset", reset);
-        },
-    );
+                return () => form?.removeEventListener("reset", reset);
+            },
+        );
 
-    // tell the files added and removed
-    const locale = useLocale();
-    const [announcement, setAnnouncement] = createSignal("", { ownedWrite: true });
-    let known = untrack(() => control.files);
-    createEffect(
-        () => control.files,
-        (files) => {
-            // compare with the files before
-            setAnnouncement(changeOf(files, known, locale));
-            known = files;
-        },
-    );
-    let input: HTMLInputElement | undefined;
+        // tell the files added and removed
+        const locale = useLocale();
+        const [announcement, setAnnouncement] = createSignal("", { ownedWrite: true });
+        let known = untrack(() => control.files);
+        createEffect(
+            () => control.files,
+            (files) => {
+                // compare with the files before
+                setAnnouncement(changeOf(files, known, locale));
+                known = files;
+            },
+        );
+        let input: HTMLInputElement | undefined;
 
-    return renderPart(
-        "div",
-        "dropzone",
-        rest,
-        () => [
-            styles.zone,
-            isOutline() && text.sm,
-            isOutline() && styles.outline,
-            isOutline() && (zone.size === "sm" ? styles.row : styles.tall),
-            isOutline() && !zone.disabled && styles.opens,
-            isOutline() && control.isDragging && styles.dragging,
-            isOutline() && control.drag === "reject" && styles.rejecting,
-            zone.disabled && styles.disabled,
-        ],
-        {
-            ref: [
-                (element: HTMLElement) => (isPage() ? undefined : dropzone.ref(element)),
-                handle(attachFiles, {
-                    isEnabled: () => !zone.disabled,
-                    run: () => control.choose(),
-                }),
+        return renderPart(
+            "div",
+            "dropzone",
+            rest,
+            () => [
+                styles.zone,
+                isOutline() && text.sm,
+                isOutline() && styles.outline,
+                isOutline() && (zone.size === "sm" ? styles.row : styles.tall),
+                isOutline() && !zone.disabled && styles.opens,
+                isOutline() && control.isDragging && styles.dragging,
+                isOutline() && control.drag === "reject" && styles.rejecting,
+                zone.disabled && styles.disabled,
             ],
-            get "data-variant"() {
-                return zone.variant;
+            {
+                ref: [
+                    (element: HTMLElement) => (isPage() ? undefined : dropzone.ref(element)),
+                    handle(attachFiles, {
+                        isEnabled: () => !zone.disabled,
+                        run: () => control.choose(),
+                    }),
+                ],
+                get "data-variant"() {
+                    return zone.variant;
+                },
+                get "data-size"() {
+                    return zone.size;
+                },
+                get "data-dragging"() {
+                    return control.isDragging ? "" : undefined;
+                },
+                get "data-drag"() {
+                    return control.drag;
+                },
+                onPaste: (event: ClipboardEvent) => (isPage() ? undefined : paste(event)),
+                get children() {
+                    return (
+                        <>
+                            <input
+                                ref={(element) => {
+                                    input = element;
+                                    control.attach(element);
+                                }}
+                                type="file"
+                                tabindex={-1}
+                                aria-hidden={zone.required === true ? undefined : "true"}
+                                aria-label={
+                                    zone.required === true ? titleOf(control, locale) : undefined
+                                }
+                                accept={zone.limits.accept?.join(",") ?? ""}
+                                multiple={zone.multiple}
+                                name={zone.name}
+                                form={zone.form}
+                                required={zone.required === true}
+                                disabled={zone.disabled}
+                                capture={zone.capture}
+                                webkitdirectory={zone.directory === true}
+                                onChange={() => control.read()}
+                                {...style.attrs(visuallyHiddenStyle())}
+                            />
+                            <span role="status" {...style.attrs(visuallyHiddenStyle())}>
+                                {announcement()}
+                            </span>
+                            <DropzoneContext value={control}>
+                                {contentOr(properties, () => (
+                                    <>
+                                        <DropzoneOpen />
+                                        <DropzoneMedia />
+                                        <DropzoneContent>
+                                            <DropzoneTitle />
+                                            <DropzoneHint />
+                                            <DropzoneRefusal />
+                                        </DropzoneContent>
+                                    </>
+                                ))}
+                            </DropzoneContext>
+                        </>
+                    );
+                },
             },
-            get "data-size"() {
-                return zone.size;
-            },
-            get "data-dragging"() {
-                return control.isDragging ? "" : undefined;
-            },
-            get "data-drag"() {
-                return control.drag;
-            },
-            onPaste: (event: ClipboardEvent) => (isPage() ? undefined : paste(event)),
-            get children() {
-                return (
-                    <>
-                        <input
-                            ref={(element) => {
-                                input = element;
-                                control.attach(element);
-                            }}
-                            type="file"
-                            tabindex={-1}
-                            aria-hidden={zone.required === true ? undefined : "true"}
-                            aria-label={
-                                zone.required === true ? titleOf(control, locale) : undefined
-                            }
-                            accept={zone.limits.accept?.join(",") ?? ""}
-                            multiple={zone.multiple}
-                            name={zone.name}
-                            form={zone.form}
-                            required={zone.required === true}
-                            disabled={zone.disabled}
-                            capture={zone.capture}
-                            webkitdirectory={zone.directory === true}
-                            onChange={() => control.read()}
-                            {...style.attrs(visuallyHiddenStyle())}
-                        />
-                        <span role="status" {...style.attrs(visuallyHiddenStyle())}>
-                            {announcement()}
-                        </span>
-                        <DropzoneContext value={control}>
-                            {contentOr(properties, () => (
-                                <>
-                                    <DropzoneOpen />
-                                    <DropzoneMedia />
-                                    <DropzoneContent>
-                                        <DropzoneTitle />
-                                        <DropzoneHint />
-                                        <DropzoneRefusal />
-                                    </DropzoneContent>
-                                </>
-                            ))}
-                        </DropzoneContext>
-                    </>
-                );
-            },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of a zone, its element's attributes included. */
+export type DropzoneProperties = ComponentProperties<typeof Dropzone>;
 
 /** Render what opens the picker, over all of a zone. */
 export function DropzoneOpen(
@@ -406,21 +440,21 @@ export function DropzoneOpen(
     // label it by what the zone asks for and takes
     const zone = useDropzone();
     const locale = useLocale();
-    const field = useFieldControl();
+    const formField = useFieldControl();
 
     return renderPart("button", "dropzone-open", properties, [state.focus, styles.open], {
         type: "button",
         get id() {
-            return field?.id;
+            return formField?.id;
         },
         get "aria-labelledby"() {
-            return field === null ? undefined : `${field.labelId} ${field.id}`;
+            return formField === null ? undefined : `${formField.labelId} ${formField.id}`;
         },
         get "aria-describedby"() {
-            return field?.attributes()["aria-describedby"];
+            return formField?.attributes()["aria-describedby"];
         },
         get "aria-invalid"() {
-            return field?.attributes()["aria-invalid"];
+            return formField?.attributes()["aria-invalid"];
         },
         get "aria-label"() {
             return [titleOf(zone, locale), describeLimits(zone.limits, locale)]

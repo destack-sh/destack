@@ -225,6 +225,18 @@
             "source": "Not last",
             "context": "option",
             "translation": "Ausser der letzten"
+        },
+        "36dgcln8bfg2b": {
+            "source": "Takes less room, as small changes between bigger ones do.",
+            "translation": "Braucht weniger Platz, wie kleine Änderungen zwischen grösseren."
+        },
+        "3tkk423ylcmmk": {
+            "source": "Whether the file lies in a row or stands as a card, its group's by default.",
+            "translation": "Ob die Datei in einer Zeile liegt oder als Karte steht, standardmässig wie ihre Gruppe."
+        },
+        "2fg53du2nnchz": {
+            "source": "The size of its row or card.",
+            "translation": "Die Grösse seiner Zeile oder Karte."
         }
     }
 }

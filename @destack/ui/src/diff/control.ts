@@ -55,9 +55,9 @@ export interface DiffOptions {
     /** The grammar that colors the texts, which show plain without one. */
     readonly grammar?: Grammar | undefined;
     /** Whether space counts, all of it by default. */
-    readonly whitespace?: "exact" | "trailing" | "ignored";
+    readonly whitespace: "exact" | "trailing" | "ignored";
     /** How the texts are laid out, in one column by default. */
-    readonly layout?: DiffLayout;
+    readonly layout: DiffLayout;
     /** The unchanged lines shown on either side of a change, three by default. */
     readonly context?: number;
     /** The selected lines, for a diff whose owner controls them. */
@@ -123,7 +123,7 @@ export class DiffControl {
             options.patch === undefined
                 ? new DiffModel(
                       Difference.of(sourceOf(options.before), sourceOf(options.after), {
-                          whitespace: options.whitespace ?? "exact",
+                          whitespace: options.whitespace,
                       }),
                   )
                 : DiffModel.ofPatch(options.patch),

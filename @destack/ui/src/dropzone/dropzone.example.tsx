@@ -22,12 +22,13 @@ export const dropzonePhotos = defineExample({
     name: "photos",
     description: t`A trip's photos, dropped or chosen and shown at once.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         const [files, setFiles] = createSignal<readonly File[]>([]);
 
         return (
             <Stack space="3">
                 <Dropzone
+                    {...properties}
                     multiple
                     limits={{ accept: ["image/*"], size: 20_000_000 }}
                     onFiles={(added) => setFiles((current) => [...current, ...added])}
@@ -36,7 +37,6 @@ export const dropzonePhotos = defineExample({
                     <For each={files()}>
                         {(file) => (
                             <FileItem
-                                layout="card"
                                 file={file}
                                 source={file}
                                 onRemove={() =>
@@ -57,12 +57,16 @@ export const dropzoneMessage = defineExample({
     name: "message",
     description: t`A message's text that takes files dropped anywhere on it, pasted into it or chosen beside it.`,
     layout: "padded",
-    render: () => {
+    properties: {
+        variant: "plain",
+    },
+    render: (properties) => {
         const [files, setFiles] = createSignal<readonly File[]>([]);
 
         return (
             <Dropzone
-                variant="plain"
+                {...properties}
+
                 multiple
                 onFiles={(added) => setFiles((current) => [...current, ...added])}
             >
@@ -103,9 +107,13 @@ export const dropzoneTicket = defineExample({
     name: "ticket",
     description: t`A ticket in one row, which takes a PDF or a picture.`,
     layout: "padded",
-    render: () => (
+    properties: {
+        size: "sm",
+    },
+    render: (properties) => (
         <Dropzone
-            size="sm"
+            {...properties}
+
             limits={{ accept: ["application/pdf", "image/*"], size: 5_000_000 }}
             onFiles={() => {}}
         />
@@ -118,9 +126,9 @@ export const dropzoneFiles = defineExample({
     name: "files",
     description: t`Files of any kind, and a zone that takes none now.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Stack space="3">
-            <Dropzone multiple onFiles={() => {}} />
+            <Dropzone {...properties} multiple onFiles={() => {}} />
             <Dropzone disabled size="sm" onFiles={() => {}} />
         </Stack>
     ),
@@ -132,7 +140,7 @@ export const dropzoneForm = defineExample({
     name: "form",
     description: t`An application's documents, two to four of them, which its form submits.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         const [files, setFiles] = createSignal<readonly File[]>([]);
         const [sent, setSent] = createSignal("");
 
@@ -148,6 +156,7 @@ export const dropzoneForm = defineExample({
                     <Field>
                         <FieldLabel>Documents</FieldLabel>
                         <Dropzone
+                            {...properties}
                             multiple
                             required
                             name="documents"
@@ -195,12 +204,16 @@ export const dropzonePage = defineExample({
     name: "page",
     description: t`A page that takes a folder dropped anywhere on it.`,
     layout: "padded",
-    render: () => {
+    properties: {
+        variant: "plain",
+    },
+    render: (properties) => {
         const [paths, setPaths] = createSignal<readonly string[]>([]);
 
         return (
             <Dropzone
-                variant="plain"
+                {...properties}
+
                 target="page"
                 multiple
                 directory

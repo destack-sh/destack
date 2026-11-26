@@ -81,3 +81,33 @@ export const activityTask = defineExample({
         );
     },
 });
+
+/** Ada handing a task to Grace, a small change in the activity. */
+export const activityItemHandover = defineExample({
+    of: ActivityItem,
+    name: "handover",
+    description: t`Ada handing a task to Grace, a small change in the activity.`,
+    layout: "padded",
+    properties: {
+        condensed: true,
+    },
+    render: (properties) => {
+        const { clock } = useEnvironment();
+
+        return (
+            <Activity aria-label="Activity">
+                <ActivityItem {...properties}>
+                    <ActivityBadge>
+                        <Icon icon={userPlusIcon} />
+                    </ActivityBadge>
+                    <ActivityBody>
+                        <span>
+                            Ada gave the task to Grace ·{" "}
+                            <RelativeTime value={clock.now() - 50 * HOUR} />
+                        </span>
+                    </ActivityBody>
+                </ActivityItem>
+            </Activity>
+        );
+    },
+});

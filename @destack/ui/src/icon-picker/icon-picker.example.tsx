@@ -29,8 +29,8 @@ export const iconPickerEmpty = defineExample({
     of: IconPicker,
     name: "empty",
     description: t`A picker whose search finds no icon, showing its note.`,
-    render: () => (
-        <IconPicker onIconSelect={() => undefined}>
+    render: (properties) => (
+        <IconPicker {...properties} onIconSelect={() => undefined}>
             <IconPickerSearch defaultValue="qqqqq" />
             <IconPickerContent />
         </IconPicker>

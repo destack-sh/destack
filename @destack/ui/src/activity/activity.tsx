@@ -1,10 +1,18 @@
+import { t } from "@destack/locale";
+import { field } from "@destack/object";
+import { swatches } from "@destack/theme/swatch";
 import type { Hue } from "@destack/color";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { color, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { createContext, type JSX, omit, useContext } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The styles of an activity and its parts. */
 const styles = style.create({
@@ -138,41 +146,56 @@ export function Activity(properties: ActivityProperties): JSX.Element {
     );
 }
 
-/** The properties of one thing that happened. */
-export type ActivityItemProperties = ActivityElementProperties<HTMLLIElement> & {
-    /** Whether it takes less room, as small changes between bigger ones do. */
-    readonly condensed?: boolean;
+/** The properties people change in an activity item's controls and inspector. */
+const ACTIVITY_ITEM_PROPERTIES = {
+    condensed: field
+        .boolean()
+        .labeled(t.context("label")`Condensed`)
+        .described(t`Takes less room, as small changes between bigger ones do.`)
+        .default(false),
 };
 
 /** Render one thing that happened: its badge beside its body and actions. */
-export function ActivityItem(properties: ActivityItemProperties): JSX.Element {
-    // end the line where the list does
-    const clip = useContext(ClipContext);
-    const isClipped = (end: "start" | "end"): boolean =>
-        clip() === true || clip() === "both" || clip() === end;
-    const rest = omit(properties, "condensed");
+export const ActivityItem = defineComponent({
+    name: "activityItem",
+    properties: ACTIVITY_ITEM_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            ActivityElementProperties<HTMLLIElement>,
+            typeof ACTIVITY_ITEM_PROPERTIES
+        >,
+    ): JSX.Element {
+        // end the line where the list does
+        const clip = useContext(ClipContext);
+        const isClipped = (end: "start" | "end"): boolean =>
+            clip() === true || clip() === "both" || clip() === end;
+        const rest = omit(properties, "condensed");
 
-    return (
-        <CondensedContext value={() => properties.condensed === true}>
-            {renderPart(
-                "li",
-                "activity-item",
-                rest,
-                () => [
-                    styles.item,
-                    isClipped("start") && styles.clipStart,
-                    isClipped("end") && styles.clipEnd,
-                    properties.condensed === true && styles.condensed,
-                ],
-                {
-                    get "data-condensed"() {
-                        return properties.condensed === true ? "" : undefined;
+        return (
+            <CondensedContext value={() => properties.condensed}>
+                {renderPart(
+                    "li",
+                    "activity-item",
+                    rest,
+                    () => [
+                        styles.item,
+                        isClipped("start") && styles.clipStart,
+                        isClipped("end") && styles.clipEnd,
+                        properties.condensed && styles.condensed,
+                    ],
+                    {
+                        get "data-condensed"() {
+                            return properties.condensed ? "" : undefined;
+                        },
                     },
-                },
-            )}
-        </CondensedContext>
-    );
-}
+                )}
+            </CondensedContext>
+        );
+    },
+});
+
+/** The properties of one thing that happened, its native attributes included. */
+export type ActivityItemProperties = ComponentProperties<typeof ActivityItem>;
 
 /** The properties of the badge on the line. */
 export type ActivityBadgeProperties = ActivityElementProperties<HTMLDivElement> & {
@@ -189,7 +212,7 @@ export function ActivityBadge(properties: ActivityBadgeProperties): JSX.Element 
         styles.badge,
         isCondensed() && styles.condensedBadge,
         properties.color !== undefined &&
-            styles.hue(swatch[`${properties.color}Tint`], swatch[`${properties.color}TintText`]),
+            styles.hue(swatches[properties.color].tint, swatches[properties.color].tintText),
     ]);
 }
 

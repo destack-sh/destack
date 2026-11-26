@@ -1,3 +1,5 @@
+import { field } from "@destack/object";
+import { CodeBlockContent } from "../code-block/index.ts";
 import arrowDown from "@destack/icon/phosphor/arrow-line-down";
 import arrowUp from "@destack/icon/phosphor/arrow-line-up";
 import arrowsOut from "@destack/icon/phosphor/arrows-out-line-vertical";
@@ -55,6 +57,11 @@ import {
 import { DiffControl, type DiffOptions, type DiffPlace, REVEALED_LINES } from "./control.ts";
 import { DiffCode } from "./lines.tsx";
 import type { DiffFold, DiffLine, DiffPair, DiffRow, DiffSide } from "./model.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** A screen too narrow for two columns. */
 const NARROW = "(width < 48rem)";
@@ -316,14 +323,34 @@ export interface DiffAnnotation {
     readonly content: () => JSX.Element;
 }
 
-/** The properties of a diff, with its own attributes. */
-export interface DiffProperties
+/** The properties people change in a diff's controls and inspector. */
+const DIFF_PROPERTIES = {
+    layout: field
+        .enum({
+            unified: { title: t.context("option")`Unified` },
+            split: { title: t.context("option")`Split` },
+        })
+        .labeled(t.context("label")`Layout`)
+        .described(t`Whether the texts share one column, or the old one stands beside the new one.`)
+        .default("unified"),
+    whitespace: field
+        .enum({
+            exact: { title: t.context("option")`Exact` },
+            trailing: { title: t.context("option")`Trailing` },
+            ignored: { title: t.context("option")`Ignored` },
+        })
+        .labeled(t.context("label")`Whitespace`)
+        .described(t`How much space counts as a change.`)
+        .default("exact"),
+    overflow: CodeBlockContent.properties.overflow,
+};
+
+/** The properties of a diff besides its declared ones: its texts, notes and handlers. */
+export interface DiffAttributes
     extends
-        DiffOptions,
+        Omit<DiffOptions, "layout" | "whitespace">,
         Omit<JSX.HTMLAttributes<HTMLElement>, "class" | "children" | "onSelectionChange">,
         Pick<ElementPartProperties, "xstyle"> {
-    /** Whether long lines scroll or wrap, scrolling by default, wrapping beside each other. */
-    readonly overflow?: "scroll" | "wrap";
     /** The path of the file, whose header shows it. */
     readonly path?: string;
     /** The path the file was moved from. */
@@ -347,7 +374,7 @@ interface DiffValue {
     /** What it shows. */
     readonly control: DiffControl;
     /** Its properties. */
-    readonly properties: DiffProperties;
+    readonly properties: RenderProperties<DiffAttributes, typeof DIFF_PROPERTIES>;
     /** How its texts are laid out. */
     readonly isSplit: () => boolean;
     /** Whether long lines wrap. */
@@ -372,163 +399,177 @@ function useDiff(): DiffValue {
 }
 
 /** Render the changes of a file: its header, its changed lines and folds of the rest. */
-export function Diff(properties: DiffProperties): JSX.Element {
-    // follow what it shows, and go between its changes
-    const isNarrow = createMediaQuery(NARROW);
-    const control = new DiffControl(properties, isNarrow);
-    const locale = useLocale();
-    let root: HTMLElement | undefined;
-    const rest = omit(
-        properties,
-        "before",
-        "after",
-        "patch",
-        "grammar",
-        "whitespace",
-        "context",
-        "selection",
-        "onSelectionChange",
-        "layout",
-        "overflow",
-        "path",
-        "previousPath",
-        "annotations",
-        "onComment",
-        "onAccept",
-        "onReject",
-        "aria-label",
-        "children",
-    );
-    const annotations = createMemo(() =>
-        Map.groupBy(properties.annotations ?? [], ({ side, line }) => `${side} ${String(line)}`),
-    );
-    const value: DiffValue = {
-        annotations,
-        control,
-        properties,
-        isSplit: () => control.isSplit(),
-        isWrapped: () => control.isSplit() || properties.overflow === "wrap",
-        canSelect: () =>
-            properties.onSelectionChange !== undefined || properties.onComment !== undefined,
-    };
-    const path = (): string | undefined => properties.path ?? properties.patch?.path;
-    const changeOf = (element: Element | null): Change | undefined => {
-        const place = element?.closest("[data-change]")?.getAttribute("data-change");
-
-        return place === null || place === undefined
-            ? undefined
-            : control.model().difference.changes[Number(place)];
-    };
-    const go = (place: number): void => {
-        // render the change's lines, and focus the first
-        control.setCollapsed(false);
-        control.showChange(place);
-        flush();
-        const stop = root?.querySelector<HTMLElement>(
-            `[data-change-start][data-change="${String(place)}"]`,
+export const Diff = defineComponent({
+    name: "diff",
+    properties: DIFF_PROPERTIES,
+    render(properties: RenderProperties<DiffAttributes, typeof DIFF_PROPERTIES>): JSX.Element {
+        // follow what it shows, and go between its changes
+        const isNarrow = createMediaQuery(NARROW);
+        const control = new DiffControl(properties, isNarrow);
+        const locale = useLocale();
+        let root: HTMLElement | undefined;
+        const rest = omit(
+            properties,
+            "before",
+            "after",
+            "patch",
+            "grammar",
+            "whitespace",
+            "context",
+            "selection",
+            "onSelectionChange",
+            "layout",
+            "overflow",
+            "path",
+            "previousPath",
+            "annotations",
+            "onComment",
+            "onAccept",
+            "onReject",
+            "aria-label",
+            "children",
         );
-        stop?.focus({ preventScroll: true });
-        stop?.scrollIntoView({ block: "center" });
-    };
-    const step = (element: Element | null, by: 1 | -1): void => {
-        // take the change after or before the one the person is at
-        const { changes } = control.model().difference;
-        const current = changeOf(element);
-        const at =
-            current === undefined ? (by === 1 ? -1 : changes.length) : changes.indexOf(current);
-        if (at + by >= 0 && at + by < changes.length) {
-            go(at + by);
-        }
-    };
-    const decide = async (
-        element: Element | null,
-        settle: ((change: Change) => void | Promise<void>) | undefined,
-    ): Promise<void> => {
-        // settle the change, leaving the focus to the change in its place or the one after
-        const change = changeOf(element);
-        const { changes } = control.model().difference;
-        if (change === undefined) {
-            return;
-        }
-        const place = changes.indexOf(change);
-        control.setActive(undefined);
-        await settle?.(change);
-        flush();
-        const left = control.model().difference.changes.length;
-        const next = left < changes.length ? place : place + 1;
-        if (next < left) {
-            go(next);
-        } else {
-            root?.querySelector<HTMLElement>("[data-slot=diff-content]")?.focus();
-        }
-    };
-    const commented = (element: Element | null): { side: DiffSide; line: number } | undefined => {
-        // take the last selected line, or the last line of the change
-        const selection = control.selection();
-        if (selection !== undefined) {
-            return { side: selection.side, line: selection.end - 1 };
-        }
-        const change = changeOf(element);
-        if (change === undefined) {
-            return undefined;
-        }
-        const side: DiffSide = change.after.end > change.after.start ? "after" : "before";
+        const annotations = createMemo(() =>
+            Map.groupBy(
+                properties.annotations ?? [],
+                ({ side, line }) => `${side} ${String(line)}`,
+            ),
+        );
+        const value: DiffValue = {
+            annotations,
+            control,
+            properties,
+            isSplit: () => control.isSplit(),
+            isWrapped: () => control.isSplit() || properties.overflow === "wrap",
+            canSelect: () =>
+                properties.onSelectionChange !== undefined || properties.onComment !== undefined,
+        };
+        const path = (): string | undefined => properties.path ?? properties.patch?.path;
+        const changeOf = (element: Element | null): Change | undefined => {
+            const place = element?.closest("[data-change]")?.getAttribute("data-change");
 
-        return { side, line: change[side].end - 1 };
-    };
-    const handlers = [
-        handle(nextChange, { run: ({ element }) => step(element, 1) }),
-        handle(previousChange, { run: ({ element }) => step(element, -1) }),
-        handle(commentChange, {
-            isEnabled: (element) =>
-                properties.onComment !== undefined && commented(element) !== undefined,
-            run: ({ element }) => {
-                const target = commented(element);
-                if (target !== undefined) {
-                    properties.onComment?.(target.side, target.line);
-                }
-            },
-        }),
-        handle(acceptChange, {
-            isEnabled: (element) =>
-                properties.onAccept !== undefined && changeOf(element) !== undefined,
-            run: ({ element }) => decide(element, properties.onAccept),
-        }),
-        handle(rejectChange, {
-            isEnabled: (element) =>
-                properties.onReject !== undefined && changeOf(element) !== undefined,
-            run: ({ element }) => decide(element, properties.onReject),
-        }),
-    ];
+            return place === null || place === undefined
+                ? undefined
+                : control.model().difference.changes[Number(place)];
+        };
+        const go = (place: number): void => {
+            // render the change's lines, and focus the first
+            control.setCollapsed(false);
+            control.showChange(place);
+            flush();
+            const stop = root?.querySelector<HTMLElement>(
+                `[data-change-start][data-change="${String(place)}"]`,
+            );
+            stop?.focus({ preventScroll: true });
+            stop?.scrollIntoView({ block: "center" });
+        };
+        const step = (element: Element | null, by: 1 | -1): void => {
+            // take the change after or before the one the person is at
+            const { changes } = control.model().difference;
+            const current = changeOf(element);
+            const at =
+                current === undefined ? (by === 1 ? -1 : changes.length) : changes.indexOf(current);
+            if (at + by >= 0 && at + by < changes.length) {
+                go(at + by);
+            }
+        };
+        const decide = async (
+            element: Element | null,
+            settle: ((change: Change) => void | Promise<void>) | undefined,
+        ): Promise<void> => {
+            // settle the change, leaving the focus to the change in its place or the one after
+            const change = changeOf(element);
+            const { changes } = control.model().difference;
+            if (change === undefined) {
+                return;
+            }
+            const place = changes.indexOf(change);
+            control.setActive(undefined);
+            await settle?.(change);
+            flush();
+            const left = control.model().difference.changes.length;
+            const next = left < changes.length ? place : place + 1;
+            if (next < left) {
+                go(next);
+            } else {
+                root?.querySelector<HTMLElement>("[data-slot=diff-content]")?.focus();
+            }
+        };
+        const commented = (
+            element: Element | null,
+        ): { side: DiffSide; line: number } | undefined => {
+            // take the last selected line, or the last line of the change
+            const selection = control.selection();
+            if (selection !== undefined) {
+                return { side: selection.side, line: selection.end - 1 };
+            }
+            const change = changeOf(element);
+            if (change === undefined) {
+                return undefined;
+            }
+            const side: DiffSide = change.after.end > change.after.start ? "after" : "before";
 
-    return (
-        <DiffContext value={value}>
-            {renderPart("section", "diff", rest, [text.sm, styles.diff], {
-                ref: [(element: HTMLElement) => (root = element), ...handlers],
-                get "aria-label"() {
-                    return (
-                        properties["aria-label"] ??
-                        path() ??
-                        locale.render(t.context("title")`Changes`)
-                    );
+            return { side, line: change[side].end - 1 };
+        };
+        const handlers = [
+            handle(nextChange, { run: ({ element }) => step(element, 1) }),
+            handle(previousChange, { run: ({ element }) => step(element, -1) }),
+            handle(commentChange, {
+                isEnabled: (element) =>
+                    properties.onComment !== undefined && commented(element) !== undefined,
+                run: ({ element }) => {
+                    const target = commented(element);
+                    if (target !== undefined) {
+                        properties.onComment?.(target.side, target.line);
+                    }
                 },
-                get "data-layout"() {
-                    return control.isSplit() ? "split" : "unified";
-                },
-                get children() {
-                    return (
-                        <>
-                            <Show when={path()}>{(shown) => <DiffHeader path={shown()} />}</Show>
-                            <Show when={!control.isCollapsed()}>
-                                <DiffContent />
-                            </Show>
-                        </>
-                    );
-                },
-            })}
-        </DiffContext>
-    );
-}
+            }),
+            handle(acceptChange, {
+                isEnabled: (element) =>
+                    properties.onAccept !== undefined && changeOf(element) !== undefined,
+                run: ({ element }) => decide(element, properties.onAccept),
+            }),
+            handle(rejectChange, {
+                isEnabled: (element) =>
+                    properties.onReject !== undefined && changeOf(element) !== undefined,
+                run: ({ element }) => decide(element, properties.onReject),
+            }),
+        ];
+
+        return (
+            <DiffContext value={value}>
+                {renderPart("section", "diff", rest, [text.sm, styles.diff], {
+                    ref: [(element: HTMLElement) => (root = element), ...handlers],
+                    get "aria-label"() {
+                        return (
+                            properties["aria-label"] ??
+                            path() ??
+                            locale.render(t.context("title")`Changes`)
+                        );
+                    },
+                    get "data-layout"() {
+                        return control.isSplit() ? "split" : "unified";
+                    },
+                    get children() {
+                        return (
+                            <>
+                                <Show when={path()}>
+                                    {(shown) => <DiffHeader path={shown()} />}
+                                </Show>
+                                <Show when={!control.isCollapsed()}>
+                                    <DiffContent />
+                                </Show>
+                            </>
+                        );
+                    },
+                })}
+            </DiffContext>
+        );
+    },
+});
+
+/** The properties of a diff, its own attributes included. */
+export type DiffProperties = ComponentProperties<typeof Diff>;
 
 /** Render a file's path, what happened to it and how many lines changed. */
 function DiffHeader(properties: {

@@ -9,6 +9,7 @@ import { useCropper } from "./control.ts";
 import {
     Cropper,
     CropperFlip,
+    CropperGrid,
     CropperImage,
     CropperRotate,
     CropperSelection,
@@ -110,6 +111,46 @@ export const cropperCover = defineExample({
             <CropperViewport>
                 <CropperImage src={PICTURES.belem} alt="The tower of Belém" />
                 <CropperSelection />
+            </CropperViewport>
+        </Cropper>
+    ),
+});
+
+/** A profile picture below its frame. */
+export const cropperSelectionProfile = defineExample({
+    of: CropperSelection,
+    name: "profile",
+    description: t`A profile picture below its frame, round as an avatar shows it.`,
+    layout: "padded",
+    properties: {
+        cropShape: "circle",
+    },
+    render: (properties) => (
+        <Cropper fixedCropArea aspectRatio={1} xstyle={styles.cropper}>
+            <CropperViewport>
+                <CropperImage src={PICTURES.alfama} crossorigin="anonymous" alt="Roofs of Alfama" />
+                <CropperSelection {...properties} />
+            </CropperViewport>
+        </Cropper>
+    ),
+});
+
+/** A photo's thirds over its frame, to line up a horizon. */
+export const cropperGridThirds = defineExample({
+    of: CropperGrid,
+    name: "thirds",
+    description: t`A photo's thirds over its frame, to line up a horizon.`,
+    layout: "padded",
+    properties: {
+        keepShown: true,
+    },
+    render: (properties) => (
+        <Cropper aspectRatio={16 / 9} xstyle={styles.cropper}>
+            <CropperViewport>
+                <CropperImage src={PICTURES.tram} crossorigin="anonymous" alt="A tram on a hill" />
+                <CropperSelection>
+                    <CropperGrid {...properties} />
+                </CropperSelection>
             </CropperViewport>
         </Cropper>
     ),

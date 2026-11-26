@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import arrowDownIcon from "@destack/icon/phosphor/arrow-down";
 import arrowUpIcon from "@destack/icon/phosphor/arrow-up";
 import { plural, t } from "@destack/locale";
@@ -18,6 +19,11 @@ import {
     SCROLL_ANCHOR,
     useMessageScroller,
 } from "./control.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The height a row is taken to have until it is drawn. */
 const ROW_HEIGHT = "auto 10rem";
@@ -259,10 +265,20 @@ export function MessageScrollerItem(properties: MessageScrollerItemProperties): 
     );
 }
 
-/** The properties of the button that scrolls a conversation to one of its ends. */
-export type MessageScrollerButtonProperties = Omit<ButtonProperties, "children"> & {
-    /** The end it scrolls to, the latest message by default. */
-    readonly direction?: "start" | "end";
+/** The properties people change in a scroll button's controls and inspector. */
+const MESSAGE_SCROLLER_BUTTON_PROPERTIES = {
+    direction: field
+        .enum({
+            start: { title: t.context("option")`Start` },
+            end: { title: t.context("option")`End` },
+        })
+        .labeled(t.context("label")`Direction`)
+        .described(t`The end of the conversation it scrolls to.`)
+        .default("end"),
+};
+
+/** The properties of a scroll button besides its declared ones: the button's and its motion. */
+export type MessageScrollerButtonAttributes = Omit<ButtonProperties, "children"> & {
     /** How it moves there, smoothly by default. */
     readonly behavior?: ScrollBehavior;
     /** Render its content for the count of rows unseen, an arrow and the count by default. */
@@ -270,69 +286,81 @@ export type MessageScrollerButtonProperties = Omit<ButtonProperties, "children">
 };
 
 /** Render the button that scrolls a conversation to an end, out of reach while it is there. */
-export function MessageScrollerButton(properties: MessageScrollerButtonProperties): JSX.Element {
-    // say how many messages came meanwhile
-    const control = useMessageScroller();
-    const locale = useLocale();
-    const isStart = (): boolean => properties.direction === "start";
-    const isIdle = (): boolean =>
-        isStart() ? !control.scrollable().start : !control.scrollable().end;
-    const unseen = (): number => (isStart() ? 0 : control.unseen());
-    const label = (): string => {
-        // count what came while the reader was elsewhere
-        if (isStart()) {
-            return locale.render(t`Jump to first message`);
-        }
+export const MessageScrollerButton = defineComponent({
+    name: "messageScrollerButton",
+    properties: MESSAGE_SCROLLER_BUTTON_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            MessageScrollerButtonAttributes,
+            typeof MESSAGE_SCROLLER_BUTTON_PROPERTIES
+        >,
+    ): JSX.Element {
+        // say how many messages came meanwhile
+        const control = useMessageScroller();
+        const locale = useLocale();
+        const isStart = (): boolean => properties.direction === "start";
+        const isIdle = (): boolean =>
+            isStart() ? !control.scrollable().start : !control.scrollable().end;
+        const unseen = (): number => (isStart() ? 0 : control.unseen());
+        const label = (): string => {
+            // count what came while the reader was elsewhere
+            if (isStart()) {
+                return locale.render(t`Jump to first message`);
+            }
 
-        return unseen() === 0
-            ? locale.render(t`Jump to latest message`)
-            : locale.render(
-                  t`${plural(unseen(), { one: "# new message", other: "# new messages" })}`,
-              );
-    };
-    const rest = omit(properties, "direction", "behavior", "children", "xstyle");
+            return unseen() === 0
+                ? locale.render(t`Jump to latest message`)
+                : locale.render(
+                      t`${plural(unseen(), { one: "# new message", other: "# new messages" })}`,
+                  );
+        };
+        const rest = omit(properties, "direction", "behavior", "children", "xstyle");
 
-    return (
-        <Button
-            data-slot="message-scroller-button"
-            data-direction={isStart() ? "start" : "end"}
-            data-active={isIdle() ? "false" : "true"}
-            variant="outline"
-            size="sm"
-            isIconOnly={unseen() === 0}
-            aria-label={label()}
-            inert={isIdle()}
-            tabindex={isIdle() ? -1 : undefined}
-            {...mergeProperties(
-                {
-                    onClick: () => {
-                        // go to the end it stands for
-                        const { behavior = "smooth" } = properties;
-                        if (isStart()) {
-                            control.scrollToStart({ behavior });
-                        } else {
-                            control.scrollToEnd({ behavior });
-                        }
+        return (
+            <Button
+                data-slot="message-scroller-button"
+                data-direction={properties.direction}
+                data-active={isIdle() ? "false" : "true"}
+                variant="outline"
+                size="sm"
+                isIconOnly={unseen() === 0}
+                aria-label={label()}
+                inert={isIdle()}
+                tabindex={isIdle() ? -1 : undefined}
+                {...mergeProperties(
+                    {
+                        onClick: () => {
+                            // go to the end it stands for
+                            const { behavior = "smooth" } = properties;
+                            if (isStart()) {
+                                control.scrollToStart({ behavior });
+                            } else {
+                                control.scrollToEnd({ behavior });
+                            }
+                        },
                     },
-                },
-                rest,
-            )}
-            xstyle={[
-                styles.button,
-                isStart() ? styles.start : styles.end,
-                isIdle() && [styles.hidden, isStart() ? styles.hiddenStart : styles.hiddenEnd],
-                properties.xstyle,
-            ]}
-        >
-            {properties.children?.(unseen()) ?? (
-                <>
-                    <Icon icon={isStart() ? arrowUpIcon : arrowDownIcon} />
-                    <Show when={unseen() > 0}>{label()}</Show>
-                </>
-            )}
-        </Button>
-    );
-}
+                    rest,
+                )}
+                xstyle={[
+                    styles.button,
+                    isStart() ? styles.start : styles.end,
+                    isIdle() && [styles.hidden, isStart() ? styles.hiddenStart : styles.hiddenEnd],
+                    properties.xstyle,
+                ]}
+            >
+                {properties.children?.(unseen()) ?? (
+                    <>
+                        <Icon icon={isStart() ? arrowUpIcon : arrowDownIcon} />
+                        <Show when={unseen() > 0}>{label()}</Show>
+                    </>
+                )}
+            </Button>
+        );
+    },
+});
+
+/** The properties of the button that scrolls a conversation to one of its ends. */
+export type MessageScrollerButtonProperties = ComponentProperties<typeof MessageScrollerButton>;
 
 /** Read the state of a conversation its frame and its viewport are styled by. */
 function attributesOf(control: MessageScrollerControl) {

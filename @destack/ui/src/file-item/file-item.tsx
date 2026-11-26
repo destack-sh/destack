@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import arrowClockwise from "@destack/icon/phosphor/arrow-clockwise";
 import fileIcon from "@destack/icon/phosphor/file";
@@ -33,7 +34,6 @@ import {
     createUniqueId,
     handle,
     type JSX,
-    merge,
     omit,
     Show,
     useContext,
@@ -58,6 +58,11 @@ import {
 import type { FileKind } from "./kind.ts";
 import { describeReason } from "./limits.ts";
 import { FileSize } from "./size.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The icon of each kind of file. */
 const ICONS = {
@@ -75,10 +80,27 @@ const ICONS = {
 /** The longest extension that names a file's format, as `.webmanifest` would not. */
 const EXTENSION_LENGTH = 5;
 
-/** The layout and size of a file that sets neither. */
-const DEFAULTS: Required<Pick<FileItemProperties, "layout" | "size">> = {
-    layout: "row",
-    size: "default",
+/** The layouts of a file, as a person chooses one. */
+const FILE_ITEM_LAYOUTS = {
+    row: { title: t.context("option")`Row` },
+    card: { title: t.context("option")`Card` },
+};
+
+/** The properties people change in a file's controls and inspector. */
+const FILE_ITEM_PROPERTIES = {
+    layout: field
+        .enum(FILE_ITEM_LAYOUTS)
+        .labeled(t.context("label")`Layout`)
+        .described(t`Whether the file lies in a row or stands as a card, its group's by default.`)
+        .optional(),
+    size: field
+        .enum({
+            default: { title: t.context("option")`Default` },
+            sm: { title: t.context("option")`Small` },
+        })
+        .labeled(t.context("label")`Size`)
+        .described(t`The size of its row or card.`)
+        .default("default"),
 };
 
 /** The share a ring shows as it turns. */
@@ -271,6 +293,9 @@ const arcs = style.create({
 /** The files of a group and the one of them with its Tab stop, null outside a group. */
 const FileItemGroupContext = createContext<ListState | null>(null);
 
+/** The layout of the nearest group of files, rows outside one. */
+const FileItemLayoutContext = createContext<() => FileItemLayout>(() => "row");
+
 /** The properties of an element of a file, with its own attributes. */
 export type FileItemElementProperties<Element extends HTMLElement = HTMLDivElement> = Omit<
     JSX.HTMLAttributes<Element>,
@@ -278,12 +303,9 @@ export type FileItemElementProperties<Element extends HTMLElement = HTMLDivEleme
 > &
     ElementPartProperties;
 
-/** The properties of a file, with its element's attributes. */
-export interface FileItemProperties
-    extends
-        FileItemElementProperties,
-        Omit<FileItemOptions, "layout" | "size">,
-        Partial<Pick<FileItemOptions, "layout" | "size">> {
+/** The properties of a file besides its declared ones: its file, handlers and attributes. */
+export interface FileItemAttributes
+    extends FileItemElementProperties, Omit<FileItemOptions, "layout" | "size"> {
     /** The object it stands for, which actions on its type take, absent for none. */
     readonly reference?: ObjectReference | undefined;
     /** Its parts, the usual ones by default. */
@@ -291,111 +313,128 @@ export interface FileItemProperties
 }
 
 /** Render a file of its parts: its picture or kind, name and size, and how far it is sent. */
-export function FileItem(properties: FileItemProperties): JSX.Element {
-    // follow the file, listed in its group
-    const group = useContext(FileItemGroupContext);
-    const isGrouped = group !== null;
-    const key = createUniqueId();
-    let element: HTMLElement | undefined;
-    group?.add({
-        key,
-        text: () => properties.file.name,
-        isDisabled: () => false,
-        element: () => element,
-    });
-    const item = merge(DEFAULTS, properties);
-    const control = new FileItemControl(item, () => group === null || group.focus.isActive(key));
-    const rest = omit(
-        item,
-        "file",
-        "source",
-        "upload",
-        "error",
-        "layout",
-        "size",
-        "onOpen",
-        "onRetry",
-        "onRemove",
-        "reference",
-        "children",
-    );
-    const handlers = [
-        provideItems({ targets: () => [key], reference: () => properties.reference }),
-        handle(openItem, {
-            isEnabled: () => control.isOpenable,
-            run: () => opens(element)?.click(),
-        }),
-        handle(removeItems, {
-            isEnabled: (place) => isGrouped && place === element && control.isRemovable,
-            run: () => control.remove(),
-        }),
-        handle(retryItem, { isEnabled: () => control.isRetryable, run: () => control.retry() }),
-    ];
-    const isCard = (): boolean => control.layout === "card";
-    const isSmall = (): boolean => control.size === "sm";
-    const isSmallRow = (): boolean => isSmall() && !isCard();
+export const FileItem = defineComponent({
+    name: "fileItem",
+    properties: FILE_ITEM_PROPERTIES,
+    render(
+        properties: RenderProperties<FileItemAttributes, typeof FILE_ITEM_PROPERTIES>,
+    ): JSX.Element {
+        // follow the file, listed in its group
+        const group = useContext(FileItemGroupContext);
+        const isGrouped = group !== null;
+        const key = createUniqueId();
+        let element: HTMLElement | undefined;
+        group?.add({
+            key,
+            text: () => properties.file.name,
+            isDisabled: () => false,
+            element: () => element,
+        });
+        const groupLayout = useContext(FileItemLayoutContext);
+        const item = mergeProperties(properties, {
+            get layout() {
+                return properties.layout ?? groupLayout();
+            },
+        });
+        const control = new FileItemControl(
+            item,
+            () => group === null || group.focus.isActive(key),
+        );
+        const rest = omit(
+            properties,
+            "file",
+            "source",
+            "upload",
+            "error",
+            "layout",
+            "size",
+            "onOpen",
+            "onRetry",
+            "onRemove",
+            "reference",
+            "children",
+        );
+        const handlers = [
+            provideItems({ targets: () => [key], reference: () => properties.reference }),
+            handle(openItem, {
+                isEnabled: () => control.isOpenable,
+                run: () => opens(element)?.click(),
+            }),
+            handle(removeItems, {
+                isEnabled: (place) => isGrouped && place === element && control.isRemovable,
+                run: () => control.remove(),
+            }),
+            handle(retryItem, { isEnabled: () => control.isRetryable, run: () => control.retry() }),
+        ];
+        const isCard = (): boolean => control.layout === "card";
+        const isSmall = (): boolean => control.size === "sm";
+        const isSmallRow = (): boolean => isSmall() && !isCard();
 
-    return renderPart(
-        "div",
-        "file-item",
-        rest,
-        () => [
-            isSmall() ? text.xs : text.sm,
-            styles.item,
-            isCard() ? styles.card : styles.row,
-            isSmallRow() && styles.rowSmall,
-            control.isOpenable && styles.opens,
-            control.isFailed && styles.failed,
-            isGrouped && state.focus,
-        ],
-        {
-            ref: [(target: HTMLElement) => (element = target), ...handlers],
-            get tabindex() {
-                return group === null ? undefined : group.focus.isActive(key) ? 0 : -1;
-            },
-            onFocus: () => group?.focus.focusIn(key),
-            onKeyDown: (event: KeyboardEvent & { readonly currentTarget: Element }) => {
-                // open it by Space, as a button does
-                const isOwn = isGrouped && event.target === event.currentTarget;
-                if (isOwn && event.key === " " && control.isOpenable) {
-                    event.preventDefault();
-                    opens(element)?.click();
-                }
-            },
-            get "data-layout"() {
-                return control.layout;
-            },
-            get "data-size"() {
-                return control.size;
-            },
-            get "data-state"() {
-                return control.status;
-            },
-            role: isGrouped ? "listitem" : undefined,
-            get children() {
-                return (
-                    <FileItemContext value={control}>
-                        {contentOr(properties, () => (
-                            <>
-                                <FileItemOpen />
-                                <FileItemMedia />
-                                <FileItemContent>
-                                    <FileItemTitle />
-                                    <Show when={!isSmallRow() || control.status !== "done"}>
-                                        <FileItemDescription />
+        return renderPart(
+            "div",
+            "file-item",
+            rest,
+            () => [
+                isSmall() ? text.xs : text.sm,
+                styles.item,
+                isCard() ? styles.card : styles.row,
+                isSmallRow() && styles.rowSmall,
+                control.isOpenable && styles.opens,
+                control.isFailed && styles.failed,
+                isGrouped && state.focus,
+            ],
+            {
+                ref: [(target: HTMLElement) => (element = target), ...handlers],
+                get tabindex() {
+                    return group === null ? undefined : group.focus.isActive(key) ? 0 : -1;
+                },
+                onFocus: () => group?.focus.focusIn(key),
+                onKeyDown: (event: KeyboardEvent & { readonly currentTarget: Element }) => {
+                    // open it by Space, as a button does
+                    const isOwn = isGrouped && event.target === event.currentTarget;
+                    if (isOwn && event.key === " " && control.isOpenable) {
+                        event.preventDefault();
+                        opens(element)?.click();
+                    }
+                },
+                get "data-layout"() {
+                    return control.layout;
+                },
+                get "data-size"() {
+                    return control.size;
+                },
+                get "data-state"() {
+                    return control.status;
+                },
+                role: isGrouped ? "listitem" : undefined,
+                get children() {
+                    return (
+                        <FileItemContext value={control}>
+                            {contentOr(properties, () => (
+                                <>
+                                    <FileItemOpen />
+                                    <FileItemMedia />
+                                    <FileItemContent>
+                                        <FileItemTitle />
+                                        <Show when={!isSmallRow() || control.status !== "done"}>
+                                            <FileItemDescription />
+                                        </Show>
+                                    </FileItemContent>
+                                    <Show when={control.isRetryable || control.isRemovable}>
+                                        <FileItemActions />
                                     </Show>
-                                </FileItemContent>
-                                <Show when={control.isRetryable || control.isRemovable}>
-                                    <FileItemActions />
-                                </Show>
-                            </>
-                        ))}
-                    </FileItemContext>
-                );
+                                </>
+                            ))}
+                        </FileItemContext>
+                    );
+                },
             },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of a file, its element's attributes included. */
+export type FileItemProperties = ComponentProperties<typeof FileItem>;
 
 /** Render what opens a file, over all of it but its buttons, nothing for one that does not open. */
 export function FileItemOpen(properties: {
@@ -703,48 +742,62 @@ export function FileItemRemove(properties: ButtonProperties): JSX.Element {
     );
 }
 
-/** The properties of a group of files, with its element's attributes. */
-export interface FileItemGroupProperties extends FileItemElementProperties {
-    /** How its files are laid out, in rows by default. */
-    readonly layout?: FileItemLayout;
-}
+/** The properties people change in a file group's controls and inspector. */
+const FILE_ITEM_GROUP_PROPERTIES = {
+    layout: field
+        .enum(FILE_ITEM_LAYOUTS)
+        .labeled(t.context("label")`Layout`)
+        .described(t`Whether its files lie in rows or as a grid of cards.`)
+        .default("row"),
+};
 
 /** Render files as a list, in rows or as a grid of cards. */
-export function FileItemGroup(properties: FileItemGroupProperties): JSX.Element {
-    // move one Tab stop through the files with the arrow keys
-    const locale = useLocale();
-    const list = new ListState({ orientation: "both", isLooping: false, isTypeahead: true });
+export const FileItemGroup = defineComponent({
+    name: "fileItemGroup",
+    properties: FILE_ITEM_GROUP_PROPERTIES,
+    render(
+        properties: RenderProperties<FileItemElementProperties, typeof FILE_ITEM_GROUP_PROPERTIES>,
+    ): JSX.Element {
+        // move one Tab stop through the files with the arrow keys
+        const locale = useLocale();
+        const list = new ListState({ orientation: "both", isLooping: false, isTypeahead: true });
 
-    return (
-        <FileItemGroupContext value={list}>
-            {renderPart(
-                "div",
-                "file-item-group",
-                omit(properties, "layout"),
-                () => [styles.group, properties.layout === "card" && styles.cards],
-                {
-                    role: "list",
-                    onKeyDown: (event: KeyboardEvent) => {
-                        // leave keys a file's own buttons take
-                        const isItem =
-                            event.target instanceof Element &&
-                            event.target.matches("[data-slot=file-item]");
-                        if (isItem && !event.defaultPrevented) {
-                            // move by rows among cards, and in order along a list
-                            if (properties.layout === "card") {
-                                list.moveAcross(event, locale.direction);
-                            } else {
-                                list.focus.move(event, locale.direction);
-                            }
-                        }
-                    },
-                    onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>
-                        list.focus.focusOut(event),
-                },
-            )}
-        </FileItemGroupContext>
-    );
-}
+        return (
+            <FileItemGroupContext value={list}>
+                <FileItemLayoutContext value={() => properties.layout}>
+                    {renderPart(
+                        "div",
+                        "file-item-group",
+                        omit(properties, "layout"),
+                        () => [styles.group, properties.layout === "card" && styles.cards],
+                        {
+                            role: "list",
+                            onKeyDown: (event: KeyboardEvent) => {
+                                // leave keys a file's own buttons take
+                                const isItem =
+                                    event.target instanceof Element &&
+                                    event.target.matches("[data-slot=file-item]");
+                                if (isItem && !event.defaultPrevented) {
+                                    // move by rows among cards, and in order along a list
+                                    if (properties.layout === "card") {
+                                        list.moveAcross(event, locale.direction);
+                                    } else {
+                                        list.focus.move(event, locale.direction);
+                                    }
+                                }
+                            },
+                            onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>
+                                list.focus.focusOut(event),
+                        },
+                    )}
+                </FileItemLayoutContext>
+            </FileItemGroupContext>
+        );
+    },
+});
+
+/** The properties of a group of files, their native attributes included. */
+export type FileItemGroupProperties = ComponentProperties<typeof FileItemGroup>;
 
 /** Find what opens a file, which the browser follows as it does a link. */
 function opens(item: HTMLElement | undefined): HTMLElement | null {

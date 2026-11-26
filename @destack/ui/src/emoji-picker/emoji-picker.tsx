@@ -1,3 +1,5 @@
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
 import { Search } from "@destack/db";
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
@@ -39,6 +41,11 @@ import {
 } from "../grid-list/index.ts";
 import { contentOr, renderPart } from "../part/index.ts";
 import { RadioGroup, RadioGroupItem } from "../radio-group/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The emoji in each row of a picker's grid by default. */
 const COLUMNS = 9;
@@ -222,14 +229,21 @@ const styles = style.create({
     },
 });
 
-/** The properties of an emoji picker: its search, layout, skin tone and cells. */
-export interface EmojiPickerProperties extends GridListElementProperties<
+/** The properties people change in an emoji picker's controls and inspector. */
+const EMOJI_PICKER_PROPERTIES = {
+    columns: field
+        .integer(schema.number().int().min(4).max(12))
+        .labeled(t.context("label")`Columns`)
+        .described(t`The emoji in each row of the grid.`)
+        .default(COLUMNS),
+};
+
+/** The properties of an emoji picker besides its declared ones: its handlers and cells. */
+export interface EmojiPickerAttributes extends GridListElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onChange">
 > {
     /** Report the emoji a person picked with a click or Enter. */
     readonly onEmojiSelect: (entry: EmojiEntry) => void;
-    /** The emoji in each row of the grid, nine by default. */
-    readonly columns?: number;
     /** Render an emoji of the grid, the picker's own by default. */
     readonly cell?: (properties: GridListCellProperties<EmojiEntry>) => JSX.Element;
     /** Render the active emoji where the footer shows it, undefined while none is. */
@@ -258,71 +272,86 @@ const layout = style.create({
 });
 
 /** Render a picker of emoji around its parts. */
-export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
-    // follow the controlled skin tone, else the picker's own
-    const locale = useLocale();
-    const rest = omit(
-        properties,
-        "onEmojiSelect",
-        "columns",
-        "cell",
-        "activeCell",
-        "skinTone",
-        "defaultSkinTone",
-        "onSkinToneChange",
-    );
-    const [skinTone, setSkinTone] = createControllableSignal<SkinTone>({
-        isControlled: () => properties.skinTone !== undefined,
-        value: () => properties.skinTone ?? "none",
-        defaultValue: properties.defaultSkinTone ?? "none",
-        onChange: (next) => properties.onSkinToneChange?.(next),
-    });
+export const EmojiPicker = defineComponent({
+    name: "emojiPicker",
+    properties: EMOJI_PICKER_PROPERTIES,
+    render(
+        properties: RenderProperties<EmojiPickerAttributes, typeof EMOJI_PICKER_PROPERTIES>,
+    ): JSX.Element {
+        // follow the controlled skin tone, else the picker's own
+        const locale = useLocale();
+        const rest = omit(
+            properties,
+            "onEmojiSelect",
+            "columns",
+            "cell",
+            "activeCell",
+            "skinTone",
+            "defaultSkinTone",
+            "onSkinToneChange",
+        );
+        const [skinTone, setSkinTone] = createControllableSignal<SkinTone>({
+            isControlled: () => properties.skinTone !== undefined,
+            value: () => properties.skinTone ?? "none",
+            defaultValue: properties.defaultSkinTone ?? "none",
+            onChange: (next) => properties.onSkinToneChange?.(next),
+        });
 
-    // load the emoji once and lay out the ones the search finds in the chosen tone
-    const autocomplete = new AutocompleteControl({});
-    const emoji = new Load(loadEmoji(untrack(() => locale.tag)));
-    const fit = new ColumnFit(() => properties.columns ?? COLUMNS);
-    const grid = new GridListControl<EmojiEntry>({
-        load: emoji,
-        sections: () =>
-            layOutEmoji(
-                emoji.value(),
-                autocomplete.value().trim().toLowerCase(),
-                skinTone(),
-                locale,
-            ),
-        key: (entry) => entry.emoji,
-        text: (entry) => entry.label,
-        columns: fit.columns,
-        autocomplete,
-        onAction: (entry) => properties.onEmojiSelect(entry),
-    });
-    const control: EmojiPickerControl = {
-        skinTone,
-        setSkinTone,
-        grid,
-        cell: (cell) => (properties.cell ?? EmojiPickerEmoji)(cell),
-        activeCell: (entry) =>
-            properties.activeCell === undefined ? (
-                <ActiveEmoji entry={entry} />
-            ) : (
-                properties.activeCell(entry)
-            ),
-    };
+        // load the emoji once and lay out the ones the search finds in the chosen tone
+        const autocomplete = new AutocompleteControl({});
+        const emoji = new Load(loadEmoji(untrack(() => locale.tag)));
+        const fit = new ColumnFit(() => properties.columns);
+        const grid = new GridListControl<EmojiEntry>({
+            load: emoji,
+            sections: () =>
+                layOutEmoji(
+                    emoji.value(),
+                    autocomplete.value().trim().toLowerCase(),
+                    skinTone(),
+                    locale,
+                ),
+            key: (entry) => entry.emoji,
+            text: (entry) => entry.label,
+            columns: fit.columns,
+            autocomplete,
+            onAction: (entry) => properties.onEmojiSelect(entry),
+        });
+        const control: EmojiPickerControl = {
+            skinTone,
+            setSkinTone,
+            grid,
+            cell: (cell) => (properties.cell ?? EmojiPickerEmoji)(cell),
+            activeCell: (entry) =>
+                properties.activeCell === undefined ? (
+                    <ActiveEmoji entry={entry} />
+                ) : (
+                    properties.activeCell(entry)
+                ),
+        };
 
-    return (
-        <EmojiPickerContext value={control}>
-            <AutocompleteContext value={autocomplete}>
-                <GridListProvider control={grid}>
-                    {renderPart("div", "emoji-picker", rest, () => [layout.picker, fit.style()], {
-                        ref: fit.measure,
-                    })}
-                    {fit.render()}
-                </GridListProvider>
-            </AutocompleteContext>
-        </EmojiPickerContext>
-    );
-}
+        return (
+            <EmojiPickerContext value={control}>
+                <AutocompleteContext value={autocomplete}>
+                    <GridListProvider control={grid}>
+                        {renderPart(
+                            "div",
+                            "emoji-picker",
+                            rest,
+                            () => [layout.picker, fit.style()],
+                            {
+                                ref: fit.measure,
+                            },
+                        )}
+                        {fit.render()}
+                    </GridListProvider>
+                </AutocompleteContext>
+            </EmojiPickerContext>
+        );
+    },
+});
+
+/** The properties of an emoji picker, its grid's attributes included. */
+export type EmojiPickerProperties = ComponentProperties<typeof EmojiPicker>;
 
 /** Render the search of the nearest emoji picker. */
 export function EmojiPickerSearch(

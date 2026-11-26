@@ -28,7 +28,7 @@ export const composerAssistant = defineExample({
     name: "assistant",
     description: t`A question for an assistant, which a press stops answering.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         // answer for a while
         const { clock } = useEnvironment();
         const [words, setWords] = createSignal("");
@@ -36,6 +36,7 @@ export const composerAssistant = defineExample({
 
         return (
             <Composer
+                {...properties}
                 busy={timer() !== undefined}
                 onSubmit={() => {
                     setWords("");
@@ -147,9 +148,12 @@ export const composerDisabled = defineExample({
     name: "disabled",
     description: t`A composer that takes nothing, and one that sends by the command key with Enter.`,
     layout: "padded",
-    render: () => (
+    properties: {
+        disabled: true,
+    },
+    render: (properties) => (
         <Stack space="4">
-            <Composer disabled>
+            <Composer {...properties}>
                 <ComposerFrame>
                     <ComposerInput placeholder="This channel is archived" />
                     <ComposerFooter>

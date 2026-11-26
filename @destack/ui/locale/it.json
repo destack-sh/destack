@@ -730,10 +730,6 @@
             "source": "A project's icon picked from the icon set by category, with a search, the active icon's name and a note while nothing matches.",
             "translation": "L'icona di un progetto scelta dal set per categoria, con ricerca, il nome dell'icona attiva e una nota finché nulla corrisponde."
         },
-        "1lnsjpv595aij": {
-            "source": "A draft's files in small, beside its text.",
-            "translation": "I file di una bozza, in piccolo, accanto al testo."
-        },
         "1lpyg2lle6zzu": {
             "source": "Go to the backlog",
             "translation": "Vai al backlog"
@@ -6247,6 +6243,149 @@
         "2902w2rvkginy": {
             "source": "The hue it is drawn in, the accent when absent.",
             "translation": "La tonalità in cui è disegnata; se assente, quella d'accento."
+        },
+        "uuql7tvdoiis": {
+            "source": "Ada handing a task to Grace, a small change in the activity.",
+            "translation": "Ada passa un'attività a Grace, una piccola modifica nell'attività."
+        },
+        "16ahv79zibg24": {
+            "source": "Condensed",
+            "context": "label",
+            "translation": "Compatto"
+        },
+        "36dgcln8bfg2b": {
+            "source": "Takes less room, as small changes between bigger ones do.",
+            "translation": "Occupa meno spazio, come le piccole modifiche tra quelle più grandi."
+        },
+        "z2st5ebguck5": {
+            "source": "Takes nothing, as an archived channel does.",
+            "translation": "Non accetta nulla, come un canale archiviato."
+        },
+        "2j8zdq0mo1hhw": {
+            "source": "A profile picture below its frame, round as an avatar shows it.",
+            "translation": "Una foto profilo sotto la sua cornice, rotonda come la mostra un avatar."
+        },
+        "3bd61au37w2zh": {
+            "source": "A photo's thirds over its frame, to line up a horizon.",
+            "translation": "I terzi di una foto sulla sua cornice, per allineare un orizzonte."
+        },
+        "1n7sbqvq9tlxl": {
+            "source": "Rectangle",
+            "context": "option",
+            "translation": "Rettangolo"
+        },
+        "1b9cfbitpzsls": {
+            "source": "Circle",
+            "context": "option",
+            "translation": "Cerchio"
+        },
+        "128a0lror2wds": {
+            "source": "The shape of the frame, a circle as of a profile picture.",
+            "translation": "La forma della cornice, un cerchio come per una foto profilo."
+        },
+        "1g3qw4zxyise3": {
+            "source": "Always shown",
+            "context": "label",
+            "translation": "Sempre visibile"
+        },
+        "1zw7qq4bv77ts": {
+            "source": "Shows the thirds at rest too, as well as while something moves.",
+            "translation": "Mostra i terzi anche a riposo, oltre che mentre qualcosa si muove."
+        },
+        "2hwretlhtmam": {
+            "source": "Unified",
+            "context": "option",
+            "translation": "Unificato"
+        },
+        "1gcienvnhi2bo": {
+            "source": "Split",
+            "context": "option",
+            "translation": "Affiancato"
+        },
+        "l88q5gbo7i85": {
+            "source": "Whether the texts share one column, or the old one stands beside the new one.",
+            "translation": "Se i testi condividono una colonna, o il vecchio sta accanto al nuovo."
+        },
+        "2qlkqtqh0rq3j": {
+            "source": "Exact",
+            "context": "option",
+            "translation": "Esatto"
+        },
+        "3bmq9sia3ukrs": {
+            "source": "Trailing",
+            "context": "option",
+            "translation": "A fine riga"
+        },
+        "1wjabuood0g2m": {
+            "source": "Ignored",
+            "context": "option",
+            "translation": "Ignorato"
+        },
+        "2awoywvz7q4qe": {
+            "source": "Whitespace",
+            "context": "label",
+            "translation": "Spazi"
+        },
+        "3upls3vb25f17": {
+            "source": "How much space counts as a change.",
+            "translation": "Quanto spazio conta come una modifica."
+        },
+        "1y72v0ekni5ch": {
+            "source": "Whether it is a dashed box, or none, as around a page or a message.",
+            "translation": "Se è un riquadro tratteggiato o nessuno, come attorno a una pagina o a un messaggio."
+        },
+        "3q8p5dgqk0aou": {
+            "source": "Its box at full height, or small in one row.",
+            "translation": "Il suo riquadro a piena altezza, o piccolo in una riga."
+        },
+        "fi3u4yxkrwwo": {
+            "source": "Takes no file now.",
+            "translation": "Non accetta file ora."
+        },
+        "1na7wu8t65vg8": {
+            "source": "The emoji in each row of the grid.",
+            "translation": "Le emoji in ogni riga della griglia."
+        },
+        "14h7jvcx39i1k": {
+            "source": "Row",
+            "context": "option",
+            "translation": "Riga"
+        },
+        "3tkk423ylcmmk": {
+            "source": "Whether the file lies in a row or stands as a card, its group's by default.",
+            "translation": "Se il file sta in una riga o come scheda; per impostazione, come il suo gruppo."
+        },
+        "2fg53du2nnchz": {
+            "source": "The size of its row or card.",
+            "translation": "La dimensione della sua riga o scheda."
+        },
+        "3uoxafbez5td": {
+            "source": "Whether its files lie in rows or as a grid of cards.",
+            "translation": "Se i suoi file stanno in righe o come griglia di schede."
+        },
+        "qkdb2pibdzko": {
+            "source": "The icons in each row of the grid.",
+            "translation": "Le icone in ogni riga della griglia."
+        },
+        "1sbzyw9cx07dq": {
+            "source": "A long conversation with its button to one end, its first or its latest message.",
+            "translation": "Una lunga conversazione con il pulsante verso un'estremità, il primo o l'ultimo messaggio."
+        },
+        "10gs5l1xuzg7o": {
+            "source": "The end of the conversation it scrolls to.",
+            "translation": "L'estremità della conversazione verso cui scorre."
+        },
+        "m9jofgd2atj5": {
+            "source": "Whether its items line up across or down.",
+            "translation": "Se i suoi elementi si allineano in orizzontale o verso il basso."
+        },
+        "2dor9zhiwn92j": {
+            "source": "The side of the bar it stands at.",
+            "translation": "Il lato della barra in cui sta."
+        },
+        "3ciyci5wa1wun": {
+            "source": "An agent's run, each step's time beside its bar.",
+            "translation": "L'esecuzione di un agente, il tempo di ogni passo accanto alla sua barra."
         }
     }
 }

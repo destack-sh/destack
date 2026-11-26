@@ -359,3 +359,28 @@ export const messageScrollerOutline = defineExample({
         );
     },
 });
+
+/** A long conversation with its button to one end. */
+export const messageScrollerButtonJump = defineExample({
+    of: MessageScrollerButton,
+    name: "jump",
+    description: t`A long conversation with its button to one end, its first or its latest message.`,
+    layout: "padded",
+    properties: {
+        direction: "start",
+    },
+    render: (properties) => (
+        <div {...style.attrs(styles.frame)}>
+            <MessageScroller defaultScrollPosition="last-anchor">
+                <MessageScrollerViewport>
+                    <MessageScrollerContent>
+                        <For each={conversation(12)} keyed={(line) => line.id}>
+                            {(line) => <Row line={line()} />}
+                        </For>
+                    </MessageScrollerContent>
+                </MessageScrollerViewport>
+                <MessageScrollerButton {...properties} />
+            </MessageScroller>
+        </div>
+    ),
+});

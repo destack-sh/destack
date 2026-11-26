@@ -29,7 +29,7 @@ import {
     mergeProperties,
     renderPart,
 } from "../part/index.ts";
-import type { Axis } from "../position/index.ts";
+import { type Axis, ORIENTATION } from "../position/index.ts";
 import {
     OverflowContext,
     OverflowControl,
@@ -37,6 +37,11 @@ import {
     OverflowEntryContext,
     useOverflow,
 } from "./control.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The styles of an overflow. */
 const styles = style.create({
@@ -79,50 +84,63 @@ const styles = style.create({
     },
 });
 
-/** The properties of an overflow, the native element's attributes included. */
-export type OverflowProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style"> &
-    ElementPartProperties & {
-        /** The axis its items line up along, horizontal by default. */
-        readonly orientation?: Axis;
-    };
+/** The properties people change in an overflow's controls and inspector. */
+const OVERFLOW_PROPERTIES = {
+    orientation: ORIENTATION.described(t`Whether its items line up across or down.`).default(
+        "horizontal",
+    ),
+};
+
+/** The properties of an overflow besides its declared ones: its native attributes. */
+export type OverflowAttributes = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style"> &
+    ElementPartProperties;
 
 /** Render items along an axis, hiding those that do not fit. */
-export function Overflow(properties: OverflowProperties): JSX.Element {
-    // hide by the room of the element
-    const orientation = (): Axis => properties.orientation ?? "horizontal";
-    const control = new OverflowControl(orientation, useEnvironment());
+export const Overflow = defineComponent({
+    name: "overflow",
+    properties: OVERFLOW_PROPERTIES,
+    render(
+        properties: RenderProperties<OverflowAttributes, typeof OVERFLOW_PROPERTIES>,
+    ): JSX.Element {
+        // hide by the room of the element
+        const orientation = (): Axis => properties.orientation;
+        const control = new OverflowControl(orientation, useEnvironment());
 
-    return (
-        <OverflowContext value={control}>
-            <OverflowEntryContext value={null}>
-                {renderPart(
-                    "div",
-                    "overflow",
-                    omit(properties, "orientation", "children"),
-                    () => [styles.overflow, styles[orientation()]],
-                    {
-                        get "data-orientation"() {
-                            return orientation();
+        return (
+            <OverflowContext value={control}>
+                <OverflowEntryContext value={null}>
+                    {renderPart(
+                        "div",
+                        "overflow",
+                        omit(properties, "orientation", "children"),
+                        () => [styles.overflow, styles[orientation()]],
+                        {
+                            get "data-orientation"() {
+                                return orientation();
+                            },
+                            get children() {
+                                return (
+                                    <div
+                                        ref={(element) => control.attach(element)}
+                                        {...style.attributes([
+                                            styles.content,
+                                            orientation() === "vertical" && styles.column,
+                                        ])}
+                                    >
+                                        {properties.children}
+                                    </div>
+                                );
+                            },
                         },
-                        get children() {
-                            return (
-                                <div
-                                    ref={(element) => control.attach(element)}
-                                    {...style.attributes([
-                                        styles.content,
-                                        orientation() === "vertical" && styles.column,
-                                    ])}
-                                >
-                                    {properties.children}
-                                </div>
-                            );
-                        },
-                    },
-                )}
-            </OverflowEntryContext>
-        </OverflowContext>
-    );
-}
+                    )}
+                </OverflowEntryContext>
+            </OverflowContext>
+        );
+    },
+});
+
+/** The properties of an overflow, its native attributes included. */
+export type OverflowProperties = ComponentProperties<typeof Overflow>;
 
 /** The properties of an overflow's item, the native element's attributes included. */
 export type OverflowItemProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style"> &

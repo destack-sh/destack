@@ -46,9 +46,9 @@ export const overflowTabs = defineExample({
     of: Overflow,
     name: "tabs",
     description: t`A project's views as tabs, the ones that do not fit in a menu.`,
-    render: () => (
+    render: (properties) => (
         <Tabs defaultValue="Overview">
-            <Overflow>
+            <Overflow {...properties}>
                 <TabsList aria-label="Project" variant="line">
                     <For each={VIEWS}>
                         {(view) => <TabsTrigger value={view}>{view}</TabsTrigger>}
@@ -66,10 +66,10 @@ export const overflowNarrow = defineExample({
     of: Overflow,
     name: "narrow",
     description: t`A project's views in a column too narrow for them.`,
-    render: () => (
+    render: (properties) => (
         <div style={{ width: "320px" }}>
             <Tabs defaultValue="Overview">
-                <Overflow>
+                <Overflow {...properties}>
                     <TabsList aria-label="Project" variant="line">
                         <For each={VIEWS}>
                             {(view) => <TabsTrigger value={view}>{view}</TabsTrigger>}
@@ -88,9 +88,9 @@ export const overflowBreadcrumb = defineExample({
     of: Overflow,
     name: "breadcrumb",
     description: t`The pages above a page, the ones after the first in a menu.`,
-    render: () => (
+    render: (properties) => (
         <Breadcrumb>
-            <Overflow>
+            <Overflow {...properties}>
                 <BreadcrumbList>
                     <BreadcrumbItem>
                         <BreadcrumbLink href="#home">Home</BreadcrumbLink>
@@ -145,9 +145,9 @@ export const overflowToolbar = defineExample({
     of: Overflow,
     name: "toolbar",
     description: t`A toolbar whose buttons hide where they do not fit, its send button never.`,
-    render: () => (
+    render: (properties) => (
         <Toolbar aria-label="Format">
-            <Overflow>
+            <Overflow {...properties}>
                 <For each={COMMANDS}>
                     {(group, index) => (
                         <>
@@ -176,8 +176,8 @@ export const overflowMenubar = defineExample({
     of: Overflow,
     name: "menubar",
     description: t`An app's menus, the ones that do not fit opening from one more.`,
-    render: () => (
-        <Overflow>
+    render: (properties) => (
+        <Overflow {...properties}>
             <Menubar>
                 <For each={["File", "Edit", "Selection", "View", "Go", "Run", "Terminal", "Help"]}>
                     {(menu) => (

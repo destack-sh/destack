@@ -143,10 +143,10 @@ export class ComposerControl {
     /** The composer's form. */
     form: HTMLFormElement | undefined;
     /** The composer's properties. */
-    readonly #properties: ComposerProperties;
+    readonly #properties: RenderProperties<ComposerAttributes, typeof COMPOSER_PROPERTIES>;
 
     /** Follow a composer's properties. */
-    constructor(properties: ComposerProperties) {
+    constructor(properties: RenderProperties<ComposerAttributes, typeof COMPOSER_PROPERTIES>) {
         this.#properties = properties;
     }
 
@@ -162,7 +162,7 @@ export class ComposerControl {
 
     /** Report whether it takes nothing. */
     isDisabled(): boolean {
-        return this.#properties.disabled === true;
+        return this.#properties.disabled;
     }
 
     /** Send what is written, unless its button is disabled, as a form's own Enter does. */
@@ -213,8 +213,17 @@ const ComposerContext = createContext<ComposerControl | null>(null);
 export type ComposerElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
 
-/** The properties of a composer, the native form's attributes included. */
-export type ComposerProperties = Omit<
+/** The properties people change in a composer's controls and inspector. */
+const COMPOSER_PROPERTIES = {
+    disabled: field
+        .boolean()
+        .labeled(t.context("label")`Disabled`)
+        .described(t`Takes nothing, as an archived channel does.`)
+        .default(false),
+};
+
+/** The properties of a composer besides its declared ones: its form attributes and handlers. */
+export type ComposerAttributes = Omit<
     JSX.FormHTMLAttributes<HTMLFormElement>,
     "class" | "onSubmit"
 > &
@@ -227,36 +236,43 @@ export type ComposerProperties = Omit<
         readonly busy?: boolean;
         /** Stop the answer under way. */
         readonly onStop?: () => void;
-        /** Whether it takes nothing. */
-        readonly disabled?: boolean;
     };
 
 /** Render the box a message is written in, as a form around its parts. */
-export function Composer(properties: ComposerProperties): JSX.Element {
-    // send by the form, so its fields, drafts and errors work as any other's
-    const control = new ComposerControl(properties);
-    const rest = omit(properties, "onSubmit", "submitMode", "busy", "onStop", "disabled");
+export const Composer = defineComponent({
+    name: "composer",
+    properties: COMPOSER_PROPERTIES,
+    render(
+        properties: RenderProperties<ComposerAttributes, typeof COMPOSER_PROPERTIES>,
+    ): JSX.Element {
+        // send by the form, so its fields, drafts and errors work as any other's
+        const control = new ComposerControl(properties);
+        const rest = omit(properties, "onSubmit", "submitMode", "busy", "onStop", "disabled");
 
-    return (
-        <ComposerContext value={control}>
-            {renderPart("form", "composer", rest, styles.composer, {
-                ref: (form: HTMLFormElement) => (control.form = form),
-                get "data-busy"() {
-                    return properties.busy === true ? "" : undefined;
-                },
-                get "data-disabled"() {
-                    return properties.disabled === true ? "" : undefined;
-                },
-                onSubmit: (event: SubmitEvent) => {
-                    event.preventDefault();
-                    if (!control.isDisabled()) {
-                        properties.onSubmit?.(event);
-                    }
-                },
-            })}
-        </ComposerContext>
-    );
-}
+        return (
+            <ComposerContext value={control}>
+                {renderPart("form", "composer", rest, styles.composer, {
+                    ref: (form: HTMLFormElement) => (control.form = form),
+                    get "data-busy"() {
+                        return properties.busy === true ? "" : undefined;
+                    },
+                    get "data-disabled"() {
+                        return properties.disabled ? "" : undefined;
+                    },
+                    onSubmit: (event: SubmitEvent) => {
+                        event.preventDefault();
+                        if (!control.isDisabled()) {
+                            properties.onSubmit?.(event);
+                        }
+                    },
+                })}
+            </ComposerContext>
+        );
+    },
+});
+
+/** The properties of a composer, the native form's attributes included. */
+export type ComposerProperties = ComponentProperties<typeof Composer>;
 
 /** The properties people change in a composer frame's controls and inspector. */
 const COMPOSER_FRAME_PROPERTIES = {

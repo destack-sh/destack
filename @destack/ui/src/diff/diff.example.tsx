@@ -49,7 +49,7 @@ export const diffPlans = defineExample({
     name: "plans",
     description: t`A pricing page's changes, in one column or side by side.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         const [layout, setLayout] = createSignal<DiffLayout>("unified");
 
         return (
@@ -64,6 +64,7 @@ export const diffPlans = defineExample({
                     <ToggleGroupItem value="split">Split</ToggleGroupItem>
                 </ToggleGroup>
                 <Diff
+                    {...properties}
                     aria-label="Changes to the plans"
                     before={BEFORE}
                     after={AFTER}
@@ -76,7 +77,7 @@ export const diffPlans = defineExample({
 });
 
 /** A price's calculation as it was. */
-const PRICE_BEFORE = `/** The price of a plan for a number of people. */
+const PRICE_BEFORE = `/** The price of a plan for a number of people. */ 
 export function priceOf(plan: Plan, people: number): number {
     // add up the people past those included
     const extra = Math.max(0, people - 5);
@@ -102,8 +103,9 @@ export const diffCode = defineExample({
     name: "code",
     description: t`A function's changes in its language's colors.`,
     layout: "padded",
-    render: () => (
+    render: (properties) => (
         <Diff
+            {...properties}
             aria-label="Changes to priceOf"
             before={PRICE_BEFORE}
             after={PRICE_AFTER}
@@ -200,7 +202,7 @@ export const diffReview = defineExample({
     name: "review",
     description: t`A file under review, whose changes are accepted, rejected and commented on.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         // reject a change by putting its old lines back
         const [after, setAfter] = createSignal(NOTES_AFTER);
         const [comments, setComments] = createSignal<
@@ -220,6 +222,7 @@ export const diffReview = defineExample({
                     <ToggleGroupItem value="split">Split</ToggleGroupItem>
                 </ToggleGroup>
                 <Diff
+                    {...properties}
                     path="src/notes/notes.tsx"
                     before={NOTES_BEFORE}
                     after={after()}
@@ -284,9 +287,13 @@ export const diffPatch = defineExample({
     name: "patch",
     description: t`A moved file's patch, which has only the lines it changes.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         const [file] = Patch.read(PATCH).files;
 
-        return <Show when={file}>{(read) => <Diff patch={read()} grammar={typescript} />}</Show>;
+        return (
+            <Show when={file}>
+                {(read) => <Diff {...properties} patch={read()} grammar={typescript} />}
+            </Show>
+        );
     },
 });

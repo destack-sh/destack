@@ -1,3 +1,5 @@
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
 import { Search } from "@destack/db";
 import type { IconName } from "@destack/icon";
 import { LazyIcon } from "@destack/ui/icon";
@@ -27,6 +29,11 @@ import {
     GridListViewport,
 } from "../grid-list/index.ts";
 import { contentOr, renderPart } from "../part/index.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The icons in each row of a picker's grid by default. */
 const COLUMNS = 9;
@@ -113,14 +120,21 @@ export interface IconPickerControl {
 /** The nearest icon picker's grid, null outside one. */
 const IconPickerContext = createContext<IconPickerControl | null>(null);
 
-/** The properties of an icon picker: its search, layout and cells. */
-export interface IconPickerProperties extends GridListElementProperties<
+/** The properties people change in an icon picker's controls and inspector. */
+const ICON_PICKER_PROPERTIES = {
+    columns: field
+        .integer(schema.number().int().min(4).max(12))
+        .labeled(t.context("label")`Columns`)
+        .described(t`The icons in each row of the grid.`)
+        .default(COLUMNS),
+};
+
+/** The properties of an icon picker besides its declared ones: its handlers and cells. */
+export interface IconPickerAttributes extends GridListElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onChange">
 > {
     /** Report the icon a person picked with a click or Enter. */
     readonly onIconSelect: (icon: IconName) => void;
-    /** The icons in each row of the grid, nine by default. */
-    readonly columns?: number;
     /** Render an icon of the grid, the picker's own by default. */
     readonly cell?: (properties: GridListCellProperties<IconName>) => JSX.Element;
     /** Render the active icon where the footer shows it, undefined while none is. */
@@ -128,47 +142,62 @@ export interface IconPickerProperties extends GridListElementProperties<
 }
 
 /** Render a picker of the icon set's icons around its parts. */
-export function IconPicker(properties: IconPickerProperties): JSX.Element {
-    // load the icons once and lay out the ones the search finds by category
-    const locale = useLocale();
-    const rest = omit(properties, "onIconSelect", "columns", "cell", "activeCell");
-    const autocomplete = new AutocompleteControl({});
-    const icons = new Load(loadIcons());
-    const fit = new ColumnFit(() => properties.columns ?? COLUMNS);
-    const grid = new GridListControl<IconName>({
-        load: icons,
-        sections: () =>
-            layOutIcons(icons.value(), autocomplete.value().trim().toLowerCase(), locale),
-        key: (icon) => icon,
-        text: (icon) => icon,
-        columns: fit.columns,
-        autocomplete,
-        onAction: (icon) => properties.onIconSelect(icon),
-    });
-    const control: IconPickerControl = {
-        grid,
-        cell: (cell) => (properties.cell ?? IconPickerIcon)(cell),
-        activeCell: (icon) =>
-            properties.activeCell === undefined ? (
-                <ActiveIcon icon={icon} />
-            ) : (
-                properties.activeCell(icon)
-            ),
-    };
+export const IconPicker = defineComponent({
+    name: "iconPicker",
+    properties: ICON_PICKER_PROPERTIES,
+    render(
+        properties: RenderProperties<IconPickerAttributes, typeof ICON_PICKER_PROPERTIES>,
+    ): JSX.Element {
+        // load the icons once and lay out the ones the search finds by category
+        const locale = useLocale();
+        const rest = omit(properties, "onIconSelect", "columns", "cell", "activeCell");
+        const autocomplete = new AutocompleteControl({});
+        const icons = new Load(loadIcons());
+        const fit = new ColumnFit(() => properties.columns);
+        const grid = new GridListControl<IconName>({
+            load: icons,
+            sections: () =>
+                layOutIcons(icons.value(), autocomplete.value().trim().toLowerCase(), locale),
+            key: (icon) => icon,
+            text: (icon) => icon,
+            columns: fit.columns,
+            autocomplete,
+            onAction: (icon) => properties.onIconSelect(icon),
+        });
+        const control: IconPickerControl = {
+            grid,
+            cell: (cell) => (properties.cell ?? IconPickerIcon)(cell),
+            activeCell: (icon) =>
+                properties.activeCell === undefined ? (
+                    <ActiveIcon icon={icon} />
+                ) : (
+                    properties.activeCell(icon)
+                ),
+        };
 
-    return (
-        <IconPickerContext value={control}>
-            <AutocompleteContext value={autocomplete}>
-                <GridListProvider control={grid}>
-                    {renderPart("div", "icon-picker", rest, () => [styles.picker, fit.style()], {
-                        ref: fit.measure,
-                    })}
-                    {fit.render()}
-                </GridListProvider>
-            </AutocompleteContext>
-        </IconPickerContext>
-    );
-}
+        return (
+            <IconPickerContext value={control}>
+                <AutocompleteContext value={autocomplete}>
+                    <GridListProvider control={grid}>
+                        {renderPart(
+                            "div",
+                            "icon-picker",
+                            rest,
+                            () => [styles.picker, fit.style()],
+                            {
+                                ref: fit.measure,
+                            },
+                        )}
+                        {fit.render()}
+                    </GridListProvider>
+                </AutocompleteContext>
+            </IconPickerContext>
+        );
+    },
+});
+
+/** The properties of an icon picker, its grid's attributes included. */
+export type IconPickerProperties = ComponentProperties<typeof IconPicker>;
 
 /** Render the search of the nearest icon picker. */
 export function IconPickerSearch(

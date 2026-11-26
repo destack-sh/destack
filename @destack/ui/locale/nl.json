@@ -730,10 +730,6 @@
             "source": "A project's icon picked from the icon set by category, with a search, the active icon's name and a note while nothing matches.",
             "translation": "Het pictogram van een project gekozen uit de set per categorie, met zoeken, de naam van het actieve pictogram en een melding zolang niets past."
         },
-        "1lnsjpv595aij": {
-            "source": "A draft's files in small, beside its text.",
-            "translation": "De bestanden van een concept, klein, naast de tekst."
-        },
         "1lpyg2lle6zzu": {
             "source": "Go to the backlog",
             "translation": "Naar de backlog"
@@ -6247,6 +6243,149 @@
         "2902w2rvkginy": {
             "source": "The hue it is drawn in, the accent when absent.",
             "translation": "De kleur waarin hij getekend wordt, zonder waarde het accent."
+        },
+        "uuql7tvdoiis": {
+            "source": "Ada handing a task to Grace, a small change in the activity.",
+            "translation": "Ada geeft een taak aan Grace, een kleine wijziging in de activiteit."
+        },
+        "16ahv79zibg24": {
+            "source": "Condensed",
+            "context": "label",
+            "translation": "Compact"
+        },
+        "36dgcln8bfg2b": {
+            "source": "Takes less room, as small changes between bigger ones do.",
+            "translation": "Neemt minder ruimte in, zoals kleine wijzigingen tussen grotere."
+        },
+        "z2st5ebguck5": {
+            "source": "Takes nothing, as an archived channel does.",
+            "translation": "Neemt niets aan, zoals een gearchiveerd kanaal."
+        },
+        "2j8zdq0mo1hhw": {
+            "source": "A profile picture below its frame, round as an avatar shows it.",
+            "translation": "Een profielfoto onder het kader, rond zoals een avatar die toont."
+        },
+        "3bd61au37w2zh": {
+            "source": "A photo's thirds over its frame, to line up a horizon.",
+            "translation": "De derden van een foto over het kader, om een horizon uit te lijnen."
+        },
+        "1n7sbqvq9tlxl": {
+            "source": "Rectangle",
+            "context": "option",
+            "translation": "Rechthoek"
+        },
+        "1b9cfbitpzsls": {
+            "source": "Circle",
+            "context": "option",
+            "translation": "Cirkel"
+        },
+        "128a0lror2wds": {
+            "source": "The shape of the frame, a circle as of a profile picture.",
+            "translation": "De vorm van het kader, een cirkel zoals bij een profielfoto."
+        },
+        "1g3qw4zxyise3": {
+            "source": "Always shown",
+            "context": "label",
+            "translation": "Altijd zichtbaar"
+        },
+        "1zw7qq4bv77ts": {
+            "source": "Shows the thirds at rest too, as well as while something moves.",
+            "translation": "Toont de derden ook in rust, net als tijdens het bewegen."
+        },
+        "2hwretlhtmam": {
+            "source": "Unified",
+            "context": "option",
+            "translation": "Samengevoegd"
+        },
+        "1gcienvnhi2bo": {
+            "source": "Split",
+            "context": "option",
+            "translation": "Naast elkaar"
+        },
+        "l88q5gbo7i85": {
+            "source": "Whether the texts share one column, or the old one stands beside the new one.",
+            "translation": "Of de teksten één kolom delen, of de oude naast de nieuwe staat."
+        },
+        "2qlkqtqh0rq3j": {
+            "source": "Exact",
+            "context": "option",
+            "translation": "Exact"
+        },
+        "3bmq9sia3ukrs": {
+            "source": "Trailing",
+            "context": "option",
+            "translation": "Aan het einde"
+        },
+        "1wjabuood0g2m": {
+            "source": "Ignored",
+            "context": "option",
+            "translation": "Genegeerd"
+        },
+        "2awoywvz7q4qe": {
+            "source": "Whitespace",
+            "context": "label",
+            "translation": "Witruimte"
+        },
+        "3upls3vb25f17": {
+            "source": "How much space counts as a change.",
+            "translation": "Hoeveel witruimte als wijziging telt."
+        },
+        "1y72v0ekni5ch": {
+            "source": "Whether it is a dashed box, or none, as around a page or a message.",
+            "translation": "Of het een gestippeld kader is, of geen, zoals rond een pagina of een bericht."
+        },
+        "3q8p5dgqk0aou": {
+            "source": "Its box at full height, or small in one row.",
+            "translation": "Het kader op volle hoogte, of klein in één rij."
+        },
+        "fi3u4yxkrwwo": {
+            "source": "Takes no file now.",
+            "translation": "Neemt nu geen bestand aan."
+        },
+        "1na7wu8t65vg8": {
+            "source": "The emoji in each row of the grid.",
+            "translation": "De emoji in elke rij van het raster."
+        },
+        "14h7jvcx39i1k": {
+            "source": "Row",
+            "context": "option",
+            "translation": "Rij"
+        },
+        "3tkk423ylcmmk": {
+            "source": "Whether the file lies in a row or stands as a card, its group's by default.",
+            "translation": "Of het bestand in een rij ligt of als kaart staat, standaard zoals de groep."
+        },
+        "2fg53du2nnchz": {
+            "source": "The size of its row or card.",
+            "translation": "De grootte van de rij of kaart."
+        },
+        "3uoxafbez5td": {
+            "source": "Whether its files lie in rows or as a grid of cards.",
+            "translation": "Of de bestanden in rijen of als raster van kaarten liggen."
+        },
+        "qkdb2pibdzko": {
+            "source": "The icons in each row of the grid.",
+            "translation": "De pictogrammen in elke rij van het raster."
+        },
+        "1sbzyw9cx07dq": {
+            "source": "A long conversation with its button to one end, its first or its latest message.",
+            "translation": "Een lang gesprek met de knop naar één einde, het eerste of het nieuwste bericht."
+        },
+        "10gs5l1xuzg7o": {
+            "source": "The end of the conversation it scrolls to.",
+            "translation": "Het einde van het gesprek waarheen het scrolt."
+        },
+        "m9jofgd2atj5": {
+            "source": "Whether its items line up across or down.",
+            "translation": "Of de items dwars of omlaag op een rij staan."
+        },
+        "2dor9zhiwn92j": {
+            "source": "The side of the bar it stands at.",
+            "translation": "De kant van de balk waar het staat."
+        },
+        "3ciyci5wa1wun": {
+            "source": "An agent's run, each step's time beside its bar.",
+            "translation": "De run van een agent, de tijd van elke stap naast de balk."
         }
     }
 }

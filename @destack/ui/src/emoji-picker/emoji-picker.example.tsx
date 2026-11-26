@@ -32,8 +32,11 @@ export const emojiPickerCompact = defineExample({
     of: EmojiPicker,
     name: "compact",
     description: t`A compact picker whose footer shows the active emoji beside a button cycling the skin tone.`,
-    render: () => (
-        <EmojiPicker columns={7} onEmojiSelect={() => undefined}>
+    properties: {
+        columns: 7,
+    },
+    render: (properties) => (
+        <EmojiPicker {...properties} onEmojiSelect={() => undefined}>
             <EmojiPickerSearch />
             <EmojiPickerContent />
             <EmojiPickerFooter>
@@ -48,12 +51,12 @@ export const emojiPickerParts = defineExample({
     of: EmojiPicker,
     name: "parts",
     description: t`A picker composed of its search, content and footer, reporting the emoji it picks.`,
-    render: () => {
+    render: (properties) => {
         const [picked, setPicked] = createSignal("");
 
         return (
             <>
-                <EmojiPicker onEmojiSelect={(entry) => setPicked(entry.emoji)}>
+                <EmojiPicker {...properties} onEmojiSelect={(entry) => setPicked(entry.emoji)}>
                     <EmojiPickerSearch />
                     <EmojiPickerContent />
                     <EmojiPickerFooter />
@@ -69,8 +72,8 @@ export const emojiPickerEmpty = defineExample({
     of: EmojiPicker,
     name: "empty",
     description: t`A picker whose search finds no emoji, showing its note.`,
-    render: () => (
-        <EmojiPicker onEmojiSelect={() => undefined}>
+    render: (properties) => (
+        <EmojiPicker {...properties} onEmojiSelect={() => undefined}>
             <EmojiPickerSearch defaultValue="qqqqq" />
             <EmojiPickerContent />
         </EmojiPicker>

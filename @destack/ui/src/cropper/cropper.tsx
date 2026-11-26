@@ -1,3 +1,4 @@
+import { field } from "@destack/object";
 import arrowClockwiseIcon from "@destack/icon/phosphor/arrow-clockwise";
 import arrowCounterClockwiseIcon from "@destack/icon/phosphor/arrow-counter-clockwise";
 import flipHorizontalIcon from "@destack/icon/phosphor/flip-horizontal";
@@ -24,6 +25,11 @@ import {
     type CropPosition,
     useCropper,
 } from "./control.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The share of the image an arrow key moves the part by. */
 const STEP = 0.01;
@@ -333,106 +339,133 @@ export function CropperImage(properties: CropperImageProperties): JSX.Element {
     );
 }
 
-/** The properties of the frame around the part. */
-export type CropperSelectionProperties = CropperElementProperties & {
-    /** The shape of the frame, a rectangle by default, a circle as of a profile picture. */
-    readonly cropShape?: "rectangle" | "circle";
+/** The properties people change in a crop frame's controls and inspector. */
+const CROPPER_SELECTION_PROPERTIES = {
+    cropShape: field
+        .enum({
+            rectangle: { title: t.context("option")`Rectangle` },
+            circle: { title: t.context("option")`Circle` },
+        })
+        .labeled(t.context("label")`Shape`)
+        .described(t`The shape of the frame, a circle as of a profile picture.`)
+        .default("rectangle"),
 };
 
 /** Render the frame around the part, with its thirds and its handles. */
-export function CropperSelection(properties: CropperSelectionProperties): JSX.Element {
-    // move the part by a drag or the keys
-    const control = useCropper();
-    const locale = useLocale();
-    const rest = omit(properties, "cropShape", "children");
-    const isFixed = (): boolean => control.options.fixedCropArea === true;
-    const placed = () => {
-        const frame = control.frame();
+export const CropperSelection = defineComponent({
+    name: "cropperSelection",
+    properties: CROPPER_SELECTION_PROPERTIES,
+    render(
+        properties: RenderProperties<CropperElementProperties, typeof CROPPER_SELECTION_PROPERTIES>,
+    ): JSX.Element {
+        // move the part by a drag or the keys
+        const control = useCropper();
+        const locale = useLocale();
+        const rest = omit(properties, "cropShape", "children");
+        const isFixed = (): boolean => control.options.fixedCropArea === true;
+        const placed = () => {
+            const frame = control.frame();
 
-        return styles.at(
-            `${String(frame.x)}px`,
-            `${String(frame.y)}px`,
-            `${String(frame.width)}px`,
-            `${String(frame.height)}px`,
+            return styles.at(
+                `${String(frame.x)}px`,
+                `${String(frame.y)}px`,
+                `${String(frame.width)}px`,
+                `${String(frame.height)}px`,
+            );
+        };
+        const words = (): string => {
+            const { width, height } = control.area();
+
+            return locale.render(
+                t`${locale.number(Math.round(width))} by ${locale.number(Math.round(height))} pixels`,
+            );
+        };
+
+        return (
+            <Show when={control.image()}>
+                {renderPart(
+                    "div",
+                    "cropper-selection",
+                    rest,
+                    () => [
+                        styles.selection,
+                        styles.focusable,
+                        isFixed() && styles.still,
+                        properties.cropShape === "circle" && styles.round,
+                        placed(),
+                    ],
+                    {
+                        role: "group" as const,
+                        get tabindex() {
+                            return control.options.disabled === true ? undefined : 0;
+                        },
+                        get "aria-label"() {
+                            return locale.render(t.context("title")`Crop area`);
+                        },
+                        get "aria-description"() {
+                            return words();
+                        },
+                        onPointerDown: (
+                            event: PointerEvent & { readonly currentTarget: HTMLElement },
+                        ) => {
+                            // move the part, the image where the frame stays
+                            if (!isFixed()) {
+                                drag(event, control, (x, y, from) => control.moveBy(x, y, from));
+                            }
+                        },
+                        onKeyDown: (event: KeyboardEvent) => press(event, control),
+                        get children() {
+                            return contentOr(properties, () => (
+                                <>
+                                    <CropperGrid />
+                                    <Show when={!isFixed()}>
+                                        <For each={POSITIONS}>
+                                            {(position) => <CropperHandle position={position} />}
+                                        </For>
+                                    </Show>
+                                </>
+                            ));
+                        },
+                    },
+                )}
+            </Show>
         );
-    };
-    const words = (): string => {
-        const { width, height } = control.area();
+    },
+});
 
-        return locale.render(
-            t`${locale.number(Math.round(width))} by ${locale.number(Math.round(height))} pixels`,
-        );
-    };
+/** The properties of the frame around the part, its native attributes included. */
+export type CropperSelectionProperties = ComponentProperties<typeof CropperSelection>;
 
-    return (
-        <Show when={control.image()}>
-            {renderPart(
-                "div",
-                "cropper-selection",
-                rest,
-                () => [
-                    styles.selection,
-                    styles.focusable,
-                    isFixed() && styles.still,
-                    properties.cropShape === "circle" && styles.round,
-                    placed(),
-                ],
-                {
-                    role: "group" as const,
-                    get tabindex() {
-                        return control.options.disabled === true ? undefined : 0;
-                    },
-                    get "aria-label"() {
-                        return locale.render(t.context("title")`Crop area`);
-                    },
-                    get "aria-description"() {
-                        return words();
-                    },
-                    onPointerDown: (
-                        event: PointerEvent & { readonly currentTarget: HTMLElement },
-                    ) => {
-                        // move the part, the image where the frame stays
-                        if (!isFixed()) {
-                            drag(event, control, (x, y, from) => control.moveBy(x, y, from));
-                        }
-                    },
-                    onKeyDown: (event: KeyboardEvent) => press(event, control),
-                    get children() {
-                        return contentOr(properties, () => (
-                            <>
-                                <CropperGrid />
-                                <Show when={!isFixed()}>
-                                    <For each={POSITIONS}>
-                                        {(position) => <CropperHandle position={position} />}
-                                    </For>
-                                </Show>
-                            </>
-                        ));
-                    },
-                },
-            )}
-        </Show>
-    );
-}
-
-/** The properties of the thirds of the frame. */
-export type CropperGridProperties = CropperElementProperties & {
-    /** Whether it is always there, only while something moves by default. */
-    readonly keepShown?: boolean;
+/** The properties people change in a crop grid's controls and inspector. */
+const CROPPER_GRID_PROPERTIES = {
+    keepShown: field
+        .boolean()
+        .labeled(t.context("label")`Always shown`)
+        .described(t`Shows the thirds at rest too, as well as while something moves.`)
+        .default(false),
 };
 
 /** Render the thirds of the frame, shown while something moves. */
-export function CropperGrid(properties: CropperGridProperties): JSX.Element {
-    const control = useCropper();
-    const rest = omit(properties, "keepShown");
+export const CropperGrid = defineComponent({
+    name: "cropperGrid",
+    properties: CROPPER_GRID_PROPERTIES,
+    render(
+        properties: RenderProperties<CropperElementProperties, typeof CROPPER_GRID_PROPERTIES>,
+    ): JSX.Element {
+        const control = useCropper();
+        const rest = omit(properties, "keepShown");
 
-    return renderPart("div", "cropper-grid", rest, styles.grid, {
-        "aria-hidden": "true" as const,
-        get "data-shown"() {
-            return control.isMoving() || properties.keepShown === true ? "" : undefined;
-        },
-    });
-}
+        return renderPart("div", "cropper-grid", rest, styles.grid, {
+            "aria-hidden": "true" as const,
+            get "data-shown"() {
+                return control.isMoving() || properties.keepShown ? "" : undefined;
+            },
+        });
+    },
+});
+
+/** The properties of the thirds of the frame, their native attributes included. */
+export type CropperGridProperties = ComponentProperties<typeof CropperGrid>;
 
 /** The properties of a handle. */
 export type CropperHandleProperties = CropperElementProperties & {

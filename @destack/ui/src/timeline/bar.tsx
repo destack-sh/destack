@@ -1,3 +1,5 @@
+import { field } from "@destack/object";
+import { swatches } from "@destack/theme/swatch";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import type { Hue } from "@destack/color";
@@ -38,6 +40,11 @@ import { TimelineBarHandle } from "./handle.tsx";
 import { rowMarker } from "./marker.stylex.ts";
 import { places } from "./places.ts";
 import { type TimelineBarVariant, TimelineItem } from "./tree.ts";
+import {
+    type ComponentProperties,
+    defineComponent,
+    type RenderProperties,
+} from "@destack/view/declare";
 
 /** The side of a milestone's diamond in pixels, between a dot and a bar's height. */
 export const MILESTONE_PIXELS = 12;
@@ -288,10 +295,10 @@ export function TimelineBar(properties: TimelineBarProperties): JSX.Element {
     const isHollow = (): boolean => isMilestone() || open() !== undefined;
     const fill = (): style.Styles => [
         isLine()
-            ? places.fill(swatch[`${bar.hue()}Mark`], color.foreground)
+            ? places.fill(swatches[bar.hue()].mark, color.foreground)
             : bar.variant() === "solid" || isMilestone()
-              ? places.fill(swatch[`${bar.hue()}Solid`], swatch[`${bar.hue()}Label`])
-              : places.fill(swatch[`${bar.hue()}Tint`], swatch[`${bar.hue()}TintText`]),
+              ? places.fill(swatches[bar.hue()].solid, swatches[bar.hue()].label)
+              : places.fill(swatches[bar.hue()].tint, swatches[bar.hue()].tintText),
         isSummary() && styles.summary,
         isLine() && isSummary() && styles.lineSummary,
     ];
@@ -488,7 +495,7 @@ export function TimelineBarProgress(properties: TimelineElementProperties): JSX.
                     "span",
                     "timeline-bar-progress",
                     properties,
-                    () => [styles.progress, places.progress(done(), swatch[`${hue()}Mark`])],
+                    () => [styles.progress, places.progress(done(), swatches[hue()].mark)],
                     { "aria-hidden": "true" as const },
                 )
             }
@@ -573,30 +580,48 @@ function BarDates(): JSX.Element {
     );
 }
 
-/** The properties of what stands beside a bar. */
-export type TimelineBarAddonProperties = TimelineElementProperties & {
-    /** The side of the bar it stands at, the end by default. */
-    readonly align?: "start" | "end";
+/** The properties people change in a bar addon's controls and inspector. */
+const TIMELINE_BAR_ADDON_PROPERTIES = {
+    align: field
+        .enum({
+            start: { title: t.context("option")`Start` },
+            end: { title: t.context("option")`End` },
+        })
+        .labeled(t.context("label")`Align`)
+        .described(t`The side of the bar it stands at.`)
+        .default("end"),
 };
 
 /** Render what stands beside a bar, such as a status before it or an assignee after it. */
-export function TimelineBarAddon(properties: TimelineBarAddonProperties): JSX.Element {
-    // stand past the bar's edge
-    const rest = omit(properties, "align");
-    const isStart = (): boolean => properties.align === "start";
+export const TimelineBarAddon = defineComponent({
+    name: "timelineBarAddon",
+    properties: TIMELINE_BAR_ADDON_PROPERTIES,
+    render(
+        properties: RenderProperties<
+            TimelineElementProperties,
+            typeof TIMELINE_BAR_ADDON_PROPERTIES
+        >,
+    ): JSX.Element {
+        // stand past the bar's edge
+        const rest = omit(properties, "align");
+        const isStart = (): boolean => properties.align === "start";
 
-    return renderPart(
-        "span",
-        "timeline-bar-addon",
-        rest,
-        () => [text.xs, styles.addon, isStart() ? styles.addonStart : styles.addonEnd],
-        {
-            get "data-align"() {
-                return isStart() ? "start" : "end";
+        return renderPart(
+            "span",
+            "timeline-bar-addon",
+            rest,
+            () => [text.xs, styles.addon, isStart() ? styles.addonStart : styles.addonEnd],
+            {
+                get "data-align"() {
+                    return isStart() ? "start" : "end";
+                },
             },
-        },
-    );
-}
+        );
+    },
+});
+
+/** The properties of what stands beside a bar, its native attributes included. */
+export type TimelineBarAddonProperties = ComponentProperties<typeof TimelineBarAddon>;
 
 /** Render a chip at the edge a bar lies past, which brings it into view. */
 function Outside(): JSX.Element {
