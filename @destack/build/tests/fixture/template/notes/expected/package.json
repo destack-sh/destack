@@ -16,7 +16,7 @@
     },
     "dependencies": {
         "@destack/locale": "latest",
-        "@destack/object": ">=2026.9.0",
+        "@destack/object": "latest",
         "@destack/package": "latest",
         "@destack/style": "latest",
         "@destack/theme": "latest",
