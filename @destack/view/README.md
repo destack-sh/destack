@@ -30,7 +30,7 @@ Scenarios play a package's examples:
 
 - `viewInteraction`: the steps and observations of a UI scenario.
 - `ViewDriver`: plays scenarios in a test DOM.
-- `BrowserDriver`: plays scenarios in Chromium, each in its package's frame.
+- `BrowserViewDriver`: plays scenarios in Chromium, each on its package's example page.
 
 Declare a notes view that lists and renames notes live:
 
@@ -402,6 +402,7 @@ export const site = defineView({
 Set the `pointer` global to `touch` to play a scenario with a finger.
 
 ```tsx
+import { t } from "@destack/locale";
 import { defineExample, defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
 
@@ -410,7 +411,7 @@ const Note = (properties: { readonly title: string }) => <button>{properties.tit
 export const noteGroceries = defineExample({
     of: Note,
     name: "groceries",
-    description: "a note titled Groceries",
+    description: t`A note titled Groceries.`,
     render: () => <Note title="Groceries" />,
 });
 
@@ -419,7 +420,7 @@ export const noteHold = defineScenario({
     of: Note,
     interaction: viewInteraction,
     name: "hold",
-    description: "hold a note under a finger for half a second and let go on it",
+    description: t`Hold a note under a finger for half a second and let go on it.`,
     given: { examples: [noteGroceries], globals: { pointer: "touch" } },
     parameters: {},
     when: [
@@ -434,17 +435,17 @@ export const noteHold = defineScenario({
 });
 ```
 
-### Frame an example
+### Show an example
 
-An origin serves a development build's frame at `OriginPath.frame`, rendering the example or scenario a `module` and `name` select.
+An origin serves a development build's example page at `OriginPath.example`, showing the example or scenario its query's `name` selects.
 
 ```ts
 import { OriginPath } from "@destack/package";
 
-export function frameOf(origin: string): string {
-    const query = new URLSearchParams({ module: "src/note/note.example.tsx", name: "groceries" });
+export function exampleOf(origin: string): string {
+    const query = new URLSearchParams({ name: "note.groceries" });
 
-    return `${origin}${OriginPath.frame}?${query}`; // Storybook's iframe.html?id=
+    return `${origin}${OriginPath.example}?${query}`; // Storybook's iframe.html?id=
 }
 ```
 

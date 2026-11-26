@@ -4,6 +4,9 @@ import type { FallbackMetrics, FontFile } from "../build/font.ts";
 import { Link, Style } from "./head.ts";
 import { ViewError } from "../error/error.ts";
 
+/** The slot of the elements with a document's font faces, which `appendFaces` looks for. */
+const FACES_SLOT = "font-faces";
+
 /** The generic families CSS writes without quotes. */
 const GENERIC_FAMILIES = new Set([
     "serif",
@@ -111,7 +114,7 @@ export interface FontProperties {
 export function Font(properties: FontProperties): JSX.Element {
     return (
         <>
-            <Style>{faceRules(properties.font)}</Style>
+            <Style data-slot={FACES_SLOT}>{faceRules(properties.font)}</Style>
             <Show when={properties.font.preload}>
                 <For
                     each={properties.font.sources.filter(
@@ -131,6 +134,20 @@ export function Font(properties: FontProperties): JSX.Element {
             </Show>
         </>
     );
+}
+
+/** Write fonts' faces into a document's head, unless `Font` already wrote them there. */
+export function appendFaces(document: Document, fonts: readonly Font[]): void {
+    // leave a prerendered document's faces as they are
+    if (document.head.querySelector(`[data-slot="${FACES_SLOT}"]`) !== null) {
+        return;
+    }
+
+    // write every font's faces in one element
+    const element = document.createElement("style");
+    element.dataset["slot"] = FACES_SLOT;
+    element.textContent = fonts.map((font) => faceRules(font)).join("\n");
+    document.head.append(element);
 }
 
 /** Write the font-face rules of a font's files and of its adjusted fallback. */

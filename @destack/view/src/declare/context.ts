@@ -99,8 +99,8 @@ const viewContext = schema.object({
     catalogs: schema.array(schema.string()),
 });
 
-/** The view name a frame's page carries in its context. */
-export const FRAME_VIEW = "frame";
+/** The view name in an example page's context. */
+export const EXAMPLE_VIEW = "example";
 
 /** What the host gives a view: where and for whom it runs. */
 export const ViewContext = Object.assign(viewContext, {

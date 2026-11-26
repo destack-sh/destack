@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { testBrowser } from "../test/browser.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { JSX } from "@solidjs/web";
@@ -29,7 +30,7 @@ function Greeting(properties: GreetingProperties): JSX.Element {
 export const greetingLoud = defineExample({
     of: Greeting,
     name: "loud",
-    description: "a loud greeting of Ada",
+    description: t`A loud greeting of Ada.`,
     properties: { tone: "loud" },
     render: (properties) => <Greeting name="Ada" {...properties} />,
 });

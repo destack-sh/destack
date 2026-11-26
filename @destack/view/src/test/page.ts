@@ -1,4 +1,3 @@
-import { relative } from "node:path";
 import type { Clock } from "@destack/environment";
 import type { SimulatedTelemetry } from "@destack/environment/simulation";
 import type { Given, SetStep } from "@destack/package/declare";
@@ -42,14 +41,12 @@ declare module "vitest" {
             readonly endpoint: string;
             /** The origin of the package's examples server. */
             readonly origin: string;
-            /** The package's directory. */
-            readonly root: string;
         };
     }
 }
 
 /** A driver that plays UI scenarios in Chromium. */
-export class BrowserDriver implements Driver<Step, Observation> {
+export class BrowserViewDriver implements Driver<Step, Observation> {
     /** The interaction the driver speaks. */
     static readonly interaction = viewInteraction;
     /** The settings of the worlds: none change a view's numbers. */
@@ -79,9 +76,9 @@ export class BrowserDriver implements Driver<Step, Observation> {
     }
 
     /** Open a page that renders the examples of the running scenario. */
-    static async start(given: Given<JSX.Element, Globals>): Promise<BrowserDriver> {
+    static async start(given: Given<JSX.Element, Globals>): Promise<BrowserViewDriver> {
         // open a page in the run's Chromium
-        const { endpoint, origin, root } = inject("chromium");
+        const { endpoint, origin } = inject("chromium");
         const browser = await chromium.connect(endpoint);
         const kind = given.globals?.pointer ?? "mouse";
         const context = await browser.newContext({
@@ -91,12 +88,10 @@ export class BrowserDriver implements Driver<Step, Observation> {
         const page = await context.newPage();
         const pointer = await openPointer(kind, context, page);
 
-        // render the scenario of the running test
-        const state = expect.getState();
-        const path = present(state.testPath, "the running test's file");
-        const title = present(state.currentTestName, "the running test's name");
+        // render the scenario of the running test, which the test names
+        const title = present(expect.getState().currentTestName, "the running test's name");
         const name = present(title.split(" > ").at(-1), "the running scenario's name");
-        const query = new URLSearchParams({ module: relative(root, path), name });
+        const query = new URLSearchParams({ name });
         const now = testBrowser().clock.now();
         await page.clock.install({ time: now });
 
@@ -116,7 +111,7 @@ export class BrowserDriver implements Driver<Step, Observation> {
 
         // wait for the stage, then leave later errors to the driver
         const load = async () => {
-            await page.goto(`${origin}${OriginPath.frame}?${query.toString()}`);
+            await page.goto(`${origin}${OriginPath.example}?${query.toString()}`);
             await page.waitForFunction((exposed) => exposed in globalThis, STAGE);
         };
         try {
@@ -130,7 +125,7 @@ export class BrowserDriver implements Driver<Step, Observation> {
         await page.clock.pauseAt(now + LOAD_TIME);
 
         // refuse a page that loads again during the scenario
-        const driver = new BrowserDriver(page, browser, pointer);
+        const driver = new BrowserViewDriver(page, browser, pointer);
         await driver.#settle();
         page.on("framenavigated", (frame) => {
             if (frame === page.mainFrame()) {

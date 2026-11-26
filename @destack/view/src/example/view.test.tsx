@@ -56,8 +56,8 @@ const cards = defineView({
 /** The view holding two cards. */
 export const cardsTwoCards = defineExample({
     of: cards,
-    name: "two-cards",
-    description: "the view holding two cards",
+    name: "twoCards",
+    description: t`The view holding two cards.`,
     objects: {
         space: [
             { object: card, method: "create", input: { title: "Bread" } },

@@ -1,10 +1,11 @@
-import { join, sep } from "node:path";
+import { join, relative, sep } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import type {
     BuildExtension,
     Compilation,
     CompiledOutput,
     DeclarationModule,
+    DefinitionModule,
     Plugin,
     PrerenderContext,
 } from "@destack/package/build";
@@ -12,6 +13,7 @@ import {
     BROWSER_SANDBOX,
     type DeclarationDescription,
     OriginPath,
+    type PackageId,
     Sandbox,
 } from "@destack/package";
 import { type PackageOutput, ViewDescription, ViewRender } from "@destack/package/manifest";
@@ -43,17 +45,11 @@ const DEVICE_ENTRYPOINT = "./device";
 /** The generated module starting the device worker, which loads the device module. */
 const WORKER_MODULE = `${GENERATED}worker`;
 
-/** The generated module of a browser output's frame, rendering the example or scenario it names. */
-const FRAME_MODULE = `${GENERATED}frame`;
+/** The generated module of a browser output's example page, showing one example or scenario. */
+const EXAMPLE_MODULE = `${GENERATED}example`;
 
-/** The entrypoint of a browser output's frame, which the frame view mounts. */
-const FRAME_ENTRYPOINT = "./frame";
-
-/** The package's catalogs, which a frame translates its examples by, as Vite globs them. */
-const CATALOGS = `Object.values(import.meta.glob("/locale/**/*.json", { eager: true, import: "default" }))`;
-
-/** The modules of a package's examples and scenarios, which a frame loads as Vite globs them. */
-const FRAMED = `import.meta.glob(["/{src,test,tests}/**/*.{example,scenario}.{ts,tsx}"])`;
+/** The entrypoint of a browser output's example page, which the example view mounts. */
+const EXAMPLE_ENTRYPOINT = "./example";
 
 /** The directory of the assets an output emits, as the build names them. */
 const ASSET_DIRECTORY = "asset/";
@@ -70,8 +66,11 @@ const STYLESHEETS = [`${VIEW_PACKAGE}/styles.css`, "virtual:stylex.css"] as cons
 /** A view's render as its declaration describes it. */
 type DeclaredRender = ReturnType<typeof ViewRender.declaration.parse>;
 
-/** What locating a package's views reads: the package, its declarations and their modules. */
-export type ViewPackage = Pick<Compilation, "package" | "packages" | "declarations" | "locate">;
+/** What a view build reads: the package, its declarations, examples, scenarios and modules. */
+export type ViewPackage = Pick<
+    Compilation,
+    "package" | "packages" | "directory" | "declarations" | "locate" | "definitions"
+>;
 
 /** A static view's render as its declaration describes it. */
 export type StaticRender = Extract<DeclaredRender, { readonly mode: "static" }>;
@@ -107,13 +106,13 @@ export const viewExtension: BuildExtension = {
             compilation.entry(DEVICE_ENTRYPOINT, DEVICE_MODULE);
         }
 
-        // emit the frame of a browser development build whose package renders through this one
-        const isFramed =
+        // emit the example page of a browser development build whose package renders through this one
+        const isShowingExamples =
             compilation.runtime === "browser" &&
             !Version.isRelease(compilation.package.version) &&
             compilation.requires.has(VIEW_PACKAGE);
-        if (isFramed) {
-            compilation.entry(FRAME_ENTRYPOINT, FRAME_MODULE);
+        if (isShowingExamples) {
+            compilation.entry(EXAMPLE_ENTRYPOINT, EXAMPLE_MODULE);
         }
 
         // address a server output's assets where an origin publishes them, in a library too
@@ -156,15 +155,15 @@ export const viewExtension: BuildExtension = {
         // refuse a second main view, which the package's origin opens at its root
         ViewDescription.main(views);
 
-        // describe the frame a development build emits, which its origin serves at its reserved path
-        const entrypoint = compiled.exports[FRAME_ENTRYPOINT];
+        // describe the example page a development build emits, which its origin serves at its reserved path
+        const entrypoint = compiled.exports[EXAMPLE_ENTRYPOINT];
         if (entrypoint === undefined) {
             return { views };
         }
 
         return {
             views,
-            frame: { entrypoint, stylesheets: compiled.stylesheets(FRAME_ENTRYPOINT) },
+            example: { entrypoint, stylesheets: compiled.stylesheets(EXAMPLE_ENTRYPOINT) },
         };
     },
     prerender: {
@@ -460,7 +459,7 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
         },
         load: {
             filter: { id: generated },
-            handler(id, options) {
+            async handler(id, options) {
                 // write the package's device worker module, else the module of the id's view
                 const view = views.find((entry) => `\0${PREFIX}${entry.name}` === id);
                 const isServer = options?.ssr === true;
@@ -471,8 +470,12 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
                         views.filter((entry) => entry.render.mode !== "static"),
                         compilation,
                     );
-                } else if (id === `\0${FRAME_MODULE}`) {
-                    return frameModule();
+                } else if (id === `\0${EXAMPLE_MODULE}`) {
+                    return exampleModule(
+                        await compilation.definitions(),
+                        compilation.directory,
+                        compilation.package.id,
+                    );
                 }
 
                 return view && entryModule(view, isServer, compilation, declared);
@@ -481,15 +484,32 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
     };
 }
 
-/** Write a browser output's frame module, framing the declaration its page's address selects. */
-function frameModule(): string {
+/** Write a browser output's example page module, showing the declaration its address gives. */
+function exampleModule(
+    definitions: readonly DefinitionModule[],
+    directory: string,
+    owner: PackageId,
+): string {
+    // load each example and scenario by its name, importing only its own module
+    const loaders = definitions.map(({ name, kind, file, export: symbol }) => {
+        const path = `/${relative(directory, file).split(sep).join("/")}`;
+        const load = `async () => (await import(${JSON.stringify(path)}))[${JSON.stringify(symbol)}]`;
+
+        return `    ${JSON.stringify(name)}: { kind: ${JSON.stringify(kind)}, load: ${load} },`;
+    });
+
     return [
         `import "${VIEW_PACKAGE}/baseline";`,
         ...STYLESHEETS.map((path) => `import ${JSON.stringify(path)};`),
         `import { BrowserEnvironment } from "${VIEW_PACKAGE}/browser";`,
-        `import { hostFrame } from "${VIEW_PACKAGE}/example";`,
+        `import { appendFaces, destackFonts } from "${VIEW_PACKAGE}/document";`,
+        `import { Stage } from "${VIEW_PACKAGE}/example";`,
         ``,
-        `await hostFrame(document.body, ${FRAMED}, ${CATALOGS}, BrowserEnvironment.system);`,
+        `appendFaces(document, destackFonts);`,
+        `const shown = {`,
+        ...loaders,
+        `};`,
+        `await Stage.host(document.body, shown, ${JSON.stringify(owner)}, BrowserEnvironment.system);`,
         ``,
     ].join("\n");
 }

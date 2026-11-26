@@ -38,3 +38,4 @@ export {
     ShortcutSequence,
     STROKE_TIME,
 } from "./sequence.ts";
+export * from "./example.ts";

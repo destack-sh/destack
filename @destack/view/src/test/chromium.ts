@@ -2,6 +2,7 @@ import { Caller } from "@destack/access";
 import { CompilerPool, outputsOf, Workspace } from "@destack/build";
 import { testStore } from "@destack/build/test";
 import { Toolchain } from "@destack/check/toolchain";
+import { Catalog } from "@destack/locale";
 import { OriginPath } from "@destack/package";
 import {
     BuildImage,
@@ -14,15 +15,15 @@ import { present, schema } from "@destack/schema";
 import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { chromium } from "playwright";
-import { FRAME_VIEW, ViewContext } from "../declare/context.ts";
+import { EXAMPLE_VIEW, ViewContext } from "../declare/context.ts";
 
-/** The space a test frame's context names, which no frame opens. */
+/** The space a test example page's context names, which no page opens. */
 const SPACE = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
-/** The universe a test frame's context names, which no frame reaches. */
+/** The universe a test example page's context names, which no page reaches. */
 const UNIVERSE = "http://universe.test";
 
-/** Build the package, serve its frame as an origin does, and start Chromium. */
+/** Build the package, serve its example page as an origin does, and start Chromium. */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
     // build every output of the package from its workspace, as `destack dev` does
     const root = project.config.root;
@@ -64,29 +65,34 @@ export default async function setup(project: TestProject): Promise<() => Promise
         async (build) => PackageManifest.dependencies(await store.get(build), "browser"),
         host.crypto,
     );
-    const frame = present(reader.manifest.outputs["browser"]?.frame, "the package's frame");
+    const example = present(
+        reader.manifest.outputs["browser"]?.example,
+        "the package's example page",
+    );
     const context = {
-        installation: FRAME_VIEW,
+        installation: EXAMPLE_VIEW,
         space: SPACE,
         account: SPACE,
-        view: FRAME_VIEW,
+        view: EXAMPLE_VIEW,
         build: image.root,
         base: "",
         user: Caller.anonymous().subject,
         universe: UNIVERSE,
-        catalogs: [],
+        catalogs: (await reader.files())
+            .map((file) => file.path)
+            .filter((path) => Catalog.isPath(path)),
     } satisfies ViewContext;
 
-    // answer the frame, the modules and the package's files
+    // answer the example page, the modules and the package's files
     const server = host.server.http({
         hostname: "127.0.0.1",
         port: 0,
         async fetch(request) {
             const { pathname } = new URL(request.url);
-            // answer the frame's document
-            if (pathname === OriginPath.frame) {
-                const entry = resolution.url(image.root, frame.entrypoint);
-                return ViewContext.document(context, entry, frame.stylesheets, []);
+            // answer the example page's document
+            if (pathname === OriginPath.example) {
+                const entry = resolution.url(image.root, example.entrypoint);
+                return ViewContext.document(context, entry, example.stylesheets, []);
             }
             // answer a module
             else if (pathname.startsWith(resolution.prefixes.modules)) {
@@ -111,7 +117,6 @@ export default async function setup(project: TestProject): Promise<() => Promise
     project.provide("chromium", {
         endpoint: browser.wsEndpoint(),
         origin: server.url.origin,
-        root,
     });
 
     return async () => started.disposeAsync();

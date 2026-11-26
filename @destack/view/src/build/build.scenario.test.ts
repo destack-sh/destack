@@ -69,7 +69,7 @@ test("split each view into a browser chunk, starting the device worker from its 
         }),
     );
 
-    // describe the view by its generated chunk, exported under its entrypoint, and the development build's frame
+    // describe the view by its generated chunk, exported under its entrypoint, and the development build's example page
     const output = build.manifest.outputs["browser"];
     if (output === undefined) {
         throw new TypeError("missing browser output");
@@ -83,7 +83,7 @@ test("split each view into a browser chunk, starting the device worker from its 
         .map((path) => path.slice("output/browser/asset/".length).replace(/-[\w-]{8}\.js$/u, ""));
     expect([
         Object.keys(output.views),
-        output.frame !== undefined,
+        output.example !== undefined,
         output.exports["./view/notebooks"]?.path === entrypoint,
         entrypoint === "output/browser/view-notebooks.js",
         workers.toSorted(),
@@ -205,7 +205,7 @@ test("bundle an app's release image, its browser output importing builtins alone
     });
 });
 
-test("generate a view's mount with its theme, actions and capabilities", () => {
+test("generate a view's mount with its theme, actions and capabilities", async () => {
     // compile a browser output of a package declaring one view, a theme, two actions calling methods and one its view handles, using the network and the camera
     const owner = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-00000000000c",
@@ -297,6 +297,7 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
             declaration.kind === "object"
                 ? { file: "/package/src/note.ts", export: "note" }
                 : { file: "/package/src/view.ts", export: "main" },
+        definitions: async () => [],
         entry: (entrypoint, module) => entries.set(entrypoint, module),
     };
     if (viewExtension.compile === undefined || viewExtension.describe === undefined) {
@@ -307,8 +308,8 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
     // load the entry's module through the view's plugin
     const mount = plugins.find((plugin) => plugin.name === "@destack/view");
     const module = entries.get("./view/main");
-    const loaded = invoke(mount?.load, [`\0${module}`]);
-    const device = invoke(mount?.load, ["\0virtual:@destack/view/device"]);
+    const loaded: unknown = await invoke(mount?.load, [`\0${module}`]);
+    const device: unknown = await invoke(mount?.load, ["\0virtual:@destack/view/device"]);
     if (typeof loaded !== "string" || typeof device !== "string") {
         throw new TypeError("expected the view's and the device's module sources");
     }

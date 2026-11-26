@@ -9,6 +9,7 @@ export {
     Viewport,
 } from "./metadata.tsx";
 export {
+    appendFaces,
     defineFont,
     Font,
     type FontDefinition,

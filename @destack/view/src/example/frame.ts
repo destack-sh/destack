@@ -2,6 +2,7 @@ import type { BrowserEnvironment } from "@destack/environment/browser";
 import type { JSX } from "@solidjs/web";
 import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
+import { ExampleIndexContext, type IndexEntry } from "../page/example.ts";
 import { type Catalog, Localization, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { LocaleContext } from "../page/locale.ts";
 import { ActionRegistry } from "../page/action.ts";
@@ -24,6 +25,16 @@ import {
 } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
 import { ViewError } from "../error/error.ts";
+
+/** The paint of an example's frame, the theme's paint of a page's root in `theme.css`. */
+const FRAME_PAINT: Readonly<Record<string, string>> = {
+    "background-color": "var(--destack-color-background)",
+    color: "var(--destack-color-foreground)",
+    "font-family": "var(--destack-font-text)",
+    "font-size": "var(--destack-text-base-font-size)",
+    "line-height": "var(--destack-text-base-line-height)",
+    "accent-color": "var(--destack-swatch-accent-solid)",
+};
 
 /** The display the globals set, each choice the person's default when absent. */
 export const GlobalsDisplay = schema.object({
@@ -53,8 +64,20 @@ export interface ExampleFrame<Properties extends object = object> {
     readonly properties?: Properties;
     /** The catalogs translating the messages of the example's package and its dependencies. */
     readonly catalogs?: readonly Catalog[];
+    /** The examples and scenarios its page shows, none outside one. */
+    readonly index?: readonly IndexEntry[];
     /** The theme of the example's package, Destack's own when absent. */
     readonly theme?: Theme;
+}
+
+/** Read the custom properties of an example's frame: the theme's variables, then its paint. */
+export function frameStyle(
+    globals: Globals,
+    theme: Theme = destackTheme,
+): Readonly<Record<string, string>> {
+    const display = GlobalsDisplay.parse(globals.theme ?? {});
+
+    return { ...theme.variables({ ...DEFAULT_DISPLAY, ...display }), ...FRAME_PAINT };
 }
 
 /** Render an example into an element in a browser environment. */
@@ -66,8 +89,6 @@ export function renderExample<Properties extends object>(
     // read the locale and theme settings the example is given
     const given = frame.globals ?? {};
     const locale = LocaleTag.parse(given.locale ?? SOURCE_LOCALE);
-    const display = GlobalsDisplay.parse(given.theme ?? {});
-    const theme = frame.theme ?? destackTheme;
 
     // frame the example in the locale and the direction components read, styled with the theme's variables and the width
     const direction = given.direction === undefined ? {} : { direction: given.direction };
@@ -76,16 +97,25 @@ export function renderExample<Properties extends object>(
     container.dataset["slot"] = "example";
     container.lang = locale;
     container.dir = localization.direction;
-    const style = theme.variables({ ...DEFAULT_DISPLAY, ...display });
-    for (const [name, value] of Object.entries(style)) {
+    for (const [name, value] of Object.entries(frameStyle(given, frame.theme))) {
         container.style.setProperty(name, value);
     }
 
-    // size the frame to the width given, or let a centred example's elements take their own widths
+    // size the frame to the width given
     if (given.width !== undefined) {
         container.style.width = `${given.width}px`;
-    } else if (frame.example.layout === "centered") {
-        container.style.display = "contents";
+    }
+
+    // centre a centred example in the window, and give a padded one room, as Storybook's layouts do
+    if (frame.example.layout === "centered") {
+        container.style.display = "grid";
+        container.style.placeItems = "center";
+        container.style.minHeight = "100dvh";
+        container.style.padding = "var(--destack-space-6)";
+        container.style.boxSizing = "border-box";
+    } else if (frame.example.layout === "padded") {
+        container.style.padding = "var(--destack-space-6)";
+        container.style.boxSizing = "border-box";
     }
 
     // give an app the window's height, which it scrolls inside
@@ -112,7 +142,12 @@ export function renderExample<Properties extends object>(
                     return createComponent(LocaleContext, {
                         value: localization,
                         get children() {
-                            return renderFrame(frame);
+                            return createComponent(ExampleIndexContext, {
+                                value: frame.index ?? [],
+                                get children() {
+                                    return renderFrame(frame);
+                                },
+                            });
                         },
                     });
                 },

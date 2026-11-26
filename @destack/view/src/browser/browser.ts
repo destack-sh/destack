@@ -31,6 +31,8 @@ import { Presentation, type Page, PRESENTED_SETTINGS } from "./presentation.ts";
 import type { View } from "../declare/view.ts";
 import type { ViewMount } from "../page/context.ts";
 import { renderView } from "../page/mount.ts";
+import { appendFaces } from "../document/font.tsx";
+import { destackFonts } from "../document/typeface.ts";
 import { recordVisits } from "./visit.ts";
 import { DeviceRequest, DeviceRole } from "./request.ts";
 import { mountPackages } from "../page/view.ts";
@@ -162,6 +164,7 @@ export async function mount(
                 throw new TypeError("the person's presentation ended before the page showed");
             }
             const first = opened.value;
+            appendFaces(document, destackFonts);
             restyle(first);
 
             // reload a development build once its origin serves another build, as live reload servers do
