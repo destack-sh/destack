@@ -1,7 +1,7 @@
 import { PLAN_PACKAGE, TEST_UNIVERSE } from "@destack/universe/test";
 import { describedTables, testIdentity } from "@destack/object/test";
 import { KNOWN_TYPES } from "@destack/stack/stack";
-import { type Crypto, WebSocketUpgrade } from "@destack/environment";
+import { type Crypto, Pipe, WebSocketUpgrade } from "@destack/environment";
 import { eq } from "@destack/db";
 import { testHost } from "@destack/test/host";
 import accountPackage from "@destack/account/package";
@@ -1742,9 +1742,9 @@ test("serve a library's catalogs and assets at its dependent's origin, and its h
     });
 });
 
-test("serve a view's modules at URLs of their build and resolution, its document preloading them without an import map", async () => {
+test("serve a view's modules at URLs of their build and resolution, gzipped where accepted, its document preloading them without an import map", async () => {
     // install a greeting importing the widget library
-    const { crypto } = testHost();
+    const { crypto, compression } = testHost();
     const widgets = await TestViewBuild.of(WIDGETS, {}, {}, crypto);
     const files: [string, string][] = [
         ["browser/greeting.js", 'import "./device.js";\n'],
@@ -1812,6 +1812,27 @@ test("serve a view's modules at URLs of their build and resolution, its document
     };
     const module = await read(`${root}browser/device.js`);
     const catalogued = await read(`${root}locale/de.json`);
+
+    // read the module gzipped, refused gzip and plain, decompressing the gzipped body
+    const coded = async (encoding: string | undefined) => {
+        const headers = encoding === undefined ? {} : { "accept-encoding": encoding };
+        const url = new URL(`${root}browser/device.js`, address).href;
+        const response = await page.fetch(new Request(url, { headers }));
+        const coding = response.headers.get("content-encoding");
+        const body = present(response.body, "the module's body");
+        const decoded =
+            coding === "gzip" ? Pipe.through(body, compression.decompress("gzip")) : body;
+
+        return {
+            coding,
+            vary: response.headers.get("vary"),
+            etag: response.headers.get("etag"),
+            text: await new Response(decoded).text(),
+        };
+    };
+    const gzipped = await coded("br, gzip");
+    const refused = await coded("gzip;q=0");
+    const plain = await coded(undefined);
     const stale = await read(
         `${OriginPath.module}/${"0".repeat(64)}.${"0".repeat(16)}/browser/device.js`,
     );
@@ -1827,6 +1848,11 @@ test("serve a view's modules at URLs of their build and resolution, its document
         module,
         catalogued: catalogued.slice(0, 2),
         stale: stale[0],
+        codings: [gzipped.coding, refused.coding, plain.coding],
+        varies: [gzipped.vary, plain.vary],
+        isTagged:
+            gzipped.etag === `${plain.etag?.slice(0, -1)}-gzip"` && refused.etag === plain.etag,
+        texts: [gzipped.text, refused.text],
     }).toEqual({
         isMapped: false,
         isRootLocated: true,
@@ -1839,6 +1865,10 @@ test("serve a view's modules at URLs of their build and resolution, its document
         ],
         catalogued: [200, "public, max-age=31536000, immutable"],
         stale: 404,
+        codings: ["gzip", null, null],
+        varies: ["accept-encoding", "accept-encoding"],
+        isTagged: true,
+        texts: [plain.text, plain.text],
     });
 });
 

@@ -33,7 +33,7 @@ import {
     LinkSecret,
 } from "@destack/access";
 import { IdentityError, Jwt, type JwtClaims, Proof, PROOF_HEADER } from "@destack/identity";
-import { copyRequest, Forwarded, HostAddress, WebSocketUpgrade } from "@destack/environment";
+import { copyRequest, Forwarded, HostAddress, Pipe, WebSocketUpgrade } from "@destack/environment";
 import stackPackage from "@destack/stack/package";
 import { ObjectReference, Scope, Subject, RequestId } from "@destack/sync";
 import accountPackage from "@destack/account/package";
@@ -123,6 +123,13 @@ const MAX_LINKS = 32;
 
 /** The methods a page's files and documents answer, as static hosts answer them. */
 const FILE_METHODS = "GET, HEAD";
+
+/** The media types a file is sent gzip-compressed in: text, scripts, JSON, SVG and WebAssembly. */
+const COMPRESSIBLE =
+    /^(?:text\/|application\/(?:json|javascript|wasm|manifest\+json)|image\/svg\+xml)/u;
+
+/** An `accept-encoding` header listing gzip with a weight above zero (RFC 9110 12.5.3). */
+const ACCEPTS_GZIP = /(?:^|,)\s*gzip\s*(?:;\s*q\s*=\s*(?!0(?:\.0*)?\s*(?:,|$))[\d.]+\s*)?(?:,|$)/u;
 
 /** The origins of a space's installations: their views' launch, pages' session and calls. */
 export class InstallationOriginServer {
@@ -1191,13 +1198,7 @@ export class InstallationOriginServer {
                 ? { rewrite: (code: string) => resolution.rewrite(code, url) }
                 : undefined;
 
-        return InstallationOriginServer.#file(
-            request,
-            file,
-            () => build.load(file.path),
-            headers,
-            rewritten,
-        );
+        return this.#file(request, file, () => build.load(file.path), headers, rewritten);
     }
 
     /** Serve a file of the installation's build, else the document of the view its path names. */
@@ -1253,15 +1254,10 @@ export class InstallationOriginServer {
         if (published !== undefined) {
             const { reader: emitter, file: emitted } = published;
 
-            return InstallationOriginServer.#file(
-                request,
-                emitted,
-                () => emitter.load(emitted.path),
-                {
-                    "cache-control": IMMUTABLE,
-                    "permissions-policy": policy,
-                },
-            );
+            return this.#file(request, emitted, () => emitter.load(emitted.path), {
+                "cache-control": IMMUTABLE,
+                "permissions-policy": policy,
+            });
         }
 
         // redirect as the static site's host configuration has it, before serving any file
@@ -1304,12 +1300,7 @@ export class InstallationOriginServer {
                 ? { "cache-control": IMMUTABLE, "permissions-policy": policy }
                 : headers;
 
-            return InstallationOriginServer.#file(
-                request,
-                file,
-                () => reader.load(file.path),
-                cached,
-            );
+            return this.#file(request, file, () => reader.load(file.path), cached);
         }
 
         // serve a static view's page or asset with its host's headers, or send to its canonical path
@@ -1324,11 +1315,11 @@ export class InstallationOriginServer {
             const load = () => reader.load(asset.path);
 
             return asset.path.endsWith(".html")
-                ? InstallationOriginServer.#file(request, asset, load, siteHeaders, {
+                ? this.#file(request, asset, load, siteHeaders, {
                       rewrite: (html) => resolution.document(html, base),
                       version: page.image,
                   })
-                : InstallationOriginServer.#file(request, asset, load, siteHeaders);
+                : this.#file(request, asset, load, siteHeaders);
         } else if (resolved?.kind === "redirect") {
             const location = InstallationOriginServer.#location(
                 `${base}${resolved.path}${url.search}`,
@@ -1347,14 +1338,9 @@ export class InstallationOriginServer {
             );
             const served = (await dependency.files()).find((each) => each.path === path);
             if (served !== undefined) {
-                return InstallationOriginServer.#file(
-                    request,
-                    served,
-                    () => dependency.load(served.path),
-                    {
-                        "cache-control": "no-cache",
-                    },
-                );
+                return this.#file(request, served, () => dependency.load(served.path), {
+                    "cache-control": "no-cache",
+                });
             }
         }
 
@@ -1391,7 +1377,7 @@ export class InstallationOriginServer {
         if (!isMounted && missing !== undefined) {
             const load = () => reader.load(missing.path);
 
-            return InstallationOriginServer.#file(request, missing, load, siteHeaders, {
+            return this.#file(request, missing, load, siteHeaders, {
                 rewrite: (html) => resolution.document(html, base),
                 version: page.image,
                 status: 404,
@@ -1714,7 +1700,7 @@ export class InstallationOriginServer {
     }
 
     /** Answer a file under its ETag. */
-    static async #file(
+    async #file(
         request: Request,
         file: PackageFile,
         load: () => Promise<Uint8Array<ArrayBuffer>>,
@@ -1725,14 +1711,20 @@ export class InstallationOriginServer {
             readonly status?: number;
         },
     ): Promise<Response> {
-        // answer an unchanged file as such, a rewritten one's tag following from what it is rewritten for
+        // answer an unchanged file as such, its tag following from what it is rewritten for and its coding
         const status = rewritten?.status ?? 200;
         const version = rewritten?.version;
-        const etag = version === undefined ? `"${file.digest}"` : `"${file.digest}.${version}"`;
+        const isCompressed =
+            COMPRESSIBLE.test(file.mediaType) &&
+            ACCEPTS_GZIP.test(request.headers.get("accept-encoding") ?? "");
+        const tag = [file.digest, ...(version === undefined ? [] : [version])].join(".");
+        const etag = isCompressed ? `"${tag}-gzip"` : `"${tag}"`;
         const described = {
             ...headers,
             "content-type": file.mediaType,
             "x-content-type-options": "nosniff",
+            vary: "accept-encoding",
+            ...(isCompressed ? { "content-encoding": "gzip" } : {}),
             etag,
         };
         if (status === 200 && request.headers.get("if-none-match") === etag) {
@@ -1743,17 +1735,35 @@ export class InstallationOriginServer {
         if (request.method === "HEAD") {
             return new Response(null, { status, headers: described });
         }
-        // answer a rewritten file's text
-        else if (rewritten !== undefined) {
-            const body = await rewritten.rewrite(new TextDecoder().decode(await load()));
 
-            return new Response(body, { status, headers: described });
-        }
-        // answer a file's bytes
-        else {
-            return new Response(await load(), {
+        // read the body, a rewritten file's as its text
+        const body =
+            rewritten === undefined
+                ? await load()
+                : new TextEncoder().encode(
+                      await rewritten.rewrite(new TextDecoder().decode(await load())),
+                  );
+
+        // answer it gzip-compressed, sent as compressed by workerd too, else its bytes
+        if (isCompressed) {
+            const { compression } = this.#space.machine.environment;
+            const compressed = Pipe.through(
+                new Blob([body]).stream(),
+                compression.compress("gzip"),
+            );
+            const options: ResponseInit & { readonly encodeBody: "manual" } = {
                 status,
-                headers: { ...described, "content-length": String(file.size) },
+                headers: described,
+                encodeBody: "manual",
+            };
+
+            return new Response(compressed, options);
+        }
+        // answer its bytes
+        else {
+            return new Response(body, {
+                status,
+                headers: { ...described, "content-length": String(body.byteLength) },
             });
         }
     }
