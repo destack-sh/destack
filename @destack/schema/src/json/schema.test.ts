@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { canonicalize, JsonValue } from "./json.ts";
-import { fromJsonSchema, toJsonSchema } from "./schema.ts";
+import { fromJsonSchema, LocalReference, toJsonSchema } from "./schema.ts";
 import * as schema from "../validate/index.ts";
 
 /** The seed of the generated schemas, fixed so a failing one repeats. */
@@ -206,6 +206,28 @@ test("refuse an imported default its own schema refuses", () => {
             additionalProperties: false,
         }),
     ).toThrow(new TypeError("json schema default 0 does not match its schema"));
+});
+
+test("read the name a description gives itself, none for an unnamed one", () => {
+    const named = schema.array(schema.string()).meta({ id: "tags" });
+
+    expect(
+        [named, named.min(1), schema.string()].map((each) =>
+            LocalReference.root(JsonValue.object(toJsonSchema(each))),
+        ),
+    ).toEqual(["tags", "tags", null]);
+});
+
+test("validate a named schema its user narrows by both, as its description applies them", () => {
+    // a named list, narrowed to two to three items beside its name
+    const named = schema.array(schema.string()).meta({ id: "tags" });
+    const narrowed = fromJsonSchema(toJsonSchema(named.min(2).max(3)));
+
+    expect(
+        [["a"], ["a", "b"], ["a", "b", "c", "d"], ["a", 1]].map(
+            (value) => narrowed.safeParse(value).success,
+        ),
+    ).toEqual([false, true, false, false]);
 });
 
 test("refuse a reference that does not resolve, naming its pointer", () => {

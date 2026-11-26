@@ -1,7 +1,7 @@
 import { RE2JS } from "re2js";
 import * as z from "zod";
 import { HASH_ALGORITHMS, HASH_ENCODINGS, requireDeclarable } from "../validate/declarable.ts";
-import { canonicalize, type JsonValue } from "./json.ts";
+import { canonicalize, type JsonObject, type JsonValue } from "./json.ts";
 import { present } from "../presence/presence.ts";
 import { isJsonCheck, json, JSON_DESCRIPTION } from "../validate/json.ts";
 
@@ -108,6 +108,13 @@ export const LocalReference = {
         throw new TypeError(
             `schema reference '${reference}' points outside the document's definitions`,
         );
+    },
+
+    /** Read the definition a description's root refers to, such as a color's, null for none. */
+    root(description: JsonObject): string | null {
+        const reference = description["$ref"];
+
+        return typeof reference === "string" ? LocalReference.definition(reference) : null;
     },
 };
 
@@ -240,9 +247,14 @@ function validator(node: JsonSchema, context: ImportContext): z.ZodType<JsonValu
     if (isJsonValue(node)) {
         return json();
     }
-    // follow a reference
+    // follow a reference, with the keywords beside it too, as Draft 2020-12 applies both
     else if (node.$ref !== undefined) {
-        return checked(referenced(node.$ref, context), node, ["$ref"]);
+        const { $ref: reference, ...beside } = node;
+        const isBare = Object.keys(beside).every((key) => DOCUMENT_KEYWORDS.has(key));
+
+        return isBare
+            ? checked(referenced(reference, context), node, ["$ref"])
+            : intersection([{ $ref: reference }, beside], context);
     }
     // build a union, an intersection, no value, or a discriminated union
     else if (node.anyOf !== undefined) {
