@@ -51,9 +51,13 @@ import { Input } from "../input/index.ts";
 import { NumberField } from "../number-field/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
+import { TokenProbe } from "../value-field/probe.ts";
 
 /** The share of the strip an arrow key moves a stop by. */
 const STEP = 0.01;
+
+/** The gradient a picker starts at: black, fading out to the right. */
+const BLACK_FADE = Gradient.between("#000000", "#00000000").toJson();
 
 /** The share of the strip Shift with an arrow moves a stop by. */
 const LARGE_STEP = 0.1;
@@ -217,8 +221,8 @@ export const GradientPicker = defineComponent({
         // follow the controlled gradient or the picker's own
         const [value, setValue] = createControllableSignal<GradientJson>({
             isControlled: () => "value" in properties,
-            value: () => properties.value ?? Paint.gradient(Paint.black),
-            defaultValue: untrack(() => properties.defaultValue) ?? Paint.gradient(Paint.black),
+            value: () => properties.value ?? BLACK_FADE,
+            defaultValue: untrack(() => properties.defaultValue) ?? BLACK_FADE,
             onChange: (next) => properties.onValueChange?.(next),
         });
         const rest = omit(properties, "value", "defaultValue", "onValueChange", "disabled");
@@ -263,6 +267,7 @@ export const PaintPicker = defineComponent({
         const shown = (): PaintKind => pending() ?? value().kind;
         const isDisabled = (): boolean => properties.disabled === true;
         const rest = omit(properties, "value", "defaultValue", "onValueChange", "disabled");
+        let root: HTMLElement | undefined;
 
         // read the paint by its kind
         const solid = () => {
@@ -282,7 +287,11 @@ export const PaintPicker = defineComponent({
             if (kind === "solid" && solid() === undefined) {
                 setValue({ kind: "solid", color: Paint.color(value()) });
             } else if (kind === "gradient" && gradient() === undefined) {
-                setValue({ kind: "gradient", gradient: Paint.gradient(value()) });
+                const probe = new TokenProbe(present(root, "a paint picker's element"));
+                setValue({
+                    kind: "gradient",
+                    gradient: Paint.gradient(value(), (reference) => probe.color(reference)),
+                });
             }
         };
         const give = (paint: Paint): void => {
@@ -292,6 +301,7 @@ export const PaintPicker = defineComponent({
 
         return renderPart("div", "paint-picker", rest, styles.picker, {
             role: "group" as const,
+            ref: (element: HTMLElement) => (root = element),
             get "aria-disabled"() {
                 return isDisabled() ? "true" : undefined;
             },
@@ -718,7 +728,9 @@ function GradientStrip(properties: {
             onPointerDown={(event) => {
                 // add a stop on the strip itself, then drag it
                 if (event.target === event.currentTarget && !properties.disabled) {
-                    properties.onChange(properties.gradient.add(placeOf(event)));
+                    const probe = new TokenProbe(event.currentTarget);
+                    const resolve = (reference: string): string => probe.color(reference);
+                    properties.onChange(properties.gradient.add(placeOf(event), resolve));
                     drag(properties.gradient.stops.length, event);
                 }
             }}

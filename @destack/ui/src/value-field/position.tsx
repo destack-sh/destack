@@ -9,10 +9,10 @@ import {
     VERTICAL_CONSTRAINTS,
 } from "@destack/style";
 import { type JSX, Show, useLocale } from "@destack/view";
-import { DimensionField } from "../dimension-field/index.ts";
 import { NumberField } from "../number-field/index.ts";
 import { choiceType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** The types of a position's parts. */
 const TYPES = {
@@ -100,8 +100,8 @@ function ConstraintParts(properties: {
             {/* An offset from an edge or the middle */}
             <Show when={offset()}>
                 {(pinned) => (
-                    <DimensionField
-                        aria-label={locale.render(t.context("label")`Offset`)}
+                    <DimensionPart
+                        label={locale.render(t.context("label")`Offset`)}
                         disabled={properties.disabled === true}
                         value={pinned().offset}
                         onValueChange={(next) =>
@@ -115,16 +115,16 @@ function ConstraintParts(properties: {
             <Show when={insets()}>
                 {(both) => (
                     <>
-                        <DimensionField
-                            aria-label={locale.render(t.context("label")`Start`)}
+                        <DimensionPart
+                            label={locale.render(t.context("label")`Start`)}
                             disabled={properties.disabled === true}
                             value={both().start}
                             onValueChange={(start) =>
                                 properties.onValueChange({ ...both(), start })
                             }
                         />
-                        <DimensionField
-                            aria-label={locale.render(t.context("label")`End`)}
+                        <DimensionPart
+                            label={locale.render(t.context("label")`End`)}
                             disabled={properties.disabled === true}
                             value={both().end}
                             onValueChange={(end) => properties.onValueChange({ ...both(), end })}

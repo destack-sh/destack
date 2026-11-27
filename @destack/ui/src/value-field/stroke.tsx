@@ -2,13 +2,13 @@ import { t } from "@destack/locale";
 import { Color, LINE_STYLES, LineStyle, Stroke, STROKE_ALIGNS, StrokeAlign } from "@destack/style";
 import * as style from "@destack/style";
 import { type JSX, useLocale } from "@destack/view";
-import { DimensionField } from "../dimension-field/index.ts";
 import { choiceType, jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** The types of a stroke's parts. */
 const TYPES = {
-    color: jsonType(Color.schema),
+    color: jsonType(Color.bindable),
     style: choiceType(LineStyle.options, LINE_STYLES),
     align: choiceType(StrokeAlign.options, STROKE_ALIGNS),
 };
@@ -35,14 +35,14 @@ export function StrokeInput(properties: NamedValueFieldProperties): JSX.Element 
             <div {...style.attrs(valueStyles.row)}>
                 <ValuePart
                     type={TYPES.color}
-                    schema={Color.schema}
+                    schema={Color.bindable}
                     label={t.context("label")`Color`}
                     value={stroke().color}
                     disabled={properties.disabled}
                     onValueChange={(color) => change({ color })}
                 />
-                <DimensionField
-                    aria-label={locale.render(t.context("label")`Width`)}
+                <DimensionPart
+                    label={locale.render(t.context("label")`Width`)}
                     disabled={properties.disabled === true}
                     value={stroke().width}
                     onValueChange={(width) => change({ width })}

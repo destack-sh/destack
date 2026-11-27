@@ -59,7 +59,7 @@ export const valueFieldKinds = defineExample({
     name: "kinds",
     description: t`The input of each kind of value, with what it gives.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         // keep what the inputs give
         const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
             share: 0.25,
@@ -87,6 +87,9 @@ export const valueFieldKinds = defineExample({
             ],
         });
         const of = (name: string) => ({
+            get disabled() {
+                return properties.disabled;
+            },
             get value() {
                 return given()[name];
             },
@@ -180,31 +183,25 @@ export const valueFieldCard = defineExample({
     name: "card",
     description: t`The inputs of a card's look, with what they give.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         // store what the inputs give, starting from a raised card
         const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
-            corners: Corners.all({ value: 12, unit: "px" }),
-            padding: { ...BoxSides.all({ value: 16, unit: "px" }), top: { value: 24, unit: "px" } },
+            corners: Corners.all("{radius.3}"),
+            padding: { ...BoxSides.all("{space.4}"), top: { value: 24, unit: "px" } },
             stroke: {
-                color: "#00000014",
-                width: { value: 1, unit: "px" },
+                color: "{color.border}",
+                width: "{stroke.border}",
                 style: "solid",
                 align: "inside",
             },
-            shadows: [
-                {
-                    color: "#0000001f",
-                    offsetX: Dimension.zero,
-                    offsetY: { value: 8, unit: "px" },
-                    blur: { value: 24, unit: "px" },
-                    spread: { value: -4, unit: "px" },
-                    inset: false,
-                },
-            ],
+            shadows: "{shadow.raised}",
             backdrop: [{ kind: "blur", radius: { value: 16, unit: "px" } }],
             opacity: 0.96,
         });
         const of = (name: string) => ({
+            get disabled() {
+                return properties.disabled;
+            },
             get value() {
                 return given()[name];
             },
@@ -215,18 +212,18 @@ export const valueFieldCard = defineExample({
             ["Corners", "corners", Corners],
             ["Padding", "padding", BoxSides],
             ["Stroke", "stroke", Stroke],
-            ["Shadows", "shadows", ShadowStack],
+            ["Shadows", "shadows", ShadowStack.bindable],
             ["Backdrop", "backdrop", FilterStack],
             ["Opacity", "opacity", Opacity],
             ["Size", "size", Size],
             ["Position", "position", Position],
             ["Overflow", "overflow", Overflow],
-            ["Type", "typography", Typography],
+            ["Type", "typography", Typography.bindable],
             ["Text", "text", TextFormat],
             ["Move", "transform", Transform],
             ["Layout", "layout", Layout],
             ["Motion", "transition", Transition],
-            ["Width", "width", Dimension],
+            ["Width", "width", Dimension.bindable],
         ] as const;
 
         return (
@@ -254,7 +251,7 @@ export const valueFieldPlan = defineExample({
     name: "plan",
     description: t`The inputs of a project's plan, with what they give.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         // store what the inputs give, starting from a December launch
         const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
             dates: { from: "2026-12-01", to: "2026-12-18" },
@@ -265,6 +262,9 @@ export const valueFieldPlan = defineExample({
             brief: "https://example.com/launch",
         });
         const of = (name: string) => ({
+            get disabled() {
+                return properties.disabled;
+            },
             get value() {
                 return given()[name];
             },

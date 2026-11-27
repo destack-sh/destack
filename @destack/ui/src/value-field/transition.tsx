@@ -1,14 +1,14 @@
 import { t } from "@destack/locale";
 import { Duration } from "@destack/schema";
-import { CubicBezier, EASINGS, Transition } from "@destack/style";
+import { CubicBezier, EASINGS, Reference, Transition } from "@destack/style";
 import type { JSX } from "@destack/view";
 import { jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
 
 /** The types of a transition's parts. */
 const TYPES = {
-    cubicBezier: jsonType(CubicBezier),
-    duration: jsonType(Duration),
+    cubicBezier: jsonType(CubicBezier.bindable),
+    duration: jsonType(Reference.or(Duration, "duration")),
 };
 
 /** The transition an input starts at, a quick ease out. */
@@ -30,7 +30,7 @@ export function TransitionInput(properties: NamedValueFieldProperties): JSX.Elem
         <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.row}>
             <ValuePart
                 type={TYPES.duration}
-                schema={Duration}
+                schema={Transition.shape.duration}
                 label={t.context("label")`Duration`}
                 value={transition().duration}
                 disabled={properties.disabled}
@@ -38,7 +38,7 @@ export function TransitionInput(properties: NamedValueFieldProperties): JSX.Elem
             />
             <ValuePart
                 type={TYPES.duration}
-                schema={Duration}
+                schema={Transition.shape.delay}
                 label={t.context("label")`Delay`}
                 value={transition().delay}
                 disabled={properties.disabled}
@@ -46,7 +46,7 @@ export function TransitionInput(properties: NamedValueFieldProperties): JSX.Elem
             />
             <ValuePart
                 type={TYPES.cubicBezier}
-                schema={CubicBezier}
+                schema={CubicBezier.bindable}
                 label={t.context("label")`Easing`}
                 value={transition().timingFunction}
                 disabled={properties.disabled}

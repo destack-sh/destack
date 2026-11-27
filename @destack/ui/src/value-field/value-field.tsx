@@ -32,6 +32,7 @@ import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import { Textarea } from "../textarea/index.ts";
 import { Load } from "../collection/index.ts";
+import { BINDABLE, Binding } from "./binding.ts";
 
 /** The most choices laid out side by side as segments, past which they go in a menu. */
 const SEGMENTS = 4;
@@ -249,6 +250,7 @@ const NAMED_INPUTS: Readonly<Record<string, () => Promise<NamedValueField>>> = {
     "style.transform": async () => (await import("./transform.tsx")).TransformInput,
     "style.layout": async () => (await import("./layout.tsx")).LayoutInput,
     "style.transition": async () => (await import("./transition.tsx")).TransitionInput,
+    [BINDABLE]: async () => (await import("./bindable.tsx")).BindableInput,
     "schema.duration": async () => (await import("./duration.tsx")).DurationInput,
     "schema.dateRange": async () => (await import("./range.tsx")).DateRangeInput,
     "schema.recurrence": async () => (await import("./recurrence.tsx")).RecurrenceInput,
@@ -397,7 +399,11 @@ function FoundInput(properties: ValueFieldProperties): JSX.Element {
 function JsonInput(properties: ValueFieldProperties<JsonValueType>): JSX.Element {
     // take an app's input of the schema's name, then the kit's once loaded
     const { named } = useContext(ValueFieldsContext);
-    const name = untrack(() => LocalReference.root(properties.type.schema));
+    const name = untrack(() =>
+        Binding.of(properties.type.schema) === undefined
+            ? LocalReference.root(properties.type.schema)
+            : BINDABLE,
+    );
     const own = name === null ? undefined : named[name];
     const load = name === null ? undefined : NAMED_INPUTS[name];
     const loaded = name === null ? undefined : LOADED.get(name);

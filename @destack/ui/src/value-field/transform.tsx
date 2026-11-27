@@ -1,10 +1,10 @@
 import { t } from "@destack/locale";
 import { Dimension, Transform } from "@destack/style";
 import { type JSX, useLocale } from "@destack/view";
-import { DimensionField } from "../dimension-field/index.ts";
 import { NumberField } from "../number-field/index.ts";
 import { ValueGroup, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** The transform an input starts at, which leaves the box as it is. */
 const START_TRANSFORM: Transform = {
@@ -26,14 +26,14 @@ export function TransformInput(properties: NamedValueFieldProperties): JSX.Eleme
 
     return (
         <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.grid}>
-            <DimensionField
-                aria-label={locale.render(t.context("label")`Across`)}
+            <DimensionPart
+                label={locale.render(t.context("label")`Across`)}
                 disabled={properties.disabled === true}
                 value={transform().x}
                 onValueChange={(x) => change({ x })}
             />
-            <DimensionField
-                aria-label={locale.render(t.context("label")`Down`)}
+            <DimensionPart
+                label={locale.render(t.context("label")`Down`)}
                 disabled={properties.disabled === true}
                 value={transform().y}
                 onValueChange={(y) => change({ y })}

@@ -12,10 +12,10 @@ import {
 } from "@destack/style";
 import * as style from "@destack/style";
 import { type JSX, useLocale } from "@destack/view";
-import { DimensionField } from "../dimension-field/index.ts";
 import { Switch } from "../switch/index.ts";
 import { choiceType, jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** The types of a layout's parts. */
 const TYPES = {
@@ -55,8 +55,8 @@ export function LayoutInput(properties: NamedValueFieldProperties): JSX.Element 
                     disabled={properties.disabled}
                     onValueChange={(direction) => change({ direction })}
                 />
-                <DimensionField
-                    aria-label={locale.render(t.context("label")`Gap`)}
+                <DimensionPart
+                    label={locale.render(t.context("label")`Gap`)}
                     disabled={properties.disabled === true}
                     value={layout().gap}
                     onValueChange={(gap) => change({ gap })}

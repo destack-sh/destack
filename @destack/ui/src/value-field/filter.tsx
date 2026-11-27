@@ -5,11 +5,11 @@ import { Filter, FILTER_KINDS, FilterKind, FilterStack } from "@destack/style";
 import * as style from "@destack/style";
 import { For, type JSX, Show, useLocale } from "@destack/view";
 import { Button } from "../button/index.ts";
-import { DimensionField } from "../dimension-field/index.ts";
 import { Icon } from "../icon/index.ts";
 import { NumberField } from "../number-field/index.ts";
 import { choiceType, jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** The types of a filter's kind, and of each filter of a stack. */
 const TYPES = {
@@ -54,14 +54,16 @@ export function FilterInput(properties: NamedValueFieldProperties): JSX.Element 
             />
 
             {/* Radius, angle or amount, each kept while its kind stays */}
-            <Show when={filter().kind === "blur"}>
-                <DimensionField
-                    aria-label={locale.render(t.context("label")`Radius`)}
-                    units={["px", "rem"]}
-                    disabled={properties.disabled === true}
-                    value={radius()}
-                    onValueChange={(next) => give({ kind: "blur", radius: next })}
-                />
+            <Show when={radius()}>
+                {(blur) => (
+                    <DimensionPart
+                        label={locale.render(t.context("label")`Radius`)}
+                        units={["px", "rem"]}
+                        disabled={properties.disabled === true}
+                        value={blur()}
+                        onValueChange={(next) => give({ kind: "blur", radius: next })}
+                    />
+                )}
             </Show>
             <Show when={filter().kind === "hue-rotate"}>
                 <NumberField

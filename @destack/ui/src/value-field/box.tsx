@@ -1,12 +1,12 @@
 import { type Message, t } from "@destack/locale";
 import { present } from "@destack/schema";
-import { BoxSides, Corners, Dimension } from "@destack/style";
+import { type Bindable, BoxSides, Corners, Dimension } from "@destack/style";
 import * as style from "@destack/style";
 import { createSignal, For, type JSX, untrack, useLocale } from "@destack/view";
-import { DimensionField } from "../dimension-field/index.ts";
 import { Toggle } from "../toggle/index.ts";
 import { ValueGroup, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** Render the input of a box's corners: one radius for all, or one for each corner. */
 export function CornersInput(properties: NamedValueFieldProperties): JSX.Element {
@@ -71,13 +71,13 @@ function SidesParts<Key extends string>(properties: {
     /** What the toggle to set each one apart is called. */
     readonly each: Message;
     /** The four lengths. */
-    readonly value: Readonly<Record<Key, Dimension>>;
+    readonly value: Readonly<Record<Key, Bindable<Dimension>>>;
     /** Whether it takes no input. */
     readonly disabled: boolean;
     /** Give all four one length. */
-    readonly all: (length: Dimension) => Readonly<Record<Key, Dimension>>;
+    readonly all: (length: Bindable<Dimension>) => Readonly<Record<Key, Bindable<Dimension>>>;
     /** Handle the lengths changing. */
-    readonly onValueChange: (value: Readonly<Record<Key, Dimension>>) => void;
+    readonly onValueChange: (value: Readonly<Record<Key, Bindable<Dimension>>>) => void;
 }): JSX.Element {
     // show one length while all match, and each apart once they differ or a person asks
     const locale = useLocale();
@@ -89,8 +89,8 @@ function SidesParts<Key extends string>(properties: {
         <ValueGroup aria-label={properties.label} xstyle={valueStyles.group}>
             {/* One length, or each */}
             <div {...style.attrs(valueStyles.row)}>
-                <DimensionField
-                    aria-label={properties.label}
+                <DimensionPart
+                    label={properties.label}
                     disabled={properties.disabled || isEach()}
                     value={present(lengths()[0], "the first length")}
                     onValueChange={(length) => properties.onValueChange(properties.all(length))}
@@ -109,8 +109,8 @@ function SidesParts<Key extends string>(properties: {
             <div hidden={!isEach()} {...style.attrs(valueStyles.grid)}>
                 <For each={properties.keys}>
                     {(key) => (
-                        <DimensionField
-                            aria-label={locale.render(properties.labels[key])}
+                        <DimensionPart
+                            label={locale.render(properties.labels[key])}
                             disabled={properties.disabled}
                             value={properties.value[key]}
                             onValueChange={(length) =>

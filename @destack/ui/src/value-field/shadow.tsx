@@ -5,16 +5,16 @@ import { Color, Dimension, Shadow, ShadowStack } from "@destack/style";
 import * as style from "@destack/style";
 import { For, type JSX, useLocale } from "@destack/view";
 import { Button } from "../button/index.ts";
-import { DimensionField } from "../dimension-field/index.ts";
 import { Icon } from "../icon/index.ts";
 import { Label } from "../label/index.ts";
 import { Switch } from "../switch/index.ts";
 import { jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** The types of a shadow's parts, and of each shadow of a stack. */
 const TYPES = {
-    color: jsonType(Color.schema),
+    color: jsonType(Color.bindable),
     shadow: jsonType(Shadow),
 };
 
@@ -50,7 +50,7 @@ export function ShadowInput(properties: NamedValueFieldProperties): JSX.Element 
             <div {...style.attrs(valueStyles.row)}>
                 <ValuePart
                     type={TYPES.color}
-                    schema={Color.schema}
+                    schema={Color.bindable}
                     label={t.context("label")`Color`}
                     value={shadow().color}
                     disabled={properties.disabled}
@@ -70,8 +70,8 @@ export function ShadowInput(properties: NamedValueFieldProperties): JSX.Element 
             <div {...style.attrs(valueStyles.grid)}>
                 <For each={SHADOW_LENGTHS}>
                     {([key, label]) => (
-                        <DimensionField
-                            aria-label={locale.render(label)}
+                        <DimensionPart
+                            label={locale.render(label)}
                             units={["px", "rem"]}
                             disabled={properties.disabled === true}
                             value={shadow()[key]}

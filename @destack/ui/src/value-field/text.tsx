@@ -16,10 +16,10 @@ import {
 } from "@destack/style";
 import * as style from "@destack/style";
 import { type JSX, Show, useLocale } from "@destack/view";
-import { DimensionField } from "../dimension-field/index.ts";
 import { NumberField } from "../number-field/index.ts";
 import { choiceType, jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** The types of a text format's and a text stroke's parts. */
 const TYPES = {
@@ -28,7 +28,7 @@ const TYPES = {
     decoration: choiceType(TextDecoration.options, TEXT_DECORATIONS),
     wrap: choiceType(TextWrap.options, TEXT_WRAPS),
     truncation: choiceType(TruncationKind.options, TRUNCATION_KINDS),
-    color: jsonType(Color.schema),
+    color: jsonType(Color.bindable),
 };
 
 /** The text format an input starts at, as the browser sets text. */
@@ -141,14 +141,14 @@ export function TextStrokeInput(properties: NamedValueFieldProperties): JSX.Elem
         <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.row}>
             <ValuePart
                 type={TYPES.color}
-                schema={Color.schema}
+                schema={Color.bindable}
                 label={t.context("label")`Color`}
                 value={stroke().color}
                 disabled={properties.disabled}
                 onValueChange={(color) => change({ color })}
             />
-            <DimensionField
-                aria-label={locale.render(t.context("label")`Width`)}
+            <DimensionPart
+                label={locale.render(t.context("label")`Width`)}
                 units={["px", "em"]}
                 disabled={properties.disabled === true}
                 value={stroke().width}

@@ -1,9 +1,10 @@
 import { type Message, t } from "@destack/locale";
 import type { ActionValue } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Dimension } from "@destack/style";
+import { type Bindable, Dimension, type DimensionUnit } from "@destack/style";
 import { type JSX, Show, useLocale } from "@destack/view";
 import { DimensionField } from "../dimension-field/index.ts";
+import { TokenBinding } from "./bindable.tsx";
 import { ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
 
@@ -20,8 +21,43 @@ export function DimensionInput(properties: NamedValueFieldProperties): JSX.Eleme
     );
 }
 
+/** Render a length of a value, or a reference to a dimension token in its place. */
+export function DimensionPart(properties: {
+    /** What the length is called. */
+    readonly label: string | undefined;
+    /** The units it offers, pixels, rem and percent by default. */
+    readonly units?: readonly DimensionUnit[];
+    /** Whether it takes no input. */
+    readonly disabled: boolean | undefined;
+    /** The length, or its token. */
+    readonly value: Bindable<Dimension>;
+    /** Handle the length or its token changing. */
+    readonly onValueChange: (value: Bindable<Dimension>) => void;
+}): JSX.Element {
+    return (
+        <TokenBinding
+            type="dimension"
+            label={properties.label}
+            disabled={properties.disabled}
+            value={properties.value}
+            onValueChange={properties.onValueChange}
+            detach={(probe, reference) => probe.dimension(reference)}
+        >
+            {(length) => (
+                <DimensionField
+                    aria-label={properties.label}
+                    units={properties.units}
+                    disabled={properties.disabled === true}
+                    value={length()}
+                    onValueChange={properties.onValueChange}
+                />
+            )}
+        </TokenBinding>
+    );
+}
+
 /** A keyword, or a length under one kind, such as a sizing's fit or fixed length. */
-type Keyword = { readonly kind: string; readonly length?: Dimension };
+type Keyword = { readonly kind: string; readonly length?: Bindable<Dimension> };
 
 /** Render a keyword or a length: the kind picked, and the length beside it where it has one. */
 export function KeywordParts<Value extends Keyword>(properties: {
@@ -65,9 +101,9 @@ export function KeywordParts<Value extends Keyword>(properties: {
             />
             <Show when={properties.value.length}>
                 {(length) => (
-                    <DimensionField
-                        aria-label={locale.render(t.context("label")`Length`)}
-                        disabled={properties.disabled === true}
+                    <DimensionPart
+                        label={locale.render(t.context("label")`Length`)}
+                        disabled={properties.disabled}
                         value={length()}
                         onValueChange={(next) =>
                             give({ kind: properties.lengthKind, length: next })

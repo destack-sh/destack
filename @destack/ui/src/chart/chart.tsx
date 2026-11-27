@@ -1,6 +1,7 @@
 import { renderPart, type Render } from "../part/index.ts";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import { Reference } from "@destack/style";
 import { text } from "@destack/theme/text";
 import {
     createEffect,
@@ -25,7 +26,7 @@ import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 const DEFAULT_HEIGHT = 320;
 
 /** The size of the text the scene grows with. */
-const TEXT_SIZE = "var(--destack-text-xs-font-size)";
+const TEXT_SIZE = Reference.css("{text.xs.fontSize}");
 
 /** That size at the default text size, in pixels, which the engine's own sizes suit. */
 const BASE_TEXT = 12;

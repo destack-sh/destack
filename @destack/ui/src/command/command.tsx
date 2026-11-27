@@ -4,9 +4,9 @@ import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { state } from "@destack/theme/state";
 import { media } from "@destack/style/media.stylex";
-import { color, radius, size, space, stroke, width } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, stroke, text, width } from "@destack/theme/tokens.stylex";
 import { transition } from "@destack/theme/motion";
-import { text } from "@destack/theme/text";
+import * as typography from "@destack/theme/text";
 import {
     type Accessor,
     createContext,
@@ -60,9 +60,6 @@ import {
 
 /** The distance of a command dialog from the viewport's top. */
 const DIALOG_OFFSET = "12vh";
-
-/** The size of a command dialog's search: the base text style's, a step above the options'. */
-const DIALOG_INPUT_SIZE = "var(--destack-text-base-font-size)";
 
 /** The widest a command dialog grows, 720px. */
 const DIALOG_WIDTH = width.palette;
@@ -240,7 +237,7 @@ const dialogStyles = style.create({
         paddingInline: DIALOG_INSET,
     },
     input: {
-        fontSize: DIALOG_INPUT_SIZE,
+        fontSize: text.baseFontSize,
     },
     list: {
         maxHeight: DIALOG_LIST_HEIGHT,
@@ -482,7 +479,7 @@ export function Command(properties: CommandProperties): JSX.Element {
             <AutocompleteContext value={autocomplete}>
                 <ListBoxContext value={list}>
                     {renderPart("div", "command", rest, () => [
-                        text.sm,
+                        typography.text.sm,
                         styles.command,
                         isDialog && dialogStyles.command,
                     ])}
@@ -530,7 +527,10 @@ export function CommandInput(
             </span>
             <For each={command.pages()}>
                 {(page) => (
-                    <span data-slot="command-page-chip" {...style.attrs(text.xs, styles.page)}>
+                    <span
+                        data-slot="command-page-chip"
+                        {...style.attrs(typography.text.xs, styles.page)}
+                    >
                         {page.title}
                     </span>
                 )}
@@ -539,7 +539,7 @@ export function CommandInput(
                 "input",
                 "command-input",
                 omit(properties, "onKeyDown", "value", "defaultValue", "onValueChange"),
-                [text.sm, state.typed, styles.input, isDialog && dialogStyles.input],
+                [typography.text.sm, state.typed, styles.input, isDialog && dialogStyles.input],
                 merge(
                     {
                         "aria-label":
@@ -694,7 +694,7 @@ export function CommandShortcut(properties: CommandShortcutProperties): JSX.Elem
     // draw the keys as the footer's hints do, else the caller's own text
     const rest = omit(properties, "keys", "children");
 
-    return renderPart("span", "command-shortcut", rest, [text.xs, styles.shortcut], {
+    return renderPart("span", "command-shortcut", rest, [typography.text.xs, styles.shortcut], {
         get children() {
             return (
                 <Show when={properties.keys} fallback={properties.children}>
@@ -758,7 +758,7 @@ export function CommandItemDescription(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
     return renderPart("span", "command-item-description", properties, [
-        text.xs,
+        typography.text.xs,
         styles.description,
     ]);
 }
@@ -767,7 +767,7 @@ export function CommandItemDescription(
 export function CommandItemMeta(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    return renderPart("span", "command-item-meta", properties, [text.xs, styles.meta]);
+    return renderPart("span", "command-item-meta", properties, [typography.text.xs, styles.meta]);
 }
 
 /** Render the bar under a command's options that lists the keys of what they do. */
@@ -777,7 +777,7 @@ export function CommandFooter(
     const isDialog = useContext(CommandDialogContext);
 
     return renderPart("div", "command-footer", properties, [
-        text.xs,
+        typography.text.xs,
         styles.footer,
         isDialog && dialogStyles.footer,
     ]);
@@ -846,7 +846,10 @@ export function CommandDetail(properties: CommandDetailProperties): JSX.Element 
 export function CommandDetailMetadata(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDListElement>>,
 ): JSX.Element {
-    return renderPart("dl", "command-detail-metadata", properties, [text.xs, styles.fields]);
+    return renderPart("dl", "command-detail-metadata", properties, [
+        typography.text.xs,
+        styles.fields,
+    ]);
 }
 
 /** The properties of one field of a detail: its label and its value. */

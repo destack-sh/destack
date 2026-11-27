@@ -2,15 +2,15 @@ import { t } from "@destack/locale";
 import { Dimension, FontFamily, FontWeight, Typography } from "@destack/style";
 import * as style from "@destack/style";
 import { type JSX, useLocale } from "@destack/view";
-import { DimensionField } from "../dimension-field/index.ts";
 import { NumberField } from "../number-field/index.ts";
 import { jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { DimensionPart } from "./dimension.tsx";
 
 /** The types of a typography's parts. */
 const TYPES = {
-    fontFamily: jsonType(FontFamily),
-    fontWeight: jsonType(FontWeight),
+    fontFamily: jsonType(FontFamily.bindable),
+    fontWeight: jsonType(FontWeight.bindable),
 };
 
 /** The typography an input starts at, the browser's body text. */
@@ -36,7 +36,7 @@ export function TypographyInput(properties: NamedValueFieldProperties): JSX.Elem
             {/* Fonts */}
             <ValuePart
                 type={TYPES.fontFamily}
-                schema={FontFamily}
+                schema={FontFamily.bindable}
                 label={t.context("label")`Font family`}
                 value={typography().fontFamily}
                 disabled={properties.disabled}
@@ -45,8 +45,8 @@ export function TypographyInput(properties: NamedValueFieldProperties): JSX.Elem
 
             {/* Size, weight, letter spacing and line height */}
             <div {...style.attrs(valueStyles.grid)}>
-                <DimensionField
-                    aria-label={locale.render(t.context("label")`Size`)}
+                <DimensionPart
+                    label={locale.render(t.context("label")`Size`)}
                     units={["px", "rem", "em"]}
                     disabled={properties.disabled === true}
                     value={typography().fontSize}
@@ -54,14 +54,14 @@ export function TypographyInput(properties: NamedValueFieldProperties): JSX.Elem
                 />
                 <ValuePart
                     type={TYPES.fontWeight}
-                    schema={FontWeight}
+                    schema={FontWeight.bindable}
                     label={t.context("label")`Weight`}
                     value={typography().fontWeight}
                     disabled={properties.disabled}
                     onValueChange={(fontWeight) => change({ fontWeight })}
                 />
-                <DimensionField
-                    aria-label={locale.render(t.context("label")`Letter spacing`)}
+                <DimensionPart
+                    label={locale.render(t.context("label")`Letter spacing`)}
                     units={["px", "em"]}
                     disabled={properties.disabled === true}
                     value={typography().letterSpacing}

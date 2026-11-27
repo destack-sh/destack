@@ -6915,6 +6915,49 @@
             "source": "Microseconds",
             "context": "option",
             "translation": "Microsegundos"
+        },
+        "123bd55l9v12n": {
+            "source": "A message to a team, whose @ finds people and pages to mention.",
+            "translation": "Un mensaje a un equipo, cuyo @ encuentra personas y páginas para mencionar."
+        },
+        "1pkje12jknyma": {
+            "source": "Bind to token",
+            "context": "action",
+            "translation": "Vincular a un token"
+        },
+        "20helcmhtz7zy": {
+            "source": "No access",
+            "context": "label",
+            "translation": "Sin acceso"
+        },
+        "21plrsdze4425": {
+            "source": "Search tokens…",
+            "context": "label",
+            "translation": "Buscar tokens…"
+        },
+        "2694cocbn0ig1": {
+            "source": "Tokens",
+            "context": "title",
+            "translation": "Tokens"
+        },
+        "2i2zx41gqr6f0": {
+            "source": "A person and a page mentioned in a sentence.",
+            "translation": "Una persona y una página mencionadas en una frase."
+        },
+        "3m45jvb8oppen": {
+            "source": "Mention",
+            "context": "label",
+            "translation": "Mencionar"
+        },
+        "3mpy26izy8bvf": {
+            "source": "Detach from token",
+            "context": "action",
+            "translation": "Desvincular del token"
+        },
+        "euc8rmgg9gxw": {
+            "source": "No tokens.",
+            "context": "title",
+            "translation": "No hay tokens."
         }
     }
 }

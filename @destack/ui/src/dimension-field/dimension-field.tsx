@@ -52,7 +52,7 @@ export type DimensionFieldAttributes = Omit<
         /** Handle each change of the length. */
         readonly onValueChange?: (value: Dimension) => void;
         /** The units it offers, pixels, rem and percent by default. */
-        readonly units?: readonly DimensionUnit[];
+        readonly units?: readonly DimensionUnit[] | undefined;
         /** What it is called, where no label beside it says so. */
         readonly "aria-label"?: string | undefined;
     };
