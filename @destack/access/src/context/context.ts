@@ -121,6 +121,8 @@ const credentialSchema = schema.object({
     audience: PackageId,
     /** The credential's scope with the scopes inside it, absent for an unscoped one. */
     scope: schema.string().min(1).exactOptional(),
+    /** What the credential lets its caller do: read alone, absent for whatever its caller may. */
+    access: schema.literal("read").exactOptional(),
     /** The verification time in UTC epoch milliseconds. */
     verifiedAt: Instant,
     /** The time the credential lapses: its expiry, capped by its audience's lifetime. */

@@ -8,6 +8,10 @@ import { Exchange } from "./exchange.ts";
 const person = principal.user.reference("universe", "user-ada");
 /** The installation acting for the person. */
 const installation = principal.installation.reference("space-home", "installation-notes");
+/** An anonymous visitor the installation serves. */
+const anyone = principal.anonymous.reference("universe", "visitor-1");
+/** The session the person signed in with. */
+const session = schema.identifier("session").parse("session-019a0000-0000-7000-8000-000000000002");
 /** The grant the installation acts under. */
 const grant = {
     id: schema.identifier("grant").parse("grant-019a0000-0000-7000-8000-000000000001"),
@@ -15,14 +19,17 @@ const grant = {
     permissions: [],
 };
 
-test("ask the egress to act as a served person, or as a subject under the grants its delegates include, and as nothing else", () => {
+test("ask the egress to act as a served person within their session, a subject under its delegates' grants, or anyone, and as nothing else", () => {
     // read the contexts of a person's call, a delegated call, an installation's call and none
     const contexts = {
         person: Exchange.of(called({ subject: person })),
+        session: Exchange.of(called({ subject: person }), { id: session }),
+        token: Exchange.of(called({ subject: person }), { id: "token-1" }),
         delegated: Exchange.of(
             called({ subject: person, actors: [installation], grants: [grant] }),
         ),
         installation: Exchange.of(called({ subject: installation })),
+        anyone: Exchange.of(called({ subject: anyone })),
         outside: Exchange.of(undefined),
     };
 
@@ -33,8 +40,11 @@ test("ask the egress to act as a served person, or as a subject under the grants
     expect({ contexts, asked, read, none: Exchange.ask(contexts.installation) }).toEqual({
         contexts: {
             person: { subject: person, grants: [] },
+            session: { subject: person, grants: [], credential: session },
+            token: { subject: person, grants: [] },
             delegated: { subject: person, grants: [grant] },
             installation: undefined,
+            anyone: { subject: anyone, grants: [] },
             outside: undefined,
         },
         asked: { [Exchange.header]: JSON.stringify({ subject: person, grants: [grant] }) },
