@@ -42,7 +42,8 @@ test("render a color's area, hue and text, and submit it by its name", () => {
             '<div data-slot="color-thumb" style="--x-insetInlineStart: 91.49797570850203%; --x-insetBlockEnd: 96.86274509803921%; --x-backgroundColor: #f76b15;">',
             '<input type="range" aria-label="Color" aria-roledescription="2D slider" aria-valuetext="Saturation 91, Brightness 97, \u2068vibrant\u2069 \u2068\u2068red\u2069-\u2068orange\u2069\u2069" min="0" max="100" step="1"></div></div>',
             '<span data-slot="color-swatch" role="img" aria-label="\u2068vibrant\u2069 \u2068\u2068red\u2069-\u2068orange\u2069\u2069"><span style="--x-backgroundColor: #f76b15;"></span></span>',
-            '<input data-slot="color-field" aria-label="Color" dir="ltr" autocomplete="off">',
+            '<div data-slot="input-group" role="group">',
+            '<input data-slot="color-field" aria-label="Color" dir="ltr" autocomplete="off"></div>',
             '<input type="hidden" name="accent" value="#f76b15"></div>',
         ].join(""),
     );

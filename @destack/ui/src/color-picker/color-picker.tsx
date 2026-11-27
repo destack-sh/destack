@@ -21,7 +21,7 @@ import {
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { readText, useFieldValue, useFieldControl } from "../field/control.ts";
 import { Icon } from "../icon/index.ts";
-import { InputGroup } from "../input-group/index.ts";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "../input-group/index.ts";
 import { Input, type InputProperties } from "../input/index.ts";
 import {
     NumberField,
@@ -685,19 +685,43 @@ export type ColorFieldAttributes = Omit<
     readonly channel?: ColorChannel;
     /** The space of the channel, hue, saturation and brightness by default. */
     readonly colorSpace?: ColorSpace;
+    /** Whether the text shows the opacity, or leaves it to an opacity field beside it. */
+    readonly opacity?: "shown" | "apart";
+    /** What comes before the text inside the field, such as a swatch that opens a picker. */
+    readonly start?: JSX.Element;
+    /** What follows the text inside the field, such as a button to bind a token. */
+    readonly end?: JSX.Element;
+};
+
+/** The properties people change in a color field: an input's, but the variant its group sets. */
+const COLOR_FIELD_PROPERTIES = {
+    placeholder: Input.properties.placeholder,
+    disabled: Input.properties.disabled,
+    readonly: Input.properties.readonly,
+    required: Input.properties.required,
 };
 
 /** Render the nearest picker's color as text to edit, or one of its channels as a number. */
 export const ColorField = defineComponent({
     name: "colorField",
-    properties: Input.properties,
+    properties: COLOR_FIELD_PROPERTIES,
     render(
-        properties: RenderProperties<ColorFieldAttributes, typeof Input.properties>,
+        properties: RenderProperties<ColorFieldAttributes, typeof COLOR_FIELD_PROPERTIES>,
     ): JSX.Element {
-        const rest = omit(properties, "channel", "colorSpace");
+        const rest = omit(properties, "channel", "colorSpace", "opacity", "start", "end");
 
         return (
-            <Show when={properties.channel} fallback={<ColorTextField {...rest} />}>
+            <Show
+                when={properties.channel}
+                fallback={
+                    <ColorTextField
+                        {...rest}
+                        opacity={properties.opacity ?? "shown"}
+                        start={properties.start}
+                        end={properties.end}
+                    />
+                }
+            >
                 {(channel) => (
                     <ColorNumberField
                         channel={channel()}
@@ -714,47 +738,73 @@ export const ColorField = defineComponent({
 export type ColorFieldProperties = ComponentProperties<typeof ColorField>;
 
 /** Render a color as text, read when a person leaves it or presses Enter. */
-function ColorTextField(properties: Omit<InputProperties, "value">): JSX.Element {
+function ColorTextField(
+    properties: Omit<InputProperties, "value"> & {
+        /** Whether the text shows the opacity, or leaves it to an opacity field beside it. */
+        readonly opacity: "shown" | "apart";
+        /** What comes before the text inside the field. */
+        readonly start: JSX.Element | undefined;
+        /** What follows the text inside the field. */
+        readonly end: JSX.Element | undefined;
+    },
+): JSX.Element {
     // take the text where it is a color, and write the color again else
     const picker = useColorPicker();
     const locale = useLocale();
     const take = (element: HTMLInputElement): void => {
-        // read it with or without its mark
+        // read it with or without its mark, keeping the alpha apart where the text leaves it out
         const typed = element.value.trim();
-        const read = Color.read(typed) ?? Color.read(`#${typed}`);
+        const found = Color.read(typed) ?? Color.read(`#${typed}`);
+        const read =
+            found !== undefined && properties.opacity === "apart" && found.alpha === 1
+                ? found.with("alpha", picker.color("rgb").alpha)
+                : found;
         if (read !== undefined && read.toString(picker.format()) !== picker.value()) {
             picker.set(read);
             picker.commit();
         }
-        element.value = picker.value();
+        element.value = shown();
     };
+    const shown = (): string =>
+        properties.opacity === "apart"
+            ? picker.color("rgb").with("alpha", 1).toString(picker.format())
+            : picker.value();
 
     return (
-        <Input
-            data-slot="color-field"
-            aria-label={locale.render(t.context("label")`Color`)}
-            spellcheck={false}
-            dir="ltr"
-            autocomplete="off"
-            disabled={picker.isDisabled()}
-            {...mergeProperties(
-                {
-                    onBlur: (event: FocusEvent & { readonly currentTarget: HTMLInputElement }) =>
-                        take(event.currentTarget),
-                    onKeyDown: (
-                        event: KeyboardEvent & { readonly currentTarget: HTMLInputElement },
-                    ) => {
-                        // take the text without sending the form
-                        if (event.key === "Enter") {
-                            event.preventDefault();
-                            take(event.currentTarget);
-                        }
+        <InputGroup>
+            <Show when={properties.start}>
+                {(start) => <InputGroupAddon align="inline-start">{start()}</InputGroupAddon>}
+            </Show>
+            <InputGroupInput
+                data-slot="color-field"
+                aria-label={locale.render(t.context("label")`Color`)}
+                spellcheck={false}
+                dir="ltr"
+                autocomplete="off"
+                disabled={picker.isDisabled()}
+                {...mergeProperties(
+                    {
+                        onBlur: (
+                            event: FocusEvent & { readonly currentTarget: HTMLInputElement },
+                        ) => take(event.currentTarget),
+                        onKeyDown: (
+                            event: KeyboardEvent & { readonly currentTarget: HTMLInputElement },
+                        ) => {
+                            // take the text without sending the form
+                            if (event.key === "Enter") {
+                                event.preventDefault();
+                                take(event.currentTarget);
+                            }
+                        },
                     },
-                },
-                properties,
-            )}
-            value={picker.value()}
-        />
+                    omit(properties, "opacity", "start", "end"),
+                )}
+                value={shown()}
+            />
+            <Show when={properties.end}>
+                {(end) => <InputGroupAddon align="inline-end">{end()}</InputGroupAddon>}
+            </Show>
+        </InputGroup>
     );
 }
 
