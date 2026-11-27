@@ -20,7 +20,8 @@ import {
 } from "@destack/object";
 import type { ObjectNode } from "@destack/object/client";
 import { FamilyError } from "@destack/error";
-import { JsonValue, mapValues, schema } from "@destack/schema";
+import { type JsonObject, JsonValue, mapValues, schema } from "@destack/schema";
+import type { Moment } from "@destack/db";
 import { ActionRegistryContext } from "./context.ts";
 import { isModifier, type ShortcutBinding, ShortcutSequence } from "./sequence.ts";
 
@@ -349,17 +350,23 @@ export class ActionRegistry {
         const lists: Action[] = [];
         const listed = new Set<ObjectType>();
         for (const type of types) {
+            // read each scope's referenced rows at once on its client, the page's clients sharing one moment
             const references = selected(type).read(places);
-            const rows = await Promise.all(
-                references.map(async (each) =>
-                    this.#host?.clients.get(each.scope)?.find(type, each),
-                ),
-            );
-            const known = rows.filter((row) => row !== undefined);
-            const client = this.#host?.clients.get(references[0]?.scope ?? "");
-            if (known.length > 0 && client !== undefined) {
+            const known: JsonObject[] = [];
+            let moment: Moment | undefined;
+            for (const scope of new Set(references.map((each) => each.scope))) {
+                const client = this.#host?.clients.get(scope);
+                if (client !== undefined) {
+                    const inScope = references.filter((each) => each.scope === scope);
+                    known.push(...(await client.fetch(inScope)));
+                    moment ??= client.context().moment;
+                }
+            }
+
+            // list the actions the rows allow
+            if (moment !== undefined && known.length > 0) {
                 listed.add(type);
-                lists.push(...type.actions(known, running, client.context().moment));
+                lists.push(...type.actions(known, running, moment));
             }
         }
 
@@ -564,7 +571,7 @@ export class ActionRegistry {
             return `${count} ${localization.render(type.declared.title, { count: several.length })}`;
         }
         const client = lone === undefined ? undefined : this.#host?.clients.get(lone.scope);
-        const row = lone === undefined ? undefined : await client?.find(type, lone);
+        const [row] = lone === undefined || client === undefined ? [] : await client.fetch([lone]);
 
         return row === undefined || client === undefined
             ? undefined
