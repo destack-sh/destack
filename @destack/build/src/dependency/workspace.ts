@@ -16,7 +16,7 @@ import {
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
-import { Digest, found, nth, present, schema, Version } from "@destack/schema";
+import { Digest, found, nth, present, schema, Text, Version } from "@destack/schema";
 import { NpmInstallation, type NpmUnit } from "./npm.ts";
 import { outputsOf, type PackageBuildOptions } from "../build/build.ts";
 import type { Compiler } from "../build/compiler.ts";
@@ -363,27 +363,30 @@ export class Workspace {
     unitBuild(
         unit: WorkspaceUnit,
         shared: WorkspaceUnitOptions,
+        closure: readonly string[],
         start: () => Promise<DependencyBuild>,
     ): Promise<DependencyBuild> {
-        return Workspace.#once(this.#builds, unit, shared, start);
+        return Workspace.#once(this.#builds, unit, shared, closure, start);
     }
 
     /** Attach a unit's graph once per workspace and options, starting it when first asked. */
     unitGraph(
         unit: WorkspaceUnit,
         shared: WorkspaceUnitOptions,
+        closure: readonly string[],
         start: () => Promise<void>,
     ): Promise<void> {
-        return Workspace.#once(this.#graphs, unit, shared, start);
+        return Workspace.#once(this.#graphs, unit, shared, closure, start);
     }
 
     /** Take a unit's image once per workspace and options, starting it when first asked. */
     unitImage(
         unit: WorkspaceUnit,
         shared: WorkspaceUnitOptions,
+        closure: readonly string[],
         start: () => Promise<Digest>,
     ): Promise<Digest> {
-        return Workspace.#once(this.#images, unit, shared, start);
+        return Workspace.#once(this.#images, unit, shared, closure, start);
     }
 
     /** Take a unit's value started once per options that shape its build: versions and stamping. */
@@ -391,11 +394,16 @@ export class Workspace {
         started: Map<WorkspaceUnit, Map<string, Promise<Value>>>,
         unit: WorkspaceUnit,
         shared: WorkspaceUnitOptions,
+        closure: readonly string[],
         start: () => Promise<Value>,
     ): Promise<Value> {
-        // key the options that shape the build
+        // key the options that shape the build: the versions of the unit and its closure, and stamping
+        const names = new Set([unit.name, ...closure]);
+        const versions = Object.entries(shared.versions ?? {})
+            .filter(([name]) => names.has(name))
+            .toSorted(([left], [right]) => Text.compare(left, right));
         const shaping = JSON.stringify({
-            versions: shared.versions ?? {},
+            versions,
             isUnreleased: shared.isUnreleased ?? false,
         });
 
@@ -679,10 +687,11 @@ export class WorkspacePackage {
 
             // attach its graph, then make its image
             const build = found(built, unit.name);
-            await this.workspace.unitGraph(unit, shared, () =>
+            const closure = this.#closureOf(unit).map((each) => each.name);
+            await this.workspace.unitGraph(unit, shared, closure, () =>
                 this.#attachUnitGraph(unit, build, built),
             );
-            const image = await this.workspace.unitImage(unit, shared, () =>
+            const image = await this.workspace.unitImage(unit, shared, closure, () =>
                 this.#image(unit, build.manifest, built),
             );
             const { role } = await this.workspace.manifest(build.manifest);
@@ -1033,7 +1042,7 @@ export class WorkspacePackage {
     ): Promise<Digest> {
         const attributes = { "destack.package.name": unit.name };
 
-        return this.#scope.span("destack.workspace.lock", attributes, () =>
+        return this.#scope.span("destack.workspace.image", attributes, () =>
             this.#storeImage(unit, root, units),
         );
     }
@@ -1289,7 +1298,8 @@ export class WorkspacePackage {
         // start each, as the pool leases compilers in turn
         const started = new Map<string, Promise<DependencyBuild>>();
         for (const unit of units) {
-            const build = this.workspace.unitBuild(unit, shared, () =>
+            const closure = this.#closureOf(unit).map((each) => each.name);
+            const build = this.workspace.unitBuild(unit, shared, closure, () =>
                 this.#storeUnit(unit, started, shared),
             );
             started.set(unit.name, build);
