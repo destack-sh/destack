@@ -5,7 +5,7 @@ import textIcon from "@destack/icon/phosphor/text-aa";
 import { JsonValue, toJsonSchema } from "@destack/schema";
 import { Dimension, Paint } from "@destack/style";
 import { expect, test } from "@destack/test";
-import { createSignal, flush, type JSX } from "@destack/view";
+import { createSignal, type JSX } from "@destack/view";
 import { render } from "@destack/view/test";
 import { Icon } from "../icon/index.ts";
 import { ValueIcon, type ValueIconProperties } from "./icon.tsx";
@@ -15,32 +15,33 @@ function drawn(icon: () => JSX.Element): string {
     return render(icon).container.innerHTML;
 }
 
-test("follow a value's type as it changes, from a number's icon to a text's", () => {
-    // draw a number's icon, then change the type to text
+test("follow a value's type as it changes, from a number's icon to a text's", async () => {
+    // draw a number's icon, then change the type to text, each once its module loads
     const [type, setType] = createSignal<ValueIconProperties["type"]>({ kind: "number" });
     const { container } = render(() => <ValueIcon type={type()} />);
-    const before = container.innerHTML;
+    await expect.poll(() => container.innerHTML).toBe(drawn(() => <Icon icon={hashIcon} />));
     setType({ kind: "text" });
-    flush();
 
-    expect([before, container.innerHTML]).toEqual([
-        drawn(() => <Icon icon={hashIcon} />),
-        drawn(() => <Icon icon={textIcon} />),
-    ]);
+    await expect.poll(() => container.innerHTML).toBe(drawn(() => <Icon icon={textIcon} />));
 });
 
-test("show a named schema's icon in place of the JSON kind's, such as a paint's", () => {
-    // draw the icons of a paint and of a length
-    const named = [Paint, Dimension].map((definition) =>
-        drawn(() => (
-            <ValueIcon
-                type={{ kind: "json", schema: JsonValue.object(toJsonSchema(definition)) }}
-            />
-        )),
+test("show a named schema's icon in place of the JSON kind's, such as a paint's", async () => {
+    // draw the icons of a paint and of a length, each once its module loads
+    const named = [Paint, Dimension].map(
+        (definition) =>
+            render(() => (
+                <ValueIcon
+                    type={{ kind: "json", schema: JsonValue.object(toJsonSchema(definition)) }}
+                />
+            )).container,
     );
+    const expected = [paintBucketIcon, rulerIcon].map((icon) => drawn(() => <Icon icon={icon} />));
 
-    expect(named).toEqual([
-        drawn(() => <Icon icon={paintBucketIcon} />),
+    await expect.poll(() => named.map((container) => container.innerHTML)).toEqual(expected);
+});
+
+test("draw an icon given in place of the type's at once", () => {
+    expect(drawn(() => <ValueIcon type={{ kind: "number" }} icon={rulerIcon} />)).toBe(
         drawn(() => <Icon icon={rulerIcon} />),
-    ]);
+    );
 });
