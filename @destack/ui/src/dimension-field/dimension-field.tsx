@@ -1,16 +1,24 @@
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
-import { Dimension, type DimensionUnit } from "@destack/style";
+import { Dimension, DimensionUnit } from "@destack/style";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
-import { createControllableSignal, For, type JSX, omit, untrack, useLocale } from "@destack/view";
+import {
+    createControllableSignal,
+    For,
+    type JSX,
+    omit,
+    Show,
+    untrack,
+    useLocale,
+} from "@destack/view";
 import {
     type ComponentProperties,
     defineComponent,
     type RenderProperties,
 } from "@destack/view/declare";
-import { FieldContext, useFieldControl } from "../field/control.ts";
-import { NumberField } from "../number-field/index.ts";
+import { InputGroup, InputGroupAddon } from "../input-group/index.ts";
+import { NumberField, NumberFieldInput, NumberFieldPrefix } from "../number-field/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 
@@ -55,6 +63,10 @@ export type DimensionFieldAttributes = Omit<
         readonly units?: readonly DimensionUnit[] | undefined;
         /** What it is called, where no label beside it says so. */
         readonly "aria-label"?: string | undefined;
+        /** The mark at the field's start, a letter or an icon that scrubs it, such as `W`. */
+        readonly start?: JSX.Element;
+        /** What follows the number at the field's end, such as a button to bind a token. */
+        readonly end?: JSX.Element;
     };
 
 /** Render a length or a percentage: its number, and its unit picked beside it. */
@@ -71,8 +83,11 @@ export const DimensionField = defineComponent({
             defaultValue: untrack(() => properties.defaultValue) ?? Dimension.zero,
             onChange: (next) => properties.onValueChange?.(next),
         });
-        const fieldControl = useFieldControl();
-        fieldControl?.group();
+        const units = (): readonly DimensionUnit[] => {
+            const offered = properties.units ?? UNITS;
+
+            return offered.includes(value().unit) ? offered : [...offered, value().unit];
+        };
         const rest = omit(
             properties,
             "value",
@@ -81,29 +96,46 @@ export const DimensionField = defineComponent({
             "units",
             "disabled",
             "aria-label",
+            "start",
+            "end",
         );
 
+        // type the number and its unit in one input, as design tools do
+
         return renderPart("div", "dimension-field", rest, styles.dimension, {
-            role: "group" as const,
-            get id() {
-                return fieldControl?.groupAttributes().id;
-            },
-            get "aria-labelledby"() {
-                return fieldControl?.groupAttributes()["aria-labelledby"];
-            },
-            get "aria-label"() {
-                return properties["aria-label"];
-            },
             get children() {
                 return (
-                    <FieldContext value={null}>
-                        <UnitParts
-                            units={properties.units ?? UNITS}
-                            value={value()}
-                            disabled={properties.disabled === true}
-                            onValueChange={setValue}
-                        />
-                    </FieldContext>
+                    <NumberField
+                        aria-label={properties["aria-label"]}
+                        disabled={properties.disabled}
+                        units={units()}
+                        unit={value().unit}
+                        value={value().value}
+                        onUnitChange={(next) =>
+                            setValue({ value: value().value, unit: DimensionUnit.parse(next) })
+                        }
+                        onValueChange={(next) => {
+                            if (next !== undefined) {
+                                setValue({ value: next, unit: value().unit });
+                            }
+                        }}
+                    >
+                        <InputGroup>
+                            <Show when={properties.start}>
+                                {(mark) => (
+                                    <NumberFieldPrefix label={properties["aria-label"] ?? ""}>
+                                        {mark()}
+                                    </NumberFieldPrefix>
+                                )}
+                            </Show>
+                            <NumberFieldInput />
+                            <Show when={properties.end}>
+                                {(after) => (
+                                    <InputGroupAddon align="inline-end">{after()}</InputGroupAddon>
+                                )}
+                            </Show>
+                        </InputGroup>
+                    </NumberField>
                 );
             },
         });
