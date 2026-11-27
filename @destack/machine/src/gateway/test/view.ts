@@ -143,6 +143,7 @@ export const TestViewBuild = {
                     ...(options.example === undefined ? {} : { example: options.example }),
                     directory: "browser",
                     exports,
+                    inlined: {},
                     peers: {},
                 },
             },
