@@ -172,7 +172,7 @@ test("send mentions to the desktop and the phone, email them after 15 unread min
     ]);
 });
 
-test("refuse a mention of someone who cannot read the document, notifying nobody", async () => {
+test("notify only the readers a remark mentions", async () => {
     // mention bob and dave on a document only bob views
     await using fixture = await TestNotification.open();
     const plan = await fixture.call(
@@ -188,25 +188,17 @@ test("refuse a mention of someone who cannot read the document, notifying nobody
             subject: fixture.subject("bob"),
         }),
     );
-    const refused = await refusal(
-        fixture.call(
-            "alice",
-            document.call("remark", {
-                ...fixture.scope,
-                id: plan.id,
-                text: "@bob @dave, a question",
-                mentions: [fixture.subject("bob"), fixture.subject("dave")],
-            }),
-        ),
+    await fixture.call(
+        "alice",
+        document.call("remark", {
+            ...fixture.scope,
+            id: plan.id,
+            text: "@bob @dave, a question",
+            mentions: [fixture.subject("bob"), fixture.subject("dave")],
+        }),
     );
 
-    // refuse the remark for dave, and record no activity for bob either
-    expect([refused, await fixture.activities()]).toEqual([
-        [
-            "FORBIDDEN",
-            "RECIPIENT_DENIED",
-            `document '${plan.id}' is forbidden: user '${fixture.subject("dave").id}' cannot read it`,
-        ],
-        [],
-    ]);
+    // expect bob's activity alone
+    const recipients = (await fixture.activities()).map((row) => row.recipientId);
+    expect(recipients).toEqual([fixture.subject("bob").id]);
 });

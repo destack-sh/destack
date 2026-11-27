@@ -129,7 +129,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
 
     /** Build the call notifying a notice's named recipients or its audience. */
     call(notice: Notice<schema.Infer<Payload>>) {
-        // refer to the source as the parent in the call's scope, with the declaration and payload
+        // call in the source's scope, with the source as the parent, the declaration and the payload
         const { source, key, thread } = notice;
         const fields = {
             parent: { packageId: source.packageId, type: source.type, id: source.id },
@@ -144,13 +144,19 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         if ("recipients" in notice) {
             const { recipients, reason } = notice;
 
-            return activity.call("notify", { ...fields, recipients: [...recipients], reason });
+            return activity.call("notify", {
+                ...activity.in(source.scope),
+                ...fields,
+                recipients: [...recipients],
+                reason,
+            });
         }
         // announce to an audience
         else {
             const { audience, excluded } = notice;
 
             return announcement.call("announce", {
+                ...announcement.in(source.scope),
                 ...fields,
                 audience,
                 ...(excluded === undefined ? {} : { excluded: [...excluded] }),
