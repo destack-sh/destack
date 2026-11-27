@@ -7,6 +7,7 @@ import {
     LOG,
     LOG_CHANNEL,
     LOG_EPOCH,
+    LOG_ACTOR,
     LOG_HORIZON,
     type LogDialect,
     COMMIT_LOCK,
@@ -63,6 +64,10 @@ function createLogTables(): string[] {
             sequence BIGINT NOT NULL
         )`,
         `INSERT INTO ${quote(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
+        `CREATE TABLE IF NOT EXISTS ${quote(LOG_ACTOR)} (
+            "transaction" TEXT PRIMARY KEY,
+            actor JSONB NOT NULL
+        )`,
     ];
 }
 

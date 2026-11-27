@@ -328,7 +328,7 @@ test("compact once a change leaves the window, answering when compacting is next
     expect({ compacted, waiting, due }).toEqual({
         compacted: { next: logged + window, statements: 2 },
         waiting: { next: logged + window, statements: 0 },
-        due: { next: logged + 2 * window + 1, statements: 8 },
+        due: { next: logged + 2 * window + 1, statements: 9 },
     });
 });
 

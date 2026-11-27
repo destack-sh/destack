@@ -39,6 +39,9 @@ export const COMMIT_TOKEN_SETTING = "destack.commit_token";
 /** The SQL name of the open SQLite transaction's identity. */
 export const LOG_TRANSACTION = "__destack_log_transaction";
 
+/** The SQL name of each logged transaction's actor: who wrote it, and for whom. */
+export const LOG_ACTOR = "__destack_log_actor";
+
 /** The log's tables, which have no change triggers. */
 export const LOG_TABLES: readonly string[] = [
     LOG,
@@ -47,6 +50,7 @@ export const LOG_TABLES: readonly string[] = [
     LOG_EPOCH,
     LOG_REPLICA,
     LOG_TRANSACTION,
+    LOG_ACTOR,
 ];
 
 /** The channel name of logged commits. */

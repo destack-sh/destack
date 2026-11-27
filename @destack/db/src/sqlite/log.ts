@@ -5,6 +5,7 @@ import {
     createEpoch,
     LOG,
     LOG_EPOCH,
+    LOG_ACTOR,
     LOG_HORIZON,
     LOG_TRANSACTION,
     type LogDialect,
@@ -58,6 +59,10 @@ function createSQLiteLog(namespace?: string): readonly string[] {
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             id TEXT NOT NULL,
             changed_at INTEGER NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS ${name(LOG_ACTOR)} (
+            "transaction" TEXT PRIMARY KEY,
+            actor TEXT NOT NULL
         )`,
         ...createEpoch(namespace),
     ];

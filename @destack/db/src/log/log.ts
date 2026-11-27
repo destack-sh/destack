@@ -12,6 +12,7 @@ import {
     LOG_REPLICA,
     LOG,
     LOG_TRANSACTION,
+    LOG_ACTOR,
     insertEpoch,
 } from "./schema.ts";
 import { createLog } from "./trigger.ts";
@@ -30,7 +31,16 @@ import {
     type TransactionSelection,
     type Write,
 } from "./change.ts";
-import { Digest, type DigestCrypto, mapValues, present, toJsonSchema, Uuid } from "@destack/schema";
+import {
+    Digest,
+    type DigestCrypto,
+    type JsonValue,
+    mapValues,
+    present,
+    schema,
+    toJsonSchema,
+    Uuid,
+} from "@destack/schema";
 
 /** A named position in some tables' changes, whose checkpoint only their changes hold back. */
 export type LogCursor = {
@@ -451,6 +461,48 @@ export class Log {
     /** Read the open transaction's identity, stamping it, absent outside a transaction or a log. */
     async transaction(): Promise<string | undefined> {
         return await this.database.driver.transaction?.identity.id();
+    }
+
+    /** Record who wrote the open transaction, and for whom, refusing one without an identity. */
+    async attribute(actor: JsonValue): Promise<void> {
+        // require the open transaction's identity
+        const id = await this.transaction();
+        if (id === undefined) {
+            throw new Error("cannot attribute the transaction: the log gives it no identity");
+        }
+
+        // record the actor once per transaction
+        await this.database.run(sql`
+            INSERT INTO ${sql.relation(LOG_ACTOR)} ("transaction", actor)
+            VALUES (${id}, ${JSON.stringify(actor)})
+            ON CONFLICT ("transaction") DO NOTHING
+        `);
+    }
+
+    /** Read the actors of some logged transactions, by transaction, absent for one without. */
+    async actors(transactions: readonly string[]): Promise<Map<string, JsonValue>> {
+        // read each transaction's actor once
+        const unique = [...new Set(transactions)];
+        const rows =
+            unique.length === 0
+                ? []
+                : await this.database.all(sql`
+                      SELECT "transaction", actor FROM ${sql.relation(LOG_ACTOR)}
+                      WHERE "transaction" IN (${sql.join(
+                          unique.map((id) => sql`${id}`),
+                          sql.raw(", "),
+                      )})
+                  `);
+
+        return new Map(
+            rows.map((row): [string, JsonValue] => {
+                // read SQLite's text and PostgreSQL's JSON alike
+                const actor = row["actor"];
+                const value: unknown = typeof actor === "string" ? JSON.parse(actor) : actor;
+
+                return [schema.string().parse(row["transaction"]), schema.json().parse(value)];
+            }),
+        );
     }
 
     /** Read the open transaction's own changes after a log id, in write order. */
@@ -875,7 +927,19 @@ export class Log {
             const first = LogColumn.nullableInteger(splitRow?.["first"]);
             const sequence = first === null ? cap : first - 1;
 
-            // remove the windowed changes of whole transactions
+            // forget the actors of the transactions this removes whole, then remove their windowed changes
+            const actor = sql.relation(LOG_ACTOR);
+            await transaction.run(sql`
+                DELETE FROM ${actor}
+                WHERE "transaction" IN (
+                    SELECT "transaction" FROM ${log}
+                    WHERE retention = 'window' AND sequence <= ${sequence}
+                ) AND NOT EXISTS (
+                    SELECT 1 FROM ${log} AS entry
+                    WHERE entry."transaction" = ${actor}."transaction"
+                        AND (entry.retention <> 'window' OR entry.sequence > ${sequence})
+                )
+            `);
             await transaction.run(sql`
                 DELETE FROM ${log}
                 WHERE retention = 'window'

@@ -1563,3 +1563,24 @@ test("answer a read from memory across commits writing other tables, reading ane
         afterMember: 1,
     });
 });
+
+test("attribute a transaction to its actor, and forget the actor with its last change", async () => {
+    // write a member as ada through an agent
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create([member], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const actor = { subject: "ada", actors: ["agent"] };
+    const written = await database.transaction(async (transaction) => {
+        await transaction.insert(member).values({ id: "ada", scope: "s", role: "owner" }).execute();
+        await transaction.log.attribute(actor);
+
+        return present(await transaction.log.transaction(), "the logged transaction");
+    });
+
+    // read the actor back, then compact the change away with it
+    const before = await database.log.actors([written]);
+    await database.log.compact(world.clock.now() + 1000, world.clock.now());
+    const after = await database.log.actors([written]);
+    expect([before.get(written), after.size]).toEqual([actor, 0]);
+});
