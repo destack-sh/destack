@@ -108,7 +108,7 @@ test("read syncing, paused, offline and withdrawn machines in that order of prec
 
 test("show the tray in the host's language, translating its status line where a catalog does", () => {
     // translate the paused line into German
-    const paused = t`Paused`;
+    const paused = t.context("option")`Paused`;
     const catalog = Catalog.parse({
         package: paused.package,
         locale: "de",
