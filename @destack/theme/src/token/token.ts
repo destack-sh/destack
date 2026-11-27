@@ -1,15 +1,19 @@
 import { schema } from "@destack/schema";
-import { Color, ColorToken, CubicBezier, Dimension, FontFamily, FontWeight } from "@destack/style";
+import {
+    Color,
+    ColorToken,
+    CubicBezier,
+    CUSTOM_PROPERTY_PREFIX,
+    type CustomProperty,
+    Dimension,
+    FontFamily,
+    FontWeight,
+    Reference,
+} from "@destack/style";
 import tokens from "./tokens.json" with { type: "json" };
 
-/** The prefix of every custom property a theme sets. */
-export const VARIABLE_PREFIX = "--destack";
-
-/** A custom property a theme sets. */
-export type Variable = `${typeof VARIABLE_PREFIX}-${string}`;
-
 /** The custom property scaling every duration, 0 under reduced motion. */
-export const MOTION_SCALE: Variable = `${VARIABLE_PREFIX}-motion-scale`;
+export const MOTION_SCALE: CustomProperty = `${CUSTOM_PROPERTY_PREFIX}-motion-scale`;
 
 /** The `$extensions` namespace of Destack's token metadata, per the W3C Design Tokens format. */
 export const EXTENSION = "app.destack";
@@ -45,13 +49,10 @@ const ColorValue = ColorToken.extend({ colorSpace: schema.literal("srgb") });
 /** A group of the token tree before its members are read. */
 const Group = schema.jsonObject();
 
-/** A reference to another token by its path, such as `{font.text}`. */
-const Alias = schema.string().regex(/^\{[A-Za-z0-9.]+\}$/u);
-
 /** One layer of a shadow. */
 const ShadowLayer = schema.object({
     /** The shadow color, as an alias. */
-    color: Alias,
+    color: Reference,
     /** The horizontal offset. */
     offsetX: Pixels,
     /** The vertical offset. */
@@ -136,7 +137,7 @@ export const Token = schema.discriminatedUnion("$type", [
         /** The family, size, weight, line height and letter spacing at a text scale of 1. */
         $value: schema.object({
             /** The font stack, as an alias. */
-            fontFamily: Alias,
+            fontFamily: Reference,
             /** The font size. */
             fontSize: Pixels,
             /** The font weight. */
@@ -166,18 +167,18 @@ export class TokenEntry {
     /** The token. */
     readonly token: Token;
     /** The custom property, such as `--destack-color-muted-foreground`. */
-    readonly variable: Variable;
+    readonly variable: CustomProperty;
     /** The constant key within the family, such as `durationShort`. */
     readonly key: string;
     /** The CSS values computed so far, by the factor that scales their lengths. */
-    readonly #values = new Map<number, readonly (readonly [Variable, string])[]>();
+    readonly #values = new Map<number, readonly (readonly [CustomProperty, string])[]>();
 
     /** Create a token at its path. */
     constructor(path: readonly string[], token: Token) {
         // store the token, and write its custom property and key once
         this.path = path;
         this.token = token;
-        this.variable = variable(path);
+        this.variable = Reference.property(path);
         this.key = constantKey(path);
     }
 
@@ -188,21 +189,24 @@ export class TokenEntry {
                 ? TYPOGRAPHY_MEMBERS.map((name) => [...this.path, name])
                 : [this.path];
 
-        return paths.map((path) => ({ key: constantKey(path), variable: variable(path) }));
+        return paths.map((path) => ({
+            key: constantKey(path),
+            variable: Reference.property(path),
+        }));
     }
 
     /** Read the custom property of one member of a typography token, such as its letter spacing. */
-    member(name: (typeof TYPOGRAPHY_MEMBERS)[number]): Variable {
-        return variable([...this.path, name]);
+    member(name: (typeof TYPOGRAPHY_MEMBERS)[number]): CustomProperty {
+        return Reference.property([...this.path, name]);
     }
 
     /** List the token paths this token's aliases name. */
     aliases(): readonly (readonly string[])[] {
         const token = this.token;
         if (token.$type === "typography") {
-            return [aliasPath(token.$value.fontFamily)];
+            return [Reference.path(token.$value.fontFamily)];
         } else if (token.$type === "shadow") {
-            return token.$value.map((shadow) => aliasPath(shadow.color));
+            return token.$value.map((shadow) => Reference.path(shadow.color));
         }
 
         return [];
@@ -225,7 +229,7 @@ export class TokenEntry {
     }
 
     /** Compute the CSS values of the custom properties, scaling lengths by a factor. */
-    values(factor: number): readonly (readonly [Variable, string])[] {
+    values(factor: number): readonly (readonly [CustomProperty, string])[] {
         // reuse the values at a factor, as a token never changes
         const known = this.#values.get(factor);
         if (known !== undefined) {
@@ -238,7 +242,7 @@ export class TokenEntry {
     }
 
     /** Compute the CSS values of the custom properties at a factor. */
-    #compute(factor: number): readonly (readonly [Variable, string])[] {
+    #compute(factor: number): readonly (readonly [CustomProperty, string])[] {
         const token = this.token;
         switch (token.$type) {
             case "color": {
@@ -266,10 +270,10 @@ export class TokenEntry {
                 return [[this.variable, String(token.$value)]];
             case "typography": {
                 const style = token.$value;
-                const member = (name: string) => variable([...this.path, name]);
+                const member = (name: string) => Reference.property([...this.path, name]);
 
                 return [
-                    [member("fontFamily"), `var(${variable(aliasPath(style.fontFamily))})`],
+                    [member("fontFamily"), Reference.css(style.fontFamily)],
                     [member("fontSize"), length(style.fontSize.value * factor)],
                     [member("fontWeight"), String(style.fontWeight)],
                     [member("lineHeight"), String(style.lineHeight)],
@@ -288,7 +292,7 @@ export interface TokenMember {
     /** The constant key, such as `bodyFontSize`. */
     readonly key: string;
     /** The custom property, such as `--destack-text-base-font-size`. */
-    readonly variable: Variable;
+    readonly variable: CustomProperty;
 }
 
 /** A group of the token tree with its description. */
@@ -372,15 +376,6 @@ export class TokenTree {
 /** The design tokens every theme sets, read from tokens.json. */
 export const TOKENS = TokenTree.parse(tokens);
 
-/** Name the custom property of a token path, such as `--destack-color-muted-foreground`. */
-function variable(path: readonly string[]): Variable {
-    const words = path.map((name) =>
-        name.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`),
-    );
-
-    return `${VARIABLE_PREFIX}-${words.join("-")}`;
-}
-
 /** Name the constant key of a token path within its family, such as `durationShort`. */
 function constantKey(path: readonly string[]): string {
     const words = path
@@ -407,11 +402,6 @@ function entries(
         });
 }
 
-/** Read the path an alias names. */
-function aliasPath(alias: string): readonly string[] {
-    return alias.slice(1, -1).split(".");
-}
-
 /** Format a length in pixels. */
 function length(pixels: number): string {
     return `${number(pixels)}px`;
@@ -426,7 +416,9 @@ function number(value: number): string {
 
 /** Read the size adjustment of a text style's face: a chosen face's in the text face, else none. */
 function adjustOf(font: string): string {
-    return aliasPath(font).join(".") === "font.text" ? `var(${FONT_SIZE_ADJUST}, none)` : "none";
+    return Reference.path(font).join(".") === "font.text"
+        ? `var(${FONT_SIZE_ADJUST}, none)`
+        : "none";
 }
 
 /** Format a shadow layer. */
@@ -434,7 +426,7 @@ function layer(shadow: schema.Infer<typeof ShadowLayer>): string {
     const lengths = [shadow.offsetX, shadow.offsetY, shadow.blur, shadow.spread].map((dimension) =>
         length(dimension.value),
     );
-    const color = `var(${variable(aliasPath(shadow.color))})`;
+    const color = Reference.css(shadow.color);
 
     return [...(shadow.inset === true ? ["inset"] : []), ...lengths, color].join(" ");
 }

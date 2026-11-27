@@ -5,22 +5,17 @@ const HEADER = "// generate with `bun run generate` from tokens.json";
 
 /** The TypeScript modules generated from a token tree. */
 export const Source = {
-    /** Render the StyleX constants of every family with primitive tokens. */
+    /** Render the StyleX constants of every family, each typography token's members apart. */
     constants(tree: TokenTree): string {
-        const primitives = tree.families.filter((family) =>
-            family.entries.some((entry) => entry.token.$type !== "typography"),
-        );
-        const families = primitives.map((family) => {
-            const members = family.entries
-                .filter((entry) => entry.token.$type !== "typography")
-                .flatMap((entry) =>
-                    entry
-                        .members()
-                        .map((member) => [
-                            `    /** ${entry.token.$description} */`,
-                            `    ${property(member.key)}: "var(${member.variable})",`,
-                        ]),
-                );
+        const families = tree.families.map((family) => {
+            const members = family.entries.flatMap((entry) =>
+                entry
+                    .members()
+                    .map((member) => [
+                        `    /** ${entry.token.$description} */`,
+                        `    ${property(member.key)}: "var(${member.variable})",`,
+                    ]),
+            );
 
             return [
                 `/** ${family.description} */`,

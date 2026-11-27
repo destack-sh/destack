@@ -284,6 +284,166 @@ export const font = defineConsts({
     code: "var(--destack-font-code)",
 });
 
+/** Text styles after Tailwind's type scale, scaled by the person's text size. */
+export const text = defineConsts({
+    /** Extra small text, such as badges, shortcuts and labels. */
+    xsFontFamily: "var(--destack-text-xs-font-family)",
+    /** Extra small text, such as badges, shortcuts and labels. */
+    xsFontSize: "var(--destack-text-xs-font-size)",
+    /** Extra small text, such as badges, shortcuts and labels. */
+    xsFontWeight: "var(--destack-text-xs-font-weight)",
+    /** Extra small text, such as badges, shortcuts and labels. */
+    xsLineHeight: "var(--destack-text-xs-line-height)",
+    /** Extra small text, such as badges, shortcuts and labels. */
+    xsLetterSpacing: "var(--destack-text-xs-letter-spacing)",
+    /** Extra small text, such as badges, shortcuts and labels. */
+    xsFontSizeAdjust: "var(--destack-text-xs-font-size-adjust)",
+    /** Small text, the default in controls and lists. */
+    smFontFamily: "var(--destack-text-sm-font-family)",
+    /** Small text, the default in controls and lists. */
+    smFontSize: "var(--destack-text-sm-font-size)",
+    /** Small text, the default in controls and lists. */
+    smFontWeight: "var(--destack-text-sm-font-weight)",
+    /** Small text, the default in controls and lists. */
+    smLineHeight: "var(--destack-text-sm-line-height)",
+    /** Small text, the default in controls and lists. */
+    smLetterSpacing: "var(--destack-text-sm-letter-spacing)",
+    /** Small text, the default in controls and lists. */
+    smFontSizeAdjust: "var(--destack-text-sm-font-size-adjust)",
+    /** Base text, for reading. */
+    baseFontFamily: "var(--destack-text-base-font-family)",
+    /** Base text, for reading. */
+    baseFontSize: "var(--destack-text-base-font-size)",
+    /** Base text, for reading. */
+    baseFontWeight: "var(--destack-text-base-font-weight)",
+    /** Base text, for reading. */
+    baseLineHeight: "var(--destack-text-base-line-height)",
+    /** Base text, for reading. */
+    baseLetterSpacing: "var(--destack-text-base-letter-spacing)",
+    /** Base text, for reading. */
+    baseFontSizeAdjust: "var(--destack-text-base-font-size-adjust)",
+    /** Large text, such as a dialog's title. */
+    lgFontFamily: "var(--destack-text-lg-font-family)",
+    /** Large text, such as a dialog's title. */
+    lgFontSize: "var(--destack-text-lg-font-size)",
+    /** Large text, such as a dialog's title. */
+    lgFontWeight: "var(--destack-text-lg-font-weight)",
+    /** Large text, such as a dialog's title. */
+    lgLineHeight: "var(--destack-text-lg-line-height)",
+    /** Large text, such as a dialog's title. */
+    lgLetterSpacing: "var(--destack-text-lg-letter-spacing)",
+    /** Large text, such as a dialog's title. */
+    lgFontSizeAdjust: "var(--destack-text-lg-font-size-adjust)",
+    /** Extra large text. */
+    xlFontFamily: "var(--destack-text-xl-font-family)",
+    /** Extra large text. */
+    xlFontSize: "var(--destack-text-xl-font-size)",
+    /** Extra large text. */
+    xlFontWeight: "var(--destack-text-xl-font-weight)",
+    /** Extra large text. */
+    xlLineHeight: "var(--destack-text-xl-line-height)",
+    /** Extra large text. */
+    xlLetterSpacing: "var(--destack-text-xl-letter-spacing)",
+    /** Extra large text. */
+    xlFontSizeAdjust: "var(--destack-text-xl-font-size-adjust)",
+    /** Headings. */
+    "2xlFontFamily": "var(--destack-text-2xl-font-family)",
+    /** Headings. */
+    "2xlFontSize": "var(--destack-text-2xl-font-size)",
+    /** Headings. */
+    "2xlFontWeight": "var(--destack-text-2xl-font-weight)",
+    /** Headings. */
+    "2xlLineHeight": "var(--destack-text-2xl-line-height)",
+    /** Headings. */
+    "2xlLetterSpacing": "var(--destack-text-2xl-letter-spacing)",
+    /** Headings. */
+    "2xlFontSizeAdjust": "var(--destack-text-2xl-font-size-adjust)",
+    /** Headings, such as a view's title. */
+    "3xlFontFamily": "var(--destack-text-3xl-font-family)",
+    /** Headings, such as a view's title. */
+    "3xlFontSize": "var(--destack-text-3xl-font-size)",
+    /** Headings, such as a view's title. */
+    "3xlFontWeight": "var(--destack-text-3xl-font-weight)",
+    /** Headings, such as a view's title. */
+    "3xlLineHeight": "var(--destack-text-3xl-line-height)",
+    /** Headings, such as a view's title. */
+    "3xlLetterSpacing": "var(--destack-text-3xl-letter-spacing)",
+    /** Headings, such as a view's title. */
+    "3xlFontSizeAdjust": "var(--destack-text-3xl-font-size-adjust)",
+    /** Large headings. */
+    "4xlFontFamily": "var(--destack-text-4xl-font-family)",
+    /** Large headings. */
+    "4xlFontSize": "var(--destack-text-4xl-font-size)",
+    /** Large headings. */
+    "4xlFontWeight": "var(--destack-text-4xl-font-weight)",
+    /** Large headings. */
+    "4xlLineHeight": "var(--destack-text-4xl-line-height)",
+    /** Large headings. */
+    "4xlLetterSpacing": "var(--destack-text-4xl-letter-spacing)",
+    /** Large headings. */
+    "4xlFontSizeAdjust": "var(--destack-text-4xl-font-size-adjust)",
+    /** Display text. */
+    "5xlFontFamily": "var(--destack-text-5xl-font-family)",
+    /** Display text. */
+    "5xlFontSize": "var(--destack-text-5xl-font-size)",
+    /** Display text. */
+    "5xlFontWeight": "var(--destack-text-5xl-font-weight)",
+    /** Display text. */
+    "5xlLineHeight": "var(--destack-text-5xl-line-height)",
+    /** Display text. */
+    "5xlLetterSpacing": "var(--destack-text-5xl-letter-spacing)",
+    /** Display text. */
+    "5xlFontSizeAdjust": "var(--destack-text-5xl-font-size-adjust)",
+    /** Display text. */
+    "6xlFontFamily": "var(--destack-text-6xl-font-family)",
+    /** Display text. */
+    "6xlFontSize": "var(--destack-text-6xl-font-size)",
+    /** Display text. */
+    "6xlFontWeight": "var(--destack-text-6xl-font-weight)",
+    /** Display text. */
+    "6xlLineHeight": "var(--destack-text-6xl-line-height)",
+    /** Display text. */
+    "6xlLetterSpacing": "var(--destack-text-6xl-letter-spacing)",
+    /** Display text. */
+    "6xlFontSizeAdjust": "var(--destack-text-6xl-font-size-adjust)",
+    /** Display text. */
+    "7xlFontFamily": "var(--destack-text-7xl-font-family)",
+    /** Display text. */
+    "7xlFontSize": "var(--destack-text-7xl-font-size)",
+    /** Display text. */
+    "7xlFontWeight": "var(--destack-text-7xl-font-weight)",
+    /** Display text. */
+    "7xlLineHeight": "var(--destack-text-7xl-line-height)",
+    /** Display text. */
+    "7xlLetterSpacing": "var(--destack-text-7xl-letter-spacing)",
+    /** Display text. */
+    "7xlFontSizeAdjust": "var(--destack-text-7xl-font-size-adjust)",
+    /** Display text. */
+    "8xlFontFamily": "var(--destack-text-8xl-font-family)",
+    /** Display text. */
+    "8xlFontSize": "var(--destack-text-8xl-font-size)",
+    /** Display text. */
+    "8xlFontWeight": "var(--destack-text-8xl-font-weight)",
+    /** Display text. */
+    "8xlLineHeight": "var(--destack-text-8xl-line-height)",
+    /** Display text. */
+    "8xlLetterSpacing": "var(--destack-text-8xl-letter-spacing)",
+    /** Display text. */
+    "8xlFontSizeAdjust": "var(--destack-text-8xl-font-size-adjust)",
+    /** Display text, the largest. */
+    "9xlFontFamily": "var(--destack-text-9xl-font-family)",
+    /** Display text, the largest. */
+    "9xlFontSize": "var(--destack-text-9xl-font-size)",
+    /** Display text, the largest. */
+    "9xlFontWeight": "var(--destack-text-9xl-font-weight)",
+    /** Display text, the largest. */
+    "9xlLineHeight": "var(--destack-text-9xl-line-height)",
+    /** Display text, the largest. */
+    "9xlLetterSpacing": "var(--destack-text-9xl-letter-spacing)",
+    /** Display text, the largest. */
+    "9xlFontSizeAdjust": "var(--destack-text-9xl-font-size-adjust)",
+});
+
 /** Font weights after the CSS font-weight keywords and their common names. */
 export const weight = defineConsts({
     /** Regular text, CSS normal. */

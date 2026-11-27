@@ -1,14 +1,16 @@
 import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { Color, DEFAULT_HUES, HexColor, Hue, HUES } from "@destack/style";
-import { Palette, type ColorScheme } from "../palette/index.ts";
 import {
-    FONT_SIZE_ADJUST,
-    MOTION_SCALE,
-    TOKENS,
-    VARIABLE_PREFIX,
-    type Variable,
-} from "../token/index.ts";
+    Color,
+    CUSTOM_PROPERTY_PREFIX,
+    type CustomProperty,
+    DEFAULT_HUES,
+    HexColor,
+    Hue,
+    HUES,
+} from "@destack/style";
+import { Palette, type ColorScheme } from "../palette/index.ts";
+import { FONT_SIZE_ADJUST, MOTION_SCALE, TOKENS } from "../token/index.ts";
 import {
     Accent,
     DENSITY_SCALES,
@@ -80,7 +82,7 @@ const SCHEMES = ["light", "dark"] as const satisfies readonly ColorScheme[];
 const LEVELS = [0, 1] as const;
 
 /** The custom property the stylesheet sets to 1 when the device asks for more contrast. */
-const CONTRAST_VARIABLE = `${VARIABLE_PREFIX}-contrast`;
+const CONTRAST_VARIABLE = `${CUSTOM_PROPERTY_PREFIX}-contrast`;
 
 /** The color tokens with the role each resolves, read once from the token tree. */
 const COLOR_ENTRIES = TOKENS.family("color").entries.map(
@@ -235,7 +237,7 @@ export type ThemeStyle = {
     /** Browser appearance used by light-dark() and native controls. */
     "color-scheme": "light dark" | "light" | "dark";
     /** The token values. */
-    [variable: Variable]: string;
+    [variable: CustomProperty]: string;
 };
 
 /** IBM Plex Sans's x-height over its em, 516 of its 1000 units, which other faces are sized to. */
