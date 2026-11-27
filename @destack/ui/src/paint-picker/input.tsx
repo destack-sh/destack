@@ -20,6 +20,7 @@ import {
     type SortableMove,
 } from "../sortable/index.ts";
 import { Toggle } from "../toggle/index.ts";
+import { ValueGroup, ValueTrigger } from "../value-field/group.tsx";
 import type { NamedValueField } from "../value-field/index.ts";
 import { GradientPicker, PaintPicker, PaintSwatch } from "./paint-picker.tsx";
 
@@ -72,9 +73,8 @@ export function PaintInput(properties: NamedProperties): JSX.Element {
         <Popover>
             <PopoverTrigger
                 render={(attributes) => (
-                    <Button
+                    <ValueTrigger
                         {...attributes}
-                        variant="outline"
                         aria-label={properties["aria-label"]}
                         aria-describedby={properties["aria-describedby"]}
                         disabled={properties.disabled}
@@ -82,7 +82,7 @@ export function PaintInput(properties: NamedProperties): JSX.Element {
                     >
                         <PaintSwatch paint={paint()} />
                         {locale.render(PAINT_KINDS[paint()?.kind ?? "solid"].title)}
-                    </Button>
+                    </ValueTrigger>
                 )}
             />
             <PopoverContent aria-label={properties["aria-label"]} xstyle={styles.picker}>
@@ -109,16 +109,15 @@ export function GradientInput(properties: NamedProperties): JSX.Element {
         <Popover>
             <PopoverTrigger
                 render={(attributes) => (
-                    <Button
+                    <ValueTrigger
                         {...attributes}
-                        variant="outline"
                         aria-label={properties["aria-label"]}
                         aria-describedby={properties["aria-describedby"]}
                         disabled={properties.disabled}
                         xstyle={styles.trigger}
                     >
                         <PaintSwatch paint={paint()} />
-                    </Button>
+                    </ValueTrigger>
                 )}
             />
             <PopoverContent aria-label={properties["aria-label"]} xstyle={styles.picker}>
@@ -158,11 +157,10 @@ export function FillStackInput(properties: NamedProperties): JSX.Element {
     const isDisabled = (): boolean => properties.disabled === true;
 
     return (
-        <div
-            role="group"
+        <ValueGroup
             aria-label={properties["aria-label"]}
             aria-describedby={properties["aria-describedby"]}
-            {...style.attrs(styles.stack)}
+            xstyle={styles.stack}
         >
             {/* Layers, top first */}
             <Sortable onMove={move}>
@@ -263,6 +261,6 @@ export function FillStackInput(properties: NamedProperties): JSX.Element {
                 <Icon icon={plusIcon} />
                 {locale.render(t.context("action")`Add layer`)}
             </Button>
-        </div>
+        </ValueGroup>
     );
 }

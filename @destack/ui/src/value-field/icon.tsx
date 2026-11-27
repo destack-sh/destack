@@ -47,9 +47,12 @@ export type ValueIconProperties = Omit<IconProperties, "name" | "icon"> & {
 /** Render the icon of a kind of value, another where it is given. */
 export function ValueIcon(properties: ValueIconProperties): JSX.Element {
     // take a named schema's icon, such as a color's, else the kind's
-    const { type } = properties;
-    const name = type.kind === "json" ? LocalReference.root(type.schema) : null;
-    const icon = (name === null ? undefined : NAMED_ICONS[name]) ?? ICONS[type.kind];
+    const icon = (): IconBodies => {
+        const type = properties.type;
+        const name = type.kind === "json" ? LocalReference.root(type.schema) : null;
 
-    return <Icon {...omit(properties, "type")} icon={properties.icon ?? icon} />;
+        return (name === null ? undefined : NAMED_ICONS[name]) ?? ICONS[type.kind];
+    };
+
+    return <Icon {...omit(properties, "type")} icon={properties.icon ?? icon()} />;
 }

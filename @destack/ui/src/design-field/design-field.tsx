@@ -45,11 +45,13 @@ import { Button } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
 import { Input } from "../input/index.ts";
 import { NumberField } from "../number-field/index.ts";
+import { FieldContext, useFieldControl } from "../field/control.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import { Switch } from "../switch/index.ts";
 import { Toggle } from "../toggle/index.ts";
 import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
+import { ValueGroup } from "../value-field/group.tsx";
 import { type NamedValueField, ValueField } from "../value-field/index.ts";
 
 /** The units a dimension field offers by default: pixels, the root's font size and a share. */
@@ -192,6 +194,8 @@ export const DimensionField = defineComponent({
             onChange: (next) => properties.onValueChange?.(next),
         });
         const split = () => Dimension.split(value());
+        const fieldControl = useFieldControl();
+        fieldControl?.group();
         const units = (): readonly DimensionUnit[] => {
             const offered = properties.units ?? UNITS;
 
@@ -209,12 +213,18 @@ export const DimensionField = defineComponent({
 
         return renderPart("div", "dimension-field", rest, styles.dimension, {
             role: "group" as const,
+            get id() {
+                return fieldControl?.groupAttributes().id;
+            },
+            get "aria-labelledby"() {
+                return fieldControl?.groupAttributes()["aria-labelledby"];
+            },
             get "aria-label"() {
                 return properties["aria-label"];
             },
             get children() {
                 return (
-                    <>
+                    <FieldContext value={null}>
                         {/* Number */}
                         <NumberField
                             aria-label={locale.render(t.context("label")`Amount`)}
@@ -242,7 +252,7 @@ export const DimensionField = defineComponent({
                                 {(unit) => <SelectItem value={unit}>{unit}</SelectItem>}
                             </For>
                         </Select>
-                    </>
+                    </FieldContext>
                 );
             },
         });
@@ -343,7 +353,7 @@ function SidesParts<Value extends Readonly<Record<string, string>>>(properties: 
     const [isEach, setEach] = createSignal(untrack(() => new Set(lengths()).size > 1));
 
     return (
-        <div role="group" aria-label={properties.label} {...style.attrs(styles.group)}>
+        <ValueGroup aria-label={properties.label} xstyle={styles.group}>
             {/* One length, or each */}
             <div {...style.attrs(styles.row)}>
                 <DimensionField
@@ -377,7 +387,7 @@ function SidesParts<Value extends Readonly<Record<string, string>>>(properties: 
                     )}
                 </For>
             </div>
-        </div>
+        </ValueGroup>
     );
 }
 
@@ -390,7 +400,7 @@ export function StrokeInput(properties: NamedProperties): JSX.Element {
         properties.onValueChange({ ...stroke(), ...next });
 
     return (
-        <div role="group" aria-label={properties["aria-label"]} {...style.attrs(styles.group)}>
+        <ValueGroup aria-label={properties["aria-label"]} xstyle={styles.group}>
             {/* Color and width */}
             <div {...style.attrs(styles.row)}>
                 <ValueField
@@ -425,7 +435,7 @@ export function StrokeInput(properties: NamedProperties): JSX.Element {
                     onValueChange={(line) => change({ style: Stroke.shape.style.parse(line) })}
                 />
             </div>
-        </div>
+        </ValueGroup>
     );
 }
 
@@ -444,7 +454,7 @@ export function ShadowStackInput(properties: NamedProperties): JSX.Element {
     };
 
     return (
-        <div role="group" aria-label={properties["aria-label"]} {...style.attrs(styles.group)}>
+        <ValueGroup aria-label={properties["aria-label"]} xstyle={styles.group}>
             {/* Shadows, first on top */}
             <For each={shadows()}>
                 {(shadow, index) => (
@@ -507,7 +517,7 @@ export function ShadowStackInput(properties: NamedProperties): JSX.Element {
                 <Icon icon={plusIcon} />
                 {locale.render(t.context("action")`Add shadow`)}
             </Button>
-        </div>
+        </ValueGroup>
     );
 }
 
@@ -518,7 +528,7 @@ export function BlurInput(properties: NamedProperties): JSX.Element {
     const blur = (): Blur => Blur.safeParse(properties.value).data ?? START_BLUR;
 
     return (
-        <div role="group" aria-label={properties["aria-label"]} {...style.attrs(styles.row)}>
+        <ValueGroup aria-label={properties["aria-label"]} xstyle={styles.row}>
             <Choices
                 label={t.context("label")`Kind`}
                 choices={BLUR_KINDS}
@@ -535,7 +545,7 @@ export function BlurInput(properties: NamedProperties): JSX.Element {
                 value={blur().radius}
                 onValueChange={(radius) => properties.onValueChange({ ...blur(), radius })}
             />
-        </div>
+        </ValueGroup>
     );
 }
 
@@ -549,7 +559,7 @@ export function TypographyInput(properties: NamedProperties): JSX.Element {
         properties.onValueChange({ ...typography(), ...next });
 
     return (
-        <div role="group" aria-label={properties["aria-label"]} {...style.attrs(styles.group)}>
+        <ValueGroup aria-label={properties["aria-label"]} xstyle={styles.group}>
             {/* Family */}
             <Input
                 aria-label={locale.render(t.context("label")`Font family`)}
@@ -600,7 +610,7 @@ export function TypographyInput(properties: NamedProperties): JSX.Element {
                     onValueChange={(letterSpacing) => change({ letterSpacing })}
                 />
             </div>
-        </div>
+        </ValueGroup>
     );
 }
 
@@ -614,7 +624,7 @@ export function TransformInput(properties: NamedProperties): JSX.Element {
         properties.onValueChange({ ...transform(), ...next });
 
     return (
-        <div role="group" aria-label={properties["aria-label"]} {...style.attrs(styles.grid)}>
+        <ValueGroup aria-label={properties["aria-label"]} xstyle={styles.grid}>
             <DimensionField
                 aria-label={locale.render(t.context("label")`Across`)}
                 disabled={properties.disabled === true}
@@ -650,7 +660,7 @@ export function TransformInput(properties: NamedProperties): JSX.Element {
                 value={transform().scaleY}
                 onValueChange={(scaleY) => scaleY !== undefined && change({ scaleY })}
             />
-        </div>
+        </ValueGroup>
     );
 }
 
@@ -663,7 +673,7 @@ export function LayoutInput(properties: NamedProperties): JSX.Element {
         properties.onValueChange({ ...layout(), ...next });
 
     return (
-        <div role="group" aria-label={properties["aria-label"]} {...style.attrs(styles.group)}>
+        <ValueGroup aria-label={properties["aria-label"]} xstyle={styles.group}>
             {/* Direction, gap and wrapping */}
             <div {...style.attrs(styles.row)}>
                 <Choices
@@ -722,7 +732,7 @@ export function LayoutInput(properties: NamedProperties): JSX.Element {
                     }
                 }}
             />
-        </div>
+        </ValueGroup>
     );
 }
 
@@ -736,7 +746,7 @@ export function TransitionInput(properties: NamedProperties): JSX.Element {
         properties.onValueChange({ ...transition(), ...next });
 
     return (
-        <div role="group" aria-label={properties["aria-label"]} {...style.attrs(styles.row)}>
+        <ValueGroup aria-label={properties["aria-label"]} xstyle={styles.row}>
             <NumberField
                 aria-label={locale.render(t.context("label")`Duration`)}
                 min={0}
@@ -769,7 +779,7 @@ export function TransitionInput(properties: NamedProperties): JSX.Element {
                     {(easing) => <SelectItem value={easing}>{easing}</SelectItem>}
                 </For>
             </Select>
-        </div>
+        </ValueGroup>
     );
 }
 
