@@ -1,5 +1,5 @@
 import { t } from "@destack/locale";
-import { HUES } from "@destack/color";
+import { HUES } from "@destack/style";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";

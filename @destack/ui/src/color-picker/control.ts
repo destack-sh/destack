@@ -1,7 +1,7 @@
-import { Color, type ColorFormat, type ColorSpace } from "@destack/color";
+import { Color, type ColorFormat, type ColorSpace } from "@destack/style";
 import { type Message, t } from "@destack/locale";
 import type { FieldControl } from "../field/control.ts";
-import type { ColorChannel } from "@destack/color";
+import type { ColorChannel } from "@destack/style";
 import {
     type Accessor,
     createContext,

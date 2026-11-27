@@ -1,4 +1,4 @@
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import {
     type DateSpan,
     Duration,

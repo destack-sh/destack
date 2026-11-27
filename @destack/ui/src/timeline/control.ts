@@ -1,6 +1,6 @@
 import type { ObjectReference } from "@destack/sync";
 import { size, width } from "@destack/theme/tokens.stylex";
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import type { Direction } from "@destack/locale";
 import {
     nth,

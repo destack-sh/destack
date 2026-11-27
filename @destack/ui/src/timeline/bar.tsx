@@ -2,7 +2,7 @@ import { field } from "@destack/object";
 import { swatches } from "@destack/theme/swatch";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";

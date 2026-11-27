@@ -1,5 +1,5 @@
 import { swatches } from "@destack/theme/swatch";
-import { Hue } from "@destack/color";
+import { Hue } from "@destack/style";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { media } from "@destack/style/media.stylex";
