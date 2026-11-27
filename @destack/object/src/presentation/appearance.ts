@@ -1,4 +1,4 @@
-import { Hue } from "@destack/color";
+import { Hue } from "@destack/style";
 import { Condition, type Moment } from "@destack/db";
 import { type JsonObject, schema } from "@destack/schema";
 import type { Localization } from "@destack/locale";

@@ -16,7 +16,7 @@ import {
     PackageVersion,
     Sandbox,
 } from "@destack/package";
-import { Hue } from "@destack/color";
+import { Hue } from "@destack/style";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
 import { ActionFocus } from "./action.ts";

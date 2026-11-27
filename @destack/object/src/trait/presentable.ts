@@ -1,6 +1,6 @@
 import { callableTrait } from "./trait.ts";
 import { IconName } from "@destack/icon/name";
-import { Hue, HUES } from "@destack/color";
+import { Hue, HUES } from "@destack/style";
 import { type JsonValue, schema } from "@destack/schema";
 import { type Localization, Message } from "@destack/locale";
 import { field, type Field } from "../field/field.ts";
