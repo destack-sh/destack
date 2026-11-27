@@ -26,6 +26,7 @@ import {
     isNotNull,
     isNull,
     DatabaseState,
+    sql,
 } from "@destack/db";
 import {
     defineKind,
@@ -615,7 +616,7 @@ test("retire a suspended application's deployment and instance", async () => {
     ]);
 });
 
-test("retain an uninstalled application's tables for approval", async () => {
+test("keep an uninstalled application's tables, applying main without approval", async () => {
     // install notes without a stack and deploy it
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -646,7 +647,7 @@ test("retain an uninstalled application's tables for approval", async () => {
         instance: [deployed.id, "running"],
     });
 
-    // uninstall notes: drain its deployment, remove it, and wait for approval to drop its tables
+    // uninstall notes: drain its deployment and remove it, keeping its tables as an uninstall keeps data
     await changeInstallation(database, notes.id, {
         deletedAt: fixture.machine.clock.now(),
     });
@@ -667,20 +668,14 @@ test("retain an uninstalled application's tables for approval", async () => {
             retained.conditions["Ready"]?.reason,
             retained.plan?.steps.map((step) => [step.action, step.risk, step.target]) ?? null,
         ],
+        isKept: await database.exists(
+            sql`SELECT count(*) FROM ${sql.relation("example__notes__note")}`,
+        ),
     }).toEqual({
         installations: [{ name: "stack" }],
         revisions: [],
-        main: [
-            "AwaitingApproval",
-            [
-                [
-                    "delete",
-                    "safe",
-                    "table/example__notes__note/dependent/destack__access__relationship",
-                ],
-                ["delete", "destructive", "table/example__notes__note"],
-            ],
-        ],
+        main: ["Applied", null],
+        isKept: true,
     });
 });
 
