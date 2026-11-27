@@ -1,5 +1,7 @@
 # @destack/workflow
 
+Run durable functions step by step as objects of the space they run in.
+
 `@destack/workflow` is DBOS: `defineWorkflow` is `@DBOS.workflow()`, each `Step` verb is a `@DBOS.step()`, and a run is a `<workflow>-run` object of its space.
 
 ```ts
