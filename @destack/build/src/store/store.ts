@@ -861,10 +861,14 @@ export class BuildStore<
 
     /** Store an image once every build it lists is recorded, returning its digest. */
     putImage(image: BuildImage): Promise<Digest> {
-        return this.scope.span("destack.build.put_lock", {}, async () => {
-            // write the image's canonical bytes under their digest
+        return this.scope.span("destack.build.put_image", {}, async () => {
+            // take an image the store already keeps complete, else write its canonical bytes under their digest
             const bytes = BuildImage.serialize(image);
             const digest = await Digest.of(bytes, this.environment.crypto);
+            const [isKept] = await this.complete([digest]);
+            if (isKept === true) {
+                return digest;
+            }
             await this.write(
                 (async function* () {
                     yield TarballEntry.of(BuildObject.path({ kind: "image", digest }), bytes);
