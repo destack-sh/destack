@@ -328,7 +328,7 @@ test("compact once a change leaves the window, answering when compacting is next
     expect({ compacted, waiting, due }).toEqual({
         compacted: { next: logged + window, statements: 2 },
         waiting: { next: logged + window, statements: 0 },
-        due: { next: logged + 2 * window + 1, statements: 9 },
+        due: { next: logged + 2 * window + 1, statements: 8 },
     });
 });
 
@@ -662,6 +662,35 @@ test("move a checkpoint past compacted changes of other tables, and hold one at 
     ]).toEqual([0, head]);
 });
 
+test("compact a table a checkpoint of other tables never reads, and keep the changes it reads", async () => {
+    const { database, clock } = await open();
+    const now = clock.now();
+
+    // hold the readings at the start, then change a note and a reading
+    await database.log.advance({ name: "readings", tables: [reading] }, 0, now + 60_000);
+    await database.transaction(async (transaction) => {
+        await transaction.insert(note).values(first).execute();
+        await transaction.insert(reading).values({ id: "r", scope: "inbox", value: 1 }).execute();
+    });
+
+    // compact: the note's change goes and the reading's stays, so a reader of notes lists them again
+    await database.log.compact(now + 1, now);
+    expect([
+        await refusal(database.log.read({ tables: [note], after: 0 })),
+        (await database.log.read({ tables: [reading], after: 0 })).changes.map((change) => [
+            change.operation,
+            change.key,
+        ]),
+    ]).toEqual([
+        [
+            "NOT_FOUND",
+            "CHANGES_NOT_FOUND",
+            "changes after '0' not found: they were compacted, so list the tables again",
+        ],
+        [["insert", { id: "r" }]],
+    ]);
+});
+
 test("retain the changes after a consumer's checkpoint until it expires or is dropped, and read its position", async () => {
     const { database, clock } = await open();
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());
@@ -889,7 +918,7 @@ test("read the position of a scope's latest change to some tables, past later ch
         }),
     };
 
-    // place the inbox's notes at the horizon once compaction removed the notes' changes
+    // place the inbox's notes at the log start once compaction removed the notes' changes
     const before = await database.log.position();
     await database.log.compact(clock.now() + 1000, clock.now());
     expect({ ...changed, compacted: await database.log.changed([note], ["inbox"]) }).toEqual({

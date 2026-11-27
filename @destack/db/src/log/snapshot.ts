@@ -25,7 +25,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 const RANK = "destack_rank";
 
 /** The head columns a tuple read selects before each row's columns. */
-const HEAD_COLUMNS = ["epoch", "logged", "horizon"] as const;
+const HEAD_COLUMNS = ["epoch", "logged", "logStart"] as const;
 
 /** A read of the first matching rows in an order. */
 export interface WindowRead<Read = Row> extends QueryOptions<Read> {
@@ -50,7 +50,7 @@ interface Head {
     /** The newest logged sequence, null before any. */
     readonly logged: number | null;
     /** The highest compacted sequence. */
-    readonly horizon: number;
+    readonly logStart: number;
 }
 
 /** The partitions of a windowed read: the rows whose column has each of some values. */
@@ -270,11 +270,11 @@ export class Snapshot {
             tuples: JSON.stringify(tuples),
         });
         const offset = isPositioned ? HEAD_COLUMNS.length : 0;
-        const [epoch, latest, horizon] = read[0] ?? [];
+        const [epoch, latest, logStart] = read[0] ?? [];
         const sequence = isPositioned
             ? this.#require(
                   LogColumn.text(epoch),
-                  latestOf(LogColumn.nullableInteger(latest), LogColumn.integer(horizon)),
+                  latestOf(LogColumn.nullableInteger(latest), LogColumn.integer(logStart)),
               )
             : undefined;
 
@@ -784,7 +784,7 @@ export class Snapshot {
         const sequence =
             head === undefined
                 ? undefined
-                : this.#require(head.epoch, latestOf(head.logged, head.horizon));
+                : this.#require(head.epoch, latestOf(head.logged, head.logStart));
 
         return { rows: read.map((entry) => entry.row), sequence };
     }

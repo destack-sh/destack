@@ -6,7 +6,7 @@ import {
     LOG,
     LOG_EPOCH,
     LOG_ACTOR,
-    LOG_HORIZON,
+    LOG_START,
     LOG_TRANSACTION,
     type LogDialect,
 } from "../log/schema.ts";
@@ -28,7 +28,7 @@ export const sqliteLog: LogDialect = {
         ),
 };
 
-/** Create the SQLite log, horizon and transaction identity within the database's namespace. */
+/** Create the SQLite log, log start and transaction identity within the database's namespace. */
 function createSQLiteLog(namespace?: string): readonly string[] {
     const name = (table: string) => quote(relation(table, namespace));
     const log = name(LOG);
@@ -50,11 +50,10 @@ function createSQLiteLog(namespace?: string): readonly string[] {
         `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_scope`)} ON ${log}(scope, sequence)`,
         `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_table`)} ON ${log}("table", sequence)`,
         `CREATE INDEX IF NOT EXISTS ${name(`${LOG}_transaction_sequence`)} ON ${log}("transaction", sequence)`,
-        `CREATE TABLE IF NOT EXISTS ${name(LOG_HORIZON)} (
-            slot INTEGER PRIMARY KEY CHECK (slot = 1),
+        `CREATE TABLE IF NOT EXISTS ${name(LOG_START)} (
+            "table" TEXT PRIMARY KEY,
             sequence INTEGER NOT NULL
         )`,
-        `INSERT INTO ${name(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
         `CREATE TABLE IF NOT EXISTS ${name(LOG_TRANSACTION)} (
             slot INTEGER PRIMARY KEY CHECK (slot = 1),
             id TEXT NOT NULL,

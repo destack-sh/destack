@@ -8,7 +8,7 @@ import {
     LOG_CHANNEL,
     LOG_EPOCH,
     LOG_ACTOR,
-    LOG_HORIZON,
+    LOG_START,
     type LogDialect,
     COMMIT_LOCK,
 } from "../log/schema.ts";
@@ -29,13 +29,13 @@ export const postgresLog: LogDialect = {
     ],
 };
 
-/** Create the PostgreSQL log, its horizon and its functions. */
+/** Create the PostgreSQL log, its log start and its functions. */
 function createPostgresLog(): readonly string[] {
     // create the log with its stamp and record functions
     return [...createLogTables(), ...createEpoch(), ...createStamp(), createRecord()];
 }
 
-/** Create the log table with its indexes and sequence and the horizon. */
+/** Create the log table with its indexes and sequence and the log start. */
 function createLogTables(): string[] {
     const log = quote(LOG);
 
@@ -59,11 +59,10 @@ function createLogTables(): string[] {
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_transaction_sequence`)} ON ${log}("transaction", sequence)`,
         `CREATE INDEX IF NOT EXISTS ${quote(`${LOG}_unstamped`)} ON ${log}("transaction", id) WHERE sequence IS NULL`,
         `CREATE SEQUENCE IF NOT EXISTS ${quote(`${LOG}_sequence`)}`,
-        `CREATE TABLE IF NOT EXISTS ${quote(LOG_HORIZON)} (
-            slot INTEGER PRIMARY KEY CHECK (slot = 1),
+        `CREATE TABLE IF NOT EXISTS ${quote(LOG_START)} (
+            "table" TEXT PRIMARY KEY,
             sequence BIGINT NOT NULL
         )`,
-        `INSERT INTO ${quote(LOG_HORIZON)} (slot, sequence) VALUES (1, 0) ON CONFLICT (slot) DO NOTHING`,
         `CREATE TABLE IF NOT EXISTS ${quote(LOG_ACTOR)} (
             "transaction" TEXT PRIMARY KEY,
             actor JSONB NOT NULL

@@ -2,7 +2,7 @@ import { sql, type SQL } from "../sql/index.ts";
 import { schema } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
-import { LOG, LOG_EPOCH, LOG_HORIZON, LOG_TRANSACTION } from "./schema.ts";
+import { LOG, LOG_EPOCH, LOG_START, LOG_TRANSACTION } from "./schema.ts";
 
 /** The log's columns, read by the driver types they return, since the log writes them all. */
 export const LogColumn = {
@@ -111,12 +111,12 @@ export const LogPosition = Object.assign(logPositionSchema, {
     },
 });
 
-/** The log's head as selection fields: log, epoch, latest sequence and horizon, read once each. */
+/** The log's head as selection fields: log, epoch, latest sequence and log start. */
 export function headFields(dialect: Dialect): {
     readonly log: SQL<string>;
     readonly epoch: SQL<string>;
     readonly logged: SQL<number | null>;
-    readonly horizon: SQL<number>;
+    readonly logStart: SQL<number>;
 } {
     // read SQLite's latest entry outside the open transaction
     const log = sql.relation(LOG);
@@ -134,7 +134,8 @@ export function headFields(dialect: Dialect): {
             LogColumn.text(value),
         ),
         logged: logged.mapWith((value) => LogColumn.nullableInteger(value)),
-        horizon: sql`(SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1)`.mapWith(
+        // read the furthest compaction of any table, which wakes every table behind it
+        logStart: sql`COALESCE((SELECT max(sequence) FROM ${sql.relation(LOG_START)}), 0)`.mapWith(
             (value) => LogColumn.integer(value),
         ),
     };
@@ -148,16 +149,16 @@ export function committedEntry(dialect: Dialect, entry: SQL): SQL {
         : sql`TRUE`;
 }
 
-/** Select the log's head in one row: its log, epoch, latest sequence and horizon. */
+/** Select the log's head in one row: its log, epoch, latest sequence and log start. */
 export function selectHead(dialect: Dialect): SQL {
     const head = headFields(dialect);
 
-    return sql`SELECT ${head.log} AS log, ${head.epoch} AS epoch, ${head.logged} AS logged, ${head.horizon} AS horizon`;
+    return sql`SELECT ${head.log} AS log, ${head.epoch} AS epoch, ${head.logged} AS logged, ${head.logStart} AS "logStart"`;
 }
 
-/** Read a head's latest sequence: the latest logged one, or the horizon. */
-export function latestOf(logged: number | null, horizon: number): number {
-    return logged === null ? horizon : Math.max(logged, horizon);
+/** Read a head's latest sequence: the latest logged one, or the log start. */
+export function latestOf(logged: number | null, logStart: number): number {
+    return logged === null ? logStart : Math.max(logged, logStart);
 }
 
 /** Parse a JSON column: SQLite's text, or PostgreSQL's value its driver parsed. */

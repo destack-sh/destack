@@ -20,7 +20,7 @@ export interface TailRead<Entry extends TailEntry> {
     /** The log's latest sequence as the read saw it: its last entry's, or the head past it. */
     readonly sequence: number;
     /** The sequence compaction removed the changes up to. */
-    readonly horizon: number;
+    readonly logStart: number;
     /** Whether the read reached the head, a full page leaving more to read. */
     readonly isLast: boolean;
 }
@@ -44,7 +44,7 @@ export class LogTail<Entry extends TailEntry> {
     /** The latest sequence read: the last entry's, or the head past it. */
     #sequence = 0;
     /** The sequence compaction removed the changes up to, as the last read saw it. */
-    #horizon = 0;
+    #logStart = 0;
     /** The commit generation the latest read began at, which a follower woken earlier may reuse. */
     #generation = -1;
     /** Whether the latest read reached the log's head, a full page leaving more to read. */
@@ -84,14 +84,14 @@ export class LogTail<Entry extends TailEntry> {
         start: number,
         read: (after: number) => Promise<TailRead<Entry>>,
     ): Promise<void> {
-        // append the read's entries, keeping its head and horizon
+        // append the read's entries, keeping its head and log start
         try {
-            const { entries, sequence, horizon, isLast } = await read(after);
+            const { entries, sequence, logStart, isLast } = await read(after);
             this.#start ??= start;
             this.#isCaughtUp = isLast;
             this.#entries.push(...entries);
             this.#sequence = Math.max(this.#sequence, sequence);
-            this.#horizon = horizon;
+            this.#logStart = logStart;
             this.#trim();
         }
         // end the read in flight, failed or not
@@ -107,8 +107,8 @@ export class LogTail<Entry extends TailEntry> {
         scopes: ReadonlySet<string> | undefined,
         limit: number,
     ): TailPage<Entry> | undefined {
-        // leave a follower behind the window or the horizon to read on its own
-        if (this.#start === undefined || after < this.#start || after < this.#horizon) {
+        // leave a follower behind the window or the log start to read on its own
+        if (this.#start === undefined || after < this.#start || after < this.#logStart) {
             return undefined;
         }
 
@@ -161,7 +161,7 @@ export class LogTail<Entry extends TailEntry> {
         this.#entries = [];
         this.#start = undefined;
         this.#sequence = 0;
-        this.#horizon = 0;
+        this.#logStart = 0;
         this.#generation = -1;
         this.#isCaughtUp = false;
     }

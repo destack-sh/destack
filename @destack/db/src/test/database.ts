@@ -20,7 +20,7 @@ import {
 import * as sqlite from "../bun/connection.ts";
 import * as postgresql from "../postgres/index.ts";
 import { ColumnCipher } from "../database/cipher.ts";
-import { LOG_EPOCH, LOG_HORIZON } from "../log/schema.ts";
+import { LOG_EPOCH } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
 import { sql } from "../sql/index.ts";
 import { channelHub } from "../channel/channel.ts";
@@ -844,23 +844,19 @@ class TestSchema {
         );
     }
 
-    /** Write the statements emptying the tables and restarting the sequences and horizon. */
+    /** Write the statements emptying the tables and restarting the sequences. */
     #emptying(): string[] {
         // empty every table but the state and the log's identity, then restart the counters
         const quoted = (name: string) => `"${this.name}"."${name}"`;
         const emptied = this.shape.relations.filter(
             (relation) =>
-                relation.kind !== "S" &&
-                relation.name !== STATE &&
-                relation.name !== LOG_EPOCH &&
-                relation.name !== LOG_HORIZON,
+                relation.kind !== "S" && relation.name !== STATE && relation.name !== LOG_EPOCH,
         );
         const sequences = this.shape.relations.filter((relation) => relation.kind === "S");
 
         return [
             ...emptied.map((table) => `DELETE FROM ${quoted(table.name)};`),
             ...sequences.map((sequence) => `ALTER SEQUENCE ${quoted(sequence.name)} RESTART;`),
-            `UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;`,
         ];
     }
 
@@ -875,7 +871,7 @@ class TestSchema {
         const quoted = (name: string) => `"${this.name}"."${name}"`;
         const emptying = isClean ? [] : this.#emptying();
 
-        // empty the tables, restart sequences and horizon, then copy template or predefined rows
+        // empty the tables, restart sequences, then copy template or predefined rows
         const copied =
             template === undefined
                 ? state.flatMap((table) =>
@@ -897,28 +893,27 @@ class TestSchema {
             ${epoch}`);
     }
 
-    /** Write the statements copying a template's rows, sequences and horizon into the schema. */
+    /** Write the statements copying a template's rows and sequences into the schema. */
     #copy(template: PostgresImage): string[] {
         // copy the stored columns of each table but the state and the epoch
         const quoted = (name: string) => `"${this.name}"."${name}"`;
         const source = (name: string) => `"${template.schema}"."${name}"`;
         const rows = Object.entries(template.columns)
-            .filter(([table]) => table !== STATE && table !== LOG_EPOCH && table !== LOG_HORIZON)
+            .filter(([table]) => table !== STATE && table !== LOG_EPOCH)
             .map(
                 ([table, columns]) =>
                     `INSERT INTO ${quoted(table)} (${columns}) OVERRIDING SYSTEM VALUE SELECT ${columns} FROM ${source(table)};`,
             );
 
-        // copy the sequences' positions and the horizon
+        // copy the sequences' positions
         const sequences = this.shape.relations
             .filter((relation) => relation.kind === "S")
             .map(
                 (sequence) =>
                     `SELECT setval('${quoted(sequence.name)}', last_value, is_called) FROM ${source(sequence.name)};`,
             );
-        const horizon = `UPDATE ${quoted(LOG_HORIZON)} SET sequence = (SELECT sequence FROM ${source(LOG_HORIZON)} WHERE slot = 1) WHERE slot = 1;`;
 
-        return [...rows, ...sequences, horizon];
+        return [...rows, ...sequences];
     }
 }
 

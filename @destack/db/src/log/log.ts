@@ -1,5 +1,6 @@
 import { sql, type SQL } from "../sql/index.ts";
 import { listed, Statement, textElements } from "../query/statement.ts";
+import { dialectSQL } from "../sql/sql.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type RowImage, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -8,7 +9,7 @@ import {
     COMMIT_LOCK,
     LOG_EPOCH,
     LOG_CHECKPOINT,
-    LOG_HORIZON,
+    LOG_START,
     LOG_REPLICA,
     LOG,
     LOG_TRANSACTION,
@@ -254,7 +255,7 @@ export class Log {
                 ? await HEAD_READS.since.all(this.database, { after: caught.sequence })
                 : await HEAD_READS.head.all(this.database);
         const head = Log.#parseHead(row);
-        const sequence = latestOf(head.logged, head.horizon);
+        const sequence = latestOf(head.logged, head.logStart);
         const position = { log: head.log, epoch: head.epoch, sequence };
 
         // keep a head read outside a transaction, which sees committed entries only
@@ -272,7 +273,7 @@ export class Log {
             commits.catchUp(position, []);
         }
         // wake every table after a restart, or once compaction removed the changes
-        else if (caught.epoch !== head.epoch || caught.sequence < head.horizon) {
+        else if (caught.epoch !== head.epoch || caught.sequence < head.logStart) {
             commits.catchUp(position, "every");
         }
         // wake the tables of the commits the watch has yet to receive
@@ -283,7 +284,7 @@ export class Log {
         return position;
     }
 
-    /** Read the position of some scopes' latest change to some tables, or the horizon. */
+    /** Read the position of some scopes' latest change to some tables, or the log start. */
     changed(tables: readonly Table[] | "every", scopes: readonly string[]): Promise<LogPosition> {
         return this.#changed(tables, scopes);
     }
@@ -304,7 +305,7 @@ export class Log {
         const head = Log.#parseHead(row);
         const changed = LogColumn.nullableInteger(row?.["changed"]);
 
-        return { log: head.log, epoch: head.epoch, sequence: latestOf(changed, head.horizon) };
+        return { log: head.log, epoch: head.epoch, sequence: latestOf(changed, head.logStart) };
     }
 
     /** Parse the log's head row. */
@@ -315,7 +316,7 @@ export class Log {
             log: LogColumn.text(row?.["log"]),
             epoch: LogColumn.text(row?.["epoch"]),
             logged: LogColumn.nullableInteger(row?.["logged"]),
-            horizon: LogColumn.integer(row?.["horizon"]),
+            logStart: LogColumn.integer(row?.["logStart"]),
             written: typeof written === "string" ? written.split(",") : [],
         };
     }
@@ -422,11 +423,12 @@ export class Log {
         // require a retained sequence
         const bounds = {
             logged: LogColumn.nullableInteger(rows[0]?.["logged"]),
-            horizon: LogColumn.integer(rows[0]?.["horizon"]),
+            logStart: LogColumn.integer(rows[0]?.["logStart"]),
+            compacted: LogColumn.integer(rows[0]?.["compacted"]),
         };
-        const horizon = bounds.horizon;
+        const logStart = bounds.logStart;
         const isCompacted = selection.tables.some((table) => table[TABLE].retention === "window");
-        if (isCompacted && selection.after < horizon) {
+        if (isCompacted && selection.after < logStart) {
             throw DatabaseError.of(
                 "CHANGES_NOT_FOUND",
                 `changes after '${selection.after}' not found: they were compacted, so list the tables again`,
@@ -453,7 +455,9 @@ export class Log {
         // skip other tables' changes unless the page is full
         const end = changes.at(-1)?.sequence ?? selection.after;
         const sequence =
-            changes.length >= limit ? end : Math.max(end, latestOf(bounds.logged, bounds.horizon));
+            changes.length >= limit
+                ? end
+                : Math.max(end, latestOf(bounds.logged, bounds.compacted));
 
         return { changes, sequence, isLast: changes.length < limit };
     }
@@ -675,7 +679,7 @@ export class Log {
             transaction: null,
         });
         const logged = LogColumn.nullableInteger(rows[0]?.["logged"]);
-        const horizon = LogColumn.integer(rows[0]?.["horizon"]);
+        const logStart = LogColumn.integer(rows[0]?.["logStart"]);
 
         // complete the last transaction of a full page
         let entries = presentEntries(rows, this.database.dialect);
@@ -692,9 +696,9 @@ export class Log {
 
         // end a full page at its last entry, else at the head
         const end = entries.at(-1)?.sequence ?? after;
-        const sequence = isLast ? Math.max(end, latestOf(logged, horizon)) : end;
+        const sequence = isLast ? Math.max(end, latestOf(logged, logStart)) : end;
 
-        return { entries, sequence, horizon, isLast };
+        return { entries, sequence, logStart, isLast };
     }
 
     /** Report whether the log includes a sequence, reading its head only past the announced one. */
@@ -715,13 +719,16 @@ export class Log {
         `);
     }
 
-    /** Place a cursor's checkpoint at the log's oldest retained change unless placed. */
+    /** Place a cursor's checkpoint at its tables' oldest retained change unless placed. */
     async place(cursor: LogCursor, expiresAt: number): Promise<void> {
         await this.database.run(sql`
             INSERT INTO ${sql.relation(LOG_CHECKPOINT)} (name, sequence, expires_at, tables)
             VALUES (
                 ${cursor.name},
-                COALESCE((SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1), 0),
+                COALESCE((
+                    SELECT max(sequence) FROM ${sql.relation(LOG_START)}
+                    WHERE ${listed(sql`"table"`, sql`${LogCursor.tables(cursor)}`)}
+                ), 0),
                 ${expiresAt},
                 ${LogCursor.tables(cursor)}
             )
@@ -871,7 +878,7 @@ export class Log {
         );
     }
 
-    /** Delete old changes no checkpoint retains, answering when the oldest left was made. */
+    /** Delete old changes no checkpoint of their table keeps; answer the oldest left's time. */
     async compact(before: number, now: number): Promise<number | undefined> {
         return await this.database.transaction(async (transaction) => {
             // find the newest removable change and the oldest windowed one
@@ -901,53 +908,67 @@ export class Log {
                 )
             `);
 
-            // retain the changes after the earliest live checkpoint
-            const [retainedRow] = await transaction.all(sql`
-                SELECT
-                    (SELECT min(sequence) FROM ${sql.relation(LOG_CHECKPOINT)} WHERE expires_at > ${now}) AS sequence,
-                    (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
+            // cap each table at its newest removable change and the earliest live checkpoint reading it, past its log start
+            const starts = sql.relation(LOG_START);
+            const held = sql`(
+                SELECT min(checkpoint.sequence) FROM ${checkpoints} AS checkpoint
+                WHERE checkpoint.expires_at > ${now} AND ${listed(sql`entry."table"`, sql`checkpoint.tables`)}
+            )`;
+            const removable = sql`max(entry.sequence)`;
+            const cap = dialectSQL({
+                sqlite: sql`min(${removable}, COALESCE(${held}, ${removable}))`,
+                postgresql: sql`LEAST(${removable}, COALESCE(${held}, ${removable}))`,
+            });
+            const rows = await transaction.all(sql`
+                SELECT entry."table" AS "table", ${cap} AS cap,
+                    (SELECT sequence FROM ${starts} AS start WHERE start."table" = entry."table") AS "logStart"
+                FROM ${log} AS entry
+                WHERE entry.retention = 'window' AND entry.sequence IS NOT NULL AND entry.changed_at < ${before}
+                GROUP BY entry."table"
             `);
-            const retained = {
-                sequence: LogColumn.nullableInteger(retainedRow?.["sequence"]),
-                horizon: LogColumn.integer(retainedRow?.["horizon"]),
-            };
-            const cap = retained.sequence === null ? newest : Math.min(newest, retained.sequence);
-            if (cap <= retained.horizon) {
+            const caps = rows
+                .map((row) => ({
+                    table: LogColumn.text(row["table"]),
+                    through: LogColumn.integer(row["cap"]),
+                    logStart: LogColumn.nullableInteger(row["logStart"]) ?? 0,
+                }))
+                .filter(({ through, logStart }) => through > logStart);
+            if (caps.length === 0) {
                 return oldest;
             }
 
-            // stop before a split transaction
-            const [splitRow] = await transaction.all(sql`
-                SELECT min(earlier.sequence) AS first
-                FROM ${log} change
-                JOIN ${log} later ON later."transaction" = change."transaction" AND later.sequence > change.sequence
-                JOIN ${log} earlier ON earlier."transaction" = change."transaction"
-                WHERE change.sequence = ${cap}
-            `);
-            const first = LogColumn.nullableInteger(splitRow?.["first"]);
-            const sequence = first === null ? cap : first - 1;
-
-            // forget the actors of the transactions this removes whole, then remove their windowed changes
+            // forget the actors of the transactions this removes whole
+            const capped = sql`WITH caps ("table", cap) AS (VALUES ${sql.join(
+                caps.map(({ table, through }) => sql`(${table}, CAST(${through} AS BIGINT))`),
+                sql`, `,
+            )})`;
+            const isRemoved = sql`entry.retention = 'window' AND entry.sequence <= (
+                SELECT cap FROM caps WHERE caps."table" = entry."table"
+            )`;
             const actor = sql.relation(LOG_ACTOR);
             await transaction.run(sql`
+                ${capped}
                 DELETE FROM ${actor}
-                WHERE "transaction" IN (
-                    SELECT "transaction" FROM ${log}
-                    WHERE retention = 'window' AND sequence <= ${sequence}
-                ) AND NOT EXISTS (
-                    SELECT 1 FROM ${log} AS entry
-                    WHERE entry."transaction" = ${actor}."transaction"
-                        AND (entry.retention <> 'window' OR entry.sequence > ${sequence})
-                )
+                WHERE "transaction" IN (SELECT entry."transaction" FROM ${log} AS entry WHERE ${isRemoved})
+                    AND NOT EXISTS (
+                        SELECT 1 FROM ${log} AS entry
+                        WHERE entry."transaction" = ${actor}."transaction" AND NOT COALESCE(${isRemoved}, false)
+                    )
             `);
+
+            // remove the capped changes, and record each table's new log start
             await transaction.run(sql`
+                ${capped}
                 DELETE FROM ${log}
-                WHERE retention = 'window'
-                    AND sequence <= ${sequence}
+                WHERE retention = 'window' AND sequence <= (SELECT cap FROM caps WHERE caps."table" = ${log}."table")
             `);
             await transaction.run(sql`
-                UPDATE ${sql.relation(LOG_HORIZON)} SET sequence = ${sequence}
-                WHERE slot = 1 AND sequence < ${sequence}
+                INSERT INTO ${starts} ("table", sequence)
+                VALUES ${sql.join(
+                    caps.map(({ table, through }) => sql`(${table}, CAST(${through} AS BIGINT))`),
+                    sql`, `,
+                )}
+                ON CONFLICT ("table") DO UPDATE SET sequence = excluded.sequence
             `);
 
             // read when the oldest windowed change left was made
@@ -1036,7 +1057,7 @@ export class Log {
     }
 }
 
-/** The log's head row: its log, epoch, latest sequence, horizon and written tables. */
+/** The log's head row: its log, epoch, latest sequence, log start and written tables. */
 interface LogHead {
     /** The log's identifier. */
     readonly log: string;
@@ -1045,7 +1066,7 @@ interface LogHead {
     /** The latest logged sequence, null before the first commit. */
     readonly logged: number | null;
     /** The sequence compaction removed the changes up to. */
-    readonly horizon: number;
+    readonly logStart: number;
     /** The SQL names of the tables commits after a sequence wrote, empty when unread. */
     readonly written: readonly string[];
 }
@@ -1115,7 +1136,11 @@ function entryRead(shape: EntryShape): Statement {
             WITH bounds AS (
                 SELECT
                     (SELECT max(sequence) FROM ${log}) AS logged,
-                    (SELECT sequence FROM ${sql.relation(LOG_HORIZON)} WHERE slot = 1) AS horizon
+                    COALESCE((
+                        SELECT max(sequence) FROM ${sql.relation(LOG_START)}
+                        ${shape.tables === "listed" ? sql`WHERE ${listed(sql`"table"`, value("tables"))}` : sql``}
+                    ), 0) AS "logStart",
+                    COALESCE((SELECT max(sequence) FROM ${sql.relation(LOG_START)}), 0) AS compacted
             ), entries AS (
                 SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
                 FROM ${log}
@@ -1126,7 +1151,7 @@ function entryRead(shape: EntryShape): Statement {
                 ORDER BY sequence
                 ${shape.part === "rest" ? sql`` : sql`LIMIT ${value("limit")}`}
             )
-            SELECT bounds.logged, bounds.horizon, entries.*
+            SELECT bounds.logged, bounds."logStart", bounds.compacted, entries.*
             FROM bounds
             LEFT JOIN entries ON 1 = 1
             ORDER BY entries.sequence

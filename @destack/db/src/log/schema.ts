@@ -15,8 +15,8 @@ export const COMMIT_LOCK = 471_026_381;
 /** The SQL name of the database's log. */
 export const LOG = "__destack_log";
 
-/** The SQL name of the highest compacted change sequence. */
-export const LOG_HORIZON = "__destack_log_horizon";
+/** The SQL name of each table's log start: how far its windowed changes are compacted. */
+export const LOG_START = "__destack_log_start";
 
 /** The SQL name of the readers' checkpoints: position, tables and how long each retains changes. */
 export const LOG_CHECKPOINT = "__destack_log_checkpoint";
@@ -45,7 +45,7 @@ export const LOG_ACTOR = "__destack_log_actor";
 /** The log's tables, which have no change triggers. */
 export const LOG_TABLES: readonly string[] = [
     LOG,
-    LOG_HORIZON,
+    LOG_START,
     LOG_CHECKPOINT,
     LOG_EPOCH,
     LOG_REPLICA,
