@@ -55,6 +55,8 @@ export interface ChangeTriggerOn {
     readonly operations: readonly ChangeOperation[];
     /** Where a new trigger starts: at the log's head, now by default, or with a snapshot. */
     readonly from?: "now" | "snapshot";
+    /** Whom its runs act for: the package by default, or the change's actor within its grant. */
+    readonly actor?: "package" | "change";
 }
 
 /** A trigger firing on a schedule's occurrences. */
@@ -104,10 +106,16 @@ export class ChangeTrigger<Input = unknown> {
     ) {
         // default where the trigger starts, refusing a snapshot of rows it does not fire on
         const checked = DeclarationName.parse(name);
-        const { object, where, from = "now", operations } = definition.change;
+        const { object, where, from = "now", actor = "package", operations } = definition.change;
         if (from === "snapshot" && !operations.includes("create")) {
             throw new TypeError(
                 `trigger '${checked}' starts with a snapshot of created rows but does not fire on creations`,
+            );
+        }
+        // refuse acting for the actors of a snapshot's rows, which no change wrote
+        else if (from === "snapshot" && actor === "change") {
+            throw new TypeError(
+                `trigger '${checked}' acts for each change's actor but starts with a snapshot, whose rows have none`,
             );
         }
         this.kind = "change";
@@ -116,6 +124,7 @@ export class ChangeTrigger<Input = unknown> {
             object,
             operations: [...operations],
             from,
+            actor,
             ...(where === undefined ? {} : { where }),
         };
         this.input = definition.input;

@@ -111,6 +111,8 @@ export interface RunStart {
     readonly at?: number;
     /** The principal the run acts as, which its creation records. */
     readonly actor: Subject;
+    /** The logged transaction whose change started the run for its actor, absent for none. */
+    readonly cause?: string;
 }
 
 /** What a workflow declares. */
@@ -217,6 +219,7 @@ export function defineWorkflow<
                 ...(options.mode === undefined ? {} : { mode: options.mode }),
                 ...(options.at === undefined ? {} : { wakeAt: options.at }),
                 ...ObjectReference.columns("actor", options.actor),
+                ...(options.cause === undefined ? {} : { cause: options.cause }),
             }),
     });
 
@@ -250,6 +253,8 @@ function declareRun(
                 key: field.string().immutable().optional(),
                 /** The principal the run acts as, the starting one unless the start names one. */
                 actor: field.subject().caller().immutable(),
+                /** The logged transaction that started the run for its actor, absent for none. */
+                cause: field.string().immutable().optional(),
                 /** Whether the run is due, waits to wake, is paused, or ended. */
                 state: field.state({
                     initial: "pending",
@@ -358,6 +363,7 @@ function declareRun(
                     "actorType",
                     "actorScope",
                     "actorId",
+                    "cause",
                 ],
                 input: schema.object({
                     /** What a start of a live run's key does. */

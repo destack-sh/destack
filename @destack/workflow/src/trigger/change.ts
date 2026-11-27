@@ -20,6 +20,8 @@ export const ChangeOn = schema.object({
     operations: schema.array(ChangeOperation).min(1),
     /** Where a new trigger starts: at the log's head, or with every matching row as created. */
     from: schema.enum(["now", "snapshot"]),
+    /** Whom its runs act for: the package itself, or the change's actor within its grant. */
+    actor: schema.enum(["package", "change"]),
 });
 /** The changes of one object type a trigger fires on, as the manifest describes them. */
 export type ChangeOn = schema.Infer<typeof ChangeOn>;

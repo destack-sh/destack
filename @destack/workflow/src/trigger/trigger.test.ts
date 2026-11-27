@@ -65,6 +65,7 @@ test("describe a workflow's schedule and change triggers with what fires them", 
                 where: { status: "published" },
                 operations: ["create", "update"],
                 from: "now",
+                actor: "package",
             },
         },
     ]);
@@ -79,6 +80,18 @@ test("refuse a change trigger starting with a snapshot of created rows that does
             }),
     ).toThrow(
         "trigger 'removed' starts with a snapshot of created rows but does not fire on creations",
+    );
+});
+
+test("refuse a change trigger acting for the change's actor from a snapshot", () => {
+    expect(
+        () =>
+            new ChangeTrigger("seeded", {
+                change: { object: note, operations: ["create"], from: "snapshot", actor: "change" },
+                input: () => ({ id: "" }),
+            }),
+    ).toThrow(
+        "trigger 'seeded' acts for each change's actor but starts with a snapshot, whose rows have none",
     );
 });
 

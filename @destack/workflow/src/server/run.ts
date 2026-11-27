@@ -1,4 +1,4 @@
-import { AccessContext, Grant } from "@destack/access";
+import { AccessContext, AccessError, Attribution, Caller, Grant, principal } from "@destack/access";
 import { type Select, Lease, LEASE_MILLISECONDS } from "@destack/db";
 import type { DatabaseConnection } from "@destack/db/database";
 import {
@@ -13,7 +13,7 @@ import {
 } from "@destack/object";
 import { RetryPolicy } from "@destack/environment";
 import { canonicalize, Duration, present, schema } from "@destack/schema";
-import { type Call, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
+import { type Call, ObjectReference, ObjectTypeReference, Scope, Subject } from "@destack/sync";
 import { Failure } from "@destack/error";
 import type { ObjectStore } from "@destack/object/server";
 import type { RunContext } from "../step/step.ts";
@@ -261,11 +261,48 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             return self;
         }
 
+        // call for the actor whose change started the run, within what its space lets it do for such actors
+        const { cause } = this.row;
+        if (cause !== null) {
+            return AccessContext.of(await this.#invoked(store, cause, self.subject, now), now);
+        }
+
         // call for its space or a user as the code serving the run, within their live grant to it
         const parties = { delegator: this.actor, delegate: self.subject };
         const caller = await Grant.act(store.database.snapshot(), parties, now);
 
         return AccessContext.of(caller, now);
+    }
+
+    /** Act for the actor of the run's cause, under the space's grant to act for actors. */
+    async #invoked(
+        store: ObjectStore,
+        cause: string,
+        delegate: Subject,
+        now: number,
+    ): Promise<Caller> {
+        // require the log to attribute the cause to the run's actor
+        const attributed = (await store.database.log.actors([cause])).get(cause);
+        const attribution = attributed === undefined ? undefined : Attribution.parse(attributed);
+        if (attribution === undefined || !Subject.same(attribution.subject, this.actor)) {
+            throw AccessError.of(
+                "GRANT_DENIED",
+                `${this.actor.type} '${this.actor.id}' is forbidden: transaction '${cause}' was not its change`,
+            );
+        }
+
+        // act within the space's grant to the code serving the run for the actors whose changes invoke it
+        const space = principal.space.reference(Scope.universe.id, delegate.scope);
+        const snapshot = store.database.snapshot();
+        const granted = await Grant.find(snapshot, { delegator: space, delegate }, now, "actors");
+        if (granted === undefined) {
+            throw AccessError.of(
+                "GRANT_DENIED",
+                `${this.actor.type} '${this.actor.id}' is forbidden: ${delegate.type} '${delegate.id}' has no grant to act for the space's actors`,
+            );
+        }
+
+        return { ...Caller.of(this.actor), actors: [delegate], grants: [Grant.claim(granted)] };
     }
 
     /** Advance the run to its next wait, output, retry or failure, answering when it wakes. */

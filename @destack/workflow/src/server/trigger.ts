@@ -24,10 +24,10 @@ import {
     refuseInput,
 } from "@destack/object";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
-import { RequestId, type Call, Scope } from "@destack/sync";
+import { RequestId, type Call, Scope, type Subject } from "@destack/sync";
 import type { ServerContext } from "@destack/object/workload";
 import { Failure } from "@destack/error";
-import { Manager } from "@destack/access";
+import { Attribution, Manager } from "@destack/access";
 import { canonicalize, present, schema } from "@destack/schema";
 import { LIVE_STATES } from "../run/run.ts";
 import type { TriggerType, Workflow } from "../workflow/workflow.ts";
@@ -318,6 +318,8 @@ export class TriggerServer<Input> {
             readonly key?: string;
             readonly before?: readonly Call[];
             readonly scope?: string;
+            readonly actor?: Subject;
+            readonly cause?: string;
         },
     ): Promise<void> {
         // derive the request from the trigger's identity and the event, stamped at the event's time
@@ -329,7 +331,8 @@ export class TriggerServer<Input> {
         );
         const self = store.as(workflow.run);
         const run = workflow.start(input, {
-            actor: self.subject,
+            actor: options.actor ?? self.subject,
+            ...(options.cause === undefined ? {} : { cause: options.cause }),
             ...(options.key === undefined ? {} : { key: options.key }),
         });
         await store.mutate(
@@ -553,7 +556,7 @@ export class TriggerServer<Input> {
                 for (const logged of page.changes) {
                     const matching = TriggerServer.#see(change.operations, logged, timeline, match);
                     if (matching !== undefined) {
-                        await this.#startChange(store, trigger, matching, logged.changedAt);
+                        await this.#startChange(store, trigger, matching, logged);
                     }
                 }
                 after = Math.max(after, page.sequence);
@@ -652,7 +655,7 @@ export class TriggerServer<Input> {
                         key: Key.of(table, row),
                         after: row,
                     },
-                    at,
+                    { changedAt: at, transaction: null },
                 );
             }
             last = rows.at(-1);
@@ -673,11 +676,29 @@ export class TriggerServer<Input> {
         store: ObjectStore,
         trigger: ChangeTrigger<Input>,
         change: ObjectChange,
-        at: number,
+        logged: Pick<Change, "changedAt" | "transaction">,
     ): Promise<void> {
+        // act for the change's actor where the trigger asks, else as the package
         const { name } = trigger;
-        const event = { key: ChangeTrigger.key(change), at };
-        await this.start(store, name, trigger.input(change), event, {});
+        const event = { key: ChangeTrigger.key(change), at: logged.changedAt };
+        const invoked =
+            trigger.change.actor === "change"
+                ? await TriggerServer.#invoked(store, logged.transaction)
+                : undefined;
+        await this.start(store, name, trigger.input(change), event, invoked ?? {});
+    }
+
+    /** Read the actor of a logged transaction, with the transaction as a run's cause. */
+    static async #invoked(
+        store: ObjectStore,
+        transaction: string | null,
+    ): Promise<{ readonly actor: Subject; readonly cause: string }> {
+        // read the actor the log attributes the change's transaction to
+        const cause = present(transaction, "the change's transaction");
+        const actors = await store.database.log.actors([cause]);
+        const attributed = present(actors.get(cause), `the actor of transaction '${cause}'`);
+
+        return { actor: Attribution.parse(attributed).subject, cause };
     }
 
     /** Read the table of a trigger's object type, refusing another kind of declaration. */
