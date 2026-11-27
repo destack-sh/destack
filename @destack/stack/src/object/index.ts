@@ -1,6 +1,7 @@
 export * from "./installation.ts";
 export * from "./wait.ts";
 export * from "./database.ts";
+export * from "./orphan.ts";
 export * from "./revision.ts";
 export * from "./socket.ts";
 export * from "./stack.ts";

@@ -11,6 +11,7 @@ import {
     installation,
     installationRevision,
     instance,
+    orphan,
     restore,
     route,
     snapshot,
@@ -42,6 +43,7 @@ export default definePackage({
     objects: [
         installation,
         installationRevision,
+        orphan,
         deployment,
         instance,
         transfer,
