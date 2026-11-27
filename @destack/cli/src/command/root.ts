@@ -64,9 +64,15 @@ const COMMANDS = {
             (await context.module(() => import("../catalog/installation.ts"))).installCommand,
     },
     uninstall: {
-        description: "Uninstall a package, or the installation of a name, deleting its resources",
+        description:
+            "Uninstall a package, or the installation of a name, keeping its data unless purged",
         load: async (context) =>
             (await context.module(() => import("../catalog/installation.ts"))).uninstallCommand,
+    },
+    purge: {
+        description: "Delete the data the space keeps of a package no installation runs",
+        load: async (context) =>
+            (await context.module(() => import("../catalog/installation.ts"))).purgeCommand,
     },
     share: {
         description: "Invite a person to the space, by @handle or email, as a role",

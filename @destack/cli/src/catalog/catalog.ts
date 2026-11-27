@@ -442,6 +442,15 @@ export class Catalog {
         return this.nouns.filter((noun) => noun.forms.includes(word));
     }
 
+    /** Find the noun of an object type. */
+    noun(type: ObjectType): CatalogEntry | undefined {
+        const { packageId, type: name } = type.typeReference;
+
+        return this.nouns.find(
+            (noun) => noun.entry.packageId === packageId && noun.entry.type === name,
+        );
+    }
+
     /** Find the noun of an object by its identifier's prefix, the longest prefix first. */
     owner(id: string): CatalogEntry | undefined {
         const matching = this.nouns.filter((noun) => id.startsWith(`${noun.entry.identity}-`));

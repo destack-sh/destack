@@ -194,7 +194,7 @@ test("place an installation below home by default, below a parent asked for, or 
     });
 });
 
-test("uninstall a package's installation once confirmed, and refuse one the space lacks", async () => {
+test("uninstall and purge a package once confirmed, and refuse one the space lacks", async () => {
     // install the example notebooks in the owner's home
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], EXAMPLE);
     const run = (words: readonly string[]) => terminal.printed(["--space", "home", ...words]);
@@ -206,19 +206,52 @@ test("uninstall a package's installation once confirmed, and refuse one the spac
     await run(["install", "@example/notebooks", "--json"]);
     const before = await names();
 
-    // refuse its delete and its uninstall unconfirmed, uninstall it once confirmed, then by its name again
+    // refuse its delete, its uninstall and its purge unconfirmed, uninstall it once confirmed, then by its name again
     const deleting = await run(["installation", "notebooks", "delete"]);
     const unconfirmed = await run(["uninstall", "@example/notebooks"]);
+    const unpurged = await run(["uninstall", "@example/notebooks", "--purge"]);
     const uninstalling = await run(["uninstall", "@example/notebooks", "--yes"]);
     const after = await names();
     const again = await run(["uninstall", "notebooks", "--yes"]);
-    const { home } = terminal.computer.world.owner;
+
+    // install it again, and uninstall it with its data once the person takes the step-up its purge asks
+    const { world } = terminal.computer;
+    await run(["install", "@example/notebooks", "--json"]);
+    const purging = terminal.start([
+        "--space",
+        "home",
+        "uninstall",
+        "notebooks",
+        "--purge",
+        "--yes",
+    ]);
+    await world.simulation.waitUntil(
+        () => terminal.opened().length > 0,
+        world.simulation.clock.now() + 60_000,
+    );
+    const [page] = terminal.opened();
+    const back = await world.universe.approve(page ?? "", world.owner);
+    // return the browser to the device's redirect, whose answer the simulated network may drop as it closes
+    await terminal.computer.browse(new Request(back)).then(
+        (answered) => answered.body?.cancel(),
+        () => undefined,
+    );
+    const purged = await purging.printed;
+
+    // purge its data again, unconfirmed and confirmed, within the stepped-up sign-in
+    const refused = await run(["purge", "@example/notebooks"]);
+    const repurged = await run(["purge", "@example/notebooks", "--yes"]);
+    const { home } = world.owner;
     expect({
         deleting: [deleting.code, deleting.error],
         unconfirmed: [unconfirmed.code, unconfirmed.error],
+        unpurged: [unpurged.code, unpurged.error],
         uninstalling: [uninstalling.code, uninstalling.output, uninstalling.error],
         removed: before.filter((name) => !after.includes(name)),
         again: [again.code, again.error],
+        purged: [purged.code, purged.output, purged.error],
+        refused: [refused.code, refused.error],
+        repurged: [repurged.code, repurged.output, repurged.error],
     }).toEqual({
         deleting: [
             1,
@@ -226,10 +259,24 @@ test("uninstall a package's installation once confirmed, and refuse one the spac
         ],
         unconfirmed: [
             1,
-            "error  cannot uninstall 'notebooks': it deletes the installation's resources, so confirm it with --yes\n",
+            "error  cannot uninstall 'notebooks': it deletes its resources, so confirm it with --yes\n",
+        ],
+        unpurged: [
+            1,
+            "error  cannot uninstall 'notebooks': it deletes its resources and its data, so confirm it with --yes\n",
         ],
         uninstalling: [0, "Uninstalled  installation 'notebooks'\n", ""],
         removed: ["notebooks"],
         again: [1, `error  installation 'notebooks' of '${home}' not found\n`],
+        purged: [
+            0,
+            "Uninstalled  installation 'notebooks' and its data\n",
+            `Waiting  for you to confirm it is you\nOpening  ${page ?? ""}\n`,
+        ],
+        refused: [
+            1,
+            "error  cannot purge '@example/notebooks': it cannot be undone, so confirm it with --yes\n",
+        ],
+        repurged: [0, "Purged  the data of '@example/notebooks'\n", ""],
     });
 });

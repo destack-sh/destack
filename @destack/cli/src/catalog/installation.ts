@@ -2,6 +2,8 @@ import { GitReference } from "@destack/git";
 import { join } from "node:path";
 import objectPackage from "@destack/object/package";
 import { PackageDefinition, type PackageId, PackageName } from "@destack/package";
+import { MAIN_DATABASE } from "@destack/stack/declare";
+import { database } from "@destack/stack/object";
 import { ForgeError } from "@destack/forge/error";
 import { LATEST_TAG, reference, release, tag } from "@destack/registry/object";
 import { GitLease } from "@destack/git/local";
@@ -10,10 +12,11 @@ import { type Identifier, type JsonObject, present, schema, Version } from "@des
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { type CommandBody, type CommandCall, CommandOption } from "../command/command.ts";
-import { HOME_APPLICATION } from "@destack/account/object";
+import { HOME_INSTALLATION } from "@destack/account/object";
 import type { CommandContext, CommandEnvironment } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 import { InstallationStatus } from "./status.ts";
+import { Catalog } from "./catalog.ts";
 import { LocalCheckout } from "../checkout/checkout.ts";
 
 /** The separator of a package specifier's version or tag. */
@@ -209,11 +212,15 @@ export const installCommand: CommandBody = {
     },
 };
 
-/** Uninstall a package's installation, or the one of a name, following its removal. */
+/** Uninstall a package's installation, or the one of a name, keeping its data unless purged. */
 export const uninstallCommand: CommandBody = {
     arguments: [{ name: "installation", usage: "@scope/name|name" }],
     options: {
         yes: { type: "boolean", description: "Uninstall without asking" },
+        purge: {
+            type: "boolean",
+            description: "Delete the package's data in the space too, which cannot be undone",
+        },
     },
     isJson: true,
     async run({ arguments: { installation: given }, options, isJson: json }, context) {
@@ -233,22 +240,21 @@ export const uninstallCommand: CommandBody = {
             );
         }
 
-        // ask before deleting its resources, on a terminal or with --yes
+        // ask before deleting its resources, and its data when purged, on a terminal or with --yes
         const { name } = installed;
-        const isConfirmed =
-            options["yes"] === true ||
-            (context.environment.process.stdin.isTerminal &&
-                (await context.terminal.prompt.confirm(
-                    `Uninstall installation '${name}' and delete its resources?`,
-                )));
-        if (!isConfirmed) {
+        const isPurging = options["purge"] === true;
+        const deleted = isPurging ? "its resources and its data" : "its resources";
+        const question = `Uninstall installation '${name}' and delete ${deleted}?`;
+        if (!(await context.isConfirmed(options["yes"] === true, question))) {
             throw CliError.of(
                 "COMMAND_BLOCKED",
-                `cannot uninstall '${name}': it deletes the installation's resources, so confirm it with --yes`,
+                isPurging
+                    ? `cannot uninstall '${name}': it deletes its resources and its data, so confirm it with --yes`
+                    : `cannot uninstall '${name}': it deletes its resources, so confirm it with --yes`,
             );
         }
 
-        // delete it, then follow it until its controller removed it with its resources
+        // delete it, follow it until its controller removed it, then drop its package's tables when purged
         const { environment } = await context.native();
         await stack.installation.delete({
             scope: space,
@@ -256,10 +262,45 @@ export const uninstallCommand: CommandBody = {
             requestId: RequestId.create(environment),
         });
         await InstallationStatus.followRemoval(installed.id, context);
+        if (isPurging) {
+            await purge(installed.packageId, context);
+        }
+
+        // report it
         await context.terminal.print(
             json
-                ? JSON.stringify({ id: installed.id, name })
-                : context.terminal.event("Uninstalled", "done", `installation '${name}'`),
+                ? JSON.stringify({ id: installed.id, name, isPurged: isPurging })
+                : context.terminal.event(
+                      "Uninstalled",
+                      "done",
+                      `installation '${name}'${isPurging ? " and its data" : ""}`,
+                  ),
+        );
+    },
+};
+
+/** Delete the data a space keeps of a package no installation runs, which cannot be undone. */
+export const purgeCommand: CommandBody = {
+    arguments: [{ name: "package", usage: "@scope/name" }],
+    options: { yes: { type: "boolean", description: "Purge without asking" } },
+    isJson: true,
+    async run({ arguments: { package: given }, options, isJson: json }, context) {
+        // ask before deleting the package's data, on a terminal or with --yes
+        const asked = present(given, "the package argument");
+        const question = `Delete the data of '${asked}'? This cannot be undone.`;
+        if (!(await context.isConfirmed(options["yes"] === true, question))) {
+            throw CliError.of(
+                "COMMAND_BLOCKED",
+                `cannot purge '${asked}': it cannot be undone, so confirm it with --yes`,
+            );
+        }
+
+        // drop its tables
+        await purge(await packageOf(asked, context), context);
+        await context.terminal.print(
+            json
+                ? JSON.stringify({ package: asked })
+                : context.terminal.event("Purged", "done", `the data of '${asked}'`),
         );
     },
 };
@@ -512,7 +553,7 @@ export class InstallationTarget {
             parent.kind === "named"
                 ? parent.name
                 : parent.kind === "default" && installed === undefined
-                  ? HOME_APPLICATION
+                  ? HOME_INSTALLATION
                   : undefined;
         const found = parentName === undefined ? undefined : await find({ name: parentName });
         if (parentName !== undefined && found === undefined) {
@@ -612,4 +653,26 @@ async function taggedRow(
     }
 
     return tag.reference(tagged.scope, tagged.id);
+}
+
+/** Drop the tables the space's main database keeps of a package. */
+async function purge(packageId: PackageId, context: CommandContext): Promise<void> {
+    // open the space's databases as the person, stepping up as the purge asks
+    const catalog = await Catalog.of(context);
+    const entry = present(catalog.noun(database), "the database noun");
+    const noun = await entry.open(context);
+    const client = await noun.client(context);
+
+    // find the space's main database
+    const listed = await client.run(noun.type, noun.method("list"), {
+        where: { name: MAIN_DATABASE },
+        limit: 1,
+    });
+    const [main] = schema
+        .looseObject({ items: schema.array(schema.looseObject({ id: schema.string() })) })
+        .parse(listed).items;
+
+    // drop the package's tables it keeps
+    const target = present(main, `the main database of ${await context.requireSpace()}`);
+    await client.run(noun.type, "purge", { id: target.id, packageId });
 }
