@@ -6683,6 +6683,55 @@
             "context": "label",
             "translation": "Accélération"
         },
+        "1cikq0mz87xhl": {
+            "source": "Monthly",
+            "context": "option",
+            "translation": "Tous les mois"
+        },
+        "21rg3ceyxt9zi": {
+            "source": "The inputs of a project's plan, with what they give.",
+            "translation": "Les champs du plan d'un projet, avec ce qu'ils renvoient."
+        },
+        "2arm9kkimtwxm": {
+            "source": "Every",
+            "context": "label",
+            "translation": "Tous les"
+        },
+        "2dd2da39idylc": {
+            "source": "Repeat",
+            "context": "label",
+            "translation": "Répéter"
+        },
+        "3b3gqzao9po79": {
+            "source": "Daily",
+            "context": "option",
+            "translation": "Tous les jours"
+        },
+        "3cow09zt9sw4c": {
+            "source": "Currency",
+            "context": "label",
+            "translation": "Devise"
+        },
+        "3kngscvk0ukl9": {
+            "source": ".input {$p0 :number}\n.match $p0\none {{{$p0} star}}\n* {{{$p0} stars}}",
+            "context": "option",
+            "translation": ".input {$p0 :number} .match $p0 one {{{$p0} étoile}} * {{{$p0} étoiles}}"
+        },
+        "baaq0jloyjx3": {
+            "source": "Weekly",
+            "context": "option",
+            "translation": "Toutes les semaines"
+        },
+        "ofpv4o3prx2a": {
+            "source": "On",
+            "context": "label",
+            "translation": "Le"
+        },
+        "yh9pkfp8ramm": {
+            "source": "Yearly",
+            "context": "option",
+            "translation": "Tous les ans"
+        },
         "vtb0gq8pqb3h": {
             "source": "The inputs of a card's look, with what they give.",
             "translation": "Les saisies de l'apparence d'une carte, avec ce qu'elles donnent."
@@ -6811,6 +6860,61 @@
             "source": "Blue to yellow",
             "context": "label",
             "translation": "Bleu à jaune"
+        },
+        "1vdluwxjkxq96": {
+            "source": "Years",
+            "context": "option",
+            "translation": "Années"
+        },
+        "223jah1r6g0hv": {
+            "source": "Months",
+            "context": "option",
+            "translation": "Mois"
+        },
+        "225o2885wguxp": {
+            "source": "Minutes",
+            "context": "option",
+            "translation": "Minutes"
+        },
+        "26x8xrvmahrwf": {
+            "source": "Nanoseconds",
+            "context": "option",
+            "translation": "Nanosecondes"
+        },
+        "2cwbznxsk69oh": {
+            "source": "Seconds",
+            "context": "option",
+            "translation": "Secondes"
+        },
+        "2jgl6k1mfqiwp": {
+            "source": "Weeks",
+            "context": "option",
+            "translation": "Semaines"
+        },
+        "3iceojg42lfu": {
+            "source": "Add unit",
+            "context": "action",
+            "translation": "Ajouter une unité"
+        },
+        "dazx0c779zi7": {
+            "source": "Days",
+            "context": "option",
+            "translation": "Jours"
+        },
+        "jt0t93depdmy": {
+            "source": "Milliseconds",
+            "context": "option",
+            "translation": "Millisecondes"
+        },
+        "ofzkfkrovn6b": {
+            "source": "Hours",
+            "context": "option",
+            "translation": "Heures"
+        },
+        "ryj0uspupnct": {
+            "source": "Microseconds",
+            "context": "option",
+            "translation": "Microsecondes"
         }
     }
 }

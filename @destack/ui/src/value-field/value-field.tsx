@@ -47,15 +47,20 @@ import { FilterInput, FilterStackInput } from "./filter.tsx";
 import { OpacityInput } from "./opacity.tsx";
 import { OverflowInput } from "./overflow.tsx";
 import { PositionInput } from "./position.tsx";
+import { DateRangeInput } from "./range.tsx";
+import { RatingInput } from "./rating.tsx";
+import { RecurrenceInput } from "./recurrence.tsx";
 import { SizeInput } from "./size.tsx";
 import { TextFormatInput, TextStrokeInput } from "./text.tsx";
 import { LayoutInput } from "./layout.tsx";
+import { MoneyInput } from "./money.tsx";
 import { FillStackInput, GradientInput, PaintInput } from "./paint.tsx";
 import { ShadowInput, ShadowStackInput } from "./shadow.tsx";
 import { StrokeInput } from "./stroke.tsx";
 import { TransformInput } from "./transform.tsx";
 import { TransitionInput } from "./transition.tsx";
 import { TypographyInput } from "./typography.tsx";
+import { UrlInput } from "./url.tsx";
 
 /** The most choices laid out side by side as segments, past which they go in a menu. */
 const SEGMENTS = 4;
@@ -250,7 +255,6 @@ const NAMED_INPUTS: Readonly<Record<string, NamedValueField>> = {
     "style.paint": PaintInput,
     "style.fillStack": FillStackInput,
     "style.dimension": DimensionInput,
-    "style.duration": DurationInput,
     "style.cubicBezier": CubicBezierInput,
     "style.fontFamily": FontFamilyInput,
     "style.fontWeight": FontWeightInput,
@@ -274,6 +278,12 @@ const NAMED_INPUTS: Readonly<Record<string, NamedValueField>> = {
     "style.transform": TransformInput,
     "style.layout": LayoutInput,
     "style.transition": TransitionInput,
+    "schema.duration": DurationInput,
+    "schema.dateRange": DateRangeInput,
+    "schema.recurrence": RecurrenceInput,
+    "schema.money": MoneyInput,
+    "schema.rating": RatingInput,
+    "schema.url": UrlInput,
 };
 
 /** Render the input of an instant. */

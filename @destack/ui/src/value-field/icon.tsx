@@ -21,6 +21,11 @@ import copySimpleIcon from "@destack/icon/phosphor/copy-simple";
 import cubeIcon from "@destack/icon/phosphor/cube";
 import frameCornersIcon from "@destack/icon/phosphor/frame-corners";
 import gradientIcon from "@destack/icon/phosphor/gradient";
+import calendarDotsIcon from "@destack/icon/phosphor/calendar-dots";
+import coinsIcon from "@destack/icon/phosphor/coins";
+import linkIcon from "@destack/icon/phosphor/link";
+import repeatIcon from "@destack/icon/phosphor/repeat";
+import starIcon from "@destack/icon/phosphor/star";
 import hashIcon from "@destack/icon/phosphor/hash";
 import hourglassIcon from "@destack/icon/phosphor/hourglass";
 import paintBucketIcon from "@destack/icon/phosphor/paint-bucket";
@@ -62,7 +67,6 @@ const NAMED_ICONS: Readonly<Partial<Record<string, IconBodies>>> = {
     "style.paint": paintBucketIcon,
     "style.fillStack": stackIcon,
     "style.dimension": rulerIcon,
-    "style.duration": hourglassIcon,
     "style.cubicBezier": bezierCurveIcon,
     "style.fontFamily": penIcon,
     "style.fontWeight": textBIcon,
@@ -86,6 +90,12 @@ const NAMED_ICONS: Readonly<Partial<Record<string, IconBodies>>> = {
     "style.transform": arrowClockwiseIcon,
     "style.layout": rowsIcon,
     "style.transition": timerIcon,
+    "schema.duration": hourglassIcon,
+    "schema.dateRange": calendarDotsIcon,
+    "schema.recurrence": repeatIcon,
+    "schema.money": coinsIcon,
+    "schema.rating": starIcon,
+    "schema.url": linkIcon,
 };
 
 /** The properties of a value's icon, with its icon's own. */

@@ -1,5 +1,6 @@
 import { t } from "@destack/locale";
-import { CubicBezier, Duration, EASINGS, Transition } from "@destack/style";
+import { Duration } from "@destack/schema";
+import { CubicBezier, EASINGS, Transition } from "@destack/style";
 import type { JSX } from "@destack/view";
 import { jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
@@ -12,8 +13,8 @@ const TYPES = {
 
 /** The transition an input starts at, a quick ease out. */
 const START_TRANSITION: Transition = {
-    duration: { value: 200, unit: "ms" },
-    delay: { value: 0, unit: "ms" },
+    duration: { milliseconds: 200 },
+    delay: {},
     timingFunction: EASINGS["ease-out"].curve,
 };
 

@@ -21,7 +21,18 @@ import {
     Typography,
 } from "@destack/style";
 import { t } from "@destack/locale";
-import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
+import {
+    DateRange,
+    Duration,
+    type JsonObject,
+    JsonValue,
+    Money,
+    Rating,
+    RecurrenceRule,
+    schema,
+    toJsonSchema,
+    Url,
+} from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
@@ -216,6 +227,57 @@ export const valueFieldCard = defineExample({
             ["Layout", "layout", Layout],
             ["Motion", "transition", Transition],
             ["Width", "width", Dimension],
+        ] as const;
+
+        return (
+            <div {...style.attrs(styles.form)}>
+                <For each={fields}>
+                    {([label, name, type]) => (
+                        <Field>
+                            <FieldLabel>{label}</FieldLabel>
+                            <ValueField
+                                type={{ kind: "json", schema: describe(type) }}
+                                {...of(name)}
+                            />
+                        </Field>
+                    )}
+                </For>
+                <output>{JSON.stringify(given())}</output>
+            </div>
+        );
+    },
+});
+
+/** The inputs of a project's plan, from its dates to its budget. */
+export const valueFieldPlan = defineExample({
+    of: ValueField,
+    name: "plan",
+    description: t`The inputs of a project's plan, with what they give.`,
+    layout: "padded",
+    render: () => {
+        // store what the inputs give, starting from a December launch
+        const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
+            dates: { from: "2026-12-01", to: "2026-12-18" },
+            estimate: { days: 3, hours: 4 },
+            review: { frequency: "weekly", byDay: [{ day: 1 }, { day: 4 }] },
+            budget: { amount: 480000, currency: "EUR" },
+            priority: 4,
+            brief: "https://example.com/launch",
+        });
+        const of = (name: string) => ({
+            get value() {
+                return given()[name];
+            },
+            onValueChange: (value: JsonValue | undefined) =>
+                setGiven((current) => ({ ...current, [name]: value })),
+        });
+        const fields = [
+            ["Dates", "dates", DateRange],
+            ["Estimate", "estimate", Duration],
+            ["Review", "review", RecurrenceRule],
+            ["Budget", "budget", Money],
+            ["Priority", "priority", Rating.max(5)],
+            ["Brief", "brief", Url],
         ] as const;
 
         return (

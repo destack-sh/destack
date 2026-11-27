@@ -17,7 +17,18 @@ import {
     Typography,
 } from "@destack/style";
 import type { ActionValue, Choice } from "@destack/object";
-import { type JsonObject, JsonValue, present, schema, toJsonSchema } from "@destack/schema";
+import {
+    Duration,
+    type JsonObject,
+    JsonValue,
+    Money,
+    present,
+    Rating,
+    RecurrenceRule,
+    schema,
+    toJsonSchema,
+    Url,
+} from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
@@ -293,14 +304,14 @@ test("set text in the fonts a person lists, as CSS lists them", () => {
 test("give a transition's duration, kept in its unit", () => {
     stubPopovers();
     const start: Transition = {
-        duration: { value: 0.2, unit: "s" },
-        delay: { value: 0, unit: "ms" },
+        duration: { milliseconds: 200 },
+        delay: {},
         timingFunction: [0, 0, 0.58, 1],
     };
     const { container, given } = draw(typeOf(Transition), start);
-    fill(container, "Duration", "0.3");
+    fill(container, "Duration", "300");
 
-    expect(given).toEqual([{ ...start, duration: { value: 0.3, unit: "s" } }]);
+    expect(given).toEqual([{ ...start, duration: { milliseconds: 300 } }]);
 });
 
 test("lay children out in a column, with the padding its sides input gives", () => {
@@ -382,6 +393,88 @@ test("add a filter last, and an OpenType feature by its tag", () => {
         [[{ kind: "blur", radius: px(4) }]],
         [{ tnum: 1 }],
     ]);
+});
+
+test("give a duration as Temporal holds it, a number and a unit for each of its units", () => {
+    // change the hours, add minutes below them, then remove the hours
+    stubPopovers();
+    const { container, given } = draw(typeOf(Duration), { hours: 1 });
+    fill(container, "Amount", "2");
+    press(container, "Add unit");
+    const minutes = present(
+        container.querySelectorAll<HTMLInputElement>("input[aria-label=Amount]")[1],
+        "the minutes",
+    );
+    minutes.value = "30";
+    minutes.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    flush();
+    press(container, "Remove Hours");
+
+    expect(given).toEqual([
+        { hours: 2 },
+        { hours: 2, minutes: 0 },
+        { hours: 2, minutes: 30 },
+        { minutes: 30 },
+    ]);
+});
+
+test("carry a fraction of a unit typed into the smaller units, as 1.5 hours", () => {
+    stubPopovers();
+    const { container, given } = draw(typeOf(Duration), { hours: 1 });
+    fill(container, "Amount", "1.5");
+
+    expect(given).toEqual([{ hours: 1, minutes: 30 }]);
+});
+
+test("repeat every other week on the weekdays pressed, every week by default", () => {
+    stubPopovers();
+    const { container, given } = draw(typeOf(RecurrenceRule), { frequency: "weekly" });
+    fill(container, "Every", "2");
+    press(container, "Monday");
+    press(container, "Friday");
+    fill(container, "Every", "1");
+
+    expect(given).toEqual([
+        { frequency: "weekly", interval: 2 },
+        { frequency: "weekly", interval: 2, byDay: [{ day: 1 }] },
+        { frequency: "weekly", interval: 2, byDay: [{ day: 1 }, { day: 5 }] },
+        { frequency: "weekly", byDay: [{ day: 1 }, { day: 5 }] },
+    ]);
+});
+
+test("give money in its currency's minor unit from the amount typed in its major unit", () => {
+    const start: Money = { amount: 1250, currency: "EUR" };
+    stubPopovers();
+    const { container, given } = draw(typeOf(Money), start);
+    fill(container, "Amount", "19.99");
+
+    expect(given).toEqual([{ amount: 1999, currency: "EUR" }]);
+});
+
+test("rate by the star pressed, out of the most the schema allows, and clear by pressing it again", () => {
+    stubPopovers();
+    const { container, given } = draw(typeOf(Rating.max(3)), 2);
+    const stars = container.querySelectorAll("[data-slot=toggle-group-item], button");
+    press(container, "3 stars");
+    press(container, "3 stars");
+
+    expect({ stars: stars.length, given }).toEqual({ stars: 3, given: [3, 0] });
+});
+
+test("give a web address once it parses, and none once the field is cleared", () => {
+    stubPopovers();
+    const { container, given } = draw(typeOf(Url), undefined);
+    const input = present(
+        container.querySelector<HTMLInputElement>("input[type=url]"),
+        "the address",
+    );
+    for (const text of ["example", " https://example.com/notes ", ""]) {
+        input.value = text;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        flush();
+    }
+
+    expect(given).toEqual(["https://example.com/notes", undefined]);
 });
 
 /** A length in pixels. */

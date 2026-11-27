@@ -117,6 +117,8 @@ export type DimensionFieldProperties = ComponentProperties<typeof DimensionField
 export function UnitParts<Unit extends string>(properties: {
     /** The units it offers. */
     readonly units: readonly Unit[];
+    /** Write a unit as a person reads it, as CSS writes it by default. */
+    readonly title?: (unit: Unit) => string;
     /** The number and its unit. */
     readonly value: { readonly value: number; readonly unit: Unit };
     /** Whether it takes no input. */
@@ -157,7 +159,11 @@ export function UnitParts<Unit extends string>(properties: {
                     }
                 }}
             >
-                <For each={units()}>{(unit) => <SelectItem value={unit}>{unit}</SelectItem>}</For>
+                <For each={units()}>
+                    {(unit) => (
+                        <SelectItem value={unit}>{properties.title?.(unit) ?? unit}</SelectItem>
+                    )}
+                </For>
             </Select>
         </>
     );
