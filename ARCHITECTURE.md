@@ -12,7 +12,7 @@ What users interact with: the desktop, the terminal, and any userland apps.
 |---|---|---|
 | [`@destack/desktop`](@destack/desktop) | Open Destack apps in desktop windows, with banners, a badge, a tray and a command palette. | Tauri |
 | [`@destack/cli`](@destack/cli) | Use Destack from the terminal: sign in, install packages and work with a space's objects. | kubectl, gh |
-| [`@destack/template`](@destack/template) | Show an empty page with Destack's mark. | create-vite's vanilla template |
+| [`@destack/template-blank`](@destack/template-blank) | Show an empty page with Destack's mark. | create-vite's vanilla template |
 
 ## 02 Runtime
 

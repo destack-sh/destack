@@ -471,8 +471,8 @@
                     "description": "Instrument Destack packages with traces, metrics, logs, exceptions and analytics."
                 },
                 {
-                    "directory": "@destack/template",
-                    "name": "@destack/template",
+                    "directory": "@destack/template-blank",
+                    "name": "@destack/template-blank",
                     "description": "Show an empty page with Destack's mark."
                 },
                 {
@@ -692,7 +692,7 @@
                 "@destack/style": "library",
                 "@destack/sync": "builtin",
                 "@destack/telemetry": "builtin",
-                "@destack/template": "app",
+                "@destack/template-blank": "app",
                 "@destack/test": "library",
                 "@destack/theme": "library",
                 "@destack/tunnel": "library",

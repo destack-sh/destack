@@ -76,7 +76,7 @@
         "@destack/style",
         "@destack/sync",
         "@destack/telemetry",
-        "@destack/template",
+        "@destack/template-blank",
         "@destack/test",
         "@destack/theme",
         "@destack/tunnel",
