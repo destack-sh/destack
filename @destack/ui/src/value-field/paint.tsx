@@ -84,7 +84,7 @@ export function PaintInput(properties: NamedValueFieldProperties): JSX.Element {
                     >
                         <PaintSwatch paint={paint()} />
                         <Show when={paint()}>
-                            {(shown) => locale.render(PAINT_KINDS[shown().kind].title)}
+                            {(shown) => <>{locale.render(PAINT_KINDS[shown().kind].title)}</>}
                         </Show>
                     </ValueTrigger>
                 )}
