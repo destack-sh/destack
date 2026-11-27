@@ -145,7 +145,7 @@ export class InstallationStatus {
                     `edit of installation '${id}' is broken: it ended with '${reason}'`,
                 );
             }
-            // TODO #Broken: an edit's lease push leaves its reference row stale, so this waits
+            // take an applied revision after the one the installation served before
             const isApplied =
                 installed !== undefined &&
                 installed.appliedRevisionId !== null &&
