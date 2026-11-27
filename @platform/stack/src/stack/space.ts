@@ -5,13 +5,13 @@ import observabilityPackage from "@destack/observability/package";
 import socialPackage from "@destack/social/package";
 import vaultPackage from "@destack/vault/package";
 import { defineStack } from "@destack/stack";
-import { HOME_INSTALLATION } from "./home.ts";
+import { HOME_DECLARATION } from "./home.ts";
 
 /** The stack of every other space: Home as its front, vault, and observability with its needs. */
 export const SPACE_STACK = defineStack({
     types: [],
     installations: {
-        home: HOME_INSTALLATION,
+        home: HOME_DECLARATION,
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         social: install(socialPackage, {}, { isolation: "host", name: "social" }),
         message: install(messagePackage, {}, { isolation: "host", name: "message" }),

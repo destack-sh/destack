@@ -3,7 +3,7 @@ import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
 import { credentialVault, repositoryStorage } from "@destack/forge/stack";
 import { gitStorage } from "@destack/stack/object";
 import { connectionVault } from "@destack/connection/stack";
-import { HOME_APPLICATION } from "@destack/account/object";
+import { HOME_INSTALLATION } from "@destack/account/object";
 import { HOME_INPUT, PlatformInput } from "../input/index.ts";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
@@ -14,10 +14,10 @@ import { install } from "@destack/stack/declare";
 import vaultPackage from "@destack/vault/package";
 
 /** Home installed as a space's front, following the release the host ships. */
-export const HOME_INSTALLATION = install(
+export const HOME_DECLARATION = install(
     PlatformInput.handle(HOME_INPUT),
     {},
-    { name: HOME_APPLICATION, version: { kind: "host" } },
+    { name: HOME_INSTALLATION, version: { kind: "host" } },
 );
 
 /** The declarations of every account's home: its start page, forge, inbox and connections. */
@@ -37,7 +37,7 @@ export const HOME_OPTIONS = {
             { repositories: "repositories", credentials: "credentials" },
             { isolation: "host", name: FORGE_INSTALLATION },
         ),
-        home: HOME_INSTALLATION,
+        home: HOME_DECLARATION,
         message: install(
             messagePackage,
             {},
