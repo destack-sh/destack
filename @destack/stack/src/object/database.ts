@@ -4,25 +4,40 @@ import { MAIN_DATABASE } from "../declare/index.ts";
 import { defineObject, type ObjectType, provisioned } from "@destack/object";
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
-import { type Identifier, present } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
+import { PackageId } from "@destack/package";
 import { argument, plural, t } from "@destack/locale";
 
 /** The provider that stores a space's main database in the space's own storage. */
 export const SPACE_PROVIDER = "space";
 
 /** A space's database resource. */
-export const database = defineObject({
-    name: "database",
-    plural: "databases",
-    title: t`${plural(argument("count"), { one: "Database", other: "Databases" })}`,
-    scope: space,
-    fields: {},
-    access: {
-        suspended: ["read", "manage"],
-        elevated: { manage: sudo },
+export const database = defineObject(
+    {
+        name: "database",
+        plural: "databases",
+        title: t`${plural(argument("count"), { one: "Database", other: "Databases" })}`,
+        scope: space,
+        fields: {},
+        access: {
+            suspended: ["read", "manage"],
+            elevated: { manage: sudo },
+        },
+        traits: [provisioned({ kind: DatabaseKind })],
     },
-    traits: [provisioned({ kind: DatabaseKind })],
-});
+    (method) => ({
+        /** Drop the tables the database keeps of a package no installation declares any more. */
+        purge: method.mutation({
+            title: t.context("action")`Delete data`,
+            permission: "manage",
+            input: schema.object({
+                /** The package whose kept tables drop. */
+                packageId: PackageId,
+            }),
+            isPredicted: false,
+        }),
+    }),
+);
 
 /** A persisted database resource. */
 export type Database = Select<typeof database.table>;
