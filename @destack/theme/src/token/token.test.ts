@@ -1,6 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import { fileURLToPath } from "node:url";
 import type { FileSystem } from "@destack/environment";
+import { Reference } from "@destack/style";
 import { expect, test } from "@destack/test";
 import { Source } from "../token/source.ts";
 import { TextStyleName, WeightName } from "../theme/theme.ts";
@@ -96,3 +97,23 @@ test("refuse a token color whose hex differs from its channels", () => {
         new RangeError("token 'color.background' has hex '#000000', but its color is '#ffffff'"),
     );
 });
+
+test("list the tokens of a type by family, and find those that draw a value", () => {
+    const families = new Set(TOKENS.filter("dimension").map((family) => family.name));
+    const matched = TOKENS.matching("dimension", "16px", spacing).map((entry) =>
+        entry.path.join("."),
+    );
+
+    expect([families.has("space"), families.has("color"), matched]).toEqual([
+        true,
+        false,
+        ["space.4"],
+    ]);
+});
+
+/** Draw a spacing token as its step times 4px, and every other token as nothing. */
+function spacing(reference: string): string {
+    const [family, step] = Reference.path(reference);
+
+    return family === "space" ? `${String(Number(step) * 4)}px` : "";
+}

@@ -9,6 +9,8 @@ import {
     FontFamily,
     FontWeight,
     Reference,
+    type Resolve,
+    type TokenType,
 } from "@destack/style";
 import tokens from "./tokens.json" with { type: "json" };
 
@@ -358,6 +360,23 @@ export class TokenTree {
         }
 
         return family;
+    }
+
+    /** List the families with tokens of a type, each with only those tokens, in document order. */
+    filter(type: TokenType): TokenGroup[] {
+        return this.families
+            .map((family) => ({
+                ...family,
+                entries: family.entries.filter((entry) => entry.token.$type === type),
+            }))
+            .filter((family) => family.entries.length > 0);
+    }
+
+    /** Find the tokens of a type that draw a value, as a resolver reads what each one draws. */
+    matching(type: TokenType, value: string, resolve: Resolve): TokenEntry[] {
+        return this.filter(type)
+            .flatMap((family) => family.entries)
+            .filter((entry) => resolve(Reference.to(entry.path)) === value);
     }
 
     /** Find a token entry by its path. */
