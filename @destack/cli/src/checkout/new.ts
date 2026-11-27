@@ -5,6 +5,7 @@ import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { CommandOption, type CommandBody } from "../command/command.ts";
 import { PackageSpecifier } from "../catalog/installation.ts";
+import { openProject } from "./check.ts";
 
 /** The template a package is made from unless another is asked for. */
 const DEFAULT_TEMPLATE = "@destack/template";
@@ -74,6 +75,12 @@ export const newCommand: CommandBody = {
                 author: await launcher.author(),
             },
         });
+
+        // write the editor and tool settings with the package's toolchain, as its install skips package scripts
+        const project = await openProject(created.directory, context);
+        await project.configure();
+
+        // print the package and the next step
         const { terminal } = context;
         const lines = [
             terminal.event("Created", "done", `package '${name}'`, created.directory),

@@ -24,7 +24,7 @@ export const checkCommand: CommandBody = {
     isJson: true,
     async run({ arguments: { package: directory }, options, isJson: json }, context) {
         // check the package with the toolchain it pins
-        const project = await open(present(directory, "the package argument"), context);
+        const project = await openProject(present(directory, "the package argument"), context);
         const since = typeof options["since"] === "string" ? options["since"] : undefined;
         const checked = await project.check(since === undefined ? {} : { since });
 
@@ -39,7 +39,7 @@ export const fixCommand: CommandBody = {
     isJson: true,
     async run({ arguments: { package: directory }, isJson: json }, context) {
         // fix the package with the toolchain it pins
-        const project = await open(present(directory, "the package argument"), context);
+        const project = await openProject(present(directory, "the package argument"), context);
 
         // print what is left to fix by hand, refusing a package with any
         await report(await project.fix(), json, context);
@@ -74,7 +74,7 @@ export const testCommand: CommandBody = {
     },
     async run({ arguments: { package: directory }, rest, options }, context) {
         // run the package's tests with the toolchain it pins, as the options select
-        const project = await open(present(directory, "the package argument"), context);
+        const project = await openProject(present(directory, "the package argument"), context);
         const code = await project.test({
             ...testTiers(options["tier"]),
             ...testDatabase(options["database"]),
@@ -127,7 +127,7 @@ function testDatabase(value: unknown): { readonly database?: "sqlite" | "postgre
 }
 
 /** Open a package with the toolchain it pins, as eslint and prettier run the local install. */
-async function open(directory: string, context: CommandContext): Promise<Project> {
+export async function openProject(directory: string, context: CommandContext): Promise<Project> {
     // resolve the package's own @destack/check, refusing a package that pins none
     const absolute = resolve(directory);
     const require = createRequire(join(absolute, "package.json"));
