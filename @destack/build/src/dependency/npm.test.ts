@@ -66,7 +66,7 @@ async function runtimesOf(store: LocalBuildStore, manifest: Digest): Promise<str
     return Object.keys((await store.contents(manifest)).manifest.outputs);
 }
 
-test("build an npm unit with an output per runtime", async () => {
+test("build an npm unit with an output per runtime and the side effects its package.json declares", async () => {
     // install a package requiring another
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -79,7 +79,7 @@ test("build an npm unit with an output per runtime", async () => {
                 links: ["word"],
             },
             word: {
-                manifest: { main: "index.js" },
+                manifest: { main: "index.js", sideEffects: false },
                 files: { "index.js": 'module.exports = "hello";\n' },
             },
         },
@@ -113,6 +113,10 @@ test("build an npm unit with an output per runtime", async () => {
         outputs: Object.keys(reader.manifest.outputs),
         requires: reader.manifest.requires,
         imports: reader.manifest.outputs["browser"]?.exports["."]?.imports,
+        sideEffects: [
+            reader.manifest.sideEffects,
+            (await store.contents(word.manifest)).manifest.sideEffects,
+        ],
         greeting: [await run("bun"), await run("workerd")],
         stored: { ...stored, manifest: "" },
         isReused: again.manifest === stored.manifest,
@@ -121,6 +125,7 @@ test("build an npm unit with an output per runtime", async () => {
         outputs: ["browser", "bun", "workerd"],
         requires: { word: "1.0.0" },
         imports: ["word"],
+        sideEffects: [true, false],
         greeting: ["hello, world", "hello, world"],
         stored: {
             kind: "npm",

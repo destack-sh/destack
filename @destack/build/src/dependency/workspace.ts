@@ -696,19 +696,28 @@ export class WorkspacePackage {
         await settleAll<unknown>([images, installed]);
         const made = await images;
 
-        // bundle each release app or builtin, leaving the shared units and the host's to their builds
-        const bundling = made.flatMap(([, each]) =>
-            WorkspacePackage.#isBundled(each.role, each.isRelease) ? [each.image] : [],
-        );
-        const sharedUnits = await this.#sharedUnits(bundling);
+        // share the npm units two or more release builtins' bundles keep, leaving the host's to their builds
         const platform = await this.#platformUnits(this.workspace.host);
+        const releasing = made.filter(
+            ([, { role, isRelease }]) =>
+                role === "builtin" && WorkspacePackage.#isBundled(role, isRelease),
+        );
+        const kept = await Promise.all(
+            releasing.map(async ([, { image, built }]) =>
+                this.#keptUnits(image, await this.#builtins(built), platform),
+            ),
+        );
+        const sharedUnits = WorkspacePackage.#shared(kept);
+
+        // bundle each release builtin against the shared units, and each release app with its units inlined
         const bundled = await Promise.all(
             made.map(async ([name, { build, image, role, isRelease, built }]) => {
                 // bundle a release app or builtin, keeping a library's or a development image
                 const isImageBundled = WorkspacePackage.#isBundled(role, isRelease);
+                const builtins = await this.#builtins(built);
                 const linked = {
-                    builtins: await this.#builtins(built),
-                    shared: sharedUnits,
+                    builtins,
+                    shared: role === "builtin" ? sharedUnits : new Set<Digest>(),
                     platform,
                     exports: "every" as const,
                 };
@@ -716,9 +725,30 @@ export class WorkspacePackage {
                     ? await ImageBundle.release(image, this.#store, linked)
                     : image;
 
-                return [name, { build, image: released, isBundled: isImageBundled }] as const;
+                return [
+                    name,
+                    { build, image: released, role, builtins, isBundled: isImageBundled },
+                ] as const;
             }),
         );
+
+        // refuse an app inlining an npm package a builtin it links inlines too, host builtins included
+        const inlined = new Map<string, Readonly<Record<string, string>>>();
+        for (const [name, { image, role, isBundled }] of bundled) {
+            if (isBundled && role === "builtin") {
+                inlined.set(name, await this.#inlined((await this.#store.image(image)).root));
+            }
+        }
+        for (const image of this.workspace.host) {
+            const { package: hosted } = await this.workspace.manifest(image.root);
+            inlined.set(hosted.name, await this.#inlined(image.root));
+        }
+        for (const [name, { image, role, builtins, isBundled }] of bundled) {
+            if (isBundled && role === "app") {
+                const own = await this.#inlined((await this.#store.image(image)).root);
+                WorkspacePackage.#refuseTwice(name, own, builtins, inlined);
+            }
+        }
 
         // bundle each shared unit to the subpaths the bundled images import of it
         const releases = bundled.flatMap(([, each]) => (each.isBundled ? [each.image] : []));
@@ -856,17 +886,60 @@ export class WorkspacePackage {
         return isRelease && (role === "app" || role === "builtin");
     }
 
-    /** List the npm units two or more images' bundles would take in, each kept its own build. */
-    async #sharedUnits(images: readonly Digest[]): Promise<ReadonlySet<Digest>> {
-        // count the bundles taking in each npm unit
+    /** List the npm units an image's bundle keeps, bundled with the units it reaches external. */
+    async #keptUnits(
+        digest: Digest,
+        builtins: ReadonlySet<string>,
+        platform: ReadonlyMap<string, ReadonlySet<string>>,
+    ): Promise<ReadonlySet<Digest>> {
+        // bundle the image with its reachable units external, so its bundle imports only those it uses
+        const reached = await this.#bundledUnits(await this.#store.image(digest));
+        const linked = { builtins, shared: reached, platform, exports: "every" as const };
+        const released = await this.#store.image(
+            await ImageBundle.release(digest, this.#store, linked),
+        );
+        const imported = await this.#imports(released);
+
+        return new Set(imported.flatMap(({ target }) => (reached.has(target) ? [target] : [])));
+    }
+
+    /** List the npm units two or more bundles keep, which their platform shares. */
+    static #shared(kept: readonly ReadonlySet<Digest>[]): ReadonlySet<Digest> {
+        // count the bundles keeping each unit
         const counts = new Map<Digest, number>();
-        for (const digest of images) {
-            for (const unit of await this.#bundledUnits(await this.#store.image(digest))) {
-                counts.set(unit, (counts.get(unit) ?? 0) + 1);
-            }
+        for (const unit of kept.flatMap((units) => [...units])) {
+            counts.set(unit, (counts.get(unit) ?? 0) + 1);
         }
 
         return new Set([...counts].filter(([, count]) => count > 1).map(([unit]) => unit));
+    }
+
+    /** Read the npm packages a build's bundled browser output took in, by name. */
+    async #inlined(build: Digest): Promise<Readonly<Record<string, string>>> {
+        const outputs = PackageManifest.outputs(await this.#store.get(build), "browser");
+
+        return Object.fromEntries(outputs.flatMap((output) => Object.entries(output.inlined)));
+    }
+
+    /** Refuse an app bundling an npm package a builtin it links bundles too. */
+    static #refuseTwice(
+        name: string,
+        own: Readonly<Record<string, string>>,
+        builtins: ReadonlySet<string>,
+        inlined: ReadonlyMap<string, Readonly<Record<string, string>>>,
+    ): void {
+        // compare by name, as two versions of a package on one page are two copies as well
+        for (const builtin of [...builtins].toSorted()) {
+            const theirs = inlined.get(builtin) ?? {};
+            const twice = Object.keys(own).filter((unit) => Object.hasOwn(theirs, unit));
+            if (twice.length > 0) {
+                const units = twice.toSorted().join("', '");
+                throw BuildError.of(
+                    "DEPENDENCY_INVALID",
+                    `app '${name}' is invalid: it and builtin '${builtin}' each bundle '${units}', which the platform shares instead`,
+                );
+            }
+        }
     }
 
     /** List the npm units an image's bundle would take in, builtins left to their own. */

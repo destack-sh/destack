@@ -5,6 +5,7 @@ import {
     type NpmRelease,
     PackageJson,
     RuntimeRequirements,
+    SideEffects,
 } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import { PackageLocator } from "@destack/package/locator";
@@ -26,10 +27,11 @@ const DESTACK_VERSION = import.meta.destack.package.version;
 /** The files read at once, 64: well under macOS's default limit of 256 open files. */
 const CONCURRENT_READS = 64;
 
-/** The package.json fields an npm unit reads: its release and its requirements. */
+/** The package.json fields an npm unit reads: its release, its requirements and side effects. */
 const Manifest = RuntimeRequirements.extend({
     name: schema.string().min(1),
     version: schema.string().min(1),
+    sideEffects: SideEffects.default(true),
 });
 
 /** An npm dependency taken by its unit's build. */
@@ -143,7 +145,14 @@ export class NpmInstallation {
                 dependencies.set(peer, await this.#open(real, next));
             }
         }
-        const unit = new NpmUnit(release, directory, dependencies, manifest, this.#environment);
+        const unit = new NpmUnit(
+            release,
+            directory,
+            dependencies,
+            manifest,
+            manifest.sideEffects,
+            this.#environment,
+        );
         this.#opened.set(directory, unit);
 
         return unit;
@@ -229,6 +238,8 @@ export class NpmUnit {
     readonly dependencies: ReadonlyMap<string, NpmUnit>;
     /** The dependencies, optional dependencies and peers its package.json declares. */
     readonly requirements: RuntimeRequirements;
+    /** Which of its modules run code on import, as its package.json declares them. */
+    readonly sideEffects: SideEffects;
     /** The files the installed copy is read from, and the crypto digesting its build. */
     readonly #environment: Environment<"files">;
     /** The runtimes the unit runs on, read once. */
@@ -240,13 +251,15 @@ export class NpmUnit {
         directory: string,
         dependencies: ReadonlyMap<string, NpmUnit>,
         requirements: RuntimeRequirements,
+        sideEffects: SideEffects,
         environment: Environment<"files">,
     ) {
-        // store the release, its copy and its requirements
+        // store the release, its copy, its requirements and side effects
         this.release = release;
         this.directory = directory;
         this.dependencies = dependencies;
         this.requirements = requirements;
+        this.sideEffects = sideEffects;
         this.#environment = environment;
     }
 
@@ -352,6 +365,7 @@ export class NpmUnit {
             destack: DESTACK_VERSION,
             package: { ...this.release.package, integrity },
             role: "library",
+            sideEffects: this.sideEffects,
             outputs,
             requires,
         });
@@ -396,6 +410,7 @@ export class NpmUnit {
             emit: true,
             workloads: {},
             views: {},
+            inlined: {},
             directory: runtime,
             exports: Object.fromEntries(
                 Object.entries(converted.exports).map(([subpath, module]) => [

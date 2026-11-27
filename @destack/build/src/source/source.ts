@@ -328,6 +328,7 @@ export async function readPackageJson(
         peerDependenciesMeta: field(metadata, "peerDependenciesMeta"),
         optionalDependencies: field(metadata, "optionalDependencies"),
         devDependencies: field(metadata, "devDependencies"),
+        ...(metadata["sideEffects"] === undefined ? {} : { sideEffects: metadata["sideEffects"] }),
     });
     const definition = packageJson.definition;
 

@@ -64,6 +64,7 @@ async function written(
     const manifest = await writer.finish({
         destack: "2026.11.0",
         role,
+        sideEffects: true,
         package: PackageVersion.parse({ ...named, version: "2026.9.0" }),
         outputs: {
             bun: {
@@ -74,6 +75,7 @@ async function written(
                 directory: "src",
                 exports: { ".": { path: "src/answer.ts", imports: Object.keys(requires) } },
                 peers: {},
+                inlined: {},
             },
         },
         requires,

@@ -11,9 +11,10 @@ import {
     ModuleResolution,
     PackageManifest,
     type PackageOutput,
+    parseImports,
 } from "@destack/package/manifest";
 import { children } from "@destack/package/vite";
-import { DependencyName } from "@destack/package";
+import { DependencyName, SideEffects } from "@destack/package";
 import { DESTACK_MODULE_SCHEME, isHostModule } from "@destack/package/build";
 import { BuildError } from "../error/index.ts";
 import { type Span, TelemetryScope } from "@destack/telemetry";
@@ -25,7 +26,7 @@ import type { LocalBuildStore } from "../store/local.ts";
 const MODULE_SUFFIX = ".mjs";
 
 /** The format of a release bundle's cache entry, bumped whenever release bundling changes. */
-const RELEASE_FORMAT = 10;
+const RELEASE_FORMAT = 12;
 
 /** The directory of a bundle's assets, below its browser output's. */
 const ASSET_DIRECTORY = "asset";
@@ -46,6 +47,8 @@ export interface ImageBundleOptions {
     readonly map: (url: string) => Promise<string | undefined>;
     /** Read a file a module names by URL, by its module URL, absent for a file the image lacks. */
     readonly asset: (url: string) => Promise<Uint8Array<ArrayBuffer> | undefined>;
+    /** Report whether a module runs code on import, as its build's manifest declares it. */
+    readonly hasSideEffects: (url: string) => Promise<boolean>;
     /** Read the specifier an external module is imported by, absent to bundle the module. */
     readonly external: (url: string, specifier: string) => string | undefined;
     /** The packages the page links, whose imports the image leaves unresolved. */
@@ -84,11 +87,18 @@ export class ImageBundle {
     readonly chunks: readonly BundleChunk[];
     /** The files the chunks name by URL. */
     readonly assets: readonly BundleAsset[];
+    /** The builds whose modules the chunks took in, their code rendered. */
+    readonly builds: ReadonlySet<Digest>;
 
-    /** Hold a bundle's chunks and assets. */
-    private constructor(chunks: readonly BundleChunk[], assets: readonly BundleAsset[]) {
+    /** Hold a bundle's chunks, assets and the builds they took in. */
+    private constructor(
+        chunks: readonly BundleChunk[],
+        assets: readonly BundleAsset[],
+        builds: ReadonlySet<Digest>,
+    ) {
         this.chunks = chunks;
         this.assets = assets;
+        this.builds = builds;
     }
 
     /** Bundle an image's modules from entries, each named by its module URL. */
@@ -126,16 +136,23 @@ export class ImageBundle {
                 assetFileNames: `${options.directory}/${ASSET_DIRECTORY}/[name]-[hash][extname]`,
             });
 
-            // take the chunks with their static imports
-            const chunks = generated.output
-                .filter((file) => file.type === "chunk")
-                .map((chunk) => ({
-                    path: chunk.fileName,
-                    code: chunk.code,
-                    map: chunk.map?.toString(),
-                    imports: chunk.imports,
-                    dynamicImports: chunk.dynamicImports,
-                }));
+            // take the chunks with the imports their code keeps, as rolldown also lists dropped external ones
+            const outputs = generated.output.filter((file) => file.type === "chunk");
+            const paths = new Set(outputs.map((chunk) => chunk.fileName));
+            const chunks = await Promise.all(
+                outputs.map(async (chunk) => {
+                    const [parsed] = await parseImports(chunk.code);
+                    const kept = new Set(parsed.map((imported) => imported.specifier));
+
+                    return {
+                        path: chunk.fileName,
+                        code: chunk.code,
+                        map: chunk.map?.toString(),
+                        imports: chunk.imports.filter((each) => paths.has(each) || kept.has(each)),
+                        dynamicImports: chunk.dynamicImports,
+                    };
+                }),
+            );
 
             const assets = generated.output
                 .filter((file) => file.type === "asset")
@@ -147,7 +164,21 @@ export class ImageBundle {
                             : Uint8Array.from(asset.source),
                 }));
 
-            return new ImageBundle(chunks, assets);
+            // note the builds whose modules render code into a chunk
+            const builds = new Set(
+                outputs.flatMap((chunk) =>
+                    Object.entries(chunk.modules).flatMap(([id, module]) => {
+                        const located =
+                            module.renderedLength > 0 && !id.startsWith("\0")
+                                ? resolution.locate(ImageBundle.#url(id))
+                                : undefined;
+
+                        return located === undefined ? [] : [located.build];
+                    }),
+                ),
+            );
+
+            return new ImageBundle(chunks, assets, builds);
         } finally {
             await build.close();
         }
@@ -272,8 +303,15 @@ export class ImageBundle {
 
         // write the root's build again with the bundle for its kept exports' modules, keeping it under the key
         const requires = await ImageBundle.#ranges(value, bundle, root, store);
+        const inlined = await ImageBundle.#inlined(bundle, store);
         const bundled = await scope.span("destack.bundle.write", {}, () =>
-            ImageBundle.#write(root, { ...output, exports: kept }, bundle, requires, store),
+            ImageBundle.#write(
+                root,
+                { ...output, exports: kept, inlined },
+                bundle,
+                requires,
+                store,
+            ),
         );
         await store.cache.set(key, { kind: "build", manifest: bundled });
 
@@ -295,7 +333,9 @@ export class ImageBundle {
     static #reading(
         resolution: ModuleResolution,
         store: LocalBuildStore,
-    ): Pick<ImageBundleOptions, "load" | "map" | "asset"> & { readonly count: () => number } {
+    ): Pick<ImageBundleOptions, "load" | "map" | "asset" | "hasSideEffects"> & {
+        readonly count: () => number;
+    } {
         // read each build of the image once
         const readers = new Map<Digest, Promise<BuildReader>>();
         const contents = (url: string) => {
@@ -336,6 +376,22 @@ export class ImageBundle {
                 const build = await reading;
 
                 return (await build.has(path)) ? await build.load(path) : undefined;
+            },
+            hasSideEffects: async (url) => {
+                // match the module's path below its output against the build's declared side effects
+                const { reading, path } = contents(url);
+                const { manifest } = await reading;
+                const output = present(
+                    Object.values(manifest.outputs).find((each) =>
+                        path.startsWith(`${each.directory}/`),
+                    ),
+                    `the output of module '${url}'`,
+                );
+
+                return SideEffects.has(
+                    manifest.sideEffects,
+                    path.slice(output.directory.length + 1),
+                );
             },
             count: () => loaded,
         };
@@ -387,15 +443,18 @@ export class ImageBundle {
         entries: readonly string[],
         output: PackageOutput,
         linked: Parameters<typeof ImageBundle.release>[2],
-        read: Pick<ImageBundleOptions, "load" | "map" | "asset"> & { readonly root: Digest },
+        read: Pick<ImageBundleOptions, "load" | "map" | "asset" | "hasSideEffects"> & {
+            readonly root: Digest;
+        },
     ): Promise<ImageBundle> {
-        const { load, map, asset, root } = read;
+        const { load, map, asset, hasSideEffects, root } = read;
 
         return ImageBundle.of(resolution, entries, {
             directory: output.directory,
             load,
             map,
             asset,
+            hasSideEffects,
             external: (url, specifier) => {
                 // leave a module of another shared build, or a subpath a platform unit exports, to that build
                 const { build } = present(resolution.locate(url), `module '${url}'`);
@@ -479,12 +538,15 @@ export class ImageBundle {
         const outputs = Object.fromEntries(
             Object.entries(manifest.outputs).map(([name, each]) => [
                 name,
-                each.directory === output.directory ? { ...each, exports } : each,
+                each.directory === output.directory
+                    ? { ...each, exports, inlined: output.inlined }
+                    : each,
             ]),
         );
         await written.finish({
             package: manifest.package,
             role: manifest.role,
+            sideEffects: manifest.sideEffects,
             destack: manifest.destack,
             outputs,
             requires,
@@ -540,7 +602,7 @@ export class ImageBundle {
 
         return {
             name: "@destack/build/image",
-            resolveId(specifier, importer) {
+            async resolveId(specifier, importer) {
                 // take an entry's module as it is
                 if (importer === undefined) {
                     return { id: specifier };
@@ -561,9 +623,16 @@ export class ImageBundle {
                 const external =
                     resolved === undefined ? specifier : options.external(resolved, specifier);
 
+                // let rolldown drop an unused import of a module without side effects
+                const moduleSideEffects =
+                    resolved === undefined || (await options.hasSideEffects(resolved));
+
                 return external === undefined
-                    ? { id: ImageBundle.#id(present(resolved, "the resolved module")) }
-                    : { id: external, external: true };
+                    ? {
+                          id: ImageBundle.#id(present(resolved, "the resolved module")),
+                          moduleSideEffects,
+                      }
+                    : { id: external, external: true, moduleSideEffects };
             },
             async load(loaded) {
                 // read a module's code and map, loading it as an ES module whatever its extension
@@ -616,6 +685,21 @@ export class ImageBundle {
     /** Name a module URL as an id the bundler parses as an ES module. */
     static #id(url: string): string {
         return url.endsWith(".cjs") ? `${url}${MODULE_SUFFIX}` : url;
+    }
+
+    /** Read the npm packages a bundle took in, by name, at their versions. */
+    static async #inlined(
+        bundle: ImageBundle,
+        store: LocalBuildStore,
+    ): Promise<Readonly<Record<string, string>>> {
+        // take the npm units among the builds the bundle took in
+        const manifests = await Promise.all([...bundle.builds].map((build) => store.get(build)));
+        const units = manifests
+            .filter((manifest) => !PackageManifest.isPackage(manifest))
+            .map(({ package: { name, version } }) => [name, version] as const)
+            .toSorted(([left], [right]) => (left < right ? -1 : Number(left > right)));
+
+        return Object.fromEntries(units);
     }
 
     /** Read the module URL of a bundler id. */

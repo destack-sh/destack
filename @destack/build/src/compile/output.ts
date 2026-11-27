@@ -37,7 +37,7 @@ import {
     runtimeTarget,
 } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
-import { PackageJson, type PackageId, type Sandbox } from "@destack/package";
+import { PackageJson, type PackageId, type Sandbox, SideEffects } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { type PackageOutput, type PackageChunk } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
@@ -102,6 +102,8 @@ export interface OutputBuild {
     destack: Set<string>;
     /** The npm packages its modules import, external to the output. */
     npm: Set<string>;
+    /** The chunks holding a module that runs code on import, by path below the output. */
+    effectful: Set<string>;
 }
 
 /** How an output bundles: once per build, or warm across the builds of a package in development. */
@@ -554,6 +556,7 @@ export class ModuleOutput implements Compilation {
             directory: `output/${this.name}`,
             exports: {},
             peers: {},
+            inlined: {},
         };
 
         return {
@@ -565,6 +568,7 @@ export class ModuleOutput implements Compilation {
             sourceMaps: [],
             destack: new Set(),
             npm: new Set(),
+            effectful: new Set(),
         };
     }
 
@@ -881,6 +885,23 @@ export class ModuleOutput implements Compilation {
                 if (entry.type === "chunk" && entry.facadeModuleId === source) {
                     compiled.bins[command] = path;
                 }
+            }
+
+            // mark the chunks holding a module with side effects, as package.json declares them
+            const { sideEffects } = project.packageJson;
+            if (
+                entry.type === "chunk" &&
+                typeof sideEffects !== "boolean" &&
+                entry.moduleIds.some(
+                    (id) =>
+                        id.startsWith(`${project.directory}/`) &&
+                        SideEffects.has(
+                            sideEffects,
+                            relativePath(project.directory, modulePath(id)),
+                        ),
+                )
+            ) {
+                compiled.effectful.add(entry.fileName);
             }
 
             // take a chunk's source map

@@ -11,6 +11,7 @@ import {
     type PackageVersion,
     type DeclarationDescription,
     PackageJson,
+    type SideEffects,
     TEST_EXPORT,
 } from "@destack/package";
 import { Digest, found, type JsonObject, present, schema, Version } from "@destack/schema";
@@ -401,6 +402,10 @@ export class CompilerWorker {
             destack: DESTACK_VERSION,
             package: source,
             role: opened.packageJson.definition.role,
+            sideEffects: CompilerWorker.#sideEffects(
+                opened.packageJson.sideEffects,
+                compiled.outputs,
+            ),
             outputs: Object.fromEntries(
                 [...compiled.outputs].map(([name, { output }]) => [name, output]),
             ),
@@ -642,6 +647,19 @@ export class CompilerWorker {
         );
     }
 
+    /** Read a package's side effects as its build's paths: its globs, and the chunks they match. */
+    static #sideEffects(
+        declared: SideEffects,
+        outputs: ReadonlyMap<string, Pick<OutputBuild, "effectful">>,
+    ): SideEffects {
+        // keep every module or none, else add the chunks of the modules the globs match
+        const chunks = [...outputs.values()].flatMap(({ effectful }) => [...effectful]);
+
+        return typeof declared === "boolean"
+            ? declared
+            : [...new Set([...declared, ...chunks])].toSorted();
+    }
+
     /** Pick the output whose program reads the whole source, by the runtime declarations run on. */
     static #primary(planned: ReadonlyMap<string, ModuleOptions>): string {
         // prefer Bun, where declarations evaluate, then workerd, then the browser
@@ -665,7 +683,7 @@ export class CompilerWorker {
         transformer: ModuleTransformer,
         mode: BundleMode,
     ): Promise<{
-        outputs: Map<string, Pick<OutputBuild, "output" | "inspection" | "npm">>;
+        outputs: Map<string, Pick<OutputBuild, "output" | "inspection" | "npm" | "effectful">>;
         sourceMaps: SourceMapReference[];
     }> {
         // read the package's examples and scenarios once, when an extension first asks for them
@@ -720,7 +738,7 @@ export class CompilerWorker {
         name: string,
         output: ModuleOptions,
         context: CompileContext,
-    ): Promise<Pick<OutputBuild, "output" | "inspection" | "npm" | "sourceMaps">> {
+    ): Promise<Pick<OutputBuild, "output" | "inspection" | "npm" | "effectful" | "sourceMaps">> {
         const attributes = {
             "destack.package.directory": context.options.directory,
             "destack.compiler.output": name,
@@ -737,7 +755,7 @@ export class CompilerWorker {
         name: string,
         output: ModuleOptions,
         context: CompileContext,
-    ): Promise<Pick<OutputBuild, "output" | "inspection" | "npm" | "sourceMaps">> {
+    ): Promise<Pick<OutputBuild, "output" | "inspection" | "npm" | "effectful" | "sourceMaps">> {
         // compile the output, kept warm in development, and write its files
         const { options, files } = context;
         const compilation =

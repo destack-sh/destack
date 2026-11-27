@@ -91,6 +91,7 @@ async function written(
     const manifest = await writer.finish({
         destack: "2026.11.0",
         role: "app",
+        sideEffects: true,
         package: built,
         outputs,
     });
@@ -138,6 +139,7 @@ function bunOutputs(
             directory: "bun",
             exports,
             peers: {},
+            inlined: {},
         },
     };
 }
