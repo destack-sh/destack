@@ -524,9 +524,28 @@ export class BuildStore<
 
     /** Tell which of some blobs the store has, one flag per digest, its layer's among them. */
     async has(digests: readonly Digest[]): Promise<boolean[]> {
+        // locate the bytes, and read the records of the manifests and images among them
         const located = await this.locate(digests);
+        const stored = digests.filter((digest) => located.has(digest));
+        const records =
+            stored.length === 0
+                ? []
+                : await this.database
+                      .select({
+                          digest: buildManifest.digest,
+                          isComplete: buildManifest.isComplete,
+                          layer: buildManifest.layer,
+                      })
+                      .from(buildManifest)
+                      .where(inArray(buildManifest.digest, stored));
+        const incomplete = new Set(
+            records
+                .filter((record) => !record.isComplete || !this.#isMounted(record.layer))
+                .map((record) => record.digest),
+        );
 
-        return digests.map((digest) => located.has(digest));
+        // have an object whose bytes lie here, unless it is a manifest or image recorded incomplete, which a push writes again
+        return digests.map((digest) => located.has(digest) && !incomplete.has(digest));
     }
 
     /** Read objects as tarball entries, in the order given. */
