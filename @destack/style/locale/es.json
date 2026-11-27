@@ -1,0 +1,302 @@
+{
+    "package": "package-01a0c80b-614e-739a-b980-28f97bab46f1",
+    "locale": "es",
+    "messages": {
+        "p3yp08zrcycw": {
+            "source": "Blue",
+            "context": "option",
+            "translation": "Azul"
+        },
+        "2p4cygffd1s6w": {
+            "source": "Brown",
+            "context": "option",
+            "translation": "Marrón"
+        },
+        "39dz0dh81e7wr": {
+            "source": "Cyan",
+            "context": "option",
+            "translation": "Cian"
+        },
+        "5a99v9trd4gj": {
+            "source": "Gray",
+            "context": "option",
+            "translation": "Gris"
+        },
+        "3a6lwsshpk9on": {
+            "source": "Green",
+            "context": "option",
+            "translation": "Verde"
+        },
+        "3rmvvpb9ro0mu": {
+            "source": "Orange",
+            "context": "option",
+            "translation": "Naranja"
+        },
+        "1fblbb1sawels": {
+            "source": "Pink",
+            "context": "option",
+            "translation": "Rosa"
+        },
+        "2friqu6yy71gu": {
+            "source": "Purple",
+            "context": "option",
+            "translation": "Morado"
+        },
+        "14jty1vehivsr": {
+            "source": "Red",
+            "context": "option",
+            "translation": "Rojo"
+        },
+        "2ugjzyqio9xi4": {
+            "source": "Yellow",
+            "context": "option",
+            "translation": "Amarillo"
+        },
+        "14rovmpcp3qq7": {
+            "source": "RGB",
+            "context": "option",
+            "translation": "RGB"
+        },
+        "164yanamjka3h": {
+            "source": "By its hue, saturation and brightness, as design tools pick it.",
+            "translation": "Por su tono, saturación y brillo, como lo eligen las herramientas de diseño."
+        },
+        "1y1br123k66bn": {
+            "source": "HSL",
+            "context": "option",
+            "translation": "HSL"
+        },
+        "1y1bwhhmbuyj1": {
+            "source": "HSB",
+            "context": "option",
+            "translation": "HSB"
+        },
+        "2c28n5ml2qapv": {
+            "source": "By its red, green and blue light, as screens mix it.",
+            "translation": "Por su luz roja, verde y azul, como la mezclan las pantallas."
+        },
+        "3pvxfbwuhowwt": {
+            "source": "OKLCH",
+            "context": "option",
+            "translation": "OKLCH"
+        },
+        "5jrmelh09fnb": {
+            "source": "By its lightness, chroma and hue, as people see it.",
+            "translation": "Por su luminosidad, croma y tono, como lo ven las personas."
+        },
+        "grxnb7v3cs5s": {
+            "source": "By its hue, saturation and lightness, as CSS writes it.",
+            "translation": "Por su tono, saturación y luminosidad, como lo escribe CSS."
+        },
+        "3po2g6ygmrtx9": {
+            "source": "OKLab",
+            "context": "option",
+            "translation": "OKLab"
+        },
+        "tonoxiy8ldfk": {
+            "source": "Evenly as people see it, without passing through other hues.",
+            "translation": "De forma uniforme, como lo ven las personas, sin pasar por otros tonos."
+        },
+        "2umid9ws71bqx": {
+            "source": "Round the hue wheel as people see it, keeping colors vivid.",
+            "translation": "Alrededor del círculo cromático, como lo ven las personas, con colores vivos."
+        },
+        "1ht8r6kcea2pw": {
+            "source": "sRGB",
+            "context": "option",
+            "translation": "sRGB"
+        },
+        "a4xuqjdq4oln": {
+            "source": "By its red, green and blue light, as older tools blend.",
+            "translation": "Por su luz roja, verde y azul, como mezclan las herramientas antiguas."
+        },
+        "i7jra9jmt241": {
+            "source": "Shorter",
+            "context": "option",
+            "translation": "Más corto"
+        },
+        "1t10ewefd4hcu": {
+            "source": "The shorter way round the wheel.",
+            "translation": "El camino más corto alrededor del círculo."
+        },
+        "16ahzp4p0xajx": {
+            "source": "Longer",
+            "context": "option",
+            "translation": "Más largo"
+        },
+        "38uw04ovaf0ax": {
+            "source": "The longer way round the wheel, through more hues.",
+            "translation": "El camino más largo alrededor del círculo, por más tonos."
+        },
+        "1odsh6r13c8fz": {
+            "source": "Normal",
+            "context": "option",
+            "translation": "Normal"
+        },
+        "16jqq5epirw84": {
+            "source": "Multiply",
+            "context": "option",
+            "translation": "Multiplicar"
+        },
+        "ctqxkhtw7d88": {
+            "source": "Screen",
+            "context": "option",
+            "translation": "Trama"
+        },
+        "uah5kualm2h0": {
+            "source": "Overlay",
+            "context": "option",
+            "translation": "Superponer"
+        },
+        "2h2wknhaxuob7": {
+            "source": "Darken",
+            "context": "option",
+            "translation": "Oscurecer"
+        },
+        "33k0ynncicomb": {
+            "source": "Lighten",
+            "context": "option",
+            "translation": "Aclarar"
+        },
+        "1rdsj9iof9yg4": {
+            "source": "Color dodge",
+            "context": "option",
+            "translation": "Sobreexponer color"
+        },
+        "2uy8abxbnh4vg": {
+            "source": "Color burn",
+            "context": "option",
+            "translation": "Subexponer color"
+        },
+        "133fnudb9y6l": {
+            "source": "Hard light",
+            "context": "option",
+            "translation": "Luz fuerte"
+        },
+        "dz0ta8q08amg": {
+            "source": "Soft light",
+            "context": "option",
+            "translation": "Luz suave"
+        },
+        "2afsfeuva8drr": {
+            "source": "Difference",
+            "context": "option",
+            "translation": "Diferencia"
+        },
+        "2ju2h9ljqzsr4": {
+            "source": "Exclusion",
+            "context": "option",
+            "translation": "Exclusión"
+        },
+        "1y832j7fhchmy": {
+            "source": "Hue",
+            "context": "option",
+            "translation": "Tono"
+        },
+        "q701ponfctyk": {
+            "source": "Saturation",
+            "context": "option",
+            "translation": "Saturación"
+        },
+        "ieov3f03n26b": {
+            "source": "Color",
+            "context": "option",
+            "translation": "Color"
+        },
+        "26os5x7wnbk1x": {
+            "source": "Luminosity",
+            "context": "option",
+            "translation": "Luminosidad"
+        },
+        "1cbv82en8j5al": {
+            "source": "Linear",
+            "context": "option",
+            "translation": "Lineal"
+        },
+        "8ztrh8y705ca": {
+            "source": "Along a straight line at an angle.",
+            "translation": "A lo largo de una línea recta en un ángulo."
+        },
+        "2kxy0ion70un3": {
+            "source": "Radial",
+            "context": "option",
+            "translation": "Radial"
+        },
+        "3a7u2stcbztnz": {
+            "source": "Outward from a center to the farthest corner.",
+            "translation": "Desde un centro hacia fuera hasta la esquina más lejana."
+        },
+        "8i24sap07iww": {
+            "source": "Conic",
+            "context": "option",
+            "translation": "Cónico"
+        },
+        "3hqwxy6z1zgm1": {
+            "source": "Round a center, from an angle.",
+            "translation": "Alrededor de un centro, desde un ángulo."
+        },
+        "1wryqygiq9ovn": {
+            "source": "Solid",
+            "context": "option",
+            "translation": "Sólido"
+        },
+        "1p3uqj0loxcx0": {
+            "source": "Gradient",
+            "context": "option",
+            "translation": "Degradado"
+        },
+        "gjd4g6naet6u": {
+            "source": "Colors blended across the box.",
+            "translation": "Colores fundidos a lo largo de la caja."
+        },
+        "13yclj9bt0rcp": {
+            "source": "Image",
+            "context": "option",
+            "translation": "Imagen"
+        },
+        "7f96124co6eb": {
+            "source": "A picture from an address.",
+            "translation": "Una imagen desde una dirección."
+        },
+        "1bx6p53ckcdgn": {
+            "source": "Cover",
+            "context": "option",
+            "translation": "Cubrir"
+        },
+        "3kqdh0i98oxan": {
+            "source": "Fill the box, cropping the image where it overflows.",
+            "translation": "Llenar la caja, recortando la imagen donde sobresale."
+        },
+        "3fnd35ftutz6s": {
+            "source": "Contain",
+            "context": "option",
+            "translation": "Contener"
+        },
+        "13q8prdushnaz": {
+            "source": "Show the whole image inside the box.",
+            "translation": "Mostrar la imagen entera dentro de la caja."
+        },
+        "1r100d8hrrb6h": {
+            "source": "Stretch",
+            "context": "option",
+            "translation": "Estirar"
+        },
+        "1fiqdabe7e555": {
+            "source": "Stretch the image to the box's width and height.",
+            "translation": "Estirar la imagen al ancho y alto de la caja."
+        },
+        "mg17sd8jyk94": {
+            "source": "Tile",
+            "context": "option",
+            "translation": "Mosaico"
+        },
+        "1iy0qftm0yxoo": {
+            "source": "Repeat the image at its own size.",
+            "translation": "Repetir la imagen a su propio tamaño."
+        },
+        "103u9wbwp9u2p": {
+            "source": "One color across the box.",
+            "translation": "Un color en toda la caja."
+        }
+    }
+}
