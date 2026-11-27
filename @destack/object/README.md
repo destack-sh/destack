@@ -164,7 +164,7 @@ export const fields = {
 
 ```ts
 import { argument, plural, t } from "@destack/locale";
-import { defineObject, field, RICH_TEXT, TextTypes } from "@destack/object";
+import { defineObject, field, RICH_TEXT, TextType } from "@destack/object";
 import type { ObjectClient } from "@destack/object/device";
 
 // declare pages with a rich body
@@ -188,7 +188,7 @@ export async function write(client: ObjectClient<{ readonly page: typeof page }>
     body.change({ from: 0, to: 0, insert: "Ship the release" });
 
     // bold "Ship", then wait for the store
-    const range = body.rope.range(0, 4, TextTypes.bold);
+    const range = body.rope.range(0, 4, TextType.bold);
     const bold = { id: "mark-1", type: "bold", value: true, ...range, order: null };
     await body.edit([{ mark: bold }]).confirmed;
     await body.close();
