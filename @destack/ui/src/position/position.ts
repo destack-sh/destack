@@ -1,7 +1,7 @@
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import * as style from "@destack/style";
-import { LayoutAnimation } from "../motion/index.ts";
+import { LayoutAnimation } from "../motion/layout.ts";
 import { transition } from "@destack/theme/motion";
 import { space } from "@destack/theme/tokens.stylex";
 

@@ -30,7 +30,7 @@ import {
 } from "@destack/view";
 import { CollectionBuilder } from "../collection/index.ts";
 import { Icon } from "../icon/index.ts";
-import { createLayoutAnimation } from "../motion/index.ts";
+import { createLayoutAnimation } from "../motion/layout.ts";
 import { OverflowContext, OverflowEntryContext, useOverflowEntry } from "../overflow/index.ts";
 import {
     type ElementPartProperties,

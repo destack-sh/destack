@@ -33,7 +33,7 @@ import {
     type DroppableOptions,
     useDragManager,
 } from "../drag/index.ts";
-import { LayoutAnimation } from "../motion/index.ts";
+import { LayoutAnimation } from "../motion/layout.ts";
 import {
     contentOr,
     type ElementPartProperties,

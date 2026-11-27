@@ -1,5 +1,5 @@
 import { isMotionReduced } from "@destack/view/motion";
-import { LayoutAnimation } from "../motion/index.ts";
+import { LayoutAnimation } from "../motion/layout.ts";
 
 /** How far content slides as another takes its place, in pixels, as much as a row is tall. */
 const SLIDE = 32;

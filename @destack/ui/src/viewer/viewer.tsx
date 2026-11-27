@@ -57,7 +57,7 @@ import {
     mergeProperties,
     renderPart,
 } from "../part/index.ts";
-import { LayoutAnimation } from "../motion/index.ts";
+import { LayoutAnimation } from "../motion/layout.ts";
 import { useViewer, ViewerContext, type ViewerControl, type ViewerState } from "./control.ts";
 import { FIT, type Frame, type Place, type Point } from "./scale.ts";
 
