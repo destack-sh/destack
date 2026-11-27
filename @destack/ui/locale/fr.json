@@ -6745,6 +6745,19 @@
             "source": "Minutes",
             "context": "label",
             "translation": "Minutes"
+        },
+        "3m45jvb8oppen": {
+            "source": "Mention",
+            "context": "label",
+            "translation": "Mentionner"
+        },
+        "123bd55l9v12n": {
+            "source": "A message to a team, whose @ finds people and pages to mention.",
+            "translation": "Un message à une équipe, dont le @ trouve des personnes et des pages à mentionner."
+        },
+        "2i2zx41gqr6f0": {
+            "source": "A person and a page mentioned in a sentence.",
+            "translation": "Une personne et une page mentionnées dans une phrase."
         }
     }
 }
