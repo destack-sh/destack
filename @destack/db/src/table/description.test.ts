@@ -108,12 +108,9 @@ test("rebuild a declared table from its state under its properties, reading the 
             .execute(),
     );
 
-    // rebuild the table from its state, with the switch time under its property name
+    // rebuild the table from its state, each column under its property name
     const [state] = declareState([light], TestDatabase.target());
-    const rebuilt = Table.describe(present(state, "the light's state"), {
-        switched_at: "switchedAt",
-        wiring_key: "wiringKey",
-    });
+    const rebuilt = Table.describe(present(state, "the light's state"));
 
     // describe its columns as the declared ones, and read its rows by property
     const [copied] = await storage.database.select().from(rebuilt);

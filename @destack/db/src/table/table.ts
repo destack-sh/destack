@@ -153,9 +153,10 @@ export class Table<
     }
 
     /** Build the table a state describes, such as another host's. */
-    static describe(state: TableState, properties: Readonly<Record<string, string>> = {}): Table {
-        // read the logged columns
+    static describe(state: TableState): Table {
+        // read the logged columns, and each column's property in code
         const description = state.table;
+        const { properties } = state;
         const logged = new Set(state.log?.columns ?? []);
 
         // read the key, which a table declares in column order
@@ -171,8 +172,8 @@ export class Table<
         // build each column by kind
         const columns = Object.fromEntries(
             description.columns.map((column) => {
-                const isUnlogged = state.log !== undefined && !logged.has(column.name);
                 // leave an unlogged column's encrypted text opaque
+                const isUnlogged = state.log !== undefined && !logged.has(column.name);
                 const definition = {
                     ...COLUMNS[isUnlogged ? "text" : column.kind](column.name).definition,
                     nullable: column.nullable,
@@ -188,14 +189,13 @@ export class Table<
                           }),
                 };
 
-                return [
-                    properties[column.name] ?? column.name,
-                    new Column(
-                        description.name,
-                        properties[column.name] ?? column.name,
-                        definition,
-                    ),
-                ];
+                // read the column's property in code
+                const property = present(
+                    properties[column.name],
+                    `the property of '${column.name}'`,
+                );
+
+                return [property, new Column(description.name, property, definition)];
             }),
         );
 
@@ -219,7 +219,9 @@ export class Table<
                     state.fullText === undefined
                         ? undefined
                         : new FullTextIndex(
-                              state.fullText.map((column) => properties[column] ?? column),
+                              state.fullText.map((column) =>
+                                  present(properties[column], `the property of '${column}'`),
+                              ),
                               state.fullText,
                               description.name,
                           ),

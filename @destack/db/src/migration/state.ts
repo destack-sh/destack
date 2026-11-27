@@ -46,6 +46,8 @@ export const TableState = schema.object({
     package: PackageVersion,
     /** The table's columns, keys, indexes and checks. */
     table: TableDescription,
+    /** Each column's property by SQL name, its SQL name for a column the database adds. */
+    properties: schema.record(schema.string(), schema.string()),
     /** Whether the declaration replicates the table from the package that owns it. */
     isReplicated: schema.literal(true).exactOptional(),
     /** The columns the change triggers record, absent for unlogged tables. */
@@ -261,6 +263,7 @@ export function declareState(
         return {
             package: definition.package,
             table: isReplica ? asReplica(table, kept) : kept,
+            properties: describeProperties(table, kept),
             ...(isReplicated ? { isReplicated: true as const } : {}),
             ...(log === undefined ? {} : { log }),
             ...(multikeyIndexes.length === 0 ? {} : { multikeyIndexes }),
@@ -860,6 +863,17 @@ function asReplica(table: Table, described: TableDescription): TableDescription 
         ),
         constraints: described.constraints.filter((constraint) => constraint.kind !== "check"),
     };
+}
+
+/** Read each described column's property in code, its SQL name for a column the database adds. */
+function describeProperties(table: Table, described: TableDescription): Record<string, string> {
+    const declared = new Map(
+        table[TABLE].entries.map(([property, column]) => [column.definition.name, property]),
+    );
+
+    return Object.fromEntries(
+        described.columns.map((column) => [column.name, declared.get(column.name) ?? column.name]),
+    );
 }
 
 /** Select a table's foreign keys to the database's tables, leaving replica references logical. */
