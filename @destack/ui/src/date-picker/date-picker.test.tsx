@@ -190,3 +190,28 @@ test("label a date picker's group by its field's label", () => {
         container.querySelector("[data-slot=date-field]")?.hasAttribute("aria-labelledby"),
     ]).toEqual([true, false]);
 });
+
+test("refuse a disabled date picker's typed days and its calendar, given or from its field", () => {
+    // draw a range picker disabled itself, and a single one in a disabled field
+    const container = drawIn("en-US", () => (
+        <>
+            <DatePicker mode="range" disabled />
+            <Field disabled>
+                <FieldLabel>Due</FieldLabel>
+                <DatePicker />
+            </Field>
+        </>
+    ));
+    const segments = [...container.querySelectorAll("[role=spinbutton]")].map((each) =>
+        each.getAttribute("aria-disabled"),
+    );
+    const triggers = [
+        ...container.querySelectorAll<HTMLButtonElement>("[data-slot=date-picker-trigger]"),
+    ];
+
+    // expect the range's six day segments and the single day's three refused, and both calendar buttons
+    expect({ segments, triggers: triggers.map((each) => each.disabled) }).toEqual({
+        segments: Array.from({ length: 9 }, () => "true"),
+        triggers: [true, true],
+    });
+});
