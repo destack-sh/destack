@@ -6686,6 +6686,65 @@
         "24364epls0fgw": {
             "source": "The inputs of a card's design, with what they give.",
             "translation": "De invoer voor het ontwerp van een kaart, met wat ze geven."
+        },
+        "1cikq0mz87xhl": {
+            "source": "Monthly",
+            "context": "option",
+            "translation": "Maandelijks"
+        },
+        "1s0806s090ghy": {
+            "source": "Hours",
+            "context": "label",
+            "translation": "Uren"
+        },
+        "21rg3ceyxt9zi": {
+            "source": "The inputs of a project's plan, with what they give.",
+            "translation": "De invoer van het plan van een project, met wat ze opleveren."
+        },
+        "2arm9kkimtwxm": {
+            "source": "Every",
+            "context": "label",
+            "translation": "Elke"
+        },
+        "2dd2da39idylc": {
+            "source": "Repeat",
+            "context": "label",
+            "translation": "Herhalen"
+        },
+        "3b3gqzao9po79": {
+            "source": "Daily",
+            "context": "option",
+            "translation": "Dagelijks"
+        },
+        "3cow09zt9sw4c": {
+            "source": "Currency",
+            "context": "label",
+            "translation": "Valuta"
+        },
+        "3kngscvk0ukl9": {
+            "source": ".input {$p0 :number}\n.match $p0\none {{{$p0} star}}\n* {{{$p0} stars}}",
+            "context": "option",
+            "translation": ".input {$p0 :number} .match $p0 one {{{$p0} ster}} * {{{$p0} sterren}}"
+        },
+        "baaq0jloyjx3": {
+            "source": "Weekly",
+            "context": "option",
+            "translation": "Wekelijks"
+        },
+        "ofpv4o3prx2a": {
+            "source": "On",
+            "context": "label",
+            "translation": "Op"
+        },
+        "yh9pkfp8ramm": {
+            "source": "Yearly",
+            "context": "option",
+            "translation": "Jaarlijks"
+        },
+        "zkus437iibb0": {
+            "source": "Minutes",
+            "context": "label",
+            "translation": "Minuten"
         }
     }
 }

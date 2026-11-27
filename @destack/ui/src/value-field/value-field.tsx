@@ -48,6 +48,10 @@ import {
     TypographyInput,
 } from "../design-field/design-field.tsx";
 import { FillStackInput, GradientInput, PaintInput } from "../paint-picker/input.tsx";
+import { UrlInput } from "./address.tsx";
+import { ValueGroup, ValueTrigger } from "./group.tsx";
+import { MoneyInput, RatingInput } from "./amount.tsx";
+import { DateRangeInput, DurationInput, RecurrenceInput } from "./time.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Sortable, SortableContainer, SortableItem, type SortableMove } from "../sortable/index.ts";
 import { NumberField, NumberFieldInput, NumberFieldScrubArea } from "../number-field/index.ts";
@@ -284,6 +288,12 @@ const NAMED_INPUTS: Readonly<Record<string, NamedValueField>> = {
     transform: TransformInput,
     layout: LayoutInput,
     transition: TransitionInput,
+    dateRange: DateRangeInput,
+    duration: DurationInput,
+    recurrence: RecurrenceInput,
+    money: MoneyInput,
+    rating: RatingInput,
+    url: UrlInput,
 };
 
 /** Render the input of a color: its swatch and text, which open a picker. */
@@ -295,9 +305,8 @@ function ColorInput(properties: ValueFieldProperties): JSX.Element {
         <Popover>
             <PopoverTrigger
                 render={(attributes) => (
-                    <Button
+                    <ValueTrigger
                         {...attributes}
-                        variant="outline"
                         aria-label={properties["aria-label"]}
                         aria-describedby={properties["aria-describedby"]}
                         disabled={properties.disabled}
@@ -305,7 +314,7 @@ function ColorInput(properties: ValueFieldProperties): JSX.Element {
                     >
                         <ColorSwatch color={value()} />
                         <bdi>{value()}</bdi>
-                    </Button>
+                    </ValueTrigger>
                 )}
             />
             <PopoverContent aria-label={properties["aria-label"]} xstyle={styles.picker}>
@@ -353,11 +362,10 @@ function PaletteInput(properties: ValueFieldProperties<JsonValueType>): JSX.Elem
     };
 
     return (
-        <div
-            role="group"
+        <ValueGroup
             aria-label={properties["aria-label"]}
             aria-describedby={properties["aria-describedby"]}
-            {...style.attrs(styles.palette)}
+            xstyle={styles.palette}
         >
             {/* Swatches */}
             <div {...style.attrs(styles.row)}>
@@ -470,7 +478,7 @@ function PaletteInput(properties: ValueFieldProperties<JsonValueType>): JSX.Elem
 
             {/* Blend */}
             <div {...style.attrs(styles.blend(blendOf(colors())))} />
-        </div>
+        </ValueGroup>
     );
 }
 
