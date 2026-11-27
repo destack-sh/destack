@@ -71,6 +71,24 @@ export interface Caller {
     readonly grants: readonly GrantClaim[];
 }
 
+/** Who caused a change: the subject it is for, and the principals acting for it (RFC 8693 act). */
+export const Attribution = Object.assign(
+    schema.object({
+        /** Who the change is for. */
+        subject: Subject,
+        /** The principals acting for the subject in order, the last writing the change. */
+        actors: schema.array(Subject),
+    }),
+    {
+        /** Attribute a change to a caller. */
+        of(caller: Pick<Caller, "subject" | "actors">): Attribution {
+            return { subject: caller.subject, actors: [...caller.actors] };
+        },
+    },
+);
+/** Who caused a change. */
+export type Attribution = schema.Infer<typeof Attribution>;
+
 /** The grant a delegated caller acts under: its identifier and the scope storing it. */
 export const GrantClaim = schema.object({
     /** The grant's identifier. */

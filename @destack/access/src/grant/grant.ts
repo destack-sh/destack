@@ -7,7 +7,7 @@ import { Identifier, Instant, nth, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import { GrantPermission } from "./permission.ts";
-import { accessGrant } from "./table.ts";
+import { accessGrant, DELEGATIONS } from "./table.ts";
 
 /** The schema of what a delegator grants: delegate, permissions and lapse. */
 const grantInputSchema = schema.object({
@@ -19,10 +19,15 @@ const grantInputSchema = schema.object({
     expiresAt: Instant.exactOptional(),
     /** The delegator's session the grant ends with, absent for none. */
     sessionId: schema.identifier("session").exactOptional(),
+    /** For whom the delegate acts: the delegator by default, or a space's invoking actors. */
+    delegation: schema.enum(DELEGATIONS).exactOptional(),
 });
 
 /** A delegator's grant of permissions to a delegate acting for it. */
 export type Grant = Select<typeof accessGrant>;
+
+/** For whom a grant lets its delegate act. */
+export type Delegation = (typeof DELEGATIONS)[number];
 
 /** A grant: its token claim, and its liveness for a caller. */
 export const Grant = {
@@ -69,17 +74,19 @@ export const Grant = {
         return given;
     },
 
-    /** Find a delegator's one grant to a delegate unexpired at a time, absent without one. */
+    /** Find a delegator's unexpired grant of a delegation to a delegate, absent without one. */
     async find(
         reader: Pick<Snapshot, "read">,
         parties: { readonly delegator: Subject; readonly delegate: Subject },
         now: number,
+        delegation: Delegation = "self",
     ): Promise<Grant | undefined> {
         // read the grant of the two parties
         const grant = await reader.read(accessGrant).findFirst({
             where: {
                 ...ObjectReference.columns("delegator", parties.delegator),
                 ...ObjectReference.columns("delegate", parties.delegate),
+                delegation,
             },
         });
 
@@ -180,7 +187,7 @@ export const Grant = {
             }
 
             // grant to one other principal, until a later time
-            const { delegate } = input;
+            const { delegate, delegation = "self" } = input;
             if (
                 !isPrincipal(delegate) ||
                 delegate.id === "*" ||
@@ -197,12 +204,20 @@ export const Grant = {
                     "grant expiry is invalid: it must be after its creation",
                 );
             }
+            // let only a space let its delegate act for the actors whose changes invoke it there
+            else if (delegation === "actors" && !principal.space.is(delegator)) {
+                throw AccessError.of(
+                    "AUTHORITY_DENIED",
+                    "authority is forbidden: only a space lets a delegate act for its actors",
+                );
+            }
 
-            // replace the delegator's earlier grant to the delegate, live or lapsed
+            // replace the delegator's earlier grant of the delegation to the delegate, live or lapsed
             const [earlier] = await authorization.snapshot.read(accessGrant).findMany({
                 where: {
                     ...ObjectReference.columns("delegator", delegator),
                     ...ObjectReference.columns("delegate", delegate),
+                    delegation,
                 },
             });
             if (earlier !== undefined) {
@@ -224,6 +239,7 @@ export const Grant = {
                 permissions: [...input.permissions],
                 expiresAt: input.expiresAt ?? null,
                 sessionId: input.sessionId ?? null,
+                delegation,
             });
             await authorization.transaction.write({
                 table: accessGrant,

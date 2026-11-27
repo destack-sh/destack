@@ -84,6 +84,8 @@ export class Authorization {
     readonly #below: Map<string, Map<string, Access | undefined>>;
     /** The transaction's writes to the deciding tables when the resolved access was read. */
     #writes: number;
+    /** Whether the caller's grants limit its decisions, false for checks a granted call implies. */
+    readonly isGranted: boolean;
 
     /** Authorize one caller in a transaction, with access in some scope. */
     constructor(
@@ -96,10 +98,13 @@ export class Authorization {
             readonly resolved?: Access;
             /** The applied declaration writing the rows. */
             readonly manager?: Manager;
+            /** Whether the caller's grants limit its decisions, true by default. */
+            readonly isGranted?: boolean;
         } = {},
     ) {
         // start with empty state
-        const { resolved, manager = null } = options;
+        const { resolved, manager = null, isGranted = true } = options;
+        this.isGranted = isGranted;
         this.#resolved = new Map<string, Promise<Access>>();
         this.#below = new Map<string, Map<string, Access | undefined>>();
         this.manager = manager;
@@ -138,6 +143,7 @@ export class Authorization {
             this.environment,
             {
                 manager,
+                isGranted: this.isGranted,
             },
         );
     }
@@ -162,7 +168,9 @@ export class Authorization {
         if (known !== undefined) {
             return known;
         }
-        const resolved = this.authorizer.resolve(this.snapshot, scope, this.context());
+        const resolved = this.authorizer
+            .resolve(this.snapshot, scope, this.context())
+            .then((access) => (this.isGranted ? access : access.subject()));
         this.#resolved.set(scope, resolved);
 
         return resolved;

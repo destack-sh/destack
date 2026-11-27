@@ -662,6 +662,11 @@ export class Access {
         });
     }
 
+    /** Read the same access by its subject's own rights, without its grants. */
+    subject(): Access {
+        return new Access(this.#authorizer, { ...this.#resolved, permissions: undefined });
+    }
+
     /** Read the same access with its scope chain active, as a resume would leave it. */
     active(): Access {
         return new Access(this.#authorizer, {

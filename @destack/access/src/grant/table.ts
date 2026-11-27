@@ -6,11 +6,14 @@ import {
     integer,
     json,
     text,
+    textEnum,
     uniqueIndex,
 } from "@destack/db";
 import { schema } from "@destack/schema";
 import { GrantPermission } from "./permission.ts";
 
+/** For whom a grant lets its delegate act: its delegator, or the actors of a space's changes. */
+export const DELEGATIONS = ["self", "actors"] as const;
 /** A delegator's one grant of permissions to a delegate acting for it, in the delegator's scope. */
 export const accessGrant = defineTable(
     "grant",
@@ -47,11 +50,13 @@ export const accessGrant = defineTable(
         expiresAt: integer("expires_at"),
         /** The delegator's session the grant ends with, null for none. */
         sessionId: identifier("session_id", "session"),
+        /** For whom the delegate acts: the delegator, or the actors of the space's changes. */
+        delegation: textEnum("delegation", DELEGATIONS).notNull().default("self"),
     },
     {
         log: { retention: "history" },
         constraints: (grant) => [
-            // one grant per delegator and delegate, found by its delegator first
+            // one grant per delegator, delegate and delegation, found by its delegator first
             uniqueIndex("grant_parties").on(
                 grant.delegatorPackageId,
                 grant.delegatorType,
@@ -61,6 +66,7 @@ export const accessGrant = defineTable(
                 grant.delegateType,
                 grant.delegateScope,
                 grant.delegateId,
+                grant.delegation,
             ),
             index("grant_delegate").on(
                 grant.delegateScope,
