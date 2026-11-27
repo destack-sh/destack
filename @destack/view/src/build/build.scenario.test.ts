@@ -195,7 +195,6 @@ test("bundle an app's release image, its browser output importing builtins alone
             "@destack/account/address",
             "@destack/account/browser",
             "@destack/account/object",
-            "@destack/color",
             "@destack/db",
             "@destack/db/browser",
             "@destack/environment/baseline",

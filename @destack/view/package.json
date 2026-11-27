@@ -109,7 +109,6 @@
     },
     "peerDependencies": {
         "@destack/build": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/test": "workspace:*",
         "@solidjs/vite-plugin": "3.0.1",
@@ -122,9 +121,6 @@
     },
     "peerDependenciesMeta": {
         "@destack/build": {
-            "optional": true
-        },
-        "@destack/color": {
             "optional": true
         },
         "@destack/db": {
@@ -158,7 +154,6 @@
     "devDependencies": {
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/test": "workspace:*",
         "@solidjs/vite-plugin": "3.0.1",
