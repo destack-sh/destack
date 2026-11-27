@@ -297,6 +297,559 @@
         "103u9wbwp9u2p": {
             "source": "One color across the box.",
             "translation": "Un color en toda la caja."
+        },
+        "14h7jvcx39i1k": {
+            "source": "Row",
+            "context": "option",
+            "translation": "Fila"
+        },
+        "12q6ioub7x83a": {
+            "source": "Side by side, in the text's direction.",
+            "translation": "Uno al lado del otro, en la dirección del texto."
+        },
+        "2tgw2erwg2bce": {
+            "source": "Column",
+            "context": "option",
+            "translation": "Columna"
+        },
+        "3qnasrplm7wm1": {
+            "source": "One below the other.",
+            "translation": "Uno debajo del otro."
+        },
+        "1f9479ojgc88g": {
+            "source": "Start",
+            "context": "option",
+            "translation": "Inicio"
+        },
+        "1mz0be0sw91cl": {
+            "source": "Center",
+            "context": "option",
+            "translation": "Centro"
+        },
+        "2m131cvd4sryp": {
+            "source": "End",
+            "context": "option",
+            "translation": "Final"
+        },
+        "1zdu1f8jgnaae": {
+            "source": "Space between",
+            "context": "option",
+            "translation": "Espacio entre"
+        },
+        "2odpjd37zixk8": {
+            "source": "Inside",
+            "context": "option",
+            "translation": "Dentro"
+        },
+        "2atd2w750a7al": {
+            "source": "Within the box, as a border.",
+            "translation": "Dentro de la caja, como un borde."
+        },
+        "g56m46i0znjf": {
+            "source": "Outside",
+            "context": "option",
+            "translation": "Fuera"
+        },
+        "ij5mqfptv88i": {
+            "source": "Around the box, as an outline that takes no room.",
+            "translation": "Alrededor de la caja, como un contorno que no ocupa espacio."
+        },
+        "11znuk1qty2ip": {
+            "source": "Dashed",
+            "context": "option",
+            "translation": "Discontinua"
+        },
+        "ohubqvnsnvq4": {
+            "source": "Dotted",
+            "context": "option",
+            "translation": "Punteada"
+        },
+        "kwfhu33uibom": {
+            "source": "Ease",
+            "context": "option",
+            "translation": "Suave"
+        },
+        "186st60xfrqyl": {
+            "source": "Ease in",
+            "context": "option",
+            "translation": "Entrada suave"
+        },
+        "2fc1a7ub2dwyu": {
+            "source": "Ease out",
+            "context": "option",
+            "translation": "Salida suave"
+        },
+        "kl3pmtn6ik6s": {
+            "source": "Ease in and out",
+            "context": "option",
+            "translation": "Entrada y salida suaves"
+        },
+        "gr0687p3we27": {
+            "source": "Thin",
+            "context": "option",
+            "translation": "Fina"
+        },
+        "1yrle8uw2aej6": {
+            "source": "Extra light",
+            "context": "option",
+            "translation": "Extraligera"
+        },
+        "31pp9mmchggm8": {
+            "source": "Light",
+            "context": "option",
+            "translation": "Ligera"
+        },
+        "18sz0n3ogbc40": {
+            "source": "Regular",
+            "context": "option",
+            "translation": "Normal"
+        },
+        "2hyzzixdbd54j": {
+            "source": "Medium",
+            "context": "option",
+            "translation": "Media"
+        },
+        "qdkt6dffbg1x": {
+            "source": "Semibold",
+            "context": "option",
+            "translation": "Seminegrita"
+        },
+        "j7370ma8gdvr": {
+            "source": "Bold",
+            "context": "option",
+            "translation": "Negrita"
+        },
+        "1cmvzu3lab3q1": {
+            "source": "Extra bold",
+            "context": "option",
+            "translation": "Extranegrita"
+        },
+        "2n7pkysnirny7": {
+            "source": "Black",
+            "context": "option",
+            "translation": "Negra"
+        },
+        "395iwib7sq7eh": {
+            "source": "Extra black",
+            "context": "option",
+            "translation": "Extranegra"
+        },
+        "118e4qq27maq9": {
+            "source": "Double",
+            "context": "option",
+            "translation": "Doble"
+        },
+        "3di9a8c7nvpoy": {
+            "source": "Groove",
+            "context": "option",
+            "translation": "Ranura"
+        },
+        "h3j67fkmqrhb": {
+            "source": "Ridge",
+            "context": "option",
+            "translation": "Cresta"
+        },
+        "18lf19m3o3ddd": {
+            "source": "Inset",
+            "context": "option",
+            "translation": "Hundido"
+        },
+        "jvxuh5s4hf4g": {
+            "source": "Outset",
+            "context": "option",
+            "translation": "Elevado"
+        },
+        "168mvbb3hds3c": {
+            "source": "Underline",
+            "context": "option",
+            "translation": "Subrayado"
+        },
+        "18ng29pbftmt2": {
+            "source": "Sepia",
+            "context": "option",
+            "translation": "Sepia"
+        },
+        "1fyvss0ixsvz0": {
+            "source": "Keeps to one line.",
+            "translation": "Se mantiene en una línea."
+        },
+        "1iqcmw4qclut5": {
+            "source": "Cuts it at the edges.",
+            "translation": "Lo recorta en los bordes."
+        },
+        "1pmij1eeu4h8i": {
+            "source": "Moved from where its container lays it out.",
+            "translation": "Desplazado desde donde su contenedor lo coloca."
+        },
+        "1qpon0l4esvig": {
+            "source": "As typed",
+            "context": "option",
+            "translation": "Como se escribió"
+        },
+        "1xsfalyb5v5z4": {
+            "source": "Invert",
+            "context": "option",
+            "translation": "Invertir"
+        },
+        "214ong4rdzi9n": {
+            "source": "Pinned to the screen's edges.",
+            "translation": "Fijado a los bordes de la pantalla."
+        },
+        "23oasrvk6lbmw": {
+            "source": "Evens out the lines' lengths, as for headings.",
+            "translation": "Iguala la longitud de las líneas, como en los títulos."
+        },
+        "25s2rjsej5cyr": {
+            "source": "Where its container lays it out.",
+            "translation": "Donde su contenedor lo coloca."
+        },
+        "26x9qt195jx7v": {
+            "source": "Auto",
+            "context": "option",
+            "translation": "Automático"
+        },
+        "29lazl6bblm31": {
+            "source": "Cuts it at the edges, still scrolled by code.",
+            "translation": "Lo recorta en los bordes, aún desplazable por código."
+        },
+        "2fmjrqeaceizs": {
+            "source": "Wrap",
+            "context": "option",
+            "translation": "Ajustar"
+        },
+        "2gf54byxps624": {
+            "source": "Uppercase",
+            "context": "option",
+            "translation": "Mayúsculas"
+        },
+        "2ghmhpws0sl1z": {
+            "source": "Strikethrough",
+            "context": "option",
+            "translation": "Tachado"
+        },
+        "2gwd64kyxhvl8": {
+            "source": "Pinned to its container's edges, out of its layout.",
+            "translation": "Fijado a los bordes de su contenedor, fuera de su diseño."
+        },
+        "2hd9pxlcxoomr": {
+            "source": "Brightness",
+            "context": "option",
+            "translation": "Brillo"
+        },
+        "2il1fj952cxtw": {
+            "source": "Hue rotation",
+            "context": "option",
+            "translation": "Rotación de tono"
+        },
+        "2lh63itfx43d5": {
+            "source": "Opacity",
+            "context": "option",
+            "translation": "Opacidad"
+        },
+        "2mcdx84cvhjxa": {
+            "source": "Contrast",
+            "context": "option",
+            "translation": "Contraste"
+        },
+        "2myz8no5mdeyr": {
+            "source": "Scrolls it, with scrollbars once it runs past.",
+            "translation": "Lo desplaza, con barras cuando se desborda."
+        },
+        "2ns389wymn8kr": {
+            "source": "Grayscale",
+            "context": "option",
+            "translation": "Escala de grises"
+        },
+        "2pu1ypeqs6c3n": {
+            "source": "Fit",
+            "context": "option",
+            "translation": "Ajustar al contenido"
+        },
+        "2vhw1qbub1zg9": {
+            "source": "Upright",
+            "context": "option",
+            "translation": "Recta"
+        },
+        "2wnoxz4rderjy": {
+            "source": "None",
+            "context": "option",
+            "translation": "Ninguna"
+        },
+        "2x4177vneyxuc": {
+            "source": "Justify",
+            "context": "option",
+            "translation": "Justificado"
+        },
+        "2xqvcazhfag3f": {
+            "source": "Oblique",
+            "context": "option",
+            "translation": "Oblicua"
+        },
+        "2zfa7so20xogv": {
+            "source": "Scrolls it, with scrollbars.",
+            "translation": "Lo desplaza, con barras de desplazamiento."
+        },
+        "33tscurjnc9op": {
+            "source": "In flow",
+            "context": "option",
+            "translation": "En el flujo"
+        },
+        "35b3bpbzh1wex": {
+            "source": "Absolute",
+            "context": "option",
+            "translation": "Absoluta"
+        },
+        "3fnnzf5q0w2yd": {
+            "source": "Scroll",
+            "context": "option",
+            "translation": "Desplazar"
+        },
+        "3gfd4111fy6mo": {
+            "source": "Hidden",
+            "context": "option",
+            "translation": "Oculto"
+        },
+        "3mm83upe40nku": {
+            "source": "Visible",
+            "context": "option",
+            "translation": "Visible"
+        },
+        "3r1jsh9ppmegx": {
+            "source": "A length of its own.",
+            "translation": "Una longitud propia."
+        },
+        "3radihd6jccdo": {
+            "source": "Relative",
+            "context": "option",
+            "translation": "Relativa"
+        },
+        "3vj19us3jayho": {
+            "source": "Italic",
+            "context": "option",
+            "translation": "Cursiva"
+        },
+        "3yjawx9hpn5g": {
+            "source": "Overline",
+            "context": "option",
+            "translation": "Sobrerrayado"
+        },
+        "5yfvpf65y1op": {
+            "source": "No wrap",
+            "context": "option",
+            "translation": "Sin ajuste"
+        },
+        "6grt0aplujob": {
+            "source": "Around its content, as CSS's fit-content.",
+            "translation": "Alrededor de su contenido, como fit-content en CSS."
+        },
+        "8xp2fupo3412": {
+            "source": "Fixed",
+            "context": "option",
+            "translation": "Fija"
+        },
+        "cfuln2auem68": {
+            "source": "Balance",
+            "context": "option",
+            "translation": "Equilibrar"
+        },
+        "gky0wwju8tb1": {
+            "source": "Lowercase",
+            "context": "option",
+            "translation": "Minúsculas"
+        },
+        "hld1uiclkcro": {
+            "source": "Pretty",
+            "context": "option",
+            "translation": "Elegante"
+        },
+        "iv6k4bbhjuxb": {
+            "source": "Across its container, as CSS's stretch.",
+            "translation": "A lo ancho de su contenedor, como stretch en CSS."
+        },
+        "ki7z3di471p3": {
+            "source": "In flow, then held at an edge as the page scrolls.",
+            "translation": "En el flujo, y luego sujeto a un borde al desplazarse."
+        },
+        "kjzxij1bdrsv": {
+            "source": "Sticky",
+            "context": "option",
+            "translation": "Adherida"
+        },
+        "m6o02o4thwe1": {
+            "source": "Keeps a last line from standing alone, as for paragraphs.",
+            "translation": "Evita que la última línea quede sola, como en los párrafos."
+        },
+        "npvrje8cw6fq": {
+            "source": "Capitalize",
+            "context": "option",
+            "translation": "Capitalizar"
+        },
+        "o9285gh84wf9": {
+            "source": "Shows it past the edges.",
+            "translation": "Lo muestra más allá de los bordes."
+        },
+        "p3ylhz0jug85": {
+            "source": "Blur",
+            "context": "option",
+            "translation": "Desenfoque"
+        },
+        "s9er035fqqmy": {
+            "source": "Clip",
+            "context": "option",
+            "translation": "Recortar"
+        },
+        "wpjvarxa11dg": {
+            "source": "Breaks where a line is full.",
+            "translation": "Corta donde una línea está llena."
+        },
+        "xk3ugar08tk5": {
+            "source": "Fill",
+            "context": "option",
+            "translation": "Rellenar"
+        },
+        "1wl63c12wcxlc": {
+            "source": "In full",
+            "context": "option",
+            "translation": "Completo"
+        },
+        "2t9kvkm23qqih": {
+            "source": "Cut after lines",
+            "context": "option",
+            "translation": "Cortar tras líneas"
+        },
+        "5yh5bowji5s": {
+            "source": "Length",
+            "context": "option",
+            "translation": "Longitud"
+        },
+        "1keao8q2dypf1": {
+            "source": "Left",
+            "context": "option",
+            "translation": "Izquierda"
+        },
+        "1qzpthyxk26w2": {
+            "source": "Left and right",
+            "context": "option",
+            "translation": "Izquierda y derecha"
+        },
+        "36r2rw386rxsn": {
+            "source": "Bottom",
+            "context": "option",
+            "translation": "Abajo"
+        },
+        "92hvdytnyct2": {
+            "source": "Scale",
+            "context": "option",
+            "translation": "Escalar"
+        },
+        "czgx29x8htnj": {
+            "source": "Top",
+            "context": "option",
+            "translation": "Arriba"
+        },
+        "n86zgfxn6nc6": {
+            "source": "Right",
+            "context": "option",
+            "translation": "Derecha"
+        },
+        "ufogkzofy87d": {
+            "source": "Top and bottom",
+            "context": "option",
+            "translation": "Arriba y abajo"
+        },
+        "19jbczbwwtq6y": {
+            "source": "ProPhoto RGB",
+            "context": "option",
+            "translation": "ProPhoto RGB"
+        },
+        "1e94dj5s1zrcj": {
+            "source": "LCH",
+            "context": "option",
+            "translation": "LCH"
+        },
+        "1egzco45wwuc3": {
+            "source": "Lab",
+            "context": "option",
+            "translation": "Lab"
+        },
+        "1inyh1v83070t": {
+            "source": "By the red, green and blue of a wide gamut screen.",
+            "translation": "Por el rojo, verde y azul de una pantalla de gama amplia."
+        },
+        "1o9rls9kmpqqu": {
+            "source": "XYZ D65",
+            "context": "option",
+            "translation": "XYZ D65"
+        },
+        "1oa1fa74vug1a": {
+            "source": "XYZ D50",
+            "context": "option",
+            "translation": "XYZ D50"
+        },
+        "1wj13trc5oks": {
+            "source": "By its red, green and blue light, before a screen's curve.",
+            "translation": "Por su luz roja, verde y azul, antes de la curva de la pantalla."
+        },
+        "1y08uadjk19nt": {
+            "source": "HWB",
+            "context": "option",
+            "translation": "HWB"
+        },
+        "1y57k6x5simty": {
+            "source": "By the light the eye's cones take in, under daylight's white.",
+            "translation": "Por la luz que captan los conos del ojo, bajo el blanco de la luz diurna."
+        },
+        "21kifgxk9bkac": {
+            "source": "Adobe RGB",
+            "context": "option",
+            "translation": "Adobe RGB"
+        },
+        "272l6q0xdlp5e": {
+            "source": "By its lightness and two opposed colors, as CIE measures them.",
+            "translation": "Por su luminosidad y dos colores opuestos, como los mide la CIE."
+        },
+        "2iexjwv08rgii": {
+            "source": "By its lightness and two opposed colors, as people see them.",
+            "translation": "Por su luminosidad y dos colores opuestos, como los ve la gente."
+        },
+        "2pjw1ul6nbe22": {
+            "source": "By its lightness, chroma and hue, as CIE measures them.",
+            "translation": "Por su luminosidad, croma y tono, como los mide la CIE."
+        },
+        "2rnsbx8an4gva": {
+            "source": "By the light the eye's cones take in, under printed paper's white.",
+            "translation": "Por la luz que captan los conos del ojo, bajo el blanco del papel impreso."
+        },
+        "2ztd24v66my73": {
+            "source": "Linear sRGB",
+            "context": "option",
+            "translation": "sRGB lineal"
+        },
+        "30jepq3oeabb7": {
+            "source": "Display P3",
+            "context": "option",
+            "translation": "Display P3"
+        },
+        "3gp9fae39jl1k": {
+            "source": "By the red, green and blue of a photo gamut wider than the eye's.",
+            "translation": "Por el rojo, verde y azul de una gama fotográfica más amplia que la del ojo."
+        },
+        "3m0dyb2ptbcqs": {
+            "source": "Rec. 2020",
+            "context": "option",
+            "translation": "Rec. 2020"
+        },
+        "86kwq1ft4xh3": {
+            "source": "By its hue, and how much white and black it mixes in.",
+            "translation": "Por su tono, y cuánto blanco y negro mezcla."
+        },
+        "s5qb24u72dyu": {
+            "source": "By the red, green and blue of the 1998 print gamut.",
+            "translation": "Por el rojo, verde y azul de la gama de impresión de 1998."
+        },
+        "tjypjlfzwbk9": {
+            "source": "By the red, green and blue of ultra high definition video.",
+            "translation": "Por el rojo, verde y azul del vídeo de ultra alta definición."
         }
     }
 }

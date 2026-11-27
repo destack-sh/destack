@@ -4,8 +4,8 @@ Describe colors and styles as the web does, and style components with StyleX.
 
 ## Overview
 
-`@destack/style` is CSS's value types as schemas, and StyleX with Tailwind's media queries and preflight, all from one module.
-Values follow CSS's value types and CSS Color 4, so CSS reads them as they are.
+`@destack/style` is design values as schemas, and StyleX with Tailwind's media queries and preflight, all from one module.
+Colors and gradients follow CSS Color 4 and CSS's gradients, and the other values the W3C design token format.
 Each choice among a few values, such as a blend mode, is a schema enum, with its titles beside it.
 
 Values:
@@ -44,17 +44,23 @@ const attributes = style.attrs(styles.row);
 
 ### Colors
 
-A `Color` is one color in a space, read from CSS text and written back as hex, `rgb()`, `hsl()` or `oklch()`.
-`Color.schema` checks a CSS color string, and has the id `color`, so inputs show a color picker.
+A `Color` is one color in a space of CSS Color 4, read from CSS text and written back in any of them.
+The spaces are `rgb`, `hsl`, `hwb`, `lab`, `lch`, `oklab`, `oklch`, `color()`'s predefined ones such as `display-p3`, and the pickers' `hsb`.
+Converting into a space of sRGB maps the color into sRGB's gamut by its OKLCH chroma; every other conversion is exact.
+`Color.schema` checks a CSS color string, and has the id `style.color`, so inputs show a color picker.
 
-| Verb                         | What it does                                        |
-| ---------------------------- | --------------------------------------------------- |
-| `Color.parse(text)`          | reads a CSS color, failing on any other text        |
-| `Color.read(text)`           | reads a CSS color, undefined for any other text     |
-| `color.to(space)`            | converts it to `srgb`, `hsl`, `hsb` or `oklch`      |
-| `color.with(channel, value)` | changes one channel, such as `lightness` or `alpha` |
-| `color.name()`               | names its hue and lightness, as a person says them  |
-| `color.toString(format)`     | writes it as `hex`, `rgb`, `hsl` or `oklch`         |
+| Verb                           | What it does                                                              |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `Color.parse(text)`            | reads a CSS color, failing on any other text                              |
+| `Color.read(text)`             | reads a CSS color, undefined for any other text                           |
+| `color.to(space)`              | converts it to another space                                              |
+| `color.with(channel, value)`   | changes one channel, such as `lightness` or `alpha`                       |
+| `color.range(channel)`         | answers the values a channel of its space takes                           |
+| `color.name()`                 | names its hue and lightness, as a person says them                        |
+| `color.contrast(other, which)` | measures it as text on another, by `apca` or `wcag`                       |
+| `color.composite(under)`       | blends it over an opaque color                                            |
+| `color.toString(format)`       | writes it as `hex` or any space's function, such as `color(display-p3 …)` |
+| `color.token()`                | writes it as the design token format's color object                       |
 
 ### Hues
 
@@ -70,7 +76,7 @@ A `Hue` is one of ten hues that mean things in a view, such as `red` for danger.
 ### Gradients
 
 A `Gradient` is two or more stops, each a color at a position from 0 to 1, spread in a shape and mixed in a space.
-It mixes as CSS Color 4 does, with premultiplied alpha, and has the id `gradient`.
+It mixes as CSS Color 4 does, with premultiplied alpha, and has the id `style.gradient`.
 
 | Verb                             | What it does                                       |
 | -------------------------------- | -------------------------------------------------- |
@@ -92,17 +98,17 @@ It mixes as CSS Color 4 does, with premultiplied alpha, and has the id `gradient
 | `{ kind: "radial", center }`       | `radial-gradient(at 50% 50% in oklab, …)`          |
 | `{ kind: "conic", center, angle }` | `conic-gradient(from 0deg at 50% 50% in oklab, …)` |
 
-| Space   | Hue       | CSS                                       |
-| ------- | --------- | ----------------------------------------- |
-| `oklab` |           | `linear-gradient(in oklab, …)`            |
-| `oklch` | `shorter` | `linear-gradient(in oklch, …)`            |
-| `oklch` | `longer`  | `linear-gradient(in oklch longer hue, …)` |
-| `srgb`  |           | `linear-gradient(in srgb, …)`             |
+| Space   | Hue             | CSS                                       |
+| ------- | --------------- | ----------------------------------------- |
+| `oklab` |                 | `linear-gradient(in oklab, …)`            |
+| `oklch` | `style.shorter` | `linear-gradient(in oklch, …)`            |
+| `oklch` | `style.longer`  | `linear-gradient(in oklch longer hue, …)` |
+| `srgb`  |                 | `linear-gradient(in srgb, …)`             |
 
 ### Paints and fills
 
 A `Paint` fills one layer of a box: `solid` with a color, `gradient`, or `image` with an address, a fit and a position.
-A `FillStack` lists a box's layers top first, each a paint with a blend mode, and has the id `fillStack`.
+A `FillStack` lists a box's layers top first, each a paint with a blend mode, and has the id `style.fillStack`.
 
 | Verb                    | What it does                                                       |
 | ----------------------- | ------------------------------------------------------------------ |
@@ -123,9 +129,63 @@ const fill = FillStack.css([
 ]);
 ```
 
+### Lengths, edges, effects, text, layout and motion
+
+The other values follow the W3C design token format's types where it has one, and CSS's properties where it has none, each a schema with an id under `style.`, such as `style.position`, and a `css` writer.
+Dimensions also take CSS's `em`, `%`, `vw`, `vh` and `ch`.
+`Color.token` and `Color.fromToken` write and read a color as the format's object, for token files.
+
+| Value            | Id                     | Shape                                                                    | CSS                                     |
+| ---------------- | ---------------------- | ------------------------------------------------------------------------ | --------------------------------------- |
+| `Dimension`      | `style.dimension`      | `{ value: 12, unit: "px" }`                                              | a length or percentage                  |
+| `Duration`       | `style.duration`       | `{ value: 200, unit: "ms" }`                                             | a time                                  |
+| `CubicBezier`    | `style.cubicBezier`    | `[0, 0, 0.58, 1]`, or a curve of `EASINGS`                               | an easing function                      |
+| `FontFamily`     | `style.fontFamily`     | `["Inter", "sans-serif"]`                                                | `font-family`                           |
+| `FontWeight`     | `style.fontWeight`     | `400`, or a weight of `FONT_WEIGHTS`                                     | `font-weight`                           |
+| `FontStyle`      | `style.fontStyle`      | `"normal" \| "italic" \| "oblique"`                                      | `font-style`                            |
+| `FontFeatures`   | `style.fontFeatures`   | `{ tnum: 1, liga: 0 }`                                                   | `font-feature-settings`                 |
+| `FontVariations` | `style.fontVariations` | `{ wght: 650 }`                                                          | `font-variation-settings`               |
+| `Typography`     | `style.typography`     | `{ fontFamily, fontSize, fontWeight, letterSpacing, lineHeight }`        | `font-*`, `line-height`                 |
+| `TextFormat`     | `style.textFormat`     | `{ align, case, decoration, wrap, truncation }`                          | `text-*`, line clamping                 |
+| `TextStroke`     | `style.textStroke`     | `{ color, width }`                                                       | `-webkit-text-stroke`                   |
+| `Corners`        | `style.corners`        | `{ topLeft, topRight, bottomRight, bottomLeft }`                         | `border-radius`                         |
+| `BoxSides`       | `style.boxSides`       | `{ top, right, bottom, left }`                                           | `padding`, `margin`                     |
+| `Size`           | `style.size`           | `{ width, height, minWidth, maxWidth, minHeight, maxHeight }`            | `width: fit-content \| stretch`, limits |
+| `Position`       | `style.position`       | `{ kind, x, y }`, each a `Constraint`: start, end, both, center or scale | `position`, insets, auto margins        |
+| `Opacity`        | `style.opacity`        | `0.8`                                                                    | `opacity`                               |
+| `Overflow`       | `style.overflow`       | `"visible" \| "hidden" \| "clip" \| "scroll" \| "auto"`                  | `overflow`                              |
+| `Stroke`         | `style.stroke`         | `{ color, width, style, align }`                                         | `border` inside, `outline` outside      |
+| `Shadow`         | `style.shadow`         | `{ color, offsetX, offsetY, blur, spread, inset }`                       | one of `box-shadow`                     |
+| `ShadowStack`    | `style.shadowStack`    | `Shadow[]`                                                               | `box-shadow`                            |
+| `Filter`         | `style.filter`         | `{ kind: "blur", radius }`, `{ kind: "saturate", amount }`, …            | one filter function                     |
+| `FilterStack`    | `style.filterStack`    | `Filter[]`                                                               | `filter`, `backdrop-filter`             |
+| `Transform`      | `style.transform`      | `{ x, y, rotate, scaleX, scaleY }`                                       | `translate`, `rotate`, `scale`          |
+| `Layout`         | `style.layout`         | `{ direction, gap, align, justify, isWrapping, padding }`                | flexbox, as auto layout                 |
+| `Transition`     | `style.transition`     | `{ duration, delay, timingFunction }`                                    | `transition`                            |
+
+A `FillStack` also fills text with `FillStack.textCss`, as CSS clips a background to the letters.
+
+```ts
+import { ShadowStack, Stroke } from "@destack/style";
+
+// raise a card with a hairline and a soft drop
+const hairline = { value: 1, unit: "px" } as const;
+const border = Stroke.css({ color: "#00000014", width: hairline, align: "inside", style: "solid" });
+const shadow = ShadowStack.css([
+    {
+        color: "#0000001f",
+        offsetX: { value: 0, unit: "px" },
+        offsetY: { value: 8, unit: "px" },
+        blur: { value: 24, unit: "px" },
+        spread: { value: -4, unit: "px" },
+        inset: false,
+    },
+]);
+```
+
 ### Palettes
 
-A `Palette` is a list of colors with the id `palette`, narrowed as any array schema is.
+A `Palette` is a list of colors with the id `style.palette`, narrowed as any array schema is.
 
 ```ts
 import { Palette } from "@destack/style";

@@ -136,7 +136,7 @@ const gradientJson = schema
         /** The way it goes round the hue wheel, in a space with hue. */
         hue: GradientHue,
     })
-    .meta({ id: "gradient", title: "Gradient" });
+    .meta({ id: "style.gradient", title: "Gradient" });
 /** A gradient as JSON stores it. */
 export type GradientJson = schema.Infer<typeof gradientJson>;
 

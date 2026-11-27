@@ -83,7 +83,7 @@ const paintJson = schema
             position: BoxPoint,
         }),
     ])
-    .meta({ id: "paint", title: "Paint" });
+    .meta({ id: "style.paint", title: "Paint" });
 
 /** What paints a box. */
 export type Paint = schema.Infer<typeof paintJson>;
