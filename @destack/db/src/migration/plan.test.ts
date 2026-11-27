@@ -454,7 +454,7 @@ test("write a table's predefined rows in a fresh database, unlogged, and plan no
     ).toEqual([]);
 });
 
-test("drop only the applied tables of the migrating manager that it leaves out", async () => {
+test("keep a package's tables once its manager leaves all of them out", async () => {
     const database = await open([]);
     await database.migrate([labelPlain]);
     await database.migrate([taskOne], { manager: "tasks" });
@@ -468,16 +468,19 @@ test("drop only the applied tables of the migrating manager that it leaves out",
     ]);
     expect(await database.unapplied([taskOne, labelUnique])).toEqual([]);
 
-    // drop the tasks once their manager leaves them out
-    const dropped = await database.migrate([], { manager: "tasks" });
-    expect(review(dropped)).toEqual([`destructive delete table/${table(taskOne)}: drop table`]);
+    // keep the tasks once their manager leaves every table of their package out, as an uninstall keeps data
+    const left = await database.migrate([], { manager: "tasks" });
+    expect({ steps: review(left), unapplied: await database.unapplied([taskOne]) }).toEqual({
+        steps: [],
+        unapplied: [],
+    });
 });
 
 test("drop a referencing table before the table it references", async () => {
-    // apply the folders and the pages referencing them, then leave both out
+    // apply the folders and the pages referencing them, then leave both out of a release keeping the labels
     const database = await open([]);
-    await database.migrate([folderTwo, page], { manager: "files" });
-    const dropped = await database.migrate([], { manager: "files" });
+    await database.migrate([folderTwo, page, labelPlain], { manager: "files" });
+    const dropped = await database.migrate([labelPlain], { manager: "files" });
 
     // drop the pages first, as their foreign key blocks dropping the folders
     expect(review(dropped)).toEqual([
@@ -487,10 +490,10 @@ test("drop a referencing table before the table it references", async () => {
 });
 
 test("drop tables whose foreign keys reference each other", async () => {
-    // apply the albums and the photos referencing each other, then leave both out
+    // apply the albums and the photos referencing each other, then leave both out of a release keeping the labels
     const database = await open([]);
-    await database.migrate([album, photo], { manager: "photos" });
-    const dropped = await database.migrate([], { manager: "photos" });
+    await database.migrate([album, photo, labelPlain], { manager: "photos" });
+    const dropped = await database.migrate([labelPlain], { manager: "photos" });
 
     // drop both, the keys between them first where each drop is checked
     const cover = `${table(album)}_cover_id_${table(photo)}_id_fk`;
@@ -505,7 +508,7 @@ test("drop tables whose foreign keys reference each other", async () => {
         `destructive delete table/${table(album)}: drop table`,
         `destructive delete table/${table(photo)}: drop table`,
     ]);
-    expect(await database.unapplied([])).toEqual([]);
+    expect(await database.unapplied([labelPlain])).toEqual([]);
 });
 
 test("refuse taking over a table another manager applied, leaving it as applied", async () => {

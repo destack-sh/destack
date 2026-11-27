@@ -169,7 +169,7 @@ export function planTables(input: PlanInput): TablePlan {
     steps.push(...declared.flatMap((state) => predefinedSteps(state, applied)));
     steps.push(...declared.flatMap((state) => globalIndexSteps(state, applied, input.namespace)));
 
-    // drop applied tables no longer declared, except a newer release's tables
+    // drop applied tables a declared package leaves out, except a newer release's tables
     const dropped = droppedTables(declared, remaining);
     steps.push(...(dialect === "postgresql" ? cyclicKeySteps(dropped.cyclic) : []));
     for (const name of dropped.ordered) {
@@ -663,12 +663,12 @@ function droppedTables(
         }
     }
 
-    // take the tables of no newer release
+    // take the tables a declared package's release leaves out, keeping a package's data once all its tables leave
     let pending = [...remaining.values()]
         .filter((previous) => {
             const release = releases.get(previous.package.id);
 
-            return release === undefined || Version.compare(previous.package.version, release) <= 0;
+            return release !== undefined && Version.compare(previous.package.version, release) <= 0;
         })
         .map((previous) => previous.table);
 
