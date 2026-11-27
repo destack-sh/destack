@@ -1,3 +1,4 @@
+import { AccessToken } from "@destack/access/token";
 import { Jwt } from "@destack/identity";
 import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
@@ -19,3 +20,19 @@ test("answer an exchanged token's expiry on the store's clock, as its signed cla
     const { exp } = Jwt.claims(exchanged.accessToken);
     expect(exchanged.expiresAt).toBe(present(exp, "the token's expiry") * SECOND_MILLISECONDS);
 });
+
+test("narrow an exchanged token to reading when asked, and leave it whole otherwise", async () => {
+    // exchange a person's token for a package to read alone, and as a whole
+    await using accounts = await TestAccount.open();
+    const person = await accounts.signIn("ada@example.test");
+    const read = await person.exchange(accountPackage.id, { access: "read" });
+    const whole = await person.exchange(accountPackage.id);
+
+    // sign the read-only one's credential as reading alone, and the whole one's without a limit
+    expect([accessOf(read.accessToken), accessOf(whole.accessToken)]).toEqual(["read", "whole"]);
+});
+
+/** Read what a token's credential lets its caller do, whole for no limit. */
+function accessOf(token: string): string {
+    return AccessToken.parse(Jwt.claims(token)).caller.credential.access ?? "whole";
+}

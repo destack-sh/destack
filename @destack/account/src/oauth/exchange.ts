@@ -93,6 +93,8 @@ const ExchangeRequest = schema.looseObject({
         .transform((value) => value.split(" "))
         .pipe(schema.array(schema.identifier("grant")))
         .exactOptional(),
+    /** What the token lets its caller do: read alone, absent for what the subject token allows. */
+    access: schema.literal("read").exactOptional(),
 });
 
 /** What the token exchange reads and verifies with. */
@@ -140,9 +142,11 @@ export function exchangeGrant(options: ExchangeOptions): GrantType {
         const now = options.environment.clock.now();
         const { authentication, lapse } = await describe(options, verifier, asked, audience, now);
 
-        // end the credential at its session's or grants' lapse
+        // end the credential at its session's or grants' lapse, narrowed to reading when asked, never widened
+        const access = asked.access ?? authentication.credential.access;
         const credential = {
             ...authentication.credential,
+            ...(access === undefined ? {} : { access }),
             expiresAt: Math.min(
                 authentication.credential.expiresAt,
                 lapse ?? Number.POSITIVE_INFINITY,

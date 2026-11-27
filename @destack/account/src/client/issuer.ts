@@ -138,6 +138,8 @@ export interface TokenBinding {
     readonly requested?: GrantRequest;
     /** The person's session or client the token lives within, refused once it ends. */
     readonly credential?: Identifier<"session"> | Identifier<"client">;
+    /** What the token lets its caller do: read alone, absent for whatever its caller may. */
+    readonly access?: "read";
 }
 
 /** The members of the issuer's metadata a client reads: the universe's domains. */
@@ -444,6 +446,7 @@ export class Issuer {
             ...(bound.subject === undefined ? {} : { subject: Subject.key(bound.subject) }),
             ...(bound.grants === undefined ? {} : { grants: bound.grants.join(" ") }),
             ...(bound.credential === undefined ? {} : { credential: bound.credential }),
+            ...(bound.access === undefined ? {} : { access: bound.access }),
             ...(bound.requested === undefined
                 ? {}
                 : {
