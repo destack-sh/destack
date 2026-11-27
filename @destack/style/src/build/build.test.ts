@@ -53,7 +53,7 @@ function fixtures(): Plugin {
 
             // write a module whose style stands under a constant another module defines
             else if (id.endsWith("/fixture/hover.ts")) {
-                return `import * as style from "@destack/style";\nimport { media } from "../../style/media.stylex.ts";\nexport const styles = style.create({ text: { color: { default: "teal", ":hover": { default: null, [media.hover]: "plum" } } } });\n`;
+                return `import * as style from "@destack/style";\nimport { media } from "../../stylex/media.stylex.ts";\nexport const styles = style.create({ text: { color: { default: "teal", ":hover": { default: null, [media.hover]: "plum" } } } });\n`;
             }
 
             // write a module whose one style sets the color its name gives
