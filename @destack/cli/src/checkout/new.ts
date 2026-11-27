@@ -6,6 +6,10 @@ import { RequestId } from "@destack/sync";
 import { CommandOption, type CommandBody } from "../command/command.ts";
 import { PackageSpecifier } from "../catalog/installation.ts";
 import { openProject } from "./check.ts";
+import { readPackageJson } from "@destack/build/local";
+
+/** The toolchain package a package pins to check and configure itself. */
+const CHECK_PACKAGE = "@destack/check";
 
 /** The template a package is made from unless another is asked for. */
 const DEFAULT_TEMPLATE = "@destack/template";
@@ -76,9 +80,13 @@ export const newCommand: CommandBody = {
             },
         });
 
-        // write the editor and tool settings with the package's toolchain, as its install skips package scripts
-        const project = await openProject(created.directory, context);
-        await project.configure();
+        // write the editor and tool settings with the toolchain the package pins, as its install skips package scripts
+        const { files } = context.environment;
+        const manifest = await readPackageJson(await files.realPath(created.directory), files);
+        if (manifest.devDependencies?.[CHECK_PACKAGE] !== undefined) {
+            const project = await openProject(created.directory, context);
+            await project.configure();
+        }
 
         // print the package and the next step
         const { terminal } = context;
