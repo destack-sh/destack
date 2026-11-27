@@ -33,6 +33,10 @@ import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import { ValueField, ValueFieldProvider } from "./index.ts";
+import { preloadNamedInputs } from "./index.ts";
+
+// load the kit's named inputs, so every field of a named schema renders at once
+await preloadNamedInputs();
 
 /** Draw a value's input, recording what it gives. */
 function draw(type: ActionValue, start?: JsonValue, choices: readonly Choice[] = []) {

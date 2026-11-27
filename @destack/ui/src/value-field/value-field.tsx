@@ -31,36 +31,7 @@ import { Switch } from "../switch/index.ts";
 import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import { Textarea } from "../textarea/index.ts";
-import { CubicBezierInput } from "./bezier.tsx";
-import { BoxSidesInput, CornersInput } from "./box.tsx";
-import { ColorInput, PaletteInput } from "./color.tsx";
-import { DimensionInput } from "./dimension.tsx";
-import { DurationInput } from "./duration.tsx";
-import {
-    FontFamilyInput,
-    FontFeaturesInput,
-    FontStyleInput,
-    FontVariationsInput,
-    FontWeightInput,
-} from "./font.tsx";
-import { FilterInput, FilterStackInput } from "./filter.tsx";
-import { OpacityInput } from "./opacity.tsx";
-import { OverflowInput } from "./overflow.tsx";
-import { PositionInput } from "./position.tsx";
-import { DateRangeInput } from "./range.tsx";
-import { RatingInput } from "./rating.tsx";
-import { RecurrenceInput } from "./recurrence.tsx";
-import { SizeInput } from "./size.tsx";
-import { TextFormatInput, TextStrokeInput } from "./text.tsx";
-import { LayoutInput } from "./layout.tsx";
-import { MoneyInput } from "./money.tsx";
-import { FillStackInput, GradientInput, PaintInput } from "./paint.tsx";
-import { ShadowInput, ShadowStackInput } from "./shadow.tsx";
-import { StrokeInput } from "./stroke.tsx";
-import { TransformInput } from "./transform.tsx";
-import { TransitionInput } from "./transition.tsx";
-import { TypographyInput } from "./typography.tsx";
-import { UrlInput } from "./url.tsx";
+import { Load } from "../collection/index.ts";
 
 /** The most choices laid out side by side as segments, past which they go in a menu. */
 const SEGMENTS = 4;
@@ -247,44 +218,47 @@ function BooleanInput(properties: ValueFieldProperties): JSX.Element {
     );
 }
 
-/** The input of each named schema, such as a color's, beside the JSON typed for any other. */
-const NAMED_INPUTS: Readonly<Record<string, NamedValueField>> = {
-    "style.color": ColorInput,
-    "style.palette": PaletteInput,
-    "style.gradient": GradientInput,
-    "style.paint": PaintInput,
-    "style.fillStack": FillStackInput,
-    "style.dimension": DimensionInput,
-    "style.cubicBezier": CubicBezierInput,
-    "style.fontFamily": FontFamilyInput,
-    "style.fontWeight": FontWeightInput,
-    "style.fontStyle": FontStyleInput,
-    "style.fontFeatures": FontFeaturesInput,
-    "style.fontVariations": FontVariationsInput,
-    "style.corners": CornersInput,
-    "style.boxSides": BoxSidesInput,
-    "style.size": SizeInput,
-    "style.position": PositionInput,
-    "style.opacity": OpacityInput,
-    "style.overflow": OverflowInput,
-    "style.stroke": StrokeInput,
-    "style.shadow": ShadowInput,
-    "style.shadowStack": ShadowStackInput,
-    "style.filter": FilterInput,
-    "style.filterStack": FilterStackInput,
-    "style.typography": TypographyInput,
-    "style.textFormat": TextFormatInput,
-    "style.textStroke": TextStrokeInput,
-    "style.transform": TransformInput,
-    "style.layout": LayoutInput,
-    "style.transition": TransitionInput,
-    "schema.duration": DurationInput,
-    "schema.dateRange": DateRangeInput,
-    "schema.recurrence": RecurrenceInput,
-    "schema.money": MoneyInput,
-    "schema.rating": RatingInput,
-    "schema.url": UrlInput,
+/** The kit's input of each named schema, such as a color's, each loaded as a chunk of its own. */
+const NAMED_INPUTS: Readonly<Record<string, () => Promise<NamedValueField>>> = {
+    "style.color": async () => (await import("./color.tsx")).ColorInput,
+    "style.palette": async () => (await import("./color.tsx")).PaletteInput,
+    "style.gradient": async () => (await import("./paint.tsx")).GradientInput,
+    "style.paint": async () => (await import("./paint.tsx")).PaintInput,
+    "style.fillStack": async () => (await import("./paint.tsx")).FillStackInput,
+    "style.dimension": async () => (await import("./dimension.tsx")).DimensionInput,
+    "style.cubicBezier": async () => (await import("./bezier.tsx")).CubicBezierInput,
+    "style.fontFamily": async () => (await import("./font.tsx")).FontFamilyInput,
+    "style.fontWeight": async () => (await import("./font.tsx")).FontWeightInput,
+    "style.fontStyle": async () => (await import("./font.tsx")).FontStyleInput,
+    "style.fontFeatures": async () => (await import("./font.tsx")).FontFeaturesInput,
+    "style.fontVariations": async () => (await import("./font.tsx")).FontVariationsInput,
+    "style.corners": async () => (await import("./box.tsx")).CornersInput,
+    "style.boxSides": async () => (await import("./box.tsx")).BoxSidesInput,
+    "style.size": async () => (await import("./size.tsx")).SizeInput,
+    "style.position": async () => (await import("./position.tsx")).PositionInput,
+    "style.opacity": async () => (await import("./opacity.tsx")).OpacityInput,
+    "style.overflow": async () => (await import("./overflow.tsx")).OverflowInput,
+    "style.stroke": async () => (await import("./stroke.tsx")).StrokeInput,
+    "style.shadow": async () => (await import("./shadow.tsx")).ShadowInput,
+    "style.shadowStack": async () => (await import("./shadow.tsx")).ShadowStackInput,
+    "style.filter": async () => (await import("./filter.tsx")).FilterInput,
+    "style.filterStack": async () => (await import("./filter.tsx")).FilterStackInput,
+    "style.typography": async () => (await import("./typography.tsx")).TypographyInput,
+    "style.textFormat": async () => (await import("./text.tsx")).TextFormatInput,
+    "style.textStroke": async () => (await import("./text.tsx")).TextStrokeInput,
+    "style.transform": async () => (await import("./transform.tsx")).TransformInput,
+    "style.layout": async () => (await import("./layout.tsx")).LayoutInput,
+    "style.transition": async () => (await import("./transition.tsx")).TransitionInput,
+    "schema.duration": async () => (await import("./duration.tsx")).DurationInput,
+    "schema.dateRange": async () => (await import("./range.tsx")).DateRangeInput,
+    "schema.recurrence": async () => (await import("./recurrence.tsx")).RecurrenceInput,
+    "schema.money": async () => (await import("./money.tsx")).MoneyInput,
+    "schema.rating": async () => (await import("./rating.tsx")).RatingInput,
+    "schema.url": async () => (await import("./url.tsx")).UrlInput,
 };
+
+/** The kit's named inputs loaded so far, by schema name, so later fields of one render at once. */
+const LOADED = new Map<string, NamedValueField>();
 
 /** Render the input of an instant. */
 function TimeInput(properties: ValueFieldProperties): JSX.Element {
@@ -421,12 +395,59 @@ function FoundInput(properties: ValueFieldProperties): JSX.Element {
 
 /** Render the input of JSON: its named schema's own, such as a color's, else the JSON typed. */
 function JsonInput(properties: ValueFieldProperties<JsonValueType>): JSX.Element {
-    // take an app's input of the schema's name before the kit's
+    // take an app's input of the schema's name, then the kit's once loaded
     const { named } = useContext(ValueFieldsContext);
     const name = untrack(() => LocalReference.root(properties.type.schema));
-    const Named = name === null ? undefined : (named[name] ?? NAMED_INPUTS[name]);
+    const own = name === null ? undefined : named[name];
+    const load = name === null ? undefined : NAMED_INPUTS[name];
+    const loaded = name === null ? undefined : LOADED.get(name);
+    if (own !== undefined) {
+        const Named = own;
 
-    return Named === undefined ? <JsonText {...properties} /> : <Named {...properties} />;
+        return <Named {...properties} />;
+    }
+    // show the kit's input at once where it loaded before
+    else if (loaded !== undefined) {
+        const Named = loaded;
+
+        return <Named {...properties} />;
+    }
+    // load the kit's input, showing nothing meanwhile, its failure thrown to the error boundary
+    else if (name !== null && load !== undefined) {
+        const input = new Load(loadNamed(name, load));
+        const settled = () => (input.state() === "loading" ? undefined : input);
+
+        return (
+            <Show when={settled()}>
+                {(ready) => {
+                    // take the input once, as it arrives once
+                    const Named = untrack(() => ready().value());
+
+                    return <Named {...properties} />;
+                }}
+            </Show>
+        );
+    }
+    // type JSON as text for any other schema
+    else {
+        return <JsonText {...properties} />;
+    }
+}
+
+/** Load every named input of the kit, so a field of any named schema renders at once. */
+export async function preloadNamedInputs(): Promise<void> {
+    await Promise.all(Object.entries(NAMED_INPUTS).map(([name, load]) => loadNamed(name, load)));
+}
+
+/** Load the kit's input of a schema name, keeping it for the fields after. */
+async function loadNamed(
+    name: string,
+    load: () => Promise<NamedValueField>,
+): Promise<NamedValueField> {
+    const input = await load();
+    LOADED.set(name, input);
+
+    return input;
 }
 
 /** Render JSON as text, kept while it is typed and given once it parses. */

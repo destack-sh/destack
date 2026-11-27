@@ -5,6 +5,10 @@ import { createSignal, flush } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import { ValueField } from "../value-field/index.ts";
 import { PaintPicker } from "./index.ts";
+import { preloadNamedInputs } from "../value-field/index.ts";
+
+// load the kit's named inputs, so every field of a named schema renders at once
+await preloadNamedInputs();
 
 /** Draw a paint picker from a paint, recording what it gives. */
 function draw(start: Paint) {

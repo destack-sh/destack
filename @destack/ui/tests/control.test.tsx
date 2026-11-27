@@ -2,6 +2,10 @@ import { expect, test, vi } from "@destack/test";
 import { flush } from "@destack/view";
 import { accessibleName, render, stubPopovers } from "@destack/view/test";
 import { EXAMPLES } from "./fixture/examples.ts";
+import { preloadNamedInputs } from "../src/value-field/index.ts";
+
+// load the kit's named inputs, so every field of a named schema renders at once
+await preloadNamedInputs();
 
 /** What a person operates, hidden inputs of a form left out. */
 const CONTROLS =
