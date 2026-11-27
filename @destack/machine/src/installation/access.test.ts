@@ -91,6 +91,7 @@ test("bind an installation's requests on other packages' types on its consenter'
             { ...account.permission("read"), scope: ids.account },
             user.permission("recipient"),
         ],
+        delegation: "self",
     });
     const consenter = AccessContext.of(Caller.onBehalfOf(installer, subject), now);
     expect({ installed, removed }).toEqual({

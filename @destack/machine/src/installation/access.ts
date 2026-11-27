@@ -2,6 +2,7 @@ import { installation, Installation } from "@destack/stack/object";
 import {
     AccessContext,
     Caller,
+    type Delegation,
     Grant,
     type GrantPermission,
     PermissionSet,
@@ -109,7 +110,13 @@ export const InstallationAccess = {
             installed,
             [...permissions, ...asking],
             now,
+            "self",
         );
+
+        // let it act in the space for the actors whose changes invoke it, within what it asks of each user there
+        const asked = Installation.permissions(target, description, "user").space ?? [];
+        const forActors = asked.map((permission) => ({ ...permission, scope: target.scope }));
+        const acting = await InstallationAccess.grant(reader, installed, forActors, now, "actors");
 
         // grant as the space, whose authority the grant lends
         const delegator = principal.space.reference(Scope.universe.id, target.scope);
@@ -117,22 +124,28 @@ export const InstallationAccess = {
 
         return [
             { caller: AccessContext.of(consenter, now), calls: [binding] },
-            ...(granting.length === 0
+            ...(granting.length + acting.length === 0
                 ? []
-                : [{ caller: AccessContext.of(lending, now), calls: granting }]),
+                : [{ caller: AccessContext.of(lending, now), calls: [...granting, ...acting] }]),
         ];
     },
 
-    /** Build the calls giving an installation its space's one grant of exactly some permissions. */
+    /** Build the calls giving an installation its space's one grant of a delegation. */
     async grant(
         reader: Pick<Snapshot, "read">,
         installed: ReturnType<typeof principal.installation.reference>,
         permissions: readonly GrantPermission[],
         now: number,
+        delegation: Delegation,
     ): Promise<Call[]> {
         // leave a grant giving exactly the permissions
         const delegator = principal.space.reference(Scope.universe.id, installed.scope);
-        const current = await Grant.find(reader, { delegator, delegate: installed }, now);
+        const current = await Grant.find(
+            reader,
+            { delegator, delegate: installed },
+            now,
+            delegation,
+        );
         if (
             current !== undefined &&
             canonicalize(current.permissions) === canonicalize(permissions)
@@ -145,6 +158,7 @@ export const InstallationAccess = {
             ...grant.in(installed.scope),
             delegate: installed,
             permissions: [...permissions],
+            delegation,
         });
         const revoke = current === undefined ? [] : [grant.call("revoke", grant.target(current))];
 
