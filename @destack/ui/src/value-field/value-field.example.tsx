@@ -1,10 +1,31 @@
-import { Color, FillStack, Gradient, Paint, Palette } from "@destack/style";
+import {
+    FilterStack,
+    Opacity,
+    Overflow,
+    Position,
+    Size,
+    TextFormat,
+    BoxSides,
+    Color,
+    Corners,
+    Dimension,
+    FillStack,
+    Gradient,
+    Layout,
+    Paint,
+    Palette,
+    ShadowStack,
+    Stroke,
+    Transform,
+    Transition,
+    Typography,
+} from "@destack/style";
 import { t } from "@destack/locale";
 import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
-import { createSignal } from "@destack/view";
+import { createSignal, For } from "@destack/view";
 import { Field, FieldLabel } from "../field/index.ts";
 import { ValueField, ValueFieldProvider } from "./value-field.tsx";
 
@@ -136,6 +157,80 @@ export const valueFieldKinds = defineExample({
                         {...of("background")}
                     />
                 </Field>
+                <output>{JSON.stringify(given())}</output>
+            </div>
+        );
+    },
+});
+
+/** The inputs of a card's look, from its corners to its motion. */
+export const valueFieldCard = defineExample({
+    of: ValueField,
+    name: "card",
+    description: t`The inputs of a card's look, with what they give.`,
+    layout: "padded",
+    render: () => {
+        // store what the inputs give, starting from a raised card
+        const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
+            corners: Corners.all({ value: 12, unit: "px" }),
+            padding: { ...BoxSides.all({ value: 16, unit: "px" }), top: { value: 24, unit: "px" } },
+            stroke: {
+                color: "#00000014",
+                width: { value: 1, unit: "px" },
+                style: "solid",
+                align: "inside",
+            },
+            shadows: [
+                {
+                    color: "#0000001f",
+                    offsetX: Dimension.zero,
+                    offsetY: { value: 8, unit: "px" },
+                    blur: { value: 24, unit: "px" },
+                    spread: { value: -4, unit: "px" },
+                    inset: false,
+                },
+            ],
+            backdrop: [{ kind: "blur", radius: { value: 16, unit: "px" } }],
+            opacity: 0.96,
+        });
+        const of = (name: string) => ({
+            get value() {
+                return given()[name];
+            },
+            onValueChange: (value: JsonValue | undefined) =>
+                setGiven((current) => ({ ...current, [name]: value })),
+        });
+        const fields = [
+            ["Corners", "corners", Corners],
+            ["Padding", "padding", BoxSides],
+            ["Stroke", "stroke", Stroke],
+            ["Shadows", "shadows", ShadowStack],
+            ["Backdrop", "backdrop", FilterStack],
+            ["Opacity", "opacity", Opacity],
+            ["Size", "size", Size],
+            ["Position", "position", Position],
+            ["Overflow", "overflow", Overflow],
+            ["Type", "typography", Typography],
+            ["Text", "text", TextFormat],
+            ["Move", "transform", Transform],
+            ["Layout", "layout", Layout],
+            ["Motion", "transition", Transition],
+            ["Width", "width", Dimension],
+        ] as const;
+
+        return (
+            <div {...style.attrs(styles.form)}>
+                <For each={fields}>
+                    {([label, name, type]) => (
+                        <Field>
+                            <FieldLabel>{label}</FieldLabel>
+                            <ValueField
+                                type={{ kind: "json", schema: describe(type) }}
+                                {...of(name)}
+                            />
+                        </Field>
+                    )}
+                </For>
                 <output>{JSON.stringify(given())}</output>
             </div>
         );

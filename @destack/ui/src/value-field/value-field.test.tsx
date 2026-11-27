@@ -1,4 +1,21 @@
-import { Color, Paint, Palette } from "@destack/style";
+import {
+    BoxSides,
+    Color,
+    Corners,
+    Dimension,
+    FilterStack,
+    FontFeatures,
+    Layout,
+    Paint,
+    Palette,
+    type Shadow,
+    ShadowStack,
+    Size,
+    Stroke,
+    TextFormat,
+    Transition,
+    Typography,
+} from "@destack/style";
 import type { ActionValue, Choice } from "@destack/object";
 import { type JsonObject, JsonValue, present, schema, toJsonSchema } from "@destack/schema";
 import { expect, test } from "@destack/test";
@@ -93,7 +110,7 @@ test("take the input an app replaces by its schema's name, inside one it replace
         <ValueFieldProvider inputs={{ number: () => <output>number</output> }}>
             <ValueFieldProvider
                 named={{
-                    paint: (properties) => (
+                    "style.paint": (properties) => (
                         <button
                             type="button"
                             onClick={() =>
@@ -187,6 +204,207 @@ test("add, move and remove the colors of a palette between the fewest and the mo
         ["#241d9a", "#e0eaff"],
     ]);
 });
+
+test("give a length by its number, kept in its unit", () => {
+    stubPopovers();
+    const { container, given } = draw(typeOf(Dimension), px(12));
+    fill(container, "Amount", "16");
+
+    expect(given).toEqual([px(16)]);
+});
+
+test("round every corner by one radius, then one corner on its own", () => {
+    // set all four, then turn each one apart and change the top left
+    stubPopovers();
+    const { container, given } = draw(typeOf(Corners), Corners.all(px(8)));
+    fill(
+        present(container.querySelector("[role=group] [role=group]"), "the radius"),
+        "Amount",
+        "12",
+    );
+    press(container, "Each corner");
+    fill(container, "Top left", "0");
+
+    expect(given).toEqual([Corners.all(px(12)), { ...Corners.all(px(12)), topLeft: px(0) }]);
+});
+
+test("draw a stroke outside the box", () => {
+    stubPopovers();
+    const start: Stroke = { color: "#000000", width: px(1), style: "solid", align: "inside" };
+    const { container, given } = draw(typeOf(Stroke), start);
+    press(container, "Outside");
+
+    expect(given).toEqual([{ ...start, align: "outside" }]);
+});
+
+test("add a shadow on top, set it inside, and remove the one below", () => {
+    // start from one shadow, add another, turn the new one inward, then remove the old one
+    stubPopovers();
+    const old: Shadow = {
+        color: "#00000033",
+        offsetX: px(0),
+        offsetY: px(1),
+        blur: px(2),
+        spread: px(0),
+        inset: false,
+    };
+    const { container, given } = draw(typeOf(ShadowStack), [old]);
+    press(container, "Add shadow");
+    const top = present(container.querySelector("[aria-label='Shadow 1']"), "the top shadow");
+    present(
+        container.querySelector<HTMLElement>("[role=switch]"),
+        "the top shadow's switch",
+    ).click();
+    flush();
+    const isKept = container.querySelector("[aria-label='Shadow 1']") === top;
+    const removes = container.querySelectorAll<HTMLButtonElement>("[aria-label='Remove shadow']");
+    present(removes[1], "the lower shadow's remove button").click();
+    flush();
+    const added: Shadow = { ...old, offsetY: px(4), blur: px(12) };
+
+    // expect each change, the top shadow's row kept as it changed
+    expect({ given, isKept }).toEqual({
+        given: [[added, old], [{ ...added, inset: true }, old], [{ ...added, inset: true }]],
+        isKept: true,
+    });
+});
+
+test("set text in the fonts a person lists, as CSS lists them", () => {
+    stubPopovers();
+    const start: Typography = {
+        fontFamily: ["sans-serif"],
+        fontSize: { value: 1, unit: "rem" },
+        fontWeight: 400,
+        letterSpacing: px(0),
+        lineHeight: 1.5,
+    };
+    const { container, given } = draw(typeOf(Typography), start);
+    const family = present(
+        container.querySelector<HTMLInputElement>("input[aria-label='Font family']"),
+        "the font family",
+    );
+    family.value = `"Inter Variable", serif`;
+    family.dispatchEvent(new Event("change", { bubbles: true }));
+    flush();
+
+    expect(given).toEqual([{ ...start, fontFamily: ["Inter Variable", "serif"] }]);
+});
+
+test("give a transition's duration, kept in its unit", () => {
+    stubPopovers();
+    const start: Transition = {
+        duration: { value: 0.2, unit: "s" },
+        delay: { value: 0, unit: "ms" },
+        timingFunction: [0, 0, 0.58, 1],
+    };
+    const { container, given } = draw(typeOf(Transition), start);
+    fill(container, "Duration", "0.3");
+
+    expect(given).toEqual([{ ...start, duration: { value: 0.3, unit: "s" } }]);
+});
+
+test("lay children out in a column, with the padding its sides input gives", () => {
+    // turn the layout into a column, then pad every side
+    stubPopovers();
+    const start: Layout = {
+        direction: "row",
+        gap: px(8),
+        align: "start",
+        justify: "start",
+        isWrapping: false,
+        padding: BoxSides.all(px(0)),
+    };
+    const { container, given } = draw(typeOf(Layout), start);
+    press(container, "Column");
+    fill(present(container.querySelector("[aria-label=Padding]"), "the padding"), "Amount", "16");
+
+    expect(given).toEqual([
+        { ...start, direction: "column" },
+        { ...start, direction: "column", padding: BoxSides.all(px(16)) },
+    ]);
+});
+
+test("size a box across its container, then give it a least width", () => {
+    stubPopovers();
+    const none = { kind: "none" } as const;
+    const start: Size = {
+        width: { kind: "fit" },
+        height: { kind: "fit" },
+        minWidth: none,
+        maxWidth: none,
+        minHeight: none,
+        maxHeight: none,
+    };
+    const { container, given } = draw(typeOf(Size), start);
+    press(container, "Fill");
+    press(container, "Length");
+
+    expect(given).toEqual([
+        { ...start, width: { kind: "fill" } },
+        { ...start, width: { kind: "fill" }, minWidth: { kind: "length", length: px(0) } },
+    ]);
+});
+
+test("cut text after some lines", () => {
+    stubPopovers();
+    const start: TextFormat = {
+        align: "start",
+        case: "none",
+        decoration: "none",
+        wrap: "wrap",
+        truncation: { kind: "none" },
+    };
+    const { container, given } = draw(typeOf(TextFormat), start);
+    press(container, "Cut after lines");
+    fill(container, "Lines", "3");
+
+    expect(given).toEqual([
+        { ...start, truncation: { kind: "lines", count: 1 } },
+        { ...start, truncation: { kind: "lines", count: 3 } },
+    ]);
+});
+
+test("add a filter last, and an OpenType feature by its tag", () => {
+    stubPopovers();
+    const filters = draw(typeOf(FilterStack), []);
+    press(filters.container, "Add filter");
+    const features = draw(typeOf(FontFeatures), {});
+    const tag = present(
+        features.container.querySelector<HTMLInputElement>("input[aria-label='New tag']"),
+        "the new tag",
+    );
+    tag.value = "tnum";
+    tag.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    flush();
+    press(features.container, "Add");
+
+    expect([filters.given, features.given]).toEqual([
+        [[{ kind: "blur", radius: px(4) }]],
+        [{ tnum: 1 }],
+    ]);
+});
+
+/** A length in pixels. */
+function px(value: number): Dimension {
+    return { value, unit: "px" };
+}
+
+/** Type a value's schema as the JSON a JSON input takes. */
+function typeOf(definition: schema.Schema): ActionValue {
+    return { kind: "json", schema: describe(definition) };
+}
+
+/** Type a number into the number field of a name, or into the input inside it. */
+function fill(root: Element, label: string, text: string): void {
+    const field = present(root.querySelector(`[aria-label="${label}"]`), `the field ${label}`);
+    const input = present(
+        field instanceof HTMLInputElement ? field : field.querySelector("input"),
+        `the input ${label}`,
+    );
+    input.value = text;
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    flush();
+}
 
 /** Read a button's name without the marks that isolate a number in it. */
 function nameOf(button: HTMLButtonElement): string {

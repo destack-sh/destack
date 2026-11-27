@@ -6514,6 +6514,303 @@
             "source": "Fit",
             "context": "label",
             "translation": "Einpassung"
+        },
+        "3rkrow5tltvck": {
+            "source": "A sidebar's width, its number and its unit.",
+            "translation": "Die Breite einer Seitenleiste, ihre Zahl und ihre Einheit."
+        },
+        "35d8g10rtxl8y": {
+            "source": "Blur",
+            "context": "label",
+            "translation": "Unschärfe"
+        },
+        "3p3fkxt6nq7bs": {
+            "source": "Spread",
+            "context": "label",
+            "translation": "Ausdehnung"
+        },
+        "2gig2qk6se76k": {
+            "source": "Refuses the number and the unit, so the length cannot change now.",
+            "translation": "Sperrt Zahl und Einheit, sodass sich die Länge jetzt nicht ändern kann."
+        },
+        "gqzthbm80llv": {
+            "source": "Amount",
+            "context": "label",
+            "translation": "Wert"
+        },
+        "yzjv69xg6n9h": {
+            "source": "Unit",
+            "context": "label",
+            "translation": "Einheit"
+        },
+        "36z5m91azs9mn": {
+            "source": "Top left",
+            "context": "label",
+            "translation": "Oben links"
+        },
+        "1v35e6mr3aauo": {
+            "source": "Top right",
+            "context": "label",
+            "translation": "Oben rechts"
+        },
+        "152cgb4zunq4a": {
+            "source": "Bottom right",
+            "context": "label",
+            "translation": "Unten rechts"
+        },
+        "ahxw76q6z32x": {
+            "source": "Bottom left",
+            "context": "label",
+            "translation": "Unten links"
+        },
+        "1ohtxaqdx5qul": {
+            "source": "Each corner",
+            "context": "action",
+            "translation": "Jede Ecke"
+        },
+        "180v59w0nzxye": {
+            "source": "Top",
+            "context": "label",
+            "translation": "Oben"
+        },
+        "3lk0eldtudidf": {
+            "source": "Right",
+            "context": "label",
+            "translation": "Rechts"
+        },
+        "1l8cppx8wx0e0": {
+            "source": "Bottom",
+            "context": "label",
+            "translation": "Unten"
+        },
+        "2vbbh7dg07c26": {
+            "source": "Left",
+            "context": "label",
+            "translation": "Links"
+        },
+        "19mmqaohy4du3": {
+            "source": "Each side",
+            "context": "action",
+            "translation": "Jede Seite"
+        },
+        "3o4y15akzns2g": {
+            "source": "Style",
+            "context": "label",
+            "translation": "Stil"
+        },
+        "2ro9izzjvwj7h": {
+            "source": "Shadow {$p0}",
+            "context": "label",
+            "translation": "Schatten {$p0}"
+        },
+        "3k4olda3ray93": {
+            "source": "Inside",
+            "context": "label",
+            "translation": "Innen"
+        },
+        "2ymermyp6qflz": {
+            "source": "Remove shadow",
+            "context": "action",
+            "translation": "Schatten entfernen"
+        },
+        "tadhrvnkmgzk": {
+            "source": "Add shadow",
+            "context": "action",
+            "translation": "Schatten hinzufügen"
+        },
+        "8b4st0smjnf9": {
+            "source": "Radius",
+            "context": "label",
+            "translation": "Radius"
+        },
+        "tszpn9e3d1ry": {
+            "source": "Font family",
+            "context": "label",
+            "translation": "Schriftfamilie"
+        },
+        "2yz3xkfdwyi8g": {
+            "source": "Line height",
+            "context": "label",
+            "translation": "Zeilenhöhe"
+        },
+        "34s3gkvx1g2yy": {
+            "source": "Letter spacing",
+            "context": "label",
+            "translation": "Zeichenabstand"
+        },
+        "13ugtxte49ei1": {
+            "source": "Rotation",
+            "context": "label",
+            "translation": "Drehung"
+        },
+        "110emskh7pmyr": {
+            "source": "Width scale",
+            "context": "label",
+            "translation": "Breitenskalierung"
+        },
+        "31htirga43yqy": {
+            "source": "Height scale",
+            "context": "label",
+            "translation": "Höhenskalierung"
+        },
+        "2n158dkk1jau1": {
+            "source": "Gap",
+            "context": "label",
+            "translation": "Abstand"
+        },
+        "146ij7dbmts0f": {
+            "source": "Wrap",
+            "context": "label",
+            "translation": "Umbrechen"
+        },
+        "289x0xd9wk6z8": {
+            "source": "Padding",
+            "context": "label",
+            "translation": "Innenabstand"
+        },
+        "dr1mz7ws6hdf": {
+            "source": "Duration",
+            "context": "label",
+            "translation": "Dauer"
+        },
+        "wnvlx2o8tmwm": {
+            "source": "Delay",
+            "context": "label",
+            "translation": "Verzögerung"
+        },
+        "327tytaak268u": {
+            "source": "Easing",
+            "context": "label",
+            "translation": "Beschleunigung"
+        },
+        "vtb0gq8pqb3h": {
+            "source": "The inputs of a card's look, with what they give.",
+            "translation": "Die Eingaben für das Aussehen einer Karte, mit dem, was sie liefern."
+        },
+        "12gi7ff0g34uw": {
+            "source": "Height",
+            "context": "label",
+            "translation": "Höhe"
+        },
+        "181exc5k142q5": {
+            "source": "Tag",
+            "context": "label",
+            "translation": "Tag"
+        },
+        "1aybczkjq1fxi": {
+            "source": "Add filter",
+            "context": "action",
+            "translation": "Filter hinzufügen"
+        },
+        "1q1zp1bdqgc3": {
+            "source": "New tag",
+            "context": "label",
+            "translation": "Neues Tag"
+        },
+        "1x4spxmewlelg": {
+            "source": "Least width",
+            "context": "label",
+            "translation": "Mindestbreite"
+        },
+        "21wfoad7kqenf": {
+            "source": "Filter {$p0}",
+            "context": "label",
+            "translation": "Filter {$p0}"
+        },
+        "27ipz7ok4rsg1": {
+            "source": "Decoration",
+            "context": "label",
+            "translation": "Dekoration"
+        },
+        "2ysrbpr0sr8tj": {
+            "source": "Greatest height",
+            "context": "label",
+            "translation": "Maximale Höhe"
+        },
+        "3buey0iivsmsz": {
+            "source": "Least height",
+            "context": "label",
+            "translation": "Mindesthöhe"
+        },
+        "cnu1vs3bo5aq": {
+            "source": "Lines",
+            "context": "label",
+            "translation": "Zeilen"
+        },
+        "iynu2wyaysp7": {
+            "source": "Case",
+            "context": "label",
+            "translation": "Schreibweise"
+        },
+        "m78lsxhynbp0": {
+            "source": "Truncation",
+            "context": "label",
+            "translation": "Kürzung"
+        },
+        "tgxicobqiov": {
+            "source": "Remove {$p0}",
+            "context": "action",
+            "translation": "{$p0} entfernen"
+        },
+        "vq9v9i0trplc": {
+            "source": "Greatest width",
+            "context": "label",
+            "translation": "Maximale Breite"
+        },
+        "2ago58sm6vn24": {
+            "source": "Offset",
+            "context": "label",
+            "translation": "Versatz"
+        },
+        "2wzmmcaxsl0b8": {
+            "source": "End",
+            "context": "label",
+            "translation": "Ende"
+        },
+        "2yierad4nggct": {
+            "source": "Start",
+            "context": "label",
+            "translation": "Anfang"
+        },
+        "39sto541aydx8": {
+            "source": "Constraint",
+            "context": "label",
+            "translation": "Einschränkung"
+        },
+        "1c0cm6t466nzb": {
+            "source": "Z",
+            "context": "label",
+            "translation": "Z"
+        },
+        "1c0cmku830pzu": {
+            "source": "Y",
+            "context": "label",
+            "translation": "Y"
+        },
+        "1c0cmyvbzus0d": {
+            "source": "X",
+            "context": "label",
+            "translation": "X"
+        },
+        "1ppjo4pz0uo4l": {
+            "source": "Blackness",
+            "context": "label",
+            "translation": "Schwärze"
+        },
+        "1wr7vvhr1bwt7": {
+            "source": "Whiteness",
+            "context": "label",
+            "translation": "Weißanteil"
+        },
+        "24otyhyyzhglw": {
+            "source": "Green to red",
+            "context": "label",
+            "translation": "Grün bis Rot"
+        },
+        "3kd6p42hustow": {
+            "source": "Blue to yellow",
+            "context": "label",
+            "translation": "Blau bis Gelb"
         }
     }
 }
