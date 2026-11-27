@@ -1,4 +1,4 @@
-import { type ActionInput, Choice } from "@destack/object";
+import type { ActionInput } from "@destack/object";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -101,13 +101,6 @@ export function Inspector(properties: InspectorProperties): JSX.Element {
                                     aria-label={name()}
                                     aria-describedby={description() === undefined ? undefined : id}
                                     type={input.value}
-                                    choices={
-                                        input.value.kind === "choice"
-                                            ? input.value.choices.map((each) =>
-                                                  Choice.of(each, locale),
-                                              )
-                                            : undefined
-                                    }
                                     value={properties.values[input.name]}
                                     onValueChange={(value) =>
                                         properties.onValueChange(input.name, value)
