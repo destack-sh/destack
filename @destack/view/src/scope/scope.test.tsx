@@ -300,7 +300,7 @@ test("open and close another space with a component", async () => {
 });
 
 test("fail access to an object type the view's space does not hold into the error boundary", async () => {
-    // render a query of boards, which live outside every scope of the view
+    // render a query of boards, which live outside every scope of the view, reading it
     const { simulation, tab } = testWorld();
     const client = await openClient(simulation.environment("view"));
     const element = document.createElement("main");
@@ -309,9 +309,9 @@ test("fail access to an object type the view's space does not hold into the erro
             () => (
                 <Errored fallback={(error) => <p>{failureMessage(error())}</p>}>
                     {(() => {
-                        useQuery(board, (query) => query.findMany());
+                        const boards = useQuery(board, (query) => query.findMany());
 
-                        return <p>Boards</p>;
+                        return <p>{boards().length} boards</p>;
                     })()}
                 </Errored>
             ),

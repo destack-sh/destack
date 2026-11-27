@@ -1,4 +1,4 @@
-import { createContext, useContext } from "solid-js";
+import { createContext, NotReadyError, useContext } from "solid-js";
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import type { TelemetryScope } from "@destack/telemetry";
 import type { ClientOptions, Endpoint, ObjectNode, ObjectConnection } from "@destack/object/client";
@@ -21,8 +21,11 @@ export interface ViewMount {
     readonly connect: (path: string, scope: string) => ObjectConnection;
 }
 
-/** The mounted view. */
-export const ViewMountContext = createContext<ViewMount>();
+/** What an unmounted view's reads wait on: a mount that never comes, as at build. */
+const UNMOUNTED = new Promise<never>(() => {});
+
+/** The mounted view, null until a host mounts it. */
+export const ViewMountContext = createContext<ViewMount | null>(null);
 
 /** The environment views and components run in, which every render provides. */
 export const EnvironmentContext = createContext<BrowserEnvironment>();
@@ -43,7 +46,18 @@ export function useTelemetry(): TelemetryScope {
     return useContext(TelemetryContext);
 }
 
+/** Read the mounted view, suspending until a host mounts it, as prerenders run before any. */
+export function useMount(): ViewMount {
+    // suspend to the nearest loading boundary while no host mounted the view
+    const mount = useContext(ViewMountContext);
+    if (mount === null) {
+        throw new NotReadyError(UNMOUNTED);
+    }
+
+    return mount;
+}
+
 /** Read what the host gives the mounted view. */
 export function useView(): ViewContext {
-    return useContext(ViewMountContext).context;
+    return useMount().context;
 }

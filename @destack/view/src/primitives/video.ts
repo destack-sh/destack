@@ -2,13 +2,16 @@ import { isServer } from "@solidjs/web";
 import {
     type Accessor,
     createEffect,
+    createMemo,
     createSignal,
-    NotReadyError,
     onCleanup,
     untrack,
 } from "solid-js";
 import { makeEventListener } from "./event-listener.ts";
 import { access, TRANSPARENT } from "./utils.ts";
+
+/** The metadata a server's video waits on, which never loads as no player exists there. */
+const NO_METADATA = new Promise<number>(() => {});
 
 /** A video to play: a file's address, a media provider such as a stream, or nothing. */
 export type VideoSource = string | undefined | MediaProvider;
@@ -224,6 +227,7 @@ export function createVideo(
     const [seeking, setSeeking] = createSignal(false, { ownedWrite: true });
     const [error, setError] = createSignal<MediaError | null>(null, { ownedWrite: true });
     const [length, setLength] = createSignal<number | undefined>(undefined, { ownedWrite: true });
+    let metadata = Promise.withResolvers<number>();
     const listeners: [keyof HTMLVideoElementEventMap, () => void][] = [
         ["playing", () => setPlaying(true)],
         ["pause", () => setPlaying(false)],
@@ -242,25 +246,25 @@ export function createVideo(
         [
             "loadstart",
             () => {
+                metadata = Promise.withResolvers<number>();
                 setLength(undefined);
                 setError(null);
             },
         ],
-        ["loadedmetadata", () => setLength(player.duration)],
+        [
+            "loadedmetadata",
+            () => {
+                metadata.resolve(player.duration);
+                setLength(player.duration);
+            },
+        ],
     ];
     for (const [name, listener] of listeners) {
         makeEventListener(player, name, listener);
     }
 
-    // read the length, pending until the metadata loads
-    const duration = (): number => {
-        const current = length();
-        if (current === undefined) {
-            throw new NotReadyError("video duration is not available yet");
-        }
-
-        return current;
-    };
+    // read the length, pending on the next metadata until it loads
+    const duration = createMemo(() => length() ?? metadata.promise);
 
     // follow a reactive source, seeking to the start of each
     if (typeof source === "function") {
@@ -531,9 +535,7 @@ function serverVideo(): VideoReturn {
         ended: () => false,
         seeking: () => false,
         error: () => null,
-        duration: () => {
-            throw new NotReadyError("video duration is not available on the server");
-        },
+        duration: createMemo(() => NO_METADATA),
     };
 }
 

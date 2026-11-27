@@ -7,9 +7,8 @@ import type {
     ObjectQueryBuilder,
     RelationalQuery,
 } from "@destack/object/client";
-import { useContext } from "solid-js";
 import { type ContextScope, ViewContext } from "../declare/context.ts";
-import { useView, ViewMountContext } from "../page/context.ts";
+import { useMount } from "../page/context.ts";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
 
 /** Where a hook reads and writes: a scope of the view's context, or a scope by its identifier. */
@@ -77,9 +76,7 @@ interface ScopeNode {
 
 /** Read the view's node of an object type's scope, opening a scope outside the view's context. */
 export function useNode(object: ObjectType, options: ScopeOptions): Accessor<ScopeNode> {
-    // fail at the hook's call for a type the view's node of the scope does not hold
-    const view = useView();
-    const mount = useContext(ViewMountContext);
+    // refuse a node that does not hold the type, on first read as every read of the mount
     const held = (node: ObjectNode) => {
         if (!node.objects.some((type) => type.same(object))) {
             throw new TypeError(`the node has no object ${object.name}`);
@@ -87,15 +84,12 @@ export function useNode(object: ObjectType, options: ScopeOptions): Accessor<Sco
 
         return node;
     };
-    const known = mount.clients.get(scopeOf(view, object, options));
-    if (known !== undefined) {
-        held(known);
-    }
 
-    // follow the scope's node
+    // follow the scope's node, reading the mount on first use
     return createMemo((): ScopeNode => {
         // take an opened node of the scope
-        const scope = scopeOf(view, object, options);
+        const mount = useMount();
+        const scope = scopeOf(mount.context, object, options);
         const opened = mount.clients.get(scope);
         if (opened !== undefined) {
             return { node: held(opened) };
