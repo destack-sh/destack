@@ -91,20 +91,21 @@ export const RecordExecution = {
             }
         }
 
-        // hide an unreadable parent unless the caller may add under it, else require the permission
+        // require adding under the parent by the subject's own rights, hiding a parent it cannot read
+        const implied = authorization.subject();
         const add = authorizer.policy(parent).permission(declared.add);
-        if (!(await authorization.check(add, parent, reader)).isAllowed) {
+        if (!(await implied.check(add, parent, reader)).isAllowed) {
             const host =
                 declared.object === "any"
                     ? context.objects.find((object) => object.policy.is(parent))
                     : declared.object;
             const reading = host?.reading;
-            if (reading === undefined || !(await authorization.check(reading, parent)).isAllowed) {
+            if (reading === undefined || !(await implied.check(reading, parent)).isAllowed) {
                 throw CallError.http("NOT_FOUND", {
                     message: `${parent.type} '${parent.id}' not found`,
                 });
             }
-            await authorization.require(add, parent);
+            await implied.require(add, parent);
         }
 
         // require the permitted parent ready for children

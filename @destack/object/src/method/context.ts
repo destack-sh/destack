@@ -201,7 +201,7 @@ export class MethodContext<
     /** Run an action's call on resolved inputs in this call's transaction as a caller. */
     async perform<Inputs extends ActionInputs>(
         caller: AccessContext,
-        action: Action<Inputs>,
+        action: Pick<Action<Inputs>, "name" | "call">,
         { values, initial = {} }: ActionArguments<Inputs>,
     ): Promise<readonly unknown[]> {
         // write the calls from the transaction's rows

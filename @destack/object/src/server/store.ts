@@ -12,6 +12,7 @@ import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { EventStore } from "@destack/event/store";
 import {
     AccessContext,
+    Attribution,
     Policy,
     Caller,
     Grant,
@@ -2376,9 +2377,20 @@ export class ObjectStore {
         try {
             // run the authorized calls over a transaction committed with their records, again while it loses a race
             return await this.database.commit(async (transaction) => {
+                // run the calls as their authorized caller
                 const authorization = await this.#authorizeRun(transaction, planned);
+                const results = await this.#run(transaction, authorization, planned, progress);
 
-                return this.#run(transaction, authorization, planned, progress);
+                // attribute a run that wrote changes
+                if (transaction.changes.writes("every") > 0) {
+                    const attribution = Attribution.of(planned.caller);
+                    transaction.record(
+                        (connection) => connection.log.attribute(attribution),
+                        "attribution",
+                    );
+                }
+
+                return results;
             });
         } catch (error) {
             // answer the outcome an earlier or concurrent run recorded

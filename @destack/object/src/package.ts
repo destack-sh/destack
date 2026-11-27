@@ -9,6 +9,7 @@ import { textChunkTable, textNodeTable } from "./text/table.ts";
 import { counter } from "./trait/numbered.ts";
 import { formerKey } from "./object/former.ts";
 import { activity } from "./history/activity.ts";
+import { textChunk, textNode } from "./text/object.ts";
 
 /** The handle a space and a machine serve their call log and access objects through. */
 export default definePackage({
@@ -29,6 +30,8 @@ export default definePackage({
         approval,
         changeRequest,
         activity,
+        textChunk,
+        textNode,
     ],
     // keep the text, number counters and former keys of every package's objects in each space
     tables: [textChunkTable, textNodeTable, counter, formerKey],

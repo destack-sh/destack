@@ -53,7 +53,10 @@ export class RelationGraph {
     constructor(served: readonly ObjectType[]) {
         // serve the text types beside types with text
         const isText = served.some((object) => object.text.length > 0);
-        const objects = isText ? [...served, textChunk, textNode] : [...served];
+        const missing = [textChunk, textNode].filter(
+            (type) => !served.some((each) => each.same(type)),
+        );
+        const objects = isText ? [...served, ...missing] : [...served];
         this.objects = objects;
 
         // index the listed types by table, keeping the first of each as `same` finds it

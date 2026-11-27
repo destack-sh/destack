@@ -103,7 +103,7 @@ export const deletePieces = defineScenario({
                     edits: [{ delete: [{ run: "a.{n}", start: 4, text: 6 }] }],
                 },
             },
-            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 10 }],
+            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 11 }],
         },
     ],
     then: [{ observe: { count: "page" }, is: PAGES }],

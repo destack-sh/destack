@@ -43,6 +43,8 @@ export class Authorization extends access.Authorization {
             readonly resolved: Access;
             /** The applied declaration writing the rows. */
             readonly manager?: Manager;
+            /** Whether the caller's grants limit its decisions, true by default. */
+            readonly isGranted?: boolean;
         },
     ) {
         super(authorizer, transaction, context, environment, options);
@@ -58,6 +60,19 @@ export class Authorization extends access.Authorization {
         return new Authorization(this.authorizer, this.transaction, context, this.environment, {
             resolved: this.access,
             manager,
+            isGranted: this.isGranted,
+        });
+    }
+
+    /** Authorize by the subject's own rights, without its grants, for checks a call implies. */
+    subject(): Authorization {
+        // read the caller as it acts now, as the copied authorization does
+        const context = () => this.context();
+
+        return new Authorization(this.authorizer, this.transaction, context, this.environment, {
+            resolved: this.access.subject(),
+            ...(this.manager === null ? {} : { manager: this.manager }),
+            isGranted: false,
         });
     }
 
