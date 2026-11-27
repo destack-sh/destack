@@ -30,6 +30,7 @@ import {
     type OpenChildren,
     type OpenProperties,
     type OpenReason,
+    Overlay,
     TopLayer,
     type TriggerProperties,
 } from "../layer/index.ts";
@@ -305,11 +306,10 @@ export function TooltipTrigger<Payload = unknown>(
                 }
             },
             onFocus: (event: FocusEvent & { readonly currentTarget: HTMLElement }) => {
-                // show a tooltip the keyboard reaches at once and without motion, none for a press
-                if (!isPressed) {
-                    const target = event.currentTarget;
-                    const isImmediate = target.matches(":focus-visible");
-                    tooltip.open(change("trigger-focus", target, event), isImmediate);
+                // show a tooltip the keyboard reaches at once and without motion, none for a pointer
+                const target = event.currentTarget;
+                if (!isPressed && target.matches(":focus-visible")) {
+                    tooltip.open(change("trigger-focus", target, event), true);
                 }
             },
             onPointerDown: (event: PointerEvent) => {
@@ -339,6 +339,7 @@ export const TooltipContent = defineComponent({
         // read the tooltip and its placement
         const tooltip = useTooltip();
         const isInstant = tooltip.isInstant;
+        const { scheduler } = useEnvironment();
         const rest = omit(properties, "anchor", "side", "align", "sideOffset");
 
         // show and hide the tooltip as it opens and closes
@@ -351,7 +352,7 @@ export const TooltipContent = defineComponent({
         });
 
         return (
-            <TopLayer>
+            <Overlay>
                 <PositionAnchor
                     anchor={properties.anchor}
                     onAnchor={(element) => tooltip.setAnchor(element)}
@@ -386,12 +387,15 @@ export const TooltipContent = defineComponent({
                         get "data-align"() {
                             return properties.align;
                         },
-                        ref: (element: HTMLElement) => tooltip.setContent(element),
+                        ref: (element: HTMLElement) => {
+                            TopLayer.of(element).watch(element, scheduler);
+                            tooltip.setContent(element);
+                        },
                         onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) =>
                             tooltip.follow(event),
                     }),
                 )}
-            </TopLayer>
+            </Overlay>
         );
     },
 });
