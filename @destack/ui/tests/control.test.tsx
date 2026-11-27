@@ -14,44 +14,29 @@ const CONTROLS =
 /** The attributes that list the ids of other elements on the page. */
 const REFERENCES = ["aria-labelledby", "aria-describedby", "for"];
 
-test("give every control of every example a name, a type and references that lead somewhere", () => {
-    stubPopovers();
-    const problems = EXAMPLES.flatMap(([name, example]) => {
-        // render the example alone
+for (const [name, example] of EXAMPLES) {
+    test(`render ${name} quietly, its controls named, typed and referring to elements there are`, () => {
+        // listen to the console while the example renders alone
+        stubPopovers();
+        const said: string[] = [];
+        const listen =
+            (kind: string) =>
+            (...values: unknown[]) =>
+                void said.push(`${kind}: ${String(values[0]).split("\n")[0] ?? ""}`);
+        const warn = vi.spyOn(console, "warn").mockImplementation(listen("warning"));
+        const error = vi.spyOn(console, "error").mockImplementation(listen("error"));
         const { container, unmount } = render(() => example.render?.());
         flush();
-        const found = problemsOf(container).map((problem) => `${name}: ${problem}`);
+
+        // check its controls, then let it go and stop listening
+        const problems = problemsOf(container);
         unmount();
+        warn.mockRestore();
+        error.mockRestore();
 
-        return found;
+        expect({ problems: [...new Set(problems)], said }).toEqual({ problems: [], said: [] });
     });
-
-    expect([...new Set(problems)]).toEqual([]);
-});
-
-test("render every example without an error or a warning", () => {
-    // listen to the console while each example renders and goes
-    stubPopovers();
-    const said: string[] = [];
-    const listen =
-        (kind: string) =>
-        (...values: unknown[]) =>
-            void said.push(`${kind}: ${String(values[0]).split("\n")[0] ?? ""}`);
-    const warn = vi.spyOn(console, "warn").mockImplementation(listen("warning"));
-    const error = vi.spyOn(console, "error").mockImplementation(listen("error"));
-    const problems = EXAMPLES.flatMap(([name, example]) => {
-        said.length = 0;
-        const { unmount } = render(() => example.render?.());
-        flush();
-        unmount();
-
-        return said.map((each) => `${name} ${each}`);
-    });
-    warn.mockRestore();
-    error.mockRestore();
-
-    expect([...new Set(problems)]).toEqual([]);
-});
+}
 
 /** List what is wrong with the controls in an element. */
 function problemsOf(container: HTMLElement): string[] {
