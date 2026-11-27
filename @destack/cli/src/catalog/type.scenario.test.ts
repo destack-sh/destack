@@ -285,7 +285,7 @@ test("print help for a command line without words as destack help does, and a no
             "",
             "  you       login  logout  whoami  self  completion",
             "  spaces    switch",
-            "  apps      install  uninstall  open  apply  plan  approve  reject",
+            "  apps      install  uninstall  purge  open  apply  plan  approve  reject",
             "  share     share  invited  accept",
             "  build     new  dev  check  fix  test  build  publish  tag  git",
             "  settings  setting  settings",

@@ -8,7 +8,7 @@ const JOURNEYS = [
     { title: "spaces", commands: ["switch"] },
     {
         title: "apps",
-        commands: ["install", "uninstall", "open", "apply", "plan", "approve", "reject"],
+        commands: ["install", "uninstall", "purge", "open", "apply", "plan", "approve", "reject"],
     },
     { title: "share", commands: ["share", "invited", "accept"] },
     {
