@@ -783,6 +783,7 @@ async function selectBuild(
             source,
             outputs: null,
             version: null,
+            destack: options.space.machine.destack.newest,
         });
 
         return found?.state === "succeeded"

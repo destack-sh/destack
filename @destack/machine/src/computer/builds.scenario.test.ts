@@ -372,7 +372,12 @@ test("build and deploy each commit a push moves main to", async () => {
                 source,
                 ["bun"],
                 "succeeded",
-                stackObject.Build.key({ source, outputs: null, version: null }),
+                stackObject.Build.key({
+                    source,
+                    outputs: null,
+                    version: null,
+                    destack: import.meta.destack.package.version,
+                }),
             ];
         }),
         [SITE, SITE],

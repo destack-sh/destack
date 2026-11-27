@@ -129,10 +129,11 @@ export function implementBuild(options: BuildOptions) {
         methods: {
             create: {
                 handle: async (context, next) => {
-                    // key the build by its source, outputs and version, whose live build the creation answers
+                    // key the build by its source, outputs and version, answering its running or succeeded build
                     const source = BuildSource.parse(context.input.source);
                     const { outputs = null, version = null } = context.input;
-                    const key = Build.key({ source, outputs, version });
+                    const destack = options.space.machine.destack.newest;
+                    const key = Build.key({ source, outputs, version, destack });
 
                     // record a release its caller pulled, refusing another package or version, with nothing to run
                     if (source.kind === "release") {
@@ -185,7 +186,7 @@ export function implementBuild(options: BuildOptions) {
                         }),
                     );
 
-                    // start its compile as the package's code, leaving a live build the creation answers that already ended
+                    // start its compile as the package's code, unless the creation answered a succeeded build
                     if (created.state === "running") {
                         const started = compile.start(
                             { build: created.id },

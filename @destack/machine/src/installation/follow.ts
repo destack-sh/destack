@@ -151,19 +151,25 @@ export class CommitBuild {
             commit,
             directory,
         };
-        const runnerId = await this.#options.space.builder(followed.name);
-        const built = await this.#create(reconciliation, source, runnerId);
 
-        // fail the pass with the failed build's failure
-        if (built.state === "failed") {
-            const { message } = present(built.failure, `the failure of build '${built.id}'`);
+        // fail the pass with the commit's failed build, which a person rebuilds by creating it again
+        const destack = this.#options.space.machine.destack.newest;
+        const key = { source, outputs: null, version: null, destack };
+        const latest = await Build.latest(snapshot, Installation.space(target), key);
+        if (latest?.state === "failed") {
+            const { message } = present(latest.failure, `the failure of build '${latest.id}'`);
             throw StackError.of(
                 "BUILD_BLOCKED",
                 `cannot deploy commit '${commit}' of '${target.name}': its build failed: ${message}`,
             );
         }
+
+        // create the build, else take its running or succeeded one
+        const runnerId = await this.#options.space.builder(followed.name);
+        const built = await this.#create(reconciliation, source, runnerId);
+
         // leave a build still running, an installation its manager deploys, and one deployed already
-        else if (
+        if (
             built.state !== "succeeded" ||
             Manager.isManaged(target) ||
             (await this.#isTargeted(built.id, database))

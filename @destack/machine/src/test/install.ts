@@ -175,6 +175,7 @@ export async function insertRelease(
         source,
         outputs: null,
         version: null,
+        destack: import.meta.destack.package.version,
     });
     if (live !== undefined) {
         return { id: live.id, image };
@@ -189,7 +190,12 @@ export async function insertRelease(
                 id,
                 scope,
                 source,
-                key: Build.key({ source, outputs: null, version: null }),
+                key: Build.key({
+                    source,
+                    outputs: null,
+                    version: null,
+                    destack: import.meta.destack.package.version,
+                }),
                 outputs: [...outputs],
                 state: "succeeded",
                 image,

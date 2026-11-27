@@ -52,7 +52,12 @@ test("share one graph view per manifest and delete it a lease after its last vie
                     id,
                     scope: ids.space,
                     source,
-                    key: Build.key({ source, outputs: null, version: null }),
+                    key: Build.key({
+                        source,
+                        outputs: null,
+                        version: null,
+                        destack: import.meta.destack.package.version,
+                    }),
                     outputs: [],
                     state: "succeeded",
                     image,

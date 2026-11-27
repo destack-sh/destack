@@ -2089,7 +2089,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
                     id,
                     scope: this.id,
                     source,
-                    key: object.Build.key({ source, outputs: null, version: null }),
+                    key: object.Build.key({
+                        source,
+                        outputs: null,
+                        version: null,
+                        destack: import.meta.destack.package.version,
+                    }),
                     commit: source.commit,
                     runnerId: this.machine.id,
                     outputs: ["bun"],
