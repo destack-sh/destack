@@ -2,6 +2,7 @@ import { chunk, type MethodContext, type MethodContextOf } from "@destack/object
 import { Mention } from "@destack/object/markdown";
 import { implementPackage } from "@destack/object/server";
 import { ObjectReference, Subject } from "@destack/sync";
+import { present } from "@destack/schema";
 import { Comment, comment } from "./object/comment.ts";
 import { mention, mentioned, PASSAGE_LENGTH } from "./object/mention.ts";
 import { favourite, LOCATION_BYTES, presence, receipt } from "./object/index.ts";
@@ -156,9 +157,19 @@ export default implementPackage(socialPackage, {
         mention.implement({
             methods: {
                 create: async (context, next) => {
-                    // notify the mentioned subject once, from the object whose text mentions it, with that text's start
+                    // record the mention, leaving a subject who cannot read the host unnotified, as it cannot open it
                     const row = await next();
                     const source = ObjectReference.parent(row);
+                    const subject = ObjectReference.at("subject", row);
+                    const host = present(
+                        context.objects.find((object) => object.policy.is(source)),
+                        `the type of ${source.type} ${source.id}`,
+                    );
+                    if (!(await context.permits(subject, host.permission("read"), source))) {
+                        return row;
+                    }
+
+                    // notify it once, from the object whose text mentions it, with that text's start
                     const pieces = await context.read(chunk).findMany({
                         where: { parentId: row.parentId, field: row.field },
                         orderBy: { position: "asc" },
@@ -170,7 +181,7 @@ export default implementPackage(socialPackage, {
                     await context.mutate(context.caller, [
                         mentioned.call({
                             source,
-                            recipients: [ObjectReference.at("subject", row)],
+                            recipients: [subject],
                             reason: "mention",
                             thread: row.parentId,
                             payload: { author: context.caller.subject, text },

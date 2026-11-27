@@ -42,10 +42,21 @@ test("record a mention a text gains, notify its subject once, and forget it once
     await fixture.simulation.idle();
     const lost = await state();
 
+    // mention carol, who cannot read the article
+    await edit([{ insert: Mention.node(actors.carol), run: "alice-3", start: 0 }]);
+    await fixture.simulation.idle();
+    const unread = (await fixture.list("alice", mention)).map((row) => row.subjectId);
+    const carolNotified = (await fixture.list("carol", activity)).filter(
+        (row) => row.name === "mentioned",
+    ).length;
+
     // expect one mention notifying bob once, kept through the edit, then gone with the node
     expect({ mentioned, kept, lost }).toEqual({
         mentioned: { mentions: [["body", actors.bob.id]], notified: [["article", 1]] },
         kept: { mentions: [["body", actors.bob.id]], notified: [["article", 1]] },
         lost: { mentions: [], notified: [["article", 1]] },
     });
+
+    // expect carol's mention recorded and the edit kept, with no notice she could not open
+    expect({ unread, carolNotified }).toEqual({ unread: [actors.carol.id], carolNotified: 0 });
 });
