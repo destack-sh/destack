@@ -1,4 +1,4 @@
-import { Color } from "@destack/color";
+import { Color } from "@destack/style";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";

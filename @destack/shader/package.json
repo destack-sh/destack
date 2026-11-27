@@ -30,7 +30,6 @@
         "./destack.json": "./destack.json"
     },
     "dependencies": {
-        "@destack/color": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
