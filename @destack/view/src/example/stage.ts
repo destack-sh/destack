@@ -310,6 +310,10 @@ export class Stage {
                 return focusedName();
             case "name":
                 return computeAccessibleName(this.locate(observation.target));
+            case "names":
+                return this.locateAll(observation.target).map((element) =>
+                    computeAccessibleName(element),
+                );
             case "text":
                 return readText(this.locate(observation.target));
             case "texts":

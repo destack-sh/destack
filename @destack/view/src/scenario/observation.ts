@@ -17,6 +17,12 @@ export const Observation = schema.discriminatedUnion("kind", [
         target: Locator,
     }),
     schema.object({
+        /** The accessible name of each matching element, in document order. */
+        kind: schema.literal("names"),
+        /** The elements. */
+        target: Locator,
+    }),
+    schema.object({
         /** The text of the element. */
         kind: schema.literal("text"),
         /** The element. */
