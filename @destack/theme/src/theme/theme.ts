@@ -1,7 +1,7 @@
 import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { HexColor, Oklch, Palette, type ColorScheme } from "../palette/index.ts";
-import { DEFAULT_HUES, Hue, HUES } from "@destack/color";
+import { DEFAULT_HUES, Hue, HUES } from "@destack/style";
 import {
     FONT_SIZE_ADJUST,
     MOTION_SCALE,
