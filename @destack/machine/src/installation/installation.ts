@@ -147,15 +147,13 @@ export function implementInstallations(options: InstallationOptions) {
                         ),
                     };
 
-                    // ask the caller's consent to the space's push to it, while they are here
-                    const push = repository.call(
-                        "push",
-                        repository.target({ scope: branch.scope, id: branch.parentId }),
-                    );
-                    await options.space.exchange(
-                        call.caller,
-                        await options.space.requested([push]),
-                    );
+                    // ask the caller's consent to the space's push and refresh while they are here
+                    const pushed = repository.target({ scope: branch.scope, id: branch.parentId });
+                    const calls = [
+                        repository.call("push", pushed),
+                        repository.call("refresh", pushed),
+                    ];
+                    await options.space.exchange(call.caller, await options.space.requested(calls));
 
                     return source;
                 },

@@ -47,10 +47,14 @@ export class Edit {
         const target = repository.target(this.#input.source.repository);
         const lease = Lease.parse(await this.#context.call(repository.call("push", target)));
 
-        // push on the branch's head until a push lands
+        // push on the branch's head until a push lands, then refresh the repository's recorded branches
         for (let attempt = 0; attempt < PUSH_ATTEMPTS; attempt += 1) {
             const pushed = await this.#pushOnce(lease);
             if (pushed !== undefined) {
+                if (pushed.commit !== pushed.base) {
+                    await this.#context.call(repository.call("refresh", target));
+                }
+
                 return pushed;
             }
         }
@@ -68,40 +72,39 @@ export class Edit {
         const { source, author, message } = this.#input;
         const { environment, signal } = this.#context;
         const root = join(this.#context.directory, Uuid.v4(environment.random));
-        try {
-            const base = Commit.parse(
-                await GitLease.branch(lease, source.branch, root, environment, signal),
-            );
-            const directory = WorkingTree.package(root, source.directory).path;
+        const base = Commit.parse(
+            await GitLease.branch(lease, source.branch, root, environment, signal),
+        );
+        const directory = WorkingTree.package(root, source.directory).path;
 
-            // apply the edit and compile the package
-            const paths = await this.#apply({ root, directory });
+        // apply the edit, completing at the base when it changes nothing, as adding a present dependency does
+        const paths = await this.#apply({ root, directory });
+        if (paths.length === 0) {
+            return { base, commit: base };
+        }
+
+        // compile the package, unless the edit only adds dependencies, which code that never imported them cannot break
+        const isAdding = this.#input.operations.every(
+            (operation) => operation.kind === "dependency.add",
+        );
+        if (!isAdding) {
             await this.#context.builder.compile(directory, signal);
+        }
 
-            // push the commit while the branch is still at its base, else find whether it moved
-            const commit = { message, author, paths };
-            const branch = { branch: source.branch, base };
-            try {
-                const pushed = await GitLease.push(
-                    lease,
-                    root,
-                    branch,
-                    commit,
-                    environment,
-                    signal,
-                );
+        // push the commit while the branch is still at its base, else find whether it moved
+        const commit = { message, author, paths };
+        const branch = { branch: source.branch, base };
+        try {
+            const pushed = await GitLease.push(lease, root, branch, commit, environment, signal);
 
-                return { base, commit: Commit.parse(pushed) };
-            } catch (error) {
-                const head = await GitLease.head(lease, source.branch, root, environment, signal);
-                if (head === base) {
-                    throw error;
-                }
-
-                return undefined;
+            return { base, commit: Commit.parse(pushed) };
+        } catch (error) {
+            const head = await GitLease.head(lease, source.branch, root, environment, signal);
+            if (head === base) {
+                throw error;
             }
-        } finally {
-            await environment.files.remove(root, { recursive: true, force: true });
+
+            return undefined;
         }
     }
 
@@ -127,12 +130,20 @@ export class Edit {
         for (const operation of operations) {
             await source.apply(operation);
         }
-        const changed = [...(await source.changed())].map(([path, text]) => ({
+        const written = [...(await source.changed())].map(([path, text]) => ({
             path: join(tree.directory, path),
             text,
         }));
-        for (const { path, text } of changed) {
-            await files.writeTextFile(path, text);
+        const changed: typeof written = [];
+        for (const { path, text } of written) {
+            // write a file whose text differs, leaving one the edit restates
+            if ((await files.readTextFile(path)) !== text) {
+                await files.writeTextFile(path, text);
+                changed.push({ path, text });
+            }
+        }
+        if (changed.length === 0) {
+            return [];
         }
 
         // lock and install changed dependencies, as `bun add` does
