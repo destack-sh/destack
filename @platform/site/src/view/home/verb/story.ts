@@ -1,4 +1,4 @@
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import { PlainDate, PlainTime, TimeZone } from "@destack/schema";
 import type { CalendarEvent } from "@destack/ui/event-calendar";
 import { type Accessor, createContext, useContext } from "@destack/view";
