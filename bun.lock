@@ -1599,6 +1599,17 @@
         "vite",
       ],
     },
+    "@destack/view/tests/fixture/cipher": {
+      "name": "@destack/view-cipher-fixture",
+      "dependencies": {
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@noble/ciphers": "2.4.0",
+      },
+      "devDependencies": {
+        "@destack/build": "workspace:*",
+      },
+    },
     "@destack/view/tests/fixture/notebook": {
       "name": "@destack/view-notebook-fixture",
       "dependencies": {
@@ -2077,6 +2088,8 @@
     "@destack/vault": ["@destack/vault@workspace:@destack/vault"],
 
     "@destack/view": ["@destack/view@workspace:@destack/view"],
+
+    "@destack/view-cipher-fixture": ["@destack/view-cipher-fixture@workspace:@destack/view/tests/fixture/cipher"],
 
     "@destack/view-notebook-fixture": ["@destack/view-notebook-fixture@workspace:@destack/view/tests/fixture/notebook"],
 

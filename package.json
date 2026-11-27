@@ -9,6 +9,7 @@
         "@destack/machine/tests/fixture/*",
         "@destack/cli/tests/fixture/*",
         "@destack/view/tests/fixture/notebook",
+        "@destack/view/tests/fixture/cipher",
         "@destack/view/tests/fixture/notes"
     ],
     "devDependencies": {

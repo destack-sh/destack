@@ -595,6 +595,10 @@
                     "name": "@destack/view-notebook-fixture"
                 },
                 {
+                    "directory": "@destack/view/tests/fixture/cipher",
+                    "name": "@destack/view-cipher-fixture"
+                },
+                {
                     "directory": "@destack/view/tests/fixture/notes",
                     "name": "@destack/view-notes-fixture"
                 }
@@ -719,6 +723,7 @@
                 "@example/notebooks": "app",
                 "@example/starter": "app",
                 "@destack/view-notebook-fixture": "library",
+                "@destack/view-cipher-fixture": "app",
                 "@destack/view-notes-fixture": "app"
             }
         }
