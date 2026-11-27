@@ -116,7 +116,9 @@ test("include and get references to several types", async () => {
         await got.close();
     });
     await Promise.all([included.ready, got.ready]);
-    const titles = (await included.read()).map((item) => TITLED.parse(item.target ?? { title: null }).title);
+    const titles = (await included.read()).map(
+        (item) => TITLED.parse(item.target ?? { title: null }).title,
+    );
     const rows = await got.read();
 
     // expect bob's page absent from both

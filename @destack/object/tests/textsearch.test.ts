@@ -8,7 +8,13 @@ import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { textChunkTable, CHUNK_CHARACTERS, defineObject, field, TextSequence } from "../src/index.ts";
+import {
+    textChunkTable,
+    CHUNK_CHARACTERS,
+    defineObject,
+    field,
+    TextSequence,
+} from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
