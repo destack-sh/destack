@@ -1,4 +1,4 @@
-# @destack/template
+# @destack/template-blank
 
 Show an empty page with Destack's mark.
 
@@ -10,8 +10,8 @@ Show an empty page with Destack's mark.
 
 | Export | What it is |
 | --- | --- |
-| `@destack/template/package` | The package, titled Template. |
-| `@destack/template/view` | The `start` view. |
+| `@destack/template-blank/package` | The package, titled Template. |
+| `@destack/template-blank/view` | The `start` view. |
 
 ## Examples
 

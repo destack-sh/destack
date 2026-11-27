@@ -141,13 +141,13 @@
             "packages": [
                 {
                     "directory": ".",
-                    "name": "@destack/template",
+                    "name": "@destack/template-blank",
                     "description": "Show an empty page with Destack's mark."
                 }
             ],
             "entrypoints": [],
             "roles": {
-                "@destack/template": "app",
+                "@destack/template-blank": "app",
                 "@destack/locale": "builtin",
                 "@destack/object": "builtin",
                 "@destack/package": "builtin",
