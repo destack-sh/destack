@@ -441,11 +441,8 @@ async function invoke(
         { values: JsonValue.object(referred) },
         {
             context: acting,
-            read: async (type, { id }) => {
-                const [row] = await remote.list(type, { where: { id: { in: [id] } }, limit: 1 });
-
-                return row;
-            },
+            read: async (type, references) =>
+                remote.list(type, { where: { id: { in: references.map(({ id }) => id) } } }),
         },
     );
     let result: JsonValue = null;
