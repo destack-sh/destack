@@ -106,7 +106,7 @@ export function FilterStackInput(properties: NamedValueFieldProperties): JSX.Ele
             {/* Filters in order, each row kept by its place as it changes */}
             <For each={filters()} keyed={false}>
                 {(filter, index) => (
-                    <div {...style.attrs(valueStyles.row)}>
+                    <div {...style.attrs(valueStyles.item)}>
                         <ValuePart
                             type={TYPES.filter}
                             schema={Filter}

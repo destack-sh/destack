@@ -8,7 +8,7 @@ import { Button, type ButtonProperties } from "../button/index.ts";
 import { FieldContext, useFieldControl } from "../field/control.ts";
 import { ValueField } from "./value-field.tsx";
 
-/** The layouts of a value's parts: a column, a row that wraps, or a grid of two. */
+/** The layouts of a value's parts: a column, a row, a grid of two, or an item and its button. */
 export const valueStyles = style.create({
     group: {
         display: "flex",
@@ -24,6 +24,12 @@ export const valueStyles = style.create({
     grid: {
         display: "grid",
         gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+        gap: space[2],
+    },
+    item: {
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+        alignItems: "start",
         gap: space[2],
     },
 });

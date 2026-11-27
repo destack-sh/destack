@@ -7,6 +7,7 @@ import { For, type JSX, useLocale } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { DimensionField } from "../dimension-field/index.ts";
 import { Icon } from "../icon/index.ts";
+import { Label } from "../label/index.ts";
 import { Switch } from "../switch/index.ts";
 import { jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
@@ -55,12 +56,14 @@ export function ShadowInput(properties: NamedValueFieldProperties): JSX.Element 
                     disabled={properties.disabled}
                     onValueChange={(color) => change({ color })}
                 />
-                <Switch
-                    aria-label={locale.render(t.context("label")`Inside`)}
-                    disabled={properties.disabled}
-                    checked={shadow().inset}
-                    onCheckedChange={(inset) => change({ inset })}
-                />
+                <Label>
+                    <Switch
+                        disabled={properties.disabled}
+                        checked={shadow().inset}
+                        onCheckedChange={(inset) => change({ inset })}
+                    />
+                    {locale.render(t.context("label")`Inside`)}
+                </Label>
             </div>
 
             {/* Offset, blur and spread */}
@@ -93,7 +96,7 @@ export function ShadowStackInput(properties: NamedValueFieldProperties): JSX.Ele
             {/* Shadows, first on top, each row kept by its place as it changes */}
             <For each={shadows()} keyed={false}>
                 {(shadow, index) => (
-                    <div {...style.attrs(valueStyles.row)}>
+                    <div {...style.attrs(valueStyles.item)}>
                         <ValuePart
                             type={TYPES.shadow}
                             schema={Shadow}

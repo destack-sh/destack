@@ -82,7 +82,7 @@ export function MoneyInput(properties: NamedValueFieldProperties): JSX.Element {
                     <ComboboxEmpty>{locale.render(t.context("title")`No results.`)}</ComboboxEmpty>
                     <For each={currencies()}>
                         {(code) => (
-                            <ComboboxItem value={code} textValue={`${titleOf(code)} ${code}`}>
+                            <ComboboxItem value={code} textValue={titleOf(code)}>
                                 {titleOf(code)}
                             </ComboboxItem>
                         )}

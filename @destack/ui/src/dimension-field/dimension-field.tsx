@@ -119,6 +119,8 @@ export function UnitParts<Unit extends string>(properties: {
     readonly units: readonly Unit[];
     /** Write a unit as a person reads it, as CSS writes it by default. */
     readonly title?: (unit: Unit) => string;
+    /** The look of the unit's menu, such as its width in a grid. */
+    readonly unitStyle?: style.Styles;
     /** The number and its unit. */
     readonly value: { readonly value: number; readonly unit: Unit };
     /** Whether it takes no input. */
@@ -150,6 +152,7 @@ export function UnitParts<Unit extends string>(properties: {
             {/* Unit */}
             <Select
                 aria-label={locale.render(t.context("label")`Unit`)}
+                xstyle={properties.unitStyle}
                 disabled={properties.disabled}
                 value={properties.value.unit}
                 onValueChange={(key) => {

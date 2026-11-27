@@ -3,6 +3,7 @@ import plusIcon from "@destack/icon/phosphor/plus";
 import { type Message, t } from "@destack/locale";
 import { DURATION_UNITS, Duration, type DurationUnit } from "@destack/schema";
 import * as style from "@destack/style";
+import { space } from "@destack/theme/tokens.stylex";
 import { For, type JSX, useLocale } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { UnitParts } from "../dimension-field/index.ts";
@@ -23,6 +24,19 @@ const UNIT_TITLES = {
     microseconds: t.context("option")`Microseconds`,
     nanoseconds: t.context("option")`Nanoseconds`,
 } satisfies Record<DurationUnit, Message>;
+
+/** The styles of a duration's rows: its number, its unit and its remove button in columns. */
+const styles = style.create({
+    menu: {
+        width: "100%",
+    },
+    unit: {
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) 9rem auto",
+        alignItems: "center",
+        gap: space[2],
+    },
+});
 
 /** The unit a duration of nothing shows. */
 const START_UNIT: DurationUnit = "seconds";
@@ -72,10 +86,11 @@ export function DurationInput(properties: NamedValueFieldProperties): JSX.Elemen
             {/* Each unit's number, kept by its place as it changes */}
             <For each={units()} keyed={false}>
                 {(unit) => (
-                    <div {...style.attrs(valueStyles.row)}>
+                    <div {...style.attrs(styles.unit)}>
                         <UnitParts
                             units={DURATION_UNITS}
                             title={(each) => locale.render(UNIT_TITLES[each])}
+                            unitStyle={styles.menu}
                             value={{ value: duration()[unit()] ?? 0, unit: unit() }}
                             disabled={properties.disabled === true}
                             onValueChange={(changed) => change(unit(), changed.unit, changed.value)}
