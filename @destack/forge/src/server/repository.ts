@@ -405,7 +405,8 @@ export class RepositoryHosting {
                     items: changed.slice(batch * BATCH_LIMIT, (batch + 1) * BATCH_LIMIT),
                 }),
         );
-        await call.mutate(call.caller, [...created, ...updated]);
+        // write them as the repository's package, whose bookkeeping they are, whoever asked for the listing
+        await call.mutate(call.self, [...created, ...updated]);
 
         // move the default branch when it changed
         return target.defaultReference === listing.defaultReference
