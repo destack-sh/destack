@@ -1,4 +1,5 @@
-import { Markdown, MarkdownParser } from "@destack/object/markdown";
+import { Markdown, MarkdownParser, Mention } from "@destack/object/markdown";
+import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { markup, render, testWorld } from "@destack/view/test";
@@ -214,5 +215,37 @@ test("name a todo's box by its text, and check it where its owner handles that",
             ["Ask the printer", "false", null],
         ],
         changes: [[true, true]],
+    });
+});
+
+test("draw a mention as its subject looks now, following a change of its name", () => {
+    // write a mention of Ada in Markdown, read as a choice whose title changes
+    const ada = Subject.parse({
+        packageId: "package-01996ab0-0000-7000-8000-000000000009",
+        type: "person",
+        scope: "team",
+        id: "ada",
+    });
+    const [title, setTitle] = createSignal("Ada");
+    const read: string[] = [];
+    const { container } = render(() => (
+        <RichText
+            blocks={Markdown.parse(`Ask ${Mention.markdown(ada, "Ada")} today`)}
+            mention={(subject) => {
+                read.push(subject.id);
+
+                return () => ({ value: subject, title: title() });
+            }}
+        />
+    ));
+    flush();
+    const before = container.querySelector("[data-slot=mention]")?.textContent;
+    setTitle("Ada Lovelace");
+    flush();
+
+    expect({ read, before, after: container.querySelector("p")?.textContent }).toEqual({
+        read: ["ada"],
+        before: "@Ada",
+        after: "Ask @Ada Lovelace today",
     });
 });
