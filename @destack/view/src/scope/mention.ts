@@ -10,7 +10,7 @@ export function useMention(subject: Subject): Accessor<Choice> {
     const locale = useLocale();
 
     return createMemo(async (): Promise<Choice> => {
-        // take the node of the subject's scope, opening it until the component goes
+        // read the mount before any await, where it suspends an unmounted view, then take the node of the subject's scope
         const mount = useMount();
         const opened = mount.clients.get(subject.scope);
         const stopping = new AbortController();
