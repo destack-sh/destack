@@ -20,6 +20,7 @@ import {
     SYNCED_DECISION,
     type MethodContextOf,
     Status,
+    RelationGraph,
 } from "@destack/object";
 import { Failure } from "@destack/error";
 import { Stack, StackPlan, ObjectStore } from "@destack/object/server";
@@ -491,7 +492,7 @@ async function installedTypes(
     // declare the types of the installations following a build against the types they refer to
     const following = await followingInstallations(snapshot, stack);
     const described = await readDescriptions(snapshot, stack, following, options);
-    const pool = ObjectTypePool.of(ObjectType.known(objects, KNOWN_TYPES));
+    const pool = ObjectTypePool.of(new RelationGraph(objects).known(KNOWN_TYPES));
     const types = pool.declare(described.flat());
 
     // report an installation the document declares that follows no build yet

@@ -32,6 +32,7 @@ import {
     type MethodContextOf,
     PackageDescription,
     Status,
+    RelationGraph,
 } from "@destack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import { Setting } from "@destack/setting";
@@ -249,7 +250,7 @@ export class ApplicationInstallation {
 
         // declare each package's types once the types they refer to are known, leaving the others to wait
         const { store } = call.execution;
-        const pool = ObjectTypePool.of(ObjectType.known(store.objects, KNOWN_TYPES));
+        const pool = ObjectTypePool.of(new RelationGraph(store.objects).known(KNOWN_TYPES));
         const types: ObjectType[] = [];
         for (let pending = described; pending.length > 0;) {
             const ready = pending.filter((each) => pool.missing(each).length === 0);
