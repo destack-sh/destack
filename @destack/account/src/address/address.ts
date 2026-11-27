@@ -2,7 +2,7 @@ import { Forwarded, HostAddress } from "@destack/environment";
 import { type Identifier, present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
-import { HOME_APPLICATION, HOME_SPACE } from "../object/account.ts";
+import { HOME_INSTALLATION, HOME_SPACE } from "../object/account.ts";
 import { Hostname } from "../object/domain.ts";
 import { InstallationName, PackageMount } from "@destack/object";
 import { RepositoryName } from "@destack/package";
@@ -466,7 +466,7 @@ function installationLabel(origin: {
     readonly handle: string;
 }): string {
     // leave out the home installation's name, then the home space's
-    if (origin.name !== HOME_APPLICATION) {
+    if (origin.name !== HOME_INSTALLATION) {
         return [origin.name, origin.space, origin.handle].join(NAME_SEPARATOR);
     } else if (origin.space !== HOME_SPACE) {
         return [origin.space, origin.handle].join(NAME_SEPARATOR);
@@ -494,9 +494,9 @@ function readFront(names: readonly string[]): InstallationOrigin | undefined {
     if (rest.length > 0) {
         return undefined;
     } else if (space !== undefined) {
-        return { name: HOME_APPLICATION, ...space };
+        return { name: HOME_INSTALLATION, ...space };
     } else if (isHandle) {
-        return { name: HOME_APPLICATION, space: HOME_SPACE, handle: first };
+        return { name: HOME_INSTALLATION, space: HOME_SPACE, handle: first };
     } else {
         return undefined;
     }

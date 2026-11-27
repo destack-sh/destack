@@ -39,7 +39,7 @@ import { argument, plural, t } from "@destack/locale";
 export const HOME_SPACE = "home";
 
 /** The installation a person lands in after signing in, which every home's stack installs. */
-export const HOME_APPLICATION = "home";
+export const HOME_INSTALLATION = "home";
 
 /** An account, the scope of its spaces. */
 export const account = defineObject(

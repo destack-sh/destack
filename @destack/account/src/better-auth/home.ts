@@ -9,7 +9,7 @@ import { HOME_LOCATION_PATH } from "../authentication/path.ts";
 import { HomeLocation } from "../authentication/request.ts";
 import { AccountError } from "../error/error.ts";
 import { refusing } from "./refusal.ts";
-import { account, Account, HOME_APPLICATION, HOME_SPACE } from "../object/account.ts";
+import { account, Account, HOME_INSTALLATION, HOME_SPACE } from "../object/account.ts";
 
 /** A person's home: where Home answers in their personal account's home space. */
 export const Home = {
@@ -31,7 +31,7 @@ export const Home = {
         // address Home's installation origin in the home space of the person's account
         const owner = await snapshot.read(account.table).findFirst({ where: { id: accountId } });
         const handle = present(owner, `the account of ${userId}`).handle;
-        const origin = { name: HOME_APPLICATION, space: HOME_SPACE, handle };
+        const origin = { name: HOME_INSTALLATION, space: HOME_SPACE, handle };
 
         return { status: "serving", url: `${universe.installation(origin, located.url)}/` };
     },
