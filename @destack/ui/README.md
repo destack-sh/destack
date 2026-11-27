@@ -948,7 +948,7 @@ import {
     NumberFieldIncrement,
     NumberFieldInput,
 } from "@destack/ui/number-field";
-import { ValueField, ValueFieldProvider, type ValueFields } from "@destack/ui/value-field";
+import { ValueField, ValueFieldProvider, type ValueInputs } from "@destack/ui/value-field";
 import { createSignal } from "@destack/view";
 
 /** Set a zoom between its buttons. */
@@ -978,7 +978,7 @@ export function Zoom() {
 }
 
 /** Take a number as a range. */
-const range: ValueFields["number"] = (properties) => (
+const range: ValueInputs["number"] = (properties) => (
     <input
         type="range"
         min={properties.type.minimum}
@@ -1000,6 +1000,56 @@ export function Rating(properties: {
                 onValueChange={properties.onGive}
             />
         </ValueFieldProvider>
+    );
+}
+```
+
+### Inspect a selection
+
+`Inspector` lays out fieldsets densely, and each `ValueField` shows its label, its inherited value while unset, a reset, and a mark where the selected objects differ.
+A value of another shape shows as unreadable rather than as a value it does not hold.
+
+```tsx
+import { FieldLegend, FieldSet } from "@destack/ui/field";
+import { Inspector } from "@destack/ui/inspector";
+import { sharedValue, ValueField } from "@destack/ui/value-field";
+import { Corners, Opacity } from "@destack/style";
+import { type JsonObject, JsonValue, toJsonSchema } from "@destack/schema";
+import { createSignal } from "@destack/view";
+
+/** Edit the corners and opacity of the shapes selected. */
+export function Appearance(properties: { readonly shapes: readonly JsonObject[] }) {
+    const [shapes, setShapes] = createSignal(properties.shapes);
+    const field = (name: string, label: string, schema: JsonObject, inherited: JsonValue) => (
+        <ValueField
+            label={label}
+            type={{ kind: "json", schema }}
+            value={sharedValue(shapes().map((shape) => shape[name]))}
+            inherited={inherited}
+            onValueChange={(value) =>
+                setShapes((current) => current.map((shape) => ({ ...shape, [name]: value })))
+            }
+        />
+    );
+
+    return (
+        <Inspector aria-label="Shapes">
+            <FieldSet>
+                <FieldLegend>Appearance</FieldLegend>
+                {field(
+                    "opacity",
+                    "Opacity",
+                    JsonValue.object(toJsonSchema(Opacity)),
+                    Opacity.initial,
+                )}
+                {field(
+                    "corners",
+                    "Corners",
+                    JsonValue.object(toJsonSchema(Corners)),
+                    Corners.initial,
+                )}
+            </FieldSet>
+        </Inspector>
     );
 }
 ```
