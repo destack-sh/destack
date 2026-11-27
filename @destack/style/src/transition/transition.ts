@@ -1,13 +1,12 @@
-import { schema } from "@destack/schema";
+import { Duration, schema } from "@destack/schema";
 import { CubicBezier } from "../bezier/index.ts";
-import { Duration } from "../duration/index.ts";
 
-/** How a change plays out, as the design token format's transition. */
+/** How a change plays out, as the design token format's transition, timed by durations. */
 const transitionJson = schema
     .object({
         /** How long it takes. */
-        duration: Duration,
-        /** How long it waits before it starts. */
+        duration: Duration.forward,
+        /** How long it waits before it starts, a negative delay starting it partway, as in CSS. */
         delay: Duration,
         /** How it eases. */
         timingFunction: CubicBezier,
@@ -22,11 +21,16 @@ export const Transition = Object.assign(transitionJson, {
     css(transition: Transition, properties: readonly string[]): string {
         // write the timing once, then list it for each property
         const timing = [
-            Duration.css(transition.duration),
+            time(transition.duration),
             CubicBezier.css(transition.timingFunction),
-            Duration.css(transition.delay),
+            time(transition.delay),
         ].join(" ");
 
         return properties.map((property) => `${property} ${timing}`).join(", ");
     },
 });
+
+/** Write a duration as CSS's time in milliseconds, such as `200ms`. */
+function time(duration: Duration): string {
+    return `${String(Duration.milliseconds(duration))}ms`;
+}

@@ -135,33 +135,32 @@ The other values follow the W3C design token format's types where it has one, an
 Dimensions also take CSS's `em`, `%`, `vw`, `vh` and `ch`.
 `Color.token` and `Color.fromToken` write and read a color as the format's object, for token files.
 
-| Value            | Id                     | Shape                                                                    | CSS                                     |
-| ---------------- | ---------------------- | ------------------------------------------------------------------------ | --------------------------------------- |
-| `Dimension`      | `style.dimension`      | `{ value: 12, unit: "px" }`                                              | a length or percentage                  |
-| `Duration`       | `style.duration`       | `{ value: 200, unit: "ms" }`                                             | a time                                  |
-| `CubicBezier`    | `style.cubicBezier`    | `[0, 0, 0.58, 1]`, or a curve of `EASINGS`                               | an easing function                      |
-| `FontFamily`     | `style.fontFamily`     | `["Inter", "sans-serif"]`                                                | `font-family`                           |
-| `FontWeight`     | `style.fontWeight`     | `400`, or a weight of `FONT_WEIGHTS`                                     | `font-weight`                           |
-| `FontStyle`      | `style.fontStyle`      | `"normal" \| "italic" \| "oblique"`                                      | `font-style`                            |
-| `FontFeatures`   | `style.fontFeatures`   | `{ tnum: 1, liga: 0 }`                                                   | `font-feature-settings`                 |
-| `FontVariations` | `style.fontVariations` | `{ wght: 650 }`                                                          | `font-variation-settings`               |
-| `Typography`     | `style.typography`     | `{ fontFamily, fontSize, fontWeight, letterSpacing, lineHeight }`        | `font-*`, `line-height`                 |
-| `TextFormat`     | `style.textFormat`     | `{ align, case, decoration, wrap, truncation }`                          | `text-*`, line clamping                 |
-| `TextStroke`     | `style.textStroke`     | `{ color, width }`                                                       | `-webkit-text-stroke`                   |
-| `Corners`        | `style.corners`        | `{ topLeft, topRight, bottomRight, bottomLeft }`                         | `border-radius`                         |
-| `BoxSides`       | `style.boxSides`       | `{ top, right, bottom, left }`                                           | `padding`, `margin`                     |
-| `Size`           | `style.size`           | `{ width, height, minWidth, maxWidth, minHeight, maxHeight }`            | `width: fit-content \| stretch`, limits |
-| `Position`       | `style.position`       | `{ kind, x, y }`, each a `Constraint`: start, end, both, center or scale | `position`, insets, auto margins        |
-| `Opacity`        | `style.opacity`        | `0.8`                                                                    | `opacity`                               |
-| `Overflow`       | `style.overflow`       | `"visible" \| "hidden" \| "clip" \| "scroll" \| "auto"`                  | `overflow`                              |
-| `Stroke`         | `style.stroke`         | `{ color, width, style, align }`                                         | `border` inside, `outline` outside      |
-| `Shadow`         | `style.shadow`         | `{ color, offsetX, offsetY, blur, spread, inset }`                       | one of `box-shadow`                     |
-| `ShadowStack`    | `style.shadowStack`    | `Shadow[]`                                                               | `box-shadow`                            |
-| `Filter`         | `style.filter`         | `{ kind: "blur", radius }`, `{ kind: "saturate", amount }`, …            | one filter function                     |
-| `FilterStack`    | `style.filterStack`    | `Filter[]`                                                               | `filter`, `backdrop-filter`             |
-| `Transform`      | `style.transform`      | `{ x, y, rotate, scaleX, scaleY }`                                       | `translate`, `rotate`, `scale`          |
-| `Layout`         | `style.layout`         | `{ direction, gap, align, justify, isWrapping, padding }`                | flexbox, as auto layout                 |
-| `Transition`     | `style.transition`     | `{ duration, delay, timingFunction }`                                    | `transition`                            |
+| Value            | Id                     | Shape                                                                          | CSS                                     |
+| ---------------- | ---------------------- | ------------------------------------------------------------------------------ | --------------------------------------- |
+| `Dimension`      | `style.dimension`      | `{ value: 12, unit: "px" }`                                                    | a length or percentage                  |
+| `CubicBezier`    | `style.cubicBezier`    | `[0, 0, 0.58, 1]`, or a curve of `EASINGS`                                     | an easing function                      |
+| `FontFamily`     | `style.fontFamily`     | `["Inter", "sans-serif"]`                                                      | `font-family`                           |
+| `FontWeight`     | `style.fontWeight`     | `400`, or a weight of `FONT_WEIGHTS`                                           | `font-weight`                           |
+| `FontStyle`      | `style.fontStyle`      | `"normal" \| "italic" \| "oblique"`                                            | `font-style`                            |
+| `FontFeatures`   | `style.fontFeatures`   | `{ tnum: 1, liga: 0 }`                                                         | `font-feature-settings`                 |
+| `FontVariations` | `style.fontVariations` | `{ wght: 650 }`                                                                | `font-variation-settings`               |
+| `Typography`     | `style.typography`     | `{ fontFamily, fontSize, fontWeight, letterSpacing, lineHeight }`              | `font-*`, `line-height`                 |
+| `TextFormat`     | `style.textFormat`     | `{ align, case, decoration, wrap, truncation }`                                | `text-*`, line clamping                 |
+| `TextStroke`     | `style.textStroke`     | `{ color, width }`                                                             | `-webkit-text-stroke`                   |
+| `Corners`        | `style.corners`        | `{ topLeft, topRight, bottomRight, bottomLeft }`                               | `border-radius`                         |
+| `BoxSides`       | `style.boxSides`       | `{ top, right, bottom, left }`                                                 | `padding`, `margin`                     |
+| `Size`           | `style.size`           | `{ width, height, minWidth, maxWidth, minHeight, maxHeight }`                  | `width: fit-content \| stretch`, limits |
+| `Position`       | `style.position`       | `{ kind, x, y }`, each a `Constraint`: start, end, both, center or scale       | `position`, insets, auto margins        |
+| `Opacity`        | `style.opacity`        | `0.8`                                                                          | `opacity`                               |
+| `Overflow`       | `style.overflow`       | `"visible" \| "hidden" \| "clip" \| "scroll" \| "auto"`                        | `overflow`                              |
+| `Stroke`         | `style.stroke`         | `{ color, width, style, align }`                                               | `border` inside, `outline` outside      |
+| `Shadow`         | `style.shadow`         | `{ color, offsetX, offsetY, blur, spread, inset }`                             | one of `box-shadow`                     |
+| `ShadowStack`    | `style.shadowStack`    | `Shadow[]`                                                                     | `box-shadow`                            |
+| `Filter`         | `style.filter`         | `{ kind: "blur", radius }`, `{ kind: "saturate", amount }`, …                  | one filter function                     |
+| `FilterStack`    | `style.filterStack`    | `Filter[]`                                                                     | `filter`, `backdrop-filter`             |
+| `Transform`      | `style.transform`      | `{ x, y, rotate, scaleX, scaleY }`                                             | `translate`, `rotate`, `scale`          |
+| `Layout`         | `style.layout`         | `{ direction, gap, align, justify, isWrapping, padding }`                      | flexbox, as auto layout                 |
+| `Transition`     | `style.transition`     | `{ duration, delay, timingFunction }`, times as `@destack/schema`'s `Duration` | `transition`                            |
 
 A `FillStack` also fills text with `FillStack.textCss`, as CSS clips a background to the letters.
 

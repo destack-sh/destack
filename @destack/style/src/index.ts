@@ -5,7 +5,6 @@ export * from "./palette/index.ts";
 export * from "./paint/index.ts";
 export * from "./fill/index.ts";
 export * from "./dimension/index.ts";
-export * from "./duration/index.ts";
 export * from "./bezier/index.ts";
 export * from "./font/index.ts";
 export * from "./box/index.ts";
