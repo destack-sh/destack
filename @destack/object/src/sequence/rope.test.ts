@@ -6,7 +6,7 @@ import {
     TextRope,
     TextSchema,
     TextSequence,
-    TextTypes,
+    TextType,
     type TextEdit,
 } from "./index.ts";
 
@@ -107,8 +107,8 @@ test.for([3, 29, 113])(
             else if (draw < 0.7) {
                 const from = below(seed, length - 1);
                 const to = from + 1 + below(seed, Math.min(6, length - from - 1));
-                const range = sequence.range(from, to, TextTypes.bold);
-                ranges.push({ whole: range, split: rope.range(from, to, TextTypes.bold) });
+                const range = sequence.range(from, to, TextType.bold);
+                ranges.push({ whole: range, split: rope.range(from, to, TextType.bold) });
                 order += 1;
                 edits = [
                     { mark: { id: `mark.${step}`, type: "bold", value: true, ...range, order } },

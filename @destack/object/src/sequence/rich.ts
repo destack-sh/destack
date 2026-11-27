@@ -1,12 +1,12 @@
 import { schema } from "@destack/schema";
-import { ObjectReference, Subject } from "@destack/sync";
+import { Subject } from "@destack/sync";
 import { TextSchema } from "./schema.ts";
 
 /** How deep a list item or todo nests, zero at the outermost level. */
 const INDENT = schema.number().int().nonnegative();
 
 /** The built-in mark and node types of rich text. */
-export const TextTypes = {
+export const TextType = {
     /** Bold text, growing as people type after it. */
     bold: TextSchema.mark("bold"),
     /** Italic text, growing as people type after it. */
@@ -46,11 +46,9 @@ export const TextTypes = {
         value: schema.object({ language: schema.string().min(1).exactOptional() }),
     }),
 
-    /** A mention of a principal. */
+    /** A mention of a person, a group or any object. */
     mention: TextSchema.node("mention", { value: Subject, isReferencing: true }),
-    /** An embedded object. */
-    object: TextSchema.node("object", { value: ObjectReference, isReferencing: true }),
 };
 
-/** The rich text types: styles, links, blocks, mentions and embedded objects. */
-export const RICH_TEXT = Object.values(TextTypes);
+/** The rich text types: styles, links, blocks and mentions. */
+export const RICH_TEXT = Object.values(TextType);

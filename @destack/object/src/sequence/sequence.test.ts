@@ -9,7 +9,7 @@ import {
     type TextMark,
     TextSchema,
     TextSequence,
-    TextTypes,
+    TextType,
 } from "./index.ts";
 
 /** The schema the sequence tests resolve marks and nodes with. */
@@ -69,8 +69,8 @@ function edit(
         const to = from + 1 + Math.floor(random(seed) * Math.min(4, length - from - 1));
         const isRemoving = random(seed) < 0.2;
         const marking = [
-            { type: TextTypes.bold, value: isRemoving ? null : true },
-            { type: TextTypes.link, value: { href: "https://destack.sh" } },
+            { type: TextType.bold, value: isRemoving ? null : true },
+            { type: TextType.link, value: { href: "https://destack.sh" } },
             { type: SCHEMA.markType("highlight"), value: site },
         ];
         const { type, value } = nth(marking, Math.floor(random(seed) * marking.length));
@@ -307,14 +307,14 @@ test("grow bold as people type after it, never a link, and neither at its start,
         id: "m.1",
         type: "bold",
         value: true,
-        ...text.range(0, 5, TextTypes.bold),
+        ...text.range(0, 5, TextType.bold),
         order: 1,
     };
     const link: TextMark = {
         id: "m.2",
         type: "link",
         value: { href: "https://destack.sh" },
-        ...text.range(6, 11, TextTypes.link),
+        ...text.range(6, 11, TextType.link),
         order: 2,
     };
 
@@ -339,11 +339,11 @@ test("resolve each character to its latest single mark, keeping every overlappin
     const text = new TextSequence().apply({ insert: "the quick brown fox", run: "a.1", start: 0 });
     const highlight = SCHEMA.markType("highlight");
     const marks: TextMark[] = [
-        { id: "m.1", type: "bold", value: true, ...text.range(0, 19, TextTypes.bold), order: 1 },
-        { id: "m.2", type: "bold", value: null, ...text.range(4, 9, TextTypes.bold), order: 2 },
+        { id: "m.1", type: "bold", value: true, ...text.range(0, 19, TextType.bold), order: 1 },
+        { id: "m.2", type: "bold", value: null, ...text.range(4, 9, TextType.bold), order: 2 },
         { id: "m.3", type: "highlight", value: "ada", ...text.range(4, 15, highlight), order: 3 },
         { id: "m.4", type: "highlight", value: "bo", ...text.range(10, 19, highlight), order: 4 },
-        { id: "m.5", type: "code", value: true, ...text.range(16, 19, TextTypes.code), order: 5 },
+        { id: "m.5", type: "code", value: true, ...text.range(16, 19, TextType.code), order: 5 },
     ];
     const marked = marks.reduce((sequence, mark) => sequence.apply({ mark }), text);
     expect(marked.spans(SCHEMA)).toEqual([
