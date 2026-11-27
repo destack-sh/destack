@@ -242,6 +242,10 @@ export const uninstallCommand: CommandBody = {
     arguments: [{ name: "installation", usage: "@scope/name|name" }],
     options: {
         yes: { type: "boolean", description: "Uninstall without asking" },
+        "delete-data": {
+            type: "boolean",
+            description: "Delete the app's data after 30 days in the trash",
+        },
     },
     isJson: true,
     async run({ arguments: { installation: given }, options, isJson: json }, context) {
@@ -265,14 +269,34 @@ export const uninstallCommand: CommandBody = {
                   )
                 : undefined;
         if (main !== undefined) {
+            // delete the data main keeps of it into the trash when asked, purged after its window
+            const trashed =
+                options["delete-data"] === true
+                    ? await trashData(await packageOf(asked, context), context)
+                    : undefined;
             await context.terminal.print(
                 json
-                    ? JSON.stringify({ id: main, name: MAIN_APPLICATION, package: asked })
-                    : context.terminal.event(
-                          "Removed",
-                          "done",
-                          `'${asked}' from '${MAIN_APPLICATION}'`,
-                      ),
+                    ? JSON.stringify({
+                          id: main,
+                          name: MAIN_APPLICATION,
+                          package: asked,
+                          ...(trashed === undefined ? {} : { orphan: trashed }),
+                      })
+                    : [
+                          context.terminal.event(
+                              "Removed",
+                              "done",
+                              `'${asked}' from '${MAIN_APPLICATION}'`,
+                          ),
+                          ...(trashed === undefined
+                              ? []
+                              : [
+                                    context.terminal.hint(
+                                        "data",
+                                        `in the trash for 30 days, restore with destack orphans ${trashed} restore`,
+                                    ),
+                                ]),
+                      ].join("\n"),
             );
 
             return;
@@ -715,4 +739,24 @@ async function editMain(
     await InstallationStatus.edited(main.id, run, context);
 
     return main.id;
+}
+
+/** Orphan the tables main's database keeps of a package, then delete the orphan to the trash. */
+async function trashData(packageId: PackageId, context: CommandContext): Promise<string> {
+    // record the main database's tables of the package, then delete the record, whose purge drops them
+    const space = await context.requireSpace();
+    const stack = await context.package(stackPackage, await context.locate());
+    const { environment } = await context.native();
+    const orphaned = await stack.orphan.create({
+        spaceId: space,
+        requestId: RequestId.create(environment),
+        packageId,
+    });
+    await stack.orphan.delete({
+        spaceId: space,
+        id: orphaned.id,
+        requestId: RequestId.create(environment),
+    });
+
+    return orphaned.id;
 }
