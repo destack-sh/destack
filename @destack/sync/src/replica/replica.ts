@@ -1639,11 +1639,83 @@ export class Replica {
     /** Write a table's retained rows of one page and record them as included. */
     async #writeShown(transaction: DatabaseConnection, table: Table, batch: Batch): Promise<void> {
         // write the retained rows with hidden columns cleared and record them as included
-        await transaction.upsert(
-            table,
-            await this.#conceal(transaction, table, batch.shown, batch.hidden),
-        );
+        const rows = await this.#conceal(transaction, table, batch.shown, batch.hidden);
+        const isKeyed = table[TABLE].uniqueKeys.some((unique) => unique.where === undefined);
+        // write a table of no further unique key directly, as its rows conflict only by their own key
+        if (!isKeyed) {
+            await transaction.upsert(table, rows);
+        }
+        // write the others in a savepoint, and once a stale row holds a unique key, drop it and write again: the source keeps keys unique
+        else {
+            try {
+                await transaction.transaction((savepoint) => savepoint.upsert(table, rows));
+            } catch (error) {
+                if (!DatabaseError.is(error, "ROW_EXISTS")) {
+                    throw error;
+                }
+                await Replica.#dropStale(transaction, table, batch.shown);
+                await transaction.upsert(table, rows);
+            }
+        }
         await this.#include(transaction, table, batch.shown, batch.hidden);
+    }
+
+    /** Delete rows holding a row's unique key under another key, with all replicas' records. */
+    static async #dropStale(
+        transaction: DatabaseConnection,
+        table: Table,
+        rows: readonly Row[],
+    ): Promise<void> {
+        // take the unique keys covering every row, a partial one leaving rows outside it unconflicted
+        const declared = table[TABLE];
+        const keys = declared.uniqueKeys.filter((unique) => unique.where === undefined);
+        const stale = new Map<string, Key>();
+        for (const row of rows) {
+            const own = Key.name(table, row);
+            for (const unique of keys) {
+                // match the rows holding the same values, leaving keys with a null unless nulls share them
+                const values = unique.columns.map((column) => row[column]);
+                if (
+                    !unique.isNullsNotDistinct &&
+                    values.some((value) => value === null || value === undefined)
+                ) {
+                    continue;
+                }
+                // match by comparable values only, a null as itself, leaving a key over structured columns
+                const entries = values.map((value) =>
+                    value === null || value === undefined ? { isNull: true } : value,
+                );
+                if (!entries.every(isEntry)) {
+                    continue;
+                }
+                const where = Object.fromEntries(
+                    unique.columns.map((column, index) => [
+                        column,
+                        entries[index] ?? { isNull: true },
+                    ]),
+                );
+                const matched = await transaction.snapshot().read(table).findMany({ where });
+                for (const held of matched) {
+                    const name = Key.name(table, held);
+                    if (name !== own) {
+                        stale.set(name, Key.parse(table, name));
+                    }
+                }
+            }
+        }
+
+        // delete them and every replica's record of them
+        if (stale.size > 0) {
+            await transaction
+                .delete(replicaKey)
+                .where(
+                    and(
+                        eq(replicaKey.table, declared.sqlName),
+                        inArray(replicaKey.key, [...stale.keys()]),
+                    ),
+                );
+            await transaction.remove(table, [...stale.values()]);
+        }
     }
 
     /** Retain or let go of groups, or every group of a query, a batch of groups per statement. */
@@ -2253,4 +2325,14 @@ export interface ReplicaInspection {
     readonly staged: number;
     /** The aggregate groups it retains. */
     readonly results: number;
+}
+
+/** Report whether a value is an entry a condition matches a column by. */
+function isEntry(value: unknown): value is string | number | boolean | { readonly isNull: true } {
+    return (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean" ||
+        (typeof value === "object" && value !== null && "isNull" in value)
+    );
 }
