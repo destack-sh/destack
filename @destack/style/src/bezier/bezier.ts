@@ -1,8 +1,13 @@
 import { type Message, t } from "@destack/locale";
 import { schema } from "@destack/schema";
+import { type Bindable, Reference } from "../reference/index.ts";
 
 /** The x of a control point, from 0 to 1, as CSS bounds it. */
 const CONTROL_X = schema.number().min(0).max(1);
+
+/** An easing as CSS's `cubic-bezier()` writes it, with its four numbers. */
+const CUBIC_BEZIER =
+    /^cubic-bezier\(\s*([\d.e+-]+)\s*,\s*([\d.e+-]+)\s*,\s*([\d.e+-]+)\s*,\s*([\d.e+-]+)\s*\)$/u;
 
 /** An easing CSS names with a keyword. */
 export const Easing = schema.enum(["linear", "ease", "ease-in", "ease-out", "ease-in-out"]);
@@ -34,8 +39,25 @@ export const CubicBezier = Object.assign(cubicBezierJson, {
         );
     },
 
+    /** Read an easing as CSS writes one, a keyword or `cubic-bezier()`, none for other text. */
+    read(text: string): CubicBezier | undefined {
+        // take a keyword's curve, or the four numbers of a function
+        const easing = Easing.safeParse(text.trim()).data;
+        const numbers = CUBIC_BEZIER.exec(text.trim())?.slice(1).map(Number);
+
+        return easing === undefined
+            ? cubicBezierJson.safeParse(numbers).data
+            : EASINGS[easing].curve;
+    },
+
+    /** A curve, or a reference to a cubic Bézier token in its place. */
+    bindable: Reference.or(cubicBezierJson, "cubicBezier"),
+
     /** Write a curve as CSS's easing function, by its keyword where CSS names it. */
-    css(curve: CubicBezier): string {
-        return CubicBezier.easing(curve) ?? `cubic-bezier(${curve.join(", ")})`;
+    css(curve: Bindable<CubicBezier>): string {
+        return Reference.write(
+            curve,
+            (written) => CubicBezier.easing(written) ?? `cubic-bezier(${written.join(", ")})`,
+        );
     },
 });

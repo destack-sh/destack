@@ -1,6 +1,11 @@
 import { expect, test } from "@destack/test";
 import { Paint } from "./index.ts";
 
+/** Refuse to resolve a reference, for paints of literal colors. */
+function unresolved(reference: string): never {
+    throw new TypeError(`no token for '${reference}'`);
+}
+
 /** A gradient from blue to gold. */
 const SKY = {
     shape: { kind: "radial", center: { x: 0.5, y: 0.5 } },
@@ -31,7 +36,7 @@ test("turn a paint into a color or a gradient, as a picker changes its kind", ()
         colors: [solid, gradient, { kind: "gradient", gradient: added } as const, PAPER].map(
             (paint) => Paint.color(paint),
         ),
-        gradients: [solid, gradient, PAPER].map((paint) => Paint.gradient(paint)),
+        gradients: [solid, gradient, PAPER].map((paint) => Paint.gradient(paint, unresolved)),
     }).toEqual({
         colors: ["#0000ff", "#241d9a", "#241d9a", "#000000"],
         gradients: [

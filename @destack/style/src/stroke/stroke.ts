@@ -47,9 +47,9 @@ export const LINE_STYLES = {
 const strokeJson = schema
     .object({
         /** The line's color. */
-        color: Color.schema,
+        color: Color.bindable,
         /** The line's width. */
-        width: Dimension,
+        width: Dimension.bindable,
         /** Where it runs: inside the box, or around it. */
         align: StrokeAlign,
         /** How it is drawn. */
@@ -64,7 +64,8 @@ export const Stroke = Object.assign(strokeJson, {
     /** Draw a stroke as CSS's border inside the box, or its outline around it. */
     css(stroke: Stroke): StrokeStyle {
         // draw inside as a border, and outside as an outline flush with the edge
-        const { color, style } = stroke;
+        const { style } = stroke;
+        const color = Color.css(stroke.color);
         const width = Dimension.css(stroke.width);
 
         return stroke.align === "inside"

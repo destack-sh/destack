@@ -1,5 +1,6 @@
 import { type Message, t } from "@destack/locale";
 import { schema } from "@destack/schema";
+import { type Bindable, Reference, type Resolve } from "../reference/index.ts";
 
 /** The channels of each color space, in the order CSS writes them. */
 export const COLOR_CHANNELS = {
@@ -384,6 +385,19 @@ export class Color {
         .string()
         .regex(CSS_COLOR, { message: "a color is hexadecimal, rgb(), hsl() or oklch()" })
         .meta({ id: "style.color", title: "Color" });
+
+    /** A color, or a reference to a color token in its place. */
+    static readonly bindable = Reference.or(Color.schema, "color");
+
+    /** Parse a color as CSS writes it, a reference's as its token is drawn. */
+    static resolve(color: Bindable<string>, resolve: Resolve): Color {
+        return Color.parse(Reference.is(color) ? resolve(color) : color);
+    }
+
+    /** Write a color as CSS reads it, a reference as its variable. */
+    static css(color: Bindable<string>): string {
+        return Reference.write(color, (written) => written);
+    }
 
     /** The space. */
     readonly space: ColorSpace;

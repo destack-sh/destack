@@ -1,12 +1,12 @@
 import { expect, test } from "@destack/test";
 import { Position } from "./index.ts";
 
-test("place a box by its constraints: pinned, centered past the middle, and scaled", () => {
+test("place a box by its constraints: pinned to a token, centered past the middle, and scaled", () => {
     expect([
         Position.css({
             kind: "absolute",
             x: { kind: "center", offset: { value: 10, unit: "px" } },
-            y: { kind: "end", offset: { value: 8, unit: "px" } },
+            y: { kind: "end", offset: "{space.2}" },
         }),
         Position.css({
             kind: "absolute",
@@ -17,9 +17,9 @@ test("place a box by its constraints: pinned, centered past the middle, and scal
         {
             position: "absolute",
             top: "auto",
-            right: "0",
-            bottom: "8px",
-            left: "20px",
+            right: "max(0px, -2 * 10px)",
+            bottom: "var(--destack-space-2)",
+            left: "max(0px, 2 * 10px)",
             marginInline: "auto",
             marginBlock: "0",
         },

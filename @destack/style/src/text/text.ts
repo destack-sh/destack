@@ -155,9 +155,9 @@ export interface TextFormatStyle {
 const textStrokeJson = schema
     .object({
         /** The line's color. */
-        color: Color.schema,
+        color: Color.bindable,
         /** The line's width. */
-        width: Dimension,
+        width: Dimension.bindable,
     })
     .meta({ id: "style.textStroke", title: "Text stroke" });
 /** A line around each letter of text. */
@@ -167,6 +167,6 @@ export type TextStroke = schema.Infer<typeof textStrokeJson>;
 export const TextStroke = Object.assign(textStrokeJson, {
     /** Write the line as CSS's `-webkit-text-stroke`. */
     css(stroke: TextStroke): string {
-        return `${Dimension.css(stroke.width)} ${stroke.color}`;
+        return `${Dimension.css(stroke.width)} ${Color.css(stroke.color)}`;
     },
 });

@@ -1,6 +1,7 @@
 import { type Message, t } from "@destack/locale";
 import { present, schema } from "@destack/schema";
 import { Color, GRAY_CHROMA } from "../color/index.ts";
+import { type Bindable, type Resolve } from "../reference/index.ts";
 
 /** A space a gradient blends its colors in, as CSS interpolates them. */
 export const GradientSpace = schema.enum(["oklab", "oklch", "srgb"]);
@@ -116,8 +117,8 @@ export const GradientShape = Object.assign(gradientShapeJson, {
 
 /** A color at a place along a gradient, from its start at 0 to its end at 1. */
 export const GradientStop = schema.object({
-    /** The color, as CSS writes it. */
-    color: Color.schema,
+    /** The color, as CSS writes it, or a reference to a color token. */
+    color: Color.bindable,
     /** The place along the gradient, from 0 to 1. */
     position: schema.number().min(0).max(1),
 });
@@ -169,7 +170,7 @@ export class Gradient {
     }
 
     /** Make a gradient from one color to another, to the right in OKLab, as design tools start. */
-    static between(from: string, to: string): Gradient {
+    static between(from: Bindable<string>, to: Bindable<string>): Gradient {
         return new Gradient({
             shape: GradientShape.rightward,
             stops: [
@@ -187,18 +188,22 @@ export class Gradient {
     }
 
     /** Read the color at a place along the gradient, the nearest stop's beyond its ends. */
-    at(position: number): Color {
+    at(position: number, resolve: Resolve): Color {
         // find the stops around the place, in order along the gradient
         const sorted = this.#sorted();
         const after = sorted.findIndex((stop) => stop.position >= position);
         const next = present(after === -1 ? sorted.at(-1) : sorted[after], "a gradient's stop");
         const previous = after <= 0 ? next : present(sorted[after - 1], "a gradient's stop");
 
+        // read each color, a token's where it is drawn
+        const from = Color.resolve(previous.color, resolve);
+        const to = Color.resolve(next.color, resolve);
+
         // blend the two by how far the place lies between them
         const span = next.position - previous.position;
         const share = span === 0 ? 0 : (position - previous.position) / span;
 
-        return this.#mix(Color.parse(previous.color), Color.parse(next.color), share);
+        return this.#mix(from, to, share);
     }
 
     /** Read the stop at the gradient's start, the first along it. */
@@ -207,9 +212,9 @@ export class Gradient {
     }
 
     /** Add a stop at a place, in the color the gradient has there. */
-    add(position: number): Gradient {
+    add(position: number, resolve: Resolve): Gradient {
         // write it in sRGB only for an sRGB gradient, as hexadecimal would move a vivid color
-        const color = this.at(position).toString(this.space === "srgb" ? "hex" : "oklch");
+        const color = this.at(position, resolve).toString(this.space === "srgb" ? "hex" : "oklch");
 
         return this.#with([...this.stops, { color, position }]);
     }
@@ -226,7 +231,7 @@ export class Gradient {
     }
 
     /** Give a stop another color. */
-    recolor(index: number, color: string): Gradient {
+    recolor(index: number, color: Bindable<string>): Gradient {
         return this.#with(
             this.stops.map((stop, place) => (place === index ? { ...stop, color } : stop)),
         );
@@ -270,7 +275,9 @@ export class Gradient {
     css(): string {
         // name the space and, in one with hue, the way round the wheel
         const method = this.space === "oklch" ? `in oklch ${this.hue} hue` : `in ${this.space}`;
-        const stops = this.#sorted().map((stop) => `${stop.color} ${String(stop.position * 100)}%`);
+        const stops = this.#sorted().map(
+            (stop) => `${Color.css(stop.color)} ${String(stop.position * 100)}%`,
+        );
         const { shape } = this;
 
         // draw along a line, out from a center, or round it

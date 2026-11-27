@@ -60,27 +60,27 @@ const constraintJson = schema.discriminatedUnion("kind", [
         /** Pinned to the start, the left or the top. */
         kind: schema.literal("start"),
         /** How far it stands from the start. */
-        offset: Dimension,
+        offset: Dimension.bindable,
     }),
     schema.object({
         /** Pinned to the end, the right or the bottom. */
         kind: schema.literal("end"),
         /** How far it stands from the end. */
-        offset: Dimension,
+        offset: Dimension.bindable,
     }),
     schema.object({
         /** Pinned to both edges, growing with its container. */
         kind: schema.literal("both"),
         /** How far it stands from the start. */
-        start: Dimension,
+        start: Dimension.bindable,
         /** How far it stands from the end. */
-        end: Dimension,
+        end: Dimension.bindable,
     }),
     schema.object({
         /** Kept at its container's middle. */
         kind: schema.literal("center"),
         /** How far it stands past the middle, toward the end. */
-        offset: Dimension,
+        offset: Dimension.bindable,
     }),
     schema.object({
         /** Kept at shares of its container, growing with it. */
@@ -131,15 +131,11 @@ export const Constraint = Object.assign(constraintJson, {
         }
         // center the box between doubled insets, so it moves by its offset
         else {
-            const doubled = {
-                value: Math.abs(constraint.offset.value) * 2,
-                unit: constraint.offset.unit,
-            };
-            const isTowardEnd = constraint.offset.value >= 0;
+            const offset = Dimension.css(constraint.offset);
 
             return {
-                start: isTowardEnd ? Dimension.css(doubled) : "0",
-                end: isTowardEnd ? "0" : Dimension.css(doubled),
+                start: `max(0px, 2 * ${offset})`,
+                end: `max(0px, -2 * ${offset})`,
                 margin: "auto",
             };
         }

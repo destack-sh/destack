@@ -40,7 +40,7 @@ const filterJson = schema
             /** A blur. */
             kind: schema.literal("blur"),
             /** How far it softens. */
-            radius: Dimension,
+            radius: Dimension.bindable,
         }),
         schema.object({
             /** A turn of every hue. */

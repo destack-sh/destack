@@ -27,7 +27,7 @@ export const Sizing = Object.assign(
             /** A fixed length. */
             kind: schema.literal("fixed"),
             /** The length. */
-            length: Dimension,
+            length: Dimension.bindable,
         }),
         schema.object({
             /** Around its content. */
@@ -74,7 +74,7 @@ export const SizeLimit = Object.assign(
             /** The length. */
             kind: schema.literal("length"),
             /** The length. */
-            length: Dimension,
+            length: Dimension.bindable,
         }),
     ]),
     {

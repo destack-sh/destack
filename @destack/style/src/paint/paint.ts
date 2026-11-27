@@ -2,6 +2,7 @@ import { type Message, t } from "@destack/locale";
 import { schema } from "@destack/schema";
 import { Color } from "../color/index.ts";
 import { BoxPoint, Gradient, type GradientJson } from "../gradient/index.ts";
+import { type Bindable, type Resolve } from "../reference/index.ts";
 
 /** The color a gradient from an image ends at, as design tools start. */
 const WHITE = "#ffffff";
@@ -63,8 +64,8 @@ const paintJson = schema
         schema.object({
             /** One color. */
             kind: schema.literal("solid"),
-            /** The color, as CSS writes it. */
-            color: Color.schema,
+            /** The color, as CSS writes it, or a reference to a color token. */
+            color: Color.bindable,
         }),
         schema.object({
             /** A gradient. */
@@ -106,7 +107,7 @@ export const Paint = Object.assign(paintJson, {
     black: { kind: "solid", color: "#000000" } as const,
 
     /** Read the color a paint turns into: its own, its first stop's, or black for an image. */
-    color(paint: Paint): string {
+    color(paint: Paint): Bindable<string> {
         // take the color itself, the gradient's first along it, or black
         if (paint.kind === "solid") {
             return paint.color;
@@ -123,12 +124,12 @@ export const Paint = Object.assign(paintJson, {
     },
 
     /** Read the gradient a paint turns into: its own, its color fading out, or black to white. */
-    gradient(paint: Paint): GradientJson {
+    gradient(paint: Paint, resolve: Resolve): GradientJson {
         // keep a gradient, fade a color out to the right, and start an image at black to white
         if (paint.kind === "gradient") {
             return paint.gradient;
         } else if (paint.kind === "solid") {
-            const clear = Color.parse(paint.color).with("alpha", 0).toString("hex");
+            const clear = Color.resolve(paint.color, resolve).with("alpha", 0).toString("hex");
 
             return Gradient.between(paint.color, clear).toJson();
         } else {
@@ -140,7 +141,9 @@ export const Paint = Object.assign(paintJson, {
     layer(paint: Paint): PaintLayer {
         // draw a color and a gradient across the whole box
         if (paint.kind === "solid") {
-            return { image: `linear-gradient(${paint.color}, ${paint.color})`, ...WHOLE };
+            const color = Color.css(paint.color);
+
+            return { image: `linear-gradient(${color}, ${color})`, ...WHOLE };
         } else if (paint.kind === "gradient") {
             return { image: new Gradient(paint.gradient).css(), ...WHOLE };
         }

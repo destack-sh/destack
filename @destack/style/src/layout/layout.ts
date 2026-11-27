@@ -49,7 +49,7 @@ const layoutJson = schema
         /** The way it lines its children up. */
         direction: LayoutDirection,
         /** The room between children. */
-        gap: Dimension,
+        gap: Dimension.bindable,
         /** Where it places them across its direction. */
         align: LayoutAlign,
         /** How it spreads them along its direction. */

@@ -1,5 +1,6 @@
 import { type Message, t } from "@destack/locale";
 import { schema } from "@destack/schema";
+import { type Bindable, Reference } from "../reference/index.ts";
 
 /** A family name CSS reads unquoted, one identifier, such as `serif` or `-apple-system`. */
 const IDENTIFIER = /^-?[A-Za-z_][\w-]*$/u;
@@ -25,23 +26,39 @@ export const FontFamily = Object.assign(fontFamilyJson, {
             .filter((family) => family.length > 0);
     },
 
+    /** Fonts, or a reference to a font family token in their place. */
+    bindable: Reference.or(fontFamilyJson, "fontFamily"),
+
     /** Write the fonts as CSS's `font-family`, quoting names that are no single identifier. */
-    css(families: FontFamily): string {
-        return families
-            .map((family) => (IDENTIFIER.test(family) ? family : JSON.stringify(family)))
-            .join(", ");
+    css(families: Bindable<FontFamily>): string {
+        return Reference.write(families, (written) =>
+            written
+                .map((family) => (IDENTIFIER.test(family) ? family : JSON.stringify(family)))
+                .join(", "),
+        );
     },
 });
 
 /** How heavy text is set, from 1 to 1000, as CSS and the design token format weigh fonts. */
-export const FontWeight = schema
+const fontWeightJson = schema
     .number()
     .int()
     .min(1)
     .max(1000)
     .meta({ id: "style.fontWeight", title: "Font weight" });
 /** How heavy text is set. */
-export type FontWeight = schema.Infer<typeof FontWeight>;
+export type FontWeight = schema.Infer<typeof fontWeightJson>;
+
+/** How heavy text is set, from 1 to 1000, as CSS and the design token format weigh fonts. */
+export const FontWeight = Object.assign(fontWeightJson, {
+    /** A weight, or a reference to a font weight token in its place. */
+    bindable: Reference.or(fontWeightJson, "fontWeight"),
+
+    /** Write a weight as CSS's `font-weight`, a reference as its variable. */
+    css(weight: Bindable<FontWeight>): string {
+        return Reference.write(weight, (written) => String(written));
+    },
+});
 
 /** The weights the design token format names, as their numbers, titled. */
 export const FONT_WEIGHTS = {

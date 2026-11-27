@@ -1,6 +1,16 @@
 import { expect, test } from "@destack/test";
 import { Gradient } from "./index.ts";
 
+/** Refuse to resolve a reference, for gradients of literal colors. */
+function unresolved(reference: string): never {
+    throw new TypeError(`no token for '${reference}'`);
+}
+
+/** Draw every token red. */
+function red(): string {
+    return "#ff0000";
+}
+
 /** A gradient from red to blue through its middle, in a space. */
 function redToBlue(space: "oklab" | "oklch" | "srgb", hue: "shorter" | "longer" = "shorter") {
     return new Gradient({
@@ -17,13 +27,13 @@ function redToBlue(space: "oklab" | "oklch" | "srgb", hue: "shorter" | "longer" 
 test("blend the middle of a gradient in its space, round the hue wheel the way it goes", () => {
     // each space and way gives its own middle, as the browser's color-mix() does, the ends their stops
     expect({
-        start: redToBlue("srgb").at(0).toString("hex"),
-        end: redToBlue("srgb").at(1).toString("hex"),
-        beyond: redToBlue("srgb").at(-1).toString("hex"),
-        srgb: redToBlue("srgb").at(0.5).toString("hex"),
-        oklab: redToBlue("oklab").at(0.5).toString("hex"),
-        shorter: redToBlue("oklch").at(0.5).toString("oklch"),
-        longer: redToBlue("oklch", "longer").at(0.5).toString("oklch"),
+        start: redToBlue("srgb").at(0, unresolved).toString("hex"),
+        end: redToBlue("srgb").at(1, unresolved).toString("hex"),
+        beyond: redToBlue("srgb").at(-1, unresolved).toString("hex"),
+        srgb: redToBlue("srgb").at(0.5, unresolved).toString("hex"),
+        oklab: redToBlue("oklab").at(0.5, unresolved).toString("hex"),
+        shorter: redToBlue("oklch").at(0.5, unresolved).toString("oklch"),
+        longer: redToBlue("oklch", "longer").at(0.5, unresolved).toString("oklch"),
     }).toEqual({
         start: "#ff0000",
         end: "#0000ff",
@@ -37,7 +47,7 @@ test("blend the middle of a gradient in its space, round the hue wheel the way i
 
 test("add a stop in the color it has there, move, recolor and remove stops by their index", () => {
     // stops keep their index as they move past each other
-    const gradient = redToBlue("srgb").add(0.5).move(0, 0.75).recolor(1, "#00ff00");
+    const gradient = redToBlue("srgb").add(0.5, unresolved).move(0, 0.75).recolor(1, "#00ff00");
 
     expect([gradient.toJson().stops, gradient.remove(2).toJson().stops]).toEqual([
         [
@@ -73,7 +83,7 @@ test("refuse a gradient of fewer than two stops", () => {
 });
 
 test("write a gradient as CSS in order along it, in its shape, naming its space and its way round the hues", () => {
-    const gradient = redToBlue("oklch", "longer").add(0.25).move(0, 0.5);
+    const gradient = redToBlue("oklch", "longer").add(0.25, unresolved).move(0, 0.5);
     const center = { x: 0.25, y: 0.5 };
 
     // the added stop takes the color a quarter of the longer way round, in OKLCH
@@ -87,5 +97,21 @@ test("write a gradient as CSS in order along it, in its shape, naming its space 
         "linear-gradient(45deg in srgb, #ff0000 0%, #0000ff 100%)",
         "radial-gradient(at 25% 50% in oklab, #ff0000 0%, #0000ff 100%)",
         "conic-gradient(from 30deg at 25% 50% in oklab, #ff0000 0%, #0000ff 100%)",
+    ]);
+});
+
+test("blend a stop bound to a token in the color the token has where it is drawn", () => {
+    // the first stop reads its color through the reference, the CSS through the variable
+    const gradient = new Gradient({
+        ...redToBlue("srgb").toJson(),
+        stops: [
+            { color: "{color.accent}", position: 0 },
+            { color: "#0000ff", position: 1 },
+        ],
+    });
+
+    expect([gradient.at(0.5, red).toString("hex"), gradient.css()]).toEqual([
+        "#800080",
+        "linear-gradient(90deg in srgb, var(--destack-color-accent) 0%, #0000ff 100%)",
     ]);
 });

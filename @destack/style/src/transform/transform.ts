@@ -5,9 +5,9 @@ import { Dimension } from "../dimension/index.ts";
 const transformJson = schema
     .object({
         /** How far it moves to the right. */
-        x: Dimension,
+        x: Dimension.bindable,
         /** How far it moves down. */
-        y: Dimension,
+        y: Dimension.bindable,
         /** How far it turns clockwise, in degrees. */
         rotate: schema.number().min(-360).max(360),
         /** How much wider it grows, 1 for its width. */
