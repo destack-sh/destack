@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { ObjectReference, Subject } from "@destack/sync";
+import { Subject } from "@destack/sync";
 import { TextSchema } from "./schema.ts";
 
 /** How deep a list item or todo nests, zero at the outermost level. */
@@ -46,10 +46,8 @@ export const TextTypes = {
         value: schema.object({ language: schema.string().min(1).exactOptional() }),
     }),
 
-    /** A mention of a principal. */
+    /** A mention of a person, a group's members, or any object, as each is a subject. */
     mention: TextSchema.node("mention", { value: Subject, isReferencing: true }),
-    /** An embedded object. */
-    object: TextSchema.node("object", { value: ObjectReference, isReferencing: true }),
 };
 
 /** The rich text types: styles, links, blocks, mentions and embedded objects. */

@@ -1,6 +1,7 @@
 import type { SyntaxNode } from "@lezer/common";
-import type { JsonObject, JsonValue } from "@destack/schema";
+import { type JsonObject, JsonValue } from "@destack/schema";
 import type { TextSpan } from "../sequence/index.ts";
+import { Mention } from "./mention.ts";
 
 /** The characters Markdown names by entities, as writers use them. */
 const ENTITIES: Readonly<Record<string, string>> = {
@@ -74,7 +75,20 @@ export class Inline {
             last.text = last.text.trimEnd();
         }
 
-        return spans.filter(({ text }) => text !== "");
+        // read a link to a subject from its at sign as a mention
+        return spans
+            .filter(({ text }) => text !== "")
+            .map((span): TextSpan => {
+                // take the subject of the span's link address
+                const link = span.marks?.["link"];
+                const href =
+                    link !== undefined && JsonValue.isObject(link) ? link["href"] : undefined;
+                const subject = typeof href === "string" ? Mention.subject(href) : undefined;
+
+                return subject !== undefined && span.text.startsWith("@")
+                    ? { node: Mention.node(subject) }
+                    : span;
+            });
     }
 
     /** Read the code of a block, line by line as it stands in the block. */
