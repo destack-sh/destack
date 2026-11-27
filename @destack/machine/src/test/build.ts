@@ -84,6 +84,7 @@ export function fixtureOutputs(
                 directory: name,
                 exports: {},
                 peers: {},
+                inlined: {},
                 ...output,
             });
             const exported = Object.values(parsed.workloads).map(
