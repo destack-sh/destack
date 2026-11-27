@@ -1701,6 +1701,52 @@ test("apply two replicas delivering one row at once one after the other, losing 
     }).toEqual({ notes: ["shared"], copies: ["left", "right"], lostRaces: 0 });
 });
 
+test("replace a row another replica still includes when a source commit moves its unique name to a new key", async () => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    // include one label in two replicas, both from one snapshot
+    const local = await openReplica({ simulation, tables: [label, ...replicaTables] });
+    const left = new Replica({ name: "left", scope: "inbox", tables: [label] });
+    const right = new Replica({ name: "right", scope: "inbox", tables: [label] });
+    for (const each of [left, right]) {
+        await each.register(local, {
+            subscription: inboxSubscription(each.name),
+            audience: "contained",
+        });
+        await replicate(each, local, [
+            {
+                reset: true,
+                complete: true,
+                changes: [labelChange("insert", "l1")],
+                position: inboxPosition(1),
+            },
+        ]);
+    }
+
+    // apply one commit to the left replica deleting the label and inserting its name under a new key
+    await replicate(left, local, [
+        {
+            reset: false,
+            complete: true,
+            changes: [labelChange("delete", "l1"), labelChange("insert", "l2")],
+            position: inboxPosition(2),
+        },
+    ]);
+
+    // keep the new key alone, the stale row gone with every replica's record of it
+    const keys = await local
+        .select({ name: replicaKey.name, key: replicaKey.key })
+        .from(replicaKey)
+        .where(eq(replicaKey.table, label[TABLE].sqlName));
+    expect({
+        labels: (await local.select({ id: label.id }).from(label)).map((row) => row.id),
+        keys: keys.map((row) => `${row.name} ${row.key}`),
+    }).toEqual({ labels: ["l2"], keys: [`left ${Key.name(label, { id: "l2" })}`] });
+});
+
 test("drop a replica: delete the rows no other replica includes and forget its record", async () => {
     await using simulation = new Simulation({
         world: testWorldOptions(),
@@ -1986,6 +2032,20 @@ function noteInsert(id: string) {
         operation: "insert" as const,
         row: note[TABLE].encode({ ...first, id }),
     };
+}
+
+/** Build a change of the red label of the inbox under a key. */
+function labelChange(operation: "insert" | "delete", id: string) {
+    return {
+        table: label[TABLE].sqlName,
+        operation,
+        row: label[TABLE].encode({ id, scope: "inbox", name: "red" }),
+    };
+}
+
+/** Build a position of the test log at a sequence. */
+function inboxPosition(sequence: number) {
+    return { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence };
 }
 
 /** Build the subscription a named replica of the inbox follows. */
