@@ -93,21 +93,35 @@ test("split each view into a browser chunk, starting the device worker from its 
     ]).toEqual([["notebooks"], true, true, true, ["worker"]]);
 });
 
-test("refuse an app's release bundling an npm package a builtin it links bundles too", async () => {
-    // release the cipher app, whose cipher the database builtin keeps in its own bundle
+test("share an npm package an app's release and a builtin it links both take in", async () => {
+    // release the cipher app, whose cipher the database builtin takes in too
     await using simulation = testSimulation();
     await using store = await testStore();
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const version = Version.first(simulation.environment("test").clock.now());
     const workspace = await Workspace.open(CIPHER, compilers, { version });
-    const releasing = (await workspace.package()).imageUnits({});
+    const units = await (await workspace.package()).imageUnits({});
 
-    // expect the release refused, naming the package the platform shares instead
-    expect(await refusal(releasing)).toEqual([
-        "BAD_REQUEST",
-        "DEPENDENCY_INVALID",
-        "app '@destack/view-cipher-fixture' is invalid: it and builtin '@destack/db' each bundle '@noble/ciphers', which the platform shares instead",
-    ]);
+    // read the cipher packages each release imports and inlines
+    const ciphers = async (name: string) => {
+        const { manifest } = await store.root(present(units.get(name), name).image);
+        const browser = present(manifest.outputs["browser"], `the browser output of ${name}`);
+        const imports = Object.values(browser.exports).flatMap((each) => each.imports);
+
+        return {
+            imports: [...new Set(imports.filter((each) => each.startsWith("@noble/")))].toSorted(),
+            inlined: Object.keys(browser.inlined).filter((each) => each.startsWith("@noble/")),
+        };
+    };
+
+    // expect both to import the one shared cipher build, neither inlining a copy
+    expect({
+        app: await ciphers("@destack/view-cipher-fixture"),
+        db: await ciphers("@destack/db"),
+    }).toEqual({
+        app: { imports: ["@noble/ciphers/aes.js"], inlined: [] },
+        db: { imports: ["@noble/ciphers/aes.js"], inlined: [] },
+    });
 });
 
 test("bundle an app's release image, its browser output importing builtins alone", async () => {
