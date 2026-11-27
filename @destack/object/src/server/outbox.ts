@@ -19,6 +19,9 @@ import type {} from "@destack/package/import-meta";
 /** Milliseconds per second: the clock reads milliseconds, and durations record seconds. */
 const MILLISECONDS = 1000;
 
+/** The refusal of a call needing a stronger sign-in, which no retry passes. */
+const ASSURANCE_UNAUTHENTICATED = "ASSURANCE_UNAUTHENTICATED";
+
 /** The default retry of transient failures: a second, doubling, at most a minute. */
 const RETRY = RetryPolicy.of({ maximumInterval: 60_000 });
 
@@ -323,16 +326,26 @@ export class Outbox {
                 );
                 failures = 0;
             } catch (error) {
-                // stop on abort or a final failure, retrying a concurrent writer's conflict and warning of other retries
-                const isConflict = CallError.of(error)?.code === "CONFLICT";
-                const isFinal = Replay.failure(error) !== undefined;
+                // stop on abort, reject the push's mutations on a refusal no retry passes, else retry
+                const failure = CallError.of(error);
+                const isConflict = failure?.code === "CONFLICT";
+                const refusal = failure === undefined ? undefined : Failure.of(failure);
+                const isRefused =
+                    Replay.failure(error) !== undefined ||
+                    refusal?.reason === ASSURANCE_UNAUTHENTICATED;
                 if (signal.aborted) {
                     return;
-                } else if (isFinal) {
-                    this.#instruments.captureException(error, { isEscaped: true });
-
-                    return;
-                } else if (!isConflict) {
+                } else if (refusal !== undefined && isRefused) {
+                    await this.#refuse(
+                        mutations.map((each) => each.id),
+                        refusal,
+                        origins,
+                    );
+                    failures = 0;
+                    continue;
+                }
+                // warn of retries other than a concurrent writer's conflict
+                else if (!isConflict) {
                     this.#instruments.captureException(error, { level: "warn" });
                 }
 
@@ -548,6 +561,36 @@ export class Outbox {
         const published = Map.groupBy(
             outcomes.filter((each) => !this.#waiting.has(each.id)),
             (each) => found(pushed.origins, each.id),
+        );
+        for (const [origin, ended] of published) {
+            this.#deliver(origin, ended);
+        }
+    }
+
+    /** Reject mutations a home refused as a whole, as it rejects each one it ran. */
+    async #refuse(
+        ids: readonly string[],
+        error: Failure,
+        origins: ReadonlyMap<string, string>,
+    ): Promise<void> {
+        // reject them in one transaction
+        await this.#store.database.transaction(async (transaction) => {
+            // reject each
+            for (const id of ids) {
+                await this.prediction.reject(transaction, id, error);
+            }
+
+            // drop what they left, and predict the rest again
+            await this.#options.rejected?.(transaction, ids);
+            await transaction.log.asReplica(() => this.prediction.revert(transaction));
+            await this.prediction.replay(transaction);
+        });
+
+        // publish the rejections no waiter here takes to the parties that queued them
+        const outcomes = ids.map((id) => ({ id, outcome: { error } }));
+        const published = Map.groupBy(
+            outcomes.filter((each) => !this.#waiting.has(each.id)),
+            (each) => found(origins, each.id),
         );
         for (const [origin, ended] of published) {
             this.#deliver(origin, ended);

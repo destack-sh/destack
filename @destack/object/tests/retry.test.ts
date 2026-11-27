@@ -1,7 +1,7 @@
 import { worldTelemetry } from "../src/test/world.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { principal } from "@destack/access";
+import { AccessError, principal } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { Simulation } from "@destack/environment/simulation";
 import { nth } from "@destack/schema";
@@ -75,5 +75,76 @@ test("push again after dropped connections, waiting twice as long after each", a
         ["connection is unavailable: dropped", "connection is unavailable: dropped"],
         3,
         true,
+    ]);
+});
+
+test("reject a push refused for a stronger sign-in once, then push the next mutation", async () => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 1),
+    });
+    const { connection, environment } = await serveNotes({ simulation });
+    const alice = connection(users.alice);
+
+    // refuse the first push as a call needing a step-up does, counting each push
+    let pushes = 0;
+    const remote: ObjectRemote = {
+        stream: (subscription, signal) => alice.stream(subscription, signal),
+        request: (subscription) => alice.request(subscription),
+        push: async (home, push, signal) => {
+            pushes += 1;
+            if (pushes === 1) {
+                throw AccessError.of(
+                    "ASSURANCE_UNAUTHENTICATED",
+                    "authentication required: authentication assurance is too low",
+                    { data: { assurance: 2 } },
+                );
+            }
+
+            return await alice.push(home, push, signal);
+        },
+        call: (scope, call, signer) => alice.call(scope, call, signer),
+        broadcast: (scope, object, event, signer) => alice.broadcast(scope, object, event, signer),
+    };
+
+    // open a client pushing through it
+    const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
+        environment,
+        dialect: "sqlite",
+    });
+    onTestFinished(() => storage.close());
+    const client = await ObjectClient.open({
+        environment,
+        database: storage.database,
+        objects: { notebook, note },
+        scope: spaceId,
+        caller: principal.user.reference("universe", users.alice),
+        retry: { initialInterval: 20 },
+        remote,
+    });
+    client.query.note.findMany().subscribe();
+    const stopping = new AbortController();
+    const running = client.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // reject the refused note without a retry, then confirm the next one
+    const refused = client.mutate(note).create({ title: "Ideas" });
+    const rejection = await simulation.wait(
+        refused.confirmed.then(
+            () => "",
+            (error: Error) => error.message,
+        ),
+    );
+    const created = client.mutate(note).create({ title: "Plans" });
+    await simulation.wait(created.confirmed);
+    const titles = (await client.query.note.findMany()).map((each) => each.title);
+    expect([rejection, pushes, titles]).toEqual([
+        "authentication required: authentication assurance is too low",
+        2,
+        ["Plans"],
     ]);
 });
