@@ -1,6 +1,7 @@
 import { type JsonObject, type JsonValue, schema, Version } from "@destack/schema";
 import { DependencyName, PackageVersion } from "./package.ts";
 import { PackageDefinition } from "./definition.ts";
+import { SideEffects } from "./effect.ts";
 
 /** Dependency requirements keyed by their imported package names. */
 const REQUIREMENTS = schema.record(DependencyName, schema.string().min(1));
@@ -50,6 +51,8 @@ const packageJson = schema.object({
     optionalDependencies: REQUIREMENTS,
     /** Dependencies used to develop and build the package. */
     devDependencies: REQUIREMENTS,
+    /** Which modules run code on import, every one by default, as npm reads it. */
+    sideEffects: SideEffects.default(true),
 });
 
 /** The start of a range selecting a package of the same workspace, as Bun and pnpm write it. */

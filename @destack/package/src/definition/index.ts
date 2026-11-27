@@ -3,6 +3,7 @@ export * from "./distribution.ts";
 export * from "./kind.ts";
 export * from "./definition.ts";
 export * from "./description.ts";
+export * from "./effect.ts";
 export * from "./language.ts";
 export * from "./compute.ts";
 export * from "./dependency.ts";

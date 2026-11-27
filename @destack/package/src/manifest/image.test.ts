@@ -167,6 +167,7 @@ function browserOutputs(
             directory: "browser",
             exports,
             peers: {},
+            inlined: {},
         },
     };
 }

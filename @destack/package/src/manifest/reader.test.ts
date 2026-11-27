@@ -253,6 +253,7 @@ test("read a build a directory keeps: its manifest, its file list and each file'
     const written = await writer.finish({
         destack: "2026.11.0",
         role: "app",
+        sideEffects: true,
         package: PackageVersion.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000a1",
             name: "@example/notes",
@@ -282,7 +283,14 @@ function moduleBytes(code: string): Uint8Array<ArrayBuffer> {
 test("keep a reached module that shares bytes with an unreached one", async () => {
     // write a library whose browser and workerd outputs have the same module, and one module only workerd has
     const { crypto } = testSimulation().environment("test");
-    const output = { emit: true, workloads: {}, views: {}, exports: {}, peers: {} } as const;
+    const output = {
+        emit: true,
+        workloads: {},
+        views: {},
+        exports: {},
+        peers: {},
+        inlined: {},
+    } as const;
     const shared = moduleBytes("export const web = 1;");
     const kit = await MemoryBuild.write(
         new Map([

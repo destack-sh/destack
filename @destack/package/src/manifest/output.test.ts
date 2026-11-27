@@ -88,6 +88,7 @@ test("reach the modules an entry imports across builds, a whole build for a comp
         views: {},
         exports: {},
         peers: {},
+        inlined: {},
     } as const;
     const app = await MemoryBuild.write(
         new Map([

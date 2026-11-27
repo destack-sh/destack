@@ -35,6 +35,8 @@ export const PackageOutput = schema.object({
     exports: schema.record(schema.string().min(1), PackageChunk),
     /** The peers its modules import, which each package depending on it provides beside it. */
     peers: schema.record(DependencyName, PeerDependency),
+    /** The npm packages a release bundle took into its modules, by name, at their versions. */
+    inlined: schema.record(DependencyName, schema.string().min(1)),
     /** The commands its package installs, each its emitted module by name, absent for none. */
     bins: schema.record(schema.string().min(1), PackageChunk).exactOptional(),
 });

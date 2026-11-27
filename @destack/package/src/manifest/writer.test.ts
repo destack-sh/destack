@@ -43,7 +43,12 @@ test("write a file's equal bytes once, a concurrent writer waiting for them, and
     release.resolve();
     await Promise.all([first, second]);
     const failure = await failing;
-    const manifest = await writer.finish({ destack: "2026.11.0", package: app, role: "app" });
+    const manifest = await writer.finish({
+        destack: "2026.11.0",
+        package: app,
+        role: "app",
+        sideEffects: true,
+    });
     const reader = new BuildReader(
         manifest,
         (path) => Promise.resolve(new Blob([stored.get(path) ?? new Uint8Array()]).stream()),
@@ -77,6 +82,7 @@ test("write one manifest for one set of requirements listed in any order", async
             destack: "2026.11.0",
             package: app,
             role: "app",
+            sideEffects: true,
             requires,
         });
     const forward = await finish({ "@example/schema": "^2026.9.0", zod: "^4.6.0" });
@@ -112,6 +118,7 @@ test("list each output's loaded files: its own but maps and types, the package.j
         destack: "2026.11.0",
         package: app,
         role: "app",
+        sideEffects: true,
         outputs: { bun: output("bun"), browser: output("browser") },
     });
 
@@ -143,6 +150,7 @@ function output(runtime: "bun" | "browser") {
         directory: runtime,
         exports: {},
         peers: {},
+        inlined: {},
     };
 }
 

@@ -93,15 +93,16 @@ The module transform passes each constructor its package, as `import.meta.destac
 
 A manifest describes one build, and its digest is the build's address in every store.
 
-| Field       | What it is                                                                                |
-| ----------- | ----------------------------------------------------------------------------------------- |
-| `package`   | the package and version it builds, or an npm release                                      |
-| `role`      | what the package is                                                                       |
-| `destack`   | the Destack version whose toolchain built it                                              |
-| `requires`  | the packages it requires, by name, at their declared ranges                               |
-| `lists`     | the digests of its file, source map and declaration lists                                 |
-| `interface` | the digest of what dependents' compilations read, so an unchanged one skips their rebuild |
-| `outputs`   | its compiled outputs by name, each with its runtime and exports                           |
+| Field         | What it is                                                                                |
+| ------------- | ----------------------------------------------------------------------------------------- |
+| `package`     | the package and version it builds, or an npm release                                      |
+| `role`        | what the package is                                                                       |
+| `destack`     | the Destack version whose toolchain built it                                              |
+| `sideEffects` | which of its modules run code on import, as its package.json declares them                |
+| `requires`    | the packages it requires, by name, at their declared ranges                               |
+| `lists`       | the digests of its file, source map and declaration lists                                 |
+| `interface`   | the digest of what dependents' compilations read, so an unchanged one skips their rebuild |
+| `outputs`     | its compiled outputs by name, each with its runtime and exports                           |
 
 ### BuildImage
 
@@ -203,17 +204,17 @@ Builtins and libraries import only builtins and other libraries; apps also get t
 
 A package exports its parts by role, by declaration kind and by runtime or vendor, one subpath each.
 
-| Subpath                                                | What it holds                                                          |
-| ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| `.`                                                    | the package's model: its types and the logic every runtime runs        |
-| `./client`                                             | calling the package from elsewhere: connections, nodes, queries        |
-| `./device`                                             | a person's local copy of it: its store, outbox and sync on a database  |
-| `./server`                                             | serving it: its workloads and handlers                                 |
-| `./object`, `./declare`, `./setting`, `./view`, `./stack`, `./provider` | its declarations of one kind                          |
-| `./package`, `./error`, `./inspect`, `./test`          | its package value, errors, inspection and test kit                     |
-| `./<domain>`                                           | one domain module, such as `./trace` or `./manifest`                   |
-| `./<runtime>`, `./<vendor>`                            | its code for one runtime or vendor, from `src/<name>/`                 |
-| `./<role>/<runtime>`                                   | one role's code for one runtime, from `src/<role>/<runtime>.ts`        |
+| Subpath                                                                 | What it holds                                                         |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `.`                                                                     | the package's model: its types and the logic every runtime runs       |
+| `./client`                                                              | calling the package from elsewhere: connections, nodes, queries       |
+| `./device`                                                              | a person's local copy of it: its store, outbox and sync on a database |
+| `./server`                                                              | serving it: its workloads and handlers                                |
+| `./object`, `./declare`, `./setting`, `./view`, `./stack`, `./provider` | its declarations of one kind                                          |
+| `./package`, `./error`, `./inspect`, `./test`                           | its package value, errors, inspection and test kit                    |
+| `./<domain>`                                                            | one domain module, such as `./trace` or `./manifest`                  |
+| `./<runtime>`, `./<vendor>`                                             | its code for one runtime or vendor, from `src/<name>/`                |
+| `./<role>/<runtime>`                                                    | one role's code for one runtime, from `src/<role>/<runtime>.ts`       |
 
 Each subpath loads only what its role runs, so a page importing `./client` never loads a device or a server.
 

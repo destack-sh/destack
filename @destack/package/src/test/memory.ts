@@ -20,7 +20,10 @@ export const MemoryBuild = {
     /** Write a build into memory from its files by package path and what its manifest records. */
     async write(
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
-        contents: Omit<BuildContent, "destack">,
+        contents: Omit<BuildContent, "destack" | "sideEffects"> & {
+            /** Which of its modules run code on import, every one unless given. */
+            readonly sideEffects?: BuildContent["sideEffects"];
+        },
         crypto: Crypto,
     ): Promise<BuildReader> {
         // write the files, then the format listing them
@@ -46,7 +49,12 @@ export const MemoryBuild = {
 
         // read the written files back
         return new BuildReader(
-            await writer.finish({ ...contents, package: identity, destack: DESTACK_VERSION }),
+            await writer.finish({
+                sideEffects: true,
+                ...contents,
+                package: identity,
+                destack: DESTACK_VERSION,
+            }),
             async (path) => new Blob([found(stored, path)]).stream(),
             crypto,
             new BuildListCache(),
@@ -65,9 +73,14 @@ export const MemoryBuild = {
             readonly module?: string;
         })[],
         crypto: Crypto,
-        contents: Omit<BuildContent, "package" | "declarations" | "role" | "destack"> & {
+        contents: Omit<
+            BuildContent,
+            "package" | "declarations" | "role" | "destack" | "sideEffects"
+        > & {
             /** What the package is, an app unless given. */
             readonly role?: BuildContent["role"];
+            /** Which of its modules run code on import, every one unless given. */
+            readonly sideEffects?: BuildContent["sideEffects"];
             /** Further files by package path. */
             readonly files?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
         } = {},

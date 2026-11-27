@@ -6,6 +6,7 @@ import {
     NpmPackage,
     PackageVersion,
     PackageRole,
+    SideEffects,
 } from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
@@ -13,7 +14,7 @@ import { PackageOutput } from "./output.ts";
 import type { Runtime } from "../runtime/index.ts";
 
 /** The manifest format a build writes. */
-export const MANIFEST_FORMAT = 6;
+export const MANIFEST_FORMAT = 8;
 
 /** The directory of a build's catalogs, which every runtime loads. */
 export const CATALOG_DIRECTORY = "locale";
@@ -30,6 +31,8 @@ const manifest = schema.object({
     destack: Version,
     /** The package's source language. */
     language: Language,
+    /** Which of its modules run code on import, as its package.json declares them. */
+    sideEffects: SideEffects,
     /** The Destack and npm packages it requires, by name, at their declared ranges. */
     requires: schema.record(DependencyName, schema.string().min(1)),
     /** The list files of the build, each read on demand and verified by its digest. */

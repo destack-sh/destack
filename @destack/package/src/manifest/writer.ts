@@ -1,6 +1,6 @@
 import type { Crypto } from "@destack/environment";
 import { canonicalize, Digest, type JsonObject, type Version } from "@destack/schema";
-import type { NpmPackage, PackageVersion, PackageRole } from "../definition/index.ts";
+import type { NpmPackage, PackageVersion, PackageRole, SideEffects } from "../definition/index.ts";
 import type { Declaration } from "../graph/declaration.ts";
 import type { Edge } from "../graph/edge.ts";
 import { PackageError } from "../error/error.ts";
@@ -46,6 +46,8 @@ export interface BuildContent {
     readonly role: PackageRole;
     /** The Destack version whose toolchain builds it, and whose builtins it links. */
     readonly destack: Version;
+    /** Which of its modules run code on import, as its package.json declares them. */
+    readonly sideEffects: SideEffects;
     /** The named outputs, none when absent. */
     readonly outputs?: Readonly<Record<string, PackageOutput>>;
     /** The packages it requires, by name, at their declared ranges, none when absent. */
@@ -190,6 +192,7 @@ export class BuildWriter {
             role: contents.role,
             destack: contents.destack,
             language: "typescript",
+            sideEffects: contents.sideEffects,
             requires: contents.requires ?? {},
             lists: { ...lists, outputs: loads },
             interface: interfaceDigest,
