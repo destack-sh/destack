@@ -88,6 +88,8 @@ export interface PlanInput {
     readonly empty: ReadonlySet<string>;
     /** The applied tables of other managers, which rebuild with a declared table they reference. */
     readonly others?: readonly TableState[];
+    /** The packages whose kept tables drop although no declaration names the package, by id. */
+    readonly purged?: ReadonlySet<string>;
 }
 
 /** List the applied tables whose declared state differs, by applied name. */
@@ -170,7 +172,7 @@ export function planTables(input: PlanInput): TablePlan {
     steps.push(...declared.flatMap((state) => globalIndexSteps(state, applied, input.namespace)));
 
     // drop applied tables a declared package leaves out, except a newer release's tables
-    const dropped = droppedTables(declared, remaining);
+    const dropped = droppedTables(declared, remaining, input.purged ?? new Set());
     steps.push(...(dialect === "postgresql" ? cyclicKeySteps(dropped.cyclic) : []));
     for (const name of dropped.ordered) {
         const previous = present(remaining.get(name), `the applied state of ${name}`);
@@ -653,6 +655,7 @@ function foreignKeySteps(created: readonly TableDescription[]): TableStep[] {
 function droppedTables(
     declared: readonly TableState[],
     remaining: ReadonlyMap<string, TableState>,
+    purged: ReadonlySet<string>,
 ): { readonly ordered: string[]; readonly cyclic: readonly TableDescription[] } {
     // find each declared package's newest release
     const releases = new Map<string, Version>();
@@ -663,12 +666,14 @@ function droppedTables(
         }
     }
 
-    // take the tables a declared package's release leaves out, keeping a package's data once all its tables leave
+    // take the tables a declared package's release leaves out, keeping a package's data once all its tables leave until it is purged
     let pending = [...remaining.values()]
         .filter((previous) => {
             const release = releases.get(previous.package.id);
 
-            return release !== undefined && Version.compare(previous.package.version, release) <= 0;
+            return release === undefined
+                ? purged.has(previous.package.id)
+                : Version.compare(previous.package.version, release) <= 0;
         })
         .map((previous) => previous.table);
 

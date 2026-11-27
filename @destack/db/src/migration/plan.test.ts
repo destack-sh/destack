@@ -474,6 +474,17 @@ test("keep a package's tables once its manager leaves all of them out", async ()
         steps: [],
         unapplied: [],
     });
+
+    // find them again when the manager declares them once more, as a reinstall does
+    const again = await database.migrate([taskOne], { manager: "tasks" });
+    expect(review(again)).toEqual([]);
+
+    // drop them once a data deletion purges their package
+    const purged = await database.migrate([], {
+        manager: "tasks",
+        purged: [taskOne[TABLE].package.id],
+    });
+    expect(review(purged)).toEqual([`destructive delete table/${table(taskOne)}: drop table`]);
 });
 
 test("drop a referencing table before the table it references", async () => {
