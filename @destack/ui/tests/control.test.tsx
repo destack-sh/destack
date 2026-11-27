@@ -14,8 +14,9 @@ const CONTROLS =
 /** The attributes that list the ids of other elements on the page. */
 const REFERENCES = ["aria-labelledby", "aria-describedby", "for"];
 
-for (const [name, example] of EXAMPLES) {
-    test(`render ${name} quietly, its controls named, typed and referring to elements there are`, () => {
+test.each(EXAMPLES)(
+    "render %s quietly, its controls named, typed and referring to elements there are",
+    (_name, example) => {
         // listen to the console while the example renders alone
         stubPopovers();
         const said: string[] = [];
@@ -35,8 +36,8 @@ for (const [name, example] of EXAMPLES) {
         error.mockRestore();
 
         expect({ problems: [...new Set(problems)], said }).toEqual({ problems: [], said: [] });
-    });
-}
+    },
+);
 
 /** List what is wrong with the controls in an element. */
 function problemsOf(container: HTMLElement): string[] {
