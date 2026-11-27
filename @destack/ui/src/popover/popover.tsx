@@ -15,19 +15,20 @@ import {
     Show,
     untrack,
     useContext,
+    useEnvironment,
 } from "@destack/view";
 import { transition } from "@destack/theme/motion";
 import { tabbablesIn } from "../focus/index.ts";
 import {
-    Dismissal,
-    LayerStack,
     controlOf,
+    Dismissal,
     OpenChange,
-    type OpenProperties,
-    OpenContext,
-    OpenState,
     type OpenChildren,
+    OpenContext,
+    type OpenProperties,
+    OpenState,
     type OpenTrigger,
+    Overlay,
     TopLayer,
     type TriggerProperties,
 } from "../layer/index.ts";
@@ -451,22 +452,27 @@ export class PopoverControl<Payload = unknown> {
         const content = this.#content;
         this.mark(content);
         if (isOpen && content instanceof HTMLDialogElement) {
-            content.showModal();
-            LayerStack.of(content).open(content);
+            TopLayer.of(content).showModal(content);
             this.#dismissal.start(content);
             this.#unplace = this.#holdModal(content);
         }
         // show it beside its trigger
         else if (isOpen) {
-            const trigger = untrack(this.state.trigger)?.element;
-            this.#attach();
-            content.showPopover(trigger === undefined ? undefined : { source: trigger });
+            TopLayer.of(content).showPopover(
+                content,
+                () => {
+                    const trigger = untrack(this.state.trigger)?.element;
+                    this.#attach();
+                    content.showPopover(trigger === undefined ? undefined : { source: trigger });
+                },
+                () => untrack(this.isOpen),
+            );
         }
         // hide it the way it shows
         else {
             this.#unplace();
             if (content instanceof HTMLDialogElement) {
-                content.close();
+                TopLayer.of(content).close(content);
             } else {
                 content.hidePopover();
             }
@@ -484,7 +490,7 @@ export class PopoverControl<Payload = unknown> {
         return () => {
             // release the anchor and the layer, and hand the focus back to the trigger
             this.#unplaceModal();
-            LayerStack.of(content).close(content);
+            TopLayer.of(content).close(content);
             untrack(this.state.trigger)?.element.focus();
         };
     }
@@ -667,6 +673,7 @@ export const PopoverContent = defineComponent({
     ): JSX.Element {
         // read the popover and its placement
         const popover = usePopover();
+        const { scheduler } = useEnvironment();
         const rest = omit(properties, "anchor", "side", "align", "sideOffset", "onToggle", "width");
         const modalRest = omit(rest, "tabindex");
         const label = (): string | undefined =>
@@ -680,7 +687,7 @@ export const PopoverContent = defineComponent({
         createEffect(popover.isOpen, (isOpen) => untrack(() => popover.sync(isOpen)));
 
         return (
-            <TopLayer>
+            <Overlay>
                 <PositionAnchor
                     anchor={properties.anchor}
                     onAnchor={(element) => popover.setAnchor(element)}
@@ -723,7 +730,10 @@ export const PopoverContent = defineComponent({
                             get "data-align"() {
                                 return properties.align;
                             },
-                            ref: (element) => popover.setContent(element),
+                            ref: (element) => {
+                                TopLayer.of(element).watch(element, scheduler);
+                                popover.setContent(element);
+                            },
                             onBeforeToggle: (event) => popover.request(event),
                             onToggle: (event) => {
                                 // follow the platform before the caller's handler
@@ -763,7 +773,7 @@ export const PopoverContent = defineComponent({
                         )}
                     />
                 </Show>
-            </TopLayer>
+            </Overlay>
         );
     },
 });

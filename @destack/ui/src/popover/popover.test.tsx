@@ -1,4 +1,4 @@
-import { LayerStack } from "../layer/index.ts";
+import { TopLayer } from "../layer/index.ts";
 import type { OpenChange } from "../layer/index.ts";
 import { type Anchor, Position } from "../position/index.ts";
 import { expect, onTestFinished, test, vi } from "@destack/test";
@@ -128,7 +128,7 @@ test("open a modal popover as a modal dialog anchored by name on top of the stac
     const content = container.querySelector("dialog");
     trigger?.click();
     flush();
-    const stack = LayerStack.of(document.body);
+    const stack = TopLayer.of(document.body);
     const opened = [content?.open, stack.top() === content, markup(container)];
 
     // close the dialog as Escape or a click outside does

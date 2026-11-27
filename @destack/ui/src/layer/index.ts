@@ -1,3 +1,3 @@
-export * from "./layer.tsx";
-export * from "./stack.ts";
+export * from "./layer.ts";
 export * from "./open.ts";
+export * from "./overlay.tsx";

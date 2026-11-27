@@ -45,7 +45,7 @@ import { Timeout } from "@destack/view/primitives/timer";
 import { Button } from "../button/index.ts";
 import { Spinner } from "../spinner/index.ts";
 import { Hover, Swipe } from "../interaction/index.ts";
-import { LayerStack } from "../layer/index.ts";
+import { TopLayer } from "../layer/index.ts";
 import type { Side } from "../position/index.ts";
 import { type Toast, ToastManager, type ToastType } from "./manager.ts";
 import {
@@ -476,7 +476,7 @@ export const Toaster = defineComponent({
             if (region === undefined) {
                 return;
             }
-            const modals = LayerStack.of(region);
+            const modals = TopLayer.of(region);
             home = region.ownerDocument.createComment("toaster");
             region.after(home);
             stop = modals.subscribe(raise);
@@ -490,7 +490,7 @@ export const Toaster = defineComponent({
         });
         createEffect(
             () => manager.toasts()[0]?.id,
-            () => raise(region === undefined ? undefined : LayerStack.of(region).top()),
+            () => raise(region === undefined ? undefined : TopLayer.of(region).top()),
         );
 
         // stand the newest toast at the edge of the page

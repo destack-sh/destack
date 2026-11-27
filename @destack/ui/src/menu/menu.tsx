@@ -34,6 +34,7 @@ import {
     Show,
     untrack,
     useContext,
+    useEnvironment,
     useLocale,
 } from "@destack/view";
 import { present } from "@destack/schema";
@@ -67,6 +68,7 @@ import {
     type OpenProperties,
     OpenState,
     type OpenTrigger,
+    Overlay,
     TopLayer,
 } from "../layer/index.ts";
 import {
@@ -435,23 +437,11 @@ export class MenuControl<Payload = unknown> {
         // show it beside its trigger, or at its point, and focus the item asked for
         this.state.mark(content);
         if (isOpen) {
-            const trigger = untrack(this.state.trigger)?.element;
-            const point = untrack(this.point);
-            const anchor = this.#anchor ?? trigger;
-            const isBeside = anchor !== undefined && point === undefined;
-            const detach = isBeside ? Position.attach(content, anchor, this.id) : () => undefined;
-            content.showPopover(
-                isBeside && trigger !== undefined ? { source: trigger } : undefined,
+            TopLayer.of(content).showPopover(
+                content,
+                () => this.#show(content),
+                () => untrack(this.isOpen),
             );
-            const unplace = isBeside ? Position.place(content, anchor) : () => undefined;
-            const unfit = point === undefined ? () => undefined : Position.fit(content, point);
-            this.#unplace = () => {
-                detach();
-                unplace();
-                unfit();
-            };
-            this.#dismissal.start(content);
-            untrack(() => this.#focusItem(content));
         } else {
             this.#dismissal.stop();
             this.#unplace();
@@ -461,6 +451,28 @@ export class MenuControl<Payload = unknown> {
             }
         }
         this.#isReturningFocus = false;
+    }
+
+    /** Show the menu element beside its trigger, or at its point, and focus the item asked for. */
+    #show(content: HTMLElement): void {
+        // place it beside its anchor, or fit it at its point
+        const trigger = untrack(this.state.trigger)?.element;
+        const point = untrack(this.point);
+        const anchor = this.#anchor ?? trigger;
+        const isBeside = anchor !== undefined && point === undefined;
+        const detach = isBeside ? Position.attach(content, anchor, this.id) : () => undefined;
+        content.showPopover(isBeside && trigger !== undefined ? { source: trigger } : undefined);
+        const unplace = isBeside ? Position.place(content, anchor) : () => undefined;
+        const unfit = point === undefined ? () => undefined : Position.fit(content, point);
+        this.#unplace = () => {
+            detach();
+            unplace();
+            unfit();
+        };
+
+        // dismiss it from outside, and focus the item asked for
+        this.#dismissal.start(content);
+        untrack(() => this.#focusItem(content));
     }
 
     /** Close the menu as the trigger it is open from goes away. */
@@ -732,6 +744,7 @@ export const MenuContent = defineComponent({
         // read the menu, its placement and the text direction
         const control = useMenu();
         const locale = useLocale();
+        const { scheduler } = useEnvironment();
         const rest = omit(properties, "anchor", "side", "align", "sideOffset");
 
         // show and hide the menu as it opens and closes
@@ -745,7 +758,7 @@ export const MenuContent = defineComponent({
         };
 
         return (
-            <TopLayer>
+            <Overlay>
                 <PositionAnchor
                     anchor={properties.anchor}
                     onAnchor={(element) => control.setAnchor(element)}
@@ -778,13 +791,16 @@ export const MenuContent = defineComponent({
                         get "data-align"() {
                             return properties.align;
                         },
-                        ref: (element) => control.setContent(element),
+                        ref: (element) => {
+                            TopLayer.of(element).watch(element, scheduler);
+                            control.setContent(element);
+                        },
                         onToggle: (event) => control.follow(event),
                         onKeyDown: (event) => navigate(event, control, locale.direction),
                         onFocusOut: (event) => control.list.focus.focusOut(event),
                     },
                 )}
-            </TopLayer>
+            </Overlay>
         );
     },
 });

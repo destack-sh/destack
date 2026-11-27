@@ -28,14 +28,14 @@ import {
 } from "@destack/view";
 import { Button } from "../button/index.ts";
 import {
-    Dismissal,
-    LayerStack,
     controlOf,
+    Dismissal,
     OpenChange,
     type OpenChildren,
-    type OpenProperties,
     OpenContext,
+    type OpenProperties,
     OpenState,
+    Overlay,
     TopLayer,
     type TriggerProperties,
 } from "../layer/index.ts";
@@ -180,8 +180,7 @@ export class DialogControl<Payload = unknown> {
         const isOpen = untrack(this.isOpen);
         this.state.mark(element);
         if (isOpen && !element.open && untrack(this.isModal)) {
-            element.showModal();
-            LayerStack.of(element).open(element);
+            TopLayer.of(element).showModal(element);
             this.#dismissal.start(element);
         }
         // open it beside the page
@@ -191,7 +190,7 @@ export class DialogControl<Payload = unknown> {
         }
         // close it
         else if (!isOpen && element.open) {
-            element.close();
+            TopLayer.of(element).close(element);
         }
     }
 
@@ -206,8 +205,8 @@ export class DialogControl<Payload = unknown> {
 
     /** Follow the platform closing the dialog, showing it again where its owner refuses. */
     follow(element: HTMLDialogElement): void {
-        // leave the stack
-        LayerStack.of(element).close(element);
+        // leave the modals
+        TopLayer.of(element).close(element);
         const change = this.#dismissal.change(element, undefined);
         this.#dismissal.stop();
         if (untrack(this.isOpen) && !this.state.follow(false, change)) {
@@ -218,7 +217,7 @@ export class DialogControl<Payload = unknown> {
     /** Forget an element that unmounts. */
     detach(element: HTMLDialogElement): void {
         this.#dismissal.stop();
-        LayerStack.of(element).close(element);
+        TopLayer.of(element).close(element);
     }
 
     /** Describe the dialog by its description until the description unmounts. */
@@ -365,7 +364,7 @@ export const DialogContent = defineComponent({
         );
 
         return (
-            <TopLayer>
+            <Overlay>
                 {renderPart("dialog", "dialog-content", rest, [styles.content, transition.dialog], {
                     id: control.id,
                     get "data-open"() {
@@ -407,7 +406,7 @@ export const DialogContent = defineComponent({
                         );
                     },
                 })}
-            </TopLayer>
+            </Overlay>
         );
     },
 });

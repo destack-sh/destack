@@ -24,7 +24,7 @@ import {
     type OpenChildren,
     type OpenProperties,
     type OpenReason,
-    TopLayer,
+    Overlay,
     type TriggerProperties,
 } from "../layer/index.ts";
 import {
@@ -199,7 +199,7 @@ export const HoverCardContent = defineComponent({
         });
 
         return (
-            <TopLayer>
+            <Overlay>
                 <PositionAnchor
                     anchor={properties.anchor}
                     onAnchor={(element) => card.setAnchor(element)}
@@ -233,7 +233,7 @@ export const HoverCardContent = defineComponent({
                             card.follow(event),
                     }),
                 )}
-            </TopLayer>
+            </Overlay>
         );
     },
 });

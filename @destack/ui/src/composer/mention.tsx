@@ -14,11 +14,13 @@ import {
     onCleanup,
     Show,
     untrack,
+    useEnvironment,
     useLocale,
 } from "@destack/view";
 import { ChoiceIcon } from "../action/choice-icon.tsx";
 import { AutocompleteContext, AutocompleteControl } from "../autocomplete/index.ts";
 import { ListBox, ListBoxControl, ListBoxEmpty, ListBoxItem } from "../list-box/index.ts";
+import { TopLayer } from "../layer/index.ts";
 import { Position } from "../position/index.ts";
 import { type ComposerControl, useComposer } from "./composer.tsx";
 
@@ -196,14 +198,21 @@ export class ComposerMentionControl {
         // attach the list to the text before showing it, and place it once it has a size
         this.#unplace();
         if (isOpen) {
-            const detach = Position.attach(content, input, this.list.id);
-            content.showPopover({ source: input });
-            const unplace = Position.place(content, input);
-            this.#unplace = () => {
-                detach();
-                unplace();
-                this.#unplace = () => undefined;
-            };
+            TopLayer.of(content).showPopover(
+                content,
+                () => {
+                    // attach the list, show it, then place it once it has a size
+                    const detach = Position.attach(content, input, this.list.id);
+                    content.showPopover({ source: input });
+                    const unplace = Position.place(content, input);
+                    this.#unplace = () => {
+                        detach();
+                        unplace();
+                        this.#unplace = () => undefined;
+                    };
+                },
+                () => untrack(this.search) !== undefined,
+            );
         } else {
             content.hidePopover();
         }
@@ -217,6 +226,7 @@ export function ComposerMention(properties: ComposerMentionProperties): JSX.Elem
     const locale = useLocale();
     const control = new ComposerMentionControl(properties, composer);
     composer.mention(control, () => locale.direction);
+    const { scheduler } = useEnvironment();
     createEffect(
         () => control.search() !== undefined,
         (isOpen) => control.sync(isOpen),
@@ -230,7 +240,10 @@ export function ComposerMention(properties: ComposerMentionProperties): JSX.Elem
                 popover="manual"
                 data-slot="composer-mention"
                 aria-label={locale.render(t.context("label")`Mention`)}
-                ref={(element: HTMLElement) => control.setContent(element)}
+                ref={(element: HTMLElement) => {
+                    TopLayer.of(element).watch(element, scheduler);
+                    control.setContent(element);
+                }}
                 xstyle={[...Position.beside("top", "start"), styles.content]}
             >
                 <For each={properties.choices}>

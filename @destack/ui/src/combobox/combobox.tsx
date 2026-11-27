@@ -10,9 +10,9 @@ import { text } from "@destack/theme/text";
 import {
     type Accessor,
     createContext,
-    createUniqueId,
     createEffect,
     createSignal,
+    createUniqueId,
     flush,
     For,
     type JSX,
@@ -22,6 +22,7 @@ import {
     Show,
     untrack,
     useContext,
+    useEnvironment,
     useLocale,
 } from "@destack/view";
 import { AutocompleteContext, AutocompleteControl } from "../autocomplete/index.ts";
@@ -29,7 +30,7 @@ import { Badge } from "../badge/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import type { InputProperties } from "../input/index.ts";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../input-group/index.ts";
-import { OpenChange, type OpenProperties, OpenState, TopLayer } from "../layer/index.ts";
+import { OpenChange, type OpenProperties, OpenState, Overlay, TopLayer } from "../layer/index.ts";
 import {
     ListBox,
     ListBoxContext,
@@ -253,13 +254,23 @@ export class ComboboxControl {
         // attach the list to its frame before showing, and place by script once it has a size
         this.#state.mark(this.#content);
         if (isOpen) {
-            const detach = Position.attach(this.#content, this.#anchor, this.list.id);
-            this.#content.showPopover({ source: this.#input });
-            const unplace = Position.place(this.#content, this.#anchor);
-            this.#unplace = () => {
-                detach();
-                unplace();
-            };
+            const content = this.#content;
+            const input = this.#input;
+            const anchor = this.#anchor;
+            TopLayer.of(content).showPopover(
+                content,
+                () => {
+                    // attach the list, show it, then place it once it has a size
+                    const detach = Position.attach(content, anchor, this.list.id);
+                    content.showPopover({ source: input });
+                    const unplace = Position.place(content, anchor);
+                    this.#unplace = () => {
+                        detach();
+                        unplace();
+                    };
+                },
+                () => untrack(this.isOpen),
+            );
         } else {
             this.#unplace();
             this.#content.hidePopover();
@@ -441,10 +452,11 @@ export function ComboboxContent(
 ): JSX.Element {
     // show and hide the list as the combobox opens and closes
     const control = useCombobox();
+    const { scheduler } = useEnvironment();
     createEffect(control.isOpen, (isOpen) => untrack(() => control.sync(isOpen)));
 
     return (
-        <TopLayer>
+        <Overlay>
             <ListBox
                 control={control.list}
                 popover="manual"
@@ -452,7 +464,10 @@ export function ComboboxContent(
                 data-side="bottom"
                 data-align="start"
                 {...properties}
-                ref={(element) => control.setContent(element)}
+                ref={(element) => {
+                    TopLayer.of(element).watch(element, scheduler);
+                    control.setContent(element);
+                }}
                 xstyle={[
                     text.sm,
                     styles.content,
@@ -460,7 +475,7 @@ export function ComboboxContent(
                     properties.xstyle,
                 ]}
             />
-        </TopLayer>
+        </Overlay>
     );
 }
 
