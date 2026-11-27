@@ -62,7 +62,7 @@
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/social": "workspace:*",
-        "@destack/template": "workspace:*",
+        "@destack/template-blank": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/theme": "workspace:*",
         "@destack/universe": "workspace:*",

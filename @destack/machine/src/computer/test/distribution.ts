@@ -58,7 +58,7 @@ export const PLATFORM_PACKAGES = [
     "@destack/social",
     "@destack/observability",
     "@destack/forge",
-    "@destack/template",
+    "@destack/template-blank",
 ] as const;
 
 /** The package the test computers run, whose release a distribution ships as their own. */

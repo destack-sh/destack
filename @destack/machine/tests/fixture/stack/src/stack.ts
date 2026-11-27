@@ -4,7 +4,7 @@ import { connectionVault } from "@destack/connection/stack";
 import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
 import { credentialVault, repositoryStorage } from "@destack/forge/stack";
 import { gitStorage } from "@destack/stack/object";
-import { HOME_APPLICATION } from "@destack/account/object";
+import { HOME_INSTALLATION } from "@destack/account/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
@@ -30,7 +30,7 @@ export const HOME_STACK = defineStack({
             { repositories: "repositories", credentials: "credentials" },
             { isolation: "host", name: FORGE_INSTALLATION },
         ),
-        home: install(startPackage, {}, { name: HOME_APPLICATION }),
+        home: install(startPackage, {}, { name: HOME_INSTALLATION }),
         message: install(
             messagePackage,
             {},
