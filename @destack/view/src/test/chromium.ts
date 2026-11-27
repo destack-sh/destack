@@ -92,7 +92,12 @@ export default async function setup(project: TestProject): Promise<() => Promise
             // answer the example page's document
             if (pathname === OriginPath.example) {
                 const entry = resolution.url(image.root, example.entrypoint);
-                return ViewContext.document(context, entry, example.stylesheets, []);
+                return ViewContext.document(
+                    context,
+                    entry,
+                    example.stylesheets.map((stylesheet) => `${context.base}/${stylesheet}`),
+                    [],
+                );
             }
             // answer a module
             else if (pathname.startsWith(resolution.prefixes.modules)) {
