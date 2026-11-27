@@ -148,6 +148,10 @@ export class Template {
         files.set("package.json", encoder.encode(JSON.stringify(released, null, 4) + "\n"));
         files.set("destack.json", encoder.encode(JSON.stringify(definition, null, 4) + "\n"));
 
+        // start the package's README with what its manifest says: its name and description
+        const description = schema.string().min(1).parse(manifest["description"]);
+        files.set("README.md", encoder.encode(`# ${parameters.name}\n\n${description}\n`));
+
         // format generated and copied text so new packages start formatted
         await formatFiles(files, toolchain);
 

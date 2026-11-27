@@ -17,7 +17,7 @@ test("instantiate the template package", async () => {
     const { files } = environment;
     const directory = await files.makeTemporaryDirectory("template-");
     const template = await Template.read(
-        fileURLToPath(new URL("../../../template/", import.meta.url)),
+        fileURLToPath(new URL("../../../template-blank/", import.meta.url)),
         files,
     );
     const parameters: TemplateInput = {
