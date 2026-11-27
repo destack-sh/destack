@@ -850,6 +850,70 @@
         "tjypjlfzwbk9": {
             "source": "By the red, green and blue of ultra high definition video.",
             "translation": "Nach dem Rot, Grün und Blau von Ultra-HD-Video."
+        },
+        "5708ltf2iq4f": {
+            "source": "As the layout around it decides, as CSS's auto.",
+            "translation": "So, wie das umgebende Layout es bestimmt, wie CSS' auto."
+        },
+        "1x57l37yv0l7s": {
+            "source": "Transform",
+            "context": "option",
+            "translation": "Transformation"
+        },
+        "1fjiclwy2puwn": {
+            "source": "Filters",
+            "context": "option",
+            "translation": "Filter"
+        },
+        "27zsd5q21ck8h": {
+            "source": "Shadows",
+            "context": "option",
+            "translation": "Schatten"
+        },
+        "2astawmvv04c6": {
+            "source": "Corners",
+            "context": "option",
+            "translation": "Ecken"
+        },
+        "129qwp0wt1l5q": {
+            "source": "Hover",
+            "context": "option",
+            "translation": "Hover"
+        },
+        "2mn6u9krauygz": {
+            "source": "Press",
+            "context": "option",
+            "translation": "Drücken"
+        },
+        "2u1bt3ocmhosk": {
+            "source": "Focus",
+            "context": "option",
+            "translation": "Fokus"
+        },
+        "1uhbuooqqtsl8": {
+            "source": "Open",
+            "context": "option",
+            "translation": "Geöffnet"
+        },
+        "3o73rttxtwj3c": {
+            "source": "Background",
+            "context": "option",
+            "translation": "Hintergrund"
+        },
+        "1vyqdb37z5egv": {
+            "source": "Height",
+            "context": "option",
+            "translation": "Höhe"
+        },
+        "28qsusvo5gd0k": {
+            "source": "Text color",
+            "context": "option",
+            "translation": "Textfarbe"
+        },
+        "26d137ny3mu6g": {
+            "source": "Width",
+            "context": "option",
+            "translation": "Breite"
         }
     }
 }

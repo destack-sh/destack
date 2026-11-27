@@ -1,4 +1,5 @@
 export * from "./reference/index.ts";
+export * from "./quantity/index.ts";
 export * from "./color/index.ts";
 export * from "./hue/index.ts";
 export * from "./gradient/index.ts";
@@ -22,3 +23,4 @@ export * from "./overflow/index.ts";
 export * from "./filter/index.ts";
 export * from "./text/index.ts";
 export * from "./stylex/index.ts";
+export * from "./motion/index.ts";

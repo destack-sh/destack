@@ -850,6 +850,70 @@
         "tjypjlfzwbk9": {
             "source": "By the red, green and blue of ultra high definition video.",
             "translation": "Naar het rood, groen en blauw van ultra-hd-video."
+        },
+        "5708ltf2iq4f": {
+            "source": "As the layout around it decides, as CSS's auto.",
+            "translation": "Zoals de omringende lay-out bepaalt, zoals auto in CSS."
+        },
+        "1x57l37yv0l7s": {
+            "source": "Transform",
+            "context": "option",
+            "translation": "Transformatie"
+        },
+        "1fjiclwy2puwn": {
+            "source": "Filters",
+            "context": "option",
+            "translation": "Filters"
+        },
+        "27zsd5q21ck8h": {
+            "source": "Shadows",
+            "context": "option",
+            "translation": "Schaduwen"
+        },
+        "2astawmvv04c6": {
+            "source": "Corners",
+            "context": "option",
+            "translation": "Hoeken"
+        },
+        "129qwp0wt1l5q": {
+            "source": "Hover",
+            "context": "option",
+            "translation": "Hover"
+        },
+        "2mn6u9krauygz": {
+            "source": "Press",
+            "context": "option",
+            "translation": "Indrukken"
+        },
+        "2u1bt3ocmhosk": {
+            "source": "Focus",
+            "context": "option",
+            "translation": "Focus"
+        },
+        "1uhbuooqqtsl8": {
+            "source": "Open",
+            "context": "option",
+            "translation": "Open"
+        },
+        "3o73rttxtwj3c": {
+            "source": "Background",
+            "context": "option",
+            "translation": "Achtergrond"
+        },
+        "1vyqdb37z5egv": {
+            "source": "Height",
+            "context": "option",
+            "translation": "Hoogte"
+        },
+        "28qsusvo5gd0k": {
+            "source": "Text color",
+            "context": "option",
+            "translation": "Tekstkleur"
+        },
+        "26d137ny3mu6g": {
+            "source": "Width",
+            "context": "option",
+            "translation": "Breedte"
         }
     }
 }

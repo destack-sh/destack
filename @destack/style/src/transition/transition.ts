@@ -1,16 +1,16 @@
-import { Duration, schema } from "@destack/schema";
-import { CubicBezier } from "../bezier/index.ts";
-import { type Bindable, Reference } from "../reference/index.ts";
+import { schema } from "@destack/schema";
+import { Time } from "./time.ts";
+import { TimingFunction } from "./timing.ts";
 
 /** How a change plays out, as the design token format's transition, timed by durations. */
 const transitionJson = schema
     .object({
         /** How long it takes. */
-        duration: Reference.or(Duration.forward, "duration"),
+        duration: Time.forward,
         /** How long it waits before it starts, a negative delay starting it partway, as in CSS. */
-        delay: Reference.or(Duration, "duration"),
-        /** How it eases. */
-        timingFunction: CubicBezier.bindable,
+        delay: Time.bindable,
+        /** How it eases: a curve, steps or a spring. */
+        timingFunction: TimingFunction,
     })
     .meta({ id: "style.transition", title: "Transition" });
 /** How a change plays out. */
@@ -21,17 +21,17 @@ export const Transition = Object.assign(transitionJson, {
     /** Play out changes of some CSS properties, as CSS's `transition` writes it. */
     css(transition: Transition, properties: readonly string[]): string {
         // write the timing once, then list it for each property
-        const timing = [
-            time(transition.duration),
-            CubicBezier.css(transition.timingFunction),
-            time(transition.delay),
-        ].join(" ");
+        const timing = Transition.timing(transition, Time.css(transition.delay));
 
         return properties.map((property) => `${property} ${timing}`).join(", ");
     },
-});
 
-/** Write a duration as CSS's time in milliseconds, such as `200ms`, a reference as its variable. */
-function time(duration: Bindable<Duration>): string {
-    return Reference.write(duration, (written) => `${String(Duration.milliseconds(written))}ms`);
-}
+    /** Write a transition's duration, easing and a given delay, in the order animations share. */
+    timing(transition: Transition, delay: string): string {
+        return [
+            Time.css(TimingFunction.duration(transition.timingFunction, transition.duration)),
+            TimingFunction.css(transition.timingFunction),
+            delay,
+        ].join(" ");
+    },
+});
