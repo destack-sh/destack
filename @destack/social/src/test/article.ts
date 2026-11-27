@@ -1,7 +1,7 @@
 import { testIdentity } from "@destack/object/test";
 import { space } from "@destack/account/object";
 import { activity, announcement, Subscription, subscription } from "@destack/notification/object";
-import { defineObject, definePackage, field } from "@destack/object";
+import { defineObject, definePackage, field, RICH_TEXT } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -27,7 +27,7 @@ export const article = defineObject(
             /** The article title. */
             title: field.string(schema.string().min(1).max(200)),
             /** The article text. */
-            body: field.text(),
+            body: field.text(RICH_TEXT),
             /** The number of comments on the article. */
             commentCount: field.count(),
             /** The number of reactions to the article. */

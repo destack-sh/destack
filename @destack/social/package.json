@@ -22,7 +22,8 @@
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/sync": "workspace:*"
+        "@destack/sync": "workspace:*",
+        "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",

@@ -1,22 +1,9 @@
 import { space } from "@destack/account/object";
-import {
-    ACCESS_PACKAGE_ID,
-    intersection,
-    permission,
-    relation,
-    through,
-    union,
-} from "@destack/access";
+import { intersection, permission, relation, through, union } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
 import { ObjectReference, Subject } from "@destack/sync";
 import { type Select } from "@destack/db";
-import {
-    activity,
-    announcement,
-    NOTIFY_RECIPIENTS,
-    Subscription,
-    subscription,
-} from "@destack/notification/object";
+import { activity, announcement, Subscription, subscription } from "@destack/notification/object";
 import { defineNotification } from "@destack/notification/declare";
 import {
     MethodContext,
@@ -24,43 +11,17 @@ import {
     defineObject,
     field,
     type ObjectOf,
+    RICH_TEXT,
     TextSelection,
+    TextSpan,
 } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { SocialError } from "../error/index.ts";
 import { reaction } from "./reaction.ts";
 import { defineAction, nested, selected } from "@destack/object";
 
-/** The longest comment text in UTF-16 code units, about four pages. */
-const TEXT_LENGTH = 10_000;
-
 /** The longest excerpt a notification carries: at most 840 bytes, within a payload's 2048. */
 const EXCERPT_LENGTH = 280;
-
-/** A principal a comment mentions, at a span of its text. */
-export const Mention = schema.object({
-    /** The span's first UTF-16 code unit. */
-    offset: schema.int().min(0),
-    /** The span's length in UTF-16 code units. */
-    length: schema.int().min(1),
-    /** The mentioned user, machine or installation. */
-    principal: Subject.omit({ relation: true }).extend({
-        packageId: schema.literal(ACCESS_PACKAGE_ID),
-        type: schema.enum(["user", "machine", "installation"]),
-    }),
-});
-/** A principal a comment mentions. */
-export type Mention = schema.Infer<typeof Mention>;
-
-/** A comment's text and mentions. */
-export const Body = schema.object({
-    /** The plain text. */
-    text: schema.string().min(1).max(TEXT_LENGTH),
-    /** The mentions, in order, never overlapping. */
-    mentions: schema.array(Mention).max(NOTIFY_RECIPIENTS),
-});
-/** A comment's text and mentions. */
-export type Body = schema.Infer<typeof Body>;
 
 /** A thread's resolution: when and by whom. */
 export const Resolution = schema.object({
@@ -82,16 +43,14 @@ export const comment = defineObject(
         fields: {
             /** The author. */
             author: field.subject().caller(),
-            /** The text and its mentions. */
-            body: field.json(Body),
+            /** The text, with its marks and mentions. */
+            body: field.text(RICH_TEXT),
             /** The text the thread comments on, on its first comment only. */
             selection: field.json(TextSelection).optional(),
             /** The thread's first comment, absent on the first comment itself. */
             thread: field
                 .reference((): ObjectOf<{ identity: "comment" }> => comment, { delete: "cascade" })
                 .optional(),
-            /** When the author last edited the body. */
-            editedAt: field.time().optional(),
             /** When the thread was resolved, absent while open. */
             resolvedAt: field.time().optional(),
             /** Who resolved the thread, absent while open. */
@@ -139,9 +98,13 @@ export const comment = defineObject(
         reply: method.mutation({
             title: t.context("action")`Reply`,
             permission: "comment",
-            input: Body.extend({ mentions: Body.shape.mentions.default([]) }),
+            input: schema.object({
+                /** The reply's text. */
+                body: schema.array(TextSpan).min(1),
+            }),
         }),
-        update: method.update("write", { fields: ["body"] }),
+        // edit the body through the text's edit method, which the update's permission allows
+        update: method.update("write", { fields: [] }),
         delete: method.delete("delete"),
     }),
 );
@@ -175,9 +138,17 @@ export class Comment {
         return this.row.threadId === null ? ObjectReference.parent(this.row) : this.thread;
     }
 
-    /** Build the comment's excerpt without splitting a surrogate pair. */
-    excerpt(): Excerpt {
-        const text = this.row.body.text.slice(0, EXCERPT_LENGTH);
+    /** Read where a comment's notices go and which thread they join, from its row. */
+    static notice(row: Comment["row"]): {
+        readonly source: ObjectReference;
+        readonly thread: string;
+    } {
+        return { source: new Comment(row).source, thread: row.parentId };
+    }
+
+    /** Build the comment's excerpt from its body, without splitting a surrogate pair. */
+    excerpt(body: readonly TextSpan[]): Excerpt {
+        const text = TextSpan.plain(body).slice(0, EXCERPT_LENGTH);
         const isSplit = /[\uD800-\uDBFF]$/u.test(text);
 
         return {
@@ -200,62 +171,21 @@ export class Comment {
         return this;
     }
 
-    /** List the distinct principals the comment mentions. */
-    mentioned(): Subject[] {
-        const mentioned = this.row.body.mentions.map((mention) => mention.principal);
-
-        return [
-            ...new Map(mentioned.map((principal) => [Subject.key(principal), principal])).values(),
-        ];
-    }
-
-    /** Build the call notifying the principals the comment mentions, none without any. */
-    mention(mentioned: readonly Subject[]) {
-        return mentioned.length === 0
-            ? []
-            : [
-                  mention.call({
-                      source: this.source,
-                      recipients: mentioned,
-                      reason: "mention",
-                      thread: this.row.parentId,
-                      payload: this.excerpt(),
-                  }),
-              ];
-    }
-
-    /** Build the calls subscribing its author, notifying and announcing a new comment. */
-    announce() {
-        // read whether it replies, its author and the principals it mentions
+    /** Build the calls subscribing its author and announcing a new comment, from its body. */
+    announce(body: readonly TextSpan[]) {
+        // read whether it replies and its author, leaving its mentions to the mention notices
         const isReply = this.row.threadId !== null;
         const author = ObjectReference.at("author", this.row);
-        const mentioned = this.mentioned();
 
         return [
             Subscription.subscribe(this.thread, author, isReply ? "participating" : "author"),
-            ...this.mention(mentioned),
             (isReply ? reply : thread).call({
                 source: this.source,
                 audience: { kind: "subscribers" },
                 thread: this.row.parentId,
-                payload: this.excerpt(),
-                excluded: mentioned,
+                payload: this.excerpt(body),
             }),
         ];
-    }
-
-    /** Require ordered, disjoint mention spans within a body's text. */
-    static requireSpans(body: Body): void {
-        let end = 0;
-        for (const mentioned of body.mentions) {
-            if (mentioned.offset < end || mentioned.offset + mentioned.length > body.text.length) {
-                throw SocialError.of(
-                    "MENTIONS_INVALID",
-                    "mention list is invalid: mentions must be ordered, disjoint spans within the text",
-                );
-            }
-            end = mentioned.offset + mentioned.length;
-        }
     }
 
     /** Require a selection within a text field of the comment's host. */
@@ -317,8 +247,8 @@ export type Excerpt = schema.Infer<typeof Excerpt>;
 export const answer = defineAction({
     name: "comment.reply",
     title: t.context("action")`Reply`,
-    input: { comments: selected(comment), text: Body.shape.text },
-    call: ({ comments, text }) => comments.prepare("reply", { text }),
+    input: { comments: selected(comment), text: schema.string().min(1) },
+    call: ({ comments, text }) => comments.prepare("reply", { body: [{ text }] }),
 });
 
 /** Reply in the notified comment's thread from a notification, typing the reply. */
@@ -327,19 +257,6 @@ const answerInThread = {
     target: "thread",
     text: { placeholder: "Reply", button: "Send" },
 } as const;
-
-/** A comment mentions the recipient. */
-export const mention = defineNotification({
-    name: "mention",
-    title: t.context("action")`Mentions`,
-    description: t`Someone mentions you in a comment.`,
-    payload: Excerpt,
-    interruption: "active",
-    preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
-    content: { title: t.context("title")`New mention`, body: t`${argument("text")}` },
-    summary: t`${plural(argument("count"), { one: "# mention", other: "# mentions" })}`,
-    actions: [answerInThread],
-});
 
 /** A comment starts a thread on a subscribed object. */
 export const thread = defineNotification({

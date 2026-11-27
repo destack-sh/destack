@@ -11,10 +11,10 @@ import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { nth, schema } from "@destack/schema";
 import { ids, TestPackage, TestSpace } from "@destack/machine/test";
-import { type Call, Scope } from "@destack/sync";
+import { type Call, Scope, type Subject } from "@destack/sync";
 import { Table } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { Mention, mention, presence, reply, thread } from "../object/index.ts";
+import { mentioned, presence, reply, thread } from "../object/index.ts";
 import socialPackage from "../package.ts";
 import socialServer from "../server.ts";
 import { articlesPackage, articlesServer } from "./article.ts";
@@ -27,7 +27,7 @@ export const SOCIAL: TestPackage = {
     handle: socialPackage,
     build: await testBuild(socialPackage, testHost().crypto, {
         dependencies: [await TestNotification.build(testHost().crypto)],
-        declared: [mention, thread, reply].map((declared) => ({
+        declared: [mentioned, thread, reply].map((declared) => ({
             kind: "notification",
             kindPackageId: notification.package.id,
             name: declared.name,
@@ -91,8 +91,8 @@ export const SOCIAL_TEMPLATE = TestSpace.template(SPACE_OPTIONS, {
 /** A principal the tests act as: a person reading the space, or the agent. */
 export type Actor = (typeof PEOPLE)[number] | "agent";
 
-/** A principal as comments mention it. */
-export type Mentioned = Mention["principal"];
+/** A principal as texts mention it. */
+export type Mentioned = Subject;
 
 /** A space serving articles with social attachments, used by people and an agent. */
 export class TestSocial implements AsyncDisposable {
@@ -198,14 +198,14 @@ export class TestSocial implements AsyncDisposable {
         return `${name}@example.test`;
     }
 
-    /** Refer to a person or installation as comments mention it. */
+    /** Refer to a person or installation as texts mention it. */
     static #mentioned(
         kind: typeof principal.user | typeof principal.installation,
         id: string,
     ): Mentioned {
         const scope = kind === principal.user ? Scope.universe.id : ids.space;
 
-        return Mention.shape.principal.parse(kind.reference(scope, id));
+        return kind.reference(scope, id);
     }
 
     /** Refer to a host as its attachments' parent. */
@@ -241,9 +241,14 @@ export class TestSocial implements AsyncDisposable {
         const listed: ObjectType = object;
         const page = await this.call(actor, listed.call("list", { ...this.scope, ...input }));
 
-        return ListPage.parse(page)
-            .items.toSorted((left, right) => left.createdAt - right.createdAt)
-            .map((row) => Table.selectSchema<Type["table"]>(object.table).parse(row));
+        // read each row as callers see it, its text fields resolved
+        const rows = ListPage.parse(page).items.toSorted(
+            (left, right) => left.createdAt - right.createdAt,
+        );
+
+        return rows.map((row) =>
+            Table.selectSchema<Type["table"]>(object.table).loose().parse(row),
+        );
     }
 
     /** Follow the space's presence as an actor's client does, replicating it over HTTP. */

@@ -76,16 +76,15 @@ Start a thread with a mention, reply, and resolve it.
 ```ts
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
-import type { Mention } from "@destack/social/object";
 import type socialPackage from "@destack/social/package";
-import type { ObjectReference } from "@destack/sync";
+import type { ObjectReference, Subject } from "@destack/sync";
 
 /** Ask a person about an article, then answer and resolve the thread as them. */
 export async function askAndResolve(
     client: ClientOf<typeof socialPackage>,
     spaceId: Identifier<"space">,
     article: ObjectReference,
-    carol: Mention["principal"],
+    carol: Subject,
     requestId: string,
 ) {
     // start a thread mentioning carol
@@ -93,14 +92,11 @@ export async function askAndResolve(
         spaceId,
         requestId,
         parent: { packageId: article.packageId, type: article.type, id: article.id },
-        body: {
-            text: "@carol, tighten the intro",
-            mentions: [{ offset: 0, length: 6, principal: carol }],
-        },
+        body: [{ node: { type: "mention", value: carol } }, { text: ", tighten the intro" }],
     });
 
     // reply in the thread, and resolve it
-    await client.comment.reply({ spaceId, id: thread.id, requestId, text: "Done" });
+    await client.comment.reply({ spaceId, id: thread.id, requestId, body: [{ text: "Done" }] });
     await client.comment.resolve({ spaceId, id: thread.id, requestId });
 }
 ```
@@ -113,7 +109,7 @@ A principal reacts once per emoji to a host or a comment, and each is counted on
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
 import type socialPackage from "@destack/social/package";
-import type { ObjectReference } from "@destack/sync";
+import type { ObjectReference, Subject } from "@destack/sync";
 
 /** Give an article a thumbs up. */
 export async function thumbsUp(
@@ -135,7 +131,7 @@ Each reader has one receipt and one favourite per host, private to them.
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
 import type socialPackage from "@destack/social/package";
-import type { ObjectReference } from "@destack/sync";
+import type { ObjectReference, Subject } from "@destack/sync";
 
 /** Mark an article read, and star it. */
 export async function readAndStar(
@@ -158,7 +154,7 @@ A presence is ephemeral, keyed by the writing client's `writerId`, and says what
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
 import type socialPackage from "@destack/social/package";
-import type { ObjectReference } from "@destack/sync";
+import type { ObjectReference, Subject } from "@destack/sync";
 
 /** Show that the person is editing an article's body at a position. */
 export async function showEditing(

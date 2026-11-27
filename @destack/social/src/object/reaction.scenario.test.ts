@@ -43,7 +43,7 @@ test("let commenters react once per emoji to articles and their comments, counte
         comment.call("create", {
             ...scope,
             ...TestSocial.host(article, draft.id),
-            body: { text: "Ship it?", mentions: [] },
+            body: [{ text: "Ship it?" }],
         }),
     );
 

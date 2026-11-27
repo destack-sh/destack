@@ -1,4 +1,5 @@
-import type { TextSelection } from "@destack/object";
+import { type TextSelection, TextSequence, TextSpan } from "@destack/object";
+import { schema } from "@destack/schema";
 import { article, TestSocial } from "../test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { Comment, comment } from "./index.ts";
@@ -60,26 +61,26 @@ test("let commenters start and reply to threads on an article, authors edit, edi
         comment.call("create", {
             ...scope,
             ...TestSocial.host(article, draft.id),
-            body: { text: "Tighten the intro", mentions: [] },
+            body: [{ text: "Tighten the intro" }],
             selection,
         }),
     );
     const reply = await fixture.call(
         "bob",
-        comment.call("reply", { ...scope, id: first.id, text: "Done" }),
+        comment.call("reply", { ...scope, id: first.id, body: [{ text: "Done" }] }),
     );
 
     // show the viewer the thread, and refuse the viewer a comment
     expect(
         (await fixture.list("carol", comment)).map((row) => [
-            row.body,
+            TextSpan.plain(schema.array(TextSpan).parse(row["body"])),
             row.authorId,
             row.threadId,
             row.selection,
         ]),
     ).toEqual([
-        [{ text: "Tighten the intro", mentions: [] }, actors.alice.id, null, selection],
-        [{ text: "Done", mentions: [] }, actors.bob.id, first.id, null],
+        ["Tighten the intro", actors.alice.id, null, selection],
+        ["Done", actors.bob.id, first.id, null],
     ]);
     expect(
         await refusal(
@@ -88,7 +89,7 @@ test("let commenters start and reply to threads on an article, authors edit, edi
                 comment.call("create", {
                     ...scope,
                     ...TestSocial.host(article, draft.id),
-                    body: { text: "Nope", mentions: [] },
+                    body: [{ text: "Nope" }],
                 }),
             ),
         ),
@@ -98,31 +99,18 @@ test("let commenters start and reply to threads on an article, authors edit, edi
         "permission 'comment' is forbidden: it is not granted",
     ]);
 
-    // refuse a reply to a reply, and a reply's mentions past the end of its text
-    const nested = fixture.call(
-        "bob",
-        comment.call("reply", { ...scope, id: reply.id, text: "Nope" }),
-    );
-    const unspanned = fixture.call(
-        "bob",
-        comment.call("reply", {
-            ...scope,
-            id: first.id,
-            text: "Nope",
-            mentions: [{ offset: 2, length: 6, principal: actors.alice }],
-        }),
-    );
-    expect(await Promise.all([refusal(nested), refusal(unspanned)])).toEqual([
-        [
-            "BAD_REQUEST",
-            "FIRST_COMMENT_REQUIRED",
-            "thread's first comment is required: only it takes replies and resolves the thread",
-        ],
-        [
-            "BAD_REQUEST",
-            "MENTIONS_INVALID",
-            "mention list is invalid: mentions must be ordered, disjoint spans within the text",
-        ],
+    // refuse a reply to a reply
+    expect(
+        await refusal(
+            fixture.call(
+                "bob",
+                comment.call("reply", { ...scope, id: reply.id, body: [{ text: "Nope" }] }),
+            ),
+        ),
+    ).toEqual([
+        "BAD_REQUEST",
+        "FIRST_COMMENT_REQUIRED",
+        "thread's first comment is required: only it takes replies and resolves the thread",
     ]);
 
     // refuse a selection of elements the text never had
@@ -133,7 +121,7 @@ test("let commenters start and reply to threads on an article, authors edit, edi
                 comment.call("create", {
                     ...scope,
                     ...TestSocial.host(article, draft.id),
-                    body: { text: "Nope", mentions: [] },
+                    body: [{ text: "Nope" }],
                     selection: {
                         ...selection,
                         head: { side: "after", element: { run: "bob.9", offset: 0 } },
@@ -147,63 +135,37 @@ test("let commenters start and reply to threads on an article, authors edit, edi
         "selection in 'body' is invalid: the host text has no such selection",
     ]);
 
-    // refuse a selection of a field with no text, and mentions past the end of the text
-    const titled = fixture.call(
-        "bob",
-        comment.call("create", {
-            ...scope,
-            ...TestSocial.host(article, draft.id),
-            body: { text: "Nope", mentions: [] },
-            selection: { ...selection, field: "title" },
-        }),
-    );
-    const overlong = fixture.call(
-        "bob",
-        comment.call("create", {
-            ...scope,
-            ...TestSocial.host(article, draft.id),
-            body: { text: "Nope", mentions: [{ offset: 2, length: 6, principal: actors.alice }] },
-        }),
-    );
-    expect(await Promise.all([refusal(titled), refusal(overlong)])).toEqual([
-        [
-            "BAD_REQUEST",
-            "TEXT_FIELD_INVALID",
-            "text field 'title' is invalid: article has no such text field",
-        ],
-        [
-            "BAD_REQUEST",
-            "MENTIONS_INVALID",
-            "mention list is invalid: mentions must be ordered, disjoint spans within the text",
-        ],
-    ]);
-
-    // let only the author edit a comment, stamping the edit
-    const editedAt = fixture.clock.now();
-    const edited = await fixture.call(
-        "bob",
-        comment.call("update", {
-            ...scope,
-            id: reply.id,
-            body: { text: "Done, see the new intro", mentions: [] },
-        }),
-    );
-    expect([edited.body, edited.editedAt, first.editedAt]).toEqual([
-        { text: "Done, see the new intro", mentions: [] },
-        editedAt,
-        null,
-    ]);
+    // refuse a selection of a field with no text
     expect(
         await refusal(
             fixture.call(
-                "alice",
-                comment.call("update", {
+                "bob",
+                comment.call("create", {
                     ...scope,
-                    id: reply.id,
-                    body: { text: "Mine now", mentions: [] },
+                    ...TestSocial.host(article, draft.id),
+                    body: [{ text: "Nope" }],
+                    selection: { ...selection, field: "title" },
                 }),
             ),
         ),
+    ).toEqual([
+        "BAD_REQUEST",
+        "TEXT_FIELD_INVALID",
+        "text field 'title' is invalid: article has no such text field",
+    ]);
+
+    // let only the author edit a comment's text
+    const edit = (text: string, run: string) => ({
+        ...scope,
+        id: reply.id,
+        field: "body",
+        edits: new TextSequence().change({ from: 0, to: 0, insert: text }, { run, offset: 0 }),
+    });
+    await fixture.call("bob", comment.call("edit", edit("Mostly ", "bob.edit")));
+    const edited = (await fixture.list("bob", comment)).find((row) => row.id === reply.id);
+    expect(TextSpan.plain(schema.array(TextSpan).parse(edited?.["body"]))).toBe("Mostly Done");
+    expect(
+        await refusal(fixture.call("alice", comment.call("edit", edit("Mine ", "alice.edit")))),
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
@@ -260,7 +222,7 @@ test("let commenters start and reply to threads on an article, authors edit, edi
     await fixture.call("alice", comment.call("delete", { ...scope, id: reply.id }));
     await fixture.call(
         "alice",
-        comment.call("reply", { ...scope, id: first.id, text: "Reworded" }),
+        comment.call("reply", { ...scope, id: first.id, body: [{ text: "Reworded" }] }),
     );
     expect(
         await refusal(fixture.call("bob", comment.call("delete", { ...scope, id: first.id }))),

@@ -1,8 +1,9 @@
-import { nth, present } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { activity, subscription } from "@destack/notification/object";
 import { expect, test } from "@destack/test";
-import { Body, comment, type Mention } from "./object/index.ts";
-import { type Actor, article, TestSocial } from "./test/index.ts";
+import { TextSpan } from "@destack/object";
+import { comment } from "./object/index.ts";
+import { type Actor, article, type Mentioned, TestSocial } from "./test/index.ts";
 
 test("record activities for mentioned principals, announce threads and replies to their subscribers, and answer a mention with a reply", async () => {
     await using fixture = await TestSocial.open();
@@ -53,10 +54,7 @@ test("record activities for mentioned principals, announce threads and replies t
         comment.call("create", {
             ...scope,
             ...TestSocial.host(article, draft.id),
-            body: {
-                text: "@carol, tighten the intro",
-                mentions: [{ offset: 0, length: 6, principal: actors.carol }],
-            },
+            body: [mentionOf(actors.carol), { text: ", tighten the intro" }],
         }),
     );
     await fixture.simulation.idle();
@@ -68,32 +66,29 @@ test("record activities for mentioned principals, announce threads and replies t
     ]).toEqual([
         [["thread", "article", "author"]],
         [],
-        [["mention", "article", "mention"]],
+        [["mentioned", "article", "mention"]],
         [["thread", "article", "subscribed"]],
     ]);
 
-    // carry an excerpt of the mentioning comment and its thread
+    // carry who mentioned carol and the start of the comment's text
     const mentioned = nth(await fixture.list("carol", activity), 0);
     expect([mentioned.payload, mentioned.thread]).toEqual([
-        {
-            author: actors.bob,
-            comment: first.id,
-            thread: first.id,
-            text: "@carol, tighten the intro",
-        },
+        { author: actors.bob, text: "\uFFFC, tighten the intro" },
         draft.id,
     ]);
 
     // announce replies to the thread's subscribers for their reasons except the mentioned
-    await fixture.call("carol", comment.call("reply", { ...scope, id: first.id, text: "Agreed" }));
+    await fixture.call(
+        "carol",
+        comment.call("reply", { ...scope, id: first.id, body: [{ text: "Agreed" }] }),
+    );
     await fixture.simulation.idle();
     await fixture.call(
         "alice",
         comment.call("reply", {
             ...scope,
             id: first.id,
-            text: "@bob, ship it",
-            mentions: [{ offset: 0, length: 4, principal: actors.bob }],
+            body: [mentionOf(actors.bob), { text: ", ship it" }],
         }),
     );
     await fixture.simulation.idle();
@@ -106,38 +101,38 @@ test("record activities for mentioned principals, announce threads and replies t
         [["thread", "article", "author"]],
         [
             ["reply", "comment", "author"],
-            ["mention", "comment", "mention"],
+            ["mentioned", "comment", "mention"],
         ],
         [
-            ["mention", "article", "mention"],
+            ["mentioned", "article", "mention"],
             ["reply", "comment", "participating"],
         ],
         [["thread", "article", "subscribed"]],
     ]);
 
-    // answer bob's mention from its activity, replying in its thread
-    const bobMentioned = present(
-        (await fixture.list("bob", activity)).find((row) => row.name === "mention"),
-        "bob's mention",
+    // answer the reply from bob's activity, replying in its thread
+    const bobReply = present(
+        (await fixture.list("bob", activity)).find((row) => row.name === "reply"),
+        "bob's reply notice",
     );
     await fixture.call(
         "bob",
         activity.call("act", {
             ...scope,
-            id: bobMentioned.id,
+            id: bobReply.id,
             action: "comment.reply",
             text: "Shipping",
         }),
     );
     const thread = (await fixture.list("bob", comment)).map((row) => [
-        Body.parse(row.body).text,
+        TextSpan.plain(schema.array(TextSpan).parse(row["body"])),
         row.authorId,
         row.threadId,
     ]);
     expect(thread).toEqual([
-        ["@carol, tighten the intro", actors.bob.id, null],
+        ["\uFFFC, tighten the intro", actors.bob.id, null],
         ["Agreed", actors.carol.id, first.id],
-        ["@bob, ship it", actors.alice.id, first.id],
+        ["\uFFFC, ship it", actors.alice.id, first.id],
         ["Shipping", actors.bob.id, first.id],
     ]);
 });
@@ -165,13 +160,12 @@ test("notify a principal mentioned twice in one comment once, and answer a reply
         comment.call("create", {
             ...scope,
             ...TestSocial.host(article, draft.id),
-            body: {
-                text: "@bob, @bob: tighten the intro",
-                mentions: [
-                    { offset: 0, length: 4, principal: actors.bob },
-                    { offset: 6, length: 4, principal: actors.bob },
-                ],
-            },
+            body: [
+                mentionOf(actors.bob),
+                { text: ", " },
+                mentionOf(actors.bob),
+                { text: ": tighten the intro" },
+            ],
         }),
     );
     await fixture.simulation.idle();
@@ -185,27 +179,23 @@ test("notify a principal mentioned twice in one comment once, and answer a reply
     ]);
     expect(activities).toEqual([
         [
-            "mention",
+            "mentioned",
             "article",
             "mention",
-            {
-                author: actors.alice,
-                comment: first.id,
-                thread: first.id,
-                text: "@bob, @bob: tighten the intro",
-            },
+            { author: actors.alice, text: "\uFFFC, \uFFFC: tighten the intro" },
         ],
     ]);
 
     // reply in the thread, answered with the new reply and not the thread's first comment
     const replied = await fixture.call(
         "bob",
-        comment.call("reply", { ...scope, id: first.id, text: "Done" }),
+        comment.call("reply", { ...scope, id: first.id, body: [{ text: "Done" }] }),
     );
-    expect([replied.threadId, Body.parse(replied.body).text]).toEqual([first.id, "Done"]);
+    const body = schema.array(TextSpan).parse(Reflect.get(replied, "body"));
+    expect([replied.threadId, TextSpan.plain(body)]).toEqual([first.id, "Done"]);
 });
 
-test("subscribe a thread's author, repliers and newly mentioned principals, each privately, skip a mentioned stranger, and resubscribe on a new mention", async () => {
+test("subscribe a thread's author, repliers and newly mentioned readers, each privately, skip a mentioned stranger, and resubscribe on a new mention", async () => {
     await using fixture = await TestSocial.open();
     const { scope, actors } = fixture;
     const subscriptions = async (actor: Actor) =>
@@ -248,23 +238,25 @@ test("subscribe a thread's author, repliers and newly mentioned principals, each
         subscription.call("create", { ...scope, ...TestSocial.host(article, draft.id) }),
     );
 
-    // mention two readers and dave, who cannot read the article
-    const text = "@bob, @carol and @dave, see the agent's notes";
-    const create = (mentions: readonly Mention[]) =>
-        fixture.call(
-            "alice",
-            comment.call("create", {
-                ...scope,
-                ...TestSocial.host(article, draft.id),
-                body: { text, mentions: [...mentions] },
-            }),
-        );
-    const bob = { offset: 0, length: 4, principal: actors.bob };
-    const carol = { offset: 6, length: 6, principal: actors.carol };
-    const dave = { offset: 17, length: 5, principal: actors.dave };
+    // write a comment mentioning someone who cannot read the article, notifying only its readers
+    const first = await fixture.call(
+        "alice",
+        comment.call("create", {
+            ...scope,
+            ...TestSocial.host(article, draft.id),
+            body: [
+                mentionOf(actors.bob),
+                { text: ", " },
+                mentionOf(actors.carol),
+                { text: " and " },
+                mentionOf(actors.dave),
+                { text: ", see the agent's notes" },
+            ],
+        }),
+    );
+    await fixture.simulation.idle();
 
-    // subscribe the author to the thread and the mentioned readers to the article, skipping dave
-    const first = await create([bob, carol, dave]);
+    // subscribe a thread's author to it and the mentioned readers to the article with their reasons
     expect([
         await subscriptions("alice"),
         await subscriptions("bob"),
@@ -286,10 +278,10 @@ test("subscribe a thread's author, repliers and newly mentioned principals, each
         comment.call("reply", {
             ...scope,
             id: first.id,
-            text: "@carol, agreed",
-            mentions: [{ offset: 0, length: 6, principal: actors.carol }],
+            body: [mentionOf(actors.carol), { text: ", agreed" }],
         }),
     );
+    await fixture.simulation.idle();
     expect([await subscriptions("bob"), await subscriptions("carol")]).toEqual([
         [
             ["article", "subscribed"],
@@ -312,18 +304,16 @@ test("subscribe a thread's author, repliers and newly mentioned principals, each
     );
     await fixture.call(
         "bob",
-        comment.call("update", {
+        comment.call("edit", {
             ...scope,
             id: answer.id,
-            body: {
-                text: "@carol, agreed with @agent",
-                mentions: [
-                    { offset: 0, length: 6, principal: actors.carol },
-                    { offset: 20, length: 6, principal: actors.agent },
-                ],
-            },
+            field: "body",
+            edits: [
+                { insert: { type: "mention", value: actors.agent }, run: "bob.edit", start: 0 },
+            ],
         }),
     );
+    await fixture.simulation.idle();
     expect([await subscriptions("carol"), await subscriptions("agent")]).toEqual([
         [["article", "mention"]],
         [["comment", "mention"]],
@@ -335,12 +325,17 @@ test("subscribe a thread's author, repliers and newly mentioned principals, each
         comment.call("reply", {
             ...scope,
             id: first.id,
-            text: "@carol, one more",
-            mentions: [{ offset: 0, length: 6, principal: actors.carol }],
+            body: [mentionOf(actors.carol), { text: ", one more" }],
         }),
     );
+    await fixture.simulation.idle();
     expect(await subscriptions("carol")).toEqual([
         ["article", "mention"],
         ["comment", "mention"],
     ]);
 });
+
+/** Mention a principal in a text, as a rich text's mention node. */
+function mentionOf(subject: Mentioned): TextSpan {
+    return { node: { type: "mention", value: subject } };
+}
