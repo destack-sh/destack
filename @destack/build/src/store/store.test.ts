@@ -1133,12 +1133,15 @@ test("pull one output of a served build: what its runtime loads and its maps, no
             await pulled.store.isPulled(root, ["bun"]),
             await pulled.store.isPulled(root, "all"),
         ],
+        // hold the manifest's bytes, yet answer an upload that it is incomplete, so a push sends it again
+        uploaded: [await pulled.store.has([digest]), await pulled.store.complete([digest])],
         arrived: files.filter((_, index) => stored[index] === true).map((file) => file.path),
     }).toEqual({
         requested: ["read", "read", "read"],
         isComplete: false,
         hasOutput: true,
         isPulled: [true, false],
+        uploaded: [[true], [false]],
         arrived: [
             "bun/addon.node",
             "bun/serve.js",

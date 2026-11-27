@@ -67,11 +67,11 @@ async function write(
     const target = UploadTarget.parse(path);
     await access.push(request, target?.scope);
 
-    // tell which of the asked blobs the store has
+    // tell which of the asked objects the store has complete, so an upload resends incomplete ones
     if (target?.kind === "has" && request.method === "POST") {
         const asked = schema.array(Digest).parse(await request.json());
 
-        return Response.json(await store.has(asked));
+        return Response.json(await store.complete(asked));
     }
     // write a tarball of objects, files first
     else if (target?.kind === "write" && request.method === "POST" && request.body !== null) {
