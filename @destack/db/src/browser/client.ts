@@ -9,6 +9,7 @@ import {
     type SqliteConnectionClient,
     type SqliteQueryClient,
 } from "../sqlite/client.ts";
+import { CoalescingVfs } from "./vfs.ts";
 
 /** The most write-ahead pages before a checkpoint, 400 KB, which a reopen replays in ~30 ms. */
 const WAL_PAGES = 100;
@@ -108,14 +109,15 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
 
     /** Open a file of the origin's private file system, which one worker holds at a time. */
     static async opfs(name: string, environment: DatabaseEnvironment): Promise<WasmClient> {
-        // open the file through the database's own pool of synchronous access handles
+        // open the file through the database's pool of access handles, coalescing each commit's writes
         const sqlite = await WasmClient.#sqlite(environment);
         const pool = await sqlite.installOpfsSAHPoolVfs({ name: `destack-${name}` });
-        const database = new pool.OpfsSAHPoolDb(`/${name}`);
+        const coalescing = new CoalescingVfs(sqlite, pool.vfsName);
+        const database = new sqlite.oo1.DB({ filename: `/${name}`, vfs: coalescing.name });
 
-        // write ahead without shared memory, which the pool lacks, as the worker holds the file alone
+        // write ahead without shared memory, as the worker holds the file alone, durable at each commit
         database.exec(
-            `PRAGMA foreign_keys = ON; PRAGMA locking_mode = EXCLUSIVE; PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = ${WAL_PAGES};`,
+            `PRAGMA foreign_keys = ON; PRAGMA locking_mode = EXCLUSIVE; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA wal_autocheckpoint = ${WAL_PAGES};`,
         );
 
         return new WasmClient(database, environment);
