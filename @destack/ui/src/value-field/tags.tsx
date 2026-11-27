@@ -8,7 +8,7 @@ import { Button } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
 import { Input } from "../input/index.ts";
 import { NumberField } from "../number-field/index.ts";
-import { ValueGroup, valueStyles } from "./group.tsx";
+import { ValueSet, valueStyles } from "./group.tsx";
 
 /** Tagged numbers, such as OpenType features or font axes. */
 type Tags = Readonly<Record<string, number>>;
@@ -42,7 +42,7 @@ export function TagsParts(properties: {
     };
 
     return (
-        <ValueGroup aria-label={properties.label} xstyle={valueStyles.group}>
+        <ValueSet aria-label={properties.label} xstyle={valueStyles.group}>
             {/* Each tag and its number, in place as they change */}
             <For each={entries()} keyed={false}>
                 {(entry, index) => (
@@ -100,6 +100,6 @@ export function TagsParts(properties: {
                     {locale.render(t.context("action")`Add`)}
                 </Button>
             </div>
-        </ValueGroup>
+        </ValueSet>
     );
 }

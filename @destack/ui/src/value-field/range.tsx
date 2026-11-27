@@ -1,12 +1,12 @@
 import { DateRange } from "@destack/schema";
 import type { JSX } from "@destack/view";
 import { DatePicker } from "../date-picker/index.ts";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 
 /** Render the input of a range of dates: its first and last day, typed or picked. */
-export function DateRangeInput(properties: NamedValueFieldProperties): JSX.Element {
+export function DateRangeInput(properties: NamedValueInputProperties): JSX.Element {
     // read the range, none while it is not one
-    const range = (): DateRange | undefined => DateRange.safeParse(properties.value).data;
+    const range = (): DateRange | undefined => readValue(properties.value, DateRange);
 
     return (
         <DatePicker

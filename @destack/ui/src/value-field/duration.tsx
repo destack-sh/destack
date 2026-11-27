@@ -8,8 +8,8 @@ import { For, type JSX, useLocale } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { UnitParts } from "../dimension-field/index.ts";
 import { Icon } from "../icon/index.ts";
-import { ValueGroup, valueStyles } from "./group.tsx";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { ValueSet, valueStyles } from "./group.tsx";
+import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 
 /** What each unit of a duration is called. */
 const UNIT_TITLES = {
@@ -42,10 +42,10 @@ const styles = style.create({
 const START_UNIT: DurationUnit = "seconds";
 
 /** Render the input of a duration: a number and a unit for each of its units. */
-export function DurationInput(properties: NamedValueFieldProperties): JSX.Element {
+export function DurationInput(properties: NamedValueInputProperties): JSX.Element {
     // read the duration, and its units largest first, one unit for a duration of nothing
     const locale = useLocale();
-    const duration = (): Duration => Duration.safeParse(properties.value).data ?? {};
+    const duration = (): Duration => readValue(properties.value, Duration) ?? {};
     const units = (): readonly DurationUnit[] => {
         const present = DURATION_UNITS.filter((unit) => duration()[unit] !== undefined);
 
@@ -82,7 +82,11 @@ export function DurationInput(properties: NamedValueFieldProperties): JSX.Elemen
     };
 
     return (
-        <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.group}>
+        <ValueSet
+            label={properties.label}
+            aria-label={properties["aria-label"]}
+            xstyle={valueStyles.group}
+        >
             {/* Each unit's number, kept by its place as it changes */}
             <For each={units()} keyed={false}>
                 {(unit) => (
@@ -130,6 +134,6 @@ export function DurationInput(properties: NamedValueFieldProperties): JSX.Elemen
                 <Icon icon={plusIcon} />
                 {locale.render(t.context("action")`Add unit`)}
             </Button>
-        </ValueGroup>
+        </ValueSet>
     );
 }

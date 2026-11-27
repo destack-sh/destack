@@ -4,33 +4,33 @@ import minusIcon from "@destack/icon/phosphor/minus";
 import plusIcon from "@destack/icon/phosphor/plus";
 import { t } from "@destack/locale";
 import { type JsonObject, LocalReference, schema } from "@destack/schema";
+import { type Bindable, type Reference } from "@destack/style";
 import * as style from "@destack/style";
-import { font, radius, space } from "@destack/theme/tokens.stylex";
-import { For, type JSX, useLocale } from "@destack/view";
+import { radius, space } from "@destack/theme/tokens.stylex";
+import { createSignal, For, type JSX, Show, useLocale } from "@destack/view";
 import { Button } from "../button/index.ts";
 import {
     ColorArea,
+    ColorEyeDropper,
     ColorField,
     ColorPicker,
     ColorSlider,
     ColorSwatch,
 } from "../color-picker/index.ts";
+import { FieldContext } from "../field/control.ts";
 import { Icon } from "../icon/index.ts";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Sortable, SortableContainer, SortableItem, type SortableMove } from "../sortable/index.ts";
-import { ValueGroup, ValueTrigger } from "./group.tsx";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { Tabs, TabsContent, TabsList, TabsTitle, TabsTrigger } from "../tabs/index.ts";
+import { TokenBinding, TokenList } from "./bindable.tsx";
+import { ValueSet } from "./group.tsx";
+import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 
 /** The color a list of colors adds first, before it has one to repeat. */
 const FIRST_COLOR = "#ffffff";
 
 /** The styles of the inputs of colors. */
 const styles = style.create({
-    control: {
-        width: "100%",
-        justifyContent: "flex-start",
-        fontFamily: font.code,
-    },
     picker: {
         display: "flex",
         flexDirection: "column",
@@ -48,47 +48,168 @@ const styles = style.create({
     }),
     row: {
         display: "flex",
+        flexDirection: "row",
+        alignItems: "center",
         gap: space[1],
+    },
+    opacity: {
+        width: "5.5rem",
+        flexShrink: 0,
     },
 });
 
-/** Render the input of a color: its swatch and text, which open a picker. */
-export function ColorInput(properties: NamedValueFieldProperties): JSX.Element {
-    const value = (): string | undefined =>
-        typeof properties.value === "string" ? properties.value : undefined;
+/** Render the input of a color: a swatch that opens a picker, its text and its opacity. */
+export function ColorInput(properties: NamedValueInputProperties): JSX.Element {
+    return (
+        <ColorRow
+            label={properties["aria-label"]}
+            disabled={properties.disabled}
+            value={typeof properties.value === "string" ? properties.value : undefined}
+            onValueChange={(next) => properties.onValueChange(next)}
+        />
+    );
+}
+
+/** Render a color of a value, or a reference to a color token in its place. */
+export function ColorPart(properties: {
+    /** What the color is called. */
+    readonly label: string | undefined;
+    /** Whether it takes no input. */
+    readonly disabled: boolean | undefined;
+    /** The color, or its token. */
+    readonly value: Bindable<string>;
+    /** Handle the color or its token changing. */
+    readonly onValueChange: (value: Bindable<string>) => void;
+    /** What the picker's own tab shows in place of the color's, such as a paint's picker. */
+    readonly custom?: JSX.Element;
+}): JSX.Element {
+    return (
+        <TokenBinding
+            type="color"
+            label={properties.label}
+            disabled={properties.disabled}
+            value={properties.value}
+            onValueChange={properties.onValueChange}
+            detach={(probe, reference) => probe.color(reference)}
+            css={(color) => color}
+        >
+            {(color, bind) => (
+                <ColorRow
+                    label={properties.label}
+                    disabled={properties.disabled}
+                    value={color()}
+                    end={bind}
+                    custom={properties.custom}
+                    onValueChange={properties.onValueChange}
+                    onBind={properties.onValueChange}
+                />
+            )}
+        </TokenBinding>
+    );
+}
+
+/** Render a color in a row: a swatch that opens a picker, its text and its opacity. */
+function ColorRow(properties: {
+    /** What the color is called. */
+    readonly label: string | undefined;
+    /** Whether it takes no input. */
+    readonly disabled: boolean | undefined;
+    /** The color, none while none is picked. */
+    readonly value: string | undefined;
+    /** What follows the text inside the field, such as a button to bind a token. */
+    readonly end?: JSX.Element;
+    /** What the picker shows in place of the color's own, such as a paint's picker. */
+    readonly custom?: JSX.Element | undefined;
+    /** Handle another color being picked. */
+    readonly onValueChange: (value: string) => void;
+    /** Bind the color to a token picked in the picker, which shows a tab of tokens for it. */
+    readonly onBind?: (value: Reference) => void;
+}): JSX.Element {
+    // pick the color, or a token in its own tab where the color binds
+    const locale = useLocale();
+    const [isOpen, setOpen] = createSignal(false);
+    const bind = (reference: Reference): void => {
+        properties.onBind?.(reference);
+        setOpen(false);
+    };
+
+    // show the app's own picker, else the kit's
+    const own = (): JSX.Element =>
+        properties.custom ?? (
+            <ColorChooser value={properties.value} onValueChange={properties.onValueChange} />
+        );
 
     return (
-        <Popover>
-            <PopoverTrigger
-                render={(attributes) => (
-                    <ValueTrigger
-                        {...attributes}
-                        aria-label={properties["aria-label"]}
-                        aria-describedby={properties["aria-describedby"]}
-                        disabled={properties.disabled}
-                        xstyle={styles.control}
-                    >
-                        <ColorSwatch color={value()} />
-                        <bdi>{value()}</bdi>
-                    </ValueTrigger>
-                )}
+        <ColorPicker
+            aria-label={properties.label}
+            disabled={properties.disabled}
+            value={properties.value}
+            onValueChange={properties.onValueChange}
+            xstyle={styles.row}
+        >
+            <ColorField
+                aria-label={properties.label}
+                opacity="apart"
+                start={
+                    <Popover open={isOpen()} onOpenChange={setOpen}>
+                        <PopoverTrigger
+                            render={(attributes) => (
+                                <Button
+                                    {...attributes}
+                                    variant="ghost"
+                                    size="sm"
+                                    isIconOnly
+                                    disabled={properties.disabled}
+                                    aria-label={locale.render(t.context("action")`Pick a color`)}
+                                >
+                                    <ColorSwatch color={properties.value} />
+                                </Button>
+                            )}
+                        />
+                        <PopoverContent aria-label={properties.label} xstyle={styles.picker}>
+                            <Show when={properties.onBind} fallback={own()}>
+                                <Tabs defaultValue="custom">
+                                    <TabsList aria-label={locale.render(t.context("title")`Color`)}>
+                                        <TabsTrigger value="custom">
+                                            <TabsTitle>
+                                                {locale.render(t.context("title")`Custom`)}
+                                            </TabsTitle>
+                                        </TabsTrigger>
+                                        <TabsTrigger value="tokens">
+                                            <TabsTitle>
+                                                {locale.render(t.context("title")`Tokens`)}
+                                            </TabsTitle>
+                                        </TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="custom">{own()}</TabsContent>
+                                    <TabsContent value="tokens">
+                                        <TokenList
+                                            type="color"
+                                            root={undefined}
+                                            isShown={isOpen()}
+                                            onPick={bind}
+                                        />
+                                    </TabsContent>
+                                </Tabs>
+                            </Show>
+                        </PopoverContent>
+                    </Popover>
+                }
+                end={properties.end}
             />
-            <PopoverContent aria-label={properties["aria-label"]} xstyle={styles.picker}>
-                <ColorChooser
-                    value={value()}
-                    onValueChange={(next) => properties.onValueChange(next)}
-                />
-            </PopoverContent>
-        </Popover>
+            <FieldContext value={null}>
+                <ColorField channel="alpha" xstyle={styles.opacity} />
+            </FieldContext>
+        </ColorPicker>
     );
 }
 
 /** Render a palette: swatches a drag reorders, each picked or removed in its popover. */
-export function PaletteInput(properties: NamedValueFieldProperties): JSX.Element {
+export function PaletteInput(properties: NamedValueInputProperties): JSX.Element {
     // key each color by its value and how often it came before, as colors repeat
     const locale = useLocale();
     const colors = (): readonly string[] =>
-        schema.array(schema.string()).safeParse(properties.value).data ?? [];
+        readValue(properties.value, schema.array(schema.string())) ?? [];
     const entries = (): readonly { readonly key: string; readonly color: string }[] => {
         const seen = new Map<string, number>();
 
@@ -118,7 +239,7 @@ export function PaletteInput(properties: NamedValueFieldProperties): JSX.Element
     };
 
     return (
-        <ValueGroup
+        <ValueSet
             aria-label={properties["aria-label"]}
             aria-describedby={properties["aria-describedby"]}
             xstyle={styles.palette}
@@ -234,11 +355,11 @@ export function PaletteInput(properties: NamedValueFieldProperties): JSX.Element
 
             {/* Blend */}
             <div {...style.attrs(styles.blend(blendOf(colors())))} />
-        </ValueGroup>
+        </ValueSet>
     );
 }
 
-/** Render a color's area, hue, opacity and text, picking one color. */
+/** Render a color's area, hue, opacity, text and the screen's dropper. */
 function ColorChooser(properties: {
     /** The color, undefined while none is picked. */
     readonly value: string | undefined;
@@ -250,7 +371,10 @@ function ColorChooser(properties: {
             <ColorArea />
             <ColorSlider channel="hue" />
             <ColorSlider channel="alpha" />
-            <ColorField />
+            <div {...style.attrs(styles.row)}>
+                <ColorEyeDropper />
+                <ColorField />
+            </div>
         </ColorPicker>
     );
 }

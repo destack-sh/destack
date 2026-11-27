@@ -10,8 +10,8 @@ import {
     ComboboxInput,
     ComboboxItem,
 } from "../combobox/index.ts";
-import { ValueGroup, valueStyles } from "./group.tsx";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { ValueSet, valueStyles } from "./group.tsx";
+import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 
 /** The currencies of ISO 4217 the platform knows, as Intl lists them. */
 const CURRENCIES: readonly string[] = Intl.supportedValuesOf("currency");
@@ -31,10 +31,10 @@ const styles = style.create({
 });
 
 /** Render the input of money: its amount in the currency's major unit, and its currency. */
-export function MoneyInput(properties: NamedValueFieldProperties): JSX.Element {
+export function MoneyInput(properties: NamedValueInputProperties): JSX.Element {
     // read the money, and the digits its currency writes past the major unit
     const locale = useLocale();
-    const money = (): Money => Money.safeParse(properties.value).data ?? NO_MONEY;
+    const money = (): Money => readValue(properties.value, Money) ?? NO_MONEY;
     const scale = (): number => 10 ** Currency.digits(money().currency);
     const names = new Intl.DisplayNames([locale.tag], { type: "currency" });
     const titleOf = (code: string): string =>
@@ -45,7 +45,11 @@ export function MoneyInput(properties: NamedValueFieldProperties): JSX.Element {
         CURRENCIES.includes(money().currency) ? CURRENCIES : [...CURRENCIES, money().currency];
 
     return (
-        <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.row}>
+        <ValueSet
+            label={properties.label}
+            aria-label={properties["aria-label"]}
+            xstyle={valueStyles.row}
+        >
             {/* Amount */}
             <NumberField
                 aria-label={locale.render(t.context("label")`Amount`)}
@@ -89,6 +93,6 @@ export function MoneyInput(properties: NamedValueFieldProperties): JSX.Element {
                     </For>
                 </ComboboxContent>
             </Combobox>
-        </ValueGroup>
+        </ValueSet>
     );
 }

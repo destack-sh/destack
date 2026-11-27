@@ -5,8 +5,8 @@ import { For, type JSX, useLocale } from "@destack/view";
 import { NumberField } from "../number-field/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
-import { ValueGroup, valueStyles } from "./group.tsx";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { ValueSet, valueStyles } from "./group.tsx";
+import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 
 /** A week from Monday to Sunday, whose dates name the weekdays in the person's language. */
 const WEEK: readonly (readonly [Weekday, PlainDate])[] = [
@@ -38,14 +38,18 @@ const styles = style.create({
 });
 
 /** Render the input of a repeating rule: how often, every how many periods, and on which days. */
-export function RecurrenceInput(properties: NamedValueFieldProperties): JSX.Element {
+export function RecurrenceInput(properties: NamedValueInputProperties): JSX.Element {
     // read the rule, every week while none is given
     const locale = useLocale();
-    const rule = (): RecurrenceRule => RecurrenceRule.safeParse(properties.value).data ?? WEEKLY;
+    const rule = (): RecurrenceRule => readValue(properties.value, RecurrenceRule) ?? WEEKLY;
     const change = (next: RecurrenceRule): void => properties.onValueChange(next);
 
     return (
-        <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.row}>
+        <ValueSet
+            label={properties.label}
+            aria-label={properties["aria-label"]}
+            xstyle={valueStyles.row}
+        >
             {/* How often, and every how many */}
             <Select
                 aria-label={locale.render(t.context("label")`Repeat`)}
@@ -109,6 +113,6 @@ export function RecurrenceInput(properties: NamedValueFieldProperties): JSX.Elem
                     )}
                 </For>
             </ToggleGroup>
-        </ValueGroup>
+        </ValueSet>
     );
 }

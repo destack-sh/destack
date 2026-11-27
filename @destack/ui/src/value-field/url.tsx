@@ -1,10 +1,10 @@
 import { Url } from "@destack/schema";
 import type { JSX } from "@destack/view";
 import { Input } from "../input/index.ts";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import type { NamedValueInputProperties } from "./value-field.tsx";
 
 /** Render the input of a web address, giving it once it parses as one and none once cleared. */
-export function UrlInput(properties: NamedValueFieldProperties): JSX.Element {
+export function UrlInput(properties: NamedValueInputProperties): JSX.Element {
     return (
         <Input
             type="url"

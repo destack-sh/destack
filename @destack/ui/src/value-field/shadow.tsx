@@ -1,22 +1,38 @@
-import minusIcon from "@destack/icon/phosphor/minus";
+import { Icon } from "../icon/index.ts";
+import { Button } from "../button/index.ts";
 import plusIcon from "@destack/icon/phosphor/plus";
+import settingsIcon from "@destack/icon/phosphor/sliders-horizontal";
 import { t } from "@destack/locale";
-import { Color, Dimension, Shadow, ShadowStack } from "@destack/style";
+import { schema } from "@destack/schema";
+import { Dimension, Shadow, ShadowStack } from "@destack/style";
 import * as style from "@destack/style";
 import { For, type JSX, useLocale } from "@destack/view";
-import { Button } from "../button/index.ts";
-import { Icon } from "../icon/index.ts";
+import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Label } from "../label/index.ts";
 import { Switch } from "../switch/index.ts";
-import { jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { choiceType, jsonType, ValueStack, ValuePart, ValueSet, valueStyles } from "./group.tsx";
+import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 import { DimensionPart } from "./dimension.tsx";
+import { ColorPart } from "./color.tsx";
+
+/** Whether a shadow falls outside its box or inside it, as design tools name the two. */
+const ShadowKind = schema.enum(["drop", "inner"]);
 
 /** The types of a shadow's parts, and of each shadow of a stack. */
 const TYPES = {
-    color: jsonType(Color.bindable),
     shadow: jsonType(Shadow),
+    kind: choiceType(ShadowKind.options, {
+        drop: { title: t.context("option")`Drop shadow` },
+        inner: { title: t.context("option")`Inner shadow` },
+    }),
 };
+
+/** The styles of a shadow's popover. */
+const styles = style.create({
+    popover: {
+        width: "18rem",
+    },
+});
 
 /** The shadow an input adds, a soft drop below the box. */
 const START_SHADOW: Shadow = {
@@ -37,23 +53,21 @@ const SHADOW_LENGTHS = [
 ] as const;
 
 /** Render the input of a shadow: its color, whether it falls inside, and its four lengths. */
-export function ShadowInput(properties: NamedValueFieldProperties): JSX.Element {
+export function ShadowInput(properties: NamedValueInputProperties): JSX.Element {
     // read the shadow, a soft drop where none is given
     const locale = useLocale();
-    const shadow = (): Shadow => Shadow.safeParse(properties.value).data ?? START_SHADOW;
+    const shadow = (): Shadow => readValue(properties.value, Shadow) ?? START_SHADOW;
     const change = (next: Partial<Shadow>): void =>
         properties.onValueChange({ ...shadow(), ...next });
 
     return (
-        <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.group}>
+        <ValueSet label={properties.label} aria-label={properties["aria-label"]}>
             {/* Color, and whether it falls inside */}
             <div {...style.attrs(valueStyles.row)}>
-                <ValuePart
-                    type={TYPES.color}
-                    schema={Color.bindable}
-                    label={t.context("label")`Color`}
-                    value={shadow().color}
+                <ColorPart
+                    label={locale.render(t.context("label")`Color`)}
                     disabled={properties.disabled}
+                    value={shadow().color}
                     onValueChange={(color) => change({ color })}
                 />
                 <Label>
@@ -80,53 +94,91 @@ export function ShadowInput(properties: NamedValueFieldProperties): JSX.Element 
                     )}
                 </For>
             </div>
-        </ValueGroup>
+        </ValueSet>
     );
 }
 
-/** Render the input of shadows: an input for each, first on top. */
-export function ShadowStackInput(properties: NamedValueFieldProperties): JSX.Element {
+/** Render the input of shadows: a row for each, first on top, its fields in a popover. */
+export function ShadowStackInput(properties: NamedValueInputProperties): JSX.Element {
     // read the shadows, none where none are given
     const locale = useLocale();
-    const shadows = (): readonly Shadow[] => ShadowStack.safeParse(properties.value).data ?? [];
+    const shadows = (): readonly Shadow[] => readValue(properties.value, ShadowStack) ?? [];
     const write = (next: readonly Shadow[]): void => properties.onValueChange([...next]);
 
     return (
-        <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.group}>
-            {/* Shadows, first on top, each row kept by its place as it changes */}
-            <For each={shadows()} keyed={false}>
-                {(shadow, index) => (
-                    <div {...style.attrs(valueStyles.item)}>
-                        <ValuePart
-                            type={TYPES.shadow}
-                            schema={Shadow}
-                            label={t.context("label")`Shadow ${index + 1}`}
-                            value={shadow()}
-                            disabled={properties.disabled}
-                            onValueChange={(changed) => write(shadows().with(index, changed))}
-                        />
-                        <Button
-                            variant="ghost"
-                            isIconOnly
-                            disabled={properties.disabled}
-                            aria-label={locale.render(t.context("action")`Remove shadow`)}
-                            onClick={() => write(shadows().toSpliced(index, 1))}
-                        >
-                            <Icon icon={minusIcon} />
-                        </Button>
-                    </div>
-                )}
-            </For>
-
-            {/* Add one on top */}
-            <Button
-                variant="ghost"
+        <ValueSet
+            actions={
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    isIconOnly
+                    aria-label={locale.render(t.context("action")`Add shadow`)}
+                    disabled={properties.disabled}
+                    onClick={() => write([START_SHADOW, ...shadows()])}
+                >
+                    <Icon icon={plusIcon} />
+                </Button>
+            }
+            label={properties.label}
+            aria-label={properties["aria-label"]}
+        >
+            {/* Shadows, first on top */}
+            <ValueStack
+                items={shadows()}
+                label={(index) => locale.render(t.context("label")`Shadow ${index + 1}`)}
                 disabled={properties.disabled}
-                onClick={() => write([START_SHADOW, ...shadows()])}
+                onValueChange={write}
             >
-                <Icon icon={plusIcon} />
-                {locale.render(t.context("action")`Add shadow`)}
-            </Button>
-        </ValueGroup>
+                {(shadow, index) => {
+                    const label = () => locale.render(t.context("label")`Shadow ${index + 1}`);
+                    const change = (next: Partial<Shadow>): void =>
+                        write(shadows().with(index, { ...shadow(), ...next }));
+
+                    return (
+                        <>
+                            {/* Its fields, in a popover */}
+                            <Popover>
+                                <PopoverTrigger
+                                    render={(attributes) => (
+                                        <Button
+                                            {...attributes}
+                                            variant="ghost"
+                                            size="sm"
+                                            isIconOnly
+                                            aria-label={label()}
+                                            disabled={properties.disabled}
+                                        >
+                                            <Icon icon={settingsIcon} />
+                                        </Button>
+                                    )}
+                                />
+                                <PopoverContent aria-label={label()} xstyle={styles.popover}>
+                                    <ValuePart
+                                        type={TYPES.shadow}
+                                        schema={Shadow}
+                                        label={t.context("label")`Shadow ${index + 1}`}
+                                        value={shadow()}
+                                        disabled={properties.disabled}
+                                        onValueChange={(changed) =>
+                                            write(shadows().with(index, changed))
+                                        }
+                                    />
+                                </PopoverContent>
+                            </Popover>
+
+                            {/* Outside the box, or inside it */}
+                            <ValuePart
+                                type={TYPES.kind}
+                                schema={ShadowKind}
+                                label={t.context("label")`Kind`}
+                                value={shadow().inset ? "inner" : "drop"}
+                                disabled={properties.disabled}
+                                onValueChange={(kind) => change({ inset: kind === "inner" })}
+                            />
+                        </>
+                    );
+                }}
+            </ValueStack>
+        </ValueSet>
     );
 }

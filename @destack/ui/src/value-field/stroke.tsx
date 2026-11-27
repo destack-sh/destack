@@ -1,20 +1,23 @@
+import weightIcon from "@destack/icon/phosphor/line-segments";
 import { t } from "@destack/locale";
-import { Color, LINE_STYLES, LineStyle, Stroke, STROKE_ALIGNS, StrokeAlign } from "@destack/style";
-import * as style from "@destack/style";
-import { type JSX, useLocale } from "@destack/view";
-import { choiceType, jsonType, ValueGroup, ValuePart, valueStyles } from "./group.tsx";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { present } from "@destack/schema";
+import { LINE_STYLES, LineStyle, Stroke, STROKE_ALIGNS, StrokeAlign } from "@destack/style";
+import { type JSX, Show, useLocale } from "@destack/view";
+import { choiceType, ValueNone, ValuePart, ValueSet } from "./group.tsx";
+import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 import { DimensionPart } from "./dimension.tsx";
+import { ColorPart } from "./color.tsx";
+import { FieldGroup } from "../field/field.tsx";
+import { Icon } from "../icon/index.ts";
 
 /** The types of a stroke's parts. */
 const TYPES = {
-    color: jsonType(Color.bindable),
     style: choiceType(LineStyle.options, LINE_STYLES),
     align: choiceType(StrokeAlign.options, STROKE_ALIGNS),
 };
 
-/** The stroke an input starts at, a thin black border, as design tools start one. */
-const START_STROKE: Stroke = {
+/** The stroke a person adds, a thin black border, as design tools start one. */
+const NEW_STROKE: Stroke = {
     color: "#000000",
     width: { value: 1, unit: "px" },
     style: "solid",
@@ -22,52 +25,69 @@ const START_STROKE: Stroke = {
 };
 
 /** Render the input of a stroke: its color, width, how it is drawn and where it runs. */
-export function StrokeInput(properties: NamedValueFieldProperties): JSX.Element {
+export function StrokeInput(properties: NamedValueInputProperties): JSX.Element {
     // read the stroke, a thin black border where none is given
     const locale = useLocale();
-    const stroke = (): Stroke => Stroke.safeParse(properties.value).data ?? START_STROKE;
+    const stroke = (): Stroke | undefined => readValue(properties.value, Stroke);
     const change = (next: Partial<Stroke>): void =>
-        properties.onValueChange({ ...stroke(), ...next });
+        properties.onValueChange({ ...present(stroke(), "the value changed"), ...next });
 
     return (
-        <ValueGroup aria-label={properties["aria-label"]} xstyle={valueStyles.group}>
-            {/* Color and width */}
-            <div {...style.attrs(valueStyles.row)}>
-                <ValuePart
-                    type={TYPES.color}
-                    schema={Color.bindable}
-                    label={t.context("label")`Color`}
-                    value={stroke().color}
+        <Show
+            when={stroke()}
+            fallback={
+                <ValueNone
+                    label={properties.label}
+                    aria-label={properties["aria-label"]}
                     disabled={properties.disabled}
-                    onValueChange={(color) => change({ color })}
+                    onAdd={() => properties.onValueChange(NEW_STROKE)}
                 />
-                <DimensionPart
-                    label={locale.render(t.context("label")`Width`)}
-                    disabled={properties.disabled === true}
-                    value={stroke().width}
-                    onValueChange={(width) => change({ width })}
-                />
-            </div>
+            }
+        >
+            {(current) => (
+                <ValueSet label={properties.label} aria-label={properties["aria-label"]}>
+                    {/* Color */}
+                    <FieldGroup columns={1}>
+                        <ColorPart
+                            label={locale.render(t.context("label")`Color`)}
+                            disabled={properties.disabled}
+                            value={current().color}
+                            onValueChange={(color) => change({ color })}
+                        />
+                    </FieldGroup>
 
-            {/* How it is drawn, and where it runs */}
-            <div {...style.attrs(valueStyles.row)}>
-                <ValuePart
-                    type={TYPES.style}
-                    schema={LineStyle}
-                    label={t.context("label")`Style`}
-                    value={stroke().style}
-                    disabled={properties.disabled}
-                    onValueChange={(line) => change({ style: line })}
-                />
-                <ValuePart
-                    type={TYPES.align}
-                    schema={StrokeAlign}
-                    label={t.context("label")`Position`}
-                    value={stroke().align}
-                    disabled={properties.disabled}
-                    onValueChange={(align) => change({ align })}
-                />
-            </div>
-        </ValueGroup>
+                    {/* Where it runs, and its weight */}
+                    <FieldGroup columns={2}>
+                        <ValuePart
+                            type={TYPES.align}
+                            schema={StrokeAlign}
+                            label={t.context("label")`Position`}
+                            value={current().align}
+                            disabled={properties.disabled}
+                            onValueChange={(align) => change({ align })}
+                        />
+                        <DimensionPart
+                            label={locale.render(t.context("label")`Weight`)}
+                            start={<Icon icon={weightIcon} />}
+                            disabled={properties.disabled === true}
+                            value={current().width}
+                            onValueChange={(width) => change({ width })}
+                        />
+                    </FieldGroup>
+
+                    {/* How it is drawn */}
+                    <FieldGroup columns={1}>
+                        <ValuePart
+                            type={TYPES.style}
+                            schema={LineStyle}
+                            label={t.context("label")`Style`}
+                            value={current().style}
+                            disabled={properties.disabled}
+                            onValueChange={(line) => change({ style: line })}
+                        />
+                    </FieldGroup>
+                </ValueSet>
+            )}
+        </Show>
     );
 }

@@ -4,16 +4,16 @@ import { Rating } from "@destack/schema";
 import { For, type JSX, useLocale } from "@destack/view";
 import { Icon } from "../icon/index.ts";
 import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
-import type { NamedValueFieldProperties } from "./value-field.tsx";
+import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 
 /** The most stars a rating shows where its schema sets no most, as rating widgets show five. */
 const STARS = 5;
 
 /** Render the input of a rating: a row of stars, pressing the one given again clearing it. */
-export function RatingInput(properties: NamedValueFieldProperties): JSX.Element {
+export function RatingInput(properties: NamedValueInputProperties): JSX.Element {
     // read the rating and the most stars its schema allows
     const locale = useLocale();
-    const rating = (): number => Rating.safeParse(properties.value).data ?? 0;
+    const rating = (): number => readValue(properties.value, Rating) ?? 0;
     const most = (): number => {
         const maximum = properties.type.schema["maximum"];
 
