@@ -4,6 +4,8 @@ import type { DependencyRelease } from "../definition/dependency.ts";
 import { DependencyName } from "../definition/package.ts";
 import { PackageManifest } from "./manifest.ts";
 import type { ImportMap } from "./output.ts";
+import { ViewDescription } from "./view.ts";
+import { PackageName } from "../definition/package.ts";
 import type { Runtime } from "../runtime/index.ts";
 
 /** The image format a store writes. */
@@ -90,6 +92,68 @@ export const BuildImage = Object.assign(image, {
         }
 
         return BuildImage.of(root, links);
+    },
+
+    /** List the apps an image's root requires: its required names whose builds are apps. */
+    async apps(
+        value: BuildImage,
+        read: (manifest: Digest) => Promise<PackageManifest | undefined>,
+    ): Promise<{ readonly name: string; readonly digest: Digest }[]> {
+        // resolve each required name in the image, keeping the app builds
+        const root = present(await read(value.root), `the root of image ${value.root}`);
+        const found = await Promise.all(
+            Object.keys(root.requires).map(async (name) => {
+                // read the name's build, and whether it is an app
+                const digest = BuildImage.resolve(value, value.root, name);
+                const manifest = digest === undefined ? undefined : await read(digest);
+                const isApp =
+                    manifest !== undefined &&
+                    PackageManifest.isPackage(manifest) &&
+                    manifest.role === "app";
+
+                return digest !== undefined && isApp ? [{ name, digest }] : [];
+            }),
+        );
+
+        return found.flat();
+    },
+
+    /** List the views an image serves by name: its root's, and each required app's main view. */
+    async views(
+        value: BuildImage,
+        read: (manifest: Digest) => Promise<PackageManifest | undefined>,
+    ): Promise<
+        Record<
+            string,
+            { readonly build: Digest; readonly name: string; readonly view: ViewDescription }
+        >
+    > {
+        // take the root's views by their names
+        const root = present(await read(value.root), `the root of image ${value.root}`);
+        const own = Object.entries(ViewDescription.list(root)).map(
+            ([name, view]) => [name, { build: value.root, name, view }] as const,
+        );
+
+        // take each required app's main view under the last part of its name
+        const apps = await Promise.all(
+            (await BuildImage.apps(value, read)).map(async ({ name, digest }) => {
+                // read the app's main view
+                const views = ViewDescription.list(present(await read(digest), `the app ${name}`));
+                const main = ViewDescription.main(views);
+                const view = main === undefined ? undefined : views[main];
+
+                return view === undefined
+                    ? []
+                    : [
+                          [
+                              PackageName.split(name).local,
+                              { build: digest, name: present(main, "the main view"), view },
+                          ] as const,
+                      ];
+            }),
+        );
+
+        return Object.fromEntries([...apps.flat(), ...own]);
     },
 
     /** Serialize an image as its canonical bytes, whose digest identifies it. */
@@ -230,32 +294,43 @@ export const BuildImage = Object.assign(image, {
 
             return reading;
         };
-        const first = await once(value.root);
-        const pending = PackageManifest.outputs(
-            present(first, `the root of image ${value.root}`),
-            runtime,
-        ).flatMap((output) => {
-            const mounted = new Set(
-                [
-                    ...Object.values(output.views),
-                    ...(output.example === undefined ? [] : [output.example]),
-                ].map((view) => view.entrypoint),
-            );
-            const started =
-                entries === "export"
-                    ? Object.keys(output.exports)
-                    : [
-                          ...Object.values(output.workloads).map((each) => each.entrypoint),
-                          ...Object.entries(output.exports)
-                              .filter(([, exported]) => mounted.has(exported.path))
-                              .map(([subpath]) => subpath),
-                      ];
+        const startOf = (digest: Digest, manifest: PackageManifest) =>
+            PackageManifest.outputs(manifest, runtime).flatMap((output) => {
+                const mounted = new Set(
+                    [
+                        ...Object.values(output.views),
+                        ...(output.example === undefined ? [] : [output.example]),
+                    ].map((view) => view.entrypoint),
+                );
+                const started =
+                    entries === "export" && digest === value.root
+                        ? Object.keys(output.exports)
+                        : [
+                              ...Object.values(output.workloads).map((each) => each.entrypoint),
+                              ...Object.entries(output.exports)
+                                  .filter(([, exported]) => mounted.has(exported.path))
+                                  .map(([subpath]) => subpath),
+                          ];
 
-            return started.map((subpath) => ({ manifest: value.root, subpath }));
-        });
+                return started.map((subpath) => ({ manifest: digest, subpath }));
+            });
+        const first = present(await once(value.root), `the root of image ${value.root}`);
+
+        // start at the root, and at each app it requires, whose views its origin serves beside its own
+        const apps = await BuildImage.apps(value, once);
+        const pending = [
+            ...startOf(value.root, first),
+            ...(
+                await Promise.all(
+                    apps.map(async ({ digest }) =>
+                        startOf(digest, present(await once(digest), `the app build ${digest}`)),
+                    ),
+                )
+            ).flat(),
+        ];
 
         // follow each export once to the image's builds its chunks import
-        const loaded = new Set<Digest>([value.root]);
+        const loaded = new Set<Digest>([value.root, ...apps.map(({ digest }) => digest)]);
         const visited = new Set<string>();
         const expanded = new Set<Digest>();
         const units: Digest[] = [];
@@ -348,7 +423,8 @@ export const BuildImage = Object.assign(image, {
             }
         }
 
-        // map each dependency's exports in its dependent's scope
+        // map each dependency's exports in its dependent's scope, the root importing the apps it requires
+        const apps = new Set((await BuildImage.apps(value, read)).map(({ name }) => name));
         const map: ImportMap = { imports: {}, scopes: {} };
         const visited = new Set<string>([`${value.root} app`]);
         const pending = [{ digest: value.root, scope: map.imports, isLinked: false }];
@@ -357,11 +433,12 @@ export const BuildImage = Object.assign(image, {
             const own = dependent.package.name;
             for (const output of PackageManifest.outputs(dependent, runtime)) {
                 // take each imported package's build
-                const names = new Set(
-                    Object.values(output.exports).flatMap((exported) =>
+                const names = new Set([
+                    ...Object.values(output.exports).flatMap((exported) =>
                         exported.imports.map((specifier) => DependencyName.of(specifier)),
                     ),
-                );
+                    ...(digest === value.root ? apps : []),
+                ]);
                 const dependencies = [...names].flatMap((name) => {
                     // take the build itself for its package's name, as a package imports its exports by it
                     if (name === own) {
