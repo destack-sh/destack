@@ -4,11 +4,11 @@ import { afterAll, expect, test, vi } from "@destack/test";
 import { BrowserEnvironment } from "@destack/environment/browser";
 import { ActionRegistry, type JSX, PageRoot, renderToString } from "@destack/view";
 import type { Example } from "@destack/package/declare";
-import manifest from "../package.json" with { type: "json" };
 import { CodeBlockContent } from "../src/code-block/index.ts";
 import { Diff } from "../src/diff/index.ts";
 import { Sidebar, SidebarContent, SidebarProvider, SidebarTrigger } from "../src/sidebar/index.ts";
 import { Toaster } from "../src/toast/index.ts";
+import { DIRECTORIES } from "./fixture/components.ts";
 
 /** The class attributes StyleX writes, whose names hash the styles. */
 const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
@@ -16,32 +16,9 @@ const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
 /** The bodies of inline icons. */
 const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 
-/** The state units and part builders the package exports, which show no examples. */
-const STATE = new Set([
-    "action",
-    "build",
-    "collection",
-    "drag",
-    "focus",
-    "interaction",
-    "markdown",
-    "motion",
-    "part",
-    "position",
-    "selection",
-    "toggle-state",
-    "virtualizer",
-]);
-
-/** The components the package exports, leaving out wrapped chart entries, stylesheets and state. */
-const COMPONENTS = Object.keys(manifest.exports)
-    .filter((path) => !path.includes("*") && !path.endsWith(".css"))
-    .map((path) => path.slice(2))
-    .filter((name) => !STATE.has(name));
-
 /** The examples module of each component, loaded once before the tests run. */
 const EXAMPLES: readonly (readonly [string, object])[] = await Promise.all(
-    COMPONENTS.map(
+    DIRECTORIES.map(
         async (name) => [name, await import(`../src/${name}/${name}.example.tsx`)] as const,
     ),
 );
@@ -101,11 +78,10 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
         '<div _hk=004040 data-slot="sidebar-wrapper">' +
             '<div _hk=00404340 data-slot="sidebar" id="000" data-open data-variant="sidebar" data-side="left"><div _hk=00404341>' +
             '<div _hk=0040434240 data-slot="sidebar-content">Notebooks</div></div></div>' +
-            '<button _hk=0040490 data-variant="ghost" data-size="default" type="button" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true" data-slot="sidebar-trigger">' +
-            '<svg _hk=0040491 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
-            '<section _hk=00404i1 aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
-            '<ol popover="manual" data-slot="toaster-stack" style="--x-height:0px"></ol></section></div>' +
-            '<div _hk=004110440 data-slot="tooltip-content" id="001" popover="hint" role="tooltip" data-closed data-side="right" data-align="center"></div>',
+            '<button _hk=00404750 data-variant="ghost" data-size="default" type="button" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true" data-slot="sidebar-trigger">' +
+            '<svg _hk=00404751 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
+            '<section _hk=00404h1 aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
+            '<ol popover="manual" data-slot="toaster-stack" style="--x-height:0px"></ol></section></div>',
     );
 });
 
@@ -140,7 +116,7 @@ test("render every exported component's examples to strings without a browser, w
     }
 
     // render every example without a write, which Solid warns of, and at least one of each component
-    expect([failures, warn.mock.calls, [...rendered]]).toEqual([[], [], COMPONENTS]);
+    expect([failures, warn.mock.calls, [...rendered]]).toEqual([[], [], DIRECTORIES]);
 });
 
 /** Report whether an export is an example, which renders an element. */
