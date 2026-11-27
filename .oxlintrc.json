@@ -348,7 +348,7 @@
                 {
                     "directory": "@destack/finance",
                     "name": "@destack/finance",
-                    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their quotas."
+                    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements."
                 },
                 {
                     "directory": "@destack/forge",
@@ -523,7 +523,7 @@
                 {
                     "directory": "@platform/deployment",
                     "name": "@platform/deployment",
-                    "description": "Deploy the platform Destack operates: its universe and cloud machines on Cloudflare, or the local universe on this computer."
+                    "description": "Deploy the platform Destack operates: its universe and managed machines on Cloudflare, or the local universe on this computer."
                 },
                 {
                     "directory": "@platform/distribution",
@@ -584,7 +584,11 @@
                     "directory": "@destack/cli/tests/fixture/notebooks",
                     "name": "@example/notebooks"
                 },
-                { "directory": "@destack/cli/tests/fixture/starter", "name": "@example/starter" },
+                {
+                    "directory": "@destack/cli/tests/fixture/starter",
+                    "name": "@example/starter",
+                    "description": "Start a package of Example's."
+                },
                 {
                     "directory": "@destack/view/tests/fixture/notebook",
                     "name": "@destack/view-notebook-fixture"
