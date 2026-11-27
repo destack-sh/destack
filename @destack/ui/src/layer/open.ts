@@ -235,10 +235,16 @@ export class OpenState<Payload = unknown> {
 
     /** Open or close the overlay as the platform does, reporting whether it stays so. */
     follow(isOpen: boolean, change: OpenChange<Payload>): boolean {
+        // take the change, running what follows it
         this.set(isOpen, change);
         flush();
 
-        return !change.isCancelable || untrack(this.isOpen) === isOpen;
+        // take its own state as the change left it, as a flush inside another commits nothing yet
+        const isOwn = untrack(() => this.#properties.open) === undefined;
+
+        return (
+            !change.isCancelable || (isOwn ? !change.isCanceled : untrack(this.isOpen) === isOpen)
+        );
     }
 }
 
