@@ -10,18 +10,20 @@ const UNIT_MILLISECONDS = {
 } as const;
 
 /** The schema of a duration. */
-const durationSchema = schema.object({
-    /** Whole or partial days. */
-    days: schema.number().nonnegative().exactOptional(),
-    /** Hours. */
-    hours: schema.number().nonnegative().exactOptional(),
-    /** Minutes. */
-    minutes: schema.number().nonnegative().exactOptional(),
-    /** Seconds. */
-    seconds: schema.number().nonnegative().exactOptional(),
-    /** Milliseconds. */
-    milliseconds: schema.number().nonnegative().exactOptional(),
-});
+const durationSchema = schema
+    .object({
+        /** Whole or partial days. */
+        days: schema.number().nonnegative().exactOptional(),
+        /** Hours. */
+        hours: schema.number().nonnegative().exactOptional(),
+        /** Minutes. */
+        minutes: schema.number().nonnegative().exactOptional(),
+        /** Seconds. */
+        seconds: schema.number().nonnegative().exactOptional(),
+        /** Milliseconds. */
+        milliseconds: schema.number().nonnegative().exactOptional(),
+    })
+    .meta({ id: "duration", title: "Duration" });
 
 /** A span of time in the optional units of a Temporal duration. */
 export type Duration = Readonly<schema.Infer<typeof durationSchema>>;
