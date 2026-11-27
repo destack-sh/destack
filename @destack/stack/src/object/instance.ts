@@ -1,5 +1,5 @@
 import { principal } from "@destack/access";
-import { and, eq, ne, type Select } from "@destack/db";
+import { and, desc, eq, ne, type Select } from "@destack/db";
 import type { DatabaseConnection } from "@destack/db/database";
 import { type ObjectOf, defineObject, field, Condition } from "@destack/object";
 import { schema, type Identifier, type Version } from "@destack/schema";
@@ -150,5 +150,69 @@ export const Instance = {
         return running.map(({ since, ...endpoint }) =>
             since === null ? endpoint : { ...endpoint, since },
         );
+    },
+
+    /** List an installation's active deployments that neither run an instance nor failed. */
+    async pending(
+        database: DatabaseConnection,
+        installationId: Identifier<"installation">,
+    ): Promise<Omit<Endpoint, "instanceId">[]> {
+        // read the active deployments and the states of their instances
+        const active = await database
+            .select({
+                deploymentId: deployment.table.id,
+                scope: deployment.table.scope,
+                workload: deployment.table.workload,
+                runtime: deployment.table.runtime,
+                release: deployment.table.release,
+                since: deployment.table.since,
+            })
+            .from(deployment.table)
+            .where(
+                and(
+                    eq(deployment.table.installationId, installationId),
+                    eq(deployment.table.status, "active"),
+                    ne(deployment.table.runtime, PROCESS_RUNTIME),
+                ),
+            );
+        const states = await database
+            .select({ deploymentId: instance.table.deploymentId, status: instance.table.status })
+            .from(instance.table)
+            .innerJoin(deployment.table, eq(deployment.table.id, instance.table.deploymentId))
+            .where(eq(deployment.table.installationId, installationId));
+
+        // keep the ones whose instance neither runs nor failed
+        const settled = new Set(
+            states
+                .filter((state) => state.status === "running" || state.status === "failed")
+                .map((state) => state.deploymentId),
+        );
+
+        return active
+            .filter((each) => !settled.has(each.deploymentId))
+            .map(({ since, ...pending }) => (since === null ? pending : { ...pending, since }));
+    },
+
+    /** Read why an installation's latest failed instance failed to start, absent for none. */
+    async failure(
+        database: DatabaseConnection,
+        installationId: Identifier<"installation">,
+    ): Promise<string | undefined> {
+        const failed = await database
+            .select({ conditions: instance.table.conditions })
+            .from(instance.table)
+            .innerJoin(deployment.table, eq(deployment.table.id, instance.table.deploymentId))
+            .where(
+                and(
+                    eq(deployment.table.installationId, installationId),
+                    eq(deployment.table.status, "active"),
+                    eq(instance.table.status, "failed"),
+                ),
+            )
+            .orderBy(desc(instance.table.updatedAt))
+            .limit(1);
+        const [latest] = failed;
+
+        return latest?.conditions["Ready"]?.message;
     },
 };

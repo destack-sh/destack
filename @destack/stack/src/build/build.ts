@@ -9,16 +9,16 @@ import type {
     BuildExtension,
     Compilation,
     CompiledOutput,
-    DeclarationModule,
     OutputDescription,
     Plugin,
 } from "@destack/package/build";
 import { DeclarationReference } from "@destack/package/declare";
 import { WorkloadDefinition, WorkloadDescription } from "@destack/package/manifest";
-import { WORKLOAD_EXPORT, WORKLOAD_KIND } from "@destack/object/workload";
+import { WORKLOAD_KIND, WorkloadModule } from "@destack/object/workload";
 import { PACKAGE_KIND, PackageDescription } from "@destack/object";
 import { StackError } from "../error/index.ts";
 import { HOOK_WORKLOAD } from "../workload/hook.ts";
+import { DERIVED_WORKLOADS } from "../workload/derived.ts";
 
 /** The prefix of the generated modules running each workload. */
 const PREFIX = "virtual:@destack/stack/workload/";
@@ -35,13 +35,12 @@ export const stackBuild: BuildExtension = {
         return [workloadPlugin(workloads)];
     },
     describe(compilation, compiled) {
-        // describe each declared workload by the declarations its entry imports, and the hooks workload by its own
+        // describe each declared workload by the declarations its entry imports, and each derived one by its own
         const workloads: Record<string, WorkloadDescription> = {};
         for (const workload of runnable(compilation)) {
-            workloads[workload.name] =
-                workload.name === HOOK_WORKLOAD
-                    ? describeHooks(workload, compilation)
-                    : describe(workload, compilation, compiled);
+            workloads[workload.name] = DERIVED_WORKLOADS.has(workload.name)
+                ? describeDerived(workload, compilation)
+                : describe(workload, compilation, compiled);
         }
 
         return { workloads } satisfies OutputDescription;
@@ -79,20 +78,21 @@ function runnable(compilation: Compilation): Runnable[] {
         module: compilation.locate(declaration),
     }));
 
-    // run each declared workload, refusing one under the hooks workload's name
+    // run each declared workload, refusing one under a derived workload's name
     const declared = declarations.filter(({ kind, package: { id } }) => WORKLOAD_KIND.is(kind, id));
-    if (declared.some((workload) => workload.name === HOOK_WORKLOAD)) {
+    const reserved = declared.find((workload) => DERIVED_WORKLOADS.has(workload.name));
+    if (reserved !== undefined) {
         throw StackError.of(
             "DEFINITION_INVALID",
-            `workload name '${HOOK_WORKLOAD}' is invalid: it is reserved for a package's hook workload`,
+            `workload name '${reserved.name}' is invalid: it is reserved for a workload its build derives`,
         );
     }
     const workloads = declared.map((workload) => ({
         name: workload.name,
         entrypoint: `./workload/${workload.name}`,
         definition: workload.description,
-        code: runModule(
-            [importModule(compilation.locate(workload), "workload")],
+        code: WorkloadModule.write(
+            [WorkloadModule.import(compilation.locate(workload), "workload")],
             "workload",
             resources,
             runtime,
@@ -119,11 +119,11 @@ function hookRunnable(
     // start the hooks' server over the package's routes
     const routing = hooked.map((_, index) => `routing${index}`).join(", ");
     const module = JSON.stringify({ package: compilation.package });
-    const code = runModule(
+    const code = WorkloadModule.write(
         [
             'import { defineWorkload, serveHooks } from "@destack/stack/workload";',
             ...hooked.map((declaration, index) =>
-                importModule(compilation.locate(declaration), `routing${index}`),
+                WorkloadModule.import(compilation.locate(declaration), `routing${index}`),
             ),
             `const workload = defineWorkload({ name: ${JSON.stringify(HOOK_WORKLOAD)}, start: serveHooks([${routing}]) }, ${module});`,
         ],
@@ -150,8 +150,8 @@ function hasHooks(declaration: DeclarationDescription): boolean {
     return Object.values(objects).some((routed) => Object.keys(routed.hooks).length > 0);
 }
 
-/** Describe the hooks workload: no packages, bindings or sandbox abilities. */
-function describeHooks(workload: Runnable, compilation: Compilation): WorkloadDescription {
+/** Describe a derived workload: no packages, bindings or sandbox abilities. */
+function describeDerived(workload: Runnable, compilation: Compilation): WorkloadDescription {
     return WorkloadDescription.parse({
         entrypoint: workload.entrypoint,
         packages: [],
@@ -233,31 +233,6 @@ function workloadPlugin(workloads: readonly Runnable[]): Plugin {
                 workloads.find((workload) => `\0${PREFIX}${workload.name}` === id)?.code,
         },
     };
-}
-
-/** Write a module running a workload with its declarations and the package's resources. */
-function runModule(
-    lines: readonly string[],
-    workload: string,
-    resources: readonly { name: string; module: DeclarationModule }[],
-    runtime: "bun" | "workerd",
-): string {
-    const bound = `{ ${resources.map(({ name }, index) => `${JSON.stringify(name)}: resource${index}`).join(", ")} }`;
-
-    return [
-        runtime === "bun"
-            ? 'import { hostWorkload } from "@destack/object/bun";'
-            : 'import { hostWorkload } from "@destack/object/cloudflare";',
-        ...resources.map(({ module }, index) => importModule(module, `resource${index}`)),
-        ...lines,
-        `export const ${WORKLOAD_EXPORT} = hostWorkload(${workload}, ${bound});`,
-        ...(runtime === "bun" ? [`if (import.meta.main) await ${WORKLOAD_EXPORT}.run();`] : []),
-    ].join("\n");
-}
-
-/** Write an import of a located declaration under a local name. */
-function importModule(module: DeclarationModule, local: string): string {
-    return `import { ${module.export} as ${local} } from ${JSON.stringify(module.file)};`;
 }
 
 /** Select the package's own declarations. */
