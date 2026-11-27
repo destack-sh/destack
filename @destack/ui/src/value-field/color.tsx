@@ -18,6 +18,7 @@ import {
 import { Icon } from "../icon/index.ts";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Sortable, SortableContainer, SortableItem, type SortableMove } from "../sortable/index.ts";
+import { ValueGroup, ValueTrigger } from "./group.tsx";
 import type { NamedValueFieldProperties } from "./value-field.tsx";
 
 /** The color a list of colors adds first, before it has one to repeat. */
@@ -60,9 +61,8 @@ export function ColorInput(properties: NamedValueFieldProperties): JSX.Element {
         <Popover>
             <PopoverTrigger
                 render={(attributes) => (
-                    <Button
+                    <ValueTrigger
                         {...attributes}
-                        variant="outline"
                         aria-label={properties["aria-label"]}
                         aria-describedby={properties["aria-describedby"]}
                         disabled={properties.disabled}
@@ -70,7 +70,7 @@ export function ColorInput(properties: NamedValueFieldProperties): JSX.Element {
                     >
                         <ColorSwatch color={value()} />
                         <bdi>{value()}</bdi>
-                    </Button>
+                    </ValueTrigger>
                 )}
             />
             <PopoverContent aria-label={properties["aria-label"]} xstyle={styles.picker}>
@@ -118,11 +118,10 @@ export function PaletteInput(properties: NamedValueFieldProperties): JSX.Element
     };
 
     return (
-        <div
-            role="group"
+        <ValueGroup
             aria-label={properties["aria-label"]}
             aria-describedby={properties["aria-describedby"]}
-            {...style.attrs(styles.palette)}
+            xstyle={styles.palette}
         >
             {/* Swatches */}
             <div {...style.attrs(styles.row)}>
@@ -235,7 +234,7 @@ export function PaletteInput(properties: NamedValueFieldProperties): JSX.Element
 
             {/* Blend */}
             <div {...style.attrs(styles.blend(blendOf(colors())))} />
-        </div>
+        </ValueGroup>
     );
 }
 
