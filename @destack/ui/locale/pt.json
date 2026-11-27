@@ -6514,6 +6514,178 @@
             "source": "Fit",
             "context": "label",
             "translation": "Ajuste"
+        },
+        "3rkrow5tltvck": {
+            "source": "A sidebar's width, its number and its unit.",
+            "translation": "A largura de uma barra lateral, o seu número e a sua unidade."
+        },
+        "35d8g10rtxl8y": {
+            "source": "Blur",
+            "context": "label",
+            "translation": "Desfoque"
+        },
+        "3p3fkxt6nq7bs": {
+            "source": "Spread",
+            "context": "label",
+            "translation": "Extensão"
+        },
+        "2gig2qk6se76k": {
+            "source": "Refuses the number and the unit, so the length cannot change now.",
+            "translation": "Recusa o número e a unidade, pelo que o comprimento não pode mudar agora."
+        },
+        "gqzthbm80llv": {
+            "source": "Amount",
+            "context": "label",
+            "translation": "Valor"
+        },
+        "yzjv69xg6n9h": {
+            "source": "Unit",
+            "context": "label",
+            "translation": "Unidade"
+        },
+        "36z5m91azs9mn": {
+            "source": "Top left",
+            "context": "label",
+            "translation": "Superior esquerdo"
+        },
+        "1v35e6mr3aauo": {
+            "source": "Top right",
+            "context": "label",
+            "translation": "Superior direito"
+        },
+        "152cgb4zunq4a": {
+            "source": "Bottom right",
+            "context": "label",
+            "translation": "Inferior direito"
+        },
+        "ahxw76q6z32x": {
+            "source": "Bottom left",
+            "context": "label",
+            "translation": "Inferior esquerdo"
+        },
+        "1ohtxaqdx5qul": {
+            "source": "Each corner",
+            "context": "action",
+            "translation": "Cada canto"
+        },
+        "180v59w0nzxye": {
+            "source": "Top",
+            "context": "label",
+            "translation": "Cima"
+        },
+        "3lk0eldtudidf": {
+            "source": "Right",
+            "context": "label",
+            "translation": "Direita"
+        },
+        "1l8cppx8wx0e0": {
+            "source": "Bottom",
+            "context": "label",
+            "translation": "Baixo"
+        },
+        "2vbbh7dg07c26": {
+            "source": "Left",
+            "context": "label",
+            "translation": "Esquerda"
+        },
+        "19mmqaohy4du3": {
+            "source": "Each side",
+            "context": "action",
+            "translation": "Cada lado"
+        },
+        "3o4y15akzns2g": {
+            "source": "Style",
+            "context": "label",
+            "translation": "Estilo"
+        },
+        "2ro9izzjvwj7h": {
+            "source": "Shadow {$p0}",
+            "context": "label",
+            "translation": "Sombra {$p0}"
+        },
+        "3k4olda3ray93": {
+            "source": "Inside",
+            "context": "label",
+            "translation": "Dentro"
+        },
+        "2ymermyp6qflz": {
+            "source": "Remove shadow",
+            "context": "action",
+            "translation": "Remover sombra"
+        },
+        "tadhrvnkmgzk": {
+            "source": "Add shadow",
+            "context": "action",
+            "translation": "Adicionar sombra"
+        },
+        "8b4st0smjnf9": {
+            "source": "Radius",
+            "context": "label",
+            "translation": "Raio"
+        },
+        "tszpn9e3d1ry": {
+            "source": "Font family",
+            "context": "label",
+            "translation": "Família tipográfica"
+        },
+        "2yz3xkfdwyi8g": {
+            "source": "Line height",
+            "context": "label",
+            "translation": "Altura da linha"
+        },
+        "34s3gkvx1g2yy": {
+            "source": "Letter spacing",
+            "context": "label",
+            "translation": "Espaçamento entre letras"
+        },
+        "13ugtxte49ei1": {
+            "source": "Rotation",
+            "context": "label",
+            "translation": "Rotação"
+        },
+        "110emskh7pmyr": {
+            "source": "Width scale",
+            "context": "label",
+            "translation": "Escala da largura"
+        },
+        "31htirga43yqy": {
+            "source": "Height scale",
+            "context": "label",
+            "translation": "Escala da altura"
+        },
+        "2n158dkk1jau1": {
+            "source": "Gap",
+            "context": "label",
+            "translation": "Espaçamento"
+        },
+        "146ij7dbmts0f": {
+            "source": "Wrap",
+            "context": "label",
+            "translation": "Quebrar"
+        },
+        "289x0xd9wk6z8": {
+            "source": "Padding",
+            "context": "label",
+            "translation": "Preenchimento"
+        },
+        "dr1mz7ws6hdf": {
+            "source": "Duration",
+            "context": "label",
+            "translation": "Duração"
+        },
+        "wnvlx2o8tmwm": {
+            "source": "Delay",
+            "context": "label",
+            "translation": "Atraso"
+        },
+        "327tytaak268u": {
+            "source": "Easing",
+            "context": "label",
+            "translation": "Aceleração"
+        },
+        "24364epls0fgw": {
+            "source": "The inputs of a card's design, with what they give.",
+            "translation": "As entradas do design de um cartão, com o que dão."
         }
     }
 }

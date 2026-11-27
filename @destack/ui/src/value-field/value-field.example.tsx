@@ -1,10 +1,26 @@
-import { Color, FillStack, Gradient, Paint, Palette } from "@destack/style";
+import {
+    Blur,
+    BoxSides,
+    Color,
+    Corners,
+    Dimension,
+    FillStack,
+    Gradient,
+    Layout,
+    Paint,
+    Palette,
+    ShadowStack,
+    Stroke,
+    Transform,
+    Transition,
+    Typography,
+} from "@destack/style";
 import { t } from "@destack/locale";
 import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
-import { createSignal } from "@destack/view";
+import { createSignal, For } from "@destack/view";
 import { Field, FieldLabel } from "../field/index.ts";
 import { ValueField, ValueFieldProvider } from "./value-field.tsx";
 
@@ -136,6 +152,69 @@ export const valueFieldKinds = defineExample({
                         {...of("background")}
                     />
                 </Field>
+                <output>{JSON.stringify(given())}</output>
+            </div>
+        );
+    },
+});
+
+/** The inputs of a card's design, from its corners to its motion. */
+export const valueFieldDesign = defineExample({
+    of: ValueField,
+    name: "design",
+    description: t`The inputs of a card's design, with what they give.`,
+    layout: "padded",
+    render: () => {
+        // keep what the inputs give, starting from a raised card
+        const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
+            corners: Corners.all("12px"),
+            padding: { ...BoxSides.all("16px"), top: "24px" },
+            stroke: { color: "#00000014", width: "1px", align: "inside", style: "solid" },
+            shadows: [
+                {
+                    color: "#0000001f",
+                    x: "0",
+                    y: "8px",
+                    blur: "24px",
+                    spread: "-4px",
+                    isInset: false,
+                },
+            ],
+            blur: { kind: "backdrop", radius: "16px" },
+        });
+        const of = (name: string) => ({
+            get value() {
+                return given()[name];
+            },
+            onValueChange: (value: JsonValue | undefined) =>
+                setGiven((current) => ({ ...current, [name]: value })),
+        });
+        const fields = [
+            ["Corners", "corners", Corners],
+            ["Padding", "padding", BoxSides],
+            ["Stroke", "stroke", Stroke],
+            ["Shadows", "shadows", ShadowStack],
+            ["Blur", "blur", Blur],
+            ["Type", "typography", Typography],
+            ["Move", "transform", Transform],
+            ["Layout", "layout", Layout],
+            ["Motion", "transition", Transition],
+            ["Width", "width", Dimension],
+        ] as const;
+
+        return (
+            <div {...style.attrs(styles.form)}>
+                <For each={fields}>
+                    {([label, name, type]) => (
+                        <Field>
+                            <FieldLabel>{label}</FieldLabel>
+                            <ValueField
+                                type={{ kind: "json", schema: describe(type) }}
+                                {...of(name)}
+                            />
+                        </Field>
+                    )}
+                </For>
                 <output>{JSON.stringify(given())}</output>
             </div>
         );

@@ -47,6 +47,7 @@
         "./date-picker": "./src/date-picker/index.ts",
         "./date-time-field": "./src/date-time-field/index.ts",
         "./dialog": "./src/dialog/index.ts",
+        "./design-field": "./src/design-field/index.ts",
         "./drawer": "./src/drawer/index.ts",
         "./dropzone": "./src/dropzone/index.ts",
         "./dropdown-menu": "./src/dropdown-menu/index.ts",

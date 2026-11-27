@@ -35,6 +35,18 @@ import {
     ColorSwatch,
 } from "../color-picker/index.ts";
 import { Input } from "../input/index.ts";
+import {
+    BlurInput,
+    BoxSidesInput,
+    CornersInput,
+    DimensionInput,
+    LayoutInput,
+    ShadowStackInput,
+    StrokeInput,
+    TransformInput,
+    TransitionInput,
+    TypographyInput,
+} from "../design-field/design-field.tsx";
 import { FillStackInput, GradientInput, PaintInput } from "../paint-picker/input.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Sortable, SortableContainer, SortableItem, type SortableMove } from "../sortable/index.ts";
@@ -262,6 +274,16 @@ const NAMED_INPUTS: Readonly<Record<string, NamedValueField>> = {
     gradient: GradientInput,
     paint: PaintInput,
     fillStack: FillStackInput,
+    dimension: DimensionInput,
+    corners: CornersInput,
+    boxSides: BoxSidesInput,
+    stroke: StrokeInput,
+    shadowStack: ShadowStackInput,
+    blur: BlurInput,
+    typography: TypographyInput,
+    transform: TransformInput,
+    layout: LayoutInput,
+    transition: TransitionInput,
 };
 
 /** Render the input of a color: its swatch and text, which open a picker. */
