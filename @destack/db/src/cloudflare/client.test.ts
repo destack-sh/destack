@@ -102,7 +102,7 @@ onSqlite(
     async () => {
         const worker = await start();
 
-        // read each namespace's row, its playlist's indexed track, its logged insert, and a plan dropping only its tables
+        // read each namespace's row, its playlist's indexed track, its logged insert, and a plan touching only its tables
         const response = await worker.dispatchFetch("https://notes.test/namespaces");
         expect([response.status, await response.json()]).toEqual([
             200,
@@ -114,8 +114,7 @@ onSqlite(
                     tracks: [{ row: "p", position: 0, title: `Track ${index}` }],
                     changes: [["insert", `space-${index}`, { id: "a", title: `Entry ${index}` }]],
                     steps: [
-                        `table/${namespace}.destack__db__playlist`,
-                        `table/${namespace}.destack__db__playlist_track_entry`,
+                        `table/${namespace}.destack__durable_scenario__note`,
                         `table/${namespace}.destack__durable_scenario__entry`,
                     ],
                 };

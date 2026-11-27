@@ -3,7 +3,7 @@ import { present } from "@destack/schema";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ModuleMetadata } from "@destack/package";
 import { and, count, eq, inArray, or, sql } from "../../sql/index.ts";
-import { DATABASE_MANAGER, readEmpty, readTables } from "../../migration/state.ts";
+import { DATABASE_MANAGER, DatabaseState, readEmpty, readTables } from "../../migration/state.ts";
 import { Change } from "../../log/change.ts";
 import { defineDatabase } from "../../declare/database.ts";
 import { ResourceId, Plan } from "@destack/resource";
@@ -131,6 +131,8 @@ const entry = defineTable(
     { log: {} },
     MODULE,
 );
+/** The SQLite state of the notes alone, which the namespaces' plan declares. */
+const NOTE_STATE = DatabaseState.of([note]).tables.sqlite;
 
 /** Tables past the 100 result columns Durable Object SQLite answers, as emptiness checks read. */
 const MANY = Array.from({ length: 120 }, (_, index) =>
@@ -665,7 +667,7 @@ export class NoteStore {
                 changes: (await database.log.read({ tables: [entry], after: 0 })).changes.map(
                     (change) => [change.operation, change.scope, Change.image(change)],
                 ),
-                steps: (await database.plan({ declared: [] }, DATABASE_MANAGER)).steps.map(
+                steps: (await database.plan({ declared: NOTE_STATE }, DATABASE_MANAGER)).steps.map(
                     (step) => step.target,
                 ),
             })),
