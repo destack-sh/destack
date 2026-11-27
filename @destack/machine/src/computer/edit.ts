@@ -74,8 +74,13 @@ export class Edit {
             );
             const directory = WorkingTree.package(root, source.directory).path;
 
-            // apply the edit and compile the package
+            // apply the edit, completing at the base when it changes nothing, as adding a present dependency does
             const paths = await this.#apply({ root, directory });
+            if (paths.length === 0) {
+                return { base, commit: base };
+            }
+
+            // compile the package
             await this.#context.builder.compile(directory, signal);
 
             // push the commit while the branch is still at its base, else find whether it moved
@@ -127,12 +132,20 @@ export class Edit {
         for (const operation of operations) {
             await source.apply(operation);
         }
-        const changed = [...(await source.changed())].map(([path, text]) => ({
+        const written = [...(await source.changed())].map(([path, text]) => ({
             path: join(tree.directory, path),
             text,
         }));
-        for (const { path, text } of changed) {
-            await files.writeTextFile(path, text);
+        const changed: typeof written = [];
+        for (const { path, text } of written) {
+            // write a file whose text differs, leaving one the edit restates
+            if ((await files.readTextFile(path)) !== text) {
+                await files.writeTextFile(path, text);
+                changed.push({ path, text });
+            }
+        }
+        if (changed.length === 0) {
+            return [];
         }
 
         // lock and install changed dependencies, as `bun add` does
