@@ -17,7 +17,7 @@ import { Button, type ButtonProperties } from "../button/index.ts";
 import { Input, type InputProperties } from "../input/index.ts";
 import { JoinContext, useJoin } from "../join/index.ts";
 import { Textarea, type TextareaProperties } from "../textarea/index.ts";
-import { addonMarker, controlMarker, multilineMarker } from "./marker.stylex.ts";
+import { addonMarker, controlMarker, groupMarker, multilineMarker } from "./marker.stylex.ts";
 import { renderPart, type Render } from "../part/index.ts";
 import {
     type ComponentProperties,
@@ -109,7 +109,15 @@ const styles = style.create({
     control: {
         flex: 1,
         opacity: 1,
-        paddingInline: space[3],
+        // set the text in less beside an addon, which keeps its own padding
+        paddingInlineStart: {
+            default: space[3],
+            [style.when.anySibling('[data-align="inline-start"]', addonMarker)]: space[1],
+        },
+        paddingInlineEnd: {
+            default: space[3],
+            [style.when.anySibling('[data-align="inline-end"]', addonMarker)]: space[1],
+        },
     },
     textarea: {
         minHeight: space[9],
@@ -194,7 +202,7 @@ export function InputGroup(properties: InputGroupElementProperties): JSX.Element
     const join = useJoin();
     const rest = omit(properties, "children");
 
-    return renderPart("div", "input-group", rest, () => [styles.group, join()], {
+    return renderPart("div", "input-group", rest, () => [styles.group, groupMarker, join()], {
         role: "group" as const,
         get children() {
             return <JoinContext value={() => undefined}>{properties.children}</JoinContext>;

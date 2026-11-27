@@ -8,3 +8,6 @@ export const multilineMarker = defineMarker();
 
 /** An addon of an input group, which the group observes for its alignment. */
 export const addonMarker = defineMarker();
+
+/** An input group itself, whose hover and focus show the addons that wait for them. */
+export const groupMarker = defineMarker();

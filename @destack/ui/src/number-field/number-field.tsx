@@ -3,7 +3,7 @@ import caretUpIcon from "@destack/icon/phosphor/caret-up";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { size, space } from "@destack/theme/tokens.stylex";
+import { color, size, space } from "@destack/theme/tokens.stylex";
 import {
     flush,
     type JSX,
@@ -26,6 +26,7 @@ import {
 } from "../input-group/index.ts";
 import type { InputProperties } from "../input/index.ts";
 import { Move } from "../interaction/index.ts";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import {
     contentOr,
     type ElementPartProperties,
@@ -104,6 +105,12 @@ const styles = style.create({
         userSelect: "none",
         touchAction: "none",
     },
+    prefix: {
+        display: "inline-grid",
+        placeItems: "center",
+        minWidth: space[4],
+        color: color.mutedForeground,
+    },
 });
 
 /** The names of what only a number field reads. */
@@ -121,6 +128,9 @@ const OPTIONS = [
     "allowOutOfRange",
     "allowWheelScrub",
     "format",
+    "units",
+    "unit",
+    "onUnitChange",
     "disabled",
     "readOnly",
     "required",
@@ -462,4 +472,27 @@ function sizeOf(event: KeyboardEvent | WheelEvent | PointerEvent): NumberFieldSt
     const isPage = event instanceof KeyboardEvent && event.key.startsWith("Page");
 
     return event.shiftKey || isPage ? "large" : event.altKey ? "small" : "step";
+}
+
+/** Render a short mark before a number, a letter or an icon, which a pointer drags to scrub it. */
+export function NumberFieldPrefix(properties: {
+    /** What the number is called, shown when a pointer rests on the mark. */
+    readonly label: string;
+    /** The mark, such as `W` or an icon. */
+    readonly children: JSX.Element;
+}): JSX.Element {
+    return (
+        <InputGroupAddon align="inline-start">
+            <Tooltip>
+                <TooltipTrigger
+                    render={(attributes) => (
+                        <NumberFieldScrubArea {...attributes} xstyle={styles.prefix}>
+                            {properties.children}
+                        </NumberFieldScrubArea>
+                    )}
+                />
+                <TooltipContent>{properties.label}</TooltipContent>
+            </Tooltip>
+        </InputGroupAddon>
+    );
 }

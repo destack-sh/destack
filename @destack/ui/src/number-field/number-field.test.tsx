@@ -191,3 +191,19 @@ test("stop stepping at the limit while the button is pressed", async () => {
 
     expect([committed, button?.disabled]).toEqual([[3], true]);
 });
+
+test("change the unit with the number as a sum in another unit is typed, refusing other units", () => {
+    // record the unit and the number in the order they change
+    const order: string[] = [];
+    const { type, press } = draw({
+        units: ["px", "rem", "%"],
+        onUnitChange: (unit) => order.push(`unit ${unit}`),
+        onValueChange: (value) => order.push(`value ${String(value)}`),
+    });
+    type("(8 + 4) * 2rem");
+    const shown = press("Enter");
+    type("12vw");
+
+    // the unit changes once, before the number, the sum written in its unit and vw read as no number
+    expect([order, shown]).toEqual([["unit rem", "value 24"], "24rem"]);
+});

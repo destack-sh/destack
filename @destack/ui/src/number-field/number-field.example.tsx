@@ -10,6 +10,7 @@ import {
     NumberFieldDecrement,
     NumberFieldIncrement,
     NumberFieldInput,
+    NumberFieldPrefix,
     NumberFieldScrubArea,
 } from "./number-field.tsx";
 
@@ -123,6 +124,36 @@ export const numberFieldScrub = defineExample({
                     </InputGroup>
                 </NumberField>
                 <output>{width() ?? "none"}</output>
+            </div>
+        );
+    },
+});
+
+/** A width in pixels, rem or percent, typed as a sum or scrubbed by its mark. */
+export const numberFieldUnits = defineExample({
+    of: NumberField,
+    name: "units",
+    description: t`A width in pixels, rem or percent, typed as a sum or scrubbed by its mark.`,
+    render: (properties) => {
+        const [width, setWidth] = createSignal<number | undefined>(320);
+        const [unit, setUnit] = createSignal("px");
+
+        return (
+            <div {...style.attrs(styles.wide)}>
+                <NumberField
+                    {...properties}
+                    value={width()}
+                    onValueChange={setWidth}
+                    units={["px", "rem", "%"]}
+                    unit={unit()}
+                    onUnitChange={setUnit}
+                >
+                    <InputGroup>
+                        <NumberFieldPrefix label="Width">W</NumberFieldPrefix>
+                        <NumberFieldInput aria-label="Width" />
+                    </InputGroup>
+                </NumberField>
+                <output>{`${String(width() ?? "none")} ${unit()}`}</output>
             </div>
         );
     },

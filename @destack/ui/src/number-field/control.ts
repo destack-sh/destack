@@ -8,6 +8,7 @@ import {
     untrack,
     useContext,
 } from "@destack/view";
+import { Quantity } from "@destack/style";
 import type { FieldControl } from "../field/control.ts";
 
 /** The most digits after a decimal separator that Intl writes. */
@@ -47,6 +48,12 @@ export interface NumberFieldOptions {
     readonly allowWheelScrub?: boolean;
     /** How the number is written. */
     readonly format?: NumberFormat | undefined;
+    /** The units the number may be in, the first one written bare, such as `["px", "rem", "%"]`. */
+    readonly units?: readonly string[] | undefined;
+    /** The number's unit, the first of the units by default. */
+    readonly unit?: string | undefined;
+    /** Handle a person typing the number in another of the units, such as `50%`. */
+    readonly onUnitChange?: (unit: string) => void;
     /** Whether the field takes no input. */
     readonly disabled?: boolean | undefined;
     /** Whether the number is shown alone. */
@@ -81,6 +88,10 @@ export class NumberFieldControl {
     readonly value: Accessor<number | undefined>;
     /** Replace the number and tell the change handler. */
     readonly #setValue: (value: number | undefined) => void;
+    /** The number's unit, the controlled one or the field's own, none for a field without units. */
+    readonly unit: Accessor<string | undefined>;
+    /** Replace the unit and tell the unit handler. */
+    readonly #setUnit: (unit: string | undefined) => void;
     /** The text a person types, undefined while the number is written. */
     readonly #text: Accessor<string | undefined>;
     /** Replace the text a person types. */
@@ -106,6 +117,16 @@ export class NumberFieldControl {
         });
         this.value = value;
         this.#setValue = setValue;
+
+        // follow the controlled unit or the field's own, the first of the units at first
+        const [unit, setUnit] = createControllableSignal<string | undefined>({
+            isControlled: () => "unit" in options,
+            value: () => options.unit,
+            defaultValue: untrack(() => options.units?.[0]),
+            onChange: (next) => next !== undefined && options.onUnitChange?.(next),
+        });
+        this.unit = unit;
+        this.#setUnit = setUnit;
         const [text, setText] = createSignal<string | undefined>(undefined, { ownedWrite: true });
         this.#text = text;
         const [isUnreadable, setUnreadable] = createSignal(false, { ownedWrite: true });
@@ -126,8 +147,17 @@ export class NumberFieldControl {
         return value === undefined ? "" : this.#write(value);
     }
 
-    /** Write a number in the field's format. */
+    /** Write a number in the field's format, or with its unit after it where it has units. */
     #write(value: number): string {
+        // write a number in a unit as design tools do, the first unit left out
+        const { units } = this.options;
+        if (units !== undefined) {
+            const unit = this.unit();
+            const written = String(Number(value.toFixed(this.digits())));
+
+            return unit === units[0] ? written : `${written}${unit ?? ""}`;
+        }
+
         return this.#locale.number(value, {
             ...this.options.format,
             maximumFractionDigits: this.digits(),
@@ -182,13 +212,35 @@ export class NumberFieldControl {
         const isEmpty = text.trim() === "";
         const value = this.read(text);
         if (isEmpty || value !== undefined) {
+            this.#switchUnit(text);
             this.#change(value);
+        }
+    }
+
+    /** Report a unit typed other than the number's, before the number, so both change at once. */
+    #switchUnit(text: string): void {
+        const unit = this.#quantity(text)?.unit;
+        if (unit !== undefined && unit !== this.unit()) {
+            this.#setUnit(unit);
         }
     }
 
     /** Read a number from text in the field's format, undefined for text that is none. */
     read(text: string): number | undefined {
-        return this.#locale.parseNumber(text, this.options.format);
+        return this.options.units === undefined
+            ? this.#locale.parseNumber(text, this.options.format)
+            : this.#quantity(text)?.value;
+    }
+
+    /** Read an expression in one of the units, such as `(8 + 4) * 2px`, none for others. */
+    #quantity(text: string): Quantity | undefined {
+        const quantity = Quantity.parse(text);
+        const units = this.options.units ?? [];
+
+        return quantity === undefined ||
+            (quantity.unit !== undefined && !units.includes(quantity.unit))
+            ? undefined
+            : quantity;
     }
 
     /** Settle on the number typed, within the limits, and write it again. */
@@ -205,7 +257,10 @@ export class NumberFieldControl {
         if (typed === undefined && text.trim() !== "") {
             this.#change(undefined);
             this.options.onValueCommitted?.(undefined);
-        } else {
+        }
+        // settle on the number, in another unit where one is typed
+        else {
+            this.#switchUnit(text);
             const isFree = typed === undefined || this.options.allowOutOfRange === true;
             this.settle(isFree ? typed : this.#clamp(typed));
         }
