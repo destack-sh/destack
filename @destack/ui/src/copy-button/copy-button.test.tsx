@@ -49,7 +49,7 @@ test("copy the text and say so for a while, or that the browser refused", async 
         label: button?.getAttribute("aria-label"),
     }).toEqual({
         copied: ["Copied", "copied", "Copied"],
-        later: ["", "none", "Copy the link"],
+        later: ["", "none", undefined],
         refused: ["Not copied", "refused", "Not copied"],
         taken: ["link"],
         label: "Copy the link",

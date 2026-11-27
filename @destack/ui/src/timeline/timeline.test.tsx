@@ -210,7 +210,6 @@ test("draw a timeline without children, and replace a row's parts by the caller'
             "timeline-lane",
             "timeline-bar",
             "timeline-bar-words",
-            "timeline-bar-card",
         ],
         replaced: [
             "timeline-row-label",
@@ -2065,9 +2064,15 @@ test("land an offset on the marks of its axis, counted from the first start", ()
 
 /** Report whether something describes the first bar of a view. */
 function isDescribed(view: () => JSX.Element): boolean | undefined {
+    // reach the bar from the keyboard, which shows its card
+    stubPopovers();
     const { container } = render(view);
+    const bar = container.querySelector<HTMLElement>("[data-slot=timeline-bar]");
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+    bar?.focus();
+    flush();
 
-    return container.querySelector("[data-slot=timeline-bar]")?.hasAttribute("aria-describedby");
+    return bar?.hasAttribute("aria-describedby");
 }
 
 test("describe a bar by its card, and by none where it has none", () => {

@@ -112,23 +112,23 @@ test("label a menu button with a tooltip only while the sidebar shows its icons"
     stubPopovers();
     const container = drawPage([]);
     const link = container.querySelector<HTMLElement>("a[data-slot=sidebar-menu-button]");
-    const tooltip = container.querySelector("[role=tooltip]");
+    const tooltip = () => container.querySelector("[role=tooltip]");
     link?.dispatchEvent(new Event("pointerenter"));
-    const expanded = [
-        link?.hasAttribute("aria-describedby"),
-        tooltip?.hasAttribute("data-popover-open"),
-    ];
+    flush();
+    const expanded = [link?.hasAttribute("aria-describedby"), tooltip()];
     link?.dispatchEvent(new Event("pointerleave"));
     container.querySelector<HTMLElement>("[data-slot=sidebar-trigger]")?.click();
     flush();
     link?.dispatchEvent(new Event("pointerenter"));
     flush();
+
+    // an open sidebar shows no tooltip at all, a collapsed one names the entry by it
     expect([
         expanded,
-        link?.getAttribute("aria-describedby") === tooltip?.id,
-        tooltip?.hasAttribute("data-popover-open"),
-        tooltip?.textContent,
-    ]).toEqual([[false, false], true, true, "Trips"]);
+        link?.getAttribute("aria-describedby") === tooltip()?.id,
+        tooltip()?.hasAttribute("data-popover-open"),
+        tooltip()?.textContent,
+    ]).toEqual([[false, null], true, true, "Trips"]);
 });
 
 test("show placeholder rows through the shared skeleton while entries load", () => {

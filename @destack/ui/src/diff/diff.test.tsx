@@ -114,7 +114,7 @@ test("read a patch with its path, its counts and only the lines it has", () => {
         rows: rowsOf(container),
         reveals: container.querySelectorAll("[data-slot=diff-fold] button").length,
     }).toEqual({
-        header: "old.ts → new.tsCopy the pathMoved+2−1",
+        header: "old.ts → new.tsMoved+2−1",
         rows: [
             "4 unchanged linesfunction first() {",
             "5|5|one",

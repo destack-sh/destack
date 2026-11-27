@@ -64,7 +64,7 @@ export const studioWorkByKeys = defineScenario({
         },
         {
             step: { action: "press", key: "Enter" },
-            then: [{ observe: { kind: "text", target: todo }, is: "To do9New taskC" }],
+            then: [{ observe: { kind: "text", target: todo }, is: "To do9" }],
         },
 
         // set the status of the task under the pointer by a digit
@@ -75,7 +75,7 @@ export const studioWorkByKeys = defineScenario({
         },
         {
             step: { action: "press", key: "3", target: picker },
-            then: [{ observe: { kind: "text", target: todo }, is: "To do10New taskC" }],
+            then: [{ observe: { kind: "text", target: todo }, is: "To do10" }],
         },
 
         // look at a task, and at the next
@@ -104,13 +104,13 @@ export const studioWorkByKeys = defineScenario({
         { step: { action: "press", key: "s" } },
         {
             step: { action: "press", key: "3", target: picker },
-            then: [{ observe: { kind: "text", target: todo }, is: "To do12New taskC" }],
+            then: [{ observe: { kind: "text", target: todo }, is: "To do12" }],
         },
 
         // take it back
         {
             step: { action: "press", key: "ControlOrMeta+z" },
-            then: [{ observe: { kind: "text", target: todo }, is: "To do10New taskC" }],
+            then: [{ observe: { kind: "text", target: todo }, is: "To do10" }],
         },
         {
             step: { action: "press", key: "Escape" },

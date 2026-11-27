@@ -11,16 +11,18 @@ import {
     type JSX,
     omit,
     onCleanup,
+    Show,
+    untrack,
     useContext,
     useEnvironment,
-    untrack,
 } from "@destack/view";
 import { Hover } from "../interaction/index.ts";
 import {
     type ElementPartProperties,
-    renderPart,
     mergeProperties,
+    type PartAttributes,
     type Render,
+    renderPart,
 } from "../part/index.ts";
 import { HoverPopover } from "../popover/index.ts";
 import { type Anchor, Position, PositionAnchor, ANCHOR_PROPERTIES } from "../position/index.ts";
@@ -68,6 +70,10 @@ export class TooltipControl<Payload = unknown> extends HoverPopover<Payload> {
     readonly #clock: Clock;
     /** Set whether the tooltip shows without motion. */
     readonly #setInstant: (isInstant: boolean) => void;
+    /** Whether the tooltip's content is on the page: while open, and while it leaves. */
+    readonly isPresent: Accessor<boolean>;
+    /** Set whether the tooltip's content left the page, as its exit motion ended. */
+    readonly #setGone: (isGone: boolean) => void;
 
     /** Create a tooltip of the nearest group, waiting the group's delay on the page's clock. */
     constructor(options: TooltipOptions = {}) {
@@ -85,9 +91,28 @@ export class TooltipControl<Payload = unknown> extends HoverPopover<Payload> {
         this.isInstant = isInstant;
         this.#setInstant = setInstant;
 
-        // count the tooltip in its group as it shows and hides
-        createEffect(this.isOpen, (isShown, wasShown) =>
-            group.follow(isShown, wasShown, clock.now()),
+        // keep the content on the page from opening until its exit motion ends, never in between
+        const [isGone, setGone] = createSignal(true, { ownedWrite: true });
+        this.isPresent = () => this.isOpen() || !isGone();
+        this.#setGone = setGone;
+
+        // count the tooltip in its group as it shows and hides, its content on the page once shown
+        createEffect(this.isOpen, (isShown, wasShown) => {
+            group.follow(isShown, wasShown, clock.now());
+            if (isShown) {
+                setGone(false);
+            }
+        });
+    }
+
+    /** Take the content off the page once its exit motion ends, unless it opened again. */
+    unmount(content: HTMLElement): void {
+        void Promise.allSettled(content.getAnimations().map((motion) => motion.finished)).then(
+            () => {
+                if (!untrack(this.isOpen)) {
+                    this.#setGone(true);
+                }
+            },
         );
     }
 
@@ -295,7 +320,8 @@ export function TooltipTrigger<Payload = unknown>(
                 return tooltip.state.isFrom(element) ? "" : undefined;
             },
             get "aria-describedby"() {
-                return given === undefined || tooltip.state.isFrom(element)
+                // point at the tooltip only while it is on the page
+                return tooltip.isPresent() && (given === undefined || tooltip.state.isFrom(element))
                     ? tooltip.id
                     : undefined;
             },
@@ -336,69 +362,109 @@ export const TooltipContent = defineComponent({
     render(
         properties: RenderProperties<TooltipContentAttributes, typeof TOOLTIP_CONTENT_PROPERTIES>,
     ): JSX.Element {
-        // read the tooltip and its placement
+        // render the content only while the tooltip is on the page, as most never open
         const tooltip = useTooltip();
-        const isInstant = tooltip.isInstant;
-        const { scheduler } = useEnvironment();
-        const rest = omit(properties, "anchor", "side", "align", "sideOffset");
-
-        // show and hide the tooltip as it opens and closes
-        createEffect(tooltip.isOpen, (isOpen) => untrack(() => tooltip.sync(isOpen)));
-
-        // leave the tooltip open while a pointer rests on it
-        const hover = new Hover({
-            onHoverStart: () => tooltip.open(),
-            onHoverEnd: () => tooltip.closeLater(new OpenChange("trigger-hover")),
-        });
 
         return (
-            <Overlay>
-                <PositionAnchor
-                    anchor={properties.anchor}
-                    onAnchor={(element) => tooltip.setAnchor(element)}
-                />
-                {renderPart(
-                    "div",
-                    "tooltip-content",
-                    rest,
-                    () => [
-                        text.xs,
-                        styles.content,
-                        Position.beside(properties.side, properties.align),
-                        Position.offset(properties.side, properties.sideOffset),
-                        isInstant() && styles.instant,
-                    ],
-                    mergeProperties(hover.attributes(), {
-                        id: tooltip.id,
-                        popover: "hint" as const,
-                        role: "tooltip" as const,
-                        get "data-open"() {
-                            return tooltip.isOpen() ? "" : undefined;
-                        },
-                        get "data-closed"() {
-                            return tooltip.isOpen() ? undefined : "";
-                        },
-                        get "data-instant"() {
-                            return isInstant() ? "" : undefined;
-                        },
-                        get "data-side"() {
-                            return properties.side;
-                        },
-                        get "data-align"() {
-                            return properties.align;
-                        },
-                        ref: (element: HTMLElement) => {
-                            TopLayer.of(element).watch(element, scheduler);
-                            tooltip.setContent(element);
-                        },
-                        onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) =>
-                            tooltip.follow(event),
-                    }),
-                )}
-            </Overlay>
+            <Show when={tooltip.isPresent()}>
+                <TooltipBody {...properties} />
+            </Show>
         );
     },
 });
 
+/** Render a tooltip's content while it is on the page: shown, then hidden as it leaves. */
+function TooltipBody(
+    properties: RenderProperties<TooltipContentAttributes, typeof TOOLTIP_CONTENT_PROPERTIES>,
+): JSX.Element {
+    // read the tooltip and its placement
+    const tooltip = useTooltip();
+    const isInstant = tooltip.isInstant;
+    const { scheduler } = useEnvironment();
+    const rest = omit(properties, "anchor", "side", "align", "sideOffset");
+
+    // show and hide the tooltip as it opens and closes
+    createEffect(tooltip.isOpen, (isOpen) => untrack(() => tooltip.sync(isOpen)));
+
+    // leave the tooltip open while a pointer rests on it
+    const hover = new Hover({
+        onHoverStart: () => tooltip.open(),
+        onHoverEnd: () => tooltip.closeLater(new OpenChange("trigger-hover")),
+    });
+
+    return (
+        <Overlay>
+            <PositionAnchor
+                anchor={properties.anchor}
+                onAnchor={(element) => tooltip.setAnchor(element)}
+            />
+            {renderPart(
+                "div",
+                "tooltip-content",
+                rest,
+                () => [
+                    text.xs,
+                    styles.content,
+                    Position.beside(properties.side, properties.align),
+                    Position.offset(properties.side, properties.sideOffset),
+                    isInstant() && styles.instant,
+                ],
+                mergeProperties(hover.attributes(), {
+                    id: tooltip.id,
+                    popover: "hint" as const,
+                    role: "tooltip" as const,
+                    get "data-open"() {
+                        return tooltip.isOpen() ? "" : undefined;
+                    },
+                    get "data-closed"() {
+                        return tooltip.isOpen() ? undefined : "";
+                    },
+                    get "data-instant"() {
+                        return isInstant() ? "" : undefined;
+                    },
+                    get "data-side"() {
+                        return properties.side;
+                    },
+                    get "data-align"() {
+                        return properties.align;
+                    },
+                    ref: (element: HTMLElement) => {
+                        TopLayer.of(element).watch(element, scheduler);
+                        tooltip.setContent(element);
+                    },
+                    onToggle: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) => {
+                        // follow the platform, then leave the page once hidden
+                        tooltip.follow(event);
+                        if (event.newState === "closed") {
+                            tooltip.unmount(event.currentTarget);
+                        }
+                    },
+                }),
+            )}
+        </Overlay>
+    );
+}
+
 /** The properties of a tooltip's content, the native element's attributes included. */
 export type TooltipContentProperties = ComponentProperties<typeof TooltipContent>;
+
+/** Render a control with a hint: a tooltip saying its text, the control its trigger. */
+export function Hint(properties: {
+    /** What the hint says, none for a control without one. */
+    readonly text: JSX.Element;
+    /** Render the control with the trigger's attributes, none where it has no hint. */
+    readonly children: (attributes: PartAttributes) => JSX.Element;
+}): JSX.Element {
+    // leave a control without text, or one a tooltip around already triggers, as it is
+    const isTriggering = useContext(TooltipContext) !== null;
+    if (isTriggering || untrack(() => properties.text) === undefined) {
+        return properties.children({});
+    }
+
+    return (
+        <Tooltip>
+            <TooltipTrigger render={(attributes) => properties.children(attributes)} />
+            <TooltipContent>{properties.text}</TooltipContent>
+        </Tooltip>
+    );
+}

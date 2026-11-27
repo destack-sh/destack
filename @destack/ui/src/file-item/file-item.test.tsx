@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import type { UploadReason, UploadStatus } from "@destack/object/client";
 import { present } from "@destack/schema";
 import { createSignal, flush, For } from "@destack/view";
-import { render } from "@destack/view/test";
+import { render, stubPopovers } from "@destack/view/test";
 import {
     FileItem,
     FileItemActions,
@@ -150,6 +150,7 @@ test("open in place on a plain click, and leave a click for a new tab to the bro
 });
 
 test("move the focus to the next file as one is removed, and send a failed one again", async () => {
+    stubPopovers();
     const [names, setNames] = createSignal(["a.txt", "b.txt", "c.txt"]);
     let retried = "";
     render(() => (
