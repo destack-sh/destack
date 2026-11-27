@@ -70,9 +70,17 @@ export interface FillStyle {
     readonly backgroundBlendMode: string;
 }
 
+/** The CSS properties that show a fill inside the letters of text. */
+export interface TextFillStyle {
+    /** The clip, to the text. */
+    readonly backgroundClip: "text";
+    /** The text's color, clear so the fill shows. */
+    readonly color: "transparent";
+}
+
 /** The layers filling a box, top first, as CSS lists background layers. */
 export const FillStack = Object.assign(
-    schema.array(Fill).meta({ id: "fillStack", title: "Fill" }),
+    schema.array(Fill).meta({ id: "style.fillStack", title: "Fill" }),
     {
         /** Draw the shown layers as CSS background properties, none for no layer. */
         css(stack: readonly Fill[]): FillStyle {
@@ -88,6 +96,11 @@ export const FillStack = Object.assign(
                 backgroundRepeat: layers.map((layer) => layer.repeat).join(", "),
                 backgroundBlendMode: shown.map((fill) => fill.blend).join(", "),
             };
+        },
+
+        /** Draw the shown layers inside the letters of text, as CSS clips a background to text. */
+        textCss(stack: readonly Fill[]): FillStyle & TextFillStyle {
+            return { ...FillStack.css(stack), backgroundClip: "text", color: "transparent" };
         },
     },
 );
