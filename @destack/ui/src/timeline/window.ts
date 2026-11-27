@@ -37,11 +37,11 @@ const LEAST_LENGTH = 10;
 /** The most days a window shades its non-working days over, past which the days are too narrow. */
 const SHADED_DAYS = 400;
 
-/** The milliseconds of each zoom level's unit, a month and a quarter at their average length. */
+/** The milliseconds of each zoom level's unit, a month and a quarter at their Gregorian average. */
 const LEVEL_UNITS: Readonly<Record<TimelineZoomLevel, number>> = {
-    week: Duration.milliseconds({ days: 7 }),
-    month: Duration.milliseconds({ days: 30.436875 }),
-    quarter: Duration.milliseconds({ days: 91.310625 }),
+    week: Duration.milliseconds({ weeks: 1 }),
+    month: Duration.milliseconds({ days: 30, hours: 10, minutes: 29, seconds: 6 }),
+    quarter: Duration.milliseconds({ days: 91, hours: 7, minutes: 27, seconds: 18 }),
 };
 
 /** The share a window's unit width may stray from a level's and still count as that level. */
