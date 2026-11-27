@@ -115,7 +115,7 @@ test.concurrent("pin the compiler's version to the output it compiles", async ({
 
     // pair the version with its output: changed output takes a new COMPILER_VERSION and this digest
     expect({ version: COMPILER_VERSION, output }).toEqual({
-        version: 12,
+        version: 13,
         output: "49639a6ab1f22a7dba7eb81dfaf91a6081445dde0416f596eaf5ffaa260aff9b",
     });
 });
