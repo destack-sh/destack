@@ -397,6 +397,38 @@ export const site = defineView({
 });
 ```
 
+### Animate a change in place
+
+`startViewTransition` runs a change as a view transition of one element, each given element morphing to its new place at the theme's timing.
+Where the person wants less motion, the change runs at once.
+
+```tsx
+import { createSignal, For } from "@destack/view";
+import { startViewTransition } from "@destack/view/motion";
+
+export function Shuffle(properties: { readonly words: readonly string[] }) {
+    const [words, setWords] = createSignal(properties.words);
+    let list!: HTMLUListElement;
+
+    // move the last word first, each word morphing to its new place
+    const rotate = () =>
+        void startViewTransition(
+            list,
+            () => setWords((current) => [...current.slice(-1), ...current.slice(0, -1)]),
+            [...list.children].filter((child) => child instanceof HTMLElement),
+        );
+
+    return (
+        <>
+            <ul ref={list}>
+                <For each={words()}>{(word) => <li>{word}</li>}</For>
+            </ul>
+            <button onClick={rotate}>Rotate</button>
+        </>
+    );
+}
+```
+
 ### Hold with a finger in a browser
 
 Set the `pointer` global to `touch` to play a scenario with a finger.

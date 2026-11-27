@@ -1,4 +1,5 @@
 import { MOTION_SCALE } from "@destack/theme";
+import { motion } from "@destack/theme/tokens.stylex";
 import { type Accessor, createMemo, createSignal, onCleanup } from "solid-js";
 import { createMediaQuery } from "../primitives/media.ts";
 import { createMutationObserver } from "../primitives/mutation-observer.ts";
@@ -50,6 +51,23 @@ export function createReducedMotion(element: Accessor<Element | undefined>): Acc
 /** Report whether the theme keeps an element's motion still now, for code that reads it once. */
 export function isMotionReduced(element: Element): boolean {
     return getComputedStyle(element).getPropertyValue(MOTION_SCALE).trim() === "0";
+}
+
+/** Read the theme's short duration and standard curve where an element stands, as resolved. */
+export function readMotionTiming(element: Element): OptionalEffectTiming {
+    // have a hidden child resolve them, as the theme calculates them
+    const probe = element.ownerDocument.createElement("span");
+    probe.hidden = true;
+    probe.style.transitionDuration = motion.durationShort;
+    probe.style.transitionTimingFunction = motion.easingStandard;
+    element.append(probe);
+    const { transitionDuration, transitionTimingFunction } = getComputedStyle(probe);
+    probe.remove();
+
+    return {
+        duration: Number.parseFloat(transitionDuration) * 1000,
+        easing: transitionTimingFunction,
+    };
 }
 
 /** List an element and its ancestors, the theme roots that may set its motion scale. */
