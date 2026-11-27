@@ -6422,16 +6422,6 @@
             "context": "label",
             "translation": "Overvloeimodus"
         },
-        "1rpk60vp7ofd5": {
-            "source": "Show layer",
-            "context": "action",
-            "translation": "Laag tonen"
-        },
-        "865vfostb5n4": {
-            "source": "Remove layer",
-            "context": "action",
-            "translation": "Laag verwijderen"
-        },
         "3pfqn7ah24is1": {
             "source": "Add layer",
             "context": "action",
@@ -6479,11 +6469,6 @@
             "source": "Remove stop",
             "context": "action",
             "translation": "Stop verwijderen"
-        },
-        "2wr2hajakp966": {
-            "source": "Blend",
-            "context": "label",
-            "translation": "Menging"
         },
         "1nag7hbfipyby": {
             "source": "Angle",
@@ -6608,11 +6593,6 @@
             "context": "label",
             "translation": "Binnen"
         },
-        "2ymermyp6qflz": {
-            "source": "Remove shadow",
-            "context": "action",
-            "translation": "Schaduw verwijderen"
-        },
         "tadhrvnkmgzk": {
             "source": "Add shadow",
             "context": "action",
@@ -6732,10 +6712,6 @@
             "context": "option",
             "translation": "Jaarlijks"
         },
-        "vtb0gq8pqb3h": {
-            "source": "The inputs of a card's look, with what they give.",
-            "translation": "De invoer voor het uiterlijk van een kaart, met wat ze geven."
-        },
         "12gi7ff0g34uw": {
             "source": "Height",
             "context": "label",
@@ -6756,11 +6732,6 @@
             "context": "label",
             "translation": "Nieuwe tag"
         },
-        "1x4spxmewlelg": {
-            "source": "Least width",
-            "context": "label",
-            "translation": "Minimale breedte"
-        },
         "21wfoad7kqenf": {
             "source": "Filter {$p0}",
             "context": "label",
@@ -6770,16 +6741,6 @@
             "source": "Decoration",
             "context": "label",
             "translation": "Decoratie"
-        },
-        "2ysrbpr0sr8tj": {
-            "source": "Greatest height",
-            "context": "label",
-            "translation": "Maximale hoogte"
-        },
-        "3buey0iivsmsz": {
-            "source": "Least height",
-            "context": "label",
-            "translation": "Minimale hoogte"
         },
         "cnu1vs3bo5aq": {
             "source": "Lines",
@@ -6800,31 +6761,6 @@
             "source": "Remove {$p0}",
             "context": "action",
             "translation": "{$p0} verwijderen"
-        },
-        "vq9v9i0trplc": {
-            "source": "Greatest width",
-            "context": "label",
-            "translation": "Maximale breedte"
-        },
-        "2ago58sm6vn24": {
-            "source": "Offset",
-            "context": "label",
-            "translation": "Verschuiving"
-        },
-        "2wzmmcaxsl0b8": {
-            "source": "End",
-            "context": "label",
-            "translation": "Einde"
-        },
-        "2yierad4nggct": {
-            "source": "Start",
-            "context": "label",
-            "translation": "Begin"
-        },
-        "39sto541aydx8": {
-            "source": "Constraint",
-            "context": "label",
-            "translation": "Beperking"
         },
         "1c0cm6t466nzb": {
             "source": "Z",
@@ -6958,6 +6894,742 @@
             "source": "No tokens.",
             "context": "title",
             "translation": "Geen tokens."
+        },
+        "oocdugyd48tw": {
+            "source": "All corners",
+            "context": "label",
+            "translation": "Alle hoeken"
+        },
+        "1qidra66os22q": {
+            "source": "All sides",
+            "context": "label",
+            "translation": "Alle zijden"
+        },
+        "3ps2pc8f7xils": {
+            "source": "Alignment",
+            "context": "label",
+            "translation": "Uitlijning"
+        },
+        "1qbw0cxafqunr": {
+            "source": "Top start",
+            "context": "option",
+            "translation": "Boven begin"
+        },
+        "1uwf288kv01ma": {
+            "source": "Top end",
+            "context": "option",
+            "translation": "Boven eind"
+        },
+        "3coq0eaofje21": {
+            "source": "Middle start",
+            "context": "option",
+            "translation": "Midden begin"
+        },
+        "3gtyo733dq4zi": {
+            "source": "Middle center",
+            "context": "option",
+            "translation": "Midden gecentreerd"
+        },
+        "3i35chm4mxbrs": {
+            "source": "Middle end",
+            "context": "option",
+            "translation": "Midden eind"
+        },
+        "1w9y7e6tve2fj": {
+            "source": "Bottom start",
+            "context": "option",
+            "translation": "Onder begin"
+        },
+        "c9fefgfk7r7e": {
+            "source": "Bottom end",
+            "context": "option",
+            "translation": "Onder eind"
+        },
+        "19sgbkzj5oj1n": {
+            "source": "Space between",
+            "context": "label",
+            "translation": "Ruimte ertussen"
+        },
+        "1fy7c1s0ak8ys": {
+            "source": "Stretch",
+            "context": "label",
+            "translation": "Uitrekken"
+        },
+        "3afcy9xrrzomy": {
+            "source": "A grid that places a box's children at its top start.",
+            "translation": "Een raster dat de kinderen van een vak boven aan het begin plaatst."
+        },
+        "q2cvi2qas827": {
+            "source": "A grid with none of its places chosen, as for children spaced apart.",
+            "translation": "Een raster zonder gekozen plek, zoals bij verspreide kinderen."
+        },
+        "2c5qt18d7rhl8": {
+            "source": "Pick a color",
+            "context": "action",
+            "translation": "Kies een kleur"
+        },
+        "2rj9qkl802yay": {
+            "source": "Color",
+            "context": "title",
+            "translation": "Kleur"
+        },
+        "27qic2krpbkxk": {
+            "source": "Custom",
+            "context": "title",
+            "translation": "Eigen"
+        },
+        "1a01v0c6fax8y": {
+            "source": "Show {$p0}",
+            "context": "action",
+            "translation": "{$p0} tonen"
+        },
+        "348218554v05n": {
+            "source": "Drop shadow",
+            "context": "option",
+            "translation": "Slagschaduw"
+        },
+        "3bry4x69ubd8w": {
+            "source": "Inner shadow",
+            "context": "option",
+            "translation": "Binnenschaduw"
+        },
+        "3htgk3x40y5vr": {
+            "source": "Scale",
+            "context": "label",
+            "translation": "Schaal"
+        },
+        "1ayg5gz3ug2ox": {
+            "source": "Keep ratio",
+            "context": "label",
+            "translation": "Verhouding behouden"
+        },
+        "3sidx0g38xopr": {
+            "source": "{$p0} sizing",
+            "context": "label",
+            "translation": "Afmeting van {$p0}"
+        },
+        "k6557zhswk79": {
+            "source": "Min width",
+            "context": "label",
+            "translation": "Min. breedte"
+        },
+        "2cryuql12qcfb": {
+            "source": "Max width",
+            "context": "label",
+            "translation": "Max. breedte"
+        },
+        "2lh20cpka3kws": {
+            "source": "Min height",
+            "context": "label",
+            "translation": "Min. hoogte"
+        },
+        "3kekcym8yf8h6": {
+            "source": "Max height",
+            "context": "label",
+            "translation": "Max. hoogte"
+        },
+        "2w2b88upkggz8": {
+            "source": "Refuses choices where the place cannot change now.",
+            "translation": "Weigert keuzes waar de plek nu niet kan veranderen."
+        },
+        "287n66zav5slu": {
+            "source": "A grid that takes no choice now, its center chosen.",
+            "translation": "Een raster dat nu geen keuze aanneemt, het midden gekozen."
+        },
+        "3q670aeklsem9": {
+            "source": "Layout",
+            "context": "title",
+            "translation": "Indeling"
+        },
+        "3e59hkqc1k7ya": {
+            "source": "Auto layout",
+            "context": "label",
+            "translation": "Automatische indeling"
+        },
+        "9vbmkd9p0d49": {
+            "source": "Appearance",
+            "context": "title",
+            "translation": "Weergave"
+        },
+        "s6ltltffq1xz": {
+            "source": "Corners",
+            "context": "label",
+            "translation": "Hoeken"
+        },
+        "wfh9zz27g9dq": {
+            "source": "Typography",
+            "context": "title",
+            "translation": "Typografie"
+        },
+        "2rcw0jcncuswv": {
+            "source": "Type",
+            "context": "label",
+            "translation": "Letter"
+        },
+        "2g7t3g6vmh6hq": {
+            "source": "Fill",
+            "context": "label",
+            "translation": "Vulling"
+        },
+        "3tl8iob20iftz": {
+            "source": "Stroke",
+            "context": "label",
+            "translation": "Lijn"
+        },
+        "3b997b012jfmv": {
+            "source": "Effects",
+            "context": "title",
+            "translation": "Effecten"
+        },
+        "1l95ncpffocqc": {
+            "source": "Shadows",
+            "context": "label",
+            "translation": "Schaduwen"
+        },
+        "2ukk2ib42klh9": {
+            "source": "Backdrop",
+            "context": "label",
+            "translation": "Achtergrond"
+        },
+        "2fxdvr57xpen1": {
+            "source": "Motion",
+            "context": "label",
+            "translation": "Beweging"
+        },
+        "2phnhszsriodo": {
+            "source": "A card's design in sections, from its position to its motion, as a design tool's panel.",
+            "translation": "Het ontwerp van een kaart in secties, van positie tot beweging, als het paneel van een ontwerptool."
+        },
+        "9ercsuf83cbx": {
+            "source": "Text settings",
+            "context": "label",
+            "translation": "Tekstinstellingen"
+        },
+        "1c2c7z1mmtw9t": {
+            "source": "Pin to the top",
+            "context": "action",
+            "translation": "Boven vastzetten"
+        },
+        "2cpjlcwf05zn7": {
+            "source": "Pin to the left",
+            "context": "action",
+            "translation": "Links vastzetten"
+        },
+        "2tpbn8hpv2gs": {
+            "source": "Pin to the right",
+            "context": "action",
+            "translation": "Rechts vastzetten"
+        },
+        "ycaer1nw60od": {
+            "source": "Pin to the bottom",
+            "context": "action",
+            "translation": "Onder vastzetten"
+        },
+        "q2utjjw73f5o": {
+            "source": "Center",
+            "context": "action",
+            "translation": "Centreren"
+        },
+        "2om2b65ammatp": {
+            "source": "Offset across",
+            "context": "label",
+            "translation": "Verschuiving horizontaal"
+        },
+        "3fuk21loikckg": {
+            "source": "Offset down",
+            "context": "label",
+            "translation": "Verschuiving verticaal"
+        },
+        "2bm7h1llntdhi": {
+            "source": "Refuses changes where the constraints cannot change now.",
+            "translation": "Weigert wijzigingen waar de beperkingen nu niet kunnen veranderen."
+        },
+        "1nh5p2ftfyy3o": {
+            "source": "A layer pinned to its container's top left, as design tools start one.",
+            "translation": "Een laag vastgezet linksboven in zijn container, zoals ontwerptools er een beginnen."
+        },
+        "3ukjgcfcviai7": {
+            "source": "A layer pinned to both sides, growing with its container, kept at its middle down.",
+            "translation": "Een laag vastgezet aan beide zijden, die meegroeit met zijn container, verticaal in het midden."
+        },
+        "3eerysz70bdc2": {
+            "source": "Constraints that take no change now.",
+            "translation": "Beperkingen die nu geen wijziging aannemen."
+        },
+        "16v596zckmvga": {
+            "source": "Layout settings",
+            "context": "label",
+            "translation": "Indelingsinstellingen"
+        },
+        "1b0s446xpoqj7": {
+            "source": "Fonts",
+            "context": "title",
+            "translation": "Lettertypen"
+        },
+        "1bifdb17pvipm": {
+            "source": "Use {$p0}",
+            "context": "action",
+            "translation": "{$p0} gebruiken"
+        },
+        "1xdrej6vqh6ng": {
+            "source": "No fonts.",
+            "context": "title",
+            "translation": "Geen lettertypen."
+        },
+        "2jzkll11v9inr": {
+            "source": "Custom",
+            "context": "option",
+            "translation": "Eigen"
+        },
+        "evtidcxgr7ke": {
+            "source": "Transforms",
+            "context": "label",
+            "translation": "Transformaties"
+        },
+        "qi9a3h081rtb": {
+            "source": "Search fonts…",
+            "context": "label",
+            "translation": "Lettertypen zoeken…"
+        },
+        "1x44gs3o6kfti": {
+            "source": "Reset {$p0}",
+            "context": "action",
+            "translation": "{$p0} herstellen"
+        },
+        "8gqy27j1uqn7": {
+            "source": "Mixed",
+            "context": "option",
+            "translation": "Gemengd"
+        },
+        "2jr6xcflopdmq": {
+            "source": "A card and a popover edited at once, the values they hold apart shown as mixed.",
+            "translation": "Een kaart en een popover tegelijk bewerkt, met de waarden waarin ze verschillen als gemengd getoond."
+        },
+        "6wk8fokqj1bi": {
+            "source": "Document",
+            "context": "title",
+            "translation": "Document"
+        },
+        "1qy9tuhiqcl3v": {
+            "source": "Installed",
+            "context": "title",
+            "translation": "Geïnstalleerd"
+        },
+        "vave8q03vch0": {
+            "source": "Generic",
+            "context": "title",
+            "translation": "Generiek"
+        },
+        "29lxyfee54734": {
+            "source": "Show installed fonts",
+            "context": "action",
+            "translation": "Geïnstalleerde lettertypen tonen"
+        },
+        "2xoxx67hpc1m": {
+            "source": "Add {$p0}",
+            "context": "action",
+            "translation": "{$p0} toevoegen"
+        },
+        "1lludxugxoks": {
+            "source": "Matching",
+            "context": "title",
+            "translation": "Overeenkomend"
+        },
+        "3lgo6t806s6tz": {
+            "source": "A curve that overshoots its end and comes back, as a playful ease does.",
+            "translation": "Een curve die voorbij haar einde schiet en terugkomt, zoals een speelse versnelling."
+        },
+        "1gdlu616edc2o": {
+            "source": "CSS's ease out, its control points to drag or move by arrows.",
+            "translation": "CSS' ease-out, met controlepunten om te slepen of met pijltjes te verplaatsen."
+        },
+        "289jmfw9fpgco": {
+            "source": "First control point",
+            "translation": "Eerste controlepunt",
+            "context": "label"
+        },
+        "3rap8yfqpaetg": {
+            "source": "Second control point",
+            "translation": "Tweede controlepunt",
+            "context": "label"
+        },
+        "2l9mvrvlg8zaj": {
+            "source": "Refuses changes where the curve cannot change now.",
+            "translation": "Weigert wijzigingen als de curve nu niet kan veranderen."
+        },
+        "1c87zrr8ebwhf": {
+            "source": "Jump",
+            "context": "label",
+            "translation": "Sprong"
+        },
+        "1yxohcnzmfrs7": {
+            "source": "Steps",
+            "context": "option",
+            "translation": "Stappen"
+        },
+        "20eo3a5xwmut3": {
+            "source": "Curve",
+            "context": "option",
+            "translation": "Curve"
+        },
+        "2ozf8wrtk25xz": {
+            "source": "At the end",
+            "context": "option",
+            "translation": "Aan het einde"
+        },
+        "30dsa54d91dre": {
+            "source": "Edit curve",
+            "context": "action",
+            "translation": "Curve bewerken"
+        },
+        "312hawfipcb15": {
+            "source": "Spring",
+            "context": "option",
+            "translation": "Veer"
+        },
+        "3cme081al8kn3": {
+            "source": "Both ends",
+            "context": "option",
+            "translation": "Beide uiteinden"
+        },
+        "3i6vusamo3jle": {
+            "source": "Steps",
+            "context": "label",
+            "translation": "Stappen"
+        },
+        "3tiyhwy7pmxa7": {
+            "source": "Bounce",
+            "context": "label",
+            "translation": "Vering"
+        },
+        "c1337ufdsfyu": {
+            "source": "Neither end",
+            "context": "option",
+            "translation": "Geen van beide"
+        },
+        "qimmhspbdnaq": {
+            "source": "At the start",
+            "context": "option",
+            "translation": "Aan het begin"
+        },
+        "2nwjv5jf2gb4i": {
+            "source": "Add animation",
+            "context": "action",
+            "translation": "Animatie toevoegen"
+        },
+        "32eyl6lynwvoo": {
+            "source": "Add keyframe",
+            "context": "action",
+            "translation": "Keyframe toevoegen"
+        },
+        "7rth0ridshmh": {
+            "source": "Add state",
+            "context": "action",
+            "translation": "Status toevoegen"
+        },
+        "2oudnuhdxmq3f": {
+            "source": "Add track",
+            "context": "action",
+            "translation": "Spoor toevoegen"
+        },
+        "10d06xgbqty2l": {
+            "source": "Add value",
+            "context": "action",
+            "translation": "Waarde toevoegen"
+        },
+        "202kf6ao2cu4q": {
+            "source": "Alternate",
+            "context": "option",
+            "translation": "Afwisselend"
+        },
+        "2vjy7tye7k4f1": {
+            "source": "Animation {$p0}",
+            "context": "label",
+            "translation": "Animatie {$p0}"
+        },
+        "3kiijedcapitw": {
+            "source": "Animations",
+            "context": "label",
+            "translation": "Animaties"
+        },
+        "xng0093w5ho2": {
+            "source": "Axis",
+            "context": "label",
+            "translation": "As"
+        },
+        "3fnd35ftutz6s": {
+            "source": "Contain",
+            "context": "option",
+            "translation": "Bevatten"
+        },
+        "1bx6p53ckcdgn": {
+            "source": "Cover",
+            "context": "option",
+            "translation": "Bedekken"
+        },
+        "oukoofdngppv": {
+            "source": "Enter",
+            "context": "label",
+            "translation": "Binnenkomst"
+        },
+        "56eg1z2gp3xs": {
+            "source": "Entry crossing",
+            "context": "option",
+            "translation": "Binnenkomende kruising"
+        },
+        "uwv7ssir8hrk": {
+            "source": "Entry",
+            "context": "option",
+            "translation": "Binnenkomst"
+        },
+        "2n7yp7b96kmak": {
+            "source": "Exit crossing",
+            "context": "option",
+            "translation": "Uitgaande kruising"
+        },
+        "mjivigpz8gnb": {
+            "source": "Exit",
+            "context": "label",
+            "translation": "Vertrek"
+        },
+        "1g9rulbvkcg98": {
+            "source": "Exit",
+            "context": "option",
+            "translation": "Vertrek"
+        },
+        "398fp0uadye7y": {
+            "source": "Keyframe at {$p0}",
+            "context": "label",
+            "translation": "Keyframe op {$p0}"
+        },
+        "5eo1lfpc4kli": {
+            "source": "Nearest",
+            "context": "option",
+            "translation": "Dichtstbijzijnde"
+        },
+        "2ago58sm6vn24": {
+            "source": "Offset",
+            "context": "label",
+            "translation": "Verschuiving"
+        },
+        "pllj4xqis037": {
+            "source": "Play again",
+            "context": "action",
+            "translation": "Opnieuw afspelen"
+        },
+        "djhywe77iigx": {
+            "source": "Scroller",
+            "context": "label",
+            "translation": "Scroller"
+        },
+        "2yjyb2dpil9jc": {
+            "source": "State",
+            "context": "label",
+            "translation": "Status"
+        },
+        "1ihuvqo4jj8n5": {
+            "source": "States",
+            "context": "label",
+            "translation": "Statussen"
+        },
+        "mfsljuqji2l9": {
+            "source": "Time",
+            "context": "option",
+            "translation": "Tijd"
+        },
+        "45v44gudp4gs": {
+            "source": "Timeline",
+            "context": "label",
+            "translation": "Tijdlijn"
+        },
+        "1aduu68v04zbz": {
+            "source": "Tracks",
+            "context": "label",
+            "translation": "Sporen"
+        },
+        "2rti5re4x7nrc": {
+            "source": "Transition",
+            "context": "label",
+            "translation": "Overgang"
+        },
+        "28j4kpdul8oo5": {
+            "source": "View",
+            "context": "option",
+            "translation": "Weergave"
+        },
+        "1xhder2eg05ir": {
+            "source": "A card's motion: its stage, transition, hover, entry, exit and a scroll-driven fade.",
+            "translation": "De beweging van een kaart: haar podium, overgang, hover, binnenkomst, vertrek en een scrollgestuurde vervaging."
+        },
+        "35y6hgtzuqurq": {
+            "source": "The keyframes of an opacity track along its time, the middle one selected.",
+            "translation": "De keyframes van een dekkingsspoor langs zijn tijd, de middelste geselecteerd."
+        },
+        "2jeikjl7wrr9b": {
+            "source": "A spring that bounces a little, its duration and bounce set apart from a curve.",
+            "translation": "Een veer die een beetje veert, duur en vering los van een curve ingesteld."
+        },
+        "2qgcmkmrlziep": {
+            "source": "CSS's ease out as a curve, edited on its plot.",
+            "translation": "CSS' ease out als curve, bewerkt op haar grafiek."
+        },
+        "6hr08qrqxm9d": {
+            "source": "Four steps jumping at their ends, as a ticking clock moves.",
+            "translation": "Vier stappen die aan hun einde springen, zoals een tikkende klok."
+        },
+        "3i33zk80nhabk": {
+            "source": "Alternate reverse",
+            "context": "option",
+            "translation": "Afwisselend omgekeerd"
+        },
+        "3frmt7w4jxzxu": {
+            "source": "Backwards",
+            "context": "option",
+            "translation": "Achterwaarts"
+        },
+        "1wvzzoe64ugae": {
+            "source": "Forwards",
+            "context": "option",
+            "translation": "Voorwaarts"
+        },
+        "22nff8jm1rhwf": {
+            "source": "Iterations",
+            "context": "label",
+            "translation": "Herhalingen"
+        },
+        "ehbpx8s1ik5m": {
+            "source": "No values",
+            "context": "label",
+            "translation": "Geen waarden"
+        },
+        "1odsh6r13c8fz": {
+            "source": "Normal",
+            "context": "option",
+            "translation": "Normaal"
+        },
+        "2tkl2ea7xdiyw": {
+            "source": "Range end offset",
+            "context": "label",
+            "translation": "Verschuiving einde bereik"
+        },
+        "3ctysaeqqes6h": {
+            "source": "Range end",
+            "context": "label",
+            "translation": "Einde bereik"
+        },
+        "rraqqk2dqior": {
+            "source": "Range start offset",
+            "context": "label",
+            "translation": "Verschuiving begin bereik"
+        },
+        "3ibypmo8uu2qg": {
+            "source": "Range start",
+            "context": "label",
+            "translation": "Begin bereik"
+        },
+        "di1gt1eolqo6": {
+            "source": "Refuses changes where the motion cannot change now.",
+            "translation": "Weigert wijzigingen waar de beweging nu niet kan veranderen."
+        },
+        "210bk4hmrhv7u": {
+            "source": "Refuses changes where the timing cannot change now.",
+            "translation": "Weigert wijzigingen waar de timing nu niet kan veranderen."
+        },
+        "b9hwayuguf5j": {
+            "source": "Remove keyframe",
+            "context": "action",
+            "translation": "Keyframe verwijderen"
+        },
+        "1q1ltclg2iwlq": {
+            "source": "Remove track",
+            "context": "action",
+            "translation": "Spoor verwijderen"
+        },
+        "12bbieaiqma8t": {
+            "source": "Repeat forever",
+            "context": "action",
+            "translation": "Eindeloos herhalen"
+        },
+        "1rs3j3n8jpo2i": {
+            "source": "Reverse",
+            "context": "option",
+            "translation": "Omgekeerd"
+        },
+        "2hgdu7m71niq4": {
+            "source": "Root",
+            "context": "option",
+            "translation": "Hoofdelement"
+        },
+        "2yjz4weq3j90e": {
+            "source": "Self",
+            "context": "option",
+            "translation": "Zelf"
+        },
+        "2xtomy32awhy4": {
+            "source": "Value",
+            "context": "label",
+            "translation": "Waarde"
+        },
+        "18zy3ykvh1u4q": {
+            "source": "Starts from",
+            "context": "label",
+            "translation": "Begint bij"
+        },
+        "1axbdx9wq7gpg": {
+            "source": "First child",
+            "context": "option",
+            "translation": "Eerste kind"
+        },
+        "25w1kqf9oyacd": {
+            "source": "View transition",
+            "context": "label",
+            "translation": "Weergaveovergang"
+        },
+        "2wbrj6pt04xb6": {
+            "source": "Stagger",
+            "context": "label",
+            "translation": "Verspringing"
+        },
+        "3tmvlq2wjir9u": {
+            "source": "Last child",
+            "context": "option",
+            "translation": "Laatste kind"
+        },
+        "3trtvzx6gmq61": {
+            "source": "None",
+            "context": "label",
+            "translation": "Geen"
+        },
+        "3knd4kpq2wdw2": {
+            "source": "Start with a letter, then use letters, digits, - and _",
+            "translation": "Begin met een letter en gebruik daarna letters, cijfers, - en _"
+        },
+        "1kily8tz61rs0": {
+            "source": "A dense panel: a legend with its action, measures in two columns, then rows.",
+            "translation": "Een compact paneel: een legenda met zijn actie, maten in twee kolommen, dan rijen."
+        },
+        "3bz9k5vedtoyf": {
+            "source": "A width in pixels, rem or percent, typed as a sum or scrubbed by its mark.",
+            "translation": "Een breedte in pixels, rem of procent, getypt als som of versleept aan zijn teken."
+        },
+        "3klla6qjgelwf": {
+            "source": "Stop",
+            "context": "label",
+            "translation": "Kleurstop"
+        },
+        "2plxwawh7lg7": {
+            "source": "Mix",
+            "context": "label",
+            "translation": "Mengen"
+        },
+        "118y3nl58fr82": {
+            "source": "OKLCH, longer hue",
+            "context": "option",
+            "translation": "OKLCH, langere tint"
+        },
+        "2jmy9kry40zwi": {
+            "source": "This value cannot be read",
+            "translation": "Deze waarde kan niet worden gelezen"
         }
     }
 }

@@ -6422,16 +6422,6 @@
             "context": "label",
             "translation": "Füllmethode"
         },
-        "1rpk60vp7ofd5": {
-            "source": "Show layer",
-            "context": "action",
-            "translation": "Ebene zeigen"
-        },
-        "865vfostb5n4": {
-            "source": "Remove layer",
-            "context": "action",
-            "translation": "Ebene entfernen"
-        },
         "3pfqn7ah24is1": {
             "source": "Add layer",
             "context": "action",
@@ -6479,11 +6469,6 @@
             "source": "Remove stop",
             "context": "action",
             "translation": "Stopp entfernen"
-        },
-        "2wr2hajakp966": {
-            "source": "Blend",
-            "context": "label",
-            "translation": "Mischung"
         },
         "1nag7hbfipyby": {
             "source": "Angle",
@@ -6608,11 +6593,6 @@
             "context": "label",
             "translation": "Innen"
         },
-        "2ymermyp6qflz": {
-            "source": "Remove shadow",
-            "context": "action",
-            "translation": "Schatten entfernen"
-        },
         "tadhrvnkmgzk": {
             "source": "Add shadow",
             "context": "action",
@@ -6732,10 +6712,6 @@
             "context": "option",
             "translation": "Jährlich"
         },
-        "vtb0gq8pqb3h": {
-            "source": "The inputs of a card's look, with what they give.",
-            "translation": "Die Eingaben für das Aussehen einer Karte, mit dem, was sie liefern."
-        },
         "12gi7ff0g34uw": {
             "source": "Height",
             "context": "label",
@@ -6756,11 +6732,6 @@
             "context": "label",
             "translation": "Neues Tag"
         },
-        "1x4spxmewlelg": {
-            "source": "Least width",
-            "context": "label",
-            "translation": "Mindestbreite"
-        },
         "21wfoad7kqenf": {
             "source": "Filter {$p0}",
             "context": "label",
@@ -6770,16 +6741,6 @@
             "source": "Decoration",
             "context": "label",
             "translation": "Dekoration"
-        },
-        "2ysrbpr0sr8tj": {
-            "source": "Greatest height",
-            "context": "label",
-            "translation": "Maximale Höhe"
-        },
-        "3buey0iivsmsz": {
-            "source": "Least height",
-            "context": "label",
-            "translation": "Mindesthöhe"
         },
         "cnu1vs3bo5aq": {
             "source": "Lines",
@@ -6800,31 +6761,6 @@
             "source": "Remove {$p0}",
             "context": "action",
             "translation": "{$p0} entfernen"
-        },
-        "vq9v9i0trplc": {
-            "source": "Greatest width",
-            "context": "label",
-            "translation": "Maximale Breite"
-        },
-        "2ago58sm6vn24": {
-            "source": "Offset",
-            "context": "label",
-            "translation": "Versatz"
-        },
-        "2wzmmcaxsl0b8": {
-            "source": "End",
-            "context": "label",
-            "translation": "Ende"
-        },
-        "2yierad4nggct": {
-            "source": "Start",
-            "context": "label",
-            "translation": "Anfang"
-        },
-        "39sto541aydx8": {
-            "source": "Constraint",
-            "context": "label",
-            "translation": "Einschränkung"
         },
         "1c0cm6t466nzb": {
             "source": "Z",
@@ -6958,6 +6894,742 @@
             "source": "No tokens.",
             "context": "title",
             "translation": "Keine Tokens."
+        },
+        "oocdugyd48tw": {
+            "source": "All corners",
+            "context": "label",
+            "translation": "Alle Ecken"
+        },
+        "1qidra66os22q": {
+            "source": "All sides",
+            "context": "label",
+            "translation": "Alle Seiten"
+        },
+        "3ps2pc8f7xils": {
+            "source": "Alignment",
+            "context": "label",
+            "translation": "Ausrichtung"
+        },
+        "1qbw0cxafqunr": {
+            "source": "Top start",
+            "context": "option",
+            "translation": "Oben Anfang"
+        },
+        "1uwf288kv01ma": {
+            "source": "Top end",
+            "context": "option",
+            "translation": "Oben Ende"
+        },
+        "3coq0eaofje21": {
+            "source": "Middle start",
+            "context": "option",
+            "translation": "Mitte Anfang"
+        },
+        "3gtyo733dq4zi": {
+            "source": "Middle center",
+            "context": "option",
+            "translation": "Mitte zentriert"
+        },
+        "3i35chm4mxbrs": {
+            "source": "Middle end",
+            "context": "option",
+            "translation": "Mitte Ende"
+        },
+        "1w9y7e6tve2fj": {
+            "source": "Bottom start",
+            "context": "option",
+            "translation": "Unten Anfang"
+        },
+        "c9fefgfk7r7e": {
+            "source": "Bottom end",
+            "context": "option",
+            "translation": "Unten Ende"
+        },
+        "19sgbkzj5oj1n": {
+            "source": "Space between",
+            "context": "label",
+            "translation": "Abstand dazwischen"
+        },
+        "1fy7c1s0ak8ys": {
+            "source": "Stretch",
+            "context": "label",
+            "translation": "Strecken"
+        },
+        "3afcy9xrrzomy": {
+            "source": "A grid that places a box's children at its top start.",
+            "translation": "Ein Raster, das die Kinder einer Box oben am Anfang platziert."
+        },
+        "q2cvi2qas827": {
+            "source": "A grid with none of its places chosen, as for children spaced apart.",
+            "translation": "Ein Raster ohne gewählten Platz, wie bei verteilten Kindern."
+        },
+        "2c5qt18d7rhl8": {
+            "source": "Pick a color",
+            "context": "action",
+            "translation": "Farbe wählen"
+        },
+        "2rj9qkl802yay": {
+            "source": "Color",
+            "context": "title",
+            "translation": "Farbe"
+        },
+        "27qic2krpbkxk": {
+            "source": "Custom",
+            "context": "title",
+            "translation": "Eigene"
+        },
+        "1a01v0c6fax8y": {
+            "source": "Show {$p0}",
+            "context": "action",
+            "translation": "{$p0} zeigen"
+        },
+        "348218554v05n": {
+            "source": "Drop shadow",
+            "context": "option",
+            "translation": "Schlagschatten"
+        },
+        "3bry4x69ubd8w": {
+            "source": "Inner shadow",
+            "context": "option",
+            "translation": "Innenschatten"
+        },
+        "3htgk3x40y5vr": {
+            "source": "Scale",
+            "context": "label",
+            "translation": "Skalierung"
+        },
+        "1ayg5gz3ug2ox": {
+            "source": "Keep ratio",
+            "context": "label",
+            "translation": "Seitenverhältnis beibehalten"
+        },
+        "3sidx0g38xopr": {
+            "source": "{$p0} sizing",
+            "context": "label",
+            "translation": "Größenverhalten: {$p0}"
+        },
+        "k6557zhswk79": {
+            "source": "Min width",
+            "context": "label",
+            "translation": "Min. Breite"
+        },
+        "2cryuql12qcfb": {
+            "source": "Max width",
+            "context": "label",
+            "translation": "Max. Breite"
+        },
+        "2lh20cpka3kws": {
+            "source": "Min height",
+            "context": "label",
+            "translation": "Min. Höhe"
+        },
+        "3kekcym8yf8h6": {
+            "source": "Max height",
+            "context": "label",
+            "translation": "Max. Höhe"
+        },
+        "2w2b88upkggz8": {
+            "source": "Refuses choices where the place cannot change now.",
+            "translation": "Lehnt Auswahl ab, wo sich der Platz gerade nicht ändern kann."
+        },
+        "287n66zav5slu": {
+            "source": "A grid that takes no choice now, its center chosen.",
+            "translation": "Ein Raster, das gerade keine Auswahl annimmt, die Mitte gewählt."
+        },
+        "3q670aeklsem9": {
+            "source": "Layout",
+            "context": "title",
+            "translation": "Layout"
+        },
+        "3e59hkqc1k7ya": {
+            "source": "Auto layout",
+            "context": "label",
+            "translation": "Auto-Layout"
+        },
+        "9vbmkd9p0d49": {
+            "source": "Appearance",
+            "context": "title",
+            "translation": "Erscheinung"
+        },
+        "s6ltltffq1xz": {
+            "source": "Corners",
+            "context": "label",
+            "translation": "Ecken"
+        },
+        "wfh9zz27g9dq": {
+            "source": "Typography",
+            "context": "title",
+            "translation": "Typografie"
+        },
+        "2rcw0jcncuswv": {
+            "source": "Type",
+            "context": "label",
+            "translation": "Schrift"
+        },
+        "2g7t3g6vmh6hq": {
+            "source": "Fill",
+            "context": "label",
+            "translation": "Füllung"
+        },
+        "3tl8iob20iftz": {
+            "source": "Stroke",
+            "context": "label",
+            "translation": "Kontur"
+        },
+        "3b997b012jfmv": {
+            "source": "Effects",
+            "context": "title",
+            "translation": "Effekte"
+        },
+        "1l95ncpffocqc": {
+            "source": "Shadows",
+            "context": "label",
+            "translation": "Schatten"
+        },
+        "2ukk2ib42klh9": {
+            "source": "Backdrop",
+            "context": "label",
+            "translation": "Hintergrund"
+        },
+        "2fxdvr57xpen1": {
+            "source": "Motion",
+            "context": "label",
+            "translation": "Bewegung"
+        },
+        "2phnhszsriodo": {
+            "source": "A card's design in sections, from its position to its motion, as a design tool's panel.",
+            "translation": "Das Design einer Karte in Abschnitten, von der Position bis zur Bewegung, wie das Panel eines Design-Tools."
+        },
+        "9ercsuf83cbx": {
+            "source": "Text settings",
+            "context": "label",
+            "translation": "Texteinstellungen"
+        },
+        "1c2c7z1mmtw9t": {
+            "source": "Pin to the top",
+            "context": "action",
+            "translation": "Oben anheften"
+        },
+        "2cpjlcwf05zn7": {
+            "source": "Pin to the left",
+            "context": "action",
+            "translation": "Links anheften"
+        },
+        "2tpbn8hpv2gs": {
+            "source": "Pin to the right",
+            "context": "action",
+            "translation": "Rechts anheften"
+        },
+        "ycaer1nw60od": {
+            "source": "Pin to the bottom",
+            "context": "action",
+            "translation": "Unten anheften"
+        },
+        "q2utjjw73f5o": {
+            "source": "Center",
+            "context": "action",
+            "translation": "Zentrieren"
+        },
+        "2om2b65ammatp": {
+            "source": "Offset across",
+            "context": "label",
+            "translation": "Versatz quer"
+        },
+        "3fuk21loikckg": {
+            "source": "Offset down",
+            "context": "label",
+            "translation": "Versatz nach unten"
+        },
+        "2bm7h1llntdhi": {
+            "source": "Refuses changes where the constraints cannot change now.",
+            "translation": "Lehnt Änderungen ab, wo sich die Einschränkungen gerade nicht ändern können."
+        },
+        "1nh5p2ftfyy3o": {
+            "source": "A layer pinned to its container's top left, as design tools start one.",
+            "translation": "Eine Ebene, oben links an ihrem Container angeheftet, wie Design-Tools sie beginnen."
+        },
+        "3ukjgcfcviai7": {
+            "source": "A layer pinned to both sides, growing with its container, kept at its middle down.",
+            "translation": "Eine Ebene, an beiden Seiten angeheftet, die mit ihrem Container wächst, vertikal in der Mitte gehalten."
+        },
+        "3eerysz70bdc2": {
+            "source": "Constraints that take no change now.",
+            "translation": "Einschränkungen, die gerade keine Änderung annehmen."
+        },
+        "16v596zckmvga": {
+            "source": "Layout settings",
+            "context": "label",
+            "translation": "Layout-Einstellungen"
+        },
+        "1b0s446xpoqj7": {
+            "source": "Fonts",
+            "context": "title",
+            "translation": "Schriften"
+        },
+        "1bifdb17pvipm": {
+            "source": "Use {$p0}",
+            "context": "action",
+            "translation": "{$p0} verwenden"
+        },
+        "1xdrej6vqh6ng": {
+            "source": "No fonts.",
+            "context": "title",
+            "translation": "Keine Schriften."
+        },
+        "2jzkll11v9inr": {
+            "source": "Custom",
+            "context": "option",
+            "translation": "Eigene"
+        },
+        "evtidcxgr7ke": {
+            "source": "Transforms",
+            "context": "label",
+            "translation": "Transformationen"
+        },
+        "qi9a3h081rtb": {
+            "source": "Search fonts…",
+            "context": "label",
+            "translation": "Schriften suchen…"
+        },
+        "1x44gs3o6kfti": {
+            "source": "Reset {$p0}",
+            "context": "action",
+            "translation": "{$p0} zurücksetzen"
+        },
+        "8gqy27j1uqn7": {
+            "source": "Mixed",
+            "context": "option",
+            "translation": "Gemischt"
+        },
+        "2jr6xcflopdmq": {
+            "source": "A card and a popover edited at once, the values they hold apart shown as mixed.",
+            "translation": "Eine Karte und ein Popover zugleich bearbeitet, die Werte, in denen sie sich unterscheiden, als gemischt angezeigt."
+        },
+        "6wk8fokqj1bi": {
+            "source": "Document",
+            "context": "title",
+            "translation": "Dokument"
+        },
+        "1qy9tuhiqcl3v": {
+            "source": "Installed",
+            "context": "title",
+            "translation": "Installiert"
+        },
+        "vave8q03vch0": {
+            "source": "Generic",
+            "context": "title",
+            "translation": "Generisch"
+        },
+        "29lxyfee54734": {
+            "source": "Show installed fonts",
+            "context": "action",
+            "translation": "Installierte Schriften anzeigen"
+        },
+        "2xoxx67hpc1m": {
+            "source": "Add {$p0}",
+            "context": "action",
+            "translation": "{$p0} hinzufügen"
+        },
+        "1lludxugxoks": {
+            "source": "Matching",
+            "context": "title",
+            "translation": "Passend"
+        },
+        "3lgo6t806s6tz": {
+            "source": "A curve that overshoots its end and comes back, as a playful ease does.",
+            "translation": "Eine Kurve, die über ihr Ende hinausschießt und zurückkommt, wie eine verspielte Beschleunigung."
+        },
+        "1gdlu616edc2o": {
+            "source": "CSS's ease out, its control points to drag or move by arrows.",
+            "translation": "CSS' ease-out, mit Kontrollpunkten zum Ziehen oder Bewegen mit Pfeiltasten."
+        },
+        "289jmfw9fpgco": {
+            "source": "First control point",
+            "translation": "Erster Kontrollpunkt",
+            "context": "label"
+        },
+        "3rap8yfqpaetg": {
+            "source": "Second control point",
+            "translation": "Zweiter Kontrollpunkt",
+            "context": "label"
+        },
+        "2l9mvrvlg8zaj": {
+            "source": "Refuses changes where the curve cannot change now.",
+            "translation": "Lehnt Änderungen ab, wo sich die Kurve gerade nicht ändern kann."
+        },
+        "1c87zrr8ebwhf": {
+            "source": "Jump",
+            "context": "label",
+            "translation": "Sprung"
+        },
+        "1yxohcnzmfrs7": {
+            "source": "Steps",
+            "context": "option",
+            "translation": "Schritte"
+        },
+        "20eo3a5xwmut3": {
+            "source": "Curve",
+            "context": "option",
+            "translation": "Kurve"
+        },
+        "2ozf8wrtk25xz": {
+            "source": "At the end",
+            "context": "option",
+            "translation": "Am Ende"
+        },
+        "30dsa54d91dre": {
+            "source": "Edit curve",
+            "context": "action",
+            "translation": "Kurve bearbeiten"
+        },
+        "312hawfipcb15": {
+            "source": "Spring",
+            "context": "option",
+            "translation": "Feder"
+        },
+        "3cme081al8kn3": {
+            "source": "Both ends",
+            "context": "option",
+            "translation": "Beide Enden"
+        },
+        "3i6vusamo3jle": {
+            "source": "Steps",
+            "context": "label",
+            "translation": "Schritte"
+        },
+        "3tiyhwy7pmxa7": {
+            "source": "Bounce",
+            "context": "label",
+            "translation": "Federung"
+        },
+        "c1337ufdsfyu": {
+            "source": "Neither end",
+            "context": "option",
+            "translation": "Keines der Enden"
+        },
+        "qimmhspbdnaq": {
+            "source": "At the start",
+            "context": "option",
+            "translation": "Am Anfang"
+        },
+        "2nwjv5jf2gb4i": {
+            "source": "Add animation",
+            "context": "action",
+            "translation": "Animation hinzufügen"
+        },
+        "32eyl6lynwvoo": {
+            "source": "Add keyframe",
+            "context": "action",
+            "translation": "Keyframe hinzufügen"
+        },
+        "7rth0ridshmh": {
+            "source": "Add state",
+            "context": "action",
+            "translation": "Zustand hinzufügen"
+        },
+        "2oudnuhdxmq3f": {
+            "source": "Add track",
+            "context": "action",
+            "translation": "Spur hinzufügen"
+        },
+        "10d06xgbqty2l": {
+            "source": "Add value",
+            "context": "action",
+            "translation": "Wert hinzufügen"
+        },
+        "202kf6ao2cu4q": {
+            "source": "Alternate",
+            "context": "option",
+            "translation": "Abwechselnd"
+        },
+        "2vjy7tye7k4f1": {
+            "source": "Animation {$p0}",
+            "context": "label",
+            "translation": "Animation {$p0}"
+        },
+        "3kiijedcapitw": {
+            "source": "Animations",
+            "context": "label",
+            "translation": "Animationen"
+        },
+        "xng0093w5ho2": {
+            "source": "Axis",
+            "context": "label",
+            "translation": "Achse"
+        },
+        "3fnd35ftutz6s": {
+            "source": "Contain",
+            "context": "option",
+            "translation": "Enthalten"
+        },
+        "1bx6p53ckcdgn": {
+            "source": "Cover",
+            "context": "option",
+            "translation": "Bedecken"
+        },
+        "oukoofdngppv": {
+            "source": "Enter",
+            "context": "label",
+            "translation": "Eintreten"
+        },
+        "56eg1z2gp3xs": {
+            "source": "Entry crossing",
+            "context": "option",
+            "translation": "Eintrittsübergang"
+        },
+        "uwv7ssir8hrk": {
+            "source": "Entry",
+            "context": "option",
+            "translation": "Eintritt"
+        },
+        "2n7yp7b96kmak": {
+            "source": "Exit crossing",
+            "context": "option",
+            "translation": "Austrittsübergang"
+        },
+        "mjivigpz8gnb": {
+            "source": "Exit",
+            "context": "label",
+            "translation": "Austreten"
+        },
+        "1g9rulbvkcg98": {
+            "source": "Exit",
+            "context": "option",
+            "translation": "Austritt"
+        },
+        "398fp0uadye7y": {
+            "source": "Keyframe at {$p0}",
+            "context": "label",
+            "translation": "Keyframe bei {$p0}"
+        },
+        "5eo1lfpc4kli": {
+            "source": "Nearest",
+            "context": "option",
+            "translation": "Nächster"
+        },
+        "2ago58sm6vn24": {
+            "source": "Offset",
+            "context": "label",
+            "translation": "Versatz"
+        },
+        "pllj4xqis037": {
+            "source": "Play again",
+            "context": "action",
+            "translation": "Erneut abspielen"
+        },
+        "djhywe77iigx": {
+            "source": "Scroller",
+            "context": "label",
+            "translation": "Scrollbereich"
+        },
+        "2yjyb2dpil9jc": {
+            "source": "State",
+            "context": "label",
+            "translation": "Zustand"
+        },
+        "1ihuvqo4jj8n5": {
+            "source": "States",
+            "context": "label",
+            "translation": "Zustände"
+        },
+        "mfsljuqji2l9": {
+            "source": "Time",
+            "context": "option",
+            "translation": "Zeit"
+        },
+        "45v44gudp4gs": {
+            "source": "Timeline",
+            "context": "label",
+            "translation": "Zeitleiste"
+        },
+        "1aduu68v04zbz": {
+            "source": "Tracks",
+            "context": "label",
+            "translation": "Spuren"
+        },
+        "2rti5re4x7nrc": {
+            "source": "Transition",
+            "context": "label",
+            "translation": "Übergang"
+        },
+        "28j4kpdul8oo5": {
+            "source": "View",
+            "context": "option",
+            "translation": "Ansicht"
+        },
+        "1xhder2eg05ir": {
+            "source": "A card's motion: its stage, transition, hover, entry, exit and a scroll-driven fade.",
+            "translation": "Die Bewegung einer Karte: ihre Bühne, ihr Übergang, Hover, Eintritt, Austritt und ein scrollgesteuertes Einblenden."
+        },
+        "35y6hgtzuqurq": {
+            "source": "The keyframes of an opacity track along its time, the middle one selected.",
+            "translation": "Die Keyframes einer Deckkraftspur entlang ihrer Zeit, der mittlere ausgewählt."
+        },
+        "2jeikjl7wrr9b": {
+            "source": "A spring that bounces a little, its duration and bounce set apart from a curve.",
+            "translation": "Eine Feder, die leicht federt, Dauer und Federung getrennt von einer Kurve eingestellt."
+        },
+        "2qgcmkmrlziep": {
+            "source": "CSS's ease out as a curve, edited on its plot.",
+            "translation": "CSS-Ease-out als Kurve, auf ihrem Diagramm bearbeitet."
+        },
+        "6hr08qrqxm9d": {
+            "source": "Four steps jumping at their ends, as a ticking clock moves.",
+            "translation": "Vier Schritte, die an ihren Enden springen, wie ein tickender Uhrzeiger."
+        },
+        "3i33zk80nhabk": {
+            "source": "Alternate reverse",
+            "context": "option",
+            "translation": "Abwechselnd rückwärts"
+        },
+        "3frmt7w4jxzxu": {
+            "source": "Backwards",
+            "context": "option",
+            "translation": "Rückwärts"
+        },
+        "1wvzzoe64ugae": {
+            "source": "Forwards",
+            "context": "option",
+            "translation": "Vorwärts"
+        },
+        "22nff8jm1rhwf": {
+            "source": "Iterations",
+            "context": "label",
+            "translation": "Durchläufe"
+        },
+        "ehbpx8s1ik5m": {
+            "source": "No values",
+            "context": "label",
+            "translation": "Keine Werte"
+        },
+        "1odsh6r13c8fz": {
+            "source": "Normal",
+            "context": "option",
+            "translation": "Normal"
+        },
+        "2tkl2ea7xdiyw": {
+            "source": "Range end offset",
+            "context": "label",
+            "translation": "Versatz am Bereichsende"
+        },
+        "3ctysaeqqes6h": {
+            "source": "Range end",
+            "context": "label",
+            "translation": "Bereichsende"
+        },
+        "rraqqk2dqior": {
+            "source": "Range start offset",
+            "context": "label",
+            "translation": "Versatz am Bereichsanfang"
+        },
+        "3ibypmo8uu2qg": {
+            "source": "Range start",
+            "context": "label",
+            "translation": "Bereichsanfang"
+        },
+        "di1gt1eolqo6": {
+            "source": "Refuses changes where the motion cannot change now.",
+            "translation": "Lehnt Änderungen ab, wo sich die Bewegung gerade nicht ändern kann."
+        },
+        "210bk4hmrhv7u": {
+            "source": "Refuses changes where the timing cannot change now.",
+            "translation": "Lehnt Änderungen ab, wo sich das Timing gerade nicht ändern kann."
+        },
+        "b9hwayuguf5j": {
+            "source": "Remove keyframe",
+            "context": "action",
+            "translation": "Keyframe entfernen"
+        },
+        "1q1ltclg2iwlq": {
+            "source": "Remove track",
+            "context": "action",
+            "translation": "Spur entfernen"
+        },
+        "12bbieaiqma8t": {
+            "source": "Repeat forever",
+            "context": "action",
+            "translation": "Endlos wiederholen"
+        },
+        "1rs3j3n8jpo2i": {
+            "source": "Reverse",
+            "context": "option",
+            "translation": "Rückwärts"
+        },
+        "2hgdu7m71niq4": {
+            "source": "Root",
+            "context": "option",
+            "translation": "Wurzel"
+        },
+        "2yjz4weq3j90e": {
+            "source": "Self",
+            "context": "option",
+            "translation": "Selbst"
+        },
+        "2xtomy32awhy4": {
+            "source": "Value",
+            "context": "label",
+            "translation": "Wert"
+        },
+        "18zy3ykvh1u4q": {
+            "source": "Starts from",
+            "context": "label",
+            "translation": "Beginnt bei"
+        },
+        "1axbdx9wq7gpg": {
+            "source": "First child",
+            "context": "option",
+            "translation": "Erstes Kind"
+        },
+        "25w1kqf9oyacd": {
+            "source": "View transition",
+            "context": "label",
+            "translation": "Ansichtsübergang"
+        },
+        "2wbrj6pt04xb6": {
+            "source": "Stagger",
+            "context": "label",
+            "translation": "Staffelung"
+        },
+        "3tmvlq2wjir9u": {
+            "source": "Last child",
+            "context": "option",
+            "translation": "Letztes Kind"
+        },
+        "3trtvzx6gmq61": {
+            "source": "None",
+            "context": "label",
+            "translation": "Keine"
+        },
+        "3knd4kpq2wdw2": {
+            "source": "Start with a letter, then use letters, digits, - and _",
+            "translation": "Mit einem Buchstaben beginnen, dann Buchstaben, Ziffern, - und _ verwenden"
+        },
+        "1kily8tz61rs0": {
+            "source": "A dense panel: a legend with its action, measures in two columns, then rows.",
+            "translation": "Ein dichtes Panel: eine Legende mit ihrer Aktion, Maße in zwei Spalten, dann Zeilen."
+        },
+        "3bz9k5vedtoyf": {
+            "source": "A width in pixels, rem or percent, typed as a sum or scrubbed by its mark.",
+            "translation": "Eine Breite in Pixeln, rem oder Prozent, als Summe getippt oder an ihrer Marke gezogen."
+        },
+        "3klla6qjgelwf": {
+            "source": "Stop",
+            "context": "label",
+            "translation": "Farbstopp"
+        },
+        "2plxwawh7lg7": {
+            "source": "Mix",
+            "context": "label",
+            "translation": "Mischen"
+        },
+        "118y3nl58fr82": {
+            "source": "OKLCH, longer hue",
+            "context": "option",
+            "translation": "OKLCH, längerer Farbton"
+        },
+        "2jmy9kry40zwi": {
+            "source": "This value cannot be read",
+            "translation": "Dieser Wert kann nicht gelesen werden"
         }
     }
 }

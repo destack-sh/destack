@@ -6422,16 +6422,6 @@
             "context": "label",
             "translation": "Metodo di fusione"
         },
-        "1rpk60vp7ofd5": {
-            "source": "Show layer",
-            "context": "action",
-            "translation": "Mostra livello"
-        },
-        "865vfostb5n4": {
-            "source": "Remove layer",
-            "context": "action",
-            "translation": "Rimuovi livello"
-        },
         "3pfqn7ah24is1": {
             "source": "Add layer",
             "context": "action",
@@ -6479,11 +6469,6 @@
             "source": "Remove stop",
             "context": "action",
             "translation": "Rimuovi stop"
-        },
-        "2wr2hajakp966": {
-            "source": "Blend",
-            "context": "label",
-            "translation": "Fusione"
         },
         "1nag7hbfipyby": {
             "source": "Angle",
@@ -6608,11 +6593,6 @@
             "context": "label",
             "translation": "Interno"
         },
-        "2ymermyp6qflz": {
-            "source": "Remove shadow",
-            "context": "action",
-            "translation": "Rimuovi ombra"
-        },
         "tadhrvnkmgzk": {
             "source": "Add shadow",
             "context": "action",
@@ -6732,10 +6712,6 @@
             "context": "option",
             "translation": "Ogni anno"
         },
-        "vtb0gq8pqb3h": {
-            "source": "The inputs of a card's look, with what they give.",
-            "translation": "Gli input dell'aspetto di una scheda, con ciò che danno."
-        },
         "12gi7ff0g34uw": {
             "source": "Height",
             "context": "label",
@@ -6756,11 +6732,6 @@
             "context": "label",
             "translation": "Nuovo tag"
         },
-        "1x4spxmewlelg": {
-            "source": "Least width",
-            "context": "label",
-            "translation": "Larghezza minima"
-        },
         "21wfoad7kqenf": {
             "source": "Filter {$p0}",
             "context": "label",
@@ -6770,16 +6741,6 @@
             "source": "Decoration",
             "context": "label",
             "translation": "Decorazione"
-        },
-        "2ysrbpr0sr8tj": {
-            "source": "Greatest height",
-            "context": "label",
-            "translation": "Altezza massima"
-        },
-        "3buey0iivsmsz": {
-            "source": "Least height",
-            "context": "label",
-            "translation": "Altezza minima"
         },
         "cnu1vs3bo5aq": {
             "source": "Lines",
@@ -6800,31 +6761,6 @@
             "source": "Remove {$p0}",
             "context": "action",
             "translation": "Rimuovi {$p0}"
-        },
-        "vq9v9i0trplc": {
-            "source": "Greatest width",
-            "context": "label",
-            "translation": "Larghezza massima"
-        },
-        "2ago58sm6vn24": {
-            "source": "Offset",
-            "context": "label",
-            "translation": "Scostamento"
-        },
-        "2wzmmcaxsl0b8": {
-            "source": "End",
-            "context": "label",
-            "translation": "Fine"
-        },
-        "2yierad4nggct": {
-            "source": "Start",
-            "context": "label",
-            "translation": "Inizio"
-        },
-        "39sto541aydx8": {
-            "source": "Constraint",
-            "context": "label",
-            "translation": "Vincolo"
         },
         "1c0cm6t466nzb": {
             "source": "Z",
@@ -6958,6 +6894,742 @@
             "source": "No tokens.",
             "context": "title",
             "translation": "Nessun token."
+        },
+        "oocdugyd48tw": {
+            "source": "All corners",
+            "context": "label",
+            "translation": "Tutti gli angoli"
+        },
+        "1qidra66os22q": {
+            "source": "All sides",
+            "context": "label",
+            "translation": "Tutti i lati"
+        },
+        "3ps2pc8f7xils": {
+            "source": "Alignment",
+            "context": "label",
+            "translation": "Allineamento"
+        },
+        "1qbw0cxafqunr": {
+            "source": "Top start",
+            "context": "option",
+            "translation": "In alto all'inizio"
+        },
+        "1uwf288kv01ma": {
+            "source": "Top end",
+            "context": "option",
+            "translation": "In alto alla fine"
+        },
+        "3coq0eaofje21": {
+            "source": "Middle start",
+            "context": "option",
+            "translation": "Al centro all'inizio"
+        },
+        "3gtyo733dq4zi": {
+            "source": "Middle center",
+            "context": "option",
+            "translation": "Al centro centrato"
+        },
+        "3i35chm4mxbrs": {
+            "source": "Middle end",
+            "context": "option",
+            "translation": "Al centro alla fine"
+        },
+        "1w9y7e6tve2fj": {
+            "source": "Bottom start",
+            "context": "option",
+            "translation": "In basso all'inizio"
+        },
+        "c9fefgfk7r7e": {
+            "source": "Bottom end",
+            "context": "option",
+            "translation": "In basso alla fine"
+        },
+        "19sgbkzj5oj1n": {
+            "source": "Space between",
+            "context": "label",
+            "translation": "Spazio tra"
+        },
+        "1fy7c1s0ak8ys": {
+            "source": "Stretch",
+            "context": "label",
+            "translation": "Estendi"
+        },
+        "3afcy9xrrzomy": {
+            "source": "A grid that places a box's children at its top start.",
+            "translation": "Una griglia che colloca i figli di un riquadro in alto all'inizio."
+        },
+        "q2cvi2qas827": {
+            "source": "A grid with none of its places chosen, as for children spaced apart.",
+            "translation": "Una griglia senza posizione scelta, come per figli distanziati."
+        },
+        "2c5qt18d7rhl8": {
+            "source": "Pick a color",
+            "context": "action",
+            "translation": "Scegli un colore"
+        },
+        "2rj9qkl802yay": {
+            "source": "Color",
+            "context": "title",
+            "translation": "Colore"
+        },
+        "27qic2krpbkxk": {
+            "source": "Custom",
+            "context": "title",
+            "translation": "Personalizzato"
+        },
+        "1a01v0c6fax8y": {
+            "source": "Show {$p0}",
+            "context": "action",
+            "translation": "Mostra {$p0}"
+        },
+        "348218554v05n": {
+            "source": "Drop shadow",
+            "context": "option",
+            "translation": "Ombra esterna"
+        },
+        "3bry4x69ubd8w": {
+            "source": "Inner shadow",
+            "context": "option",
+            "translation": "Ombra interna"
+        },
+        "3htgk3x40y5vr": {
+            "source": "Scale",
+            "context": "label",
+            "translation": "Scala"
+        },
+        "1ayg5gz3ug2ox": {
+            "source": "Keep ratio",
+            "context": "label",
+            "translation": "Mantieni proporzioni"
+        },
+        "3sidx0g38xopr": {
+            "source": "{$p0} sizing",
+            "context": "label",
+            "translation": "Dimensionamento: {$p0}"
+        },
+        "k6557zhswk79": {
+            "source": "Min width",
+            "context": "label",
+            "translation": "Larghezza min."
+        },
+        "2cryuql12qcfb": {
+            "source": "Max width",
+            "context": "label",
+            "translation": "Larghezza max."
+        },
+        "2lh20cpka3kws": {
+            "source": "Min height",
+            "context": "label",
+            "translation": "Altezza min."
+        },
+        "3kekcym8yf8h6": {
+            "source": "Max height",
+            "context": "label",
+            "translation": "Altezza max."
+        },
+        "2w2b88upkggz8": {
+            "source": "Refuses choices where the place cannot change now.",
+            "translation": "Rifiuta le scelte quando la posizione non può cambiare ora."
+        },
+        "287n66zav5slu": {
+            "source": "A grid that takes no choice now, its center chosen.",
+            "translation": "Una griglia che ora non accetta scelte, con il centro scelto."
+        },
+        "3q670aeklsem9": {
+            "source": "Layout",
+            "context": "title",
+            "translation": "Layout"
+        },
+        "3e59hkqc1k7ya": {
+            "source": "Auto layout",
+            "context": "label",
+            "translation": "Layout automatico"
+        },
+        "9vbmkd9p0d49": {
+            "source": "Appearance",
+            "context": "title",
+            "translation": "Aspetto"
+        },
+        "s6ltltffq1xz": {
+            "source": "Corners",
+            "context": "label",
+            "translation": "Angoli"
+        },
+        "wfh9zz27g9dq": {
+            "source": "Typography",
+            "context": "title",
+            "translation": "Tipografia"
+        },
+        "2rcw0jcncuswv": {
+            "source": "Type",
+            "context": "label",
+            "translation": "Carattere"
+        },
+        "2g7t3g6vmh6hq": {
+            "source": "Fill",
+            "context": "label",
+            "translation": "Riempimento"
+        },
+        "3tl8iob20iftz": {
+            "source": "Stroke",
+            "context": "label",
+            "translation": "Contorno"
+        },
+        "3b997b012jfmv": {
+            "source": "Effects",
+            "context": "title",
+            "translation": "Effetti"
+        },
+        "1l95ncpffocqc": {
+            "source": "Shadows",
+            "context": "label",
+            "translation": "Ombre"
+        },
+        "2ukk2ib42klh9": {
+            "source": "Backdrop",
+            "context": "label",
+            "translation": "Sfondo"
+        },
+        "2fxdvr57xpen1": {
+            "source": "Motion",
+            "context": "label",
+            "translation": "Movimento"
+        },
+        "2phnhszsriodo": {
+            "source": "A card's design in sections, from its position to its motion, as a design tool's panel.",
+            "translation": "Il design di una scheda in sezioni, dalla posizione al movimento, come il pannello di uno strumento di design."
+        },
+        "9ercsuf83cbx": {
+            "source": "Text settings",
+            "context": "label",
+            "translation": "Impostazioni del testo"
+        },
+        "1c2c7z1mmtw9t": {
+            "source": "Pin to the top",
+            "context": "action",
+            "translation": "Fissa in alto"
+        },
+        "2cpjlcwf05zn7": {
+            "source": "Pin to the left",
+            "context": "action",
+            "translation": "Fissa a sinistra"
+        },
+        "2tpbn8hpv2gs": {
+            "source": "Pin to the right",
+            "context": "action",
+            "translation": "Fissa a destra"
+        },
+        "ycaer1nw60od": {
+            "source": "Pin to the bottom",
+            "context": "action",
+            "translation": "Fissa in basso"
+        },
+        "q2utjjw73f5o": {
+            "source": "Center",
+            "context": "action",
+            "translation": "Centra"
+        },
+        "2om2b65ammatp": {
+            "source": "Offset across",
+            "context": "label",
+            "translation": "Scostamento orizzontale"
+        },
+        "3fuk21loikckg": {
+            "source": "Offset down",
+            "context": "label",
+            "translation": "Scostamento verticale"
+        },
+        "2bm7h1llntdhi": {
+            "source": "Refuses changes where the constraints cannot change now.",
+            "translation": "Rifiuta le modifiche quando i vincoli non possono cambiare ora."
+        },
+        "1nh5p2ftfyy3o": {
+            "source": "A layer pinned to its container's top left, as design tools start one.",
+            "translation": "Un livello fissato in alto a sinistra del contenitore, come lo iniziano gli strumenti di design."
+        },
+        "3ukjgcfcviai7": {
+            "source": "A layer pinned to both sides, growing with its container, kept at its middle down.",
+            "translation": "Un livello fissato su entrambi i lati, che cresce con il contenitore, centrato in verticale."
+        },
+        "3eerysz70bdc2": {
+            "source": "Constraints that take no change now.",
+            "translation": "Vincoli che ora non accettano modifiche."
+        },
+        "16v596zckmvga": {
+            "source": "Layout settings",
+            "context": "label",
+            "translation": "Impostazioni del layout"
+        },
+        "1b0s446xpoqj7": {
+            "source": "Fonts",
+            "context": "title",
+            "translation": "Font"
+        },
+        "1bifdb17pvipm": {
+            "source": "Use {$p0}",
+            "context": "action",
+            "translation": "Usa {$p0}"
+        },
+        "1xdrej6vqh6ng": {
+            "source": "No fonts.",
+            "context": "title",
+            "translation": "Nessun font."
+        },
+        "2jzkll11v9inr": {
+            "source": "Custom",
+            "context": "option",
+            "translation": "Personalizzata"
+        },
+        "evtidcxgr7ke": {
+            "source": "Transforms",
+            "context": "label",
+            "translation": "Trasformazioni"
+        },
+        "qi9a3h081rtb": {
+            "source": "Search fonts…",
+            "context": "label",
+            "translation": "Cerca font…"
+        },
+        "1x44gs3o6kfti": {
+            "source": "Reset {$p0}",
+            "context": "action",
+            "translation": "Reimposta {$p0}"
+        },
+        "8gqy27j1uqn7": {
+            "source": "Mixed",
+            "context": "option",
+            "translation": "Misto"
+        },
+        "2jr6xcflopdmq": {
+            "source": "A card and a popover edited at once, the values they hold apart shown as mixed.",
+            "translation": "Una scheda e un popover modificati insieme, con i valori diversi mostrati come misti."
+        },
+        "6wk8fokqj1bi": {
+            "source": "Document",
+            "context": "title",
+            "translation": "Documento"
+        },
+        "1qy9tuhiqcl3v": {
+            "source": "Installed",
+            "context": "title",
+            "translation": "Installati"
+        },
+        "vave8q03vch0": {
+            "source": "Generic",
+            "context": "title",
+            "translation": "Generici"
+        },
+        "29lxyfee54734": {
+            "source": "Show installed fonts",
+            "context": "action",
+            "translation": "Mostra i font installati"
+        },
+        "2xoxx67hpc1m": {
+            "source": "Add {$p0}",
+            "context": "action",
+            "translation": "Aggiungi {$p0}"
+        },
+        "1lludxugxoks": {
+            "source": "Matching",
+            "context": "title",
+            "translation": "Corrispondenti"
+        },
+        "3lgo6t806s6tz": {
+            "source": "A curve that overshoots its end and comes back, as a playful ease does.",
+            "translation": "Una curva che supera la fine e torna indietro, come un'accelerazione giocosa."
+        },
+        "1gdlu616edc2o": {
+            "source": "CSS's ease out, its control points to drag or move by arrows.",
+            "translation": "L'ease-out di CSS, con punti di controllo da trascinare o spostare con le frecce."
+        },
+        "289jmfw9fpgco": {
+            "source": "First control point",
+            "translation": "Primo punto di controllo",
+            "context": "label"
+        },
+        "3rap8yfqpaetg": {
+            "source": "Second control point",
+            "translation": "Secondo punto di controllo",
+            "context": "label"
+        },
+        "2l9mvrvlg8zaj": {
+            "source": "Refuses changes where the curve cannot change now.",
+            "translation": "Rifiuta le modifiche quando la curva non può cambiare ora."
+        },
+        "1c87zrr8ebwhf": {
+            "source": "Jump",
+            "context": "label",
+            "translation": "Salto"
+        },
+        "1yxohcnzmfrs7": {
+            "source": "Steps",
+            "context": "option",
+            "translation": "Passi"
+        },
+        "20eo3a5xwmut3": {
+            "source": "Curve",
+            "context": "option",
+            "translation": "Curva"
+        },
+        "2ozf8wrtk25xz": {
+            "source": "At the end",
+            "context": "option",
+            "translation": "Alla fine"
+        },
+        "30dsa54d91dre": {
+            "source": "Edit curve",
+            "context": "action",
+            "translation": "Modifica curva"
+        },
+        "312hawfipcb15": {
+            "source": "Spring",
+            "context": "option",
+            "translation": "Molla"
+        },
+        "3cme081al8kn3": {
+            "source": "Both ends",
+            "context": "option",
+            "translation": "Entrambe le estremità"
+        },
+        "3i6vusamo3jle": {
+            "source": "Steps",
+            "context": "label",
+            "translation": "Passi"
+        },
+        "3tiyhwy7pmxa7": {
+            "source": "Bounce",
+            "context": "label",
+            "translation": "Rimbalzo"
+        },
+        "c1337ufdsfyu": {
+            "source": "Neither end",
+            "context": "option",
+            "translation": "Nessuna estremità"
+        },
+        "qimmhspbdnaq": {
+            "source": "At the start",
+            "context": "option",
+            "translation": "All'inizio"
+        },
+        "2nwjv5jf2gb4i": {
+            "source": "Add animation",
+            "context": "action",
+            "translation": "Aggiungi animazione"
+        },
+        "32eyl6lynwvoo": {
+            "source": "Add keyframe",
+            "context": "action",
+            "translation": "Aggiungi fotogramma chiave"
+        },
+        "7rth0ridshmh": {
+            "source": "Add state",
+            "context": "action",
+            "translation": "Aggiungi stato"
+        },
+        "2oudnuhdxmq3f": {
+            "source": "Add track",
+            "context": "action",
+            "translation": "Aggiungi traccia"
+        },
+        "10d06xgbqty2l": {
+            "source": "Add value",
+            "context": "action",
+            "translation": "Aggiungi valore"
+        },
+        "202kf6ao2cu4q": {
+            "source": "Alternate",
+            "context": "option",
+            "translation": "Alterna"
+        },
+        "2vjy7tye7k4f1": {
+            "source": "Animation {$p0}",
+            "context": "label",
+            "translation": "Animazione {$p0}"
+        },
+        "3kiijedcapitw": {
+            "source": "Animations",
+            "context": "label",
+            "translation": "Animazioni"
+        },
+        "xng0093w5ho2": {
+            "source": "Axis",
+            "context": "label",
+            "translation": "Asse"
+        },
+        "3fnd35ftutz6s": {
+            "source": "Contain",
+            "context": "option",
+            "translation": "Contenere"
+        },
+        "1bx6p53ckcdgn": {
+            "source": "Cover",
+            "context": "option",
+            "translation": "Coprire"
+        },
+        "oukoofdngppv": {
+            "source": "Enter",
+            "context": "label",
+            "translation": "Entrata"
+        },
+        "56eg1z2gp3xs": {
+            "source": "Entry crossing",
+            "context": "option",
+            "translation": "Attraversamento in entrata"
+        },
+        "uwv7ssir8hrk": {
+            "source": "Entry",
+            "context": "option",
+            "translation": "Entrata"
+        },
+        "2n7yp7b96kmak": {
+            "source": "Exit crossing",
+            "context": "option",
+            "translation": "Attraversamento in uscita"
+        },
+        "mjivigpz8gnb": {
+            "source": "Exit",
+            "context": "label",
+            "translation": "Uscita"
+        },
+        "1g9rulbvkcg98": {
+            "source": "Exit",
+            "context": "option",
+            "translation": "Uscita"
+        },
+        "398fp0uadye7y": {
+            "source": "Keyframe at {$p0}",
+            "context": "label",
+            "translation": "Fotogramma chiave a {$p0}"
+        },
+        "5eo1lfpc4kli": {
+            "source": "Nearest",
+            "context": "option",
+            "translation": "Più vicino"
+        },
+        "2ago58sm6vn24": {
+            "source": "Offset",
+            "context": "label",
+            "translation": "Scostamento"
+        },
+        "pllj4xqis037": {
+            "source": "Play again",
+            "context": "action",
+            "translation": "Riproduci di nuovo"
+        },
+        "djhywe77iigx": {
+            "source": "Scroller",
+            "context": "label",
+            "translation": "Scorrimento"
+        },
+        "2yjyb2dpil9jc": {
+            "source": "State",
+            "context": "label",
+            "translation": "Stato"
+        },
+        "1ihuvqo4jj8n5": {
+            "source": "States",
+            "context": "label",
+            "translation": "Stati"
+        },
+        "mfsljuqji2l9": {
+            "source": "Time",
+            "context": "option",
+            "translation": "Tempo"
+        },
+        "45v44gudp4gs": {
+            "source": "Timeline",
+            "context": "label",
+            "translation": "Timeline"
+        },
+        "1aduu68v04zbz": {
+            "source": "Tracks",
+            "context": "label",
+            "translation": "Tracce"
+        },
+        "2rti5re4x7nrc": {
+            "source": "Transition",
+            "context": "label",
+            "translation": "Transizione"
+        },
+        "28j4kpdul8oo5": {
+            "source": "View",
+            "context": "option",
+            "translation": "Vista"
+        },
+        "1xhder2eg05ir": {
+            "source": "A card's motion: its stage, transition, hover, entry, exit and a scroll-driven fade.",
+            "translation": "Il movimento di una scheda: palco, transizione, hover, entrata, uscita e una dissolvenza guidata dallo scorrimento."
+        },
+        "35y6hgtzuqurq": {
+            "source": "The keyframes of an opacity track along its time, the middle one selected.",
+            "translation": "I fotogrammi chiave di una traccia di opacità lungo il suo tempo, con quello centrale selezionato."
+        },
+        "2jeikjl7wrr9b": {
+            "source": "A spring that bounces a little, its duration and bounce set apart from a curve.",
+            "translation": "Una molla che rimbalza un po', con durata e rimbalzo impostati a parte da una curva."
+        },
+        "2qgcmkmrlziep": {
+            "source": "CSS's ease out as a curve, edited on its plot.",
+            "translation": "L'ease out di CSS come curva, modificata sul suo grafico."
+        },
+        "6hr08qrqxm9d": {
+            "source": "Four steps jumping at their ends, as a ticking clock moves.",
+            "translation": "Quattro passi che scattano alla fine, come avanza un orologio."
+        },
+        "3i33zk80nhabk": {
+            "source": "Alternate reverse",
+            "context": "option",
+            "translation": "Alterna inverso"
+        },
+        "3frmt7w4jxzxu": {
+            "source": "Backwards",
+            "context": "option",
+            "translation": "All'indietro"
+        },
+        "1wvzzoe64ugae": {
+            "source": "Forwards",
+            "context": "option",
+            "translation": "In avanti"
+        },
+        "22nff8jm1rhwf": {
+            "source": "Iterations",
+            "context": "label",
+            "translation": "Iterazioni"
+        },
+        "ehbpx8s1ik5m": {
+            "source": "No values",
+            "context": "label",
+            "translation": "Nessun valore"
+        },
+        "1odsh6r13c8fz": {
+            "source": "Normal",
+            "context": "option",
+            "translation": "Normale"
+        },
+        "2tkl2ea7xdiyw": {
+            "source": "Range end offset",
+            "context": "label",
+            "translation": "Scostamento di fine intervallo"
+        },
+        "3ctysaeqqes6h": {
+            "source": "Range end",
+            "context": "label",
+            "translation": "Fine intervallo"
+        },
+        "rraqqk2dqior": {
+            "source": "Range start offset",
+            "context": "label",
+            "translation": "Scostamento di inizio intervallo"
+        },
+        "3ibypmo8uu2qg": {
+            "source": "Range start",
+            "context": "label",
+            "translation": "Inizio intervallo"
+        },
+        "di1gt1eolqo6": {
+            "source": "Refuses changes where the motion cannot change now.",
+            "translation": "Rifiuta le modifiche quando il movimento non può cambiare ora."
+        },
+        "210bk4hmrhv7u": {
+            "source": "Refuses changes where the timing cannot change now.",
+            "translation": "Rifiuta le modifiche quando la temporizzazione non può cambiare ora."
+        },
+        "b9hwayuguf5j": {
+            "source": "Remove keyframe",
+            "context": "action",
+            "translation": "Rimuovi fotogramma chiave"
+        },
+        "1q1ltclg2iwlq": {
+            "source": "Remove track",
+            "context": "action",
+            "translation": "Rimuovi traccia"
+        },
+        "12bbieaiqma8t": {
+            "source": "Repeat forever",
+            "context": "action",
+            "translation": "Ripeti all'infinito"
+        },
+        "1rs3j3n8jpo2i": {
+            "source": "Reverse",
+            "context": "option",
+            "translation": "Inverso"
+        },
+        "2hgdu7m71niq4": {
+            "source": "Root",
+            "context": "option",
+            "translation": "Radice"
+        },
+        "2yjz4weq3j90e": {
+            "source": "Self",
+            "context": "option",
+            "translation": "Se stesso"
+        },
+        "2xtomy32awhy4": {
+            "source": "Value",
+            "context": "label",
+            "translation": "Valore"
+        },
+        "18zy3ykvh1u4q": {
+            "source": "Starts from",
+            "context": "label",
+            "translation": "Inizia da"
+        },
+        "1axbdx9wq7gpg": {
+            "source": "First child",
+            "context": "option",
+            "translation": "Primo figlio"
+        },
+        "25w1kqf9oyacd": {
+            "source": "View transition",
+            "context": "label",
+            "translation": "Transizione di vista"
+        },
+        "2wbrj6pt04xb6": {
+            "source": "Stagger",
+            "context": "label",
+            "translation": "Sfalsamento"
+        },
+        "3tmvlq2wjir9u": {
+            "source": "Last child",
+            "context": "option",
+            "translation": "Ultimo figlio"
+        },
+        "3trtvzx6gmq61": {
+            "source": "None",
+            "context": "label",
+            "translation": "Nessuna"
+        },
+        "3knd4kpq2wdw2": {
+            "source": "Start with a letter, then use letters, digits, - and _",
+            "translation": "Inizia con una lettera, poi usa lettere, cifre, - e _"
+        },
+        "1kily8tz61rs0": {
+            "source": "A dense panel: a legend with its action, measures in two columns, then rows.",
+            "translation": "Un pannello denso: una legenda con la sua azione, misure in due colonne, poi righe."
+        },
+        "3bz9k5vedtoyf": {
+            "source": "A width in pixels, rem or percent, typed as a sum or scrubbed by its mark.",
+            "translation": "Una larghezza in pixel, rem o percentuale, digitata come somma o trascinata dal suo segno."
+        },
+        "3klla6qjgelwf": {
+            "source": "Stop",
+            "context": "label",
+            "translation": "Punto colore"
+        },
+        "2plxwawh7lg7": {
+            "source": "Mix",
+            "context": "label",
+            "translation": "Miscela"
+        },
+        "118y3nl58fr82": {
+            "source": "OKLCH, longer hue",
+            "context": "option",
+            "translation": "OKLCH, tonalità più lunga"
+        },
+        "2jmy9kry40zwi": {
+            "source": "This value cannot be read",
+            "translation": "Questo valore non può essere letto"
         }
     }
 }

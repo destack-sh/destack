@@ -6422,16 +6422,6 @@
             "context": "label",
             "translation": "Mode de fusion"
         },
-        "1rpk60vp7ofd5": {
-            "source": "Show layer",
-            "context": "action",
-            "translation": "Afficher le calque"
-        },
-        "865vfostb5n4": {
-            "source": "Remove layer",
-            "context": "action",
-            "translation": "Retirer le calque"
-        },
         "3pfqn7ah24is1": {
             "source": "Add layer",
             "context": "action",
@@ -6479,11 +6469,6 @@
             "source": "Remove stop",
             "context": "action",
             "translation": "Retirer l’arrêt"
-        },
-        "2wr2hajakp966": {
-            "source": "Blend",
-            "context": "label",
-            "translation": "Mélange"
         },
         "1nag7hbfipyby": {
             "source": "Angle",
@@ -6608,11 +6593,6 @@
             "context": "label",
             "translation": "Intérieur"
         },
-        "2ymermyp6qflz": {
-            "source": "Remove shadow",
-            "context": "action",
-            "translation": "Retirer l’ombre"
-        },
         "tadhrvnkmgzk": {
             "source": "Add shadow",
             "context": "action",
@@ -6732,10 +6712,6 @@
             "context": "option",
             "translation": "Tous les ans"
         },
-        "vtb0gq8pqb3h": {
-            "source": "The inputs of a card's look, with what they give.",
-            "translation": "Les saisies de l'apparence d'une carte, avec ce qu'elles donnent."
-        },
         "12gi7ff0g34uw": {
             "source": "Height",
             "context": "label",
@@ -6756,11 +6732,6 @@
             "context": "label",
             "translation": "Nouvelle balise"
         },
-        "1x4spxmewlelg": {
-            "source": "Least width",
-            "context": "label",
-            "translation": "Largeur minimale"
-        },
         "21wfoad7kqenf": {
             "source": "Filter {$p0}",
             "context": "label",
@@ -6770,16 +6741,6 @@
             "source": "Decoration",
             "context": "label",
             "translation": "Décoration"
-        },
-        "2ysrbpr0sr8tj": {
-            "source": "Greatest height",
-            "context": "label",
-            "translation": "Hauteur maximale"
-        },
-        "3buey0iivsmsz": {
-            "source": "Least height",
-            "context": "label",
-            "translation": "Hauteur minimale"
         },
         "cnu1vs3bo5aq": {
             "source": "Lines",
@@ -6800,31 +6761,6 @@
             "source": "Remove {$p0}",
             "context": "action",
             "translation": "Retirer {$p0}"
-        },
-        "vq9v9i0trplc": {
-            "source": "Greatest width",
-            "context": "label",
-            "translation": "Largeur maximale"
-        },
-        "2ago58sm6vn24": {
-            "source": "Offset",
-            "context": "label",
-            "translation": "Décalage"
-        },
-        "2wzmmcaxsl0b8": {
-            "source": "End",
-            "context": "label",
-            "translation": "Fin"
-        },
-        "2yierad4nggct": {
-            "source": "Start",
-            "context": "label",
-            "translation": "Début"
-        },
-        "39sto541aydx8": {
-            "source": "Constraint",
-            "context": "label",
-            "translation": "Contrainte"
         },
         "1c0cm6t466nzb": {
             "source": "Z",
@@ -6958,6 +6894,742 @@
             "source": "No tokens.",
             "context": "title",
             "translation": "Aucun jeton."
+        },
+        "oocdugyd48tw": {
+            "source": "All corners",
+            "context": "label",
+            "translation": "Tous les coins"
+        },
+        "1qidra66os22q": {
+            "source": "All sides",
+            "context": "label",
+            "translation": "Tous les côtés"
+        },
+        "3ps2pc8f7xils": {
+            "source": "Alignment",
+            "context": "label",
+            "translation": "Alignement"
+        },
+        "1qbw0cxafqunr": {
+            "source": "Top start",
+            "context": "option",
+            "translation": "En haut au début"
+        },
+        "1uwf288kv01ma": {
+            "source": "Top end",
+            "context": "option",
+            "translation": "En haut à la fin"
+        },
+        "3coq0eaofje21": {
+            "source": "Middle start",
+            "context": "option",
+            "translation": "Au milieu au début"
+        },
+        "3gtyo733dq4zi": {
+            "source": "Middle center",
+            "context": "option",
+            "translation": "Au milieu centré"
+        },
+        "3i35chm4mxbrs": {
+            "source": "Middle end",
+            "context": "option",
+            "translation": "Au milieu à la fin"
+        },
+        "1w9y7e6tve2fj": {
+            "source": "Bottom start",
+            "context": "option",
+            "translation": "En bas au début"
+        },
+        "c9fefgfk7r7e": {
+            "source": "Bottom end",
+            "context": "option",
+            "translation": "En bas à la fin"
+        },
+        "19sgbkzj5oj1n": {
+            "source": "Space between",
+            "context": "label",
+            "translation": "Espace entre"
+        },
+        "1fy7c1s0ak8ys": {
+            "source": "Stretch",
+            "context": "label",
+            "translation": "Étirer"
+        },
+        "3afcy9xrrzomy": {
+            "source": "A grid that places a box's children at its top start.",
+            "translation": "Une grille qui place les enfants d'une boîte en haut au début."
+        },
+        "q2cvi2qas827": {
+            "source": "A grid with none of its places chosen, as for children spaced apart.",
+            "translation": "Une grille sans place choisie, comme pour des enfants espacés."
+        },
+        "2c5qt18d7rhl8": {
+            "source": "Pick a color",
+            "context": "action",
+            "translation": "Choisir une couleur"
+        },
+        "2rj9qkl802yay": {
+            "source": "Color",
+            "context": "title",
+            "translation": "Couleur"
+        },
+        "27qic2krpbkxk": {
+            "source": "Custom",
+            "context": "title",
+            "translation": "Personnalisée"
+        },
+        "1a01v0c6fax8y": {
+            "source": "Show {$p0}",
+            "context": "action",
+            "translation": "Afficher {$p0}"
+        },
+        "348218554v05n": {
+            "source": "Drop shadow",
+            "context": "option",
+            "translation": "Ombre portée"
+        },
+        "3bry4x69ubd8w": {
+            "source": "Inner shadow",
+            "context": "option",
+            "translation": "Ombre intérieure"
+        },
+        "3htgk3x40y5vr": {
+            "source": "Scale",
+            "context": "label",
+            "translation": "Échelle"
+        },
+        "1ayg5gz3ug2ox": {
+            "source": "Keep ratio",
+            "context": "label",
+            "translation": "Conserver les proportions"
+        },
+        "3sidx0g38xopr": {
+            "source": "{$p0} sizing",
+            "context": "label",
+            "translation": "Dimensionnement : {$p0}"
+        },
+        "k6557zhswk79": {
+            "source": "Min width",
+            "context": "label",
+            "translation": "Largeur min."
+        },
+        "2cryuql12qcfb": {
+            "source": "Max width",
+            "context": "label",
+            "translation": "Largeur max."
+        },
+        "2lh20cpka3kws": {
+            "source": "Min height",
+            "context": "label",
+            "translation": "Hauteur min."
+        },
+        "3kekcym8yf8h6": {
+            "source": "Max height",
+            "context": "label",
+            "translation": "Hauteur max."
+        },
+        "2w2b88upkggz8": {
+            "source": "Refuses choices where the place cannot change now.",
+            "translation": "Refuse les choix quand la place ne peut pas changer maintenant."
+        },
+        "287n66zav5slu": {
+            "source": "A grid that takes no choice now, its center chosen.",
+            "translation": "Une grille qui n'accepte aucun choix pour l'instant, son centre choisi."
+        },
+        "3q670aeklsem9": {
+            "source": "Layout",
+            "context": "title",
+            "translation": "Mise en page"
+        },
+        "3e59hkqc1k7ya": {
+            "source": "Auto layout",
+            "context": "label",
+            "translation": "Mise en page auto"
+        },
+        "9vbmkd9p0d49": {
+            "source": "Appearance",
+            "context": "title",
+            "translation": "Apparence"
+        },
+        "s6ltltffq1xz": {
+            "source": "Corners",
+            "context": "label",
+            "translation": "Coins"
+        },
+        "wfh9zz27g9dq": {
+            "source": "Typography",
+            "context": "title",
+            "translation": "Typographie"
+        },
+        "2rcw0jcncuswv": {
+            "source": "Type",
+            "context": "label",
+            "translation": "Texte"
+        },
+        "2g7t3g6vmh6hq": {
+            "source": "Fill",
+            "context": "label",
+            "translation": "Remplissage"
+        },
+        "3tl8iob20iftz": {
+            "source": "Stroke",
+            "context": "label",
+            "translation": "Contour"
+        },
+        "3b997b012jfmv": {
+            "source": "Effects",
+            "context": "title",
+            "translation": "Effets"
+        },
+        "1l95ncpffocqc": {
+            "source": "Shadows",
+            "context": "label",
+            "translation": "Ombres"
+        },
+        "2ukk2ib42klh9": {
+            "source": "Backdrop",
+            "context": "label",
+            "translation": "Arrière-plan"
+        },
+        "2fxdvr57xpen1": {
+            "source": "Motion",
+            "context": "label",
+            "translation": "Mouvement"
+        },
+        "2phnhszsriodo": {
+            "source": "A card's design in sections, from its position to its motion, as a design tool's panel.",
+            "translation": "Le design d'une carte en sections, de sa position à son mouvement, comme le panneau d'un outil de design."
+        },
+        "9ercsuf83cbx": {
+            "source": "Text settings",
+            "context": "label",
+            "translation": "Réglages du texte"
+        },
+        "1c2c7z1mmtw9t": {
+            "source": "Pin to the top",
+            "context": "action",
+            "translation": "Épingler en haut"
+        },
+        "2cpjlcwf05zn7": {
+            "source": "Pin to the left",
+            "context": "action",
+            "translation": "Épingler à gauche"
+        },
+        "2tpbn8hpv2gs": {
+            "source": "Pin to the right",
+            "context": "action",
+            "translation": "Épingler à droite"
+        },
+        "ycaer1nw60od": {
+            "source": "Pin to the bottom",
+            "context": "action",
+            "translation": "Épingler en bas"
+        },
+        "q2utjjw73f5o": {
+            "source": "Center",
+            "context": "action",
+            "translation": "Centrer"
+        },
+        "2om2b65ammatp": {
+            "source": "Offset across",
+            "context": "label",
+            "translation": "Décalage horizontal"
+        },
+        "3fuk21loikckg": {
+            "source": "Offset down",
+            "context": "label",
+            "translation": "Décalage vertical"
+        },
+        "2bm7h1llntdhi": {
+            "source": "Refuses changes where the constraints cannot change now.",
+            "translation": "Refuse les changements quand les contraintes ne peuvent pas changer maintenant."
+        },
+        "1nh5p2ftfyy3o": {
+            "source": "A layer pinned to its container's top left, as design tools start one.",
+            "translation": "Un calque épinglé en haut à gauche de son conteneur, comme les outils de design le commencent."
+        },
+        "3ukjgcfcviai7": {
+            "source": "A layer pinned to both sides, growing with its container, kept at its middle down.",
+            "translation": "Un calque épinglé des deux côtés, qui grandit avec son conteneur, centré verticalement."
+        },
+        "3eerysz70bdc2": {
+            "source": "Constraints that take no change now.",
+            "translation": "Des contraintes qui n'acceptent aucun changement pour l'instant."
+        },
+        "16v596zckmvga": {
+            "source": "Layout settings",
+            "context": "label",
+            "translation": "Réglages de mise en page"
+        },
+        "1b0s446xpoqj7": {
+            "source": "Fonts",
+            "context": "title",
+            "translation": "Polices"
+        },
+        "1bifdb17pvipm": {
+            "source": "Use {$p0}",
+            "context": "action",
+            "translation": "Utiliser {$p0}"
+        },
+        "1xdrej6vqh6ng": {
+            "source": "No fonts.",
+            "context": "title",
+            "translation": "Aucune police."
+        },
+        "2jzkll11v9inr": {
+            "source": "Custom",
+            "context": "option",
+            "translation": "Personnalisée"
+        },
+        "evtidcxgr7ke": {
+            "source": "Transforms",
+            "context": "label",
+            "translation": "Transformations"
+        },
+        "qi9a3h081rtb": {
+            "source": "Search fonts…",
+            "context": "label",
+            "translation": "Rechercher des polices…"
+        },
+        "1x44gs3o6kfti": {
+            "source": "Reset {$p0}",
+            "context": "action",
+            "translation": "Réinitialiser {$p0}"
+        },
+        "8gqy27j1uqn7": {
+            "source": "Mixed",
+            "context": "option",
+            "translation": "Mixte"
+        },
+        "2jr6xcflopdmq": {
+            "source": "A card and a popover edited at once, the values they hold apart shown as mixed.",
+            "translation": "Une carte et un popover modifiés ensemble, les valeurs qui diffèrent affichées comme mixtes."
+        },
+        "6wk8fokqj1bi": {
+            "source": "Document",
+            "context": "title",
+            "translation": "Document"
+        },
+        "1qy9tuhiqcl3v": {
+            "source": "Installed",
+            "context": "title",
+            "translation": "Installées"
+        },
+        "vave8q03vch0": {
+            "source": "Generic",
+            "context": "title",
+            "translation": "Génériques"
+        },
+        "29lxyfee54734": {
+            "source": "Show installed fonts",
+            "context": "action",
+            "translation": "Afficher les polices installées"
+        },
+        "2xoxx67hpc1m": {
+            "source": "Add {$p0}",
+            "context": "action",
+            "translation": "Ajouter {$p0}"
+        },
+        "1lludxugxoks": {
+            "source": "Matching",
+            "context": "title",
+            "translation": "Correspondants"
+        },
+        "3lgo6t806s6tz": {
+            "source": "A curve that overshoots its end and comes back, as a playful ease does.",
+            "translation": "Une courbe qui dépasse sa fin puis revient, comme une accélération espiègle."
+        },
+        "1gdlu616edc2o": {
+            "source": "CSS's ease out, its control points to drag or move by arrows.",
+            "translation": "L'ease-out de CSS, avec des points de contrôle à glisser ou déplacer aux flèches."
+        },
+        "289jmfw9fpgco": {
+            "source": "First control point",
+            "translation": "Premier point de contrôle",
+            "context": "label"
+        },
+        "3rap8yfqpaetg": {
+            "source": "Second control point",
+            "translation": "Second point de contrôle",
+            "context": "label"
+        },
+        "2l9mvrvlg8zaj": {
+            "source": "Refuses changes where the curve cannot change now.",
+            "translation": "Refuse les changements lorsque la courbe ne peut pas changer."
+        },
+        "1c87zrr8ebwhf": {
+            "source": "Jump",
+            "context": "label",
+            "translation": "Saut"
+        },
+        "1yxohcnzmfrs7": {
+            "source": "Steps",
+            "context": "option",
+            "translation": "Étapes"
+        },
+        "20eo3a5xwmut3": {
+            "source": "Curve",
+            "context": "option",
+            "translation": "Courbe"
+        },
+        "2ozf8wrtk25xz": {
+            "source": "At the end",
+            "context": "option",
+            "translation": "À la fin"
+        },
+        "30dsa54d91dre": {
+            "source": "Edit curve",
+            "context": "action",
+            "translation": "Modifier la courbe"
+        },
+        "312hawfipcb15": {
+            "source": "Spring",
+            "context": "option",
+            "translation": "Ressort"
+        },
+        "3cme081al8kn3": {
+            "source": "Both ends",
+            "context": "option",
+            "translation": "Les deux extrémités"
+        },
+        "3i6vusamo3jle": {
+            "source": "Steps",
+            "context": "label",
+            "translation": "Étapes"
+        },
+        "3tiyhwy7pmxa7": {
+            "source": "Bounce",
+            "context": "label",
+            "translation": "Rebond"
+        },
+        "c1337ufdsfyu": {
+            "source": "Neither end",
+            "context": "option",
+            "translation": "Aucune extrémité"
+        },
+        "qimmhspbdnaq": {
+            "source": "At the start",
+            "context": "option",
+            "translation": "Au début"
+        },
+        "2nwjv5jf2gb4i": {
+            "source": "Add animation",
+            "context": "action",
+            "translation": "Ajouter une animation"
+        },
+        "32eyl6lynwvoo": {
+            "source": "Add keyframe",
+            "context": "action",
+            "translation": "Ajouter une image clé"
+        },
+        "7rth0ridshmh": {
+            "source": "Add state",
+            "context": "action",
+            "translation": "Ajouter un état"
+        },
+        "2oudnuhdxmq3f": {
+            "source": "Add track",
+            "context": "action",
+            "translation": "Ajouter une piste"
+        },
+        "10d06xgbqty2l": {
+            "source": "Add value",
+            "context": "action",
+            "translation": "Ajouter une valeur"
+        },
+        "202kf6ao2cu4q": {
+            "source": "Alternate",
+            "context": "option",
+            "translation": "Alterner"
+        },
+        "2vjy7tye7k4f1": {
+            "source": "Animation {$p0}",
+            "context": "label",
+            "translation": "Animation {$p0}"
+        },
+        "3kiijedcapitw": {
+            "source": "Animations",
+            "context": "label",
+            "translation": "Animations"
+        },
+        "xng0093w5ho2": {
+            "source": "Axis",
+            "context": "label",
+            "translation": "Axe"
+        },
+        "3fnd35ftutz6s": {
+            "source": "Contain",
+            "context": "option",
+            "translation": "Contenir"
+        },
+        "1bx6p53ckcdgn": {
+            "source": "Cover",
+            "context": "option",
+            "translation": "Couvrir"
+        },
+        "oukoofdngppv": {
+            "source": "Enter",
+            "context": "label",
+            "translation": "Entrée"
+        },
+        "56eg1z2gp3xs": {
+            "source": "Entry crossing",
+            "context": "option",
+            "translation": "Passage d'entrée"
+        },
+        "uwv7ssir8hrk": {
+            "source": "Entry",
+            "context": "option",
+            "translation": "Entrée"
+        },
+        "2n7yp7b96kmak": {
+            "source": "Exit crossing",
+            "context": "option",
+            "translation": "Passage de sortie"
+        },
+        "mjivigpz8gnb": {
+            "source": "Exit",
+            "context": "label",
+            "translation": "Sortie"
+        },
+        "1g9rulbvkcg98": {
+            "source": "Exit",
+            "context": "option",
+            "translation": "Sortie"
+        },
+        "398fp0uadye7y": {
+            "source": "Keyframe at {$p0}",
+            "context": "label",
+            "translation": "Image clé à {$p0}"
+        },
+        "5eo1lfpc4kli": {
+            "source": "Nearest",
+            "context": "option",
+            "translation": "Le plus proche"
+        },
+        "2ago58sm6vn24": {
+            "source": "Offset",
+            "context": "label",
+            "translation": "Décalage"
+        },
+        "pllj4xqis037": {
+            "source": "Play again",
+            "context": "action",
+            "translation": "Rejouer"
+        },
+        "djhywe77iigx": {
+            "source": "Scroller",
+            "context": "label",
+            "translation": "Défileur"
+        },
+        "2yjyb2dpil9jc": {
+            "source": "State",
+            "context": "label",
+            "translation": "État"
+        },
+        "1ihuvqo4jj8n5": {
+            "source": "States",
+            "context": "label",
+            "translation": "États"
+        },
+        "mfsljuqji2l9": {
+            "source": "Time",
+            "context": "option",
+            "translation": "Temps"
+        },
+        "45v44gudp4gs": {
+            "source": "Timeline",
+            "context": "label",
+            "translation": "Chronologie"
+        },
+        "1aduu68v04zbz": {
+            "source": "Tracks",
+            "context": "label",
+            "translation": "Pistes"
+        },
+        "2rti5re4x7nrc": {
+            "source": "Transition",
+            "context": "label",
+            "translation": "Transition"
+        },
+        "28j4kpdul8oo5": {
+            "source": "View",
+            "context": "option",
+            "translation": "Vue"
+        },
+        "1xhder2eg05ir": {
+            "source": "A card's motion: its stage, transition, hover, entry, exit and a scroll-driven fade.",
+            "translation": "Le mouvement d'une carte : sa scène, sa transition, le survol, l'entrée, la sortie et un fondu piloté par le défilement."
+        },
+        "35y6hgtzuqurq": {
+            "source": "The keyframes of an opacity track along its time, the middle one selected.",
+            "translation": "Les images clés d'une piste d'opacité le long de son temps, celle du milieu sélectionnée."
+        },
+        "2jeikjl7wrr9b": {
+            "source": "A spring that bounces a little, its duration and bounce set apart from a curve.",
+            "translation": "Un ressort qui rebondit un peu, sa durée et son rebond réglés à part d'une courbe."
+        },
+        "2qgcmkmrlziep": {
+            "source": "CSS's ease out as a curve, edited on its plot.",
+            "translation": "L'ease out de CSS sous forme de courbe, modifiée sur son tracé."
+        },
+        "6hr08qrqxm9d": {
+            "source": "Four steps jumping at their ends, as a ticking clock moves.",
+            "translation": "Quatre pas qui sautent à leur fin, comme avance une horloge."
+        },
+        "3i33zk80nhabk": {
+            "source": "Alternate reverse",
+            "context": "option",
+            "translation": "Alterner inversé"
+        },
+        "3frmt7w4jxzxu": {
+            "source": "Backwards",
+            "context": "option",
+            "translation": "Vers l'arrière"
+        },
+        "1wvzzoe64ugae": {
+            "source": "Forwards",
+            "context": "option",
+            "translation": "Vers l'avant"
+        },
+        "22nff8jm1rhwf": {
+            "source": "Iterations",
+            "context": "label",
+            "translation": "Itérations"
+        },
+        "ehbpx8s1ik5m": {
+            "source": "No values",
+            "context": "label",
+            "translation": "Aucune valeur"
+        },
+        "1odsh6r13c8fz": {
+            "source": "Normal",
+            "context": "option",
+            "translation": "Normal"
+        },
+        "2tkl2ea7xdiyw": {
+            "source": "Range end offset",
+            "context": "label",
+            "translation": "Décalage de fin de plage"
+        },
+        "3ctysaeqqes6h": {
+            "source": "Range end",
+            "context": "label",
+            "translation": "Fin de plage"
+        },
+        "rraqqk2dqior": {
+            "source": "Range start offset",
+            "context": "label",
+            "translation": "Décalage de début de plage"
+        },
+        "3ibypmo8uu2qg": {
+            "source": "Range start",
+            "context": "label",
+            "translation": "Début de plage"
+        },
+        "di1gt1eolqo6": {
+            "source": "Refuses changes where the motion cannot change now.",
+            "translation": "Refuse les modifications quand le mouvement ne peut pas changer maintenant."
+        },
+        "210bk4hmrhv7u": {
+            "source": "Refuses changes where the timing cannot change now.",
+            "translation": "Refuse les modifications quand le minutage ne peut pas changer maintenant."
+        },
+        "b9hwayuguf5j": {
+            "source": "Remove keyframe",
+            "context": "action",
+            "translation": "Supprimer l'image clé"
+        },
+        "1q1ltclg2iwlq": {
+            "source": "Remove track",
+            "context": "action",
+            "translation": "Supprimer la piste"
+        },
+        "12bbieaiqma8t": {
+            "source": "Repeat forever",
+            "context": "action",
+            "translation": "Répéter indéfiniment"
+        },
+        "1rs3j3n8jpo2i": {
+            "source": "Reverse",
+            "context": "option",
+            "translation": "Inversé"
+        },
+        "2hgdu7m71niq4": {
+            "source": "Root",
+            "context": "option",
+            "translation": "Racine"
+        },
+        "2yjz4weq3j90e": {
+            "source": "Self",
+            "context": "option",
+            "translation": "Lui-même"
+        },
+        "2xtomy32awhy4": {
+            "source": "Value",
+            "context": "label",
+            "translation": "Valeur"
+        },
+        "18zy3ykvh1u4q": {
+            "source": "Starts from",
+            "context": "label",
+            "translation": "Commence par"
+        },
+        "1axbdx9wq7gpg": {
+            "source": "First child",
+            "context": "option",
+            "translation": "Premier enfant"
+        },
+        "25w1kqf9oyacd": {
+            "source": "View transition",
+            "context": "label",
+            "translation": "Transition de vue"
+        },
+        "2wbrj6pt04xb6": {
+            "source": "Stagger",
+            "context": "label",
+            "translation": "Décalage"
+        },
+        "3tmvlq2wjir9u": {
+            "source": "Last child",
+            "context": "option",
+            "translation": "Dernier enfant"
+        },
+        "3trtvzx6gmq61": {
+            "source": "None",
+            "context": "label",
+            "translation": "Aucune"
+        },
+        "3knd4kpq2wdw2": {
+            "source": "Start with a letter, then use letters, digits, - and _",
+            "translation": "Commencez par une lettre, puis utilisez des lettres, des chiffres, - et _"
+        },
+        "1kily8tz61rs0": {
+            "source": "A dense panel: a legend with its action, measures in two columns, then rows.",
+            "translation": "Un panneau dense : une légende avec son action, des mesures sur deux colonnes, puis des lignes."
+        },
+        "3bz9k5vedtoyf": {
+            "source": "A width in pixels, rem or percent, typed as a sum or scrubbed by its mark.",
+            "translation": "Une largeur en pixels, rem ou pourcentage, saisie comme une somme ou glissée depuis sa marque."
+        },
+        "3klla6qjgelwf": {
+            "source": "Stop",
+            "context": "label",
+            "translation": "Arrêt"
+        },
+        "2plxwawh7lg7": {
+            "source": "Mix",
+            "context": "label",
+            "translation": "Mélange"
+        },
+        "118y3nl58fr82": {
+            "source": "OKLCH, longer hue",
+            "context": "option",
+            "translation": "OKLCH, teinte la plus longue"
+        },
+        "2jmy9kry40zwi": {
+            "source": "This value cannot be read",
+            "translation": "Cette valeur ne peut pas être lue"
         }
     }
 }
