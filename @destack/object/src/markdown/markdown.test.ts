@@ -1,5 +1,6 @@
 import { canonicalize, type JsonValue, nth } from "@destack/schema";
 import { expect, test } from "@destack/test";
+import { Subject } from "@destack/sync";
 import type { Block, TextSpan } from "../sequence/index.ts";
 import { Markdown, MarkdownParser, Mention } from "./index.ts";
 import { Writer } from "./writer.ts";
@@ -455,12 +456,12 @@ function shownOf(blocks: readonly Block[]): unknown[] {
 
 test("read a link to a subject as a mention, and write a mention back as that link", () => {
     // mention a person in a paragraph
-    const ada = {
+    const ada = Subject.parse({
         packageId: "package-01a0c80b-614e-739e-a21a-66fd749e17ca",
         type: "user",
         scope: "universe",
         id: "user-01a21a7f-2e63-7660-89cf-b07f2165d270",
-    };
+    });
     const text = `Ask ${Mention.markdown(ada, "ada")} today`;
     const blocks = Markdown.parse(text);
 
