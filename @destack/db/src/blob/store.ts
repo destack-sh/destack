@@ -701,19 +701,22 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         if (digests.length === 0) {
             return [];
         }
-        const rows = await BlobStore.#readAll(transaction, this.referenced(now, digests));
+        const rows = await BlobStore.#readAll(transaction, this.#referencing(now, digests));
         const referenced = new Set(rows.map((row) => DigestRow.parse(row).digest));
 
         return digests.filter((digest) => !referenced.has(digest));
     }
 
-    /** Select the digests the partition's blob columns and live leases reference, by statement. */
-    referenced(now: number, among?: readonly Digest[]): SQL[] {
-        // select from each restricting blob column and the live leases, among the digests when given
-        const within = (column: SQL | Column) =>
-            among === undefined ? sql.empty() : sql`AND ${column} IN ${among}`;
+    /** Describe each restricting blob column's references: its digests and holding rows. */
+    #references(): {
+        readonly table: Table;
+        readonly digest: SQL;
+        readonly where: SQL;
+        readonly from: SQL;
+    }[] {
         const cascading = this.#blobColumns("cascade");
-        const references = this.#blobColumns("restrict").map(({ table, column }) => {
+
+        return this.#blobColumns("restrict").map(({ table, column }) => {
             // reference the blob only while the column's condition holds for the row
             const options = column.definition.blob;
             const condition = options?.onDelete === "cascade" ? undefined : options?.while;
@@ -723,28 +726,55 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                     : sql`AND (${Condition.render(condition, table)})`;
 
             // never keep alive the blob the row cascades from, as a build attached to itself
-            const owners = cascading.filter((each) => each.table === table);
-            const others = (digest: SQL | Column) =>
-                sql.join(
-                    owners.map((owner) => sql`AND ${digest} <> ${owner.column}`),
-                    sql` `,
-                );
-
-            // reference each digest the column has
             const { digest, from } = columnDigests(column);
+            const others = sql.join(
+                cascading
+                    .filter((each) => each.table === table)
+                    .map((owner) => sql`AND ${digest} <> ${owner.column}`),
+                sql` `,
+            );
 
-            return sql`SELECT ${digest} AS digest FROM ${table}${from}
-                    WHERE ${column} IS NOT NULL AND ${digest} IS NOT NULL ${holds} ${others(digest)} ${within(digest)}`;
+            return {
+                table,
+                digest,
+                from,
+                where: sql`${column} IS NOT NULL AND ${digest} IS NOT NULL ${holds} ${others}`,
+            };
         });
+    }
+
+    /** Select every digest the partition's blob columns and live leases reference, by statement. */
+    #referenced(now: number): SQL[] {
+        const references = this.#references().map(
+            ({ table, digest, from, where }) =>
+                sql`SELECT ${digest} AS digest FROM ${table}${from} WHERE ${where}`,
+        );
         const leased = sql`SELECT ${blobTable.digest} AS digest FROM ${blobTable}
-            WHERE ${blobTable.leasedUntil} > ${now} ${within(blobTable.digest)}`;
+            WHERE ${blobTable.leasedUntil} > ${now}`;
+
+        return [...references, leased];
+    }
+
+    /** Select which of some blobs a column or a live lease references, a probe per blob. */
+    #referencing(now: number, among: readonly Digest[]): SQL[] {
+        // probe each candidate for its first reference in each column
+        const candidate = sql.raw("candidate");
+        const references = this.#references().map(
+            ({ table, digest, from, where }) =>
+                sql`SELECT ${candidate}.digest AS digest FROM ${blobTable} AS ${candidate}
+                    WHERE ${candidate}.digest IN ${among} AND EXISTS (
+                        SELECT 1 FROM ${table}${from} WHERE ${where} AND ${digest} = ${candidate}.digest
+                    )`,
+        );
+        const leased = sql`SELECT ${blobTable.digest} AS digest FROM ${blobTable}
+            WHERE ${blobTable.leasedUntil} > ${now} AND ${blobTable.digest} IN ${among}`;
 
         return [...references, leased];
     }
 
     /** List the blobs the partition's rows or leases reference, each once. */
     async list(): Promise<Digest[]> {
-        const selects = this.referenced(this.environment.clock.now());
+        const selects = this.#referenced(this.environment.clock.now());
         const rows = await BlobStore.#readAll(this.database, selects);
 
         return [...new Set(rows.map((row) => DigestRow.parse(row).digest))];
