@@ -1064,6 +1064,52 @@ test("forward a stranger's push of a replicated row to its home, which decides i
     ]);
 });
 
+test("refuse a push of a caller reading alone before forwarding it to the row's home", async () => {
+    // store a realm's row as a replica of a home that records each push
+    const world = testSimulation().environment("test");
+    const pushed: unknown[] = [];
+    const silent = { [Symbol.asyncIterator]: () => ({ next: () => new Promise<never>(() => {}) }) };
+    const home = TestRemote.of(
+        { stream: () => silent, request: async () => {} },
+        {
+            push: async (scope, push) => {
+                pushed.push([scope, push.mutations.length]);
+                throw new Error("the home receives no push of a caller reading alone");
+            },
+        },
+    );
+    const { store, realm, realmId } = await openRealms(world, home);
+
+    // push a rename of the realm as a person whose credential reads alone
+    const reader = principal.user.reference(Scope.universe.id, users.other);
+    const id = RequestId.create(world);
+    const answered = await refusal(
+        call(
+            store.procedures().push,
+            {
+                scope: Scope.universe.id,
+                mutations: [{ id, calls: [realm.call("rename", { id: realmId, title: "Globe" })] }],
+            },
+            {
+                context: subjectContext(reader, Scope.universe.id, {
+                    environment: world,
+                    access: "read",
+                }),
+            },
+        ),
+    );
+
+    // refuse it at this store, sending nothing to the home
+    expect([answered, pushed]).toEqual([
+        [
+            "FORBIDDEN",
+            "WRITE_DENIED",
+            `write to scope '${Scope.universe.id}' is forbidden: the caller's credential reads alone`,
+        ],
+        [],
+    ]);
+});
+
 /** Store a realm's row as a replica of its home, reached through a remote when given. */
 async function openRealms(world: Environment, remote?: ObjectRemote) {
     // store a realm's row as a replica of its home, enclosing the notes the store serves

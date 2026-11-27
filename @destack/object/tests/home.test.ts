@@ -651,6 +651,26 @@ test("let a caller bound to a room read its ancestors, refusing a write there an
     ]).toEqual(["done", outsideRequest(personId), outsideRequest(otherPersonId)]);
 });
 
+test("let a caller whose credential reads alone read its scope, refusing a write there", async () => {
+    // call the room as alice with a read-only credential
+    const world = testSimulation().environment("test");
+    const served = await serveHomes(world);
+    const context = userContext(users.alice, roomId, { environment: world, access: "read" });
+
+    // enter the room to read and to write
+    expect([
+        await refusal(served.replica.enter(context, roomId, false)),
+        await refusal(served.replica.enter(context, roomId, true)),
+    ]).toEqual([
+        "done",
+        [
+            "FORBIDDEN",
+            "WRITE_DENIED",
+            `write to scope '${roomId}' is forbidden: the caller's credential reads alone`,
+        ],
+    ]);
+});
+
 test("enter a scope at once past a watermark of a scope outside its chain", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");

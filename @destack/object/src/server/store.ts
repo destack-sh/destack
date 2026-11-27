@@ -1764,6 +1764,9 @@ export class ObjectStore {
                     this.requireProtocolType(context, call.type);
                 }
 
+                // refuse a push of a caller reading alone, forwarded or not
+                ObjectStore.#requireWrite(context, input.scope);
+
                 // enter the pushed scope as the caller, leaving rows forwarded to their home for it to decide
                 const isForwarded = input.mutations.every((mutation) =>
                     this.#isForwarded(mutation),
@@ -3226,6 +3229,11 @@ export class ObjectStore {
 
     /** Enter a scope to read or write, requiring it and waiting for the writes the caller saw. */
     async enter(context: RequestContext, scope: string, mutates: boolean): Promise<void> {
+        // refuse a change to a caller whose credential lets it read alone
+        if (mutates) {
+            ObjectStore.#requireWrite(context, scope);
+        }
+
         // follow the row standing for the caller where it is missing
         await this.source.stand(context.access(scope).subject, context.signal);
 
@@ -3259,6 +3267,16 @@ export class ObjectStore {
             ),
         );
         await this.#waitWatermarks(context, known.flat());
+    }
+
+    /** Refuse a change to a scope by a caller whose credential lets it read alone. */
+    static #requireWrite(context: RequestContext, scope: string): void {
+        if (context.access(scope).credential?.access === "read") {
+            throw ObjectError.of(
+                "WRITE_DENIED",
+                `write to scope '${scope}' is forbidden: the caller's credential reads alone`,
+            );
+        }
     }
 
     /** Wait until a scope's chain replicas have their homes' commits, refusing other homes. */

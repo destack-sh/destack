@@ -91,7 +91,10 @@ export class InstallationBinding<
                             headers: (options) => ({
                                 authorization: `Bearer ${credential}`,
                                 ...Exchange.ask(
-                                    Exchange.of(options.context?.authentication?.caller),
+                                    Exchange.of(
+                                        options.context?.authentication?.caller,
+                                        options.context?.authentication?.credential,
+                                    ),
                                 ),
                             }),
                         },
