@@ -66,7 +66,7 @@ export const computeUsageUnit = defineSku({
 export const computeOperationUnit = defineSku({
     ...UNIT,
     name: "destack.compute.operation",
-    description: t`Requests served.`,
+    description: t.context("label")`Requests served.`,
     service: "Compute",
     category: "Compute",
     meter: meters.computeOperation,
@@ -136,7 +136,7 @@ export const bucketUsageUnit = defineSku({
 export const bucketReadUnit = defineSku({
     ...UNIT,
     name: "destack.bucket.read",
-    description: t`File reads.`,
+    description: t.context("label")`File reads.`,
     service: "Files",
     category: "Storage",
     meter: meters.bucketOperation,

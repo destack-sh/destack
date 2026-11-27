@@ -22,7 +22,7 @@ const FREE_USAGE =
 export const PLANS = {
     // free: every account's default, its usage per account included on shared machines, then blocked
     free: {
-        name: t`Free`,
+        name: t.context("title")`Free`,
         description: t`For your first apps, with all of Destack within its included usage.`,
         isDefault: true,
         includedUsage: FREE_USAGE,
@@ -38,7 +38,7 @@ export const PLANS = {
     },
     // go: its fee in usage, then capped, with custom retention and early access
     go: {
-        name: t`Go`,
+        name: t.context("title")`Go`,
         description: t`For your everyday stack, with all of Destack, custom retention and early access.`,
         overage: "capped",
         prices: Fee.prices({ USD: 800, CAD: 1100, EUR: 800, CHF: 800, GBP: 800, AUD: 1300 }),
@@ -55,7 +55,7 @@ export const PLANS = {
     },
     // plus: more usage in its fee, then pay as you go, with custom domains
     plus: {
-        name: t`Plus`,
+        name: t.context("title")`Plus`,
         description: t`For your daily work, with pay as you go and custom domains.`,
         prices: Fee.prices({ USD: 2000, CAD: 2800, EUR: 2000, CHF: 2000, GBP: 2000, AUD: 3200 }),
         productFeatures: {
@@ -72,7 +72,7 @@ export const PLANS = {
     },
     // pro: the most usage in its fee, with dedicated machines and priority support
     pro: {
-        name: t`Pro`,
+        name: t.context("title")`Pro`,
         description: t`For your critical software, with dedicated machines and priority support.`,
         prices: Fee.prices({ USD: 5000, CAD: 7000, EUR: 5000, CHF: 5000, GBP: 5000, AUD: 8000 }),
         productFeatures: {
@@ -91,7 +91,7 @@ export const PLANS = {
 
 /** The contract organisations sign past Pro, its fee a monthly commitment spent on usage. */
 export const ENTERPRISE = {
-    name: t`Enterprise`,
+    name: t.context("title")`Enterprise`,
     description: t`For your organisation, with SLAs, onboarding, invoice billing and a data processing agreement.`,
     support: "sla",
     commitment: {
