@@ -584,7 +584,11 @@
                     "directory": "@destack/cli/tests/fixture/notebooks",
                     "name": "@example/notebooks"
                 },
-                { "directory": "@destack/cli/tests/fixture/starter", "name": "@example/starter" },
+                {
+                    "directory": "@destack/cli/tests/fixture/starter",
+                    "name": "@example/starter",
+                    "description": "Start a package of Example's."
+                },
                 {
                     "directory": "@destack/view/tests/fixture/notebook",
                     "name": "@destack/view-notebook-fixture"
