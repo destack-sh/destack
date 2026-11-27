@@ -174,8 +174,8 @@ export class OpenState<Payload = unknown> {
 
     /** Read the id of the trigger that labels the overlay, undefined where none has one. */
     labelId(): string | undefined {
-        // take the trigger it opened from, else the first
-        const id = this.trigger()?.element.id ?? "";
+        // take the trigger it opened from, else the root's own, else the first
+        const id = this.trigger()?.element.id ?? this.#root?.id ?? "";
         const first = this.#count === 0 ? undefined : `${this.#id}-trigger`;
 
         return id === "" ? first : id;

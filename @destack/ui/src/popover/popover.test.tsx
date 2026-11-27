@@ -423,3 +423,25 @@ test("place a popover beside an element or a box in place of its trigger", () =>
         isGone: true,
     });
 });
+
+test("label a popover by its trigger's own id, such as a field's control", () => {
+    // render the trigger as a button that keeps the id a field gives it
+    const { container } = render(() => (
+        <Popover>
+            <PopoverTrigger
+                render={(attributes) => (
+                    <button type="button" {...attributes} id="paint-field">
+                        Paint
+                    </button>
+                )}
+            />
+            <PopoverContent>Solid</PopoverContent>
+        </Popover>
+    ));
+    const content = present(
+        container.querySelector("[data-slot=popover-content]"),
+        "the popover's content",
+    );
+
+    expect(content.getAttribute("aria-labelledby")).toBe("paint-field");
+});
