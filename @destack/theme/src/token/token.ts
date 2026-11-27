@@ -1,13 +1,5 @@
 import { schema } from "@destack/schema";
-import {
-    Color,
-    ColorToken,
-    CubicBezier,
-    Dimension,
-    Duration,
-    FontFamily,
-    FontWeight,
-} from "@destack/style";
+import { Color, ColorToken, CubicBezier, Dimension, FontFamily, FontWeight } from "@destack/style";
 import tokens from "./tokens.json" with { type: "json" };
 
 /** The prefix of every custom property a theme sets. */
@@ -110,7 +102,7 @@ export const Token = schema.discriminatedUnion("$type", [
         /** A duration. */
         $type: schema.literal("duration"),
         /** The duration with full motion. */
-        $value: Duration.extend({ unit: schema.literal("ms") }),
+        $value: schema.object({ value: schema.number().min(0), unit: schema.literal("ms") }),
         ...common,
     }),
     schema.object({
