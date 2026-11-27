@@ -1,0 +1,16 @@
+{
+    "name": "@destack/view-cipher-fixture",
+    "type": "module",
+    "exports": {
+        "./package": "./src/package.ts",
+        "./client": "./src/client/index.ts"
+    },
+    "dependencies": {
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@noble/ciphers": "2.4.0"
+    },
+    "devDependencies": {
+        "@destack/build": "workspace:*"
+    }
+}

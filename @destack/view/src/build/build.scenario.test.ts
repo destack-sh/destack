@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { expect, refusal, test } from "@destack/test";
-import { Digest, present, Version } from "@destack/schema";
+import { present, Version } from "@destack/schema";
 import { fileURLToPath } from "node:url";
 import { Workspace, CompilerPool } from "@destack/build";
 import { testStore, testSimulation } from "@destack/build/test";
@@ -18,6 +18,9 @@ const NOTEBOOK = fileURLToPath(new URL("../../tests/fixture/notebook/", import.m
 
 /** The notes app, the notebook's views in an installable app. */
 const NOTES = fileURLToPath(new URL("../../tests/fixture/notes/", import.meta.url));
+
+/** The cipher app, which bundles the npm cipher the database builtin bundles too. */
+const CIPHER = fileURLToPath(new URL("../../tests/fixture/cipher/", import.meta.url));
 
 /** Flatten plugin options into their plugins, refusing pending ones. */
 function flatten(options: readonly PluginOption[]): Plugin[] {
@@ -90,6 +93,23 @@ test("split each view into a browser chunk, starting the device worker from its 
     ]).toEqual([["notebooks"], true, true, true, ["worker"]]);
 });
 
+test("refuse an app's release bundling an npm package a builtin it links bundles too", async () => {
+    // release the cipher app, whose cipher the database builtin keeps in its own bundle
+    await using simulation = testSimulation();
+    await using store = await testStore();
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const version = Version.first(simulation.environment("test").clock.now());
+    const workspace = await Workspace.open(CIPHER, compilers, { version });
+    const releasing = (await workspace.package()).imageUnits({});
+
+    // expect the release refused, naming the package the platform shares instead
+    expect(await refusal(releasing)).toEqual([
+        "BAD_REQUEST",
+        "DEPENDENCY_INVALID",
+        "app '@destack/view-cipher-fixture' is invalid: it and builtin '@destack/db' each bundle '@noble/ciphers', which the platform shares instead",
+    ]);
+});
+
 test("bundle an app's release image, its browser output importing builtins alone", async () => {
     // build the notes app and make its release image on its stored dependency builds
     await using simulation = testSimulation();
@@ -101,7 +121,7 @@ test("bundle an app's release image, its browser output importing builtins alone
     const { image } = present(units.get("@destack/view-notes-fixture"), "the app's image");
     const root = await store.root(image);
 
-    // read the npm packages each builtin's release imports, and the modules of schema's zod
+    // read the npm packages each builtin's release imports
     const shared: Record<string, readonly string[]> = {};
     for (const [name, unit] of units) {
         const { manifest } = await store.root(unit.image);
@@ -114,41 +134,22 @@ test("bundle an app's release image, its browser output importing builtins alone
             }
         }
     }
-    const schema = await store.image(present(units.get("@destack/schema"), "schema").image);
-    const zod = await Promise.all(
-        Object.keys(schema.builds).map(async (digest) => {
-            const reader = await store.contents(Digest.parse(digest));
-            const modules = (await reader.files()).filter(
-                (file) => file.path.startsWith("browser/") && /\.[cm]?js$/u.test(file.path),
-            );
 
-            return reader.manifest.package.name === "zod" ? [modules.length] : [];
-        }),
-    );
-
-    // expect builtins to import only the npm units several of them share, and zod in one module
-    expect({ shared, zod: zod.flat() }).toEqual({
-        shared: {
-            "@destack/account": ["@noble/ciphers/chacha.js", "@noble/ciphers/utils.js", "zod"],
-            "@destack/db": ["@noble/ciphers/aes.js"],
-            "@destack/object": ["@lezer/common", "@lezer/markdown"],
-            "@destack/environment": [
-                "@opentelemetry/api",
-                "@opentelemetry/core",
-                "@opentelemetry/sdk-logs",
-                "@opentelemetry/sdk-trace",
-            ],
-            "@destack/package": ["destack:distribution"],
-            "@destack/schema": ["zod"],
-            "@destack/telemetry": [
-                "@opentelemetry/api",
-                "@opentelemetry/core",
-                "@opentelemetry/resources",
-                "@opentelemetry/sdk-logs",
-                "@opentelemetry/sdk-trace",
-            ],
-        },
-        zod: [1],
+    // expect builtins to import only the npm units two or more of them keep, inlining the rest such as schema's zod
+    expect(shared).toEqual({
+        "@destack/environment": [
+            "@opentelemetry/api",
+            "@opentelemetry/core",
+            "@opentelemetry/sdk-logs",
+            "@opentelemetry/sdk-trace",
+        ],
+        "@destack/package": ["destack:distribution"],
+        "@destack/telemetry": [
+            "@opentelemetry/api",
+            "@opentelemetry/core",
+            "@opentelemetry/sdk-logs",
+            "@opentelemetry/sdk-trace",
+        ],
     });
 
     // read the browser modules the release root ships and the ones it maps to their sources
