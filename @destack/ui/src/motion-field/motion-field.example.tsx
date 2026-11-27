@@ -2,7 +2,7 @@ import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import type { Motion, Transition } from "@destack/style";
 import { createSignal } from "@destack/view";
-import { MotionField } from "./field.tsx";
+import { MotionField } from "./motion-field.tsx";
 import { KeyframeTrack } from "./track.tsx";
 
 /** A quick spring with a little bounce, which every part of the card moves with. */

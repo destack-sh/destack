@@ -1,6 +1,6 @@
 import { Motion } from "@destack/style";
 import type { JSX } from "@destack/view";
-import { MotionField } from "../motion/index.ts";
+import { MotionField } from "../motion-field/index.ts";
 import { type NamedValueInputProperties, readValue } from "./value-field.tsx";
 
 /** Render the input of a motion as its field. */

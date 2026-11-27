@@ -75,7 +75,7 @@
         "./list-box": "./src/list-box/index.ts",
         "./meter": "./src/meter/index.ts",
         "./menubar": "./src/menubar/index.ts",
-        "./motion": "./src/motion/index.ts",
+        "./motion-field": "./src/motion-field/index.ts",
         "./navigation-menu": "./src/navigation-menu/index.ts",
         "./otp-field": "./src/otp-field/index.ts",
         "./overflow": "./src/overflow/index.ts",
