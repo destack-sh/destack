@@ -72,50 +72,39 @@ export class Edit {
         const { source, author, message } = this.#input;
         const { environment, signal } = this.#context;
         const root = join(this.#context.directory, Uuid.v4(environment.random));
+        const base = Commit.parse(
+            await GitLease.branch(lease, source.branch, root, environment, signal),
+        );
+        const directory = WorkingTree.package(root, source.directory).path;
+
+        // apply the edit, completing at the base when it changes nothing, as adding a present dependency does
+        const paths = await this.#apply({ root, directory });
+        if (paths.length === 0) {
+            return { base, commit: base };
+        }
+
+        // compile the package, unless the edit only adds dependencies, which code that never imported them cannot break
+        const isAdding = this.#input.operations.every(
+            (operation) => operation.kind === "dependency.add",
+        );
+        if (!isAdding) {
+            await this.#context.builder.compile(directory, signal);
+        }
+
+        // push the commit while the branch is still at its base, else find whether it moved
+        const commit = { message, author, paths };
+        const branch = { branch: source.branch, base };
         try {
-            const base = Commit.parse(
-                await GitLease.branch(lease, source.branch, root, environment, signal),
-            );
-            const directory = WorkingTree.package(root, source.directory).path;
+            const pushed = await GitLease.push(lease, root, branch, commit, environment, signal);
 
-            // apply the edit, completing at the base when it changes nothing, as adding a present dependency does
-            const paths = await this.#apply({ root, directory });
-            if (paths.length === 0) {
-                return { base, commit: base };
+            return { base, commit: Commit.parse(pushed) };
+        } catch (error) {
+            const head = await GitLease.head(lease, source.branch, root, environment, signal);
+            if (head === base) {
+                throw error;
             }
 
-            // compile the package, unless the edit only adds dependencies, which code that never imported them cannot break
-            const isAdding = this.#input.operations.every(
-                (operation) => operation.kind === "dependency.add",
-            );
-            if (!isAdding) {
-                await this.#context.builder.compile(directory, signal);
-            }
-
-            // push the commit while the branch is still at its base, else find whether it moved
-            const commit = { message, author, paths };
-            const branch = { branch: source.branch, base };
-            try {
-                const pushed = await GitLease.push(
-                    lease,
-                    root,
-                    branch,
-                    commit,
-                    environment,
-                    signal,
-                );
-
-                return { base, commit: Commit.parse(pushed) };
-            } catch (error) {
-                const head = await GitLease.head(lease, source.branch, root, environment, signal);
-                if (head === base) {
-                    throw error;
-                }
-
-                return undefined;
-            }
-        } finally {
-            await environment.files.remove(root, { recursive: true, force: true });
+            return undefined;
         }
     }
 
