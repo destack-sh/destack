@@ -1,7 +1,7 @@
 {
     "name": "@platform/deployment",
     "type": "module",
-    "description": "Deploy the platform Destack operates: its universe and cloud machines on Cloudflare, or the local universe on this computer.",
+    "description": "Deploy the platform Destack operates: its universe and managed machines on Cloudflare, or the local universe on this computer.",
     "scripts": {
         "check": "bun run src/main.ts platform validate && bun run src/main.ts platform format-check",
         "fix": "bun run src/main.ts platform format",
