@@ -166,10 +166,12 @@ test("keep a track's keyframes in order of their offsets as they move, split and
         { offset: 0.75, value: 1, easing: linear },
     ]);
 
-    // removing keeps the last keyframe a track has
+    // removing refuses the only keyframe a track has
     const single = MotionTrack.remove(MotionTrack.remove(fade, 0), 0);
-    expect(MotionTrack.remove(single, 0)).toEqual(single);
     expect(single.keyframes).toEqual([{ offset: 1, value: 1, easing: linear }]);
+    expect(() => MotionTrack.remove(single, 0)).toThrow(
+        new RangeError("a track keeps at least one keyframe"),
+    );
 });
 
 test("start a track at CSS's initial value", () => {

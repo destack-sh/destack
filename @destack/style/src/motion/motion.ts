@@ -213,13 +213,15 @@ export const MotionTrack = Object.assign(trackJson, {
         return ordered(each.property, [...keyframes, added], added);
     },
 
-    /** Remove a keyframe, keeping the last one a track has. */
+    /** Remove a keyframe, refusing the only one a track has. */
     remove(each: MotionTrack, index: number): MotionTrack {
+        // refuse to leave the track without keyframes
         const keyframes: readonly Keyframe[] = each.keyframes;
+        if (keyframes.length === 1) {
+            throw new RangeError("a track keeps at least one keyframe");
+        }
 
-        return keyframes.length === 1
-            ? each
-            : ordered(each.property, keyframes.toSpliced(index, 1)).track;
+        return ordered(each.property, keyframes.toSpliced(index, 1)).track;
     },
 });
 
@@ -234,6 +236,21 @@ export const ViewRange = schema.enum([
 ]);
 /** An edge of a view timeline's range. */
 export type ViewRange = schema.Infer<typeof ViewRange>;
+
+/** Where a view timeline's range starts or ends, as `entry 0%`. */
+export const RangeOffset = schema.object({
+    /** The range. */
+    range: ViewRange,
+    /** The share of the range, in percent. */
+    percent: schema.number(),
+});
+/** Where a view timeline's range starts or ends. */
+export type RangeOffset = schema.Infer<typeof RangeOffset>;
+
+/** The scroller a scroll timeline follows: the nearest one around, the page's, or its own. */
+export const Scroller = schema.enum(["nearest", "root", "self"]);
+/** The scroller a scroll timeline follows. */
+export type Scroller = schema.Infer<typeof Scroller>;
 
 /** The axis a scroll or view timeline follows. */
 export const TimelineAxis = schema.enum(["block", "inline"]);
@@ -251,18 +268,18 @@ export const Timeline = schema.discriminatedUnion("kind", [
         kind: schema.literal("scroll"),
         /** The axis it follows. */
         axis: TimelineAxis,
-        /** The scroller: the nearest one around, the page's, or the element's own. */
-        scroller: schema.enum(["nearest", "root", "self"]),
+        /** The scroller it follows. */
+        scroller: Scroller,
     }),
     schema.object({
         /** The element's view in its scroller. */
         kind: schema.literal("view"),
         /** The axis it follows. */
         axis: TimelineAxis,
-        /** Where its range starts, a range and a share of it. */
-        start: schema.object({ range: ViewRange, percent: schema.number() }),
-        /** Where its range ends, a range and a share of it. */
-        end: schema.object({ range: ViewRange, percent: schema.number() }),
+        /** Where its range starts. */
+        start: RangeOffset,
+        /** Where its range ends. */
+        end: RangeOffset,
     }),
 ]);
 /** What an animation's progress follows. */
