@@ -111,3 +111,28 @@ test("wait for the reloaded loop in idle", async () => {
         served: [notesPackage.id, pagesPackage.id, labelsPackage.id],
     });
 });
+
+test("drop the control positions of jobs the store no longer runs once its loop restarts", async () => {
+    // serve notes, and leave a position of a release that no longer runs
+    const simulation = testSimulation();
+    const scope = space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000401");
+    await using objects = await TestObjectStore.open({
+        packages: [notesPackage],
+        tables: label.tables,
+        scope,
+        simulation,
+        owners: [principal.user.reference(Scope.universe.id, users.alice)],
+    });
+    const { log } = objects.store.database;
+    await objects.store.idle();
+    const running = await log.checkpoints("control:");
+    await log.advance({ name: "control:replaced", tables: [] }, 0, Number.MAX_SAFE_INTEGER);
+
+    // apply labels, which restarts the loop over the changed jobs, dropping the replaced position alone
+    objects.apply([...objects.store.servers, implementPackage(labelsPackage, {})]);
+    await objects.store.idle();
+    const kept = await log.checkpoints("control:");
+    expect(kept.filter((name) => running.includes(name) || name === "control:replaced")).toEqual(
+        running,
+    );
+});

@@ -2964,6 +2964,16 @@ export class ObjectStore {
                 ...(options.sets?.() ?? []).map((set) => this.#synced(set)),
             ];
 
+            // drop the positions of sets it no longer runs
+            const running = new Set(
+                sets.flatMap((set) => (set.position === undefined ? [] : [set.position])),
+            );
+            for (const name of await this.database.log.checkpoints(POSITION_PREFIX)) {
+                if (!running.has(name)) {
+                    await this.database.log.drop(name);
+                }
+            }
+
             // run the loop until stopped or reloaded
             const loop = new ControlLoop(this.database, sets, {
                 ...(previous === undefined ? {} : { previous }),
