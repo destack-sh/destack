@@ -9,6 +9,7 @@ import type { Lease } from "@destack/resource";
 import { type Identifier, type JsonObject, present, schema, Version } from "@destack/schema";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
+import type { EditOperation } from "@destack/stack/object";
 import { type CommandBody, type CommandCall, CommandOption } from "../command/command.ts";
 import { HOME_APPLICATION, MAIN_APPLICATION } from "@destack/account/object";
 import type { CommandContext, CommandEnvironment } from "../command/context.ts";
@@ -248,11 +249,34 @@ export const uninstallCommand: CommandBody = {
         const asked = present(given, "the installation argument");
         const space = await context.requireSpace();
         const stack = await context.package(stackPackage, await context.locate());
-        const where = PackageName.safeParse(asked).success
-            ? { packageId: await packageOf(asked, context) }
-            : { name: asked };
+        const isPackage = PackageName.safeParse(asked).success;
+        const where = isPackage ? { packageId: await packageOf(asked, context) } : { name: asked };
         const { items } = await stack.installation.list({ scope: space, where, limit: 1 });
         const [installed] = items;
+
+        // remove a package installed through main from main's dependencies, keeping its data
+        const main =
+            installed === undefined && isPackage
+                ? await editMain(
+                      [{ kind: "dependency.remove", package: asked }],
+                      `remove ${asked}`,
+                      options["yes"] === true,
+                      context,
+                  )
+                : undefined;
+        if (main !== undefined) {
+            await context.terminal.print(
+                json
+                    ? JSON.stringify({ id: main, name: MAIN_APPLICATION, package: asked })
+                    : context.terminal.event(
+                          "Removed",
+                          "done",
+                          `'${asked}' from '${MAIN_APPLICATION}'`,
+                      ),
+            );
+
+            return;
+        }
         if (installed === undefined) {
             throw CliError.of(
                 "INSTALLATION_NOT_FOUND",
@@ -522,36 +546,16 @@ export class InstallationTarget {
         isApproved: boolean,
         context: CommandContext,
     ): Promise<Identifier<"installation"> | undefined> {
-        // find the space's main installation, which a space without one lacks
-        const space = await context.requireSpace();
-        const consent = isApproved ? "approve" : "ask";
-        const stacks = await context.package(stackPackage, await context.locate(), consent);
-        const [main] = (
-            await stacks.installation.list({
-                scope: space,
-                where: { name: MAIN_APPLICATION },
-                limit: 1,
-            })
-        ).items;
-        if (main === undefined) {
-            return undefined;
-        }
-
-        // require the package at its tag, else its version, committing the change to main's branch
+        // require the package at its tag, else its version
         const name = String(this.output["package"]);
         const range = this.output["tag"] ?? this.output["version"] ?? LATEST_TAG;
-        const { run } = await stacks.installation.edit({
-            scope: space,
-            id: main.id,
-            requestId: RequestId.create((await context.native()).environment),
-            operations: [{ kind: "dependency.add", package: name, range }],
-            message: `add ${name}`,
-        });
 
-        // wait until main serves the edit, refusing a failed one
-        await InstallationStatus.edited(main.id, run, main.appliedRevisionId, context);
-
-        return main.id;
+        return await editMain(
+            [{ kind: "dependency.add", package: name, range }],
+            `add ${name}`,
+            isApproved,
+            context,
+        );
     }
 
     /** Create the package's installation under a name, or change its installed one's version. */
@@ -676,4 +680,39 @@ async function taggedRow(
     }
 
     return tag.reference(tagged.scope, tagged.id);
+}
+
+/** Edit the space's main installation and wait until it serves the edit, none without a main. */
+async function editMain(
+    operations: readonly EditOperation[],
+    message: string,
+    isApproved: boolean,
+    context: CommandContext,
+): Promise<Identifier<"installation"> | undefined> {
+    // find the space's main installation, which a space without one lacks
+    const space = await context.requireSpace();
+    const consent = isApproved ? "approve" : "ask";
+    const stacks = await context.package(stackPackage, await context.locate(), consent);
+    const [main] = (
+        await stacks.installation.list({
+            scope: space,
+            where: { name: MAIN_APPLICATION },
+            limit: 1,
+        })
+    ).items;
+    if (main === undefined) {
+        return undefined;
+    }
+
+    // commit the change to main's branch, then wait until main serves it, refusing a failed edit
+    const { run } = await stacks.installation.edit({
+        scope: space,
+        id: main.id,
+        requestId: RequestId.create((await context.native()).environment),
+        operations: [...operations],
+        message,
+    });
+    await InstallationStatus.edited(main.id, run, main.appliedRevisionId, context);
+
+    return main.id;
 }

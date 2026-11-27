@@ -153,6 +153,15 @@ export class InstallationStatus {
             const done =
                 edited?.state === "completed" ? EditOutput.parse(edited.output) : undefined;
             const isUnchanged = done !== undefined && done.commit === done.base;
+
+            // refuse an edit whose commit the installation failed to sync, such as one whose build failed
+            const synced = installed?.conditions["Synced"];
+            if (done !== undefined && !isUnchanged && synced?.status === "false") {
+                throw CliError.of(
+                    "EDIT_BROKEN",
+                    `edit of installation '${id}' is broken: ${synced.message}`,
+                );
+            }
             if (done !== undefined && (isUnchanged || isApplied)) {
                 return;
             }
