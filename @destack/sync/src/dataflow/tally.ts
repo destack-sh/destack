@@ -641,7 +641,7 @@ export class Tally implements Result {
                 readonly head: {
                     readonly epoch: string;
                     readonly logged: number | null;
-                    readonly horizon: number;
+                    readonly logStart: number;
                 };
             }[]
         >,
@@ -651,7 +651,7 @@ export class Tally implements Result {
         const [first] = rows;
         if (first !== undefined) {
             return {
-                sequence: latestOf(first.head.logged, first.head.horizon),
+                sequence: latestOf(first.head.logged, first.head.logStart),
                 rows: rows.map((row) => row.group),
             };
         }
