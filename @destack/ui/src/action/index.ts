@@ -2,6 +2,7 @@ export * from "./action.ts";
 export * from "./action-bar.tsx";
 export * from "./action-button.tsx";
 export * from "./action-dialog.tsx";
+export * from "./action-input-field.tsx";
 export * from "./action-menu.tsx";
 export * from "./action-palette.tsx";
 export * from "./action-select.tsx";

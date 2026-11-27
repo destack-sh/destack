@@ -32,6 +32,7 @@ import {
     BreadcrumbSeparator,
 } from "../../breadcrumb/index.ts";
 import { Icon } from "@destack/ui/icon";
+import { ActionInputField } from "../../action/index.ts";
 import { Inspector } from "../../inspector/index.ts";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../../resizable/index.ts";
 import {
@@ -631,10 +632,20 @@ export function Editor(properties: {
                                             aria-label={localization.render(
                                                 t.context("title")`Properties`,
                                             )}
-                                            inputs={shown().inputs}
-                                            values={shown().values}
-                                            onValueChange={change}
-                                        />
+                                        >
+                                            <For each={shown().inputs}>
+                                                {(input) => (
+                                                    <ActionInputField
+                                                        input={input}
+                                                        orientation="horizontal"
+                                                        value={shown().values[input.name]}
+                                                        onValueChange={(value) =>
+                                                            change(input.name, value)
+                                                        }
+                                                    />
+                                                )}
+                                            </For>
+                                        </Inspector>
                                     </Show>
                                 </Show>
                             </div>

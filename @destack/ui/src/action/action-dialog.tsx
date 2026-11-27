@@ -35,6 +35,7 @@ import {
 } from "../alert-dialog/index.ts";
 import { Badge } from "../badge/index.ts";
 import { Button } from "../button/index.ts";
+import { ActionInputField } from "./action-input-field.tsx";
 import { ChoiceIcon } from "./choice-icon.tsx";
 import { titleOf } from "./search-title.ts";
 import {
@@ -59,10 +60,9 @@ import {
 } from "../dialog/index.ts";
 import { Highlight } from "../highlight/index.ts";
 import { Icon } from "../icon/index.ts";
-import { Field, FieldGroup, FieldLabel } from "../field/index.ts";
+import { FieldGroup } from "../field/index.ts";
 import { OpenContext } from "../layer/index.ts";
 import { Popover, PopoverContent } from "../popover/index.ts";
-import { ValueField } from "../value-field/index.ts";
 
 /** The kinds of input a person picks from a list, however short. */
 const PICKED_KINDS: ReadonlySet<string> = new Set(["object", "choice", "person"]);
@@ -445,11 +445,11 @@ function ActionForm(properties: {
                     <FieldGroup xstyle={styles.fields}>
                         <For each={asked}>
                             {(input) => (
-                                <ActionField
+                                <ActionInputField
                                     input={input}
                                     choices={choices.get(input.name) ?? []}
                                     value={values()[input.name]}
-                                    onGive={(value) => give(input.name, value)}
+                                    onValueChange={(value) => give(input.name, value)}
                                 />
                             )}
                         </For>
@@ -467,42 +467,6 @@ function ActionForm(properties: {
                 </form>
             </DialogContent>
         </Dialog>
-    );
-}
-
-/** Render the field of one input, by what it takes. */
-function ActionField(properties: {
-    /** The input. */
-    readonly input: ActionInput;
-    /** The choices a person picks it from, none for one they type. */
-    readonly choices: readonly Choice[];
-    /** The value given, undefined for none. */
-    readonly value: JsonValue | undefined;
-    /** Take the value given, undefined for none. */
-    readonly onGive: (value: JsonValue | undefined) => void;
-}): JSX.Element {
-    // label it by its own label, else by its type's title or its name
-    const locale = useLocale();
-    const { input, choices, onGive } = properties;
-    const { value, presence } = input;
-    const label =
-        input.label !== undefined
-            ? locale.render(input.label)
-            : value.kind === "object"
-              ? locale.render(value.type.declared.title, { count: 1 })
-              : input.name;
-
-    return (
-        <Field orientation={value.kind === "boolean" ? "horizontal" : "vertical"}>
-            <FieldLabel>{label}</FieldLabel>
-            <ValueField
-                type={value}
-                value={properties.value}
-                onValueChange={onGive}
-                choices={choices}
-                required={presence === "required"}
-            />
-        </Field>
     );
 }
 
