@@ -2,7 +2,7 @@ import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme, THEMES } from "../declare/index.ts";
 import { Oklch, Srgb } from "../palette/index.ts";
-import { DEFAULT_HUES, HUES } from "@destack/color";
+import { DEFAULT_HUES, HUES } from "@destack/style";
 import {
     DEFAULT_DISPLAY,
     GRAPHIC_CONTRAST,
