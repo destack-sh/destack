@@ -290,8 +290,9 @@ export class Launcher {
         objects: Objects,
         database: DatabaseConnection,
         stack: AsyncDisposableStack,
+        consent: LauncherConsent = {},
     ): Promise<ObjectClient<Objects>> {
-        // connect as the person to the package serving the objects
+        // connect as the person to the package serving the objects, answering refusals as consented
         const [first] = Object.values(objects);
         if (first === undefined) {
             throw MachineError.of(
@@ -301,7 +302,7 @@ export class Launcher {
         }
         const isSpace = "space" in location && location.installation === undefined;
         const serving = isSpace ? PackageVersion.of(stackPackage) : first.package;
-        const remote = await this.connect(location, serving.id);
+        const remote = await this.connect(location, serving.id, consent);
 
         // follow them as the person until the stack closes, the connection with it
         return ObjectClient.start(

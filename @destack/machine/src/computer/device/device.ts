@@ -47,7 +47,7 @@ import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
 import settingPackage from "@destack/setting/package";
 import machinePackage from "../../package.ts";
 import { MachineError } from "../../error/index.ts";
-import { Launcher, type LauncherMachine } from "../../launcher/index.ts";
+import { Launcher, type LauncherConsent, type LauncherMachine } from "../../launcher/index.ts";
 import { MachineCredential } from "./credential.ts";
 import {
     computer,
@@ -749,6 +749,7 @@ export class Device<
         location: Parameters<Launcher["follow"]>[0],
         objects: Objects,
         stack: AsyncDisposableStack,
+        consent: LauncherConsent = {},
     ): Promise<ObjectClient<Objects>> {
         // store the objects in memory, closed after the client
         const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
@@ -756,7 +757,7 @@ export class Device<
         });
         stack.defer(() => database.close());
 
-        return launcher.follow(location, objects, database, stack);
+        return launcher.follow(location, objects, database, stack, consent);
     }
 
     /** Launch a view from this device, recording a visit of an object it opens. */
