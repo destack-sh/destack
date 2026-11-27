@@ -255,16 +255,16 @@ function ownObjects(
     transfers: TransferOptions,
 ) {
     // serve the space's types with their behaviour
-    const served = [
+    const implemented = [
         implementSnapshot(transfers),
         implementRestore(transfers),
         implementSpace({
             remote: start.remote,
             isEnforcingEntitlements: space.machine.isEnforcingEntitlements,
         }),
-        ...providers.provided(),
         implementInstallations(installationOptions(space, start, providers, binder)),
         implementInstallationRevision(),
+        binder.databases(),
         implementDeployment({
             providers,
             bindingKinds: binder.objects(),
@@ -281,7 +281,12 @@ function ownObjects(
         implementRoute(space.machine.isServingHostnames, space.universe),
     ];
 
-    return stackObjects(served);
+    // serve each provided type no implemented one replaces
+    const provided = providers
+        .provided()
+        .filter((type) => !implemented.some((each) => each.same(type)));
+
+    return stackObjects([...implemented, ...provided]);
 }
 
 /** Read what the space's installations run with on this machine. */
@@ -311,6 +316,15 @@ function installationOptions(
 
 /** Serve the stack's stored types, each implemented one in place, then the other served types. */
 function stackObjects(served: readonly ObjectType[]): ObjectType[] {
+    // refuse a type served twice
+    const twice = served.find(
+        (type, index) => served.findIndex((each) => each.same(type)) !== index,
+    );
+    if (twice !== undefined) {
+        throw new TypeError(`object '${twice.name}' is served twice`);
+    }
+
+    // take each stored stack type as served, then the other served types
     const own = Object.values(stackPackage.objects)
         .filter((type) => type.storage !== "external")
         .map((type) => served.find((each) => each.same(type)) ?? type);

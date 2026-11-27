@@ -118,6 +118,43 @@ export class Binder {
         return [...this.#objects.values()];
     }
 
+    /** Serve databases: a purge drops a package's kept tables from a space's database. */
+    databases() {
+        return database.implement({
+            methods: {
+                purge: async (context) => {
+                    // read the states the database applies
+                    const { target, input } = context;
+                    const { packageId } = input;
+                    const digests = [...target.states, ...target.drainingStates];
+                    const states = await Promise.all(
+                        digests.map((digest) =>
+                            context.execution.store.blobs.readJson(digest, DatabaseState),
+                        ),
+                    );
+
+                    // refuse a package an installation still declares, whose tables it keeps
+                    const isDeclared = states.some((state) =>
+                        Object.values(state.tables).some((tables) =>
+                            tables.some((table) => table.package.id === packageId),
+                        ),
+                    );
+                    if (isDeclared) {
+                        throw StackError.of(
+                            "DATABASE_BLOCKED",
+                            `cannot delete the data of package '${packageId}': an installation declares it`,
+                        );
+                    }
+
+                    // drop the package's tables in the purge's commit
+                    Binder.#migrateAtCommit(context, target.id, states, [packageId]);
+
+                    return target;
+                },
+            },
+        });
+    }
+
     /** List the object types bindings target. */
     targets(): readonly ObjectType[] {
         return this.#kinds.map((kind) => kind.object);
@@ -1044,9 +1081,9 @@ export class Binder {
                     row.conditions["Ready"]?.reason === "Applied";
                 const isOwn = (row.provider ?? row.placement?.provider) === SPACE_PROVIDER;
                 if (!isApplied && isOwn) {
-                    await store.reconcileResource(call, object, row, (record, states) =>
-                        Binder.#migrateAtCommit(call, record.id, states),
-                    );
+                    await store.reconcileResource(call, object, row, async (record, states) => {
+                        Binder.#migrateAtCommit(call, record.id, states, []);
+                    });
                 } else if (!isApplied && row.deletedAt === null && store.isPure(object, row)) {
                     await store.reconcileResource(call, object, row);
                 }
@@ -1063,18 +1100,22 @@ export class Binder {
         }
     }
 
-    /** Migrate the space's own database to some desired states in the call's commit. */
-    static async #migrateAtCommit(
-        call: MethodContext,
+    /** Migrate the space's own database to its desired states at the call's commit. */
+    static #migrateAtCommit(
+        call: Pick<MethodContext, "execution">,
         manager: string,
         states: readonly unknown[],
-    ): Promise<void> {
+        purged: readonly string[],
+    ): void {
         // plan and apply on the committing connection, so the tables commit with the rows
         const desired = schema.array(DatabaseState).parse(states);
-        call.execution.transaction.record(async (committing) => {
-            const declared = desired.map((state) => state.tables[committing.dialect]);
-            await committing.migrate([], { states: declared, manager });
-        }, `migrate:${manager}`);
+        call.execution.transaction.record(
+            async (committing) => {
+                const declared = desired.map((state) => state.tables[committing.dialect]);
+                await committing.migrate([], { states: declared, manager, purged });
+            },
+            `migrate:${manager}:${purged.join(",")}`,
+        );
     }
 
     /** Read a resource's specification once its consumers' states or its threshold moved. */
