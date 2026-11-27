@@ -62,7 +62,6 @@ What people see and touch.
 
 | Package | What it does | Prior art |
 |---|---|---|
-| [`@destack/style`](@destack/style) | Style components with StyleX, compiled into one stylesheet per build. | StyleX, Tailwind |
 | [`@destack/theme`](@destack/theme) | Theme views with a page, an accent and ten hues, solved for contrast in light and dark. | Radix Themes, shadcn/ui |
 | [`@destack/ui`](@destack/ui) | Build views from accessible Solid components styled with StyleX and themed by the person's theme. | shadcn/ui, Radix, Base UI |
 | [`@destack/view`](@destack/view) | Build a package's views with Solid, reading and changing its space's objects live. | Solid |
@@ -100,7 +99,7 @@ What every package uses: schemas, errors, effects, messages, telemetry, mail and
 | [`@destack/error`](@destack/error) | Declare the errors a package's callers receive, each with a stable reason, an HTTP code and typed data. | gRPC status codes |
 | [`@destack/environment`](@destack/environment) | Take every effect through one environment: time, randomness and the network, real or simulated. | FoundationDB simulation, TigerBeetle VOPR |
 | [`@destack/icon`](@destack/icon) | Name Phosphor icons and store their SVG bodies, each one loaded only where it is used. | Phosphor, Lucide |
-| [`@destack/color`](@destack/color) | Read, change and write colors, and name the hues they mean things in. | Radix Colors |
+| [`@destack/style`](@destack/style) | Describe colors and styles as the web does, and style components with StyleX. | CSS values, CSS Color 4, StyleX, Tailwind, Radix Colors |
 | [`@destack/code`](@destack/code) | Parse, compare, patch and merge source code in the browser, in Bun and in workers. | Lezer, CodeMirror, git |
 | [`@destack/locale`](@destack/locale) | Localise messages and format numbers, money and dates for a person's language and region. | Lingui, MessageFormat 2 |
 | [`@destack/telemetry`](@destack/telemetry) | Instrument Destack packages with traces, metrics, logs, exceptions and analytics. | OpenTelemetry, Sentry |

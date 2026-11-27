@@ -4,6 +4,7 @@ import { Gradient } from "./index.ts";
 /** A gradient from red to blue through its middle, in a space. */
 function redToBlue(space: "oklab" | "oklch" | "srgb", hue: "shorter" | "longer" = "shorter") {
     return new Gradient({
+        shape: { kind: "linear", angle: 90 },
         stops: [
             { color: "#ff0000", position: 0 },
             { color: "#0000ff", position: 1 },
@@ -51,18 +52,40 @@ test("add a stop in the color it has there, move, recolor and remove stops by th
     ]);
 });
 
+test("spread the stops in another kind of shape, keeping the angle and the center", () => {
+    // turn a line at 45 degrees round a center, then out from it, then back along a line
+    const conic = redToBlue("oklab").reshape({ kind: "linear", angle: 45 }).to("conic");
+    const radial = conic
+        .reshape({ kind: "conic", center: { x: 0.2, y: 0.8 }, angle: 45 })
+        .to("radial");
+
+    expect([conic.shape, radial.shape, radial.to("linear").shape]).toEqual([
+        { kind: "conic", center: { x: 0.5, y: 0.5 }, angle: 45 },
+        { kind: "radial", center: { x: 0.2, y: 0.8 } },
+        { kind: "linear", angle: 90 },
+    ]);
+});
+
 test("refuse a gradient of fewer than two stops", () => {
     expect(() => redToBlue("srgb").remove(0)).toThrow(
         new TypeError("a gradient keeps at least two stops"),
     );
 });
 
-test("write a gradient as CSS in order along it, naming its space and its way round the hues", () => {
+test("write a gradient as CSS in order along it, in its shape, naming its space and its way round the hues", () => {
     const gradient = redToBlue("oklch", "longer").add(0.25).move(0, 0.5);
+    const center = { x: 0.25, y: 0.5 };
 
     // the added stop takes the color a quarter of the longer way round, in OKLCH
-    expect([gradient.linear("to right"), redToBlue("srgb").linear("45deg")]).toEqual([
-        "linear-gradient(to right in oklch longer hue, oklch(58.4% 0.2716 87.94) 25%, #ff0000 50%, #0000ff 100%)",
+    expect([
+        gradient.css(),
+        redToBlue("srgb").reshape({ kind: "linear", angle: 45 }).css(),
+        redToBlue("oklab").reshape({ kind: "radial", center }).css(),
+        redToBlue("oklab").reshape({ kind: "conic", center, angle: 30 }).css(),
+    ]).toEqual([
+        "linear-gradient(90deg in oklch longer hue, oklch(58.4% 0.2716 87.94) 25%, #ff0000 50%, #0000ff 100%)",
         "linear-gradient(45deg in srgb, #ff0000 0%, #0000ff 100%)",
+        "radial-gradient(at 25% 50% in oklab, #ff0000 0%, #0000ff 100%)",
+        "conic-gradient(from 30deg at 25% 50% in oklab, #ff0000 0%, #0000ff 100%)",
     ]);
 });
