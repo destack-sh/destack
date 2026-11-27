@@ -1,6 +1,7 @@
 {
     "name": "@example/starter",
     "type": "module",
+    "description": "Start a package of Example's.",
     "exports": {
         "./package": "./src/package.ts"
     },

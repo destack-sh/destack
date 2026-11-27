@@ -54,6 +54,7 @@ test("make a package from a published template in a new repository and its check
         definition,
         isOwn: id !== STARTER_ID,
         bunfig: await read("bunfig.toml"),
+        readme: await read("README.md"),
         origin: /url = (?<url>\S+)/u.exec(await read(".git/config"))?.groups?.["url"],
         commit: await git(created.directory, "log", "-1", "--format=%s"),
         status: await git(created.directory, "status", "--porcelain"),
@@ -62,6 +63,7 @@ test("make a package from a published template in a new repository and its check
         name: "@example/notes",
         entries: [
             ".git",
+            "README.md",
             "bun.lock",
             "bunfig.toml",
             "destack.json",
@@ -72,6 +74,7 @@ test("make a package from a published template in a new repository and its check
         manifest: {
             name: "@example/notes",
             type: "module",
+            description: "Start a package of Example's.",
             exports: { "./package": "./src/package.ts" },
             dependencies: { "@destack/locale": "latest", "@destack/object": "latest" },
         },
@@ -90,6 +93,7 @@ test("make a package from a published template in a new repository and its check
             `"@example" = { url = "${universe.origin}/.npm/" }`,
             "",
         ].join("\n"),
+        readme: "# @example/notes\n\nStart a package of Example's.\n",
         origin: `${universe.origin}/@example/notes.git`,
         commit: "Introduce @example/notes",
         status: "",
