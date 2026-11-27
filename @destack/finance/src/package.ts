@@ -21,7 +21,7 @@ import { stripeWebhook, stripeWebhookSecret } from "./declare/webhook.ts";
 /** The handle stacks install finance by, and clients call its products and prices by. */
 export default definePackage({
     title: t.context("title")`Finance`,
-    description: t`Sell products with features, bill accounts for subscriptions and usage, and derive their quotas.`,
+    description: t`Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements.`,
     icon: "receipt",
     color: "purple",
     objects: [

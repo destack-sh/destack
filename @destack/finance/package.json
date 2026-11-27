@@ -3,7 +3,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their quotas.",
+    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements.",
     "exports": {
         "./destack.json": "./destack.json",
         "./declare": "./src/declare/index.ts",
