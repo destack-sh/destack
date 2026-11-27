@@ -89,6 +89,7 @@ export const TestNotes = {
                         views: {},
                         directory: "output/bun",
                         exports: {},
+                        inlined: {},
                         peers: {},
                     },
                 },
