@@ -1,6 +1,6 @@
-import { asc, eq, inArray, lte, Now } from "@destack/db";
+import { asc, count, eq, inArray, lte, Now } from "@destack/db";
 import type { Controller } from "@destack/db/database";
-import type { Digest } from "@destack/schema";
+import { type Digest, nth } from "@destack/schema";
 import type { TransformCache } from "@destack/package/build";
 import { PackageFile } from "@destack/package/file";
 import { BuildObject, BuildStore } from "../store/store.ts";
@@ -166,27 +166,38 @@ export class BuildCache implements TransformCache {
         return this.#store.scope.span("destack.build.evict", {}, () => this.#evict(maxBytes));
     }
 
-    /** Drop the oldest entry or leases and collect, until the blobs fit a size. */
+    /** Drop the oldest share of entries the excess makes up, and collect, until the blobs fit. */
     async #evict(maxBytes: number): Promise<void> {
-        while ((await this.#store.blobs.size()) > maxBytes) {
-            // take the least recently used: the oldest cache entry, else the blobs a use leased longest ago
-            const [entry] = await this.#store.database
+        for (
+            let size = await this.#store.blobs.size();
+            size > maxBytes;
+            size = await this.#store.blobs.size()
+        ) {
+            // take the excess share of least recently used entries, else the longest leased blobs
+            const counted = await this.#store.database.select({ count: count() }).from(buildCache);
+            const total = nth(counted, 0).count;
+            const share = Math.max(1, Math.ceil((total * (size - maxBytes)) / size));
+            const oldest = await this.#store.database
                 .select({ key: buildCache.key })
                 .from(buildCache)
                 .orderBy(asc(buildCache.usedAt))
-                .limit(1);
-            const leased = entry === undefined ? await this.#store.blobs.oldestLeased() : [];
-            if (entry === undefined && leased.length === 0) {
+                .limit(share);
+            const leased = oldest.length === 0 ? await this.#store.blobs.oldestLeased() : [];
+            if (oldest.length === 0 && leased.length === 0) {
                 return;
             }
 
-            // drop the entry and its root
-            if (entry !== undefined) {
+            // drop the entries and their roots at once
+            if (oldest.length > 0) {
+                const keys = oldest.map(({ key }) => key);
                 await this.#store.database.transaction(async (transaction) => {
-                    await transaction.delete(buildCache).where(eq(buildCache.key, entry.key));
-                    await transaction
-                        .delete(buildRoot)
-                        .where(eq(buildRoot.name, `${CACHE_ROOT_PREFIX}${entry.key}`));
+                    await transaction.delete(buildCache).where(inArray(buildCache.key, keys));
+                    await transaction.delete(buildRoot).where(
+                        inArray(
+                            buildRoot.name,
+                            keys.map((key) => `${CACHE_ROOT_PREFIX}${key}`),
+                        ),
+                    );
                 });
             }
             // end the leases
