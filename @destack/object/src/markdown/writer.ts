@@ -1,5 +1,7 @@
 import { canonicalize, type JsonValue, schema } from "@destack/schema";
+import type { Subject } from "@destack/sync";
 import type { TextSpan } from "../sequence/index.ts";
+import { Mention } from "./mention.ts";
 
 /** The value of a link. */
 const Link = schema.looseObject({ href: schema.string() });
@@ -41,12 +43,27 @@ export class Writer {
     /** The marks that are open, the innermost last. */
     readonly #open: string[] = [];
 
-    /** Write spans, an inline node as nothing. */
-    static write(spans: readonly TextSpan[]): string {
+    /** Write spans, a mention as its labelled link and any other inline node as nothing. */
+    static write(
+        spans: readonly TextSpan[],
+        label: (subject: Subject) => string = (subject) => subject.id,
+    ): string {
+        // write each mention as the text of a link to its subject
+        const linked = spans.map((span): TextSpan => {
+            const subject = "node" in span ? Mention.of(span.node) : undefined;
+
+            return subject === undefined
+                ? span
+                : {
+                      text: `@${label(subject)}`,
+                      marks: { link: { href: Mention.address(subject) } },
+                  };
+        });
+
         // close what each stretch does not share, and open what it adds, the longest first,
         //  but none at a space
         const writer = new Writer();
-        const runs = runsOf(spans);
+        const runs = runsOf(linked);
         for (const [index, run] of runs.entries()) {
             const shared = writer.#open.findIndex((key) => !run.marks.has(key));
             writer.#close(shared === -1 ? writer.#open.length : shared, runs[index - 1]);

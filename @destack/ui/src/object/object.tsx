@@ -1,6 +1,6 @@
 import { swatches } from "@destack/theme/swatch";
 import { renderPart, type Render } from "../part/index.ts";
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import * as style from "@destack/style";
 import { color, radius, space } from "@destack/theme/tokens.stylex";
 import { type JSX, omit, Show } from "@destack/view";

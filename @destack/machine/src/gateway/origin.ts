@@ -2,7 +2,7 @@ import { Catalog } from "@destack/locale";
 import * as accountObject from "@destack/account/object";
 import { AccountError } from "@destack/account/error";
 import { Failure, HTTP_DOMAIN } from "@destack/error";
-import { OriginPath, PackageId, PackageVersion, Sandbox } from "@destack/package";
+import { OriginPath, PackageId, PackageName, PackageVersion, Sandbox } from "@destack/package";
 import { Digest, schema, type Identifier, present, Uuid } from "@destack/schema";
 import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { Issuer, Session, UserIdentity } from "@destack/account/client";
@@ -38,6 +38,7 @@ import stackPackage from "@destack/stack/package";
 import { ObjectReference, Scope, Subject, RequestId } from "@destack/sync";
 import accountPackage from "@destack/account/package";
 import {
+    BuildImage,
     type BuildReader,
     ImportMap,
     MODULE_TYPE,
@@ -551,9 +552,15 @@ export class InstallationOriginServer {
             InstallationOrigin.parse(url.hostname, this.#space.machine.domain),
             `the installation origin of ${url.hostname}`,
         );
-        const views = ViewDescription.list(page.reader.manifest);
+        const { manifest } = page.reader;
+        const views = ViewDescription.list(manifest);
         const [, segment = ""] = asked.split(/[/?]/u);
-        const isNamed = Object.hasOwn(views, segment);
+
+        // take a segment naming a view, or a required package mounted below it, as the origin serves it
+        const isRequired = Object.keys(manifest.requires).some(
+            (name) => PackageName.split(name).local === segment,
+        );
+        const isNamed = Object.hasOwn(views, segment) || (segment !== "" && isRequired);
         const view = isNamed ? segment : ViewDescription.main(views);
         if (view === undefined) {
             throw MachineError.of("VIEW_NOT_FOUND", `view '${asked}' of '${found.name}' not found`);
@@ -1363,7 +1370,12 @@ export class InstallationOriginServer {
                 );
             }
 
-            return this.#document(opened, { name: EXAMPLE_VIEW, audience: "person", ...example });
+            return this.#document(opened, {
+                name: EXAMPLE_VIEW,
+                audience: "person",
+                ...example,
+                build: resolution.root,
+            });
         }
 
         // find the view a route fixes, else the one the path's first segment names, the main view at the root
@@ -1383,15 +1395,37 @@ export class InstallationOriginServer {
                 status: 404,
             });
         }
+        // serve a required app's main view at the segment its name ends in, as main composes its apps on one origin
+        else if (view === undefined && segment !== "") {
+            const read = async (digest: Digest) => (await this.#reader(digest)).manifest;
+            const served = await BuildImage.views(await this.#space.builds.image(page.image), read);
+            const app = served[segment];
+            if (
+                app !== undefined &&
+                app.build !== resolution.root &&
+                app.view.render.mode === "client"
+            ) {
+                return this.#document(opened, {
+                    name: app.name,
+                    ...app.view,
+                    build: app.build,
+                });
+            }
+        }
+
         // refuse a path no mounted view serves
-        else if (name === undefined || view === undefined || !isMounted) {
+        if (name === undefined || view === undefined || !isMounted) {
             throw MachineError.of(
                 "VIEW_NOT_FOUND",
                 `view '${name ?? "at its root"}' of '${found.name}' not found`,
             );
         }
 
-        return this.#document(opened, { name, ...view });
+        return this.#document(opened, {
+            name,
+            ...view,
+            build: resolution.root,
+        });
     }
 
     /** Answer a view's or an example page's document in its context, signing a visitor in first. */
@@ -1409,6 +1443,8 @@ export class InstallationOriginServer {
             readonly audience: ViewDescription["audience"];
             readonly entrypoint: string;
             readonly stylesheets: readonly string[];
+            /** The build holding the view, the root's or a required app's. */
+            readonly build: Digest;
         },
     ): Promise<Response> {
         // read the page and what it shows
@@ -1435,7 +1471,11 @@ export class InstallationOriginServer {
             this.#space.database.snapshot(),
             this.#space.id,
         );
-        const entry = resolution.url(resolution.root, shown.entrypoint);
+        const entry = resolution.url(shown.build, shown.entrypoint);
+        const stylesheets =
+            shown.build === resolution.root
+                ? shown.stylesheets.map((stylesheet) => `${base}/${stylesheet}`)
+                : shown.stylesheets.map((stylesheet) => resolution.url(shown.build, stylesheet));
         const document = ViewContext.document(
             {
                 installation: found.id,
@@ -1463,7 +1503,7 @@ export class InstallationOriginServer {
                 ...(target === undefined ? {} : { target }),
             },
             entry,
-            view.stylesheets,
+            stylesheets,
             await InstallationOriginServer.#memo(
                 this.#preloads,
                 `${page.image} ${base} ${entry}`,

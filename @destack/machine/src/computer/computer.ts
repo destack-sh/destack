@@ -467,12 +467,7 @@ export class Computer implements AsyncDisposable {
                 });
 
                 // build on this machine
-                const builder = new Builder(
-                    machine,
-                    compilers,
-                    join(options.directory, "commits"),
-                    options.environment,
-                );
+                const builder = new Builder(machine, compilers, options.environment);
 
                 // run the steps placed on this machine by their functions
                 const runner = new Runner(

@@ -1,4 +1,4 @@
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 
 /** How a calendar's events show: in full, or as busy time without their details. */
 export type CalendarSourceDisplay = "events" | "busy";

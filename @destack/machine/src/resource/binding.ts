@@ -10,6 +10,7 @@ import {
     Installation,
     installationRevision,
     type InstallationRevision,
+    orphan,
     type ResourceRequirement,
 } from "@destack/stack/object";
 import { placement, Space, space } from "@destack/account/object";
@@ -116,6 +117,35 @@ export class Binder {
     /** List the kinds packages serve to workloads, such as secrets. */
     objects(): readonly ObjectBindingKind[] {
         return [...this.#objects.values()];
+    }
+
+    /** Serve orphans: a purge drops the kept tables of the orphan's package from its database. */
+    orphans() {
+        return orphan.implement({
+            methods: {
+                purge: {
+                    handle: async (context, next) => {
+                        // read the states the database is to apply, which keep a package declared again
+                        const { target } = context;
+                        const reader: Pick<Snapshot, "read"> = {
+                            read: (table) => context.read(table),
+                        };
+                        const kept = await Database.main(reader, space.identifier(target.scope));
+                        const digests = [...kept.states, ...kept.drainingStates];
+                        const states = await Promise.all(
+                            digests.map((digest) =>
+                                context.execution.store.blobs.readJson(digest, DatabaseState),
+                            ),
+                        );
+
+                        // drop the package's tables in the purge's commit
+                        Binder.#migrateAtCommit(context, kept.id, states, [target.packageId]);
+
+                        return next();
+                    },
+                },
+            },
+        });
     }
 
     /** List the object types bindings target. */
@@ -1044,9 +1074,9 @@ export class Binder {
                     row.conditions["Ready"]?.reason === "Applied";
                 const isOwn = (row.provider ?? row.placement?.provider) === SPACE_PROVIDER;
                 if (!isApplied && isOwn) {
-                    await store.reconcileResource(call, object, row, (record, states) =>
-                        Binder.#migrateAtCommit(call, record.id, states),
-                    );
+                    await store.reconcileResource(call, object, row, async (record, states) => {
+                        Binder.#migrateAtCommit(call, record.id, states, []);
+                    });
                 } else if (!isApplied && row.deletedAt === null && store.isPure(object, row)) {
                     await store.reconcileResource(call, object, row);
                 }
@@ -1063,18 +1093,22 @@ export class Binder {
         }
     }
 
-    /** Migrate the space's own database to some desired states in the call's commit. */
-    static async #migrateAtCommit(
-        call: MethodContext,
+    /** Migrate the space's own database to its desired states at the call's commit. */
+    static #migrateAtCommit(
+        call: Pick<MethodContext, "execution">,
         manager: string,
         states: readonly unknown[],
-    ): Promise<void> {
+        purged: readonly string[],
+    ): void {
         // plan and apply on the committing connection, so the tables commit with the rows
         const desired = schema.array(DatabaseState).parse(states);
-        call.execution.transaction.record(async (committing) => {
-            const declared = desired.map((state) => state.tables[committing.dialect]);
-            await committing.migrate([], { states: declared, manager });
-        }, `migrate:${manager}`);
+        call.execution.transaction.record(
+            async (committing) => {
+                const declared = desired.map((state) => state.tables[committing.dialect]);
+                await committing.migrate([], { states: declared, manager, purged });
+            },
+            `migrate:${manager}:${purged.join(",")}`,
+        );
     }
 
     /** Read a resource's specification once its consumers' states or its threshold moved. */

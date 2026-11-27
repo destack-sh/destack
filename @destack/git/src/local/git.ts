@@ -79,12 +79,13 @@ export const Git = {
         );
         const decoder = new TextDecoder();
 
-        // fail with why the signal aborted, or with git's message
+        // fail with why the signal aborted, or with git's message, which some commands print to stdout
         options.signal?.throwIfAborted();
         if (code !== 0) {
+            const printed = decoder.decode(stderr).trim() || decoder.decode(stdout).trim();
             const message = (options.masked ?? []).reduce(
                 (text, value) => text.replaceAll(value, "***"),
-                decoder.decode(stderr).trim(),
+                printed,
             );
             throw GitError.of(
                 "COMMAND_BROKEN",

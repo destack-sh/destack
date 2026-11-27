@@ -423,3 +423,55 @@ test("map an npm package at the platform's unit where the range accepts it, else
         refused: `/.destack/build/${own}/browser/index.js`,
     });
 });
+
+test("serve the apps a root requires beside its own views, mapping their modules as the root's", async () => {
+    // store a library, an app whose view imports it, and a root app requiring that app without importing it
+    const { crypto } = testSimulation().environment("test");
+    const { put, read } = stored();
+    const deep = await put(
+        await written({ "src/deep.ts": "export {};\n" }, crypto, browserOutputs({ ".": [] })),
+    );
+    const shown = present(
+        browserOutputs({ "./view": ["@example/deep"] }, "./view")["browser"],
+        "the app's browser output",
+    );
+    const main = present(shown.views["main"], "the app's view");
+    const tasks = await put(
+        await written(
+            { "src/tasks.ts": "export {};\n" },
+            crypto,
+            { browser: { ...shown, views: { main: { ...main, categories: ["main"] } } } },
+            {
+                id: PackageId.parse("package-00000000-0000-7000-8000-00000000a002"),
+                name: "@example/tasks",
+                version: "2026.9.0",
+            },
+        ),
+    );
+    const root = await put(
+        await written(SOURCES, crypto, browserOutputs({ "./view": [] }, "./view"), ANSWER, {
+            "@example/tasks": "latest",
+        }),
+    );
+    const image = BuildImage.of(root, {
+        [root]: { "@example/tasks": tasks },
+        [tasks]: { "@example/deep": deep },
+        [deep]: {},
+    });
+
+    // read the apps it requires, the views it serves, and its browser modules
+    const apps = await BuildImage.apps(image, read);
+    const views = await BuildImage.views(image, read);
+    const map = await BuildImage.imports(image, "browser", "/.destack/build/", new Map(), read);
+
+    // expect tasks as its app, its main view served as tasks, and its modules and library mapped
+    expect({
+        apps,
+        views: Object.fromEntries(Object.entries(views).map(([name, { build }]) => [name, build])),
+        builds: new Set(ImportMap.builds(map, "/.destack/build/")),
+    }).toEqual({
+        apps: [{ name: "@example/tasks", digest: tasks }],
+        views: { main: root, tasks },
+        builds: new Set([tasks, deep]),
+    });
+});

@@ -78,7 +78,9 @@ export type DatePickerProperties = {
     /** The look of a multiple date picker's trigger, outline by default. */
     readonly variant?: ButtonVariant;
     /** The name of the picker, such as the field it fills. */
-    readonly "aria-label"?: string;
+    readonly "aria-label"?: string | undefined;
+    /** Whether it takes no input, as its field does when absent. */
+    readonly disabled?: boolean | undefined;
     /** The choices offered beside the calendar, such as today or the next seven days. */
     readonly presets?: readonly DatePickerPreset[];
     /** The day the calendar counts as today, the page clock's by default. */
@@ -208,6 +210,7 @@ function DatePickerFields(properties: {
     const locale = useLocale();
     const field = useFieldControl();
     const picker = properties.properties;
+    const isDisabled = (): boolean => picker.disabled === true || field?.isDisabled() === true;
     const range = (): DateRange | undefined =>
         isRange(properties.value) ? properties.value : undefined;
     field?.group();
@@ -224,7 +227,7 @@ function DatePickerFields(properties: {
             {...style.attrs(
                 dateSegmentBoxStyle({
                     invalid: field?.isInvalid() === true,
-                    disabled: field?.isDisabled() === true,
+                    disabled: isDisabled(),
                 }),
                 styles.group,
             )}
@@ -237,6 +240,7 @@ function DatePickerFields(properties: {
                         <DateField
                             value={singleOf(properties.value)}
                             onValueChange={(day) => properties.onValueChange(day)}
+                            disabled={isDisabled()}
                             xstyle={bareDateSegmentStyle()}
                         />
                     }
@@ -247,6 +251,7 @@ function DatePickerFields(properties: {
                         onValueChange={(from) =>
                             properties.onValueChange(rangeOf(from, range()?.to ?? end))
                         }
+                        disabled={isDisabled()}
                         xstyle={bareDateSegmentStyle()}
                     />
                     <span aria-hidden="true" {...style.attrs(styles.separator)}>
@@ -263,6 +268,7 @@ function DatePickerFields(properties: {
                                 properties.onValueChange(rangeOf(from, to));
                             }
                         }}
+                        disabled={isDisabled()}
                         xstyle={bareDateSegmentStyle()}
                     />
                 </Show>
@@ -276,6 +282,7 @@ function DatePickerFields(properties: {
                         {...attributes}
                         variant="ghost"
                         size="sm"
+                        disabled={isDisabled()}
                         xstyle={styles.button}
                     />
                 )}
@@ -295,6 +302,7 @@ function DatePickerTrigger(properties: {
 }): JSX.Element {
     // read the locale and the ids naming the button
     const locale = useLocale();
+    const field = useFieldControl();
     const picker = properties.properties;
     const labelId = createUniqueId();
     const valueId = createUniqueId();
@@ -305,6 +313,7 @@ function DatePickerTrigger(properties: {
                 <Button
                     {...attributes}
                     variant={picker.variant ?? "outline"}
+                    disabled={picker.disabled === true || field?.isDisabled() === true}
                     xstyle={[styles.trigger, properties.value === undefined && styles.placeholder]}
                 />
             )}

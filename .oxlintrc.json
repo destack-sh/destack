@@ -316,11 +316,6 @@
                     "description": "Parse, compare, patch and merge source code in the browser, in Bun and in workers."
                 },
                 {
-                    "directory": "@destack/color",
-                    "name": "@destack/color",
-                    "description": "Read, change and write colors, and name the hues they mean things in."
-                },
-                {
                     "directory": "@destack/connection",
                     "name": "@destack/connection",
                     "description": "Connect external accounts once, and call their APIs with credentials kept in a vault."
@@ -463,7 +458,7 @@
                 {
                     "directory": "@destack/style",
                     "name": "@destack/style",
-                    "description": "Style components with StyleX, compiled into one stylesheet per build."
+                    "description": "Describe colors and styles as the web does, and style components with StyleX."
                 },
                 {
                     "directory": "@destack/sync",
@@ -589,7 +584,11 @@
                     "directory": "@destack/cli/tests/fixture/notebooks",
                     "name": "@example/notebooks"
                 },
-                { "directory": "@destack/cli/tests/fixture/starter", "name": "@example/starter" },
+                {
+                    "directory": "@destack/cli/tests/fixture/starter",
+                    "name": "@example/starter",
+                    "description": "Start a package of Example's."
+                },
                 {
                     "directory": "@destack/view/tests/fixture/notebook",
                     "name": "@destack/view-notebook-fixture"
@@ -662,7 +661,6 @@
                 "@destack/check": "library",
                 "@destack/cli": "library",
                 "@destack/code": "library",
-                "@destack/color": "builtin",
                 "@destack/connection": "builtin",
                 "@destack/db": "builtin",
                 "@destack/desktop": "library",

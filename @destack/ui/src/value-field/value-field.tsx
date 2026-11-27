@@ -35,6 +35,23 @@ import {
     ColorSwatch,
 } from "../color-picker/index.ts";
 import { Input } from "../input/index.ts";
+import {
+    BlurInput,
+    BoxSidesInput,
+    CornersInput,
+    DimensionInput,
+    LayoutInput,
+    ShadowStackInput,
+    StrokeInput,
+    TransformInput,
+    TransitionInput,
+    TypographyInput,
+} from "../design-field/design-field.tsx";
+import { FillStackInput, GradientInput, PaintInput } from "../paint-picker/input.tsx";
+import { UrlInput } from "./address.tsx";
+import { ValueGroup, ValueTrigger } from "./group.tsx";
+import { MoneyInput, RatingInput } from "./amount.tsx";
+import { DateRangeInput, DurationInput, RecurrenceInput } from "./time.tsx";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Sortable, SortableContainer, SortableItem, type SortableMove } from "../sortable/index.ts";
 import { NumberField, NumberFieldInput, NumberFieldScrubArea } from "../number-field/index.ts";
@@ -125,30 +142,43 @@ export type ValueFields = {
     ) => JSX.Element;
 };
 
-/** The inputs an app replaces, none by default. */
-const ValueFieldsContext = createContext<Partial<ValueFields>>({});
+/** The input of a named JSON value, such as a color's or a paint's. */
+export type NamedValueField = (properties: ValueFieldProperties<JsonValueType>) => JSX.Element;
 
-/** Replace the inputs of kinds of values inside. */
+/** The inputs an app replaces: by kind, and by the name of a JSON value's schema. */
+interface ReplacedInputs {
+    /** The inputs by kind. */
+    readonly inputs: Partial<ValueFields>;
+    /** The inputs of named JSON values, by their schema's name. */
+    readonly named: Readonly<Record<string, NamedValueField>>;
+}
+
+/** The inputs an app replaces, none by default. */
+const ValueFieldsContext = createContext<ReplacedInputs>({ inputs: {}, named: {} });
+
+/** Replace the inputs of kinds of values, and of named JSON values, inside. */
 export function ValueFieldProvider(properties: {
     /** The inputs, by the kind of value they take. */
-    readonly inputs: Partial<ValueFields>;
+    readonly inputs?: Partial<ValueFields>;
+    /** The inputs of named JSON values, by their schema's name, such as `paint`. */
+    readonly named?: Readonly<Record<string, NamedValueField>>;
     /** What uses them. */
     readonly children?: JSX.Element;
 }): JSX.Element {
     // keep those replaced further out
     const outer = useContext(ValueFieldsContext);
+    const replaced = (): ReplacedInputs => ({
+        inputs: { ...outer.inputs, ...properties.inputs },
+        named: { ...outer.named, ...properties.named },
+    });
 
-    return (
-        <ValueFieldsContext value={{ ...outer, ...properties.inputs }}>
-            {properties.children}
-        </ValueFieldsContext>
-    );
+    return <ValueFieldsContext value={replaced()}>{properties.children}</ValueFieldsContext>;
 }
 
 /** Render the input a value takes, by its kind. */
 export function ValueField(properties: ValueFieldProperties): JSX.Element {
     // take an app's input before the kit's
-    const replaced = useContext(ValueFieldsContext);
+    const { inputs: replaced } = useContext(ValueFieldsContext);
     const type = untrack(() => properties.type);
     const inputs = { ...DEFAULTS, ...replaced };
 
@@ -242,11 +272,28 @@ function BooleanInput(properties: ValueFieldProperties): JSX.Element {
 }
 
 /** The input of each named schema, such as a color's, beside the JSON typed for any other. */
-const NAMED_INPUTS: Readonly<
-    Partial<Record<string, (properties: ValueFieldProperties<JsonValueType>) => JSX.Element>>
-> = {
+const NAMED_INPUTS: Readonly<Record<string, NamedValueField>> = {
     color: ColorInput,
     palette: PaletteInput,
+    gradient: GradientInput,
+    paint: PaintInput,
+    fillStack: FillStackInput,
+    dimension: DimensionInput,
+    corners: CornersInput,
+    boxSides: BoxSidesInput,
+    stroke: StrokeInput,
+    shadowStack: ShadowStackInput,
+    blur: BlurInput,
+    typography: TypographyInput,
+    transform: TransformInput,
+    layout: LayoutInput,
+    transition: TransitionInput,
+    dateRange: DateRangeInput,
+    duration: DurationInput,
+    recurrence: RecurrenceInput,
+    money: MoneyInput,
+    rating: RatingInput,
+    url: UrlInput,
 };
 
 /** Render the input of a color: its swatch and text, which open a picker. */
@@ -258,9 +305,8 @@ function ColorInput(properties: ValueFieldProperties): JSX.Element {
         <Popover>
             <PopoverTrigger
                 render={(attributes) => (
-                    <Button
+                    <ValueTrigger
                         {...attributes}
-                        variant="outline"
                         aria-label={properties["aria-label"]}
                         aria-describedby={properties["aria-describedby"]}
                         disabled={properties.disabled}
@@ -268,7 +314,7 @@ function ColorInput(properties: ValueFieldProperties): JSX.Element {
                     >
                         <ColorSwatch color={value()} />
                         <bdi>{value()}</bdi>
-                    </Button>
+                    </ValueTrigger>
                 )}
             />
             <PopoverContent aria-label={properties["aria-label"]} xstyle={styles.picker}>
@@ -316,11 +362,10 @@ function PaletteInput(properties: ValueFieldProperties<JsonValueType>): JSX.Elem
     };
 
     return (
-        <div
-            role="group"
+        <ValueGroup
             aria-label={properties["aria-label"]}
             aria-describedby={properties["aria-describedby"]}
-            {...style.attrs(styles.palette)}
+            xstyle={styles.palette}
         >
             {/* Swatches */}
             <div {...style.attrs(styles.row)}>
@@ -433,7 +478,7 @@ function PaletteInput(properties: ValueFieldProperties<JsonValueType>): JSX.Elem
 
             {/* Blend */}
             <div {...style.attrs(styles.blend(blendOf(colors())))} />
-        </div>
+        </ValueGroup>
     );
 }
 
@@ -599,7 +644,10 @@ function FoundInput(properties: ValueFieldProperties): JSX.Element {
 
 /** Render the input of JSON: its named schema's own, such as a color's, else the JSON typed. */
 function JsonInput(properties: ValueFieldProperties<JsonValueType>): JSX.Element {
-    const Named = NAMED_INPUTS[untrack(() => LocalReference.root(properties.type.schema)) ?? ""];
+    // take an app's input of the schema's name before the kit's
+    const { named } = useContext(ValueFieldsContext);
+    const name = untrack(() => LocalReference.root(properties.type.schema)) ?? "";
+    const Named = named[name] ?? NAMED_INPUTS[name];
 
     return Named === undefined ? <JsonText {...properties} /> : <Named {...properties} />;
 }

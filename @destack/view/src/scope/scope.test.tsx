@@ -11,7 +11,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
 import { Errored, For, Loading } from "../solid/flow.ts";
 import { createSignal } from "../solid/reactive.ts";
-import { useMutation, useQuery, useSetting } from "./index.ts";
+import { useMention, useMutation, useQuery, useSetting } from "./index.ts";
 import { defineSetting } from "@destack/setting/declare";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { changed } from "../test/dom.ts";
@@ -455,5 +455,53 @@ test("refuse following a space's setting as the page's person into the error bou
     );
     expect(element.textContent).toBe(
         "setting 'space.language' is invalid: useSetting only reads the person's settings, not 'space' settings",
+    );
+});
+
+test("show a mentioned object by its title, and an object of a type the node lacks by its id", async () => {
+    // create a card, then render a mention of it and of a board the node does not hold
+    const { simulation, tab } = testWorld();
+    const client = await openClient(simulation.environment("view"));
+    const created = client.mutate(card).create({ title: "Apples" });
+    const { id } = await created.predicted;
+    const mentioned = card.reference(BOARD_ID, id);
+    const elsewhere = board.reference(BOARD_ID, "board-01a21a7f-0000-7000-8000-000000000001");
+    const Mentioned = (properties: { readonly subject: typeof mentioned }) => {
+        const choice = useMention(properties.subject);
+
+        return <span>{choice().title}</span>;
+    };
+    const element = document.createElement("main");
+    onTestFinished(
+        renderView(
+            () => (
+                <Loading fallback={<p>Loading</p>}>
+                    <Mentioned subject={mentioned} />
+                    <Mentioned subject={elsewhere} />
+                </Loading>
+            ),
+            element,
+            {
+                package: import.meta.destack.package,
+                actions: new ActionRegistry(),
+                mount: {
+                    context: CONTEXT,
+                    clients: new Map([[BOARD_ID, client]]),
+                    packages: new Map(),
+                    open: noSpace,
+                    origin: noOrigin,
+                    connect: noConnect,
+                },
+                localization: Localization.of(SOURCE_LOCALE, []),
+                environment: tab,
+            },
+        ),
+    );
+
+    // expect the card's title, and the board's id where the node holds no boards
+    await changed(
+        element,
+        () => element.textContent === "Applesboard-01a21a7f-0000-7000-8000-000000000001",
+        RENDER_MILLISECONDS,
     );
 });

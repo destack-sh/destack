@@ -1,10 +1,37 @@
-import { Color, Palette } from "@destack/color";
+import {
+    Blur,
+    BoxSides,
+    Color,
+    Corners,
+    Dimension,
+    FillStack,
+    Gradient,
+    Layout,
+    Paint,
+    Palette,
+    ShadowStack,
+    Stroke,
+    Transform,
+    Transition,
+    Typography,
+} from "@destack/style";
 import { t } from "@destack/locale";
-import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
+import {
+    DateRange,
+    Duration,
+    type JsonObject,
+    JsonValue,
+    Money,
+    Rating,
+    RecurrenceRule,
+    schema,
+    toJsonSchema,
+    Url,
+} from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
-import { createSignal } from "@destack/view";
+import { createSignal, For } from "@destack/view";
 import { Field, FieldLabel } from "../field/index.ts";
 import { ValueField, ValueFieldProvider } from "./value-field.tsx";
 
@@ -35,6 +62,24 @@ export const valueFieldKinds = defineExample({
             person: "Ada",
             label: "#f76b15",
             palette: ["#e0eaff", "#241d9a", "#f75092"],
+            sky: {
+                shape: { kind: "linear", angle: 180 },
+                stops: [
+                    { color: "#241d9a", position: 0 },
+                    { color: "#ffc53d", position: 1 },
+                ],
+                space: "oklch",
+                hue: "shorter",
+            },
+            card: { kind: "solid", color: "#ffffff" },
+            background: [
+                {
+                    paint: { kind: "solid", color: "#24159a33" },
+                    blend: "multiply",
+                    isVisible: true,
+                },
+                { paint: { kind: "solid", color: "#fffdf7" }, blend: "normal", isVisible: true },
+            ],
         });
         const of = (name: string) => ({
             get value() {
@@ -100,6 +145,138 @@ export const valueFieldKinds = defineExample({
                         {...of("palette")}
                     />
                 </Field>
+                <Field>
+                    <FieldLabel>Sky</FieldLabel>
+                    <ValueField
+                        type={{ kind: "json", schema: describe(Gradient.schema) }}
+                        {...of("sky")}
+                    />
+                </Field>
+                <Field>
+                    <FieldLabel>Card</FieldLabel>
+                    <ValueField type={{ kind: "json", schema: describe(Paint) }} {...of("card")} />
+                </Field>
+                <Field>
+                    <FieldLabel>Background</FieldLabel>
+                    <ValueField
+                        type={{ kind: "json", schema: describe(FillStack) }}
+                        {...of("background")}
+                    />
+                </Field>
+                <output>{JSON.stringify(given())}</output>
+            </div>
+        );
+    },
+});
+
+/** The inputs of a card's design, from its corners to its motion. */
+export const valueFieldDesign = defineExample({
+    of: ValueField,
+    name: "design",
+    description: t`The inputs of a card's design, with what they give.`,
+    layout: "padded",
+    render: () => {
+        // keep what the inputs give, starting from a raised card
+        const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
+            corners: Corners.all("12px"),
+            padding: { ...BoxSides.all("16px"), top: "24px" },
+            stroke: { color: "#00000014", width: "1px", align: "inside", style: "solid" },
+            shadows: [
+                {
+                    color: "#0000001f",
+                    x: "0",
+                    y: "8px",
+                    blur: "24px",
+                    spread: "-4px",
+                    isInset: false,
+                },
+            ],
+            blur: { kind: "backdrop", radius: "16px" },
+        });
+        const of = (name: string) => ({
+            get value() {
+                return given()[name];
+            },
+            onValueChange: (value: JsonValue | undefined) =>
+                setGiven((current) => ({ ...current, [name]: value })),
+        });
+        const fields = [
+            ["Corners", "corners", Corners],
+            ["Padding", "padding", BoxSides],
+            ["Stroke", "stroke", Stroke],
+            ["Shadows", "shadows", ShadowStack],
+            ["Blur", "blur", Blur],
+            ["Type", "typography", Typography],
+            ["Move", "transform", Transform],
+            ["Layout", "layout", Layout],
+            ["Motion", "transition", Transition],
+            ["Width", "width", Dimension],
+        ] as const;
+
+        return (
+            <div {...style.attrs(styles.form)}>
+                <For each={fields}>
+                    {([label, name, type]) => (
+                        <Field>
+                            <FieldLabel>{label}</FieldLabel>
+                            <ValueField
+                                type={{ kind: "json", schema: describe(type) }}
+                                {...of(name)}
+                            />
+                        </Field>
+                    )}
+                </For>
+                <output>{JSON.stringify(given())}</output>
+            </div>
+        );
+    },
+});
+
+/** The inputs of a project's plan, from its dates to its budget. */
+export const valueFieldPlan = defineExample({
+    of: ValueField,
+    name: "plan",
+    description: t`The inputs of a project's plan, with what they give.`,
+    layout: "padded",
+    render: () => {
+        // keep what the inputs give, starting from a December launch
+        const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
+            dates: { from: "2026-12-01", to: "2026-12-18" },
+            estimate: { days: 3, hours: 4 },
+            review: { frequency: "weekly", byDay: [{ day: 1 }, { day: 4 }] },
+            budget: { amount: 480000, currency: "EUR" },
+            priority: 4,
+            brief: "https://example.com/launch",
+        });
+        const of = (name: string) => ({
+            get value() {
+                return given()[name];
+            },
+            onValueChange: (value: JsonValue | undefined) =>
+                setGiven((current) => ({ ...current, [name]: value })),
+        });
+        const fields = [
+            ["Dates", "dates", DateRange],
+            ["Estimate", "estimate", Duration],
+            ["Review", "review", RecurrenceRule],
+            ["Budget", "budget", Money],
+            ["Priority", "priority", Rating.max(5)],
+            ["Brief", "brief", Url],
+        ] as const;
+
+        return (
+            <div {...style.attrs(styles.form)}>
+                <For each={fields}>
+                    {([label, name, type]) => (
+                        <Field>
+                            <FieldLabel>{label}</FieldLabel>
+                            <ValueField
+                                type={{ kind: "json", schema: describe(type) }}
+                                {...of(name)}
+                            />
+                        </Field>
+                    )}
+                </For>
                 <output>{JSON.stringify(given())}</output>
             </div>
         );

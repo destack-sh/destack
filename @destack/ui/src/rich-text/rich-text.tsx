@@ -1,10 +1,12 @@
 import type { Grammar } from "@destack/code";
-import type { Block, TextSpan } from "@destack/object";
+import type { Block, Choice, TextSpan } from "@destack/object";
 import { t } from "@destack/locale";
 import { type JsonValue, schema } from "@destack/schema";
 import * as style from "@destack/style";
+import { Subject } from "@destack/sync";
 import { motion, space } from "@destack/theme/tokens.stylex";
 import {
+    type Accessor,
     type Component,
     createComponent,
     createContext,
@@ -27,6 +29,7 @@ import {
     CodeBlockTitle,
 } from "../code-block/index.ts";
 import { CopyButton } from "../copy-button/index.ts";
+import { Mention } from "../mention/index.ts";
 import type { ElementPartProperties } from "../part/index.ts";
 import { Prose } from "../prose/index.ts";
 import "../prose/prose.css";
@@ -158,6 +161,8 @@ export type RichTextProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class
         readonly grammar?: (language: string) => Grammar | undefined;
         /** Handle a person checking a todo, which none can by default. */
         readonly onTodoChange?: (block: Block, isChecked: boolean) => void;
+        /** Read a mentioned subject as it looks now, such as by `useMention`. */
+        readonly mention?: (subject: Subject) => Accessor<Choice>;
     };
 
 /** What the blocks of a rich text read from it. */
@@ -174,6 +179,8 @@ interface RichTextControl {
     readonly reveal: Pick<Reveal, "isWaiting" | "isFading" | "add">;
     /** Read what handles a person checking a todo. */
     readonly onTodoChange: () => ((block: Block, isChecked: boolean) => void) | undefined;
+    /** Read what reads a mentioned subject as it looks now. */
+    readonly mention: () => ((subject: Subject) => Accessor<Choice>) | undefined;
 }
 
 /** The rich text around its blocks. */
@@ -184,6 +191,7 @@ const RichTextContext = createContext<RichTextControl>({
     isStreaming: () => false,
     reveal: { isWaiting: () => false, isFading: () => false, add: () => {} },
     onTodoChange: () => undefined,
+    mention: () => undefined,
 });
 
 /** Render rich text: its blocks as they change, each drawn by its type. */
@@ -198,6 +206,7 @@ export function RichText(properties: RichTextProperties): JSX.Element {
         "allowsImage",
         "grammar",
         "onTodoChange",
+        "mention",
     );
     const reveal = createReveal({
         blocks: () => properties.blocks,
@@ -211,6 +220,7 @@ export function RichText(properties: RichTextProperties): JSX.Element {
         isStreaming: () => properties.isStreaming === true,
         reveal,
         onTodoChange: () => properties.onTodoChange,
+        mention: () => properties.mention,
     };
 
     return (
@@ -563,14 +573,20 @@ function SpanView(properties: {
     /** The span, whose marks or node stay the same. */
     readonly span: TextSpan;
 }): JSX.Element {
-    // draw a node as its owner does, else by its type
-    const { components } = useContext(RichTextContext);
+    // draw a node as its owner does, a mention as it looks now, else by its type
+    const { components, mention } = useContext(RichTextContext);
     const span = untrack(() => properties.span);
     if (!("text" in span)) {
         const { type, value } = span.node;
         const own = untrack(() => components().nodes?.[type]);
+        const read = untrack(mention);
+        if (own !== undefined) {
+            return createComponent(own, { value });
+        } else if (type === "mention" && read !== undefined) {
+            return <MentionNode subject={Subject.parse(value)} read={read} />;
+        }
 
-        return own === undefined ? `@${type}` : createComponent(own, { value });
+        return `@${type}`;
     }
 
     // put the text in its marks, the outermost first
@@ -587,6 +603,18 @@ function SpanView(properties: {
     );
 
     return drawn();
+}
+
+/** Render a mention node as its subject looks now. */
+function MentionNode(properties: {
+    /** The mentioned subject. */
+    readonly subject: Subject;
+    /** Read the subject as it looks now. */
+    readonly read: (subject: Subject) => Accessor<Choice>;
+}): JSX.Element {
+    const choice = untrack(() => properties.read(properties.subject));
+
+    return <Mention choice={choice()} />;
 }
 
 /** A stretch of text, and how it comes up. */

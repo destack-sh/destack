@@ -1,4 +1,4 @@
-import { Color, COLOR_CHANNELS, type ColorChannel, ColorSpace } from "@destack/color";
+import { Color, COLOR_CHANNELS, type ColorChannel, ColorSpace } from "@destack/style";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
 import eyedropperIcon from "@destack/icon/phosphor/eyedropper";

@@ -1,4 +1,4 @@
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import { swatch } from "../token/tokens.stylex.ts";
 
 /** The name of a swatch: the accent, a status or a hue. */

@@ -690,8 +690,6 @@ export class ModuleOutput implements Compilation {
             },
             build: {
                 emitAssets: true,
-                // list every file a module loads in the build, so a release can bundle the modules again
-                cssCodeSplit: false,
                 modulePreload: false,
                 // emit the files Vite names itself, such as a worker's, in the output's asset directory
                 assetsDir: ASSET_DIRECTORY,

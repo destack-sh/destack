@@ -1,7 +1,10 @@
-import type { MethodContext } from "@destack/object";
+import { chunk, type MethodContext, type MethodContextOf } from "@destack/object";
+import { Mention } from "@destack/object/markdown";
 import { implementPackage } from "@destack/object/server";
 import { ObjectReference, Subject } from "@destack/sync";
+import { present } from "@destack/schema";
 import { Comment, comment } from "./object/comment.ts";
+import { mention, mentioned, PASSAGE_LENGTH } from "./object/mention.ts";
 import { favourite, LOCATION_BYTES, presence, receipt } from "./object/index.ts";
 import socialPackage from "./package.ts";
 import { SocialError } from "./error/index.ts";
@@ -91,12 +94,12 @@ export default implementPackage(socialPackage, {
                     // notify the principals mentioned for the first time
                     const before = new Comment(context.target).mentioned();
                     const updated = new Comment(await next(body === undefined ? context : edited));
-                    const mentioned = updated
+                    const subjects = updated
                         .mentioned()
                         .filter(
                             (principal) => !before.some((known) => Subject.same(known, principal)),
                         );
-                    const calls = updated.mention(mentioned);
+                    const calls = updated.mention(subjects);
                     if (calls.length > 0) {
                         await context.mutate(context.caller, calls);
                     }
@@ -151,8 +154,88 @@ export default implementPackage(socialPackage, {
                 },
             },
         }),
+        mention.implement({
+            methods: {
+                create: async (context, next) => {
+                    // record the mention, leaving a subject who cannot read the host unnotified, as it cannot open it
+                    const row = await next();
+                    const source = ObjectReference.parent(row);
+                    const subject = ObjectReference.at("subject", row);
+                    const host = present(
+                        context.objects.find((object) => object.policy.is(source)),
+                        `the type of ${source.type} ${source.id}`,
+                    );
+                    if (!(await context.permits(subject, host.permission("read"), source))) {
+                        return row;
+                    }
+
+                    // notify it once, from the object whose text mentions it, with that text's start
+                    const pieces = await context.read(chunk).findMany({
+                        where: { parentId: row.parentId, field: row.field },
+                        orderBy: { position: "asc" },
+                    });
+                    const text = pieces
+                        .map((piece) => piece.text)
+                        .join("")
+                        .slice(0, PASSAGE_LENGTH);
+                    await context.mutate(context.caller, [
+                        mentioned.call({
+                            source,
+                            recipients: [subject],
+                            reason: "mention",
+                            thread: row.parentId,
+                            payload: { author: context.caller.subject, text },
+                        }),
+                    ]);
+
+                    return row;
+                },
+                observe: async (context) => {
+                    // match the host text's mentions to its mention nodes, as the editor
+                    await context.mutate(context.caller, await track(context));
+
+                    return null;
+                },
+            },
+        }),
     ],
 });
+
+/** Build the calls creating the mentions a host's text gained and deleting the ones it lost. */
+async function track(context: MethodContextOf<typeof mention, "observe">) {
+    // read the subjects the text's mention nodes name
+    const { parent, field } = context.input;
+    const chunks = await context.read(chunk).findMany({ where: { parentId: parent.id, field } });
+    const wanted = new Map<string, Subject>();
+    for (const each of chunks) {
+        for (const run of each.runs) {
+            const subject = "node" in run ? Mention.of(run.node) : undefined;
+            if (subject !== undefined) {
+                wanted.set(Subject.key(subject), subject);
+            }
+        }
+    }
+
+    // read the mentions the text has, and tell gained from lost
+    const rows = await context
+        .read(mention.table)
+        .findMany({ where: { parentId: parent.id, field } });
+    const held = new Map(rows.map((row) => [Subject.key(ObjectReference.at("subject", row)), row]));
+    const lost = [...held].filter(([key]) => !wanted.has(key)).map(([, row]) => row);
+    const gained = [...wanted].filter(([key]) => !held.has(key)).map(([, subject]) => subject);
+
+    return [
+        ...lost.map((row) => mention.call("delete", mention.target(row))),
+        ...gained.map((subject) =>
+            mention.call("create", {
+                ...mention.in(context.scope),
+                parent,
+                field,
+                ...ObjectReference.columns("subject", subject),
+            }),
+        ),
+    ];
+}
 
 /** Select the caller's own row of a per-principal attachment on the call's parent. */
 function owned(context: MethodContext) {

@@ -669,14 +669,24 @@ export class ObjectClient<
     }
 
     /** Call an object type's mutating method by name as one mutation, as recorded calls do. */
-    call(object: ObjectType, name: string, input: JsonObject): Submission<unknown> {
-        // send an ephemeral call at once, and write a local one at once in the client's database
+    call(
+        object: ObjectType,
+        name: string,
+        input: JsonObject,
+        then?: (mutation: Pick<MutationContext, "read">) => Promise<void>,
+    ): Submission<unknown> {
+        // send an ephemeral call at once, and write a local one at once in the client's database, reading after it
         if (object.storage === "ephemeral" || object.storage === "local") {
             const call = this.#recordCall(object, name, input);
-            const done =
+            const written =
                 object.storage === "ephemeral" || this.#isLocalFollowed
                     ? this.#send(call, this.#readScope(object))
                     : this.#write(object, name, call);
+            const done = written.then(async (value) => {
+                await then?.({ read: (live) => live.read() });
+
+                return value;
+            });
             const confirmed = done.then(() => {});
 
             // mark the confirmation handled, and answer its failure in the returned submission
@@ -685,10 +695,11 @@ export class ObjectClient<
             return { predicted: done, confirmed };
         }
 
-        // predict only the call, on the main line for a branch's methods
+        // predict only the call, on the main line for a branch's methods, reading before it commits
         let result: unknown;
         const pending = this.#mutation(async (mutation) => {
             result = await mutation.invoke(object, name, input);
+            await then?.(mutation);
         }, this.#isBranchType(object));
 
         return {
@@ -799,6 +810,7 @@ export class ObjectClient<
                             (_method, name) => (input: JsonObject) => invoke(object, name, input),
                         ),
                     invoke,
+                    read: (live) => live.read(database),
                 });
 
                 // remember for undo, composing into the latest mutation when every call is predicted
@@ -1038,11 +1050,11 @@ export class ObjectClient<
         return {
             query: compiled,
             ready: followed.ready,
-            read: async () => {
+            read: async (connection = this.database) => {
                 // read the items from the replica, recording how long the read took
                 const started = this.environment.telemetry.monotonic.now();
                 const items = this.#presenter.present(
-                    await this.#items(await named, compiled),
+                    await this.#items(await named, compiled, connection),
                     compiled,
                     this.objects,
                 );
@@ -1074,11 +1086,11 @@ export class ObjectClient<
 
         return {
             ready: followed.ready,
-            read: async () =>
+            read: async (connection = this.database) =>
                 object.storage === "local"
-                    ? (await this.#dataflow(await named, compiled)).results(await named)
+                    ? (await this.#dataflow(await named, compiled, connection)).results(await named)
                     : this.#pickReplica(object.storage).results(
-                          this.database,
+                          connection,
                           await named,
                           compiled,
                           isDurable ? this.prediction : undefined,
@@ -1370,7 +1382,8 @@ export class ObjectClient<
             get ready() {
                 return Promise.all(followed.map(({ live }) => live.ready)).then(() => {});
             },
-            read: async () => merge(await Promise.all(followed.map(({ live }) => live.read()))),
+            read: async (connection) =>
+                merge(await Promise.all(followed.map(({ live }) => live.read(connection)))),
             watch: (signal) =>
                 Observable.latest(
                     followed.map(({ live }) => live.watch(signal)),
@@ -1426,7 +1439,7 @@ export class ObjectClient<
         while (!signal.aborted) {
             // read the scopes the replica reads now
             const scopes = canonicalize(await this.replica.chain(this.database));
-            const read = await this.#read(query);
+            const read = await this.#read(query, this.database);
 
             // watch over them until the replica reads others
             const rescoping = new AbortController();
@@ -1449,7 +1462,7 @@ export class ObjectClient<
     }
 
     /** Widen a durable query to every scope of its type the replica last read. */
-    async #read(query: sync.Query): Promise<sync.Query> {
+    async #read(query: sync.Query, connection: DatabaseConnection): Promise<sync.Query> {
         // run a query of no durable type, whose replica reads no chain
         const object = this.objects.find((type) => type.table === query.table);
         if (object?.storage !== "durable") {
@@ -1458,31 +1471,39 @@ export class ObjectClient<
 
         // read the scopes with the type's rows, which the source chose to send
         const held = object.table[TABLE].column("scope").definition.schema;
-        const read = await this.replica.chain(this.database);
+        const read = await this.replica.chain(connection);
 
         return { ...query, scopes: read.filter((scope) => held.safeParse(scope).success) };
     }
 
     /** Read a query's items from the local replica. */
-    async #items(name: string, query: sync.Query): Promise<readonly Item[]> {
-        return (await this.#dataflow(name, query)).read(name);
+    async #items(
+        name: string,
+        query: sync.Query,
+        connection: DatabaseConnection,
+    ): Promise<readonly Item[]> {
+        return (await this.#dataflow(name, query, connection)).read(name);
     }
 
-    /** Load a query over the local database through the local feed's upstream. */
-    async #dataflow(name: string, query: sync.Query): Promise<syncDataflow.Dataflow> {
+    /** Load a query over a connection to the local database through the local feed's upstream. */
+    async #dataflow(
+        name: string,
+        query: sync.Query,
+        connection: DatabaseConnection,
+    ): Promise<syncDataflow.Dataflow> {
         // read through the local feed's upstream
         const upstream = present(this.#local.upstream, "the local feed's upstream");
         const dataflow = new syncDataflow.Dataflow(
-            { [name]: await this.#read(query) },
+            { [name]: await this.#read(query, connection) },
             {
                 audience: syncDataflow.EVERYONE,
-                database: this.database,
+                database: connection,
                 upstream,
-                changesThrough: syncDataflow.Dataflow.changesThrough(this.database),
+                changesThrough: syncDataflow.Dataflow.changesThrough(connection),
                 isMaterialized: true,
             },
         );
-        await dataflow.load(await syncDataflow.View.latest(this.database));
+        await dataflow.load(await syncDataflow.View.latest(connection));
 
         return dataflow;
     }
@@ -1692,7 +1713,11 @@ export class ObjectClient<
         const name = await named;
         let isFirst = true;
         try {
-            for await (const rows of this.#local.watch(name, await this.#read(compiled), signal)) {
+            for await (const rows of this.#local.watch(
+                name,
+                await this.#read(compiled, this.database),
+                signal,
+            )) {
                 // replace each lookup whose keys changed
                 for (const lookup of split.lookups) {
                     await this.#replaceLookup(

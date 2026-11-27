@@ -36,6 +36,9 @@ import { RelationGraph } from "../query/query.ts";
 import type { ObjectRemote, Push } from "./remote.ts";
 import { ObjectQuery, PushResult } from "./replica.ts";
 
+/** Send a followed query's value again, read as of a mutation's prediction when given. */
+type Refresh = (mutation?: Pick<MutationContext, "read">) => Promise<void>;
+
 /** The fields of a read a party follows at the serving node. */
 const READ = {
     scope: schema.string(),
@@ -217,7 +220,7 @@ interface ChannelServed {
     /** The node of each scope. */
     readonly nodes: (scope: string) => Promise<ObjectNode>;
     /** Each party's followed queries, read again before its write's prediction. */
-    readonly follows: Map<string, Set<() => Promise<void>>>;
+    readonly follows: Map<string, Set<Refresh>>;
     /** The parties' open write sessions, by session. */
     readonly sessions: Map<string, ChannelSession>;
 }
@@ -274,7 +277,7 @@ export class ChannelRemote implements ObjectRemote {
         const typed = typedChannel(channel, Frame);
         const traced = traceCalls("server", CHANNEL_SYSTEM, environment);
         const running = new Map<string, AbortController>();
-        const follows = new Map<string, Set<() => Promise<void>>>();
+        const follows = new Map<string, Set<Refresh>>();
         const sessions = new Map<string, ChannelSession>();
         const stop = typed.listen({
             receive: (frame) => {
@@ -454,7 +457,7 @@ export class ChannelRemote implements ObjectRemote {
             await opened.promise;
             let result: Value;
             try {
-                result = await run({ call, invoke });
+                result = await run({ call, invoke, read: (live) => live.read() });
             } catch (error) {
                 await this.#send({ verb: "cancel", session });
                 throw error;
@@ -858,15 +861,20 @@ export class ChannelRemote implements ObjectRemote {
                     }
                 });
             }
-            // answer a write's prediction, then its confirmation
+            // answer a write's prediction, sending the party's queries as of it before it commits, then its confirmation
             else if (send.verb === "mutate") {
                 const node = await nodes(send.scope);
                 const object = ChannelRemote.#object(node, send.package, send.object);
-                const submission = node.call(object, send.method, send.input);
-                const predicted = await submission.predicted;
+                const party = [...(follows.get(to) ?? [])];
+                const submission = node.call(object, send.method, send.input, async (mutation) => {
+                    await Promise.all(party.map((refresh) => refresh(mutation)));
+                });
 
-                // send the party's followed queries with the prediction before the prediction itself
-                await Promise.all([...(follows.get(to) ?? [])].map((refresh) => refresh()));
+                // send the queries again after a prediction that failed to commit, then the prediction
+                const predicted = await submission.predicted.catch(async (error: unknown) => {
+                    await Promise.all(party.map((refresh) => refresh()));
+                    throw error;
+                });
                 channel.notify({ kind: "value", to, id, value: predicted });
                 await submission.confirmed;
                 channel.notify({ kind: "answer", to, id, value: null });
@@ -975,13 +983,14 @@ export class ChannelRemote implements ObjectRemote {
         channel: Channel<Frame>,
         frame: Extract<Frame, { readonly kind: "send" }>,
         live: LiveQuery<unknown>,
-        party: Set<() => Promise<void>>,
+        party: Set<Refresh>,
         signal: AbortSignal,
     ): Promise<void> {
         // follow the read on the node, as long as its party keeps it
         const { from: to, id } = frame;
-        const refresh = async () => {
-            channel.notify({ kind: "value", to, id, value: await live.read() });
+        const refresh = async (mutation?: Pick<MutationContext, "read">) => {
+            const value = mutation === undefined ? await live.read() : await mutation.read(live);
+            channel.notify({ kind: "value", to, id, value });
         };
         try {
             // send each read of the query, and a read whenever the party's write predicts

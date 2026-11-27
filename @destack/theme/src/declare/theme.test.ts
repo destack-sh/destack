@@ -1,4 +1,4 @@
-import { HUES } from "@destack/color";
+import { HUES } from "@destack/style";
 import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { describeTheme } from "../inspect/index.ts";

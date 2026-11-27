@@ -24,7 +24,6 @@
         "generate": "bun run src/token/generate.ts"
     },
     "dependencies": {
-        "@destack/color": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/style": "workspace:*"

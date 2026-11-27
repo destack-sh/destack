@@ -1,4 +1,11 @@
-import { Installation, installation, bucket, database } from "@destack/stack/object";
+import {
+    Installation,
+    installation,
+    bucket,
+    database,
+    edit,
+    EditOutput,
+} from "@destack/stack/object";
 import { GitReference } from "@destack/git";
 import { RelationalQuery } from "@destack/object/client";
 import { principal } from "@destack/access";
@@ -99,6 +106,80 @@ export class InstallationStatus {
         this.version = fields.version;
         this.resources = fields.resources;
         this.waiting = fields.waiting;
+    }
+
+    /** Wait for an edit's run, then for the installation to serve the edit's commit. */
+    static async edited(
+        id: Identifier<"installation">,
+        run: string,
+        context: CommandContext,
+    ): Promise<void> {
+        // follow the run and the installation as the person
+        const space = await context.requireSpace();
+        const stack = await context.package(stackPackage, await context.locate());
+        const launcher = await context.launcher();
+        await using opened = new AsyncDisposableStack();
+        const native = await context.native();
+        const { query } = await native.open(
+            launcher,
+            { space },
+            { installation, run: edit.run },
+            opened,
+        );
+        const watching = new AbortController();
+        opened.defer(() => watching.abort());
+        const states = RelationalQuery.latest(
+            {
+                edited: query.run.findFirst({ where: { id: schema.identifier("run").parse(run) } }),
+                installed: query.installation.findFirst({ where: { id } }),
+            },
+            watching.signal,
+        );
+
+        // end once the run completed and the installation applies a later revision, refusing a run that did not complete
+        for await (const { edited, installed } of states) {
+            if (edited?.state === "failed" || edited?.state === "cancelled") {
+                const reason = edited.failure?.message ?? edited.state;
+                throw CliError.of(
+                    "EDIT_BROKEN",
+                    `edit of installation '${id}' is broken: it ended with '${reason}'`,
+                );
+            }
+            const done =
+                edited?.state === "completed" ? EditOutput.parse(edited.output) : undefined;
+            const isUnchanged = done !== undefined && done.commit === done.base;
+
+            // refuse an edit whose commit the installation failed to sync, such as one whose build failed
+            const synced = installed?.conditions["Synced"];
+            if (done !== undefined && !isUnchanged && synced?.status === "false") {
+                throw CliError.of(
+                    "EDIT_BROKEN",
+                    `edit of installation '${id}' is broken: ${synced.message}`,
+                );
+            }
+
+            // end with an unchanged edit, or once the applied revision serves the image the edit's commit built, as revisions of one image are one
+            if (done !== undefined && isUnchanged) {
+                return;
+            }
+            const applied = installed?.appliedRevisionId ?? null;
+            if (done !== undefined && applied !== null) {
+                const revision = await stack.installationRevision.get({
+                    spaceId: space,
+                    id: applied,
+                });
+                const served = await stack.build.get({ spaceId: space, id: revision.buildId });
+                const { items } = await stack.build.list({
+                    spaceId: space,
+                    where: { commit: done.commit, state: "succeeded" },
+                    limit: 1,
+                });
+                const [rebuilt] = items;
+                if (rebuilt !== undefined && rebuilt.image === served.image) {
+                    return;
+                }
+            }
+        }
     }
 
     /** Follow an installation of the space with its resources, and the plan it waits on. */

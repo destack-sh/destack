@@ -1,5 +1,5 @@
 import { swatches } from "@destack/theme/swatch";
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { swatch } from "@destack/theme/tokens.stylex";

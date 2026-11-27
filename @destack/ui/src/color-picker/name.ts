@@ -1,4 +1,4 @@
-import type { Color, ColorHueName, ColorName } from "@destack/color";
+import type { Color, ColorHueName, ColorName } from "@destack/style";
 import { type Localization, type Message, t } from "@destack/locale";
 
 /** What each hue is called. */

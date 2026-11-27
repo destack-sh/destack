@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { Locale, Localization } from "@destack/locale";
 import { createSignal, flush, LocaleContext } from "@destack/view";
 import { render } from "@destack/view/test";
-import type { HourCycle } from "../date-segment/index.ts";
+import { DateTimeFormat, type HourCycle } from "../date-segment/index.ts";
 import { DateTimeField } from "./index.ts";
 
 /** The morning of a day, in Zurich 10:30. */
@@ -79,15 +79,18 @@ test("lay out the time where the language has it, on the clock given", () => {
 });
 
 test("refuse an instant outside the limits, and submit and reset with a form", () => {
+    const english = Localization.of(Locale.parse("en-US"), []);
     const { container } = render(() => (
-        <form>
-            <DateTimeField
-                name="due"
-                defaultValue={MORNING}
-                max={MORNING}
-                timeZone="Europe/Zurich"
-            />
-        </form>
+        <LocaleContext value={english}>
+            <form>
+                <DateTimeField
+                    name="due"
+                    defaultValue={MORNING}
+                    max={MORNING}
+                    timeZone="Europe/Zurich"
+                />
+            </form>
+        </LocaleContext>
     ));
     const form = container.querySelector("form");
     const input = container.querySelector("input");
@@ -109,7 +112,8 @@ test("refuse an instant outside the limits, and submit and reset with a form", (
         ["2026-11-24T09:30:00.000Z", "", null],
         [
             "2026-11-25T09:30:00.000Z",
-            "Choose \u2068Nov 24, 2026 at 10:30 AM\u2069 or earlier.",
+            // write the limit as the platform's own date data does, a comma or "at" between
+            `Choose \u2068${new DateTimeFormat(english, () => "Europe/Zurich").label(MORNING)}\u2069 or earlier.`,
             "true",
         ],
         ["2026-11-24T09:30:00.000Z", "", null],

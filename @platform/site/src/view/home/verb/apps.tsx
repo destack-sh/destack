@@ -1,4 +1,4 @@
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import type { IconBodies } from "@destack/icon";
 import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";

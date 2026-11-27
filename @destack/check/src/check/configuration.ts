@@ -374,12 +374,7 @@ export async function typescriptConfiguration(directory: string, files: FileSyst
     const jsx = jsxOptions(names, hasViews);
 
     // declare web globals through DOM unless Bun's types declare them for server-only code
-    const isDom =
-        runtimes.has("browser") ||
-        hasViews ||
-        uses("@destack/style") ||
-        uses("@opentui/solid") ||
-        !isBun;
+    const isDom = runtimes.has("browser") || hasViews || uses("@opentui/solid") || !isBun;
 
     return {
         compilerOptions: {

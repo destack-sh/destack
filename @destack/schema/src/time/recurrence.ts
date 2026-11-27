@@ -22,45 +22,31 @@ export const RecurrenceDay = schema.object({
     /** The weekday. */
     day: Weekday,
     /** Which of the period's weekdays: 1 the first, -1 the last, every one when absent. */
-    nthOfPeriod: schema
-        .number()
-        .int()
-        .min(-YEAR_WEEKS)
-        .max(YEAR_WEEKS)
-        .refine((nth) => nth !== 0)
-        .exactOptional(),
+    nthOfPeriod: nonZero(YEAR_WEEKS).exactOptional(),
 });
 
 /** A weekday a rule repeats on. */
 export type RecurrenceDay = schema.Infer<typeof RecurrenceDay>;
 
 /** A rule an event repeats by, after JSCalendar's RecurrenceRule and iCalendar's RRULE. */
-export const RecurrenceRule = schema.object({
-    /** How often it repeats. */
-    frequency: RecurrenceFrequency,
-    /** The periods between repeats, 1 by default. */
-    interval: schema.number().int().positive().exactOptional(),
-    /** The weekdays it repeats on, the first date's weekday in a weekly rule by default. */
-    byDay: schema.array(RecurrenceDay).min(1).exactOptional(),
-    /** The days of the month it repeats on, -1 the last. */
-    byMonthDay: schema
-        .array(
-            schema
-                .number()
-                .int()
-                .min(-MONTH_DAYS)
-                .max(MONTH_DAYS)
-                .refine((day) => day !== 0),
-        )
-        .min(1)
-        .exactOptional(),
-    /** The months it repeats in, January 1. */
-    byMonth: schema.array(schema.number().int().min(1).max(YEAR_MONTHS)).min(1).exactOptional(),
-    /** How many times it happens, the first date included. */
-    count: schema.number().int().positive().exactOptional(),
-    /** The last date it may happen on. */
-    until: PlainDate.exactOptional(),
-});
+export const RecurrenceRule = schema
+    .object({
+        /** How often it repeats. */
+        frequency: RecurrenceFrequency,
+        /** The periods between repeats, 1 by default. */
+        interval: schema.number().int().positive().exactOptional(),
+        /** The weekdays it repeats on, the first date's weekday in a weekly rule by default. */
+        byDay: schema.array(RecurrenceDay).min(1).exactOptional(),
+        /** The days of the month it repeats on, -1 the last. */
+        byMonthDay: schema.array(nonZero(MONTH_DAYS)).min(1).exactOptional(),
+        /** The months it repeats in, January 1. */
+        byMonth: schema.array(schema.number().int().min(1).max(YEAR_MONTHS)).min(1).exactOptional(),
+        /** How many times it happens, the first date included. */
+        count: schema.number().int().positive().exactOptional(),
+        /** The last date it may happen on. */
+        until: PlainDate.exactOptional(),
+    })
+    .meta({ id: "recurrence", title: "Recurrence" });
 
 /** A rule an event repeats by. */
 export type RecurrenceRule = schema.Infer<typeof RecurrenceRule>;
@@ -372,4 +358,12 @@ function monthIndex(date: PlainDate): number {
 /** Report whether a month, January 1, is one of a rule's months, every month without any. */
 function isInMonth(rule: RecurrenceRule, month: number): boolean {
     return rule.byMonth?.includes(month) ?? true;
+}
+
+/** A whole number from minus a limit to the limit but zero, in two ranges JSON Schema describes. */
+function nonZero(limit: number) {
+    return schema.union([
+        schema.number().int().min(-limit).max(-1),
+        schema.number().int().min(1).max(limit),
+    ]);
 }

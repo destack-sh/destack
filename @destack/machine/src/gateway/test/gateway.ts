@@ -107,6 +107,7 @@ export function openGateway(
                 graph: refuse("read graphs"),
                 file: refuse("read graphs"),
                 get: refuse("read builds"),
+                image: refuse("read images"),
             },
             machine: {
                 directory,

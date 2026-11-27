@@ -6411,6 +6411,353 @@
             "source": "Move later",
             "context": "action",
             "translation": "Mover después"
+        },
+        "5y1o8ehjxcpy": {
+            "source": "Layer {$p0}",
+            "context": "label",
+            "translation": "Capa {$p0}"
+        },
+        "1hpav2hijijbl": {
+            "source": "Blend mode",
+            "context": "label",
+            "translation": "Modo de fusión"
+        },
+        "1rpk60vp7ofd5": {
+            "source": "Show layer",
+            "context": "action",
+            "translation": "Mostrar capa"
+        },
+        "865vfostb5n4": {
+            "source": "Remove layer",
+            "context": "action",
+            "translation": "Quitar capa"
+        },
+        "3pfqn7ah24is1": {
+            "source": "Add layer",
+            "context": "action",
+            "translation": "Añadir capa"
+        },
+        "11k30uf5jrcbs": {
+            "source": "A card's background: a sunset sky, its kind, shape, stops and blend.",
+            "translation": "El fondo de una tarjeta: un cielo de atardecer, su tipo, forma, paradas y fusión."
+        },
+        "rfcl7m9j2q7z": {
+            "source": "A label's color, one color with its opacity.",
+            "translation": "El color de una etiqueta, un color con su opacidad."
+        },
+        "16py7fd4dmqw5": {
+            "source": "A page's paper, an image tiled from the top.",
+            "translation": "El papel de una página, una imagen en mosaico desde arriba."
+        },
+        "2e90l1vnlna0p": {
+            "source": "A sunset sky's shape, stops and blend.",
+            "translation": "La forma, las paradas y la fusión de un cielo de atardecer."
+        },
+        "264w4v4mo1cqn": {
+            "source": "A glow from the top left, over squares where it is see-through.",
+            "translation": "Un brillo desde arriba a la izquierda, sobre cuadros donde es transparente."
+        },
+        "96oyu7ywszmt": {
+            "source": "Refuses every part, so the value cannot change now.",
+            "translation": "Rechaza cada parte, así que el valor no puede cambiar ahora."
+        },
+        "1zhw6ao1dyplx": {
+            "source": "Paint",
+            "context": "label",
+            "translation": "Pintura"
+        },
+        "fklwhdvsg8hc": {
+            "source": "The color, gradient or image it shows.",
+            "translation": "El color, degradado o imagen que muestra."
+        },
+        "3i327ebyp8rql": {
+            "source": "Kind",
+            "context": "label",
+            "translation": "Tipo"
+        },
+        "e09pdbnyoj6v": {
+            "source": "Remove stop",
+            "context": "action",
+            "translation": "Quitar parada"
+        },
+        "2wr2hajakp966": {
+            "source": "Blend",
+            "context": "label",
+            "translation": "Fusión"
+        },
+        "1nag7hbfipyby": {
+            "source": "Angle",
+            "context": "label",
+            "translation": "Ángulo"
+        },
+        "2bpq7wpyg62wi": {
+            "source": "Across",
+            "context": "label",
+            "translation": "Horizontal"
+        },
+        "2qrj3iwy9b29f": {
+            "source": "Down",
+            "context": "label",
+            "translation": "Vertical"
+        },
+        "1qw3jdu3ixfbh": {
+            "source": "Stop {$p0}",
+            "context": "label",
+            "translation": "Parada {$p0}"
+        },
+        "34ztxbes0kac5": {
+            "source": "Address",
+            "context": "label",
+            "translation": "Dirección"
+        },
+        "2rcr3qokq951q": {
+            "source": "Fit",
+            "context": "label",
+            "translation": "Ajuste"
+        },
+        "3rkrow5tltvck": {
+            "source": "A sidebar's width, its number and its unit.",
+            "translation": "El ancho de una barra lateral, su número y su unidad."
+        },
+        "35d8g10rtxl8y": {
+            "source": "Blur",
+            "context": "label",
+            "translation": "Desenfoque"
+        },
+        "3p3fkxt6nq7bs": {
+            "source": "Spread",
+            "context": "label",
+            "translation": "Extensión"
+        },
+        "2gig2qk6se76k": {
+            "source": "Refuses the number and the unit, so the length cannot change now.",
+            "translation": "Rechaza el número y la unidad, así que la longitud no puede cambiar ahora."
+        },
+        "gqzthbm80llv": {
+            "source": "Amount",
+            "context": "label",
+            "translation": "Cantidad"
+        },
+        "yzjv69xg6n9h": {
+            "source": "Unit",
+            "context": "label",
+            "translation": "Unidad"
+        },
+        "36z5m91azs9mn": {
+            "source": "Top left",
+            "context": "label",
+            "translation": "Arriba a la izquierda"
+        },
+        "1v35e6mr3aauo": {
+            "source": "Top right",
+            "context": "label",
+            "translation": "Arriba a la derecha"
+        },
+        "152cgb4zunq4a": {
+            "source": "Bottom right",
+            "context": "label",
+            "translation": "Abajo a la derecha"
+        },
+        "ahxw76q6z32x": {
+            "source": "Bottom left",
+            "context": "label",
+            "translation": "Abajo a la izquierda"
+        },
+        "1ohtxaqdx5qul": {
+            "source": "Each corner",
+            "context": "action",
+            "translation": "Cada esquina"
+        },
+        "180v59w0nzxye": {
+            "source": "Top",
+            "context": "label",
+            "translation": "Arriba"
+        },
+        "3lk0eldtudidf": {
+            "source": "Right",
+            "context": "label",
+            "translation": "Derecha"
+        },
+        "1l8cppx8wx0e0": {
+            "source": "Bottom",
+            "context": "label",
+            "translation": "Abajo"
+        },
+        "2vbbh7dg07c26": {
+            "source": "Left",
+            "context": "label",
+            "translation": "Izquierda"
+        },
+        "19mmqaohy4du3": {
+            "source": "Each side",
+            "context": "action",
+            "translation": "Cada lado"
+        },
+        "3o4y15akzns2g": {
+            "source": "Style",
+            "context": "label",
+            "translation": "Estilo"
+        },
+        "2ro9izzjvwj7h": {
+            "source": "Shadow {$p0}",
+            "context": "label",
+            "translation": "Sombra {$p0}"
+        },
+        "3k4olda3ray93": {
+            "source": "Inside",
+            "context": "label",
+            "translation": "Dentro"
+        },
+        "2ymermyp6qflz": {
+            "source": "Remove shadow",
+            "context": "action",
+            "translation": "Quitar sombra"
+        },
+        "tadhrvnkmgzk": {
+            "source": "Add shadow",
+            "context": "action",
+            "translation": "Añadir sombra"
+        },
+        "8b4st0smjnf9": {
+            "source": "Radius",
+            "context": "label",
+            "translation": "Radio"
+        },
+        "tszpn9e3d1ry": {
+            "source": "Font family",
+            "context": "label",
+            "translation": "Familia tipográfica"
+        },
+        "2yz3xkfdwyi8g": {
+            "source": "Line height",
+            "context": "label",
+            "translation": "Altura de línea"
+        },
+        "34s3gkvx1g2yy": {
+            "source": "Letter spacing",
+            "context": "label",
+            "translation": "Espaciado entre letras"
+        },
+        "13ugtxte49ei1": {
+            "source": "Rotation",
+            "context": "label",
+            "translation": "Rotación"
+        },
+        "110emskh7pmyr": {
+            "source": "Width scale",
+            "context": "label",
+            "translation": "Escala de ancho"
+        },
+        "31htirga43yqy": {
+            "source": "Height scale",
+            "context": "label",
+            "translation": "Escala de alto"
+        },
+        "2n158dkk1jau1": {
+            "source": "Gap",
+            "context": "label",
+            "translation": "Espacio"
+        },
+        "146ij7dbmts0f": {
+            "source": "Wrap",
+            "context": "label",
+            "translation": "Ajustar"
+        },
+        "289x0xd9wk6z8": {
+            "source": "Padding",
+            "context": "label",
+            "translation": "Relleno"
+        },
+        "dr1mz7ws6hdf": {
+            "source": "Duration",
+            "context": "label",
+            "translation": "Duración"
+        },
+        "wnvlx2o8tmwm": {
+            "source": "Delay",
+            "context": "label",
+            "translation": "Retraso"
+        },
+        "327tytaak268u": {
+            "source": "Easing",
+            "context": "label",
+            "translation": "Aceleración"
+        },
+        "24364epls0fgw": {
+            "source": "The inputs of a card's design, with what they give.",
+            "translation": "Las entradas del diseño de una tarjeta, con lo que dan."
+        },
+        "1cikq0mz87xhl": {
+            "source": "Monthly",
+            "context": "option",
+            "translation": "Mensualmente"
+        },
+        "1s0806s090ghy": {
+            "source": "Hours",
+            "context": "label",
+            "translation": "Horas"
+        },
+        "21rg3ceyxt9zi": {
+            "source": "The inputs of a project's plan, with what they give.",
+            "translation": "Las entradas del plan de un proyecto, con lo que devuelven."
+        },
+        "2arm9kkimtwxm": {
+            "source": "Every",
+            "context": "label",
+            "translation": "Cada"
+        },
+        "2dd2da39idylc": {
+            "source": "Repeat",
+            "context": "label",
+            "translation": "Repetir"
+        },
+        "3b3gqzao9po79": {
+            "source": "Daily",
+            "context": "option",
+            "translation": "Diariamente"
+        },
+        "3cow09zt9sw4c": {
+            "source": "Currency",
+            "context": "label",
+            "translation": "Moneda"
+        },
+        "3kngscvk0ukl9": {
+            "source": ".input {$p0 :number}\n.match $p0\none {{{$p0} star}}\n* {{{$p0} stars}}",
+            "context": "option",
+            "translation": ".input {$p0 :number} .match $p0 one {{{$p0} estrella}} * {{{$p0} estrellas}}"
+        },
+        "baaq0jloyjx3": {
+            "source": "Weekly",
+            "context": "option",
+            "translation": "Semanalmente"
+        },
+        "ofpv4o3prx2a": {
+            "source": "On",
+            "context": "label",
+            "translation": "El"
+        },
+        "yh9pkfp8ramm": {
+            "source": "Yearly",
+            "context": "option",
+            "translation": "Anualmente"
+        },
+        "zkus437iibb0": {
+            "source": "Minutes",
+            "context": "label",
+            "translation": "Minutos"
+        },
+        "3m45jvb8oppen": {
+            "source": "Mention",
+            "context": "label",
+            "translation": "Mencionar"
+        },
+        "123bd55l9v12n": {
+            "source": "A message to a team, whose @ finds people and pages to mention.",
+            "translation": "Un mensaje a un equipo, cuyo @ encuentra personas y páginas para mencionar."
+        },
+        "2i2zx41gqr6f0": {
+            "source": "A person and a page mentioned in a sentence.",
+            "translation": "Una persona y una página mencionadas en una frase."
         }
     }
 }

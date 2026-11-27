@@ -696,11 +696,10 @@ export class WorkspacePackage {
         await settleAll<unknown>([images, installed]);
         const made = await images;
 
-        // share the npm units two or more release builtins' bundles keep, leaving the host's to their builds
+        // share the npm units two or more release bundles keep, apps' among them, leaving the host's to their builds
         const platform = await this.#platformUnits(this.workspace.host);
-        const releasing = made.filter(
-            ([, { role, isRelease }]) =>
-                role === "builtin" && WorkspacePackage.#isBundled(role, isRelease),
+        const releasing = made.filter(([, { role, isRelease }]) =>
+            WorkspacePackage.#isBundled(role, isRelease),
         );
         const kept = await Promise.all(
             releasing.map(async ([, { image, built }]) =>
@@ -709,7 +708,7 @@ export class WorkspacePackage {
         );
         const sharedUnits = WorkspacePackage.#shared(kept);
 
-        // bundle each release builtin against the shared units, and each release app with its units inlined
+        // bundle each release builtin and app against the shared units, inlining the rest
         const bundled = await Promise.all(
             made.map(async ([name, { build, image, role, isRelease, built }]) => {
                 // bundle a release app or builtin, keeping a library's or a development image
@@ -717,7 +716,7 @@ export class WorkspacePackage {
                 const builtins = await this.#builtins(built);
                 const linked = {
                     builtins,
-                    shared: role === "builtin" ? sharedUnits : new Set<Digest>(),
+                    shared: sharedUnits,
                     platform,
                     exports: "every" as const,
                 };

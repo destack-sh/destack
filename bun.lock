@@ -219,7 +219,6 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/build": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/desktop": "workspace:*",
         "@destack/error": "workspace:*",
@@ -237,6 +236,7 @@
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
+        "@destack/style": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/update": "workspace:*",
@@ -302,16 +302,6 @@
         "@destack/test": "workspace:*",
         "@lezer/generator": "1.8.1",
         "@types/bun": "1.4.4",
-      },
-    },
-    "@destack/color": {
-      "name": "@destack/color",
-      "dependencies": {
-        "@destack/locale": "workspace:*",
-        "@destack/schema": "workspace:*",
-      },
-      "devDependencies": {
-        "@destack/test": "workspace:*",
       },
     },
     "@destack/connection": {
@@ -885,7 +875,6 @@
       "name": "@destack/object",
       "dependencies": {
         "@destack/access": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -896,6 +885,7 @@
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/style": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@lezer/common": "1.5.6",
@@ -1007,6 +997,7 @@
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@types/semver": "7.8.0",
         "semver": "7.8.5",
       },
       "devDependencies": {
@@ -1014,7 +1005,6 @@
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
-        "@types/semver": "7.8.0",
       },
       "peerDependencies": {
         "@destack/build": "workspace:*",
@@ -1084,6 +1074,7 @@
     "@destack/schema": {
       "name": "@destack/schema",
       "dependencies": {
+        "@types/semver": "7.8.0",
         "re2js": "2.10.0",
         "semver": "7.8.5",
         "zod": "4.6.7",
@@ -1091,7 +1082,6 @@
       "devDependencies": {
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/semver": "7.8.0",
       },
     },
     "@destack/setting": {
@@ -1124,7 +1114,6 @@
     "@destack/shader": {
       "name": "@destack/shader",
       "dependencies": {
-        "@destack/color": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
@@ -1231,13 +1220,14 @@
     "@destack/style": {
       "name": "@destack/style",
       "dependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@stylexjs/stylex": "0.19.1",
       },
       "devDependencies": {
         "@destack/build": "workspace:*",
         "@destack/environment": "workspace:*",
-        "@destack/schema": "workspace:*",
         "@destack/test": "workspace:*",
         "@stylexswc/rs-compiler": "0.20.1",
         "lightningcss": "1.33.0",
@@ -1245,14 +1235,12 @@
       },
       "peerDependencies": {
         "@destack/environment": "workspace:*",
-        "@destack/schema": "workspace:*",
         "@stylexswc/rs-compiler": "0.20.1",
         "lightningcss": "1.33.0",
         "vite": "8.4.0-beta.1",
       },
       "optionalPeers": [
         "@destack/environment",
-        "@destack/schema",
         "@stylexswc/rs-compiler",
         "lightningcss",
         "vite",
@@ -1323,7 +1311,11 @@
       },
       "devDependencies": {
         "@destack/check": "workspace:*",
+        "@oxlint/plugins": "1.83.0",
         "@types/bun": "1.4.4",
+        "oxfmt": "0.68.0",
+        "oxlint": "1.83.0",
+        "typescript": "7.0.2",
       },
     },
     "@destack/test": {
@@ -1355,7 +1347,6 @@
     "@destack/theme": {
       "name": "@destack/theme",
       "dependencies": {
-        "@destack/color": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/style": "workspace:*",
@@ -1383,7 +1374,6 @@
       "name": "@destack/ui",
       "dependencies": {
         "@destack/code": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
@@ -1399,6 +1389,7 @@
         "@tanstack/charts": "1.0.0",
         "@tanstack/table-core": "9.2.6",
         "@tanstack/virtual-core": "3.19.11",
+        "@types/hast": "3.0.5",
         "property-information": "7.2.0",
         "solid-js": "2.0.3",
       },
@@ -1408,7 +1399,6 @@
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
-        "@types/hast": "3.0.5",
         "emojibase-data": "17.0.0",
         "rolldown": "1.3.3",
         "vite": "8.4.0-beta.1",
@@ -1561,7 +1551,6 @@
       "devDependencies": {
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/test": "workspace:*",
         "@solidjs/vite-plugin": "3.0.1",
@@ -1574,7 +1563,6 @@
       },
       "peerDependencies": {
         "@destack/build": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/test": "workspace:*",
         "@solidjs/vite-plugin": "3.0.1",
@@ -1587,7 +1575,6 @@
       },
       "optionalPeers": [
         "@destack/build",
-        "@destack/color",
         "@destack/db",
         "@destack/test",
         "@solidjs/vite-plugin",
@@ -1801,7 +1788,6 @@
       "name": "@platform/site",
       "dependencies": {
         "@destack/code": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
@@ -2002,8 +1988,6 @@
     "@destack/cli": ["@destack/cli@workspace:@destack/cli"],
 
     "@destack/code": ["@destack/code@workspace:@destack/code"],
-
-    "@destack/color": ["@destack/color@workspace:@destack/color"],
 
     "@destack/connection": ["@destack/connection@workspace:@destack/connection"],
 

@@ -18,19 +18,19 @@ const view = { css: "main [aria-pressed=true]", nth: 0 };
 
 /** The actions on a task, as its menu lists them. */
 const MENU = [
-    "Open↵",
-    "Change statusS",
-    "Set priorityP",
-    "Add to project⇧P",
-    "Set due date⇧D",
-    "Assign toA",
-    "Change labelsL",
-    "PeekSpace",
-    "Assign to meI",
+    "Open",
+    "Change status",
+    "Set priority",
+    "Add to project",
+    "Set due date",
+    "Assign to",
+    "Change labels",
+    "Peek",
+    "Assign to me",
     "Move",
-    "Move up⇧⌥↑",
-    "Move down⇧⌥↓",
-    "Delete⌘⌫",
+    "Move up",
+    "Move down",
+    "Delete",
 ];
 
 /** The search of the open picker. */
@@ -135,7 +135,7 @@ export const studioWorkByKeys = defineScenario({
             step: { action: "press", key: "Shift+F10" },
             then: [
                 {
-                    observe: { kind: "texts", target: { css: ":popover-open [role=menuitem]" } },
+                    observe: { kind: "names", target: { css: ":popover-open [role=menuitem]" } },
                     is: MENU,
                 },
             ],

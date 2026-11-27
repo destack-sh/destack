@@ -1,4 +1,4 @@
-import { Hue } from "@destack/color";
+import { Hue } from "@destack/style";
 import { IconName } from "@destack/icon/name";
 import { Message } from "@destack/locale";
 import { schema } from "@destack/schema";

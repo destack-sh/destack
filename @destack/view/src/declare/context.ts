@@ -118,17 +118,17 @@ export const ViewContext = Object.assign(viewContext, {
         return found;
     },
 
-    /** Write the document mounting a view. */
+    /** Write the document mounting a view, linking its stylesheets and preloads by address. */
     document(
         context: ViewContext,
         entry: string,
         stylesheets: readonly string[],
         preloads: readonly string[],
     ): Response {
-        // escape the context for its script element, and link the stylesheets below the base
+        // escape the context for its script element, and link the stylesheets
         const json = JSON.stringify(viewContext.parse(context)).replaceAll("<", "\\u003c");
         const links = stylesheets.map(
-            (stylesheet) => `<link rel="stylesheet" href="${context.base}/${stylesheet}">\n`,
+            (stylesheet) => `<link rel="stylesheet" href="${stylesheet}">\n`,
         );
         const preloaded = preloads.map((module) => `<link rel="modulepreload" href="${module}">\n`);
         const html = `<!doctype html>

@@ -26,6 +26,7 @@ import {
     isNotNull,
     isNull,
     DatabaseState,
+    sql,
 } from "@destack/db";
 import {
     defineKind,
@@ -615,7 +616,7 @@ test("retire a suspended application's deployment and instance", async () => {
     ]);
 });
 
-test("retain an uninstalled application's tables for approval", async () => {
+test("keep an uninstalled application's tables, applying main without approval", async () => {
     // install notes without a stack and deploy it
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -646,7 +647,7 @@ test("retain an uninstalled application's tables for approval", async () => {
         instance: [deployed.id, "running"],
     });
 
-    // uninstall notes: drain its deployment, remove it, and wait for approval to drop its tables
+    // uninstall notes: drain its deployment and remove it, keeping its tables as an uninstall keeps data
     await changeInstallation(database, notes.id, {
         deletedAt: fixture.machine.clock.now(),
     });
@@ -667,22 +668,44 @@ test("retain an uninstalled application's tables for approval", async () => {
             retained.conditions["Ready"]?.reason,
             retained.plan?.steps.map((step) => [step.action, step.risk, step.target]) ?? null,
         ],
+        isKept: await isTable(database, "example__notes__note"),
     }).toEqual({
         installations: [{ name: "stack" }],
         revisions: [],
-        main: [
-            "AwaitingApproval",
-            [
-                [
-                    "delete",
-                    "safe",
-                    "table/example__notes__note/dependent/destack__access__relationship",
-                ],
-                ["delete", "destructive", "table/example__notes__note"],
-            ],
+        main: ["Applied", null],
+        isKept: true,
+    });
+
+    // delete notes' data: orphan its tables, then delete and purge the orphan, which drops them
+    const store = await fixture.store();
+    const target = object.orphan.target({
+        scope: ids.space,
+        id: "orphan-01996ab0-0000-7000-8000-0000000000a1",
+    });
+    await store.mutate(store.as(object.orphan), {
+        id: RequestId.create(store.environment),
+        calls: [
+            object.orphan.call("create", {
+                ...target,
+                packageId: ids.package,
+            }),
+            object.orphan.call("delete", target),
+            object.orphan.call("purge", target),
         ],
     });
+    await fixture.simulation.idle();
+    expect({
+        isKept: await isTable(database, "example__notes__note"),
+        orphans: await database.select().from(object.orphan.table),
+    }).toEqual({ isKept: false, orphans: [] });
 });
+
+/** Report whether a database has a table, which a count of its rows answers. */
+async function isTable(database: DatabaseConnection, name: string): Promise<boolean> {
+    return await database
+        .exists(sql`SELECT count(*) FROM ${sql.relation(name)}`)
+        .catch(() => false);
+}
 
 test("restart a failing instance after a doubling backoff", async () => {
     // deploy notes with an applied database on a simulated machine with a failing runner

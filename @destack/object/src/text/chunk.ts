@@ -248,6 +248,21 @@ export const Chunk = {
             ...chunks.map(({ before, after }) => ({ table: chunk, before, after })),
         );
 
+        // tell each attached type observing a node type that the edit changed those nodes, as the editor, outside predictions
+        const written = chunks.flatMap(({ after }) => (after === undefined ? [] : [after]));
+        const observers = owner.attachments.flatMap(({ object }) => {
+            const node = object.observes?.node;
+            const isChanged =
+                node !== undefined && !isSameSet(nodesOf(rows, node), nodesOf(written, node));
+
+            return isChanged
+                ? [object.record("observe", { parent: hostOf(parent), field }, context.scope)]
+                : [];
+        });
+        if (!execution.isPredicted && observers.length > 0) {
+            await context.mutate(context.caller, observers);
+        }
+
         return { inverse };
     },
 
@@ -625,6 +640,31 @@ async function issueOrders(
     });
 
     return first;
+}
+
+/** List the values of a type's nodes some chunks hold, each once in canonical form. */
+function nodesOf(rows: readonly Pick<Chunk, "runs">[], type: string): ReadonlySet<string> {
+    return new Set(
+        rows.flatMap((row) =>
+            row.runs.flatMap((run) =>
+                "node" in run && run.node.type === type ? [canonicalize(run.node.value)] : [],
+            ),
+        ),
+    );
+}
+
+/** Report whether two sets hold the same values. */
+function isSameSet(one: ReadonlySet<string>, other: ReadonlySet<string>): boolean {
+    return one.size === other.size && [...one].every((value) => other.has(value));
+}
+
+/** Read the reference of a text's owner, as a nested object names its parent. */
+function hostOf(parent: Parent): {
+    readonly packageId: string;
+    readonly type: string;
+    readonly id: string;
+} {
+    return { packageId: parent.parentPackageId, type: parent.parentType, id: parent.parentId };
 }
 
 /** Assemble a text's sequence from its chunks in position order, with their marks. */

@@ -52,8 +52,13 @@ export interface ObjectNode<
     ) => ObjectQueryBuilder<Object, Objects[keyof Objects]>;
     /** Call an object type's mutating methods, one mutation per call. */
     readonly mutate: <Object extends ObjectType>(object: Object) => Mutator<Object>;
-    /** Call an object type's mutating method by name as one mutation. */
-    readonly call: (object: ObjectType, name: string, input: JsonObject) => Submission<unknown>;
+    /** Call an object type's mutating method as one mutation, then read as of its prediction. */
+    readonly call: (
+        object: ObjectType,
+        name: string,
+        input: JsonObject,
+        then?: (mutation: Pick<MutationContext, "read">) => Promise<void>,
+    ) => Submission<unknown>;
     /** Predict several calls together and queue them as one mutation. */
     readonly mutation: <Value>(
         run: (mutation: MutationContext) => Promise<Value>,

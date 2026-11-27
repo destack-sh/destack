@@ -158,6 +158,8 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                 wakeAt: null,
                 failure: null,
                 output: null,
+                waitType: null,
+                waitCondition: null,
             }),
         ]);
 
@@ -327,6 +329,8 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                 await this.#transition(
                     reconciliation,
                     this.workflow.run.call("delay", {
+                        waitType: null,
+                        waitCondition: null,
                         ...target,
                         attempts: this.row.attempts,
                         wakeAt: this.#due(now + limited),
@@ -351,6 +355,8 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             await this.#transition(
                 reconciliation,
                 this.workflow.run.call("delay", {
+                    waitType: null,
+                    waitCondition: null,
                     ...target,
                     attempts: this.row.attempts,
                     wakeAt: this.#due(slot.lapsesAt),
@@ -405,8 +411,11 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             const input = this.workflow.input.parse(this.row.input);
             const context = { id: this.row.id, scope: this.row.scope, actor: this.actor };
             const output = await code(steps, input, context).catch((error: unknown) => {
-                // wait at the advance's suspension, even where the code caught it and failed otherwise
-                throw steps.suspension ?? error;
+                // wait at the advance's suspension, even where the code caught it and failed otherwise, and end at a replayed failure
+                throw (
+                    steps.suspension ??
+                    (steps.isReplayed(error) ? new ReplayedFailure(error) : error)
+                );
             });
             if (steps.suspension !== undefined) {
                 throw steps.suspension;
@@ -444,11 +453,16 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
 
                 return !isWaiting;
             }
-            // fail on a final refusal, or an input or output its schema refuses
-            else if (CallError.refusal(error) !== undefined || error instanceof schema.Error) {
+            // fail on a final refusal, a step's recorded failure as it is, or an input or output its schema refuses
+            else if (
+                CallError.refusal(error) !== undefined ||
+                error instanceof ReplayedFailure ||
+                error instanceof schema.Error
+            ) {
+                const final = error instanceof ReplayedFailure ? error.cause : error;
                 const failed = this.workflow.run.call("fail", {
                     ...target,
-                    failure: Failure.of(error),
+                    failure: Failure.of(final),
                 });
                 await this.#transition(reconciliation, failed);
 
@@ -464,6 +478,8 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                         now + RetryPolicy.interval(this.workflow.retries, attempts, () => drawn),
                     );
                     const delayed = this.workflow.run.call("delay", {
+                        waitType: null,
+                        waitCondition: null,
                         ...target,
                         attempts,
                         wakeAt,
@@ -577,5 +593,13 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             caller: this.actor,
             input: this.row.input,
         });
+    }
+}
+
+/** A recorded step failure the run's code threw again, which ends the run instead of retrying. */
+class ReplayedFailure extends Error {
+    /** Wrap the replayed failure. */
+    constructor(cause: unknown) {
+        super("a step's recorded failure ended the run", { cause });
     }
 }

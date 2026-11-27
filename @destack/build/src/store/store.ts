@@ -529,6 +529,33 @@ export class BuildStore<
         return digests.map((digest) => located.has(digest));
     }
 
+    /** Tell which objects lie here complete, manifests and images only once recorded complete. */
+    async complete(digests: readonly Digest[]): Promise<boolean[]> {
+        // locate the bytes, and read the records of the stored manifests and images among them, the layer's shipped complete
+        const located = await this.locate(digests);
+        const stored = digests.filter((digest) => located.has(digest));
+        const records =
+            stored.length === 0
+                ? []
+                : await this.database
+                      .select({
+                          digest: buildManifest.digest,
+                          isComplete: buildManifest.isComplete,
+                          layer: buildManifest.layer,
+                      })
+                      .from(buildManifest)
+                      .where(inArray(buildManifest.digest, stored));
+        const incomplete = new Set(
+            records
+                .filter((record) => this.layer.head(record.digest) === undefined)
+                .filter((record) => !record.isComplete || !this.#isMounted(record.layer))
+                .map((record) => record.digest),
+        );
+
+        // have an object whose bytes lie here, unless it is a manifest or image recorded incomplete, which a push writes again
+        return digests.map((digest) => located.has(digest) && !incomplete.has(digest));
+    }
+
     /** Read objects as tarball entries, in the order given. */
     async *read(
         objects: readonly Pick<BuildObject, "kind" | "digest">[],

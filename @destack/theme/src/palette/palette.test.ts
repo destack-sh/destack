@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Oklch, Palette, Srgb } from "./index.ts";
-import { DEFAULT_HUES } from "@destack/color";
+import { DEFAULT_HUES } from "@destack/style";
 
 /** Seeds across hues, lightness and chroma. */
 const SEEDS = ["#3e63dd", "#f76b15", "#ffc53d", "#46a758", "#ff0000", "#7c3aed", "#888888"];

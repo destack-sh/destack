@@ -41,6 +41,9 @@ export const HOME_SPACE = "home";
 /** The installation a person lands in after signing in, which every home's stack installs. */
 export const HOME_APPLICATION = "home";
 
+/** The installation whose package requires a space's apps, serving them on one origin. */
+export const MAIN_APPLICATION = "main";
+
 /** An account, the scope of its spaces. */
 export const account = defineObject(
     {

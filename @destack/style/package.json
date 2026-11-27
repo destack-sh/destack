@@ -1,6 +1,6 @@
 {
     "name": "@destack/style",
-    "description": "Style components with StyleX, compiled into one stylesheet per build.",
+    "description": "Describe colors and styles as the web does, and style components with StyleX.",
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": [
@@ -8,27 +8,25 @@
     ],
     "exports": {
         ".": "./src/index.ts",
+        "./media.stylex": "./src/stylex/media.stylex.ts",
+        "./frame.stylex": "./src/stylex/frame.stylex.ts",
         "./build": "./src/build/index.ts",
-        "./media.stylex": "./src/style/media.stylex.ts",
-        "./frame.stylex": "./src/style/frame.stylex.ts",
         "./preflight.css": "./src/preflight/preflight.css"
     },
     "dependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@stylexjs/stylex": "0.19.1"
     },
     "peerDependencies": {
         "@destack/environment": "workspace:*",
-        "@destack/schema": "workspace:*",
         "@stylexswc/rs-compiler": "0.20.1",
         "lightningcss": "1.33.0",
         "vite": "8.4.0-beta.1"
     },
     "peerDependenciesMeta": {
         "@destack/environment": {
-            "optional": true
-        },
-        "@destack/schema": {
             "optional": true
         },
         "@stylexswc/rs-compiler": {
@@ -44,7 +42,6 @@
     "devDependencies": {
         "@destack/build": "workspace:*",
         "@destack/environment": "workspace:*",
-        "@destack/schema": "workspace:*",
         "@destack/test": "workspace:*",
         "@stylexswc/rs-compiler": "0.20.1",
         "lightningcss": "1.33.0",

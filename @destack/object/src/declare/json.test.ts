@@ -1,4 +1,4 @@
-import { Color, Gradient } from "@destack/color";
+import { Color, Gradient } from "@destack/style";
 import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { field } from "../field/index.ts";
@@ -9,6 +9,7 @@ const PAIR = schema.array(Color.schema).min(2);
 
 /** A gradient from blue to gold. */
 const BLUE_TO_GOLD = {
+    shape: { kind: "linear", angle: 90 },
     stops: [
         { color: "#241d9a", position: 0 },
         { color: "#ffc53d", position: 1 },

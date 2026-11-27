@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { type CompilerPool, outputsOf, Workspace, type WorkspacePackage } from "@destack/build";
 import type { PackageVersion } from "@destack/package";
 import type { BuildReader, BuildImage } from "@destack/package/manifest";
-import { Digest, type Identifier, Uuid, type Version } from "@destack/schema";
+import { Digest, type Identifier, type Version } from "@destack/schema";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
 import { RemoteBuildStore } from "@destack/build/store";
 import { build, type CompileOutput } from "@destack/stack/object";
@@ -33,31 +33,23 @@ export class Builder {
     readonly #compilers: CompilerPool;
     /** The linked builtins' images, pulled once with all their files. */
     #linked: Promise<readonly BuildImage[]> | undefined;
-    /** The directory of the working trees of the commits being built. */
-    readonly #commits: string;
     /** The host the working trees are checked out on, by git. */
     readonly #environment: LocalGitEnvironment;
     /** The end of the build last opened in each checkout's mirror, which builds one at a time. */
     readonly #mirrors = new Map<string, Promise<void>>();
 
     /** Build on a machine, compiling with warm compilers on a host. */
-    constructor(
-        machine: Machine,
-        compilers: CompilerPool,
-        commits: string,
-        environment: LocalGitEnvironment,
-    ) {
-        // set the machine, its compilers, the commits' directory and the host
+    constructor(machine: Machine, compilers: CompilerPool, environment: LocalGitEnvironment) {
+        // set the machine, its compilers and the host
         this.#machine = machine;
         this.#compilers = compilers;
-        this.#commits = commits;
         this.#environment = environment;
     }
 
     /** Compile a build placed on this machine and push it to its space, answering its image. */
     async build(
         id: Identifier<"build">,
-        context: Pick<RunnerContext, "scope" | "call" | "signal">,
+        context: Pick<RunnerContext, "scope" | "call" | "signal" | "directory">,
     ): Promise<CompileOutput> {
         // read the build as the run's actor
         const { scope, signal } = context;
@@ -65,7 +57,7 @@ export class Builder {
         const [input] = MethodContext.results([build], [read], [await context.call(read)]);
 
         // open the source and its workspace, compiling only its publisher's members as a published build does
-        await using opened = await this.#open(input, signal);
+        await using opened = await this.#open(input, context.directory, signal);
         const workspacePackage = await this.#package(opened.directory);
         const implied = outputsOf(workspacePackage.root.packageJson);
         const outputs = input.outputs ?? Object.keys(implied);
@@ -143,7 +135,7 @@ export class Builder {
     }
 
     /** Open a build's source here: a checkout's mirror at the commit, else a fetched commit. */
-    async #open(input: BuildRow, signal: AbortSignal): Promise<SourceDirectory> {
+    async #open(input: BuildRow, directory: string, signal: AbortSignal): Promise<SourceDirectory> {
         const { source } = input;
 
         // build a commit in the mirror of a checkout of this machine that has it, else fetch it on a runner
@@ -156,7 +148,7 @@ export class Builder {
                 );
             }
 
-            return local ?? (await this.#fetch(source, input.scope, signal));
+            return local ?? (await this.#fetch(source, input.scope, directory, signal));
         }
         // refuse a release, which is born built and leases no runner
         else {
@@ -211,32 +203,30 @@ export class Builder {
         }
     }
 
-    /** Fetch a repository commit into a new working tree with its locked dependencies installed. */
+    /** Fetch a repository commit into a step's directory with its locked dependencies installed. */
     async #fetch(
         source: CommitSource,
         spaceId: Identifier<"space">,
+        directory: string,
         signal: AbortSignal,
     ): Promise<SourceDirectory> {
-        // lease the repository as the space and check the commit out into a new working tree
+        // lease the repository as the space and check the commit out below the step's directory, which the runner removes once the step ended
         const lease = await (await this.#machine.space(spaceId)).lease(source.repository);
         const environment = this.#environment;
-        const root = join(this.#commits, `${source.commit}-${Uuid.v4(environment.random)}`);
+        const root = join(directory, source.commit);
         await environment.files.mkdir(root, { recursive: true });
-        const remove = async () => {
-            await this.#compilers.release(root);
-            await environment.files.remove(root, { recursive: true, force: true });
-        };
+        const release = async () => this.#compilers.release(root);
         try {
             await GitLease.checkout(lease, source.commit, root, environment, signal);
             await Workspace.install(root, environment, { isFrozen: true, signal });
         } catch (error) {
-            await remove();
+            await release();
             throw error;
         }
 
         return {
             directory: WorkingTree.package(root, source.directory).path,
-            [Symbol.asyncDispose]: remove,
+            [Symbol.asyncDispose]: release,
         };
     }
 

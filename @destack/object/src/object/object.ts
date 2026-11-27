@@ -583,6 +583,8 @@ export interface ObjectDefinition<
     readonly aggregates?: Readonly<Record<string, ObjectAggregate>>;
     /** The attachments the objects take. */
     readonly attachments?: readonly Attachment[];
+    /** The node type an attached type tracks in its hosts' texts, through its `observe` method. */
+    readonly observes?: { readonly node: string };
     /** Checks, indexes, unique constraints and foreign keys over the columns, by name. */
     readonly constraints?: Readonly<Record<string, ObjectConstraint>>;
     /** Unique indexes the key index has across databases, by name. */
@@ -1153,6 +1155,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The attachments the objects take. */
     get attachments(): readonly Attachment[] {
         return this.declared.attachments;
+    }
+
+    /** The node type the type tracks in its hosts' texts, none for a type tracking none. */
+    get observes(): { readonly node: string } | undefined {
+        return this.definition.observes;
     }
 
     /** The unique indexes the key index has across databases, by name. */

@@ -420,7 +420,7 @@ export class DatabaseConnection<
         options: MigrateOptions,
     ): Promise<{ readonly plan: TablePlan; readonly outcome: MigrationOutcome }> {
         // declare the tables, its replicated tables as replicas
-        const { manager = DATABASE_MANAGER, states = [], ...declaring } = options;
+        const { manager = DATABASE_MANAGER, states = [], purged = [], ...declaring } = options;
         const { scope } = this.state;
         const declared = await scope.span("destack.database.declare", {}, async () =>
             declareState(tables, this.dialect, {
@@ -445,7 +445,12 @@ export class DatabaseConnection<
         // skip a declaration the manager applied last with the same tables left to others
         const stamp = await scope.span("destack.database.stamp", {}, () =>
             Digest.json(
-                { declared, states, ...(left.length === 0 ? {} : { left }) },
+                {
+                    declared,
+                    states,
+                    ...(left.length === 0 ? {} : { left }),
+                    ...(purged.length === 0 ? {} : { purged }),
+                },
                 this.state.environment.crypto,
             ),
         );
@@ -474,7 +479,7 @@ export class DatabaseConnection<
         // plan the declared and given tables, then apply the plan and stamp the declaration
         const merged = mergeStates([...states, declared]);
         const plan = await scope.span("destack.database.plan", {}, () =>
-            this.plan(merged, manager),
+            this.plan({ ...merged, purged }, manager),
         );
         await scope.span("destack.database.apply", {}, () => this.apply(plan, manager));
         await writeStamp(
@@ -536,7 +541,7 @@ export class DatabaseConnection<
 
     /** Plan a manager's migration from its applied tables to the declared ones. */
     async plan(
-        state: Pick<Merge, "declared"> & Partial<Merge>,
+        state: Pick<Merge, "declared"> & Partial<Merge> & { readonly purged?: readonly string[] },
         manager: string,
     ): Promise<TablePlan> {
         // leave a table the declaration only replicates to the other manager that applied it
@@ -595,6 +600,7 @@ export class DatabaseConnection<
             others,
             existing: await readTables(this),
             declared,
+            purged: new Set(state.purged ?? []),
             changed,
             empty: await readEmpty(this, [...changed]),
             conflicts: [...(state.conflicts ?? []), ...taken].map((conflict) => ({
@@ -752,6 +758,8 @@ export interface MigrateOptions extends DeclareOptions {
     readonly states?: readonly (readonly TableState[])[];
     /** The manager of the tables, the database's own by default. */
     readonly manager?: string;
+    /** The packages whose kept tables the migration drops, by id, as a data deletion asks. */
+    readonly purged?: readonly string[];
 }
 
 /** Whether a connection writes its database, or only reads one others write unseen. */

@@ -14,7 +14,7 @@ import { ids, TestPackage, TestSpace } from "@destack/machine/test";
 import { type Call, Scope } from "@destack/sync";
 import { Table } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { Mention, mention, presence, reply, thread } from "../object/index.ts";
+import { commentMention, Mention, mentioned, presence, reply, thread } from "../object/index.ts";
 import socialPackage from "../package.ts";
 import socialServer from "../server.ts";
 import { articlesPackage, articlesServer } from "./article.ts";
@@ -27,7 +27,7 @@ export const SOCIAL: TestPackage = {
     handle: socialPackage,
     build: await testBuild(socialPackage, testHost().crypto, {
         dependencies: [await TestNotification.build(testHost().crypto)],
-        declared: [mention, thread, reply].map((declared) => ({
+        declared: [commentMention, mentioned, thread, reply].map((declared) => ({
             kind: "notification",
             kindPackageId: notification.package.id,
             name: declared.name,

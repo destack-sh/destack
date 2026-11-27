@@ -126,16 +126,16 @@ async function check(
     const contents = await store.contents(read.root);
 
     // require the root build's graph, which every release carries for its readers
+    const released = PackageManifest.package(contents.manifest);
+    const { id, name, version } = released;
     if (!(await store.isIndexed(read.root))) {
         throw ForgeError.of(
             "BUILD_INVALID",
-            `image '${image}' is invalid: its root build carries no graph`,
+            `image '${image}' of ${name} '${version}' is invalid: its root build carries no graph`,
         );
     }
 
     // refuse a dev build, as every release is built from a commit at a release version
-    const released = PackageManifest.package(contents.manifest);
-    const { id, name, version } = released;
     if (!Version.isRelease(version)) {
         throw ForgeError.of(
             "BUILD_INVALID",

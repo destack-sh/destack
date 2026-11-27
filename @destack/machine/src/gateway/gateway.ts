@@ -195,7 +195,10 @@ export type GatewaySpace = Pick<
     /** The space's workload, which tells the protocols its packages implement. */
     readonly instance: Pick<WorkloadInstance, "implements">;
     /** The space's builds, reading through to its machine's builds. */
-    readonly builds: Pick<BuildStore, "contents" | "attachment" | "graph" | "file" | "get">;
+    readonly builds: Pick<
+        BuildStore,
+        "contents" | "attachment" | "graph" | "file" | "get" | "image"
+    >;
     /** The keystore signing as the space and deriving its secrets. */
     readonly keystore: Pick<IdentityKeystore, "issuer" | "deriver">;
     /** The machine serving the space: its clock, runtimes, network, directory and traffic. */

@@ -1,7 +1,7 @@
 import { styleText } from "node:util";
 import type { Environment } from "@destack/environment";
 import { Localization, LocaleTag } from "@destack/locale";
-import { DEFAULT_HUES, type Hue } from "@destack/color";
+import { DEFAULT_HUES, type Hue } from "@destack/style";
 import type { KeyPress } from "@destack/locale";
 import { Prompt } from "./prompt.ts";
 

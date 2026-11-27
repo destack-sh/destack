@@ -38,7 +38,7 @@ import {
 } from "@destack/object";
 import { Space, space } from "@destack/account/object";
 import { quota, subscription } from "@destack/finance/object";
-import { ViewDescription } from "@destack/package/manifest";
+import { BuildImage } from "@destack/package/manifest";
 import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
 import { Approval } from "./approval.ts";
 import { waitedTypes } from "./wait.ts";
@@ -147,15 +147,13 @@ export function implementInstallations(options: InstallationOptions) {
                         ),
                     };
 
-                    // ask the caller's consent to the space's push to it, while they are here
-                    const push = repository.call(
-                        "push",
-                        repository.target({ scope: branch.scope, id: branch.parentId }),
-                    );
-                    await options.space.exchange(
-                        call.caller,
-                        await options.space.requested([push]),
-                    );
+                    // ask the caller's consent to the space's push to it and the record of the pushed branch, while they are here
+                    const pushed = repository.target({ scope: branch.scope, id: branch.parentId });
+                    const calls = [
+                        repository.call("push", pushed),
+                        repository.call("refresh", pushed),
+                    ];
+                    await options.space.exchange(call.caller, await options.space.requested(calls));
 
                     return source;
                 },
@@ -701,10 +699,14 @@ async function open(
         throw StackError.of("VIEW_NOT_FOUND", `view '${view}' of '${target.name}' not found`);
     }
 
-    // read the revision's build and the view it mounts
+    // read the revision's build and the view its image serves: the root's, or a required app's
     const built = await Build.require(context, Installation.space(target), revision.buildId);
     const reader = await options.space.root(target.packageId, built.image);
-    const mounted = ViewDescription.list(reader.manifest)[view];
+    const { builds } = options.space;
+    const served = await BuildImage.views(await builds.image(built.image), (digest) =>
+        builds.get(digest),
+    );
+    const mounted = served[view]?.view;
     if (mounted === undefined) {
         throw StackError.of("VIEW_NOT_FOUND", `view '${view}' of '${target.name}' not found`);
     }

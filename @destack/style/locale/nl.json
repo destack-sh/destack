@@ -1,0 +1,386 @@
+{
+    "package": "package-01a0c80b-614e-739a-b980-28f97bab46f1",
+    "locale": "nl",
+    "messages": {
+        "p3yp08zrcycw": {
+            "source": "Blue",
+            "context": "option",
+            "translation": "Blauw"
+        },
+        "2p4cygffd1s6w": {
+            "source": "Brown",
+            "context": "option",
+            "translation": "Bruin"
+        },
+        "39dz0dh81e7wr": {
+            "source": "Cyan",
+            "context": "option",
+            "translation": "Cyaan"
+        },
+        "5a99v9trd4gj": {
+            "source": "Gray",
+            "context": "option",
+            "translation": "Grijs"
+        },
+        "3a6lwsshpk9on": {
+            "source": "Green",
+            "context": "option",
+            "translation": "Groen"
+        },
+        "3rmvvpb9ro0mu": {
+            "source": "Orange",
+            "context": "option",
+            "translation": "Oranje"
+        },
+        "1fblbb1sawels": {
+            "source": "Pink",
+            "context": "option",
+            "translation": "Roze"
+        },
+        "2friqu6yy71gu": {
+            "source": "Purple",
+            "context": "option",
+            "translation": "Paars"
+        },
+        "14jty1vehivsr": {
+            "source": "Red",
+            "context": "option",
+            "translation": "Rood"
+        },
+        "2ugjzyqio9xi4": {
+            "source": "Yellow",
+            "context": "option",
+            "translation": "Geel"
+        },
+        "14rovmpcp3qq7": {
+            "source": "RGB",
+            "context": "option",
+            "translation": "RGB"
+        },
+        "164yanamjka3h": {
+            "source": "By its hue, saturation and brightness, as design tools pick it.",
+            "translation": "Naar tint, verzadiging en helderheid, zoals ontwerptools het kiezen."
+        },
+        "1y1br123k66bn": {
+            "source": "HSL",
+            "context": "option",
+            "translation": "HSL"
+        },
+        "1y1bwhhmbuyj1": {
+            "source": "HSB",
+            "context": "option",
+            "translation": "HSB"
+        },
+        "2c28n5ml2qapv": {
+            "source": "By its red, green and blue light, as screens mix it.",
+            "translation": "Naar rood, groen en blauw licht, zoals schermen het mengen."
+        },
+        "3pvxfbwuhowwt": {
+            "source": "OKLCH",
+            "context": "option",
+            "translation": "OKLCH"
+        },
+        "5jrmelh09fnb": {
+            "source": "By its lightness, chroma and hue, as people see it.",
+            "translation": "Naar lichtheid, chroma en tint, zoals mensen het zien."
+        },
+        "grxnb7v3cs5s": {
+            "source": "By its hue, saturation and lightness, as CSS writes it.",
+            "translation": "Naar tint, verzadiging en lichtheid, zoals CSS het schrijft."
+        },
+        "3po2g6ygmrtx9": {
+            "source": "OKLab",
+            "context": "option",
+            "translation": "OKLab"
+        },
+        "tonoxiy8ldfk": {
+            "source": "Evenly as people see it, without passing through other hues.",
+            "translation": "Gelijkmatig, zoals mensen het zien, zonder langs andere tinten te gaan."
+        },
+        "2umid9ws71bqx": {
+            "source": "Round the hue wheel as people see it, keeping colors vivid.",
+            "translation": "Rond het kleurenwiel, zoals mensen het zien, met levendige kleuren."
+        },
+        "1ht8r6kcea2pw": {
+            "source": "sRGB",
+            "context": "option",
+            "translation": "sRGB"
+        },
+        "a4xuqjdq4oln": {
+            "source": "By its red, green and blue light, as older tools blend.",
+            "translation": "Via rood, groen en blauw licht, zoals oudere tools mengen."
+        },
+        "i7jra9jmt241": {
+            "source": "Shorter",
+            "context": "option",
+            "translation": "Korter"
+        },
+        "1t10ewefd4hcu": {
+            "source": "The shorter way round the wheel.",
+            "translation": "De kortere weg rond het wiel."
+        },
+        "16ahzp4p0xajx": {
+            "source": "Longer",
+            "context": "option",
+            "translation": "Langer"
+        },
+        "38uw04ovaf0ax": {
+            "source": "The longer way round the wheel, through more hues.",
+            "translation": "De langere weg rond het wiel, langs meer tinten."
+        },
+        "1odsh6r13c8fz": {
+            "source": "Normal",
+            "context": "option",
+            "translation": "Normaal"
+        },
+        "16jqq5epirw84": {
+            "source": "Multiply",
+            "context": "option",
+            "translation": "Vermenigvuldigen"
+        },
+        "ctqxkhtw7d88": {
+            "source": "Screen",
+            "context": "option",
+            "translation": "Bleken"
+        },
+        "uah5kualm2h0": {
+            "source": "Overlay",
+            "context": "option",
+            "translation": "Bedekken"
+        },
+        "2h2wknhaxuob7": {
+            "source": "Darken",
+            "context": "option",
+            "translation": "Donkerder"
+        },
+        "33k0ynncicomb": {
+            "source": "Lighten",
+            "context": "option",
+            "translation": "Lichter"
+        },
+        "1rdsj9iof9yg4": {
+            "source": "Color dodge",
+            "context": "option",
+            "translation": "Kleur tegenhouden"
+        },
+        "2uy8abxbnh4vg": {
+            "source": "Color burn",
+            "context": "option",
+            "translation": "Kleur doordrukken"
+        },
+        "133fnudb9y6l": {
+            "source": "Hard light",
+            "context": "option",
+            "translation": "Hard licht"
+        },
+        "dz0ta8q08amg": {
+            "source": "Soft light",
+            "context": "option",
+            "translation": "Zacht licht"
+        },
+        "2afsfeuva8drr": {
+            "source": "Difference",
+            "context": "option",
+            "translation": "Verschil"
+        },
+        "2ju2h9ljqzsr4": {
+            "source": "Exclusion",
+            "context": "option",
+            "translation": "Uitsluiting"
+        },
+        "1y832j7fhchmy": {
+            "source": "Hue",
+            "context": "option",
+            "translation": "Kleurtoon"
+        },
+        "q701ponfctyk": {
+            "source": "Saturation",
+            "context": "option",
+            "translation": "Verzadiging"
+        },
+        "ieov3f03n26b": {
+            "source": "Color",
+            "context": "option",
+            "translation": "Kleur"
+        },
+        "26os5x7wnbk1x": {
+            "source": "Luminosity",
+            "context": "option",
+            "translation": "Lichtsterkte"
+        },
+        "1cbv82en8j5al": {
+            "source": "Linear",
+            "context": "option",
+            "translation": "Lineair"
+        },
+        "8ztrh8y705ca": {
+            "source": "Along a straight line at an angle.",
+            "translation": "Langs een rechte lijn onder een hoek."
+        },
+        "2kxy0ion70un3": {
+            "source": "Radial",
+            "context": "option",
+            "translation": "Radiaal"
+        },
+        "3a7u2stcbztnz": {
+            "source": "Outward from a center to the farthest corner.",
+            "translation": "Vanuit een midden naar buiten tot de verste hoek."
+        },
+        "8i24sap07iww": {
+            "source": "Conic",
+            "context": "option",
+            "translation": "Conisch"
+        },
+        "3hqwxy6z1zgm1": {
+            "source": "Round a center, from an angle.",
+            "translation": "Rond een midden, vanaf een hoek."
+        },
+        "1wryqygiq9ovn": {
+            "source": "Solid",
+            "context": "option",
+            "translation": "Effen"
+        },
+        "1p3uqj0loxcx0": {
+            "source": "Gradient",
+            "context": "option",
+            "translation": "Verloop"
+        },
+        "gjd4g6naet6u": {
+            "source": "Colors blended across the box.",
+            "translation": "Kleuren die over het vak in elkaar overlopen."
+        },
+        "13yclj9bt0rcp": {
+            "source": "Image",
+            "context": "option",
+            "translation": "Afbeelding"
+        },
+        "7f96124co6eb": {
+            "source": "A picture from an address.",
+            "translation": "Een afbeelding van een adres."
+        },
+        "1bx6p53ckcdgn": {
+            "source": "Cover",
+            "context": "option",
+            "translation": "Vullen"
+        },
+        "3kqdh0i98oxan": {
+            "source": "Fill the box, cropping the image where it overflows.",
+            "translation": "Het vak vullen en de afbeelding bijsnijden waar die uitsteekt."
+        },
+        "3fnd35ftutz6s": {
+            "source": "Contain",
+            "context": "option",
+            "translation": "Inpassen"
+        },
+        "13q8prdushnaz": {
+            "source": "Show the whole image inside the box.",
+            "translation": "De hele afbeelding binnen het vak tonen."
+        },
+        "1r100d8hrrb6h": {
+            "source": "Stretch",
+            "context": "option",
+            "translation": "Uitrekken"
+        },
+        "1fiqdabe7e555": {
+            "source": "Stretch the image to the box's width and height.",
+            "translation": "De afbeelding uitrekken tot de breedte en hoogte van het vak."
+        },
+        "mg17sd8jyk94": {
+            "source": "Tile",
+            "context": "option",
+            "translation": "Tegelen"
+        },
+        "1iy0qftm0yxoo": {
+            "source": "Repeat the image at its own size.",
+            "translation": "De afbeelding op haar eigen grootte herhalen."
+        },
+        "103u9wbwp9u2p": {
+            "source": "One color across the box.",
+            "translation": "Eén kleur over het hele vak."
+        },
+        "14h7jvcx39i1k": {
+            "source": "Row",
+            "context": "option",
+            "translation": "Rij"
+        },
+        "12q6ioub7x83a": {
+            "source": "Side by side, in the text's direction.",
+            "translation": "Naast elkaar, in de richting van de tekst."
+        },
+        "2tgw2erwg2bce": {
+            "source": "Column",
+            "context": "option",
+            "translation": "Kolom"
+        },
+        "3qnasrplm7wm1": {
+            "source": "One below the other.",
+            "translation": "Onder elkaar."
+        },
+        "1f9479ojgc88g": {
+            "source": "Start",
+            "context": "option",
+            "translation": "Begin"
+        },
+        "1mz0be0sw91cl": {
+            "source": "Center",
+            "context": "option",
+            "translation": "Midden"
+        },
+        "2m131cvd4sryp": {
+            "source": "End",
+            "context": "option",
+            "translation": "Einde"
+        },
+        "1zdu1f8jgnaae": {
+            "source": "Space between",
+            "context": "option",
+            "translation": "Ruimte ertussen"
+        },
+        "23ao1ir24cc1l": {
+            "source": "Layer",
+            "context": "option",
+            "translation": "Laag"
+        },
+        "2m9y8ld3vk2vb": {
+            "source": "The box and what it holds.",
+            "translation": "Het vak en wat het bevat."
+        },
+        "2kxc71l1du20e": {
+            "source": "Backdrop",
+            "context": "option",
+            "translation": "Achtergrond"
+        },
+        "e3wkn3dmd56a": {
+            "source": "What shows through behind the box, as frosted glass does.",
+            "translation": "Wat achter het vak doorschijnt, zoals matglas."
+        },
+        "2odpjd37zixk8": {
+            "source": "Inside",
+            "context": "option",
+            "translation": "Binnen"
+        },
+        "2atd2w750a7al": {
+            "source": "Within the box, as a border.",
+            "translation": "Binnen het vak, als rand."
+        },
+        "g56m46i0znjf": {
+            "source": "Outside",
+            "context": "option",
+            "translation": "Buiten"
+        },
+        "ij5mqfptv88i": {
+            "source": "Around the box, as an outline that takes no room.",
+            "translation": "Rond het vak, als omlijning die geen ruimte inneemt."
+        },
+        "11znuk1qty2ip": {
+            "source": "Dashed",
+            "context": "option",
+            "translation": "Gestreept"
+        },
+        "ohubqvnsnvq4": {
+            "source": "Dotted",
+            "context": "option",
+            "translation": "Gestippeld"
+        }
+    }
+}

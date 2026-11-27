@@ -30,10 +30,16 @@ export class SessionStore {
         // replace the session read before or adopt the racing sign-in's session
         const entry = SessionStore.#entry(login);
         const current = await this.keychain.load(entry);
-
-        return Keychain.update(this.keychain, entry, (existing) =>
+        const stored = await Keychain.update(this.keychain, entry, (existing) =>
             existing === current || existing === undefined ? token : existing,
         );
+
+        // drop the replaced session's access tokens, which its revoked client bound
+        if (stored === token) {
+            this.#tokensBySession.delete(entry);
+        }
+
+        return stored;
     }
 
     /** Read the access tokens of a login's session, one cache per session for every caller. */

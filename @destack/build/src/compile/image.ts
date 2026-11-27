@@ -205,12 +205,21 @@ export class ImageBundle {
         const scope = TelemetryScope.of(import.meta.destack.package, store.environment.telemetry);
         const attributes = { "destack.package.name": root.manifest.package.name };
 
-        return await scope.span(
+        // bundle it in its span
+        const released = await scope.span(
             "destack.bundle.release",
             attributes,
             (span) => ImageBundle.#release(image, value, root, store, linked, { scope, span }),
             { level: "info" },
         );
+
+        // attach the root's graph to the bundled root, which declares the same modules, as an npm unit has none
+        const bundled = (await store.image(released)).root;
+        if (bundled !== value.root && (await store.isIndexed(value.root))) {
+            await store.attachGraph(bundled, await store.graph(value.root));
+        }
+
+        return released;
     }
 
     /** Bundle a release image's browser output, recording each step in its own span. */

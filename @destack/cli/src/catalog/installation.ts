@@ -9,8 +9,9 @@ import type { Lease } from "@destack/resource";
 import { type Identifier, type JsonObject, present, schema, Version } from "@destack/schema";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
+import type { EditOperation } from "@destack/stack/object";
 import { type CommandBody, type CommandCall, CommandOption } from "../command/command.ts";
-import { HOME_APPLICATION } from "@destack/account/object";
+import { HOME_APPLICATION, MAIN_APPLICATION } from "@destack/account/object";
 import type { CommandContext, CommandEnvironment } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 import { InstallationStatus } from "./status.ts";
@@ -164,6 +165,11 @@ export const installCommand: CommandBody = {
             argument: "name",
         },
         ...INSTALLATION_PARENT_OPTIONS,
+        standalone: {
+            type: "boolean",
+            description:
+                "Install it apart from the space's main installation, on an origin of its own",
+        },
         yes: { type: "boolean", description: "Approve each plan the installation waits on" },
     },
     isJson: true,
@@ -186,6 +192,28 @@ export const installCommand: CommandBody = {
             target = await InstallationTarget.release(read, context);
         }
 
+        // add a release or tag to the space's main installation, which serves it on its origin, unless asked apart
+        const isApproved = options["yes"] === true;
+        const main =
+            read.kind === "release" && options["standalone"] !== true
+                ? await target.add(isApproved, context)
+                : undefined;
+        if (main !== undefined) {
+            await InstallationStatus.drive(main, isApproved, json, context);
+            await context.terminal.print(
+                json
+                    ? JSON.stringify({ id: main, name: MAIN_APPLICATION, ...target.output })
+                    : context.terminal.event(
+                          "Added",
+                          "done",
+                          `to '${MAIN_APPLICATION}'`,
+                          target.detail,
+                      ),
+            );
+
+            return;
+        }
+
         // install it, and follow it until its space serves it
         const { id, name } = await target.install(
             named,
@@ -193,7 +221,7 @@ export const installCommand: CommandBody = {
             InstallationParentOption.read(options),
             context,
         );
-        await InstallationStatus.drive(id, options["yes"] === true, json, context);
+        await InstallationStatus.drive(id, isApproved, json, context);
 
         // report what it runs and its version
         await context.terminal.print(
@@ -214,6 +242,10 @@ export const uninstallCommand: CommandBody = {
     arguments: [{ name: "installation", usage: "@scope/name|name" }],
     options: {
         yes: { type: "boolean", description: "Uninstall without asking" },
+        "delete-data": {
+            type: "boolean",
+            description: "Delete the app's data after 30 days in the trash",
+        },
     },
     isJson: true,
     async run({ arguments: { installation: given }, options, isJson: json }, context) {
@@ -221,11 +253,54 @@ export const uninstallCommand: CommandBody = {
         const asked = present(given, "the installation argument");
         const space = await context.requireSpace();
         const stack = await context.package(stackPackage, await context.locate());
-        const where = PackageName.safeParse(asked).success
-            ? { packageId: await packageOf(asked, context) }
-            : { name: asked };
+        const isPackage = PackageName.safeParse(asked).success;
+        const where = isPackage ? { packageId: await packageOf(asked, context) } : { name: asked };
         const { items } = await stack.installation.list({ scope: space, where, limit: 1 });
         const [installed] = items;
+
+        // remove a package installed through main from main's dependencies, keeping its data
+        const main =
+            installed === undefined && isPackage
+                ? await editMain(
+                      [{ kind: "dependency.remove", package: asked }],
+                      `remove ${asked}`,
+                      options["yes"] === true,
+                      context,
+                  )
+                : undefined;
+        if (main !== undefined) {
+            // delete the data main keeps of it into the trash when asked, purged after its window
+            const trashed =
+                options["delete-data"] === true
+                    ? await trashData(await packageOf(asked, context), context)
+                    : undefined;
+            await context.terminal.print(
+                json
+                    ? JSON.stringify({
+                          id: main,
+                          name: MAIN_APPLICATION,
+                          package: asked,
+                          ...(trashed === undefined ? {} : { orphan: trashed }),
+                      })
+                    : [
+                          context.terminal.event(
+                              "Removed",
+                              "done",
+                              `'${asked}' from '${MAIN_APPLICATION}'`,
+                          ),
+                          ...(trashed === undefined
+                              ? []
+                              : [
+                                    context.terminal.hint(
+                                        "data",
+                                        `in the trash for 30 days, restore with destack orphans ${trashed} restore`,
+                                    ),
+                                ]),
+                      ].join("\n"),
+            );
+
+            return;
+        }
         if (installed === undefined) {
             throw CliError.of(
                 "INSTALLATION_NOT_FOUND",
@@ -490,6 +565,23 @@ export class InstallationTarget {
         });
     }
 
+    /** Add the package to the space's main installation, none without a main. */
+    async add(
+        isApproved: boolean,
+        context: CommandContext,
+    ): Promise<Identifier<"installation"> | undefined> {
+        // require the package at its tag, else its version
+        const name = String(this.output["package"]);
+        const range = this.output["tag"] ?? this.output["version"] ?? LATEST_TAG;
+
+        return await editMain(
+            [{ kind: "dependency.add", package: name, range }],
+            `add ${name}`,
+            isApproved,
+            context,
+        );
+    }
+
     /** Create the package's installation under a name, or change its installed one's version. */
     async install(
         asked: string | undefined,
@@ -612,4 +704,59 @@ async function taggedRow(
     }
 
     return tag.reference(tagged.scope, tagged.id);
+}
+
+/** Edit the space's main installation and wait until it serves the edit, none without a main. */
+async function editMain(
+    operations: readonly EditOperation[],
+    message: string,
+    isApproved: boolean,
+    context: CommandContext,
+): Promise<Identifier<"installation"> | undefined> {
+    // find the space's main installation, which a space without one lacks
+    const space = await context.requireSpace();
+    const consent = isApproved ? "approve" : "ask";
+    const stacks = await context.package(stackPackage, await context.locate(), consent);
+    const [main] = (
+        await stacks.installation.list({
+            scope: space,
+            where: { name: MAIN_APPLICATION },
+            limit: 1,
+        })
+    ).items;
+    if (main === undefined) {
+        return undefined;
+    }
+
+    // commit the change to main's branch, then wait until main serves it, refusing a failed edit
+    const { run } = await stacks.installation.edit({
+        scope: space,
+        id: main.id,
+        requestId: RequestId.create((await context.native()).environment),
+        operations: [...operations],
+        message,
+    });
+    await InstallationStatus.edited(main.id, run, context);
+
+    return main.id;
+}
+
+/** Orphan the tables main's database keeps of a package, then delete the orphan to the trash. */
+async function trashData(packageId: PackageId, context: CommandContext): Promise<string> {
+    // record the main database's tables of the package, then delete the record, whose purge drops them
+    const space = await context.requireSpace();
+    const stack = await context.package(stackPackage, await context.locate());
+    const { environment } = await context.native();
+    const orphaned = await stack.orphan.create({
+        spaceId: space,
+        requestId: RequestId.create(environment),
+        packageId,
+    });
+    await stack.orphan.delete({
+        spaceId: space,
+        id: orphaned.id,
+        requestId: RequestId.create(environment),
+    });
+
+    return orphaned.id;
 }

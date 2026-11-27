@@ -1,7 +1,7 @@
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { swatches } from "@destack/theme/swatch";
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";

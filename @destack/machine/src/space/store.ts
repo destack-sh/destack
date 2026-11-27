@@ -265,6 +265,7 @@ function ownObjects(
         ...providers.provided(),
         implementInstallations(installationOptions(space, start, providers, binder)),
         implementInstallationRevision(),
+        binder.orphans(),
         implementDeployment({
             providers,
             bindingKinds: binder.objects(),

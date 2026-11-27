@@ -87,6 +87,20 @@ test("fail the run with the failure its runner records, refusing anyone else and
     });
 });
 
+test("fail the run once its runner records an internal failure, without retrying the step", async () => {
+    // fail the step as the runner with a failure a retry would answer the same
+    const { fixture, step } = await placed();
+    const failure = Failure.http("INTERNAL_SERVER_ERROR", "git commit exited with status 1");
+    await fixture.objects(RUNNER).run(compiling.step, "fail", { ...step, failure });
+
+    // fail the run with the recorded failure on its first advance, as replaying the step answers it again
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "failed");
+    expect({ failure: run?.["failure"], attempts: run?.["attempts"] }).toEqual({
+        failure,
+        attempts: 0,
+    });
+});
+
 test("forward a placed step's call as the run's actor for its runner alone", async () => {
     // create a note through the step as its runner, and try as a member who is not
     const { fixture, step } = await placed();

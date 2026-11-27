@@ -1,4 +1,5 @@
 import type { JsonCondition, OrderBy, Row } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Duration, JsonObject } from "@destack/schema";
 import type { Item, ObjectReference } from "@destack/sync";
 import type * as syncDataflow from "@destack/sync/dataflow";
@@ -21,8 +22,8 @@ export interface Submission<Value> {
 export interface LiveQuery<Value = readonly Item[]> {
     /** Settles once the replica has the query, or once the query closes. */
     readonly ready: Promise<void>;
-    /** Read the query's value: its items with their includes, or its groups when aggregating. */
-    readonly read: () => Promise<Value>;
+    /** Read the query's value, through an open transaction's connection when given. */
+    readonly read: (connection?: DatabaseConnection) => Promise<Value>;
     /** Read the query again after every local commit until the signal aborts. */
     readonly watch: (signal: AbortSignal) => AsyncGenerator<Value>;
     /** Stop following the query. */
@@ -68,6 +69,8 @@ export interface MutationContext {
     readonly call: <Object extends ObjectType>(object: Object) => Writer<Object>;
     /** Call an object type's mutating method by name in the mutation, returning its prediction. */
     readonly invoke: (object: ObjectType, name: string, input: JsonObject) => Promise<unknown>;
+    /** Read a live query as of the mutation, its predictions included, before it commits. */
+    readonly read: <Value>(live: LiveQuery<Value>) => Promise<Value>;
 }
 
 /** What a client replicates and follows. */

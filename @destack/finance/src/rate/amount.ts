@@ -1,13 +1,12 @@
 import { schema } from "@destack/schema";
 
+export { Currency } from "@destack/schema";
+
 /** The decimals of a fractional amount, the most a payment provider stores. */
 const DECIMALS = 12;
 
 /** The fractional minor units in one minor unit at those decimals. */
 const SCALE = 10n ** BigInt(DECIMALS);
-
-/** A currency by its ISO 4217 code, or a custom one such as x-credits. */
-export const Currency = schema.string().regex(/^(?:[A-Z]{3}|x-[a-z0-9]+(?:-[a-z0-9]+)*)$/u);
 
 /** The currency of credits, converted through each seller's price book. */
 export const CREDITS = "x-credits";

@@ -24,6 +24,9 @@ import { defineWorkflow } from "@destack/workflow";
 /** Where a build stands: compiling, or finished one of three ways. */
 export const BUILD_STATES = ["running", "succeeded", "failed", "cancelled"] as const;
 
+/** The states of a live build, which a creation of its key answers: a failed build is rebuilt. */
+export const LIVE_BUILD_STATES = ["running", "succeeded"] as const;
+
 /** The states of a build that ended. */
 export const FINISHED_BUILD_STATES = ["succeeded", "failed", "cancelled"] as const;
 
@@ -102,12 +105,12 @@ export const build = defineObject(
         constraints: {
             state: { kind: "index", on: ["state"] },
             live: { kind: "index", on: ["scope", "expiredAt", "state"] },
-            // build each source of a space once while its build lives
+            // build each source of a space once while its build runs or lives on
             source: {
                 kind: "index",
                 on: ["scope", "key"],
                 unique: true,
-                where: { state: { ne: "cancelled" }, expiredAt: { isNull: true } },
+                where: { state: { in: [...LIVE_BUILD_STATES] }, expiredAt: { isNull: true } },
             },
             image: {
                 kind: "check",
@@ -211,6 +214,7 @@ export const build = defineObject(
     }),
 );
 
+// NOTE #Robustness: the key leaves out the compiler, so a compiler fix rebuilds a source only at its next commit
 /** What a build is keyed by: its source, its outputs and its version. */
 export interface BuildKey {
     /** The source compiled. */
@@ -307,7 +311,7 @@ export const Build = {
         }
     },
 
-    /** Find the live build of a source, its outputs and version in a space. */
+    /** Find the running or succeeded build of a source, its outputs and version in a space. */
     async find(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
@@ -317,9 +321,23 @@ export const Build = {
             where: {
                 scope: spaceId,
                 key: Build.key(keyed),
-                state: { ne: "cancelled" },
+                state: { in: [...LIVE_BUILD_STATES] },
                 expiredAt: { isNull: true },
             },
+        });
+
+        return found === undefined ? undefined : Build.of(found);
+    },
+
+    /** Find the latest uncancelled build of a source, its outputs and version in a space. */
+    async latest(
+        snapshot: Pick<Snapshot, "read">,
+        spaceId: Identifier<"space">,
+        keyed: BuildKey,
+    ): Promise<Build | undefined> {
+        const found = await snapshot.read(build.table).findFirst({
+            where: { scope: spaceId, key: Build.key(keyed), state: { ne: "cancelled" } },
+            orderBy: { id: "desc" },
         });
 
         return found === undefined ? undefined : Build.of(found);
