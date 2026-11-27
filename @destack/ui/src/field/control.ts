@@ -4,6 +4,7 @@ import {
     createSignal,
     createUniqueId,
     type FormField,
+    type JSX,
     merge,
     type Setter,
     untrack,
@@ -272,3 +273,8 @@ export function readChoices(value: unknown): string | readonly string[] | undefi
         ? value.filter((each) => typeof each === "string")
         : readChoice(value);
 }
+
+/** Where a fieldset without a legend of its own shows its actions: in the legend around it. */
+export const FieldActionsContext = createContext<
+    ((actions: Accessor<JSX.Element> | undefined) => void) | null
+>(null);
