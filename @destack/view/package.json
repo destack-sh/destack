@@ -4,6 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": [
+        "./src/browser/baseline.ts",
         "./src/styles/styles.ts",
         "**/*.css"
     ],
