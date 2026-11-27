@@ -44,6 +44,8 @@ export interface ToggleInputProperties extends ToggleFormProperties {
     readonly type?: "checkbox" | "radio";
     /** Whether the input is checked. */
     readonly checked: boolean;
+    /** Whether the control starts checked, which its form's reset restores. */
+    readonly defaultChecked: boolean;
     /** Whether the input is disabled and left out of its form. */
     readonly disabled: boolean;
     /** Return the control to its first state when the form resets. */
@@ -80,9 +82,14 @@ export class ToggleState {
         }
     }
 
+    /** Report whether the control starts checked. */
+    isDefaultChecked(): boolean {
+        return this.#properties.defaultChecked === true;
+    }
+
     /** Return the control to the state it started in, as a form reset does. */
     reset(): void {
-        this.#setChecked(this.#properties.defaultChecked === true);
+        this.#setChecked(this.isDefaultChecked());
     }
 }
 
@@ -103,7 +110,7 @@ export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
     handleFormReset(
         () => element?.form,
         () => {
-            // reset the control, then write its state over the one the form restores after it
+            // reset the control, then write a controlled state over the first one the form restores
             properties.onReset();
             restoring.set(() => {
                 if (element !== undefined) {
@@ -125,6 +132,7 @@ export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
                 form={properties.form}
                 disabled={properties.disabled}
                 checked={properties.checked}
+                defaultChecked={properties.defaultChecked}
                 ref={(input) => (element = input)}
                 {...style.attributes([visuallyHiddenStyle(), styles.input])}
             />

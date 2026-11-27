@@ -210,6 +210,11 @@ export class RadioGroupControl {
         }
     }
 
+    /** Report whether a radio's value is the one the group starts with. */
+    isDefault(value: string): boolean {
+        return valuesOf(this.properties.defaultValue).includes(value);
+    }
+
     /** Return the group to the value it started with, as a form reset does. */
     reset(): void {
         this.selection.replace(valuesOf(this.properties.defaultValue));
@@ -387,6 +392,7 @@ export const RadioGroupItem = defineComponent({
                         required={group.properties.required}
                         form={group.properties.form}
                         checked={isChecked()}
+                        defaultChecked={group.isDefault(properties.value)}
                         disabled={isDisabled()}
                         onReset={() => group.reset()}
                     />

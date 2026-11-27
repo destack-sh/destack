@@ -66,6 +66,7 @@ test("reflect the toggle's state in the hidden input and restore it when its own
                 <ToggleInput
                     name="terms"
                     checked={isChecked()}
+                    defaultChecked={false}
                     disabled={false}
                     onReset={() => resets.push("terms")}
                 />
@@ -77,6 +78,7 @@ test("reflect the toggle's state in the hidden input and restore it when its own
                     value="pro"
                     required
                     checked={false}
+                    defaultChecked={false}
                     disabled
                     onReset={() => resets.push("plan")}
                 />
@@ -110,12 +112,14 @@ test("leave the hidden input agreeing with its control after its form resets", a
             <ToggleInput
                 name="terms"
                 checked={own.isChecked()}
+                defaultChecked={own.isDefaultChecked()}
                 disabled={false}
                 onReset={() => own.reset()}
             />
             <ToggleInput
                 name="news"
                 checked={controlled.isChecked()}
+                defaultChecked={controlled.isDefaultChecked()}
                 disabled={false}
                 onReset={() => controlled.reset()}
             />

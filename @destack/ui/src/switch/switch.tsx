@@ -269,6 +269,7 @@ export const Switch = defineComponent({
                         required={properties.required}
                         form={properties.form}
                         checked={toggle.isChecked()}
+                        defaultChecked={toggle.isDefaultChecked()}
                         disabled={isDisabled()}
                         onReset={() => toggle.reset()}
                     />
