@@ -25,15 +25,16 @@ import {
 } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
 import { ViewError } from "../error/error.ts";
+import { Reference } from "@destack/style";
 
 /** The paint of an example's frame, the theme's paint of a page's root in `theme.css`. */
 const FRAME_PAINT: Readonly<Record<string, string>> = {
-    "background-color": "var(--destack-color-background)",
-    color: "var(--destack-color-foreground)",
-    "font-family": "var(--destack-font-text)",
-    "font-size": "var(--destack-text-base-font-size)",
-    "line-height": "var(--destack-text-base-line-height)",
-    "accent-color": "var(--destack-swatch-accent-solid)",
+    "background-color": Reference.css("{color.background}"),
+    color: Reference.css("{color.foreground}"),
+    "font-family": Reference.css("{font.text}"),
+    "font-size": Reference.css("{text.base.fontSize}"),
+    "line-height": Reference.css("{text.base.lineHeight}"),
+    "accent-color": Reference.css("{swatch.accentSolid}"),
 };
 
 /** The display the globals set, each choice the person's default when absent. */
@@ -117,10 +118,10 @@ export function renderExample<Properties extends object>(
         container.style.placeItems = "center";
         container.style.placeContent = "center";
         container.style.minHeight = "100dvh";
-        container.style.padding = "var(--destack-space-6)";
+        container.style.padding = Reference.css("{space.6}");
         container.style.boxSizing = "border-box";
     } else if (frame.example.layout === "padded") {
-        container.style.padding = "var(--destack-space-6)";
+        container.style.padding = Reference.css("{space.6}");
         container.style.boxSizing = "border-box";
     }
 

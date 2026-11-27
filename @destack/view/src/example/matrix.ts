@@ -2,6 +2,7 @@ import type { BrowserEnvironment } from "@destack/environment/browser";
 import type { JsonObject } from "@destack/schema";
 import type { MatrixAxes } from "../page/message.ts";
 import { type ExampleFrame, frameStyle, renderExample } from "./frame.ts";
+import { Reference } from "@destack/style";
 
 /** The smallest side of a framed cell's page in CSS pixels, 25rem. */
 const FRAME_MINIMUM = 400;
@@ -118,11 +119,15 @@ export class Matrix {
             gridAutoRows: "min-content",
             alignContent: "start",
             alignItems: "stretch",
-            gap: "var(--destack-space-3)",
-            padding: "var(--destack-space-4) var(--destack-space-6) var(--destack-space-6)",
+            gap: Reference.css("{space.3}"),
+            padding: [
+                Reference.css("{space.4}"),
+                Reference.css("{space.6}"),
+                Reference.css("{space.6}"),
+            ].join(" "),
             boxSizing: "border-box",
             minHeight: "100dvh",
-            background: "var(--destack-color-muted)",
+            background: Reference.css("{color.muted}"),
         });
         this.element.append(grid);
         this.#grid = grid;
@@ -154,14 +159,14 @@ export class Matrix {
                     display: "grid",
                     placeItems: "center",
                     minHeight: "6rem",
-                    borderRadius: "var(--destack-radius-3)",
-                    border: "var(--destack-stroke-border) solid var(--destack-color-border)",
-                    background: "var(--destack-color-background)",
+                    borderRadius: Reference.css("{radius.3}"),
+                    border: `${Reference.css("{stroke.border}")} solid ${Reference.css("{color.border}")}`,
+                    background: Reference.css("{color.background}"),
                     overflow: "hidden",
                     ...(isChosen
                         ? {
-                              borderColor: "var(--destack-color-ring)",
-                              boxShadow: "0 0 0 1px var(--destack-color-ring)",
+                              borderColor: Reference.css("{color.ring}"),
+                              boxShadow: `0 0 0 1px ${Reference.css("{color.ring}")}`,
                           }
                         : {}),
                 });
@@ -287,8 +292,8 @@ function caption(document: Document, text: string): HTMLElement {
     element.textContent = text;
     Object.assign(element.style, {
         alignSelf: "center",
-        font: "var(--destack-text-xs-font-size) / var(--destack-text-xs-line-height) var(--destack-font-text)",
-        color: "var(--destack-color-muted-foreground)",
+        font: `${Reference.css("{text.xs.fontSize}")} / ${Reference.css("{text.xs.lineHeight}")} ${Reference.css("{font.text}")}`,
+        color: Reference.css("{color.mutedForeground}"),
     });
 
     return element;
