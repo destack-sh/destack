@@ -59,6 +59,32 @@ test("turn a color into a gradient fading it out, and back into its first stop",
     ]);
 });
 
+test("show a color bound to a token as it draws, and give a color of its own once edited", () => {
+    // draw a solid paint of a token where the token is set, then type a color over it
+    const given: Paint[] = [];
+    const { container } = render(() => (
+        <div style={{ "--destack-color-card": "#fafafa" }}>
+            <PaintPicker
+                defaultValue={{ kind: "solid", color: "{color.card}" }}
+                onValueChange={(next) => given.push(next)}
+            />
+        </div>
+    ));
+    flush();
+    const input = present(
+        [...container.querySelectorAll("input")].find((each) => each.type === "text"),
+        "the color's text",
+    );
+    const shown = input.value;
+    input.focus();
+    input.value = "#ff0000";
+    input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    input.blur();
+    flush();
+
+    expect([shown, given]).toEqual(["#fafafa", [{ kind: "solid", color: "#ff0000" }]]);
+});
+
 test("move a stop by its keys, remove one, and spread the stops round a center", () => {
     // nudge the first of three stops a tenth along, remove the second, then make it conic
     const { container, given } = draw({
@@ -144,13 +170,11 @@ test("add a layer on top, hide one and remove one, in a fill stack's input", () 
     press(container, "Add layer");
     const rows = () => [...container.querySelectorAll("[data-slot=sortable-item]")];
     const whiteRow = present(rows()[1], "the white layer");
-    const toggles = [...container.querySelectorAll<HTMLButtonElement>("[aria-label='Show layer']")];
+    const toggles = [...container.querySelectorAll<HTMLButtonElement>("[aria-label^='Show']")];
     present(toggles[1], "the white layer's toggle").click();
     flush();
     const isKept = rows()[1] === whiteRow;
-    const removes = [
-        ...container.querySelectorAll<HTMLButtonElement>("[aria-label='Remove layer']"),
-    ];
+    const removes = [...container.querySelectorAll<HTMLButtonElement>("[aria-label^='Remove']")];
     present(removes[0], "the new layer's remove").click();
     flush();
 

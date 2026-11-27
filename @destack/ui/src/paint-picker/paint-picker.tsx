@@ -1,12 +1,12 @@
-import { t } from "@destack/locale";
+import { type Message, t } from "@destack/locale";
 import { field } from "@destack/object";
 import {
+    type Bindable,
     BoxPoint,
     Gradient,
-    GRADIENT_HUES,
     GRADIENT_SHAPES,
     GRADIENT_SPACES,
-    GradientHue,
+    type GradientHue,
     type GradientJson,
     GradientShape,
     GradientShapeKind,
@@ -17,9 +17,11 @@ import {
     PAINT_KINDS,
     PaintKind,
     type PaintLayer,
+    Reference,
+    type Resolve,
 } from "@destack/style";
 import * as style from "@destack/style";
-import { present } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { state } from "@destack/theme/state";
 import { color, radius, space, stroke } from "@destack/theme/tokens.stylex";
 import {
@@ -28,6 +30,7 @@ import {
     For,
     type JSX,
     omit,
+    onSettled,
     Show,
     untrack,
     useLocale,
@@ -40,16 +43,18 @@ import {
 import minusIcon from "@destack/icon/phosphor/minus";
 import { Button } from "../button/index.ts";
 import {
-    checkers,
     ColorArea,
+    ColorEyeDropper,
     ColorField,
     ColorPicker,
     ColorSlider,
+    checkers,
 } from "../color-picker/index.ts";
 import { Icon } from "../icon/index.ts";
 import { Input } from "../input/index.ts";
 import { NumberField } from "../number-field/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { Select, SelectItem } from "../select/index.ts";
 import { ToggleGroup, ToggleGroupItem } from "../toggle-group/index.ts";
 import { TokenProbe } from "../value-field/probe.ts";
 
@@ -65,8 +70,31 @@ const LARGE_STEP = 0.1;
 /** How a percent reads in a field, such as a stop's position or a center. */
 const PERCENT = { style: "percent", maximumFractionDigits: 0 } as const;
 
+/** The ways a gradient mixes its stops, as CSS's interpolation writes them. */
+const MIXES = {
+    oklab: { title: GRADIENT_SPACES.oklab.title, space: "oklab", hue: "shorter" },
+    oklch: { title: GRADIENT_SPACES.oklch.title, space: "oklch", hue: "shorter" },
+    "oklch-longer": {
+        title: t.context("option")`OKLCH, longer hue`,
+        space: "oklch",
+        hue: "longer",
+    },
+    srgb: { title: GRADIENT_SPACES.srgb.title, space: "srgb", hue: "shorter" },
+} satisfies Record<
+    string,
+    { readonly title: Message; readonly space: GradientSpace; readonly hue: GradientHue }
+>;
+
+/** A way a gradient mixes its stops. */
+const MixKey = schema.enum(["oklab", "oklch", "oklch-longer", "srgb"]);
+
 /** How an angle reads in a field. */
-const DEGREES = { style: "unit", unit: "degree", maximumFractionDigits: 0 } as const;
+const DEGREES = {
+    style: "unit",
+    unit: "degree",
+    unitDisplay: "narrow",
+    maximumFractionDigits: 0,
+} as const;
 
 /** The properties people change in a picker's controls and inspector. */
 const PICKER_PROPERTIES = {
@@ -97,6 +125,60 @@ const styles = style.create({
         display: "flex",
         flexWrap: "wrap",
         alignItems: "center",
+        gap: space[2],
+    },
+    // the line the stops move along, half a stop in from each end so the end stops stay on the strip
+    track: {
+        position: "absolute",
+        insetBlock: 0,
+        insetInline: `calc(${space[3]} / 2)`,
+    },
+    // a control taking the room its line leaves
+    grow: {
+        flexGrow: 1,
+        width: "100%",
+        minWidth: 0,
+    },
+    // a control filling the rest of its labeled line, where nothing follows it
+    rest: {
+        gridColumn: "2 / -1",
+    },
+    // a row of controls as wide as the picker, the first growing
+    shape: {
+        display: "flex",
+        alignItems: "center",
+        gap: space[2],
+    },
+    // a color picker as wide as the paint picker, rather than a popover of its own
+    full: {
+        width: "100%",
+    },
+    // a labeled line of controls, its label as wide as every other's
+    line: {
+        display: "grid",
+        gridTemplateColumns: "3rem minmax(0, 1fr) auto",
+        alignItems: "center",
+        gap: space[2],
+    },
+    label: {
+        color: color.mutedForeground,
+    },
+    // the eyedropper beside the hue and opacity it sits by in design tools
+    sliders: {
+        display: "grid",
+        gridTemplateColumns: "auto minmax(0, 1fr)",
+        alignItems: "center",
+        gap: space[2],
+    },
+    stack: {
+        display: "flex",
+        flexDirection: "column",
+        gap: space[2],
+    },
+    // the color as text, its opacity apart as a number, as design tools write it
+    color: {
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) 5rem",
         gap: space[2],
     },
     strip: {
@@ -147,6 +229,7 @@ const styles = style.create({
         backgroundRepeat: layer.repeat,
     }),
     number: {
+        flexShrink: 0,
         width: "6rem",
     },
 });
@@ -227,18 +310,29 @@ export const GradientPicker = defineComponent({
         });
         const rest = omit(properties, "value", "defaultValue", "onValueChange", "disabled");
 
+        // read what a token draws here once on the page, for the stops bound to one
+        let root: HTMLElement | undefined;
+        const resolve: Resolve = (reference) =>
+            new TokenProbe(present(root, "a gradient picker's element")).color(reference);
+        const [isSettled, setSettled] = createSignal(false);
+        onSettled(() => void setSettled(true));
+
         return renderPart("div", "gradient-picker", rest, styles.picker, {
             role: "group" as const,
+            ref: (element: HTMLElement) => (root = element),
             get "aria-disabled"() {
                 return properties.disabled === true ? "true" : undefined;
             },
             get children() {
                 return (
-                    <GradientParts
-                        value={value()}
-                        disabled={properties.disabled === true}
-                        onValueChange={setValue}
-                    />
+                    <Show when={isSettled()}>
+                        <GradientParts
+                            value={value()}
+                            resolve={resolve}
+                            disabled={properties.disabled === true}
+                            onValueChange={setValue}
+                        />
+                    </Show>
                 );
             },
         });
@@ -287,17 +381,19 @@ export const PaintPicker = defineComponent({
             if (kind === "solid" && solid() === undefined) {
                 setValue({ kind: "solid", color: Paint.color(value()) });
             } else if (kind === "gradient" && gradient() === undefined) {
-                const probe = new TokenProbe(present(root, "a paint picker's element"));
-                setValue({
-                    kind: "gradient",
-                    gradient: Paint.gradient(value(), (reference) => probe.color(reference)),
-                });
+                setValue({ kind: "gradient", gradient: Paint.gradient(value(), resolve) });
             }
         };
         const give = (paint: Paint): void => {
             setPending(undefined);
             setValue(paint);
         };
+
+        // read what a token draws here once on the page, showing a bound color as drawn
+        const resolve: Resolve = (reference) =>
+            new TokenProbe(present(root, "a paint picker's element")).color(reference);
+        const [isSettled, setSettled] = createSignal(false);
+        onSettled(() => void setSettled(true));
 
         return renderPart("div", "paint-picker", rest, styles.picker, {
             role: "group" as const,
@@ -307,7 +403,7 @@ export const PaintPicker = defineComponent({
             },
             get children() {
                 return (
-                    <>
+                    <Show when={isSettled()}>
                         {/* Kind */}
                         <ToggleGroup
                             variant="segmented"
@@ -336,16 +432,14 @@ export const PaintPicker = defineComponent({
                         <Show when={shown() === "solid" ? solid() : undefined}>
                             {(paint) => (
                                 <ColorPicker
-                                    value={paint().color}
+                                    xstyle={styles.full}
+                                    value={drawn(paint().color, resolve)}
                                     disabled={isDisabled()}
                                     onValueChange={(next) =>
                                         setValue({ kind: "solid", color: next })
                                     }
                                 >
-                                    <ColorArea />
-                                    <ColorSlider channel="hue" />
-                                    <ColorSlider channel="alpha" />
-                                    <ColorField />
+                                    <ColorControls />
                                 </ColorPicker>
                             )}
                         </Show>
@@ -355,6 +449,7 @@ export const PaintPicker = defineComponent({
                             {(paint) => (
                                 <GradientParts
                                     value={paint().gradient}
+                                    resolve={resolve}
                                     disabled={isDisabled()}
                                     onValueChange={(next) =>
                                         setValue({ kind: "gradient", gradient: next })
@@ -371,7 +466,7 @@ export const PaintPicker = defineComponent({
                                 onValueChange={give}
                             />
                         </Show>
-                    </>
+                    </Show>
                 );
             },
         });
@@ -385,6 +480,8 @@ export type PaintPickerProperties = ComponentProperties<typeof PaintPicker>;
 function GradientParts(properties: {
     /** The gradient. */
     readonly value: GradientJson;
+    /** Read what a token draws where the gradient shows. */
+    readonly resolve: Resolve;
     /** Whether it takes no input. */
     readonly disabled: boolean;
     /** Handle each change of the gradient. */
@@ -407,10 +504,11 @@ function GradientParts(properties: {
     return (
         <>
             {/* Shape, with its angle and center */}
-            <div {...style.attrs(styles.row)}>
+            <div {...style.attrs(styles.shape)}>
                 <ToggleGroup
                     variant="segmented"
                     size="sm"
+                    xstyle={styles.grow}
                     aria-label={locale.render(t.context("label")`Shape`)}
                     disabled={properties.disabled}
                     disallowEmptySelection
@@ -437,6 +535,27 @@ function GradientParts(properties: {
                 />
             </div>
 
+            {/* Space it mixes in, as CSS's "in oklch longer hue" heads a gradient */}
+            <div {...style.attrs(styles.line)}>
+                <span {...style.attrs(styles.label)}>{locale.render(t.context("label")`Mix`)}</span>
+                <Select
+                    xstyle={[styles.grow, styles.rest]}
+                    aria-label={locale.render(t.context("label")`Mix`)}
+                    disabled={properties.disabled}
+                    value={mixOf(gradient())}
+                    onValueChange={(key) => {
+                        const mix = MIXES[MixKey.parse(key)];
+                        change(gradient().blend(mix.space, mix.hue));
+                    }}
+                >
+                    <For each={Object.entries(MIXES)}>
+                        {([key, mix]) => (
+                            <SelectItem value={key}>{locale.render(mix.title)}</SelectItem>
+                        )}
+                    </For>
+                </Select>
+            </div>
+
             {/* Strip of stops */}
             <GradientStrip
                 gradient={gradient()}
@@ -447,94 +566,52 @@ function GradientParts(properties: {
                 onRemove={remove}
             />
 
-            {/* Selected stop's color and place */}
+            {/* Selected stop's place, and a button removing it */}
             <Show when={gradient().stops[selected()]}>
                 {(stop) => (
-                    <ColorPicker
-                        value={stop().color}
-                        disabled={properties.disabled}
-                        onValueChange={(next) => change(gradient().recolor(selected(), next))}
-                    >
-                        <ColorArea />
-                        <ColorSlider channel="hue" />
-                        <ColorSlider channel="alpha" />
-                        <div {...style.attrs(styles.row)}>
-                            <ColorField />
-                            <NumberField
-                                aria-label={locale.render(t.context("label")`Position`)}
-                                xstyle={styles.number}
-                                value={stop().position}
-                                min={0}
-                                max={1}
-                                step={STEP}
-                                format={PERCENT}
-                                disabled={properties.disabled}
-                                onValueChange={(next) =>
-                                    next !== undefined && change(gradient().move(selected(), next))
-                                }
-                            />
-                            <Button
-                                variant="ghost"
-                                disabled={properties.disabled || gradient().stops.length <= 2}
-                                onClick={() => remove(selected())}
-                            >
-                                <Icon icon={minusIcon} />
-                                {locale.render(t.context("action")`Remove stop`)}
-                            </Button>
-                        </div>
-                    </ColorPicker>
+                    <div {...style.attrs(styles.line)}>
+                        <span {...style.attrs(styles.label)}>
+                            {locale.render(t.context("label")`Stop`)}
+                        </span>
+                        <NumberField
+                            aria-label={locale.render(t.context("label")`Position`)}
+                            value={stop().position}
+                            min={0}
+                            max={1}
+                            step={STEP}
+                            format={PERCENT}
+                            disabled={properties.disabled}
+                            onValueChange={(next) =>
+                                next !== undefined && change(gradient().move(selected(), next))
+                            }
+                        />
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            isIconOnly
+                            aria-label={locale.render(t.context("action")`Remove stop`)}
+                            disabled={properties.disabled || gradient().stops.length <= 2}
+                            onClick={() => remove(selected())}
+                        >
+                            <Icon icon={minusIcon} />
+                        </Button>
+                    </div>
                 )}
             </Show>
 
-            {/* Space it blends in, and the way round the hues in one with hue */}
-            <div {...style.attrs(styles.row)}>
-                <ToggleGroup
-                    variant="segmented"
-                    size="sm"
-                    aria-label={locale.render(t.context("label")`Blend`)}
-                    disabled={properties.disabled}
-                    disallowEmptySelection
-                    value={gradient().space}
-                    onValueChange={(key) => {
-                        const blend = GradientSpace.safeParse(key).data;
-                        if (blend !== undefined) {
-                            change(gradient().blend(blend, gradient().hue));
-                        }
-                    }}
-                >
-                    <For each={Object.entries(GRADIENT_SPACES)}>
-                        {([key, choice]) => (
-                            <ToggleGroupItem value={key}>
-                                {locale.render(choice.title)}
-                            </ToggleGroupItem>
-                        )}
-                    </For>
-                </ToggleGroup>
-                <Show when={gradient().space === "oklch"}>
-                    <ToggleGroup
-                        variant="segmented"
-                        size="sm"
-                        aria-label={locale.render(t.context("label")`Hue`)}
+            {/* Selected stop's color */}
+            <Show when={gradient().stops[selected()]}>
+                {(stop) => (
+                    <ColorPicker
+                        xstyle={styles.full}
+                        value={drawn(stop().color, properties.resolve)}
                         disabled={properties.disabled}
-                        disallowEmptySelection
-                        value={gradient().hue}
-                        onValueChange={(key) => {
-                            const hue = GradientHue.safeParse(key).data;
-                            if (hue !== undefined) {
-                                change(gradient().blend(gradient().space, hue));
-                            }
-                        }}
+                        onValueChange={(next) => change(gradient().recolor(selected(), next))}
                     >
-                        <For each={Object.entries(GRADIENT_HUES)}>
-                            {([key, choice]) => (
-                                <ToggleGroupItem value={key}>
-                                    {locale.render(choice.title)}
-                                </ToggleGroupItem>
-                            )}
-                        </For>
-                    </ToggleGroup>
-                </Show>
-            </div>
+                        <ColorControls />
+                    </ColorPicker>
+                )}
+            </Show>
         </>
     );
 }
@@ -656,11 +733,11 @@ function GradientStrip(properties: {
 }): JSX.Element {
     // follow the strip's element
     const locale = useLocale();
-    let strip: HTMLElement | undefined;
+    let track: HTMLElement | undefined;
 
-    // read the place along the strip under a pointer
+    // read the place along the track under a pointer
     const placeOf = (event: PointerEvent): number => {
-        const bounds = present(strip, "the gradient strip").getBoundingClientRect();
+        const bounds = present(track, "the gradient track").getBoundingClientRect();
 
         return Math.min(Math.max((event.clientX - bounds.left) / bounds.width, 0), 1);
     };
@@ -721,55 +798,59 @@ function GradientStrip(properties: {
 
     return (
         <div
-            ref={(element) => (strip = element)}
             data-slot="gradient-picker-strip"
             dir="ltr"
             {...style.attrs(checkers.backdrop, styles.strip)}
-            onPointerDown={(event) => {
-                // add a stop on the strip itself, then drag it
-                if (event.target === event.currentTarget && !properties.disabled) {
-                    const probe = new TokenProbe(event.currentTarget);
-                    const resolve = (reference: string): string => probe.color(reference);
-                    properties.onChange(properties.gradient.add(placeOf(event), resolve));
-                    drag(properties.gradient.stops.length, event);
-                }
-            }}
         >
             <div
                 {...style.attrs(
                     styles.fill(properties.gradient.reshape(GradientShape.rightward).css()),
                 )}
             />
-            <For each={properties.gradient.stops}>
-                {(stop, index) => (
-                    <div
-                        role="slider"
-                        tabindex={properties.disabled ? -1 : 0}
-                        data-slot="gradient-picker-stop"
-                        data-selected={properties.selected === index() ? "" : undefined}
-                        aria-label={locale.render(t.context("label")`Stop ${index() + 1}`)}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={Math.round(stop.position * 100)}
-                        aria-valuetext={`${locale.number(stop.position, PERCENT)}, ${stop.color}`}
-                        aria-disabled={properties.disabled ? "true" : undefined}
-                        {...style.attrs(
-                            state.focus,
-                            styles.stop(`${String(stop.position * 100)}%`, stop.color),
-                            properties.selected === index() && styles.selected,
-                        )}
-                        onPointerDown={(event) => {
-                            // select the stop, then drag it
-                            event.stopPropagation();
-                            if (!properties.disabled) {
-                                drag(index(), event);
-                            }
-                        }}
-                        onFocus={() => properties.onSelect(index())}
-                        onKeyDown={(event) => !properties.disabled && press(index(), event)}
-                    />
-                )}
-            </For>
+            <div
+                ref={(element) => (track = element)}
+                {...style.attrs(styles.track)}
+                onPointerDown={(event) => {
+                    // add a stop on the track itself, then drag it
+                    if (event.target === event.currentTarget && !properties.disabled) {
+                        const probe = new TokenProbe(event.currentTarget);
+                        const resolve = (reference: string): string => probe.color(reference);
+                        properties.onChange(properties.gradient.add(placeOf(event), resolve));
+                        drag(properties.gradient.stops.length, event);
+                    }
+                }}
+            >
+                <For each={properties.gradient.stops}>
+                    {(stop, index) => (
+                        <div
+                            role="slider"
+                            tabindex={properties.disabled ? -1 : 0}
+                            data-slot="gradient-picker-stop"
+                            data-selected={properties.selected === index() ? "" : undefined}
+                            aria-label={locale.render(t.context("label")`Stop ${index() + 1}`)}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-valuenow={Math.round(stop.position * 100)}
+                            aria-valuetext={`${locale.number(stop.position, PERCENT)}, ${stop.color}`}
+                            aria-disabled={properties.disabled ? "true" : undefined}
+                            {...style.attrs(
+                                state.focus,
+                                styles.stop(`${String(stop.position * 100)}%`, stop.color),
+                                properties.selected === index() && styles.selected,
+                            )}
+                            onPointerDown={(event) => {
+                                // select the stop, then drag it
+                                event.stopPropagation();
+                                if (!properties.disabled) {
+                                    drag(index(), event);
+                                }
+                            }}
+                            onFocus={() => properties.onSelect(index())}
+                            onKeyDown={(event) => !properties.disabled && press(index(), event)}
+                        />
+                    )}
+                </For>
+            </div>
         </div>
     );
 }
@@ -839,4 +920,41 @@ function ImageParts(properties: {
             </div>
         </>
     );
+}
+
+/** Write a color as a picker shows it: itself, or what its token draws, which editing detaches. */
+function drawn(value: Bindable<string>, resolve: Resolve): string {
+    return Reference.is(value) ? resolve(value) : value;
+}
+
+/** Render a color's controls as design tools lay them out: area, eyedropper by sliders, text. */
+function ColorControls(): JSX.Element {
+    return (
+        <>
+            {/* Area of saturation and brightness */}
+            <ColorArea />
+
+            {/* Eyedropper beside the hue and opacity */}
+            <div {...style.attrs(styles.sliders)}>
+                <ColorEyeDropper />
+                <div {...style.attrs(styles.stack)}>
+                    <ColorSlider channel="hue" />
+                    <ColorSlider channel="alpha" />
+                </div>
+            </div>
+
+            {/* Text of the color, then its opacity as a number */}
+            <div {...style.attrs(styles.color)}>
+                <ColorField opacity="apart" />
+                <ColorField channel="alpha" />
+            </div>
+        </>
+    );
+}
+
+/** Read the way a gradient mixes its stops, the hue's way round counting only in OKLCH. */
+function mixOf(gradient: Gradient): schema.Infer<typeof MixKey> {
+    return gradient.space === "oklch" && gradient.hue === "longer"
+        ? "oklch-longer"
+        : gradient.space;
 }
