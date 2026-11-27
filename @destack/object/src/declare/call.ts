@@ -53,11 +53,11 @@ export interface ActionArguments<Inputs extends ActionInputs = ActionInputs> {
 export interface ActionRunner {
     /** What the action reads where it runs. */
     readonly context: ActionContext;
-    /** Read an object's row, absent for one that is gone or that the person cannot read. */
+    /** Read some objects' rows of a type, leaving out those gone or that the person cannot read. */
     readonly read: (
         type: ObjectType,
-        reference: ObjectReference,
-    ) => Promise<JsonObject | undefined>;
+        references: readonly ObjectReference[],
+    ) => Promise<readonly JsonObject[]>;
 }
 
 /** The query of an action's targets: those it applies to that the person may call it on. */
@@ -341,9 +341,11 @@ export class ActionCall {
             return;
         }
 
-        // read each row, and refuse one that is gone or does not meet the condition
-        for (const reference of ActionCall.#references(values[name])) {
-            const row = await runner.read(objects.type, reference);
+        // read the rows at once, and refuse one that is gone or does not meet the condition
+        const references = ActionCall.#references(values[name]);
+        const read = await runner.read(objects.type, references);
+        for (const reference of references) {
+            const row = read.find((each) => each["id"] === reference.id);
             if (
                 row === undefined ||
                 (where !== undefined &&

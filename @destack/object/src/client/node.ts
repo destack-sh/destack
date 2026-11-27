@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
 import { type JsonObject, JsonValue, present } from "@destack/schema";
-import type { ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, type Subject } from "@destack/sync";
 import type { Action } from "../declare/action.ts";
 import type { ActionArguments } from "../declare/call.ts";
 import type { Place } from "../declare/place.ts";
@@ -20,6 +20,7 @@ import type {
 import type { ObjectQueryBuilder, Subscriber } from "./query.ts";
 import type { TextDocument } from "./text.ts";
 import type { UndoStack } from "./undo.ts";
+import { Observable } from "./observable.ts";
 
 /** A node of one scope's objects that views read and write, on a database or over a channel. */
 export interface ObjectNode<
@@ -65,11 +66,12 @@ export interface ObjectNode<
     ) => Submission<readonly unknown[]>;
     /** Read what actions read here: who the node is for, its scope, the time, and some places. */
     readonly context: (places?: readonly Place[]) => ActionContext;
-    /** Read an object's row, from the server where the node lacks it. */
-    readonly find: (
-        type: ObjectType,
-        reference: ObjectReference,
-    ) => Promise<JsonObject | undefined>;
+    /** Follow objects by reference across types and scopes, keyed by `ObjectReference.key`. */
+    readonly get: (
+        references: readonly ObjectReference[],
+    ) => LiveQuery<ReadonlyMap<string, JsonObject>>;
+    /** Read objects by reference once: the rows the node has, else the server's answer. */
+    readonly fetch: (references: readonly ObjectReference[]) => Promise<readonly JsonObject[]>;
     /** Search the objects of some types live, the best and newest first. */
     readonly search: (text: string, options: SearchOptions) => LiveQuery<SearchResult>;
     /** Follow one text field of an object as an editor edits it. */
@@ -104,9 +106,87 @@ export const ObjectNode = {
         };
     },
 
+    /** Follow objects by reference on a node, one query per type over every readable scope. */
+    get(
+        node: Pick<ObjectNode, "objects" | "queryType">,
+        references: readonly ObjectReference[],
+    ): LiveQuery<ReadonlyMap<string, JsonObject>> {
+        // group the identifiers by type, refusing a type the node does not hold
+        const groups = new Map<ObjectType, string[]>();
+        for (const reference of references) {
+            const type = node.objects.find(
+                (each) => each.package.id === reference.packageId && each.name === reference.type,
+            );
+            if (type === undefined) {
+                throw new TypeError(`the node holds no type ${reference.type}`);
+            }
+            groups.set(type, [...(groups.get(type) ?? []), reference.id]);
+        }
+
+        // follow each type's rows by identifier, keyed by their references
+        const lives = [...groups].map(([type, ids]) => ({
+            type,
+            live: node
+                .queryType(type)
+                .findMany({ scopes: "every", where: { id: { in: ids } } })
+                .subscribe(),
+        }));
+
+        // key each row by its reference, leaving out the rows the caller cannot read
+        const merge = (reads: readonly (readonly unknown[])[]): ReadonlyMap<string, JsonObject> =>
+            new Map(
+                reads.flatMap((items, index) =>
+                    items.map((item): [string, JsonObject] => {
+                        // read the row's place, which every object row has
+                        const row = JsonValue.object(item);
+                        const { scope, id } = row;
+                        if (typeof scope !== "string" || typeof id !== "string") {
+                            throw new TypeError("an object row has no scope or identifier");
+                        }
+                        const { type } = present(lives[index], "a followed type");
+
+                        return [ObjectReference.key(type.reference(scope, id)), row];
+                    }),
+                ),
+            );
+
+        return {
+            ready: Promise.all(lives.map(({ live }) => live.ready)).then(() => {}),
+            read: async () => merge(await Promise.all(lives.map(({ live }) => live.read()))),
+            watch: (signal) =>
+                Observable.latest(
+                    lives.map(({ live }) => live.watch(signal)),
+                    merge,
+                ),
+            close: async () => {
+                await Promise.all(lives.map(({ live }) => live.close()));
+            },
+        };
+    },
+
+    /** Read objects by reference once on a node: the rows it has, else the server's answer. */
+    async fetch(
+        node: Pick<ObjectNode, "get">,
+        references: readonly ObjectReference[],
+    ): Promise<readonly JsonObject[]> {
+        // take the rows the node has, else wait for the server's answer
+        const live = node.get(references);
+        try {
+            const known = await live.read();
+            if (references.every((reference) => known.has(ObjectReference.key(reference)))) {
+                return [...known.values()];
+            }
+            await live.ready;
+
+            return [...(await live.read()).values()];
+        } finally {
+            await live.close();
+        }
+    },
+
     /** Run an action's call: ephemeral and local calls one by one, any other as one mutation. */
     perform<Inputs extends ActionInputs>(
-        node: Pick<ObjectNode, "context" | "find" | "call">,
+        node: Pick<ObjectNode, "context" | "fetch" | "call">,
         action: Action<Inputs>,
         { values, initial = {} }: ActionArguments<Inputs>,
         mutation: ObjectNode["mutation"],
@@ -115,7 +195,10 @@ export const ObjectNode = {
         const call = present(action.call, `the call of action '${action.name}'`);
         const invocations = call.invocations(
             { values: JsonValue.object(values), initial },
-            { context: node.context(), read: (type, reference) => node.find(type, reference) },
+            {
+                context: node.context(),
+                read: async (_type, references) => node.fetch(references),
+            },
         );
 
         // run an ephemeral or local method call by call, and any other as one mutation

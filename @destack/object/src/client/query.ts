@@ -1,11 +1,12 @@
 import * as db from "@destack/db";
 import type { Extras } from "@destack/db";
 import { untilAborted } from "@destack/environment";
-import { type Duration, mapValues } from "@destack/schema";
+import { type Duration, mapValues, present } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { AggregateGroup } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import type { ObjectQuery } from "../replica/replica.ts";
+import { RelationName } from "../query/name.ts";
 import type { AggregateOptions, FindOptions, FindResult } from "../query/item.ts";
 import { type NestedItem, relateItems } from "../query/item.ts";
 import type { LiveQuery, ObjectQueries } from "./access.ts";
@@ -183,11 +184,16 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
             ([name]) => Object.hasOwn(extras, name) || isSelected(name),
         );
 
-        // nest each relation's selected items, a one relation's item or null
+        // nest each relation's items, one item or null for a one relation
         const relations = db.FindOptions.includes(options).map(
             ([name, relation]): [string, NestedItem[string]] => {
-                const include = sync.included(query, name);
-                const selected = (item.with[name] ?? []).map((entry) =>
+                // take the type's relation holding the row, for a reference to several types
+                const variants = RelationName.within(query, name);
+                const nested =
+                    variants.find((each) => (item.with[each] ?? []).length > 0) ??
+                    present(variants[0], `a relation of include '${name}'`);
+                const include = sync.included(query, nested);
+                const selected = (item.with[nested] ?? []).map((entry) =>
                     RelationalQuery.select(entry, relation, include.query),
                 );
 

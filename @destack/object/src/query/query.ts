@@ -1,11 +1,15 @@
 import { type Condition, FindOptions, type Relation, Relations, TABLE } from "@destack/db";
 import { ObjectError } from "../error/error.ts";
+import { Policy, type TableMapping } from "@destack/access";
 import { Scope, type Query } from "@destack/sync";
 
 import { present } from "@destack/schema";
 import type { ObjectQuery } from "../replica/replica.ts";
-import type { ObjectType } from "../object/object.ts";
+import { ObjectType } from "../object/object.ts";
+import type { KnownDeclaration } from "../object/description.ts";
+import { textChunk, textNode } from "../text/object.ts";
 import { CHUNKS } from "../text/table.ts";
+import { RelationName } from "./name.ts";
 import { Searchable } from "../trait/searchable.ts";
 
 import type {} from "@destack/package/import-meta";
@@ -32,7 +36,7 @@ const SELECTIONS = [
 
 /** The relations between a set of served object types, which their queries compile against. */
 export class RelationGraph {
-    /** The served object types. */
+    /** The served object types, with the text types any of them needs. */
     readonly objects: readonly ObjectType[];
     /** The relations between the listed types. */
     readonly relations: Relations;
@@ -42,11 +46,17 @@ export class RelationGraph {
     readonly #byTable = new Map<string, ObjectType>();
     /** The listed types nested in or referring to each table's type, by table. */
     readonly #near = new Map<string, Set<ObjectType>>();
+    /** The relations of each reference to several types, one per type, by table and reference. */
+    readonly #variants = new Map<ObjectType["table"], Map<string, readonly string[]>>();
 
     /** Derive served types' relations: references, parents, children, attachments, join types. */
-    constructor(objects: readonly ObjectType[]) {
-        // index the listed types by table, keeping the first of each as `same` finds it
+    constructor(served: readonly ObjectType[]) {
+        // serve the text types beside types with text
+        const isText = served.some((object) => object.text.length > 0);
+        const objects = isText ? [...served, textChunk, textNode] : [...served];
         this.objects = objects;
+
+        // index the listed types by table, keeping the first of each as `same` finds it
         this.#listed = objects.filter((object) => object.listing !== undefined);
         for (const type of this.#listed) {
             const table = RelationGraph.#table(type);
@@ -146,6 +156,24 @@ export class RelationGraph {
         };
     }
 
+    /** List the declarations installed types resolve against: served types, scopes and policies. */
+    known(policies: readonly (Policy | ObjectType | TableMapping)[]): KnownDeclaration[] {
+        // add the scope types enclosing the served types, up to the universe
+        const served = this.objects;
+        const scopes = new Set(served.flatMap((type) => type.scopes));
+        for (const scope of scopes) {
+            scope.scopes.forEach((enclosing) => scopes.add(enclosing));
+        }
+
+        return [
+            ...served,
+            ...[...scopes].filter((scope) => !served.some((type) => type.same(scope))),
+            ...policies.filter(
+                (policy) => policy instanceof Policy || policy instanceof ObjectType,
+            ),
+        ];
+    }
+
     /** Find the object type a relation of a type leads to, with the relation. */
     related(
         object: ObjectType,
@@ -175,16 +203,25 @@ export class RelationGraph {
             named[name] ??= relation;
         };
 
-        // relate the type a reference refers to, and the parent of a nested type
+        // relate the types references refer to, and the parent of a nested type
+        const variants = new Map<string, string[]>();
         for (const [column, field] of Object.entries(object.fields)) {
             const served = this.#of(field.target?.());
+            const on = { kind: "key", column: "id", parent: column } as const;
+            // relate the one type a reference refers to
             if (field.relation !== undefined && served !== undefined) {
-                relate(
-                    field.relation,
-                    QueryDerivation.one(served, { kind: "key", column: "id", parent: column }),
-                );
+                relate(field.relation, QueryDerivation.one(served, on));
+            }
+            // relate each type a reference to several types refers to, by its own key
+            else if (field.relation !== undefined && field.source.builder === "object") {
+                for (const target of this.#referred(field.source.arguments)) {
+                    const name = RelationName.of(field.relation, RelationGraph.#table(target));
+                    relate(name, QueryDerivation.one(target, on));
+                    variants.set(field.relation, [...(variants.get(field.relation) ?? []), name]);
+                }
             }
         }
+        this.#variants.set(object.table, variants);
         const parent = this.#of(object.parent?.object);
         if (parent !== undefined && !parent.same(object)) {
             relate(
@@ -216,6 +253,31 @@ export class RelationGraph {
         }
 
         return named;
+    }
+
+    /** Replace each included reference to several types with its relation to each type. */
+    expand(object: ObjectType, included: FindOptions["with"]): FindOptions["with"] {
+        const variants = this.#variants.get(object.table);
+        if (included === undefined || variants === undefined || variants.size === 0) {
+            return included;
+        }
+
+        return Object.fromEntries(
+            Object.entries(included).flatMap(([name, selected]) =>
+                (variants.get(name) ?? [name]).map((each) => [each, selected]),
+            ),
+        );
+    }
+
+    /** List the listed types some types or principal kinds cover, every one for none. */
+    #referred(declared: readonly (ObjectType | Policy)[]): ObjectType[] {
+        return this.#listed.filter(
+            (type) =>
+                declared.length === 0 ||
+                declared.some((each) =>
+                    each instanceof Policy ? type.policy === each : type.same(each),
+                ),
+        );
     }
 
     /** Find the listed type sharing a type's table, absent for none. */
@@ -277,10 +339,11 @@ const QueryDerivation = {
         QueryDerivation.requireSelections(object, options, isRoot);
 
         // include the requested relations, a text holder's chunks among them
+        const requested = graph.expand(object, options.with);
         const includes =
             object.text.length === 0 || options.aggregate !== undefined
-                ? options.with
-                : { ...options.with, [CHUNKS]: {} };
+                ? requested
+                : { ...requested, [CHUNKS]: {} };
         const included = Object.fromEntries(
             FindOptions.includes({ with: includes ?? {} }).map(
                 ([name, selected]): [string, FindOptions] => [

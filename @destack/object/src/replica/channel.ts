@@ -115,13 +115,6 @@ const Send = schema.discriminatedUnion("verb", [
     schema.object({ verb: schema.literal("commit"), session: schema.string() }),
     schema.object({ verb: schema.literal("cancel"), session: schema.string() }),
     schema.object({
-        verb: schema.literal("find"),
-        scope: schema.string(),
-        package: schema.string(),
-        object: schema.string(),
-        reference: sync.ObjectReference,
-    }),
-    schema.object({
         verb: schema.literal("check"),
         scope: schema.string(),
         package: schema.string(),
@@ -350,7 +343,7 @@ export class ChannelRemote implements ObjectRemote {
     /** Follow queries of one scope at the node, compiled here to shape their items. */
     subscriber(scope: string, objects: readonly ObjectType[]): Subscriber {
         // compile each query as the node does, for the includes that nest its items
-        const relations = new RelationGraph(ObjectType.served([...objects]));
+        const relations = new RelationGraph([...objects]);
         const compile = (object: ObjectType, query: Omit<ObjectQuery, "object" | "package">) => {
             const whole = ObjectQuery.parse({
                 object: object.name,
@@ -466,23 +459,6 @@ export class ChannelRemote implements ObjectRemote {
         })();
 
         return { predicted, confirmed };
-    }
-
-    /** Read an object's row at the node, absent where neither it nor the server has it. */
-    async find(
-        scope: string,
-        object: ObjectType,
-        reference: sync.ObjectReference,
-    ): Promise<JsonObject | undefined> {
-        const value = await this.#send({
-            verb: "find",
-            scope,
-            package: object.package.id,
-            object: object.name,
-            reference,
-        });
-
-        return value === null ? undefined : schema.jsonObject().parse(value);
     }
 
     /** Read a scope's chain at a scope's node. */
@@ -910,14 +886,11 @@ export class ChannelRemote implements ObjectRemote {
                 }
                 channel.notify({ kind: "answer", to, id, value: null });
             }
-            // read an object's row, or whether the caller has a permission on it
-            else if (send.verb === "find" || send.verb === "check") {
+            // read whether the caller has a permission on an object
+            else if (send.verb === "check") {
                 const node = await nodes(send.scope);
                 const object = ChannelRemote.#object(node, send.package, send.object);
-                const value =
-                    send.verb === "find"
-                        ? ((await node.find(object, send.reference)) ?? null)
-                        : await node.check(object, send.id, send.permission);
+                const value = await node.check(object, send.id, send.permission);
                 channel.notify({ kind: "answer", to, id, value });
             }
             // undo or redo the person's latest group, answering its prediction, then its confirmation

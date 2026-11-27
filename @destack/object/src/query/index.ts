@@ -5,4 +5,5 @@ export {
     type FindResult,
 } from "./item.ts";
 export { type ModelOf } from "./relation.ts";
+export { RelationGraph } from "./query.ts";
 export { type EventOf } from "./event.ts";

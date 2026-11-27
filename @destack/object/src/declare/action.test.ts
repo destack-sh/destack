@@ -585,7 +585,11 @@ function invoked(
 ) {
     return present(action.call, "the action's call").invocations(
         { values },
-        { context, read: async (_type, { id }) => rows.find((row) => row.id === id) },
+        {
+            context,
+            read: async (_type, references) =>
+                rows.filter((row) => references.some(({ id }) => id === row.id)),
+        },
     );
 }
 
@@ -900,7 +904,7 @@ test("read a field named as a variable's own name, and start a creation as its p
         resolved,
         invocations: await call.invocations(resolved, {
             context: PERSON,
-            read: async () => row,
+            read: async () => [row],
         }),
     }).toEqual({
         // the column's status kept for the created team, which no input sets
@@ -1134,7 +1138,7 @@ test("read a declared variable the nearest place gives, the space, and refuse on
                 refusal(() =>
                     ActionCall.of(issue, "edit").invocations(
                         { values: { target: values.issues } },
-                        { context: PERSON, read: async () => undefined },
+                        { context: PERSON, read: async () => [] },
                     ),
                 ),
             ),

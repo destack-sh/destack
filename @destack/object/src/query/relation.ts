@@ -45,18 +45,23 @@ type RelationsOf<Object extends ObjectType, Objects extends ObjectType> =
     Object extends ObjectType<infer Configuration>
         ? string extends Configuration["name"]
             ? {}
-            : OneRelations<Object, Configuration, Objects> &
+            : ReferenceRelations<Configuration, Objects> &
+                  ParentRelation<Object, Configuration["parent"], Objects> &
                   TreeRelations<Object, Configuration> &
                   ChildRelations<Object, Objects> &
                   JunctionRelations<ChildRelations<Object, Objects>, Objects>
         : never;
 
-/** The relations to one object: the references and the parent. */
-type OneRelations<Object extends ObjectType, Configuration extends ObjectConfiguration, Objects> = {
+/** The relations of a type's reference fields, each to one object of its type or of several. */
+type ReferenceRelations<Configuration extends ObjectConfiguration, Objects> = {
     readonly [
         Key in keyof Configuration["fields"] as ReferenceName<Configuration["fields"][Key], Objects>
     ]: One<TargetOf<Configuration["fields"][Key], Objects>>;
-} & ParentRelation<Object, Configuration["parent"], Objects>;
+} & {
+    readonly [
+        Key in keyof Configuration["fields"] as ObjectReferenceName<Configuration["fields"][Key]>
+    ]: One<Extract<Objects, ObjectType>>;
+};
 
 /** The relation a served reference declares, absent for other fields. */
 type ReferenceName<Declaration, Objects> =
@@ -66,6 +71,16 @@ type ReferenceName<Declaration, Objects> =
             : [TargetOf<Declaration, Objects>] extends [never]
               ? never
               : Configuration["relation"]
+        : never;
+
+/** The relation an object reference field declares, absent for other fields. */
+type ObjectReferenceName<Declaration> =
+    Declaration extends Field<infer Configuration>
+        ? Configuration["reference"] extends "object"
+            ? [Configuration["relation"]] extends [never]
+                ? never
+                : Configuration["relation"]
+            : never
         : never;
 
 /** The served object type a reference field's identifiers belong to. */
@@ -134,10 +149,8 @@ type JunctionRelations<Children, Objects> = {
         ? Near extends keyof Children
             ? Children[Near] extends Many<infer Junction>
                 ? Junction extends ObjectType<infer Configuration>
-                    ? Far extends keyof OneRelations<Junction, Configuration, Objects>
-                        ? OneRelations<Junction, Configuration, Objects>[Far] extends One<
-                              infer Target
-                          >
+                    ? Far extends keyof ReferenceRelations<Configuration, Objects>
+                        ? ReferenceRelations<Configuration, Objects>[Far] extends One<infer Target>
                             ? Many<Target>
                             : never
                         : never
@@ -151,7 +164,7 @@ type JunctionRelations<Children, Objects> = {
 type JunctionPath<Children, Objects> = {
     [Near in keyof Children & string]: Children[Near] extends Many<infer Junction>
         ? Junction extends ObjectType<infer Configuration>
-            ? `${Near}.${keyof OneRelations<Junction, Configuration, Objects> & string}`
+            ? `${Near}.${keyof ReferenceRelations<Configuration, Objects> & string}`
             : never
         : never;
 }[keyof Children & string];

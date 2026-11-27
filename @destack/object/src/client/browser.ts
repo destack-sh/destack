@@ -183,9 +183,14 @@ export class BrowserTab<
         return ObjectNode.context(this, places);
     }
 
-    /** Read an object's row at the device, from the server where the device lacks it. */
-    find(type: ObjectType, reference: ObjectReference): Promise<JsonObject | undefined> {
-        return this.#remote.find(this.scope, type, reference);
+    /** Follow objects by reference across types and scopes. */
+    get(references: readonly ObjectReference[]): LiveQuery<ReadonlyMap<string, JsonObject>> {
+        return ObjectNode.get(this, references);
+    }
+
+    /** Read objects by reference once: the rows the device has, else the server's answer. */
+    fetch(references: readonly ObjectReference[]): Promise<readonly JsonObject[]> {
+        return ObjectNode.fetch(this, references);
     }
 
     /** Follow one text field of an object as an editor edits it. */

@@ -5,7 +5,7 @@ import type { Place } from "../declare/place.ts";
 import type { ActionContext } from "../declare/template.ts";
 import { ObjectNode } from "../client/node.ts";
 import { TextSpan } from "../sequence/index.ts";
-import { chunk } from "../text/table.ts";
+import { textChunkTable } from "../text/table.ts";
 import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import { ObjectError } from "../error/error.ts";
@@ -167,7 +167,7 @@ export class ObjectClient<
 > implements ObjectNode<Objects> {
     /** The local database with the replica and the queued mutations. */
     readonly database: DatabaseConnection;
-    /** The relations between the object types the client replicates, chunk types among them. */
+    /** The relations between the object types the client replicates, text types among them. */
     readonly relations: RelationGraph;
     /** The relational queries of the object types, by key. */
     readonly query: ObjectQueries<Objects>;
@@ -262,8 +262,7 @@ export class ObjectClient<
         this.undoStack = new UndoStack(this);
 
         // replicate the scope's objects for the caller, and the principals storing local objects
-        this.relations =
-            base?.relations ?? new RelationGraph(ObjectType.served(Object.values(options.objects)));
+        this.relations = base?.relations ?? new RelationGraph(Object.values(options.objects));
         this.query = ObjectQueryBuilder.of(this.subscriber, options.objects);
         this.scope = options.scope;
         this.caller = options.caller;
@@ -569,7 +568,7 @@ export class ObjectClient<
         return this.store.writerId;
     }
 
-    /** The object types the client replicates, with the chunk types serving their texts. */
+    /** The object types the client replicates, with the text types serving their texts. */
     get objects(): readonly ObjectType[] {
         return this.relations.objects;
     }
@@ -585,7 +584,7 @@ export class ObjectClient<
             ...new Set([
                 ...STORE_TABLES,
                 ...decisionTables,
-                ...ObjectType.served(Object.values(objects)).map((object) => object.table),
+                ...new RelationGraph(Object.values(objects)).objects.map((object) => object.table),
                 ...sync.replicaTables,
                 ...sync.predictionTables,
                 undoEntry,
@@ -629,7 +628,7 @@ export class ObjectClient<
         readonly local: Table[];
     } {
         const local = ObjectClient.#storedTables(
-            ObjectType.served(Object.values(objects)),
+            new RelationGraph(Object.values(objects)).objects,
             "local",
         );
 
@@ -715,31 +714,14 @@ export class ObjectClient<
         return ObjectNode.context(this, places);
     }
 
-    /** Read an object's row from the replica, from the server where the replica lacks it. */
-    async find(type: ObjectType, reference: ObjectReference): Promise<JsonObject | undefined> {
-        // refuse an object the client does not replicate
-        if (reference.scope !== this.scope) {
-            throw new TypeError(
-                `${reference.type} '${reference.id}' is in scope '${reference.scope}', not '${this.scope}'`,
-            );
-        }
+    /** Follow objects by reference across types and scopes. */
+    get(references: readonly ObjectReference[]): LiveQuery<ReadonlyMap<string, JsonObject>> {
+        return ObjectNode.get(this, references);
+    }
 
-        // take the row the replica has, else wait for the server's answer
-        const live = this.queryType(type)
-            .findFirst({ where: { id: reference.id } })
-            .subscribe();
-        try {
-            const known = await live.read();
-            if (known !== undefined) {
-                return JsonValue.object(known);
-            }
-            await live.ready;
-            const answered = await live.read();
-
-            return answered === undefined ? undefined : JsonValue.object(answered);
-        } finally {
-            await live.close();
-        }
+    /** Read objects by reference once: the rows the device has, else the server's answer. */
+    fetch(references: readonly ObjectReference[]): Promise<readonly JsonObject[]> {
+        return ObjectNode.fetch(this, references);
     }
 
     /** Open one text field of an object for editing. */
@@ -1217,7 +1199,7 @@ export class ObjectClient<
         // replace each word by the closest of the types' indexes, leaving out one like none
         const tables = options.types.flatMap((type) => [
             type.table,
-            ...(type.text.length === 0 ? [] : [chunk]),
+            ...(type.text.length === 0 ? [] : [textChunkTable]),
         ]);
         const indexes = [...new Set(tables)].flatMap((table) => table[TABLE].fullText ?? []);
         const { words } = Search.of(text);
@@ -1515,7 +1497,8 @@ export class ObjectClient<
 
         // take same-storage relations, and look up other-storage ones by key
         const nested: Record<string, FindOptions> = {};
-        for (const [name, relation] of FindOptions.includes({ with: included ?? {} })) {
+        const expanded = this.relations.expand(object, included) ?? {};
+        for (const [name, relation] of FindOptions.includes({ with: expanded })) {
             const joined = this.relations.related(object, name);
             if (joined.object.storage === object.storage) {
                 const child = this.#split(joined.object, relation);
