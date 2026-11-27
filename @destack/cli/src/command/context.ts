@@ -1,3 +1,7 @@
+import { createRequire } from "node:module";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import type { Project } from "@destack/check/project";
 import type { Login } from "@destack/account/native";
 import type { Environment } from "@destack/environment";
 import { type ObjectType, type Package } from "@destack/object";
@@ -326,6 +330,43 @@ export class CommandContext implements AsyncDisposable {
         return (await this.terminal.prompt.confirm(question)) ? "approve" : "deny";
     }
 
+    /** Open a package with the toolchain it pins, as eslint and prettier run the local install. */
+    async project(directory: string): Promise<Project> {
+        // resolve the package's own @destack/check, refusing a package that pins none
+        const absolute = resolve(directory);
+        const require = createRequire(join(absolute, "package.json"));
+        const location = (() => {
+            try {
+                return require.resolve("@destack/check/project");
+            } catch {
+                throw CliError.of(
+                    "PACKAGE_INVALID",
+                    `package '${absolute}' is invalid: it pins no toolchain, so add @destack/check as a devDependency`,
+                );
+            }
+        })();
+
+        // open the package through it, refusing a module that exports no project
+        const toolchain: unknown = await import(pathToFileURL(location).href);
+        if (!isToolchain(toolchain)) {
+            throw CliError.of(
+                "PACKAGE_INVALID",
+                `package '${absolute}' is invalid: its @destack/check exports no Project`,
+            );
+        }
+
+        return toolchain.Project.open(absolute, this.environment);
+    }
+
+    /** Report whether the person confirms a question, asked on a terminal unless approved. */
+    async isConfirmed(isApproved: boolean, question: string): Promise<boolean> {
+        return (
+            isApproved ||
+            (this.environment.process.stdin.isTerminal &&
+                (await this.terminal.prompt.confirm(question)))
+        );
+    }
+
     /** Find the setting of a name or a package-qualified name, at its latest release. */
     async setting(name: string): Promise<Setting> {
         // read the settings Destack's packages and the space's installations declare
@@ -370,4 +411,9 @@ export class CommandContext implements AsyncDisposable {
 
         return this.#catalog;
     }
+}
+
+/** Report whether a module is a toolchain's project module, exporting its Project. */
+function isToolchain(module: unknown): module is { readonly Project: typeof Project } {
+    return typeof module === "object" && module !== null && "Project" in module;
 }

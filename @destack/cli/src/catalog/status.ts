@@ -245,11 +245,7 @@ export class InstallationStatus {
             // approve a waiting plan once, when approving or once the person types yes on a terminal
             else if (waiting !== undefined && waiting.digest !== approved) {
                 live.release();
-                const isApproved =
-                    isApproving ||
-                    (context.environment.process.stdin.isTerminal &&
-                        (await context.terminal.prompt.confirm("Approve this plan?")));
-                if (!isApproved) {
+                if (!(await context.isConfirmed(isApproving, "Approve this plan?"))) {
                     throw CliError.of(
                         "APPROVAL_BLOCKED",
                         `cannot install '${name}': it waits on plan '${waiting.digest}', so approve it with --yes or run '${InstallationStatus.approval(status.installation, waiting.digest)}'`,

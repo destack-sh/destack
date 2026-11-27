@@ -740,11 +740,8 @@ async function requireConfirmation(
     const target = id ?? noun.plural;
     const word = `${verb.charAt(0).toUpperCase()}${verb.slice(1)}`;
     const subject = id === undefined ? `'${noun.plural}'` : `${noun.name} '${id}'`;
-    const isConfirmed =
-        options["yes"] === true ||
-        (context.environment.process.stdin.isTerminal &&
-            (await context.terminal.prompt.confirm(`${word} ${subject}? This cannot be undone.`)));
-    if (!isConfirmed) {
+    const question = `${word} ${subject}? This cannot be undone.`;
+    if (!(await context.isConfirmed(options["yes"] === true, question))) {
         throw CliError.of(
             "COMMAND_BLOCKED",
             `cannot run '${verb}' on '${target}': it cannot be undone, so confirm it with --yes`,

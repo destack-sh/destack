@@ -1,8 +1,5 @@
-import { createRequire } from "node:module";
-import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import type { CheckResult } from "@destack/check/diagnostic";
-import type { Project, TestTier } from "@destack/check/project";
+import type { TestTier } from "@destack/check/project";
 import { present } from "@destack/schema";
 import type { CommandBody } from "../command/command.ts";
 import type { CommandContext } from "../command/context.ts";
@@ -24,7 +21,7 @@ export const checkCommand: CommandBody = {
     isJson: true,
     async run({ arguments: { package: directory }, options, isJson: json }, context) {
         // check the package with the toolchain it pins
-        const project = await open(present(directory, "the package argument"), context);
+        const project = await context.project(present(directory, "the package argument"));
         const since = typeof options["since"] === "string" ? options["since"] : undefined;
         const checked = await project.check(since === undefined ? {} : { since });
 
@@ -39,7 +36,7 @@ export const fixCommand: CommandBody = {
     isJson: true,
     async run({ arguments: { package: directory }, isJson: json }, context) {
         // fix the package with the toolchain it pins
-        const project = await open(present(directory, "the package argument"), context);
+        const project = await context.project(present(directory, "the package argument"));
 
         // print what is left to fix by hand, refusing a package with any
         await report(await project.fix(), json, context);
@@ -74,7 +71,7 @@ export const testCommand: CommandBody = {
     },
     async run({ arguments: { package: directory }, rest, options }, context) {
         // run the package's tests with the toolchain it pins, as the options select
-        const project = await open(present(directory, "the package argument"), context);
+        const project = await context.project(present(directory, "the package argument"));
         const code = await project.test({
             ...testTiers(options["tier"]),
             ...testDatabase(options["database"]),
@@ -126,34 +123,6 @@ function testDatabase(value: unknown): { readonly database?: "sqlite" | "postgre
     return { database: value };
 }
 
-/** Open a package with the toolchain it pins, as eslint and prettier run the local install. */
-async function open(directory: string, context: CommandContext): Promise<Project> {
-    // resolve the package's own @destack/check, refusing a package that pins none
-    const absolute = resolve(directory);
-    const require = createRequire(join(absolute, "package.json"));
-    const location = (() => {
-        try {
-            return require.resolve("@destack/check/project");
-        } catch {
-            throw CliError.of(
-                "PACKAGE_INVALID",
-                `package '${absolute}' is invalid: it pins no toolchain, so add @destack/check as a devDependency`,
-            );
-        }
-    })();
-
-    // open the package through it, refusing a module that exports no project
-    const toolchain: unknown = await import(pathToFileURL(location).href);
-    if (!isToolchain(toolchain)) {
-        throw CliError.of(
-            "PACKAGE_INVALID",
-            `package '${absolute}' is invalid: its @destack/check exports no Project`,
-        );
-    }
-
-    return toolchain.Project.open(absolute, context.environment);
-}
-
 /** Print a check's diagnostics, then refuse a package that has any. */
 async function report(checked: CheckResult, json: boolean, context: CommandContext): Promise<void> {
     // print the diagnostics as JSON, or one line each
@@ -177,9 +146,4 @@ async function report(checked: CheckResult, json: boolean, context: CommandConte
             `check is invalid: the package has ${diagnostics.length} diagnostics`,
         );
     }
-}
-
-/** Report whether a module is a toolchain's project module, exporting its Project. */
-function isToolchain(module: unknown): module is { readonly Project: typeof Project } {
-    return typeof module === "object" && module !== null && "Project" in module;
 }
