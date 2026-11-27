@@ -1,4 +1,5 @@
 import { t } from "@destack/locale";
+import type { Choice } from "@destack/object";
 import { Button } from "../button/index.ts";
 import plusIcon from "@destack/icon/phosphor/plus";
 import arrowElbowUpLeftIcon from "@destack/icon/phosphor/arrow-elbow-up-left";
@@ -17,7 +18,31 @@ import {
     ComposerInput,
     ComposerSubmit,
 } from "./composer.tsx";
+import { ComposerMention } from "./mention.tsx";
 import { Quote, QuoteContent, QuoteDismiss, QuoteIcon } from "../quote/index.ts";
+
+/** The package of the subjects the examples mention. */
+const EXAMPLE_PACKAGE = "package-01996ab0-0000-7000-8000-000000000009";
+
+/** The people and the page a team's message mentions, each valued by its subject. */
+const MENTIONABLE: readonly Choice[] = [
+    {
+        value: { packageId: EXAMPLE_PACKAGE, type: "person", scope: "team", id: "ada" },
+        title: "Ada Lovelace",
+        description: "ada@example.com",
+    },
+    {
+        value: { packageId: EXAMPLE_PACKAGE, type: "person", scope: "team", id: "grace" },
+        title: "Grace Hopper",
+        description: "grace@example.com",
+    },
+    {
+        value: { packageId: EXAMPLE_PACKAGE, type: "page", scope: "team", id: "launch" },
+        title: "Launch plan",
+        icon: { icon: "file-text" },
+        color: "orange",
+    },
+];
 
 /** How long the assistant of the examples answers, in milliseconds. */
 const ANSWER = 4_000;
@@ -68,7 +93,7 @@ export const composerReply = defineExample({
     name: "reply",
     description: t`An answer to a message, which takes files dropped on it or chosen.`,
     layout: "padded",
-    render: () => {
+    render: (properties) => {
         const [files, setFiles] = createSignal<readonly File[]>([
             new File([new Uint8Array(48_120)], "quotes.pdf", { type: "application/pdf" }),
         ]);
@@ -80,7 +105,7 @@ export const composerReply = defineExample({
                 multiple
                 onFiles={(added) => setFiles((current) => [...current, ...added])}
             >
-                <Composer onSubmit={() => setFiles([])}>
+                <Composer {...properties} onSubmit={() => setFiles([])}>
                     <ComposerFrame>
                         <ComposerHeader>
                             <Show when={isQuoted()}>
@@ -212,4 +237,40 @@ export const composerAddonFiles = defineExample({
             </ComposerFrame>
         </Composer>
     ),
+});
+
+/** A message to a team, whose @ finds people and pages to mention. */
+export const composerMention = defineExample({
+    of: Composer,
+    name: "mention",
+    description: t`A message to a team, whose @ finds people and pages to mention.`,
+    layout: "padded",
+    render: (properties) => {
+        // find the choices whose title starts a word with the search
+        const [words, setWords] = createSignal("");
+        const [search, setSearch] = createSignal("");
+        const found = () =>
+            MENTIONABLE.filter((choice) =>
+                choice.title
+                    .toLowerCase()
+                    .split(" ")
+                    .some((word) => word.startsWith(search().toLowerCase())),
+            );
+
+        return (
+            <Composer {...properties} onSubmit={() => setWords("")}>
+                <ComposerFrame>
+                    <ComposerInput
+                        placeholder="Message the team, @ to mention"
+                        value={words()}
+                        onInput={(event) => setWords(event.currentTarget.value)}
+                    />
+                    <ComposerMention choices={found()} onSearch={setSearch} />
+                    <ComposerFooter>
+                        <ComposerSubmit disabled={words().trim() === ""} />
+                    </ComposerFooter>
+                </ComposerFrame>
+            </Composer>
+        );
+    },
 });

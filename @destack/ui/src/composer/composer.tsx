@@ -1,11 +1,11 @@
 import { field } from "@destack/object";
 import arrowUpIcon from "@destack/icon/phosphor/arrow-up";
 import stopIcon from "@destack/icon/phosphor/stop";
-import { Shortcut, t } from "@destack/locale";
+import { type Direction, Shortcut, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
 import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
-import { createContext, type JSX, omit, useContext, useLocale } from "@destack/view";
+import { createContext, type JSX, omit, onCleanup, useContext, useLocale } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { Icon } from "../icon/index.ts";
 import {
@@ -15,6 +15,7 @@ import {
     renderPart,
 } from "../part/index.ts";
 import { Textarea, type TextareaProperties } from "../textarea/index.ts";
+import type { ComposerMentionControl } from "./mention.tsx";
 import {
     type ComponentProperties,
     defineComponent,
@@ -142,12 +143,42 @@ export type ComposerSubmitMode = "enter" | "ctrlEnter" | "none";
 export class ComposerControl {
     /** The composer's form. */
     form: HTMLFormElement | undefined;
+    /** The composer's text area. */
+    input: HTMLTextAreaElement | undefined;
+    /** The mention list its @ searches show, undefined without one. */
+    #mention:
+        | { readonly control: ComposerMentionControl; readonly direction: () => Direction }
+        | undefined;
     /** The composer's properties. */
     readonly #properties: RenderProperties<ComposerAttributes, typeof COMPOSER_PROPERTIES>;
 
     /** Follow a composer's properties. */
     constructor(properties: RenderProperties<ComposerAttributes, typeof COMPOSER_PROPERTIES>) {
+        // start without its form, its text or a mention list, which mount after it
         this.#properties = properties;
+        this.form = undefined;
+        this.input = undefined;
+        this.#mention = undefined;
+    }
+
+    /** Show a mention list for the @ searches of its text until the list unmounts. */
+    mention(control: ComposerMentionControl, direction: () => Direction): void {
+        this.#mention = { control, direction };
+        onCleanup(() => {
+            if (this.#mention?.control === control) {
+                this.#mention = undefined;
+            }
+        });
+    }
+
+    /** Read the @ search before the caret of its text, for its mention list. */
+    read(input: HTMLTextAreaElement): void {
+        this.#mention?.control.read(input);
+    }
+
+    /** Close its mention list, as the text loses the focus. */
+    leave(): void {
+        this.#mention?.control.close();
     }
 
     /** Read how the keys send it. */
@@ -180,6 +211,12 @@ export class ComposerControl {
 
     /** Send or stop by a key pressed in its text, a text area or any editor. */
     press(event: KeyboardEvent): void {
+        // leave the keys to an open mention list first
+        const mention = this.#mention;
+        if (mention !== undefined && mention.control.press(event, mention.direction())) {
+            return;
+        }
+
         // read whether Enter is pressed, and what with
         const isTouch = event.view?.matchMedia("(pointer: coarse)").matches === true;
         const isHeld = event.shiftKey || event.altKey || event.metaKey || event.ctrlKey;
@@ -357,7 +394,20 @@ export function ComposerInput(properties: TextareaProperties): JSX.Element {
             aria-label={locale.render(t.context("label")`Message`)}
             disabled={composer.isDisabled()}
             {...mergeProperties(
-                { onKeyDown: (event: KeyboardEvent) => composer.press(event) },
+                {
+                    ref: (element: HTMLTextAreaElement) => (composer.input = element),
+                    onKeyDown: (event: KeyboardEvent) => composer.press(event),
+                    onInput: (
+                        event: InputEvent & { readonly currentTarget: HTMLTextAreaElement },
+                    ) => composer.read(event.currentTarget),
+                    onKeyUp: (
+                        event: KeyboardEvent & { readonly currentTarget: HTMLTextAreaElement },
+                    ) => composer.read(event.currentTarget),
+                    onPointerUp: (
+                        event: PointerEvent & { readonly currentTarget: HTMLTextAreaElement },
+                    ) => composer.read(event.currentTarget),
+                    onBlur: () => composer.leave(),
+                },
                 properties,
             )}
             xstyle={[text.base, styles.input, properties.xstyle]}

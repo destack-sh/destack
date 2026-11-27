@@ -18,6 +18,7 @@
         "./inspector": "./src/inspector/index.ts",
         "./markdown": "./src/markdown/index.ts",
         "./marker": "./src/marker/index.ts",
+        "./mention": "./src/mention/index.ts",
         "./message": "./src/message/index.ts",
         "./message-scroller": "./src/message-scroller/index.ts",
         "./button": "./src/button/index.ts",
