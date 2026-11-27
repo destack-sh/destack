@@ -75,6 +75,7 @@
         "./otp-field": "./src/otp-field/index.ts",
         "./overflow": "./src/overflow/index.ts",
         "./pagination": "./src/pagination/index.ts",
+        "./paint-picker": "./src/paint-picker/index.ts",
         "./pane": "./src/pane/index.ts",
         "./part": "./src/part/index.ts",
         "./password-field": "./src/password-field/index.ts",
@@ -152,7 +153,6 @@
     },
     "dependencies": {
         "@destack/code": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",

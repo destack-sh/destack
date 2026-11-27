@@ -1,4 +1,4 @@
-import { Color, Palette } from "@destack/color";
+import { Color, Paint, Palette } from "@destack/style";
 import type { ActionValue, Choice } from "@destack/object";
 import { type JsonObject, JsonValue, present, schema, toJsonSchema } from "@destack/schema";
 import { expect, test } from "@destack/test";
@@ -84,6 +84,43 @@ test("take an input an app replaces", () => {
     container.querySelector("button")?.click();
 
     expect(given).toEqual([5]);
+});
+
+test("take the input an app replaces by its schema's name, inside one it replaces further out", () => {
+    // replace the paint's input, inside a provider that replaces the number's
+    const given: (JsonValue | undefined)[] = [];
+    const { container } = render(() => (
+        <ValueFieldProvider inputs={{ number: () => <output>number</output> }}>
+            <ValueFieldProvider
+                named={{
+                    paint: (properties) => (
+                        <button
+                            type="button"
+                            onClick={() =>
+                                properties.onValueChange({ kind: "solid", color: "#ff0000" })
+                            }
+                        >
+                            red
+                        </button>
+                    ),
+                }}
+            >
+                <ValueField
+                    type={{ kind: "json", schema: describe(Paint) }}
+                    value={undefined}
+                    onValueChange={(value) => void given.push(value)}
+                />
+                <ValueField type={{ kind: "number" }} value={undefined} onValueChange={() => {}} />
+            </ValueFieldProvider>
+        </ValueFieldProvider>
+    ));
+    present(container.querySelector("button"), "the app's paint input").click();
+
+    // expect the paint given by the app's input, and the outer provider's number kept
+    expect({ given, number: container.querySelector("output")?.textContent }).toEqual({
+        given: [{ kind: "solid", color: "#ff0000" }],
+        number: "number",
+    });
 });
 
 test("show the title of a person, and keep them as other text is typed", () => {

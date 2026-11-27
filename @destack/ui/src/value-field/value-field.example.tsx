@@ -1,4 +1,4 @@
-import { Color, Palette } from "@destack/color";
+import { Color, FillStack, Gradient, Paint, Palette } from "@destack/style";
 import { t } from "@destack/locale";
 import { type JsonObject, JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
@@ -35,6 +35,24 @@ export const valueFieldKinds = defineExample({
             person: "Ada",
             label: "#f76b15",
             palette: ["#e0eaff", "#241d9a", "#f75092"],
+            sky: {
+                shape: { kind: "linear", angle: 180 },
+                stops: [
+                    { color: "#241d9a", position: 0 },
+                    { color: "#ffc53d", position: 1 },
+                ],
+                space: "oklch",
+                hue: "shorter",
+            },
+            card: { kind: "solid", color: "#ffffff" },
+            background: [
+                {
+                    paint: { kind: "solid", color: "#24159a33" },
+                    blend: "multiply",
+                    isVisible: true,
+                },
+                { paint: { kind: "solid", color: "#fffdf7" }, blend: "normal", isVisible: true },
+            ],
         });
         const of = (name: string) => ({
             get value() {
@@ -98,6 +116,24 @@ export const valueFieldKinds = defineExample({
                     <ValueField
                         type={{ kind: "json", schema: describe(Palette.min(2).max(5)) }}
                         {...of("palette")}
+                    />
+                </Field>
+                <Field>
+                    <FieldLabel>Sky</FieldLabel>
+                    <ValueField
+                        type={{ kind: "json", schema: describe(Gradient.schema) }}
+                        {...of("sky")}
+                    />
+                </Field>
+                <Field>
+                    <FieldLabel>Card</FieldLabel>
+                    <ValueField type={{ kind: "json", schema: describe(Paint) }} {...of("card")} />
+                </Field>
+                <Field>
+                    <FieldLabel>Background</FieldLabel>
+                    <ValueField
+                        type={{ kind: "json", schema: describe(FillStack) }}
+                        {...of("background")}
                     />
                 </Field>
                 <output>{JSON.stringify(given())}</output>
