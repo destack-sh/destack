@@ -96,3 +96,27 @@ test("refresh a session's access token once for every caller at once, and anew o
         refreshed: 2,
     });
 });
+
+test("start a replacing session's access tokens anew, as its earlier client's no longer hold", async () => {
+    // run in a world of its own
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+
+    // read a person's token cache, then sign them in again and read it once more
+    const sessions = new SessionStore(new MemoryKeychain());
+    const person = {
+        issuer: "https://accounts.destack.test",
+        subjectId: Identifier.create("user", world),
+    };
+    await sessions.replace(person, "session-a");
+    const first = sessions.accessTokens(person);
+    const again = sessions.accessTokens(person);
+    await sessions.replace(person, "session-b");
+    const replaced = sessions.accessTokens(person);
+
+    // expect one cache per session: shared within it, new for the replacing one
+    expect({ isShared: again === first, isRenewed: replaced !== first }).toEqual({
+        isShared: true,
+        isRenewed: true,
+    });
+});
