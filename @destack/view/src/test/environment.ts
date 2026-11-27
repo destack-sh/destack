@@ -13,6 +13,16 @@ export default {
             url: "http://localhost/",
             settings: { enableIframePageLoading: true },
         });
+
+        // give the document the CSS Font Loading API's set of faces, empty as the page declares none
+        if (!("fonts" in window.document)) {
+            Object.defineProperty(window.document, "fonts", {
+                value: new Set(),
+                configurable: true,
+            });
+        }
+
+        // copy the window's globals over the runtime's, noting what to restore
         const added: string[] = [];
         const replaced = new Map<string, unknown>();
         for (const key of Object.getOwnPropertyNames(window)) {
