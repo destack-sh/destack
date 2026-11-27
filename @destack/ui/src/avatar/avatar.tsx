@@ -1,5 +1,5 @@
 import { swatches } from "@destack/theme/swatch";
-import { Hue } from "@destack/color";
+import { Hue } from "@destack/style";
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";

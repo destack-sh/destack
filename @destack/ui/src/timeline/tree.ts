@@ -1,4 +1,4 @@
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import type { Direction } from "@destack/locale";
 import { Duration, nth, type TimeScale } from "@destack/schema";
 import { type Accessor, createMemo, createSignal, untrack } from "@destack/view";

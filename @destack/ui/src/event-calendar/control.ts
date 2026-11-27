@@ -67,7 +67,7 @@ import {
 import { CalendarRepeatChange, CalendarRepeatRemoval } from "./repeat.ts";
 import { CalendarAvailability, type CalendarAvailabilityOptions } from "./availability.ts";
 import type { CalendarResource, CalendarSource } from "./source.ts";
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
 import type { Render } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";

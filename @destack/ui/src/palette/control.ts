@@ -1,5 +1,5 @@
 import type { Search } from "@destack/db";
-import type { Hue } from "@destack/color";
+import type { Hue } from "@destack/style";
 import type { IconBodies } from "@destack/icon";
 import { schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";

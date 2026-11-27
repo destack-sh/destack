@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { contentOr } from "../part/index.ts";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { Color, DEFAULT_HUES, HUES, type Hue } from "@destack/color";
+import { Color, DEFAULT_HUES, HUES, type Hue } from "@destack/style";
 import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { For, type JSX, omit, Show, useContext, useLocale } from "@destack/view";
 import {

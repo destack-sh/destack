@@ -1,4 +1,4 @@
-import { Hue } from "@destack/color";
+import { Hue } from "@destack/style";
 import * as style from "@destack/style";
 import { radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
