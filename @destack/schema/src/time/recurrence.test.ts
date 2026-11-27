@@ -1,9 +1,16 @@
 import { expect, test } from "@destack/test";
-import { Recurrence, type RecurrenceRule } from "./recurrence.ts";
+import { fromJsonSchema, JsonValue, LocalReference, toJsonSchema } from "../json/index.ts";
+import { Duration } from "./duration.ts";
+import { Recurrence, RecurrenceRule } from "./recurrence.ts";
 import type { Week } from "./week.ts";
 
 /** The ISO week: Monday first, the weekend on Saturday and Sunday, week one with four days. */
 const ISO: Week = { firstDay: 1, weekend: [6, 7], minimalDays: 4 };
+
+/** Make a monthly rule on the nth Monday of the month. */
+function monthlyOn(nthOfPeriod: number) {
+    return { frequency: "monthly", byDay: [{ day: 1, nthOfPeriod }] };
+}
 
 /** List a rule's dates from a first date over a wide range. */
 function datesOf(rule: RecurrenceRule, first: string, to = "2100-12-31"): string[] {
@@ -156,4 +163,27 @@ test("move numbered weekdays with a date to its place in the new month, counted 
         // july starts on a Wednesday, so the 15th is its third
         [{ frequency: "monthly", byDay: [{ day: 3, nthOfPeriod: 3 }] }],
     ]);
+});
+
+test("describe a rule as JSON Schema by its name, read back refusing the zeroth weekday as before", () => {
+    // describe the rule, read it back, and check an nth weekday of 0, -1 and 54
+    const described = toJsonSchema(RecurrenceRule);
+    const back = fromJsonSchema(described);
+
+    expect({
+        names: [Duration, RecurrenceRule].map((each) =>
+            LocalReference.root(JsonValue.object(toJsonSchema(each))),
+        ),
+        taken: [0, -1, 54].map((nth) => [
+            RecurrenceRule.safeParse(monthlyOn(nth)).success,
+            back.safeParse(monthlyOn(nth)).success,
+        ]),
+    }).toEqual({
+        names: ["schema.duration", "schema.recurrence"],
+        taken: [
+            [false, false],
+            [true, true],
+            [false, false],
+        ],
+    });
 });
