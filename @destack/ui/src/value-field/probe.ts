@@ -1,5 +1,6 @@
 import { Duration, type JsonValue } from "@destack/schema";
 import {
+    Color,
     CubicBezier,
     Dimension,
     FontFamily,
@@ -51,7 +52,7 @@ export class TokenProbe {
         return this.#value("color", reference, (computed) => {
             const css = computed.getPropertyValue(PROPERTIES.color);
 
-            return css.length > 0 ? css : undefined;
+            return css.length > 0 ? Color.parse(css).plain() : undefined;
         });
     }
 
@@ -154,25 +155,47 @@ export class TokenProbe {
         return value;
     }
 
+    /** Read the CSS a browser computes for a value, as `css` reads a token's, to compare them. */
+    literal(type: TokenType, text: string): string {
+        const [value = ""] = this.#draw(
+            [(style) => style.setProperty(PROPERTIES[type], text)],
+            (computed) => computed.getPropertyValue(PROPERTIES[type]),
+        );
+
+        return value;
+    }
+
     /** Set each token's property on a hidden element, and read their computed styles meanwhile. */
     #within<Read>(
         type: TokenType,
         references: readonly Reference[],
         reader: (computed: CSSStyleDeclaration) => Read,
     ): Read[] {
-        // draw one element per token out of the flow, so they move nothing
-        const elements = references.map((reference) => {
-            // hide the element out of the flow
+        // set the type's property, or each member of a typography token
+        return this.#draw(
+            references.map((reference) =>
+                type === "typography"
+                    ? (style: CSSStyleDeclaration) =>
+                          void Object.assign(style, Typography.css(reference))
+                    : (style: CSSStyleDeclaration) =>
+                          style.setProperty(PROPERTIES[type], Reference.css(reference)),
+            ),
+            reader,
+        );
+    }
+
+    /** Draw values on hidden elements, and read their computed styles in one pass. */
+    #draw<Read>(
+        setters: readonly ((style: CSSStyleDeclaration) => void)[],
+        reader: (computed: CSSStyleDeclaration) => Read,
+    ): Read[] {
+        // draw one element per value out of the flow, so they move nothing
+        const elements = setters.map((set) => {
+            // hide the element out of the flow, then set its value
             const element = document.createElement("span");
             element.style.position = "absolute";
             element.style.visibility = "hidden";
-
-            // set the type's property, or each member of a typography token
-            if (type === "typography") {
-                Object.assign(element.style, Typography.css(reference));
-            } else {
-                element.style.setProperty(PROPERTIES[type], Reference.css(reference));
-            }
+            set(element.style);
 
             return element;
         });

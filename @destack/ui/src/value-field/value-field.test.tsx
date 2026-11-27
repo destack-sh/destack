@@ -14,6 +14,7 @@ import {
     Stroke,
     TextFormat,
     Transition,
+    Opacity,
     Typography,
 } from "@destack/style";
 import type { ActionValue, Choice } from "@destack/object";
@@ -32,7 +33,7 @@ import {
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
-import { ValueField, ValueFieldProvider } from "./index.ts";
+import { MIXED, sharedValue, ValueField, ValueFieldProvider } from "./index.ts";
 import { preloadNamedInputs } from "./index.ts";
 
 // load the kit's named inputs, so every field of a named schema renders at once
@@ -179,25 +180,20 @@ test("keep JSON as it is typed", () => {
     expect([before, during, shown()]).toEqual(["[\n  1\n]", "[1,  2]", "[1,"]);
 });
 
-test("give a color typed in its picker, the swatch and text showing it", () => {
+test("give a color typed in its field, the field keeping the text", () => {
     stubPopovers();
     const { container, given } = draw({ kind: "json", schema: describe(Color.schema) }, "#f76b15");
 
-    // open the picker and type a color into its text
-    container.querySelector<HTMLButtonElement>("button")?.click();
-    flush();
+    // type a color into the row's own text, without opening the picker
     const field = present(
-        document.querySelector<HTMLInputElement>("input[data-slot=color-field]"),
+        container.querySelector<HTMLInputElement>("input[data-slot=color-field]"),
         "the color's text",
     );
     field.value = "#0090ff";
     field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     flush();
 
-    expect([container.querySelector("bdi")?.textContent, given.at(-1)]).toEqual([
-        "#0090ff",
-        "#0090ff",
-    ]);
+    expect([field.value, given.at(-1)]).toEqual(["#0090ff", "#0090ff"]);
 });
 
 test("add, move and remove the colors of a palette between the fewest and the most", () => {
@@ -222,8 +218,8 @@ test("add, move and remove the colors of a palette between the fewest and the mo
 
 test("give a length by its number, kept in its unit", () => {
     stubPopovers();
-    const { container, given } = draw(typeOf(Dimension), px(12));
-    fill(container, "Amount", "16");
+    const { given, type } = draw(typeOf(Dimension), px(12));
+    type("16");
 
     expect(given).toEqual([px(16)]);
 });
@@ -232,11 +228,7 @@ test("round every corner by one radius, then one corner on its own", () => {
     // set all four, then turn each one apart and change the top left
     stubPopovers();
     const { container, given } = draw(typeOf(Corners), Corners.all(px(8)));
-    fill(
-        present(container.querySelector("[role=group] [role=group]"), "the radius"),
-        "Amount",
-        "12",
-    );
+    fill(container, "All corners", "12");
     press(container, "Each corner");
     fill(container, "Top left", "0");
 
@@ -266,15 +258,9 @@ test("add a shadow on top, set it inside, and remove the one below", () => {
     const { container, given } = draw(typeOf(ShadowStack), [old]);
     press(container, "Add shadow");
     const top = present(container.querySelector("[aria-label='Shadow 1']"), "the top shadow");
-    present(
-        container.querySelector<HTMLElement>("[role=switch]"),
-        "the top shadow's switch",
-    ).click();
-    flush();
+    press(top, "Inner shadow");
     const isKept = container.querySelector("[aria-label='Shadow 1']") === top;
-    const removes = container.querySelectorAll<HTMLButtonElement>("[aria-label='Remove shadow']");
-    present(removes[1], "the lower shadow's remove button").click();
-    flush();
+    press(container, "Remove Shadow 2");
     const added: Shadow = { ...old, offsetY: px(4), blur: px(12) };
 
     // expect each change, the top shadow's row kept as it changed
@@ -284,8 +270,17 @@ test("add a shadow on top, set it inside, and remove the one below", () => {
     });
 });
 
-test("set text in the fonts a person lists, as CSS lists them", () => {
+test("pick a document's typeface after the generic fallbacks, list its weights, or use a typed one", () => {
+    // declare two faces of one family in the document
     stubPopovers();
+    const fonts = Object.getOwnPropertyDescriptor(document, "fonts");
+    Object.defineProperty(document, "fonts", {
+        configurable: true,
+        value: new Set([
+            { family: "Plex Mono", weight: "400", style: "normal", stretch: "normal" },
+            { family: "Plex Mono", weight: "700", style: "normal", stretch: "normal" },
+        ]),
+    });
     const start: Typography = {
         fontFamily: ["sans-serif"],
         fontSize: { value: 1, unit: "rem" },
@@ -294,15 +289,38 @@ test("set text in the fonts a person lists, as CSS lists them", () => {
         lineHeight: 1.5,
     };
     const { container, given } = draw(typeOf(Typography), start);
-    const family = present(
-        container.querySelector<HTMLInputElement>("input[aria-label='Font family']"),
-        "the font family",
-    );
-    family.value = `"Inter Variable", serif`;
-    family.dispatchEvent(new Event("change", { bubbles: true }));
-    flush();
 
-    expect(given).toEqual([{ ...start, fontFamily: ["Inter Variable", "serif"] }]);
+    // pick the family, then read the weights its faces draw
+    press(container, "Font family");
+    present(document.querySelector<HTMLElement>('[data-value="Plex Mono"]'), "Plex Mono").click();
+    flush();
+    const weights = [...container.querySelectorAll('[aria-label="Weight"] [role=radio]')].map(
+        (segment) => segment.textContent,
+    );
+
+    // search for a font the document lacks, then use it
+    press(container, "Font family");
+    const search = present(
+        document.querySelector<HTMLInputElement>("[data-slot=command-input]"),
+        "the font search",
+    );
+    search.value = "Inter Variable";
+    search.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    flush();
+    present(
+        document.querySelector<HTMLElement>('[data-value="Inter Variable"]'),
+        "the typed font",
+    ).click();
+    flush();
+    Object.defineProperty(document, "fonts", present(fonts, "the document's fonts"));
+
+    expect([given, weights]).toEqual([
+        [
+            { ...start, fontFamily: ["Plex Mono", "sans-serif"] },
+            { ...start, fontFamily: ["Inter Variable"] },
+        ],
+        ["Regular", "Bold"],
+    ]);
 });
 
 test("give a transition's duration, kept in its unit", () => {
@@ -331,7 +349,7 @@ test("lay children out in a column, with the padding its sides input gives", () 
     };
     const { container, given } = draw(typeOf(Layout), start);
     press(container, "Column");
-    fill(present(container.querySelector("[aria-label=Padding]"), "the padding"), "Amount", "16");
+    fill(container, "All sides", "16");
 
     expect(given).toEqual([
         { ...start, direction: "column" },
@@ -351,12 +369,16 @@ test("size a box across its container, then give it a least width", () => {
         maxHeight: none,
     };
     const { container, given } = draw(typeOf(Size), start);
-    press(container, "Fill");
-    press(container, "Length");
+
+    // pick fill in the width's menu, then turn on its min width there
+    press(container, "Width sizing");
+    choose("Fill");
+    press(container, "Width sizing");
+    choose("Min width");
 
     expect(given).toEqual([
         { ...start, width: { kind: "fill" } },
-        { ...start, width: { kind: "fill" }, minWidth: { kind: "length", length: px(0) } },
+        { ...start, width: { kind: "fill" }, minWidth: { kind: "length", length: px(100) } },
     ]);
 });
 
@@ -481,6 +503,184 @@ test("give a web address once it parses, and none once the field is cleared", ()
     expect(given).toEqual(["https://example.com/notes", undefined]);
 });
 
+test("show the inherited value muted until one is given, and give it back by reset", () => {
+    // start unset, with half in force
+    const { container, given, type } = drawLabelled({
+        label: "Opacity",
+        type: { kind: "number", format: { style: "percent" } },
+        start: undefined,
+        inherited: 0.5,
+    });
+    const seen = () => ({
+        state: container.querySelector("[data-slot=field]")?.getAttribute("data-state"),
+        shown: container.querySelector("input")?.value,
+        reset: buttonNames(container).includes("Reset Opacity"),
+    });
+    const unset = seen();
+
+    // give a quarter, then reset it to the half in force, the press taking the focus
+    type("25%");
+    const set = seen();
+    container.querySelector("input")?.blur();
+    press(container, "Reset Opacity");
+
+    expect([unset, set, seen(), given]).toEqual([
+        { state: "unset", shown: "50%", reset: false },
+        { state: "set", shown: "25%", reset: true },
+        { state: "unset", shown: "50%", reset: false },
+        [0.25, undefined],
+    ]);
+});
+
+test("show values several objects hold apart as one mark, and give them all one from it", () => {
+    // press the mark, which the label names and which hands the focus to the input
+    const { container, given, type } = drawLabelled({
+        label: "Title",
+        type: { kind: "text" },
+        start: MIXED,
+        inherited: undefined,
+    });
+    const mark = present(
+        [...container.querySelectorAll("button")].find((button) => nameOf(button) === "Mixed"),
+        "the mark of mixed values",
+    );
+    const label = container.querySelector("label")?.getAttribute("for");
+    const before = { text: mark.textContent, isNamed: label === mark.id };
+    mark.click();
+    flush();
+    const isFocused = document.activeElement === container.querySelector("input");
+    type("Lake");
+
+    expect([before, isFocused, given]).toEqual([{ text: "Mixed", isNamed: true }, true, ["Lake"]]);
+});
+
+test("share a value all objects hold alike, whatever its key order, and mark one they hold apart", () => {
+    expect(
+        [
+            [
+                { x: 1, y: 2 },
+                { y: 2, x: 1 },
+            ],
+            [undefined, undefined],
+            [1, 2],
+            [undefined, 1],
+        ].map((values) => sharedValue(values)),
+    ).toEqual([{ x: 1, y: 2 }, undefined, MIXED, MIXED]);
+});
+
+test("show no stroke as its legend and a button to add one, which starts a stroke", () => {
+    const { container, given } = drawLabelled({
+        label: "Stroke",
+        type: typeOf(Stroke),
+        start: undefined,
+        inherited: undefined,
+    });
+    const before = [...container.querySelectorAll("input, select")].length;
+    press(container, "Add Stroke");
+
+    expect([before, given]).toEqual([
+        0,
+        [{ color: "#000000", width: px(1), style: "solid", align: "inside" }],
+    ]);
+});
+
+test("show no bindable type as one legend, its binding and adding side by side", () => {
+    const { container } = drawLabelled({
+        label: "Type",
+        type: typeOf(Typography.bindable),
+        start: undefined,
+        inherited: undefined,
+    });
+
+    // the value inside hands its add action to the binding's legend, which draws the only legend
+    expect(
+        [...container.querySelectorAll("legend")].map((legend) =>
+            [...legend.querySelectorAll("button")].map((button) =>
+                button.getAttribute("aria-label")?.replaceAll(/[\u2068\u2069]/gu, ""),
+            ),
+        ),
+    ).toEqual([["Bind to token", "Add Type"]]);
+});
+
+test("show a value of another shape as unreadable, rather than a value it does not hold", () => {
+    // store text where an opacity belongs, as data from before a schema changed would
+    const { container } = render(() => (
+        <>
+            <ValueField
+                label="Opacity"
+                type={typeOf(Opacity)}
+                value="half"
+                onValueChange={() => {}}
+            />
+            <ValueField
+                label="Name"
+                type={{ kind: "text" }}
+                value="Card"
+                onValueChange={() => {}}
+            />
+        </>
+    ));
+    const inputs = [...container.querySelectorAll("input")];
+
+    // the opacity says it cannot be read, and the field beside it keeps working
+    expect(inputs.map((input) => [input.value, input.getAttribute("aria-invalid")])).toEqual([
+        ["This value cannot be read", "true"],
+        ["Card", null],
+    ]);
+});
+
+test("reset a value of several parts from its legend", () => {
+    const { container, given } = drawLabelled({
+        label: "Corners",
+        type: typeOf(Corners),
+        start: Corners.all(px(8)),
+        inherited: undefined,
+    });
+    const legend = present(container.querySelector("legend"), "the legend");
+    const isInLegend = buttonNames(legend).includes("Reset Corners");
+    press(container, "Reset Corners");
+
+    expect([isInLegend, given]).toEqual([true, [undefined]]);
+});
+
+/** Draw a labelled value's field from a start and the value in force, recording what it gives. */
+function drawLabelled(options: {
+    readonly label: string;
+    readonly type: ActionValue;
+    readonly start: JsonValue | undefined | typeof MIXED;
+    readonly inherited: JsonValue | undefined;
+}) {
+    stubPopovers();
+    const given: (JsonValue | undefined)[] = [];
+    const [value, setValue] = createSignal<JsonValue | undefined | typeof MIXED>(options.start);
+    const { container } = render(() => (
+        <ValueField
+            label={options.label}
+            type={options.type}
+            value={value()}
+            inherited={options.inherited}
+            onValueChange={(next) => {
+                given.push(next);
+                setValue(() => next);
+            }}
+        />
+    ));
+    const type = (text: string) => {
+        const input = present(container.querySelector("input"), "the input");
+        input.focus();
+        input.value = text;
+        input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        flush();
+    };
+
+    return { container, given, type };
+}
+
+/** List the names of the buttons inside an element. */
+function buttonNames(root: Element): string[] {
+    return [...root.querySelectorAll("button")].map((button) => nameOf(button));
+}
+
 /** A length in pixels. */
 function px(value: number): Dimension {
     return { value, unit: "px" };
@@ -500,6 +700,16 @@ function fill(root: Element, label: string, text: string): void {
     );
     input.value = text;
     input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    flush();
+}
+
+/** Choose an item of the open menu by its text. */
+function choose(text: string): void {
+    const items = [...document.querySelectorAll<HTMLElement>("[role^=menuitem]")];
+    present(
+        items.find((item) => item.textContent.trim() === text),
+        `the menu item ${text}`,
+    ).click();
     flush();
 }
 

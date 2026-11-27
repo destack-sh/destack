@@ -1,25 +1,4 @@
-import {
-    FilterStack,
-    Opacity,
-    Overflow,
-    Position,
-    Size,
-    TextFormat,
-    BoxSides,
-    Color,
-    Corners,
-    Dimension,
-    FillStack,
-    Gradient,
-    Layout,
-    Paint,
-    Palette,
-    ShadowStack,
-    Stroke,
-    Transform,
-    Transition,
-    Typography,
-} from "@destack/style";
+import { Color, FillStack, Gradient, Paint, Palette } from "@destack/style";
 import { t } from "@destack/locale";
 import {
     DateRange,
@@ -171,74 +150,6 @@ export const valueFieldKinds = defineExample({
                         {...of("background")}
                     />
                 </Field>
-                <output>{JSON.stringify(given())}</output>
-            </div>
-        );
-    },
-});
-
-/** The inputs of a card's look, from its corners to its motion. */
-export const valueFieldCard = defineExample({
-    of: ValueField,
-    name: "card",
-    description: t`The inputs of a card's look, with what they give.`,
-    layout: "padded",
-    render: (properties) => {
-        // store what the inputs give, starting from a raised card
-        const [given, setGiven] = createSignal<Readonly<Record<string, JsonValue | undefined>>>({
-            corners: Corners.all("{radius.3}"),
-            padding: { ...BoxSides.all("{space.4}"), top: { value: 24, unit: "px" } },
-            stroke: {
-                color: "{color.border}",
-                width: "{stroke.border}",
-                style: "solid",
-                align: "inside",
-            },
-            shadows: "{shadow.raised}",
-            backdrop: [{ kind: "blur", radius: { value: 16, unit: "px" } }],
-            opacity: 0.96,
-        });
-        const of = (name: string) => ({
-            get disabled() {
-                return properties.disabled;
-            },
-            get value() {
-                return given()[name];
-            },
-            onValueChange: (value: JsonValue | undefined) =>
-                setGiven((current) => ({ ...current, [name]: value })),
-        });
-        const fields = [
-            ["Corners", "corners", Corners],
-            ["Padding", "padding", BoxSides],
-            ["Stroke", "stroke", Stroke],
-            ["Shadows", "shadows", ShadowStack.bindable],
-            ["Backdrop", "backdrop", FilterStack],
-            ["Opacity", "opacity", Opacity],
-            ["Size", "size", Size],
-            ["Position", "position", Position],
-            ["Overflow", "overflow", Overflow],
-            ["Type", "typography", Typography.bindable],
-            ["Text", "text", TextFormat],
-            ["Move", "transform", Transform],
-            ["Layout", "layout", Layout],
-            ["Motion", "transition", Transition],
-            ["Width", "width", Dimension.bindable],
-        ] as const;
-
-        return (
-            <div {...style.attrs(styles.form)}>
-                <For each={fields}>
-                    {([label, name, type]) => (
-                        <Field>
-                            <FieldLabel>{label}</FieldLabel>
-                            <ValueField
-                                type={{ kind: "json", schema: describe(type) }}
-                                {...of(name)}
-                            />
-                        </Field>
-                    )}
-                </For>
                 <output>{JSON.stringify(given())}</output>
             </div>
         );

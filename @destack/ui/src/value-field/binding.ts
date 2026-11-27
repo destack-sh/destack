@@ -35,6 +35,11 @@ export const Binding = {
         return { type, literal: { ...document, ...literal } };
     },
 
+    /** Tell whether a token of a type stands for a value of several parts, such as a typography. */
+    isWhole(type: TokenType): boolean {
+        return type === "typography" || type === "shadow";
+    },
+
     /** Read the token type a member refers to the reference schema of, none for others. */
     reference(member: unknown): TokenType | undefined {
         // take a reference to a definition named by the prefix

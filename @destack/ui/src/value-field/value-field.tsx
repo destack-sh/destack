@@ -1,14 +1,18 @@
 import { type NumberFormat, t } from "@destack/locale";
+import type { IconName } from "@destack/icon/name";
 import { type ActionValue, Choice } from "@destack/object";
-import { type JsonValue, LocalReference, schema } from "@destack/schema";
+import { canonicalize, type JsonValue, LocalReference, schema } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, font } from "@destack/theme/tokens.stylex";
 import {
     createContext,
     createSignal,
+    Errored,
+    flush,
     For,
     Show,
     type JSX,
+    omit,
     untrack,
     useContext,
     useLocale,
@@ -22,6 +26,14 @@ import {
     ComboboxItem,
 } from "../combobox/index.ts";
 import { DateTimeField } from "../date-time-field/index.ts";
+import {
+    Field,
+    FieldAction,
+    FieldDescription,
+    FieldHeader,
+    type FieldOrientation,
+    useFieldSize,
+} from "../field/field.tsx";
 import { Input } from "../input/index.ts";
 import { NumberField, NumberFieldInput, NumberFieldScrubArea } from "../number-field/index.ts";
 import { InputGroup, InputGroupAddon } from "../input-group/index.ts";
@@ -33,12 +45,26 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import { Textarea } from "../textarea/index.ts";
 import { Load } from "../collection/index.ts";
 import { BINDABLE, Binding } from "./binding.ts";
+import { ValueSet } from "./group.tsx";
+import {
+    ValueHeadingContext,
+    ValueLabel,
+    ValueMixed,
+    ValueReset,
+    type ValueState,
+} from "./state.tsx";
 
-/** The most choices laid out side by side as segments, past which they go in a menu. */
+/** The most choices with icons laid out side by side as segments, past which they go in a menu. */
 const SEGMENTS = 4;
+
+/** The most choices with words alone laid out side by side, as more do not fit a field's width. */
+const WORD_SEGMENTS = 3;
 
 /** The styles of inputs of values. */
 const styles = style.create({
+    frame: {
+        display: "contents",
+    },
     control: {
         width: "100%",
     },
@@ -59,7 +85,7 @@ type JsonValueType = ActionValue & { readonly kind: "json" };
 export type ValueKind = ActionValue["kind"];
 
 /** The properties of the input of a value. */
-export interface ValueFieldProperties<Type extends ActionValue = ActionValue> {
+export interface ValueInputProperties<Type extends ActionValue = ActionValue> {
     /** What it takes. */
     readonly type: Type;
     /** The value, undefined while none is given. */
@@ -70,7 +96,9 @@ export interface ValueFieldProperties<Type extends ActionValue = ActionValue> {
     readonly choices?: readonly Choice[] | undefined;
     /** Find the choices of what a person types, which are then not narrowed here. */
     readonly onSearch?: ((text: string) => void) | undefined;
-    /** What it is called, where no label beside it says so. */
+    /** What it is called, shown above or beside it. */
+    readonly label?: string | undefined;
+    /** What it is called where no label shows, such as a part of another value. */
     readonly "aria-label"?: string | undefined;
     /** The id of the element describing the value, none without one. */
     readonly "aria-describedby"?: string | undefined;
@@ -81,24 +109,44 @@ export interface ValueFieldProperties<Type extends ActionValue = ActionValue> {
 }
 
 /** The inputs of kinds of values. */
-export type ValueFields = {
+export type ValueInputs = {
     readonly [Kind in ValueKind]: (
-        properties: ValueFieldProperties<ActionValue & { readonly kind: Kind }>,
+        properties: ValueInputProperties<ActionValue & { readonly kind: Kind }>,
     ) => JSX.Element;
 };
 
 /** The properties of the input of a named JSON value. */
-export type NamedValueFieldProperties = ValueFieldProperties<JsonValueType>;
+export type NamedValueInputProperties = ValueInputProperties<JsonValueType>;
+
+/** Read a field's value by its schema: none where unset, an error where it has another shape. */
+export function readValue<Value>(
+    value: JsonValue | undefined,
+    definition: schema.Schema<Value>,
+): Value | undefined {
+    // leave an unset value unset, as its field shows what applies in its place
+    if (value === undefined) {
+        return undefined;
+    }
+
+    // refuse a value of another shape, such as one stored before its schema changed
+    const read = definition.safeParse(value);
+    if (!read.success) {
+        const name = definition.meta()?.title ?? "value";
+        throw new TypeError(`a '${name}' has another shape: ${read.error.message}`);
+    }
+
+    return read.data;
+}
 
 /** The input of a named JSON value, such as a color's or a paint's. */
-export type NamedValueField = (properties: NamedValueFieldProperties) => JSX.Element;
+export type NamedValueInput = (properties: NamedValueInputProperties) => JSX.Element;
 
 /** The inputs an app replaces: by kind, and by the name of a JSON value's schema. */
 interface Replacement {
     /** The inputs by kind. */
-    readonly inputs: Partial<ValueFields>;
+    readonly inputs: Partial<ValueInputs>;
     /** The inputs of named JSON values, by their schema's name. */
-    readonly named: Readonly<Record<string, NamedValueField>>;
+    readonly named: Readonly<Record<string, NamedValueInput>>;
 }
 
 /** The inputs an app replaces, none by default. */
@@ -107,9 +155,9 @@ const ValueFieldsContext = createContext<Replacement>({ inputs: {}, named: {} })
 /** Replace the inputs of kinds of values, and of named JSON values, inside. */
 export function ValueFieldProvider(properties: {
     /** The inputs, by the kind of value they take. */
-    readonly inputs?: Partial<ValueFields>;
+    readonly inputs?: Partial<ValueInputs>;
     /** The inputs of named JSON values, by their schema's name, such as `paint`. */
-    readonly named?: Readonly<Record<string, NamedValueField>>;
+    readonly named?: Readonly<Record<string, NamedValueInput>>;
     /** What uses them. */
     readonly children?: JSX.Element;
 }): JSX.Element {
@@ -123,8 +171,146 @@ export function ValueFieldProvider(properties: {
     return <ValueFieldsContext value={replaced()}>{properties.children}</ValueFieldsContext>;
 }
 
-/** Render the input a value takes, by its kind. */
+/** The mark of a value that several objects edited at once hold differently. */
+export const MIXED: unique symbol = Symbol("mixed");
+
+/** Read the value several objects share: the one all hold, none where none does, else mixed. */
+export function sharedValue(
+    values: readonly (JsonValue | undefined)[],
+): JsonValue | undefined | typeof MIXED {
+    // compare each value's canonical JSON with the first's
+    const keys = values.map((value) => (value === undefined ? "" : canonicalize(value)));
+
+    return keys.every((key) => key === keys[0]) ? values[0] : MIXED;
+}
+
+/** The properties of a value's field: its label, its input's, and where its value stands. */
+export interface ValueFieldProperties<Type extends ActionValue = ActionValue> extends Omit<
+    ValueInputProperties<Type>,
+    "value"
+> {
+    /** The value: one given, none to leave the inherited one in force, or mixed across objects. */
+    readonly value: JsonValue | undefined | typeof MIXED;
+    /** The value in force while none is given, such as a declared default, none for none. */
+    readonly inherited?: JsonValue | undefined;
+    /** The icon beside the label, none for none. */
+    readonly icon?: IconName | undefined;
+    /** One sentence on what it takes, below the field, or on its label in a dense panel. */
+    readonly description?: string | undefined;
+    /** Whether the label sits above the field or beside it, above by default. */
+    readonly orientation?: FieldOrientation | undefined;
+}
+
+/** Render a value's field: its label and state, then its input, or a mark of mixed values. */
 export function ValueField(properties: ValueFieldProperties): JSX.Element {
+    // read where the value stands, and show the value given, else the one in force
+    const type = untrack(() => properties.type);
+    const isOwnLegend = type.kind === "json" && isSet(type);
+    const fieldSize = useFieldSize();
+    const state = (): ValueState =>
+        properties.value === MIXED ? "mixed" : properties.value === undefined ? "unset" : "set";
+    const shown = (): JsonValue | undefined => {
+        const { value } = properties;
+
+        return value === MIXED || value === undefined ? properties.inherited : value;
+    };
+    const name = (): string => properties.label ?? properties["aria-label"] ?? "";
+
+    // edit mixed values from a press on their mark, focus in the input, until a value is given
+    const [isEditing, setEditing] = createSignal(false);
+    const give = (value: JsonValue | undefined): void => {
+        setEditing(false);
+        properties.onValueChange(value);
+    };
+    let frame: HTMLElement | undefined;
+    const edit = (): void => {
+        setEditing(true);
+        flush();
+        frame?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
+    };
+
+    // offer to give a given value back to the one in force
+    const reset = (
+        <Show when={state() !== "unset" && properties.required !== true}>
+            <ValueReset
+                label={name()}
+                disabled={properties.disabled}
+                onReset={() => give(undefined)}
+            />
+        </Show>
+    );
+
+    // give the state and reset to the legend of a set, none to a part without a label
+    const heading = untrack(() => properties.label) === undefined ? null : { state, reset };
+
+    // show the input, or the mark of mixed values until a person edits them
+    const input = (label: string | undefined): JSX.Element => (
+        <div ref={(element) => (frame = element)} {...style.attrs(styles.frame)}>
+            <Show
+                when={state() === "mixed" && !isEditing()}
+                fallback={
+                    <ValueControl
+                        {...omit(properties, "inherited", "icon", "description", "orientation")}
+                        label={label}
+                        value={shown()}
+                        onValueChange={give}
+                    />
+                }
+            >
+                <ValueMixed
+                    aria-label={properties["aria-label"]}
+                    disabled={properties.disabled}
+                    onEdit={edit}
+                />
+            </Show>
+        </div>
+    );
+
+    return (
+        <Show
+            when={properties.label !== undefined && !isOwnLegend}
+            fallback={
+                // a set draws its legend with the state, as a part without a label shows none
+                <ValueHeadingContext value={heading}>
+                    <Show
+                        when={isOwnLegend && state() === "mixed" && !isEditing()}
+                        fallback={input(properties.label)}
+                    >
+                        <ValueSet label={properties.label}>{input(undefined)}</ValueSet>
+                    </Show>
+                </ValueHeadingContext>
+            }
+        >
+            {/* A control under its label, or beside it */}
+            <Field
+                data-state={state()}
+                orientation={
+                    type.kind === "boolean" ? "horizontal" : (properties.orientation ?? "vertical")
+                }
+            >
+                {/* Label, state and reset */}
+                <FieldHeader>
+                    <ValueLabel
+                        label={name()}
+                        icon={properties.icon}
+                        description={fieldSize === "sm" ? properties.description : undefined}
+                        state={state()}
+                    />
+                    <FieldAction>{reset}</FieldAction>
+                </FieldHeader>
+
+                {/* Input, then its description in a roomy form */}
+                {input(undefined)}
+                <Show when={fieldSize === "default" && properties.description}>
+                    {(said) => <FieldDescription>{said()}</FieldDescription>}
+                </Show>
+            </Field>
+        </Show>
+    );
+}
+
+/** Render the input a value takes, by its kind. */
+function ValueControl(properties: ValueInputProperties): JSX.Element {
     // take an app's input before the kit's
     const { inputs: replaced } = useContext(ValueFieldsContext);
     const type = untrack(() => properties.type);
@@ -158,7 +344,7 @@ export function ValueField(properties: ValueFieldProperties): JSX.Element {
 }
 
 /** Render the input of a text. */
-function TextInput(properties: ValueFieldProperties): JSX.Element {
+function TextInput(properties: ValueInputProperties): JSX.Element {
     return (
         <Input
             aria-label={properties["aria-label"]}
@@ -177,7 +363,7 @@ function TextInput(properties: ValueFieldProperties): JSX.Element {
 
 /** Render the input of a number, typed or scrubbed by dragging its leading handle sideways. */
 function NumberInput(
-    properties: ValueFieldProperties<ActionValue & { readonly kind: "number" }>,
+    properties: ValueInputProperties<ActionValue & { readonly kind: "number" }>,
 ): JSX.Element {
     return (
         <NumberField
@@ -207,7 +393,7 @@ function NumberInput(
 }
 
 /** Render the input of a yes or no. */
-function BooleanInput(properties: ValueFieldProperties): JSX.Element {
+function BooleanInput(properties: ValueInputProperties): JSX.Element {
     return (
         <Switch
             aria-label={properties["aria-label"]}
@@ -219,51 +405,137 @@ function BooleanInput(properties: ValueFieldProperties): JSX.Element {
     );
 }
 
+/** What a named input draws: one control a field labels, or a set of parts under its own legend. */
+type NamedInputKind = "control" | "set";
+
 /** The kit's input of each named schema, such as a color's, each loaded as a chunk of its own. */
-const NAMED_INPUTS: Readonly<Record<string, () => Promise<NamedValueField>>> = {
-    "style.color": async () => (await import("./color.tsx")).ColorInput,
-    "style.palette": async () => (await import("./color.tsx")).PaletteInput,
-    "style.gradient": async () => (await import("./paint.tsx")).GradientInput,
-    "style.paint": async () => (await import("./paint.tsx")).PaintInput,
-    "style.fillStack": async () => (await import("./paint.tsx")).FillStackInput,
-    "style.dimension": async () => (await import("./dimension.tsx")).DimensionInput,
-    "style.cubicBezier": async () => (await import("./bezier.tsx")).CubicBezierInput,
-    "style.fontFamily": async () => (await import("./font.tsx")).FontFamilyInput,
-    "style.fontWeight": async () => (await import("./font.tsx")).FontWeightInput,
-    "style.fontStyle": async () => (await import("./font.tsx")).FontStyleInput,
-    "style.fontFeatures": async () => (await import("./font.tsx")).FontFeaturesInput,
-    "style.fontVariations": async () => (await import("./font.tsx")).FontVariationsInput,
-    "style.corners": async () => (await import("./box.tsx")).CornersInput,
-    "style.boxSides": async () => (await import("./box.tsx")).BoxSidesInput,
-    "style.size": async () => (await import("./size.tsx")).SizeInput,
-    "style.position": async () => (await import("./position.tsx")).PositionInput,
-    "style.opacity": async () => (await import("./opacity.tsx")).OpacityInput,
-    "style.overflow": async () => (await import("./overflow.tsx")).OverflowInput,
-    "style.stroke": async () => (await import("./stroke.tsx")).StrokeInput,
-    "style.shadow": async () => (await import("./shadow.tsx")).ShadowInput,
-    "style.shadowStack": async () => (await import("./shadow.tsx")).ShadowStackInput,
-    "style.filter": async () => (await import("./filter.tsx")).FilterInput,
-    "style.filterStack": async () => (await import("./filter.tsx")).FilterStackInput,
-    "style.typography": async () => (await import("./typography.tsx")).TypographyInput,
-    "style.textFormat": async () => (await import("./text.tsx")).TextFormatInput,
-    "style.textStroke": async () => (await import("./text.tsx")).TextStrokeInput,
-    "style.transform": async () => (await import("./transform.tsx")).TransformInput,
-    "style.layout": async () => (await import("./layout.tsx")).LayoutInput,
-    "style.transition": async () => (await import("./transition.tsx")).TransitionInput,
-    [BINDABLE]: async () => (await import("./bindable.tsx")).BindableInput,
-    "schema.duration": async () => (await import("./duration.tsx")).DurationInput,
-    "schema.dateRange": async () => (await import("./range.tsx")).DateRangeInput,
-    "schema.recurrence": async () => (await import("./recurrence.tsx")).RecurrenceInput,
-    "schema.money": async () => (await import("./money.tsx")).MoneyInput,
-    "schema.rating": async () => (await import("./rating.tsx")).RatingInput,
-    "schema.url": async () => (await import("./url.tsx")).UrlInput,
+const NAMED_INPUTS: Readonly<
+    Record<string, { readonly kind: NamedInputKind; readonly load: () => Promise<NamedValueInput> }>
+> = {
+    "style.color": { kind: "control", load: async () => (await import("./color.tsx")).ColorInput },
+    "style.palette": { kind: "set", load: async () => (await import("./color.tsx")).PaletteInput },
+    "style.gradient": {
+        kind: "control",
+        load: async () => (await import("./paint.tsx")).GradientInput,
+    },
+    "style.paint": { kind: "control", load: async () => (await import("./paint.tsx")).PaintInput },
+    "style.fillStack": {
+        kind: "set",
+        load: async () => (await import("./paint.tsx")).FillStackInput,
+    },
+    "style.dimension": {
+        kind: "control",
+        load: async () => (await import("./dimension.tsx")).DimensionInput,
+    },
+    "style.cubicBezier": {
+        kind: "control",
+        load: async () => (await import("./bezier.tsx")).CubicBezierInput,
+    },
+    "style.fontFamily": {
+        kind: "control",
+        load: async () => (await import("./font.tsx")).FontFamilyInput,
+    },
+    "style.fontWeight": {
+        kind: "control",
+        load: async () => (await import("./font.tsx")).FontWeightInput,
+    },
+    "style.fontStyle": {
+        kind: "control",
+        load: async () => (await import("./font.tsx")).FontStyleInput,
+    },
+    "style.fontFeatures": {
+        kind: "control",
+        load: async () => (await import("./font.tsx")).FontFeaturesInput,
+    },
+    "style.fontVariations": {
+        kind: "control",
+        load: async () => (await import("./font.tsx")).FontVariationsInput,
+    },
+    "style.corners": { kind: "set", load: async () => (await import("./box.tsx")).CornersInput },
+    "style.boxSides": { kind: "set", load: async () => (await import("./box.tsx")).BoxSidesInput },
+    "style.size": { kind: "set", load: async () => (await import("./size.tsx")).SizeInput },
+    "style.sizing": { kind: "set", load: async () => (await import("./size.tsx")).SizingInput },
+    "style.position": {
+        kind: "set",
+        load: async () => (await import("./position.tsx")).PositionInput,
+    },
+    "style.opacity": {
+        kind: "set",
+        load: async () => (await import("./opacity.tsx")).OpacityInput,
+    },
+    "style.overflow": {
+        kind: "control",
+        load: async () => (await import("./overflow.tsx")).OverflowInput,
+    },
+    "style.stroke": { kind: "set", load: async () => (await import("./stroke.tsx")).StrokeInput },
+    "style.shadow": { kind: "set", load: async () => (await import("./shadow.tsx")).ShadowInput },
+    "style.shadowStack": {
+        kind: "set",
+        load: async () => (await import("./shadow.tsx")).ShadowStackInput,
+    },
+    "style.filter": { kind: "set", load: async () => (await import("./filter.tsx")).FilterInput },
+    "style.filterStack": {
+        kind: "set",
+        load: async () => (await import("./filter.tsx")).FilterStackInput,
+    },
+    "style.typography": {
+        kind: "set",
+        load: async () => (await import("./typography.tsx")).TypographyInput,
+    },
+    "style.textFormat": {
+        kind: "set",
+        load: async () => (await import("./text.tsx")).TextFormatInput,
+    },
+    "style.textStroke": {
+        kind: "set",
+        load: async () => (await import("./text.tsx")).TextStrokeInput,
+    },
+    "style.transform": {
+        kind: "set",
+        load: async () => (await import("./transform.tsx")).TransformInput,
+    },
+    "style.layout": { kind: "set", load: async () => (await import("./layout.tsx")).LayoutInput },
+    "style.motion": {
+        kind: "set",
+        load: async () => (await import("./motion.tsx")).MotionInput,
+    },
+    "style.timingFunction": {
+        kind: "set",
+        load: async () => (await import("./timing.tsx")).TimingFunctionInput,
+    },
+    "style.transition": {
+        kind: "set",
+        load: async () => (await import("./transition.tsx")).TransitionInput,
+    },
+    [BINDABLE]: {
+        kind: "control",
+        load: async () => (await import("./bindable.tsx")).BindableInput,
+    },
+    "schema.duration": {
+        kind: "set",
+        load: async () => (await import("./duration.tsx")).DurationInput,
+    },
+    "schema.dateRange": {
+        kind: "control",
+        load: async () => (await import("./range.tsx")).DateRangeInput,
+    },
+    "schema.recurrence": {
+        kind: "set",
+        load: async () => (await import("./recurrence.tsx")).RecurrenceInput,
+    },
+    "schema.money": { kind: "set", load: async () => (await import("./money.tsx")).MoneyInput },
+    "schema.rating": {
+        kind: "control",
+        load: async () => (await import("./rating.tsx")).RatingInput,
+    },
+    "schema.url": { kind: "control", load: async () => (await import("./url.tsx")).UrlInput },
 };
 
 /** The kit's named inputs loaded so far, by schema name, so later fields of one render at once. */
-const LOADED = new Map<string, NamedValueField>();
+const LOADED = new Map<string, NamedValueInput>();
 
 /** Render the input of an instant. */
-function TimeInput(properties: ValueFieldProperties): JSX.Element {
+function TimeInput(properties: ValueInputProperties): JSX.Element {
     return (
         <DateTimeField
             aria-label={properties["aria-label"]}
@@ -277,7 +549,7 @@ function TimeInput(properties: ValueFieldProperties): JSX.Element {
 }
 
 /** Render the input of a choice, as a list. */
-function ChoiceInput(properties: ValueFieldProperties): JSX.Element {
+function ChoiceInput(properties: ValueInputProperties): JSX.Element {
     // write each choice by its value, from the caller's list or else the type's
     const locale = useLocale();
     const choices = (): readonly Choice[] =>
@@ -287,10 +559,11 @@ function ChoiceInput(properties: ValueFieldProperties): JSX.Element {
             : []);
     const choose = (key: string | undefined): JsonValue | undefined =>
         choices().find((choice) => keyOf(choice.value) === key)?.value;
+    const isIconic = (): boolean => choices().every((choice) => choice.icon !== undefined);
 
     return (
         <Show
-            when={choices().length <= SEGMENTS}
+            when={choices().length <= (isIconic() ? SEGMENTS : WORD_SEGMENTS)}
             fallback={
                 <Select
                     xstyle={styles.control}
@@ -331,24 +604,30 @@ function ChoiceInput(properties: ValueFieldProperties): JSX.Element {
             >
                 <For each={choices()}>
                     {(choice) => {
-                        // show the choice's icon and title, and its description when pointed at
+                        // show the choice's icon alone where every choice has one, its title when pointed at
                         const segment = (
                             attributes: JSX.HTMLAttributes<HTMLButtonElement> = {},
                         ) => (
-                            <ToggleGroupItem {...attributes} value={keyOf(choice.value)}>
+                            <ToggleGroupItem
+                                {...attributes}
+                                value={keyOf(choice.value)}
+                                aria-label={isIconic() ? choice.title : undefined}
+                            >
                                 <Show when={choice.icon}>
                                     <ChoiceIcon choice={choice} />
                                 </Show>
-                                {choice.title}
+                                <Show when={!isIconic()}>{choice.title}</Show>
                             </ToggleGroupItem>
                         );
+                        const tip = (): string | undefined =>
+                            isIconic() ? choice.title : choice.description;
 
                         return (
-                            <Show when={choice.description} fallback={segment()}>
-                                {(description) => (
+                            <Show when={tip()} fallback={segment()}>
+                                {(said) => (
                                     <Tooltip>
                                         <TooltipTrigger render={segment} />
-                                        <TooltipContent>{description()}</TooltipContent>
+                                        <TooltipContent>{said()}</TooltipContent>
                                     </Tooltip>
                                 )}
                             </Show>
@@ -361,7 +640,7 @@ function ChoiceInput(properties: ValueFieldProperties): JSX.Element {
 }
 
 /** Render the input of a person or an object, found by typing. */
-function FoundInput(properties: ValueFieldProperties): JSX.Element {
+function FoundInput(properties: ValueInputProperties): JSX.Element {
     const locale = useLocale();
 
     return (
@@ -396,27 +675,31 @@ function FoundInput(properties: ValueFieldProperties): JSX.Element {
 }
 
 /** Render the input of JSON: its named schema's own, such as a color's, else the JSON typed. */
-function JsonInput(properties: ValueFieldProperties<JsonValueType>): JSX.Element {
+function JsonInput(properties: ValueInputProperties<JsonValueType>): JSX.Element {
     // take an app's input of the schema's name, then the kit's once loaded
     const { named } = useContext(ValueFieldsContext);
-    const name = untrack(() =>
-        Binding.of(properties.type.schema) === undefined
-            ? LocalReference.root(properties.type.schema)
-            : BINDABLE,
-    );
+    const name = untrack(() => nameOf(properties.type));
     const own = name === null ? undefined : named[name];
-    const load = name === null ? undefined : NAMED_INPUTS[name];
+    const load = name === null ? undefined : NAMED_INPUTS[name]?.load;
     const loaded = name === null ? undefined : LOADED.get(name);
     if (own !== undefined) {
         const Named = own;
 
-        return <Named {...properties} />;
+        return (
+            <Unreadable label={properties["aria-label"]}>
+                <Named {...properties} />
+            </Unreadable>
+        );
     }
     // show the kit's input at once where it loaded before
     else if (loaded !== undefined) {
         const Named = loaded;
 
-        return <Named {...properties} />;
+        return (
+            <Unreadable label={properties["aria-label"]}>
+                <Named {...properties} />
+            </Unreadable>
+        );
     }
     // load the kit's input, showing nothing meanwhile, its failure thrown to the error boundary
     else if (name !== null && load !== undefined) {
@@ -429,7 +712,11 @@ function JsonInput(properties: ValueFieldProperties<JsonValueType>): JSX.Element
                     // take the input once, as it arrives once
                     const Named = untrack(() => ready().value());
 
-                    return <Named {...properties} />;
+                    return (
+                        <Unreadable label={properties["aria-label"]}>
+                            <Named {...properties} />
+                        </Unreadable>
+                    );
                 }}
             </Show>
         );
@@ -440,16 +727,57 @@ function JsonInput(properties: ValueFieldProperties<JsonValueType>): JSX.Element
     }
 }
 
+/** Render an input, or where it cannot read its value, a field saying so in its place. */
+function Unreadable(properties: {
+    /** What the value is called. */
+    readonly label: string | undefined;
+    /** The input. */
+    readonly children: JSX.Element;
+}): JSX.Element {
+    const locale = useLocale();
+
+    return (
+        <Errored
+            fallback={() => (
+                <Input
+                    aria-label={properties.label}
+                    aria-invalid="true"
+                    readonly
+                    value={locale.render(t`This value cannot be read`)}
+                />
+            )}
+        >
+            {properties.children}
+        </Errored>
+    );
+}
+
+/** Tell whether a JSON value's input renders a set of parts under a legend of its own. */
+function isSet(type: JsonValueType): boolean {
+    const binding = Binding.of(type.schema);
+
+    return binding === undefined
+        ? NAMED_INPUTS[LocalReference.root(type.schema) ?? ""]?.kind === "set"
+        : Binding.isWhole(binding.type);
+}
+
+/** Read the name of a JSON value's input: its schema's, or the name of values bound to tokens. */
+function nameOf(type: JsonValueType): string | null {
+    return Binding.of(type.schema) === undefined ? LocalReference.root(type.schema) : BINDABLE;
+}
+
 /** Load every named input of the kit, so a field of any named schema renders at once. */
 export async function preloadNamedInputs(): Promise<void> {
-    await Promise.all(Object.entries(NAMED_INPUTS).map(([name, load]) => loadNamed(name, load)));
+    await Promise.all(
+        Object.entries(NAMED_INPUTS).map(([name, input]) => loadNamed(name, input.load)),
+    );
 }
 
 /** Load the kit's input of a schema name, keeping it for the fields after. */
 async function loadNamed(
     name: string,
-    load: () => Promise<NamedValueField>,
-): Promise<NamedValueField> {
+    load: () => Promise<NamedValueInput>,
+): Promise<NamedValueInput> {
     const input = await load();
     LOADED.set(name, input);
 
@@ -457,7 +785,7 @@ async function loadNamed(
 }
 
 /** Render JSON as text, kept while it is typed and given once it parses. */
-function JsonText(properties: ValueFieldProperties): JSX.Element {
+function JsonText(properties: ValueInputProperties): JSX.Element {
     // show the text typed while it is of the value, else the value's own
     const [typed, setTyped] = createSignal<string | undefined>(undefined, { ownedWrite: true });
     const shown = (): string => {
@@ -507,7 +835,7 @@ function keyOf(value: JsonValue | undefined): string {
 }
 
 /** Read the value of the choice a key is of, undefined for none. */
-function valueOf(properties: ValueFieldProperties, key: string | undefined): JsonValue | undefined {
+function valueOf(properties: ValueInputProperties, key: string | undefined): JsonValue | undefined {
     return properties.choices?.find((choice) => keyOf(choice.value) === key)?.value;
 }
 
@@ -531,7 +859,7 @@ function readJson(text: string): {
 const FOUND: ReadonlySet<ValueKind> = new Set<ValueKind>(["person", "object"]);
 
 /** The inputs of kinds of values, unless an app replaces them. */
-const DEFAULTS: ValueFields = {
+const DEFAULTS: ValueInputs = {
     text: TextInput,
     number: NumberInput,
     boolean: BooleanInput,

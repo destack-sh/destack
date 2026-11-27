@@ -15,5 +15,9 @@ test("show a named schema's input once its chunk loads", async () => {
         />
     ));
 
-    await expect.poll(() => container.querySelector("bdi")?.textContent).toBe("#f76b15");
+    await expect
+        .poll(
+            () => container.querySelector<HTMLInputElement>("input[data-slot=color-field]")?.value,
+        )
+        .toBe("#f76b15");
 });
