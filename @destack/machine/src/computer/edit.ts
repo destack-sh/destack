@@ -47,10 +47,14 @@ export class Edit {
         const target = repository.target(this.#input.source.repository);
         const lease = Lease.parse(await this.#context.call(repository.call("push", target)));
 
-        // push on the branch's head until a push lands
+        // push on the branch's head until a push lands, then record the branch's commit, which followers read, as a lease push reaches no server
         for (let attempt = 0; attempt < PUSH_ATTEMPTS; attempt += 1) {
             const pushed = await this.#pushOnce(lease);
             if (pushed !== undefined) {
+                if (pushed.commit !== pushed.base) {
+                    await this.#context.call(repository.call("refresh", target));
+                }
+
                 return pushed;
             }
         }
