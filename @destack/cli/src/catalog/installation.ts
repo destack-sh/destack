@@ -712,7 +712,7 @@ async function editMain(
         operations: [...operations],
         message,
     });
-    await InstallationStatus.edited(main.id, run, main.appliedRevisionId, context);
+    await InstallationStatus.edited(main.id, run, context);
 
     return main.id;
 }

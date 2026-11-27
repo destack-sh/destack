@@ -108,15 +108,15 @@ export class InstallationStatus {
         this.waiting = fields.waiting;
     }
 
-    /** Wait for an edit's run, then for the installation to apply a later revision. */
+    /** Wait for an edit's run, then for the installation to serve the edit's commit. */
     static async edited(
         id: Identifier<"installation">,
         run: string,
-        before: string | null,
         context: CommandContext,
     ): Promise<void> {
         // follow the run and the installation as the person
         const space = await context.requireSpace();
+        const stack = await context.package(stackPackage, await context.locate());
         const launcher = await context.launcher();
         await using opened = new AsyncDisposableStack();
         const native = await context.native();
@@ -145,11 +145,6 @@ export class InstallationStatus {
                     `edit of installation '${id}' is broken: it ended with '${reason}'`,
                 );
             }
-            // take an applied revision after the one the installation served before
-            const isApplied =
-                installed !== undefined &&
-                installed.appliedRevisionId !== null &&
-                installed.appliedRevisionId !== before;
             const done =
                 edited?.state === "completed" ? EditOutput.parse(edited.output) : undefined;
             const isUnchanged = done !== undefined && done.commit === done.base;
@@ -162,8 +157,27 @@ export class InstallationStatus {
                     `edit of installation '${id}' is broken: ${synced.message}`,
                 );
             }
-            if (done !== undefined && (isUnchanged || isApplied)) {
+
+            // end with an unchanged edit, or once the applied revision serves the image the edit's commit built, as revisions of one image are one
+            if (done !== undefined && isUnchanged) {
                 return;
+            }
+            const applied = installed?.appliedRevisionId ?? null;
+            if (done !== undefined && applied !== null) {
+                const revision = await stack.installationRevision.get({
+                    spaceId: space,
+                    id: applied,
+                });
+                const served = await stack.build.get({ spaceId: space, id: revision.buildId });
+                const { items } = await stack.build.list({
+                    spaceId: space,
+                    where: { commit: done.commit, state: "succeeded" },
+                    limit: 1,
+                });
+                const [rebuilt] = items;
+                if (rebuilt !== undefined && rebuilt.image === served.image) {
+                    return;
+                }
             }
         }
     }
