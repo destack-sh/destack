@@ -5,6 +5,7 @@ import { color, motion, size, space, weight, swatch } from "@destack/theme/token
 import { text } from "@destack/theme/text";
 import {
     children,
+    createContext,
     createUniqueId,
     For,
     type FormField,
@@ -13,6 +14,7 @@ import {
     onCleanup,
     Show,
     untrack,
+    useContext,
     useEnvironment,
     useLocale,
 } from "@destack/view";
@@ -93,10 +95,30 @@ const styles = style.create({
         flexDirection: "column",
         gap: space[5],
         minWidth: 0,
+        margin: 0,
+        padding: 0,
+        borderWidth: 0,
     },
     legend: {
+        display: "flex",
+        alignItems: "center",
+        gap: space[2],
+        width: "100%",
         marginBottom: space[3],
+        padding: 0,
         fontWeight: weight.medium,
+    },
+    action: {
+        display: "flex",
+        alignItems: "center",
+        marginInlineStart: "auto",
+        fontWeight: weight.regular,
+    },
+    columns: {
+        display: "grid",
+        alignItems: "center",
+        // measure no width, as columns hold no responsive fields
+        containerType: "normal",
     },
     group: {
         containerName: "field-group",
@@ -104,7 +126,6 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         width: "100%",
-        gap: space[6],
     },
     content: {
         display: "flex",
@@ -131,12 +152,21 @@ const styles = style.create({
     below: {
         flexBasis: "100%",
     },
-    label: {
-        position: "relative",
-        // push a control after it to the end
+    across: {
+        // push a control after the label to the end, leaving it room
         flexGrow: { default: null, ":first-child": 1 },
         flexShrink: 0,
         maxWidth: `calc(100% - ${size[3]})`,
+    },
+    header: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: space[1],
+        minWidth: 0,
+    },
+    label: {
+        position: "relative",
         "::after": {
             content: "''",
             position: "absolute",
@@ -195,11 +225,71 @@ const orientations = style.create({
     },
 });
 
-/** The text style of a legend in each variant. */
-const legends = { legend: text.base, label: text.xs } as const;
+/** The text style of a legend in each variant, at each size. */
+const legends = {
+    default: { legend: text.base, label: text.xs },
+    sm: { legend: text.sm, label: text.xs },
+} as const;
+
+/** The room between and around fields at each size, a dense label as tall as a control. */
+const sizes = {
+    default: style.create({
+        field: { gap: space[3] },
+        set: { gap: space[5] },
+        legend: { marginBottom: space[3] },
+        label: {},
+        across: {},
+        group: { rowGap: space[6], columnGap: space[3] },
+        columns: { gap: space[3] },
+    }),
+    sm: style.create({
+        field: { gap: space[1] },
+        set: { gap: space[2] },
+        legend: { marginBottom: space[1], minHeight: size[2] },
+        label: { display: "flex", alignItems: "center", minHeight: size[2] },
+        // line labels and controls up in two columns, as a property sheet
+        across: {
+            display: "grid",
+            gridTemplateColumns: "minmax(4.5rem, 2fr) minmax(0, 5fr)",
+            columnGap: space[3],
+        },
+        group: { rowGap: space[2], columnGap: space[1] },
+        columns: { gap: space[1] },
+    }),
+} as const;
+
+/** The text style of a label at each size, the label's own where none is given. */
+const labels = { default: null, sm: text.xs } as const;
+
+/** The grid of a group of fields by its count of equal columns. */
+const grids = style.create({
+    one: { gridTemplateColumns: "minmax(0, 1fr)" },
+    two: { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" },
+    three: { gridTemplateColumns: "repeat(3, minmax(0, 1fr))" },
+});
+
+/** The grid of a group of fields by its count of columns. */
+const columns = { 1: grids.one, 2: grids.two, 3: grids.three } as const;
+
+/** The size of the fields inside, from the nearest fieldset or panel that sets one. */
+export const FieldSizeContext = createContext<FieldSize>("default");
+
+/** Whether a label sits in a field's header, which lays it out across from the control. */
+const FieldHeaderContext = createContext(false);
+
+/** Whether the fields inside sit in a fieldset, false outside any. */
+export const FieldSetContext = createContext(false);
+
+/** Read the size of the fields around, the default outside any that sets one. */
+export function useFieldSize(): FieldSize {
+    return useContext(FieldSizeContext);
+}
 
 /** The direction a field lays out its label and control in. */
 export type FieldOrientation = keyof typeof ORIENTATIONS;
+
+/** The size of fields: roomy for forms, or small for dense panels such as an inspector. */
+export type FieldSize = "default" | "sm";
 
 /** The look of a legend: a section heading or a label. */
 export type FieldLegendVariant = keyof typeof LEGEND_VARIANTS;
@@ -237,6 +327,7 @@ export const Field = defineComponent({
     render(properties: RenderProperties<FieldAttributes, typeof FIELD_PROPERTIES>): JSX.Element {
         // share one control with the field's elements
         const rest = omit(properties, "orientation", "invalid", "disabled", "field");
+        const fieldSize = useFieldSize();
         const control = new FieldControl(
             () => properties.invalid,
             () => properties.disabled,
@@ -315,7 +406,12 @@ export const Field = defineComponent({
                     "div",
                     "field",
                     rest,
-                    () => [styles.field, orientations[properties.orientation]],
+                    () => [
+                        styles.field,
+                        sizes[fieldSize].field,
+                        orientations[properties.orientation],
+                        properties.orientation === "horizontal" && sizes[fieldSize].across,
+                    ],
                     mergeProperties(
                         {
                             role: "group" as const,
@@ -349,7 +445,10 @@ export type FieldProperties = ComponentProperties<typeof Field>;
 
 /** Render the label of the nearest field's control. */
 export function FieldLabel(properties: LabelProperties): JSX.Element {
+    // read the field, and label it as a legend of the same size reads
     const control = useFieldControl();
+    const fieldSize = useFieldSize();
+    const isInHeader = useContext(FieldHeaderContext);
     const rest = omit(properties, "xstyle", "style");
 
     return (
@@ -359,7 +458,13 @@ export function FieldLabel(properties: LabelProperties): JSX.Element {
             for={control?.isGrouped() === true ? undefined : control?.id}
             {...rest}
             xstyle={[
+                labels[fieldSize],
+                sizes[fieldSize].label,
                 control?.isAcross === true && styles.label,
+                control?.isAcross === true &&
+                    !isInHeader &&
+                    fieldSize === "default" &&
+                    styles.across,
                 control?.isDisabled() === true && state.inert,
                 properties.xstyle,
             ]}
@@ -489,9 +594,31 @@ function isCheckable(
     );
 }
 
-/** Render a fieldset that groups related fields. */
-export function FieldSet(properties: FieldElementProperties<HTMLFieldSetElement>): JSX.Element {
-    return renderPart("fieldset", "field-set", properties, styles.set);
+/** The properties of a fieldset, the native element's attributes included. */
+export interface FieldSetProperties extends FieldElementProperties<HTMLFieldSetElement> {
+    /** The size of its fields, that of the fields around by default. */
+    readonly size?: FieldSize | undefined;
+}
+
+/** Render a fieldset that groups related fields, at its own size or that of the fields around. */
+export function FieldSet(properties: FieldSetProperties): JSX.Element {
+    // take the size once, as a fieldset's fields keep theirs
+    const around = useFieldSize();
+    const fieldSize = untrack(() => properties.size) ?? around;
+
+    return (
+        <FieldSizeContext value={fieldSize}>
+            <FieldSetContext value={true}>
+                {renderPart(
+                    "fieldset",
+                    "field-set",
+                    omit(properties, "size"),
+                    [styles.set, sizes[fieldSize].set],
+                    { "data-size": fieldSize },
+                )}
+            </FieldSetContext>
+        </FieldSizeContext>
+    );
 }
 
 /** Render the legend of a fieldset as a heading or a label. */
@@ -502,12 +629,13 @@ export const FieldLegend = defineComponent({
         properties: RenderProperties<FieldLegendAttributes, typeof FIELD_LEGEND_PROPERTIES>,
     ): JSX.Element {
         const rest = omit(properties, "variant");
+        const fieldSize = useFieldSize();
 
         return renderPart(
             "legend",
             "field-legend",
             rest,
-            () => [legends[properties.variant], styles.legend],
+            () => [legends[fieldSize][properties.variant], styles.legend, sizes[fieldSize].legend],
             {
                 get "data-variant"() {
                     return properties.variant;
@@ -520,9 +648,46 @@ export const FieldLegend = defineComponent({
 /** The properties of a legend, its native attributes included. */
 export type FieldLegendProperties = ComponentProperties<typeof FieldLegend>;
 
-/** Render a stack of fields that responsive fields measure their width against. */
-export function FieldGroup(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
-    return renderPart("div", "field-group", properties, styles.group);
+/** Render an action at the end of a legend's or header's line, such as a button that resets. */
+export function FieldAction(properties: FieldElementProperties<HTMLSpanElement>): JSX.Element {
+    return renderPart("span", "field-action", properties, styles.action);
+}
+
+/** Render a field's label line: its label, then its actions at the end. */
+export function FieldHeader(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
+    // size the line as a row's first cell, where a dense field's grid leaves it to its column
+    const control = useFieldControl();
+    const fieldSize = useFieldSize();
+
+    return (
+        <FieldHeaderContext value={true}>
+            {renderPart("div", "field-header", properties, [
+                styles.header,
+                control?.isAcross === true && fieldSize === "default" && styles.across,
+            ])}
+        </FieldHeaderContext>
+    );
+}
+
+/** The properties of a group of fields, the native element's attributes included. */
+export interface FieldGroupProperties extends FieldElementProperties<HTMLDivElement> {
+    /** How many equal columns its fields lie in side by side, a single stack without. */
+    readonly columns?: 1 | 2 | 3 | undefined;
+}
+
+/** Render a stack of fields, or a grid of equal columns, that responsive fields measure. */
+export function FieldGroup(properties: FieldGroupProperties): JSX.Element {
+    const fieldSize = useFieldSize();
+
+    return renderPart("div", "field-group", omit(properties, "columns"), () => {
+        const count = properties.columns;
+
+        return [
+            styles.group,
+            sizes[fieldSize].group,
+            count !== undefined && [styles.columns, columns[count], sizes[fieldSize].columns],
+        ];
+    });
 }
 
 /** Render a column beside a control with its label and description. */

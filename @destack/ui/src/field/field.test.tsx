@@ -8,6 +8,8 @@ import {
     FieldGroup,
     FieldLabel,
     FieldLegend,
+    FieldAction,
+    FieldHeader,
     FieldSeparator,
     FieldSet,
     FieldTitle,
@@ -176,7 +178,8 @@ test("render a fieldset of grouped fields with a legend, title and separator", (
         </FieldSet>
     ));
     expect(markup(container)).toBe(
-        '<fieldset data-slot="field-set"><legend data-slot="field-legend" data-variant="label">Notifications</legend>' +
+        '<fieldset data-slot="field-set" data-size="default">' +
+            '<legend data-slot="field-legend" data-variant="label">Notifications</legend>' +
             '<div data-slot="field-group">' +
             '<div data-slot="field" role="group" data-orientation="horizontal"><div data-slot="field-content">' +
             '<div data-slot="field-label">Mentions</div></div></div>' +
@@ -187,4 +190,46 @@ test("render a fieldset of grouped fields with a legend, title and separator", (
             '<div data-slot="separator" data-orientation="horizontal" role="none"></div></div>' +
             "</div></fieldset>",
     );
+});
+
+test("pass a fieldset's size to the fieldsets inside, and an action into a legend's line", () => {
+    const { container } = render(() => (
+        <FieldSet size="sm">
+            <FieldSet>
+                <FieldLegend>
+                    Padding
+                    <FieldAction>
+                        <button type="button">Each side</button>
+                    </FieldAction>
+                </FieldLegend>
+                <FieldGroup columns={2} />
+            </FieldSet>
+        </FieldSet>
+    ));
+    expect(markup(container)).toBe(
+        '<fieldset data-slot="field-set" data-size="sm"><fieldset data-slot="field-set" data-size="sm">' +
+            '<legend data-slot="field-legend" data-variant="legend">Padding' +
+            '<span data-slot="field-action"><button type="button">Each side</button></span>' +
+            '</legend><div data-slot="field-group"></div></fieldset></fieldset>',
+    );
+});
+
+test("lay a label and its action out in a header, naming the control", () => {
+    const { container } = render(() => (
+        <Field orientation="horizontal">
+            <FieldHeader>
+                <FieldLabel>Opacity</FieldLabel>
+                <FieldAction>
+                    <button type="button">Reset</button>
+                </FieldAction>
+            </FieldHeader>
+            <Input />
+        </Field>
+    ));
+    const input = container.querySelector("input");
+
+    expect([
+        container.querySelector("[data-slot=field-header]")?.children.length,
+        container.querySelector("label")?.getAttribute("for") === input?.id,
+    ]).toEqual([2, true]);
 });

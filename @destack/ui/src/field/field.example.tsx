@@ -1,3 +1,4 @@
+import { Icon } from "../icon/index.ts";
 import { t } from "@destack/locale";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
@@ -10,8 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Slider } from "../slider/index.ts";
 import { Switch } from "../switch/index.ts";
 import { Textarea } from "../textarea/index.ts";
+import resetIcon from "@destack/icon/phosphor/arrow-counter-clockwise";
+import { InputGroup } from "../input-group/index.ts";
+import { NumberField, NumberFieldInput, NumberFieldPrefix } from "../number-field/index.ts";
 import {
     Field,
+    FieldAction,
     FieldContent,
     FieldDescription,
     FieldError,
@@ -29,6 +34,9 @@ const styles = style.create({
     },
     wide: {
         width: "100%",
+    },
+    panel: {
+        width: "16rem",
     },
     actions: {
         display: "flex",
@@ -174,4 +182,53 @@ export const fieldLegendDefault = defineExample({
             </Field>
         </FieldSet>
     ),
+});
+
+/** A dense panel: a legend with its action, measures in two columns, then rows. */
+export const fieldPanel = defineExample({
+    of: Field,
+    name: "panel",
+    description: t`A dense panel: a legend with its action, measures in two columns, then rows.`,
+    properties: { orientation: "horizontal" },
+    render: (properties) => {
+        // hold the box's measures and whether it clips its content
+        const [width, setWidth] = createSignal<number | undefined>(320);
+        const [height, setHeight] = createSignal<number | undefined>(240);
+        const [isClipped, setClipped] = createSignal(true);
+
+        return (
+            <FieldSet size="sm" xstyle={styles.panel}>
+                <FieldLegend>
+                    Layout
+                    <FieldAction>
+                        <Button variant="ghost" size="sm" isIconOnly aria-label="Reset">
+                            <Icon icon={resetIcon} />
+                        </Button>
+                    </FieldAction>
+                </FieldLegend>
+                <FieldGroup columns={2}>
+                    <NumberField value={width()} onValueChange={setWidth} units={["px"]}>
+                        <InputGroup>
+                            <NumberFieldPrefix label="Width">W</NumberFieldPrefix>
+                            <NumberFieldInput aria-label="Width" />
+                        </InputGroup>
+                    </NumberField>
+                    <NumberField value={height()} onValueChange={setHeight} units={["px"]}>
+                        <InputGroup>
+                            <NumberFieldPrefix label="Height">H</NumberFieldPrefix>
+                            <NumberFieldInput aria-label="Height" />
+                        </InputGroup>
+                    </NumberField>
+                </FieldGroup>
+                <Field {...properties}>
+                    <FieldLabel>Clip content</FieldLabel>
+                    <Switch checked={isClipped()} onCheckedChange={setClipped} />
+                </Field>
+                <Field {...properties}>
+                    <FieldLabel>Corners</FieldLabel>
+                    <Input value="8px" />
+                </Field>
+            </FieldSet>
+        );
+    },
 });
