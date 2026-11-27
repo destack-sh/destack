@@ -29,9 +29,9 @@ import {
     type SortableMove,
 } from "../sortable/index.ts";
 import { Toggle } from "../toggle/index.ts";
-import { ValueGroup, ValueTrigger } from "../value-field/group.tsx";
-import type { NamedValueField } from "../value-field/index.ts";
-import { GradientPicker, PaintPicker, PaintSwatch } from "./paint-picker.tsx";
+import { GradientPicker, PaintPicker, PaintSwatch } from "../paint-picker/index.ts";
+import { ValueGroup, ValueTrigger } from "./group.tsx";
+import type { NamedValueFieldProperties } from "./value-field.tsx";
 
 /** The layer a stack adds on top, black as design tools add one. */
 const NEW_LAYER: Fill = { paint: Paint.black, blend: "normal", isVisible: true };
@@ -65,11 +65,8 @@ const styles = style.create({
     },
 });
 
-/** The properties of the input of a named JSON value. */
-type NamedProperties = Parameters<NamedValueField>[0];
-
 /** Render the input of a paint: its swatch and kind, which open a picker. */
-export function PaintInput(properties: NamedProperties): JSX.Element {
+export function PaintInput(properties: NamedValueFieldProperties): JSX.Element {
     // read the paint, none while it is not one
     const locale = useLocale();
     const paint = (): Paint | undefined => Paint.safeParse(properties.value).data;
@@ -103,7 +100,7 @@ export function PaintInput(properties: NamedProperties): JSX.Element {
 }
 
 /** Render the input of a gradient: its swatch, which opens a picker. */
-export function GradientInput(properties: NamedProperties): JSX.Element {
+export function GradientInput(properties: NamedValueFieldProperties): JSX.Element {
     // read the gradient, none while it is not one, and paint its swatch with it
     const gradient = () => Gradient.schema.safeParse(properties.value).data;
     const paint = (): Paint | undefined => {
@@ -138,7 +135,7 @@ export function GradientInput(properties: NamedProperties): JSX.Element {
 }
 
 /** Render a box's fill: its layers top first, each reordered, picked, blended or hidden. */
-export function FillStackInput(properties: NamedProperties): JSX.Element {
+export function FillStackInput(properties: NamedValueFieldProperties): JSX.Element {
     // read the stack, and write it back changed
     const locale = useLocale();
     const stack = (): readonly Fill[] => FillStack.safeParse(properties.value).data ?? [];
