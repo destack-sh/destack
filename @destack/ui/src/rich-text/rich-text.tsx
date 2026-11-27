@@ -1,8 +1,9 @@
 import type { Grammar } from "@destack/code";
-import type { Block, TextSpan } from "@destack/object";
+import type { Block, Choice, TextSpan } from "@destack/object";
 import { t } from "@destack/locale";
 import { type JsonValue, schema } from "@destack/schema";
 import * as style from "@destack/style";
+import { ObjectReference, Subject } from "@destack/sync";
 import { motion, space } from "@destack/theme/tokens.stylex";
 import {
     type Component,
@@ -27,6 +28,7 @@ import {
     CodeBlockTitle,
 } from "../code-block/index.ts";
 import { CopyButton } from "../copy-button/index.ts";
+import { Mention } from "../mention/index.ts";
 import type { ElementPartProperties } from "../part/index.ts";
 import { Prose } from "../prose/index.ts";
 import "../prose/prose.css";
@@ -158,6 +160,8 @@ export type RichTextProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class
         readonly grammar?: (language: string) => Grammar | undefined;
         /** Handle a person checking a todo, which none can by default. */
         readonly onTodoChange?: (block: Block, isChecked: boolean) => void;
+        /** The mentioned objects the reader can read, by `ObjectReference.key`. */
+        readonly mentions?: ReadonlyMap<string, Choice>;
     };
 
 /** What the blocks of a rich text read from it. */
@@ -174,6 +178,8 @@ interface RichTextControl {
     readonly reveal: Pick<Reveal, "isWaiting" | "isFading" | "add">;
     /** Read what handles a person checking a todo. */
     readonly onTodoChange: () => ((block: Block, isChecked: boolean) => void) | undefined;
+    /** Read the mentioned objects the reader can read, none where mentions show as written. */
+    readonly mentions: () => ReadonlyMap<string, Choice> | undefined;
 }
 
 /** The rich text around its blocks. */
@@ -184,6 +190,7 @@ const RichTextContext = createContext<RichTextControl>({
     isStreaming: () => false,
     reveal: { isWaiting: () => false, isFading: () => false, add: () => {} },
     onTodoChange: () => undefined,
+    mentions: () => undefined,
 });
 
 /** Render rich text: its blocks as they change, each drawn by its type. */
@@ -198,6 +205,7 @@ export function RichText(properties: RichTextProperties): JSX.Element {
         "allowsImage",
         "grammar",
         "onTodoChange",
+        "mentions",
     );
     const reveal = createReveal({
         blocks: () => properties.blocks,
@@ -211,6 +219,7 @@ export function RichText(properties: RichTextProperties): JSX.Element {
         isStreaming: () => properties.isStreaming === true,
         reveal,
         onTodoChange: () => properties.onTodoChange,
+        mentions: () => properties.mentions,
     };
 
     return (
@@ -563,14 +572,22 @@ function SpanView(properties: {
     /** The span, whose marks or node stay the same. */
     readonly span: TextSpan;
 }): JSX.Element {
-    // draw a node as its owner does, else by its type
-    const { components } = useContext(RichTextContext);
+    // draw a node as its owner does, a mention as its object looks now, else by its type
+    const { components, mentions } = useContext(RichTextContext);
     const span = untrack(() => properties.span);
     if (!("text" in span)) {
         const { type, value } = span.node;
         const own = untrack(() => components().nodes?.[type]);
+        const isMention = type === "mention" && untrack(mentions) !== undefined;
 
-        return own === undefined ? `@${type}` : createComponent(own, { value });
+        // draw it by its owner's component, as a mention, or by its type
+        if (own !== undefined) {
+            return createComponent(own, { value });
+        } else if (isMention) {
+            return <MentionNode subject={Subject.parse(value)} />;
+        } else {
+            return `@${type}`;
+        }
     }
 
     // put the text in its marks, the outermost first
@@ -741,4 +758,23 @@ function Anchor(properties: {
 /** Read the text of spans alone. */
 function plainOf(spans: readonly TextSpan[]): string {
     return spans.map((span) => ("text" in span ? span.text : "")).join("");
+}
+
+/** Draw a mention as its object looks now, as no access where the reader cannot read it. */
+function MentionNode(properties: {
+    /** The subject mentioned. */
+    readonly subject: Subject;
+}): JSX.Element {
+    // read the object by its reference's key, without the subject's relation
+    const { mentions } = useContext(RichTextContext);
+    const locale = useLocale();
+    const { packageId, type, scope, id } = untrack(() => properties.subject);
+    const key = ObjectReference.key({ packageId, type, scope, id });
+    const choice = (): Choice =>
+        mentions()?.get(key) ?? {
+            value: key,
+            title: locale.render(t.context("label")`No access`),
+        };
+
+    return <Mention choice={choice()} />;
 }

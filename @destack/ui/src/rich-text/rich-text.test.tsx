@@ -1,4 +1,7 @@
-import { Markdown, MarkdownParser } from "@destack/object/markdown";
+import type { Choice } from "@destack/object";
+import { Markdown, MarkdownParser, Mention } from "@destack/object/markdown";
+import { ObjectReference, Subject } from "@destack/sync";
+import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import { markup, render, testWorld } from "@destack/view/test";
@@ -215,4 +218,33 @@ test("name a todo's box by its text, and check it where its owner handles that",
         ],
         changes: [[true, true]],
     });
+});
+
+test("draw a mention as its object looks now, and one the reader cannot read as no access", () => {
+    // mention Ada and Grace, of whom the reader can read Ada alone, then rename Ada
+    const [ada, grace] = ["ada", "grace"].map((id) =>
+        Subject.parse({
+            packageId: "package-01996ab0-0000-7000-8000-000000000009",
+            type: "person",
+            scope: "team",
+            id,
+        }),
+    );
+    const key = ObjectReference.key(present(ada, "Ada"));
+    const choiceOf = (title: string): ReadonlyMap<string, Choice> =>
+        new Map([[key, { value: key, title }]]);
+    const [mentions, setMentions] = createSignal(choiceOf("Ada"));
+    const text = `Ask ${Mention.markdown(present(ada, "Ada"), "Ada")} and ${Mention.markdown(present(grace, "Grace"), "Grace")}`;
+    const { container } = render(() => (
+        <RichText blocks={Markdown.parse(text)} mentions={mentions()} />
+    ));
+    flush();
+    const before = container.querySelector("p")?.textContent;
+    setMentions(choiceOf("Ada Lovelace"));
+    flush();
+
+    expect([before, container.querySelector("p")?.textContent]).toEqual([
+        "Ask @Ada and @No access",
+        "Ask @Ada Lovelace and @No access",
+    ]);
 });
