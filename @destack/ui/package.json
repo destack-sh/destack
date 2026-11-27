@@ -37,6 +37,7 @@
         "./command": "./src/command/index.ts",
         "./copy-button": "./src/copy-button/index.ts",
         "./diff": "./src/diff/index.ts",
+        "./dimension-field": "./src/dimension-field/index.ts",
         "./palette": "./src/palette/index.ts",
         "./action": "./src/action/index.ts",
         "./context-menu": "./src/context-menu/index.ts",
