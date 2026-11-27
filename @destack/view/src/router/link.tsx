@@ -1,7 +1,7 @@
 import { useNavigate } from "@solidjs/router";
 import type { JSX } from "@solidjs/web";
 import type { ObjectReference } from "@destack/sync";
-import { objectUrl } from "../declare/address.ts";
+import { ObjectAddress } from "../declare/address.ts";
 import { omit } from "../solid/reactive.ts";
 import { useEnvironment } from "../page/context.ts";
 
@@ -30,10 +30,10 @@ export function Link(properties: LinkProperties): JSX.Element {
     const href = () =>
         typeof properties.href === "string"
             ? properties.href
-            : objectUrl(
-                  properties.href,
-                  properties.view === undefined ? {} : { view: properties.view },
-              );
+            : ObjectAddress.openPath({
+                  object: properties.href,
+                  ...(properties.view === undefined ? {} : { view: properties.view }),
+              });
     const rest = omit(
         properties,
         "href",

@@ -61,7 +61,7 @@ export const ViewAddress = Object.assign(viewAddress, {
 export type ViewAddress = schema.Infer<typeof viewAddress>;
 
 /** An object of a space, opened in the view presenting its type, or in the view asked for. */
-export const ObjectAddress = schema.object({
+const objectAddress = schema.object({
     /** The space's address. */
     space: SpaceAddress,
     /** The object. */
@@ -70,21 +70,20 @@ export const ObjectAddress = schema.object({
     view: DeclarationName.exactOptional(),
 });
 /** An object of a space, opened in the view presenting its type, or in the view asked for. */
-export type ObjectAddress = schema.Infer<typeof ObjectAddress>;
+export const ObjectAddress = Object.assign(objectAddress, {
+    /** Write the same-origin path where the host opens the object, in the view asked for if any. */
+    openPath(address: Pick<ObjectAddress, "object" | "view">): string {
+        // name the object, and the view when asked for
+        const query = new URLSearchParams({ [OBJECT_PARAMETER]: JSON.stringify(address.object) });
+        if (address.view !== undefined) {
+            query.set(VIEW_PARAMETER, address.view);
+        }
+
+        return `${OriginPath.open}?${query.toString()}`;
+    },
+});
+/** An object of a space, opened in the view presenting its type, or in the view asked for. */
+export type ObjectAddress = schema.Infer<typeof objectAddress>;
 
 /** What a launch opens: a view of an installation, or an object of a space. */
 export type Address = ViewAddress | ObjectAddress;
-
-/** Write the same-origin address where the host opens an object. */
-export function objectUrl(
-    reference: ObjectReference,
-    options: { readonly view?: string } = {},
-): string {
-    // name the object, and the view when asked for
-    const query = new URLSearchParams({ [OBJECT_PARAMETER]: JSON.stringify(reference) });
-    if (options.view !== undefined) {
-        query.set(VIEW_PARAMETER, options.view);
-    }
-
-    return `${OriginPath.open}?${query.toString()}`;
-}
