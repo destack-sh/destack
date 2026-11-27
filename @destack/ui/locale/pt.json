@@ -6411,6 +6411,109 @@
             "source": "Move later",
             "context": "action",
             "translation": "Mover para depois"
+        },
+        "5y1o8ehjxcpy": {
+            "source": "Layer {$p0}",
+            "context": "label",
+            "translation": "Camada {$p0}"
+        },
+        "1hpav2hijijbl": {
+            "source": "Blend mode",
+            "context": "label",
+            "translation": "Modo de mistura"
+        },
+        "1rpk60vp7ofd5": {
+            "source": "Show layer",
+            "context": "action",
+            "translation": "Mostrar camada"
+        },
+        "865vfostb5n4": {
+            "source": "Remove layer",
+            "context": "action",
+            "translation": "Remover camada"
+        },
+        "3pfqn7ah24is1": {
+            "source": "Add layer",
+            "context": "action",
+            "translation": "Adicionar camada"
+        },
+        "11k30uf5jrcbs": {
+            "source": "A card's background: a sunset sky, its kind, shape, stops and blend.",
+            "translation": "O fundo de um cartão: um céu de pôr do sol, o seu tipo, forma, paragens e mistura."
+        },
+        "rfcl7m9j2q7z": {
+            "source": "A label's color, one color with its opacity.",
+            "translation": "A cor de uma etiqueta, uma cor com a sua opacidade."
+        },
+        "16py7fd4dmqw5": {
+            "source": "A page's paper, an image tiled from the top.",
+            "translation": "O papel de uma página, uma imagem em mosaico a partir do topo."
+        },
+        "2e90l1vnlna0p": {
+            "source": "A sunset sky's shape, stops and blend.",
+            "translation": "A forma, as paragens e a mistura de um céu de pôr do sol."
+        },
+        "264w4v4mo1cqn": {
+            "source": "A glow from the top left, over squares where it is see-through.",
+            "translation": "Um brilho a partir do canto superior esquerdo, sobre quadrados onde é transparente."
+        },
+        "96oyu7ywszmt": {
+            "source": "Refuses every part, so the value cannot change now.",
+            "translation": "Recusa cada parte, pelo que o valor não pode mudar agora."
+        },
+        "1zhw6ao1dyplx": {
+            "source": "Paint",
+            "context": "label",
+            "translation": "Pintura"
+        },
+        "fklwhdvsg8hc": {
+            "source": "The color, gradient or image it shows.",
+            "translation": "A cor, gradiente ou imagem que mostra."
+        },
+        "3i327ebyp8rql": {
+            "source": "Kind",
+            "context": "label",
+            "translation": "Tipo"
+        },
+        "e09pdbnyoj6v": {
+            "source": "Remove stop",
+            "context": "action",
+            "translation": "Remover paragem"
+        },
+        "2wr2hajakp966": {
+            "source": "Blend",
+            "context": "label",
+            "translation": "Mistura"
+        },
+        "1nag7hbfipyby": {
+            "source": "Angle",
+            "context": "label",
+            "translation": "Ângulo"
+        },
+        "2bpq7wpyg62wi": {
+            "source": "Across",
+            "context": "label",
+            "translation": "Horizontal"
+        },
+        "2qrj3iwy9b29f": {
+            "source": "Down",
+            "context": "label",
+            "translation": "Vertical"
+        },
+        "1qw3jdu3ixfbh": {
+            "source": "Stop {$p0}",
+            "context": "label",
+            "translation": "Paragem {$p0}"
+        },
+        "34ztxbes0kac5": {
+            "source": "Address",
+            "context": "label",
+            "translation": "Endereço"
+        },
+        "2rcr3qokq951q": {
+            "source": "Fit",
+            "context": "label",
+            "translation": "Ajuste"
         }
     }
 }

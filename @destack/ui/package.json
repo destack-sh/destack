@@ -62,6 +62,7 @@
         "./highlight": "./src/highlight/index.ts",
         "./hover-card": "./src/hover-card/index.ts",
         "./icon-picker": "./src/icon-picker/index.ts",
+        "./paint-picker": "./src/paint-picker/index.ts",
         "./input": "./src/input/index.ts",
         "./input-group": "./src/input-group/index.ts",
         "./item": "./src/item/index.ts",
@@ -152,7 +153,6 @@
     },
     "dependencies": {
         "@destack/code": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",

@@ -107,13 +107,17 @@ function drawn(example: Example<object, JSX.Element>, properties: Record<string,
 }
 
 /** List other values a property takes than its current one, as a person would set them. */
-function otherValuesOf(component: Component, key: string, current: unknown): JsonValue[] {
-    // read the values its input takes: each other choice, the other boolean, another number or text
+function otherValuesOf(
+    component: Component,
+    key: string,
+    current: unknown,
+): (JsonValue | undefined)[] {
+    // read the values its input takes: each other choice, the other boolean, another number or text, or none
     const definition = component.properties[key];
     if (definition === undefined) {
         return [];
     }
-    const { value } = ActionInput.of(key, definition);
+    const { value, presence } = ActionInput.of(key, definition);
     if (value.kind === "choice") {
         return value.choices.map((choice) => choice.value).filter((each) => each !== current);
     } else if (value.kind === "boolean") {
@@ -126,6 +130,10 @@ function otherValuesOf(component: Component, key: string, current: unknown): Jso
         ];
     } else if (value.kind === "text") {
         return [current === "Changed" ? "Changed again" : "Changed"];
+    }
+    // clear an optional JSON value given, such as a paint, which no other value of its schema stands in for
+    else if (value.kind === "json" && presence === "optional" && current !== undefined) {
+        return [undefined];
     }
 
     return [];
