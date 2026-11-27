@@ -1,6 +1,5 @@
 import { schema } from "@destack/schema";
-import { Hue } from "@destack/style";
-import { HexColor } from "../palette/index.ts";
+import { HexColor, Hue } from "@destack/style";
 
 /** The body size of each text size relative to the default medium, from 14 to 23 points over 16. */
 export const TEXT_SCALES = {

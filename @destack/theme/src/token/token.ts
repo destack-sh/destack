@@ -1,5 +1,13 @@
 import { schema } from "@destack/schema";
-import { HexColor, Srgb } from "../palette/color.ts";
+import {
+    Color,
+    ColorToken,
+    CubicBezier,
+    Dimension,
+    Duration,
+    FontFamily,
+    FontWeight,
+} from "@destack/style";
 import tokens from "./tokens.json" with { type: "json" };
 
 /** The prefix of every custom property a theme sets. */
@@ -36,29 +44,11 @@ export const FONT_SIZE_ADJUST = "--destack-font-text-adjust";
 /** The decimal places of every computed CSS number, below a thousandth of a pixel. */
 const PRECISION = 3;
 
-/** A length in pixels. */
-const Dimension = schema.object({
-    /** The amount. */
-    value: schema.number(),
-    /** The unit. */
-    unit: schema.literal("px"),
-});
+/** A length in pixels, the unit the theme scales. */
+const Pixels = Dimension.extend({ unit: schema.literal("px") });
 
-/** A sRGB color with optional alpha, per the W3C Design Tokens color format. */
-const ColorValue = schema.object({
-    /** The color space. */
-    colorSpace: schema.literal("srgb"),
-    /** The red, green and blue channels from 0 to 1. */
-    components: schema.tuple([
-        schema.number().min(0).max(1),
-        schema.number().min(0).max(1),
-        schema.number().min(0).max(1),
-    ]),
-    /** The opacity from 0 to 1, opaque when absent. */
-    alpha: schema.number().min(0).max(1).exactOptional(),
-    /** The six-digit hex form of the channels, which the token tree checks against them. */
-    hex: HexColor.exactOptional(),
-});
+/** A token color in sRGB, the space the theme's palette works in. */
+const ColorValue = ColorToken.extend({ colorSpace: schema.literal("srgb") });
 
 /** A group of the token tree before its members are read. */
 const Group = schema.jsonObject();
@@ -71,13 +61,13 @@ const ShadowLayer = schema.object({
     /** The shadow color, as an alias. */
     color: Alias,
     /** The horizontal offset. */
-    offsetX: Dimension,
+    offsetX: Pixels,
     /** The vertical offset. */
-    offsetY: Dimension,
+    offsetY: Pixels,
     /** The blur radius. */
-    blur: Dimension,
+    blur: Pixels,
     /** The spread distance. */
-    spread: Dimension,
+    spread: Pixels,
     /** Whether the shadow falls inside the box. */
     inset: schema.boolean().exactOptional(),
 });
@@ -113,21 +103,21 @@ export const Token = schema.discriminatedUnion("$type", [
         /** A length. */
         $type: schema.literal("dimension"),
         /** The length at a scale of 1. */
-        $value: Dimension,
+        $value: Pixels,
         ...common,
     }),
     schema.object({
         /** A duration. */
         $type: schema.literal("duration"),
         /** The duration with full motion. */
-        $value: schema.object({ value: schema.number().min(0), unit: schema.literal("ms") }),
+        $value: Duration.extend({ unit: schema.literal("ms") }),
         ...common,
     }),
     schema.object({
         /** An easing curve. */
         $type: schema.literal("cubicBezier"),
         /** The control points, the portable form of a spring. */
-        $value: schema.tuple([schema.number(), schema.number(), schema.number(), schema.number()]),
+        $value: CubicBezier,
         /** The spring a `linear()` easing samples instead. */
         $extensions: schema
             .object({ [EXTENSION]: schema.object({ spring: Spring }) })
@@ -138,14 +128,14 @@ export const Token = schema.discriminatedUnion("$type", [
         /** A font stack. */
         $type: schema.literal("fontFamily"),
         /** The family names in order of preference. */
-        $value: schema.array(schema.string().min(1)).min(1),
+        $value: FontFamily,
         ...common,
     }),
     schema.object({
         /** A font weight. */
         $type: schema.literal("fontWeight"),
         /** The weight from 1 to 1000, as CSS font-weight takes it. */
-        $value: schema.number().int().min(1).max(1000),
+        $value: FontWeight,
         ...common,
     }),
     schema.object({
@@ -156,13 +146,13 @@ export const Token = schema.discriminatedUnion("$type", [
             /** The font stack, as an alias. */
             fontFamily: Alias,
             /** The font size. */
-            fontSize: Dimension,
+            fontSize: Pixels,
             /** The font weight. */
-            fontWeight: schema.number().int().min(1).max(1000),
+            fontWeight: FontWeight,
             /** The line height as a multiple of the font size. */
             lineHeight: schema.number().positive(),
             /** The letter spacing. */
-            letterSpacing: Dimension,
+            letterSpacing: Pixels,
         }),
         ...common,
     }),
@@ -183,21 +173,20 @@ export class TokenEntry {
     readonly path: readonly string[];
     /** The token. */
     readonly token: Token;
+    /** The custom property, such as `--destack-color-muted-foreground`. */
+    readonly variable: Variable;
+    /** The constant key within the family, such as `durationShort`. */
+    readonly key: string;
+    /** The CSS values computed so far, by the factor that scales their lengths. */
+    readonly #values = new Map<number, readonly (readonly [Variable, string])[]>();
 
     /** Create a token at its path. */
     constructor(path: readonly string[], token: Token) {
+        // store the token, and write its custom property and key once
         this.path = path;
         this.token = token;
-    }
-
-    /** The custom property, such as `--destack-color-muted-foreground`. */
-    get variable(): Variable {
-        return variable(this.path);
-    }
-
-    /** The constant key within the family, such as `durationShort`. */
-    get key(): string {
-        return constantKey(this.path);
+        this.variable = variable(path);
+        this.key = constantKey(path);
     }
 
     /** List the constant key and custom property of each member. */
@@ -234,7 +223,7 @@ export class TokenEntry {
             return;
         }
         for (const color of [token.$value, token.$extensions[EXTENSION].dark]) {
-            const hex = Srgb.format(color.components);
+            const hex = Color.fromToken(color).with("alpha", 1).toString("hex");
             if (color.hex !== undefined && color.hex.toLowerCase() !== hex) {
                 throw new RangeError(
                     `token '${this.path.join(".")}' has hex '${color.hex}', but its color is '${hex}'`,
@@ -245,11 +234,24 @@ export class TokenEntry {
 
     /** Compute the CSS values of the custom properties, scaling lengths by a factor. */
     values(factor: number): readonly (readonly [Variable, string])[] {
+        // reuse the values at a factor, as a token never changes
+        const known = this.#values.get(factor);
+        if (known !== undefined) {
+            return known;
+        }
+        const values = this.#compute(factor);
+        this.#values.set(factor, values);
+
+        return values;
+    }
+
+    /** Compute the CSS values of the custom properties at a factor. */
+    #compute(factor: number): readonly (readonly [Variable, string])[] {
         const token = this.token;
         switch (token.$type) {
             case "color": {
-                const light = rgba(token.$value);
-                const dark = rgba(token.$extensions[EXTENSION].dark);
+                const light = Color.fromToken(token.$value).toString("hex");
+                const dark = Color.fromToken(token.$extensions[EXTENSION].dark).toString("hex");
 
                 return [[this.variable, `light-dark(${light}, ${dark})`]];
             }
@@ -267,7 +269,7 @@ export class TokenEntry {
                 return [[this.variable, spring === undefined ? bezier : linear(spring)]];
             }
             case "fontFamily":
-                return [[this.variable, fontStack(token.$value)]];
+                return [[this.variable, FontFamily.css(token.$value)]];
             case "fontWeight":
                 return [[this.variable, String(token.$value)]];
             case "typography": {
@@ -311,10 +313,17 @@ export interface TokenGroup {
 export class TokenTree {
     /** The top-level groups in document order. */
     readonly families: readonly TokenGroup[];
+    /** Every entry by its dotted path. */
+    readonly #entries: ReadonlyMap<string, TokenEntry>;
 
-    /** Create a token tree of its families. */
+    /** Create a token tree of its families, indexing every entry by its path. */
     constructor(families: readonly TokenGroup[]) {
         this.families = families;
+        this.#entries = new Map(
+            families
+                .flatMap((family) => family.entries)
+                .map((entry) => [entry.path.join("."), entry]),
+        );
     }
 
     /** Read a token tree from its JSON document. */
@@ -357,11 +366,9 @@ export class TokenTree {
 
     /** Find a token entry by its path. */
     entry(path: readonly string[]): TokenEntry {
-        // search every family for the dotted path
+        // look the dotted path up
         const key = path.join(".");
-        const entry = this.families
-            .flatMap((family) => family.entries)
-            .find((candidate) => candidate.path.join(".") === key);
+        const entry = this.#entries.get(key);
         if (entry === undefined) {
             throw new RangeError(`unknown token: '${key}'`);
         }
@@ -423,18 +430,6 @@ function number(value: number): string {
     const rounded = Number(value.toFixed(PRECISION));
 
     return String(rounded === 0 ? 0 : rounded);
-}
-
-/** Format a token color as a hex color, with alpha when translucent. */
-function rgba(color: schema.Infer<typeof ColorValue>): string {
-    const hex = Srgb.format(color.components);
-
-    return color.alpha === undefined ? hex : Srgb.translucent(hex, color.alpha);
-}
-
-/** Format a font stack, quoting family names with spaces. */
-function fontStack(names: readonly string[]): string {
-    return names.map((name) => (name.includes(" ") ? `"${name}"` : name)).join(", ");
 }
 
 /** Read the size adjustment of a text style's face: a chosen face's in the text face, else none. */

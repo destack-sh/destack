@@ -165,14 +165,14 @@ titanTheme.requireContrast(); // every level
 
 ### Measure a contrast
 
-`Srgb.contrast` measures a color on another by APCA or WCAG, as Color.js does, and `Resolution.contrast` a role.
+`Color.contrast` of `@destack/style` measures a color on another by APCA or WCAG, as Color.js does, and `Resolution.contrast` a role.
 
 ```ts
-import { Srgb } from "@destack/theme";
+import { Color } from "@destack/style";
 import { destackTheme } from "@destack/theme/declare";
 
 // measure two colors and a role
-Srgb.parse("#ffffff").contrast(Srgb.parse("#c75300"), "wcag");
+Color.parse("#ffffff").contrast(Color.parse("#c75300"), "wcag");
 destackTheme.resolve("dark", 0).contrast("mutedForeground", "apca");
 ```
 

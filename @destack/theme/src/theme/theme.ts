@@ -1,7 +1,7 @@
 import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { HexColor, Oklch, Palette, type ColorScheme } from "../palette/index.ts";
-import { DEFAULT_HUES, Hue, HUES } from "@destack/style";
+import { Color, DEFAULT_HUES, HexColor, Hue, HUES } from "@destack/style";
+import { Palette, type ColorScheme } from "../palette/index.ts";
 import {
     FONT_SIZE_ADJUST,
     MOTION_SCALE,
@@ -81,6 +81,11 @@ const LEVELS = [0, 1] as const;
 
 /** The custom property the stylesheet sets to 1 when the device asks for more contrast. */
 const CONTRAST_VARIABLE = `${VARIABLE_PREFIX}-contrast`;
+
+/** The color tokens with the role each resolves, read once from the token tree. */
+const COLOR_ENTRIES = TOKENS.family("color").entries.map(
+    (entry) => [entry, RoleName.parse(entry.key)] as const,
+);
 
 /** A package-local theme name. */
 export const ThemeName = schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u);
@@ -208,6 +213,23 @@ export const ThemeDescription = ThemeDefinition.extend({
 /** A theme declaration as manifests describe it. */
 export type ThemeDescription = schema.Infer<typeof ThemeDescription>;
 
+/** The resolutions a role's color formats from: both appearances, and their most contrast. */
+interface Pair {
+    /** The light appearance at the level. */
+    readonly light: Resolution;
+    /** The dark appearance at the level. */
+    readonly dark: Resolution;
+    /** Both appearances at the most contrast, where the device sets the level. */
+    readonly more:
+        | {
+              /** The light appearance at the most. */
+              readonly light: Resolution;
+              /** The dark appearance at the most. */
+              readonly dark: Resolution;
+          }
+        | undefined;
+}
+
 /** The declarations of a theme root's style attribute. */
 export type ThemeStyle = {
     /** Browser appearance used by light-dark() and native controls. */
@@ -285,16 +307,17 @@ export class Theme {
         // resolve the neutral roles under the person's accent over the theme's, at their contrast
         const accent = display.accent === null ? this.#accent : this.color(display.accent);
         const own = accent === this.#accent ? undefined : accent;
-        for (const entry of TOKENS.family("color").entries) {
-            style[entry.variable] = this.#css(RoleName.parse(entry.key), display.contrast, own);
+        const neutral = this.#pair(display.contrast, own);
+        for (const [entry, name] of COLOR_ENTRIES) {
+            style[entry.variable] = this.#css(name, neutral);
         }
 
         // resolve the swatch of every hue, the accent's own under its overrides
         for (const [hue, seed] of this.hues(accent)) {
+            const pair = this.#pair(display.contrast, ACCENT_SWATCHES.has(hue) ? own : seed);
             for (const name of SWATCH_COLORS) {
                 const entry = TOKENS.entry(["swatch", `${hue}${capitalize(name)}`]);
-                const shown = ACCENT_SWATCHES.has(hue) ? own : seed;
-                style[entry.variable] = this.#css(name, display.contrast, shown);
+                style[entry.variable] = this.#css(name, pair);
             }
         }
 
@@ -365,9 +388,9 @@ export class Theme {
 
     /** Read the color of an accent: the theme's own for a hue, else as given. */
     color(accent: Accent): string {
-        const hue = Hue.safeParse(accent);
+        const hue = HUES.find((each) => each === accent);
 
-        return hue.success ? this.seed(hue.data) : accent;
+        return hue === undefined ? accent : this.seed(hue);
     }
 
     /** Read the seed of a hue: the theme's, the base for gray, else Destack's. */
@@ -392,24 +415,32 @@ export class Theme {
         ];
     }
 
-    /** Format a role's color under a hue in both appearances at a contrast. */
-    #css(name: RoleName, contrast: Contrast, hue: string | undefined): string {
-        // resolve both appearances at the explicit or the standard level
-        const pair = (level: number) =>
-            [
-                this.resolve("light", level, hue).color(name),
-                this.resolve("dark", level, hue).color(name),
-            ] as const;
-        const [light, dark] = pair(contrast === "system" ? 0 : contrast);
-        if (contrast !== "system") {
+    /** Resolve both appearances under a hue at a contrast, and at the most for the device's. */
+    #pair(contrast: Contrast, hue: string | undefined): Pair {
+        // resolve the explicit or the standard level, and the most where the device sets it
+        const level = contrast === "system" ? 0 : contrast;
+        const light = this.resolve("light", level, hue);
+        const dark = this.resolve("dark", level, hue);
+        const more =
+            contrast === "system"
+                ? { light: this.resolve("light", 1, hue), dark: this.resolve("dark", 1, hue) }
+                : undefined;
+
+        return { light, dark, more };
+    }
+
+    /** Format a role's color in both appearances, mixed toward the most as the device asks. */
+    #css(name: RoleName, pair: Pair): string {
+        // format an explicit level, or one the most contrast leaves as it is
+        const light = pair.light.color(name);
+        const dark = pair.dark.color(name);
+        const lightMore = pair.more?.light.color(name) ?? light;
+        const darkMore = pair.more?.dark.color(name) ?? dark;
+        if (lightMore === light && darkMore === dark) {
             return lightDark(light, dark);
         }
 
         // mix toward the most contrasted colors as far as the device contrast the stylesheet sets
-        const [lightMore, darkMore] = pair(1);
-        if (lightMore === light && darkMore === dark) {
-            return lightDark(light, dark);
-        }
         const amount = `calc(var(${CONTRAST_VARIABLE}, 0) * 100%)`;
         const mix = (standard: string, more: string) =>
             standard === more ? standard : `color-mix(in oklab, ${standard}, ${more} ${amount})`;
@@ -608,8 +639,8 @@ function lightDark(light: string, dark: string): string {
 }
 
 /** Read the color a seed grows from. */
-function colorOf(seed: string): Oklch {
-    return Oklch.parse(Palette.of(seed).seed);
+function colorOf(seed: string): Color {
+    return Color.parse(Palette.of(seed).seed);
 }
 
 /** Pick the chart series after the accent from the theme's hues. */

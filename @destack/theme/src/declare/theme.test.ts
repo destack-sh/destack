@@ -2,7 +2,7 @@ import { HUES } from "@destack/style";
 import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { describeTheme } from "../inspect/index.ts";
-import { Oklch } from "../palette/index.ts";
+import { Color } from "@destack/style";
 import { DEFAULT_DISPLAY, type Theme, TYPEFACES } from "../theme/index.ts";
 import { TOKENS } from "../token/index.ts";
 import { defineTheme, destackTheme, THEMES } from "./index.ts";
@@ -70,7 +70,7 @@ test("draw every two hues of each of Destack's themes apart", () => {
         (["light", "dark"] as const).flatMap((scheme) => {
             const marks = HUES.map((hue) => ({
                 hue,
-                color: Oklch.parse(theme.resolve(scheme, 0, theme.seed(hue)).color("mark")),
+                color: Color.parse(theme.resolve(scheme, 0, theme.seed(hue)).color("mark")),
             }));
 
             return marks.flatMap((left, index) =>
@@ -130,11 +130,11 @@ test("read the brand's face chosen by name as the theme's face, its tracking and
 });
 
 /** Read a theme's page color at one time of day. */
-function pageOf(theme: Theme, scheme: "light" | "dark"): Oklch {
+function pageOf(theme: Theme, scheme: "light" | "dark"): Color {
     const page = theme.definition.ground?.[scheme].background;
     if (page === undefined) {
         throw new TypeError(`theme '${theme.definition.name}' is invalid: it sets no ground`);
     }
 
-    return Oklch.parse(page);
+    return Color.parse(page);
 }

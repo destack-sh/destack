@@ -1,8 +1,7 @@
 import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme, THEMES } from "../declare/index.ts";
-import { Oklch, Srgb } from "../palette/index.ts";
-import { DEFAULT_HUES, HUES } from "@destack/style";
+import { Color, type ColorToken, DEFAULT_HUES, HUES } from "@destack/style";
 import {
     DEFAULT_DISPLAY,
     GRAPHIC_CONTRAST,
@@ -152,14 +151,14 @@ test("give every accent on every base five chart series of hues apart, standing 
                 (["light", "dark"] as const).some(
                     (scheme) =>
                         Math.abs(
-                            Srgb.parse(entry[scheme]).contrast(
-                                Srgb.parse(background[scheme]),
+                            Color.parse(entry[scheme]).contrast(
+                                Color.parse(background[scheme]),
                                 "apca",
                             ),
                         ) < GRAPHIC_CONTRAST.standard,
                 ),
             );
-            const marks = series.map((entry) => Oklch.parse(entry.light));
+            const marks = series.map((entry) => Color.parse(entry.light));
             const close = marks.flatMap((mark, index) =>
                 marks.slice(index + 1).filter((other) => mark.distance(other) < 0.06),
             );
@@ -193,8 +192,8 @@ test("shift a seed in lightness alone until its best label reads at Lc 60 and at
         const theme = defineTheme({ name: "seeded", accent: seed }, { package: notes });
         const resolution = theme.resolve("light", 0);
         const solid = resolution.color("solid");
-        const before = Oklch.parse(seed);
-        const after = Oklch.parse(solid);
+        const before = oklch(seed);
+        const after = oklch(solid);
 
         // the shift moves lightness alone, and the label reads by both measures
         const shift = Math.abs(after.lightness - before.lightness);
@@ -223,9 +222,10 @@ test("draw control lines on every surface of a theme, with a ground of its own a
             (["background", "card", "popover"] as const).flatMap((surface) => {
                 const resolution = theme.resolve(scheme, 0);
                 const ground = resolution.color(surface);
-                const blended = Srgb.composite(resolution.color("input"), ground);
+                const under = Color.parse(ground);
+                const blended = Color.parse(resolution.color("input")).composite(under);
                 const step = Math.abs(
-                    Oklch.parse(blended).lightness - Oklch.parse(ground).lightness,
+                    oklch(blended.toString("hex")).lightness - oklch(ground).lightness,
                 );
 
                 return step < 0.08 ? [`${theme.name} ${scheme} ${surface} ${step.toFixed(3)}`] : [];
@@ -285,8 +285,8 @@ test("read every text, line and graphic role against a nested surface's backgrou
     }
 
     // the surfaces above the background follow it
-    const card = Oklch.parse(row.resolve("light", 0).color("card")).lightness;
-    expect(card - Oklch.parse("#c9d8ff").lightness).toBeCloseTo(0.02, 2);
+    const card = oklch(row.resolve("light", 0).color("card")).lightness;
+    expect(card - oklch("#c9d8ff").lightness).toBeCloseTo(0.02, 2);
 });
 
 test("raise every reading role's contrast continuously with the person's level", () => {
@@ -370,7 +370,8 @@ test("draw five chart series apart from hues too pale to read as given", () => {
     // give every hue a pastel, which a mark darkens until it reads
     const hues = Object.fromEntries(
         ["red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"].map(
-            (name, index) => [name, new Oklch(0.92, 0.05, index * 45).hex()] as const,
+            (name, index) =>
+                [name, new Color("oklch", [92, 0.05, index * 45]).toString("hex")] as const,
         ),
     );
     const pale = new Theme({ name: "pale", hues });
@@ -801,13 +802,8 @@ test("cover every color token with one neutral role and every swatch token with 
 });
 
 /** Write a token color as hex, with two more digits for its opacity when translucent. */
-function hex(color: {
-    readonly components: readonly [number, number, number];
-    readonly alpha?: number;
-}): string {
-    const opaque = Srgb.format(color.components);
-
-    return color.alpha === undefined ? opaque : Srgb.translucent(opaque, color.alpha);
+function hex(color: ColorToken): string {
+    return Color.fromToken(color).toString("hex");
 }
 
 test("change the size, weight, tracking and font of the text styles a theme overrides", () => {
@@ -840,3 +836,14 @@ test("change the size, weight, tracking and font of the text styles a theme over
         "--destack-text-xs-font-size-adjust": "none",
     });
 });
+
+/** Read a hex color's OKLCH lightness from 0 to 1, chroma and hue. */
+function oklch(color: string): {
+    readonly lightness: number;
+    readonly chroma: number;
+    readonly hue: number;
+} {
+    const [lightness, chroma, hue] = Color.parse(color).to("oklch").values;
+
+    return { lightness: lightness / 100, chroma, hue };
+}

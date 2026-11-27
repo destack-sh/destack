@@ -1,12 +1,6 @@
 import { schema } from "@destack/schema";
-import {
-    Oklch,
-    type ContrastMeasure,
-    HexColor,
-    Palette,
-    type ColorScheme,
-    Srgb,
-} from "../palette/index.ts";
+import { Color, type ContrastMeasure, HexColor } from "@destack/style";
+import { type ColorScheme, Palette } from "../palette/index.ts";
 
 /** An APCA lightness contrast Lc a role needs. */
 export interface Floor {
@@ -56,7 +50,7 @@ const TINT_OFFSET: Lightness = { light: -0.034, dark: 0.16 };
 const TINT_LEAST = 0.28;
 
 /** The light label candidate on solid colors. */
-const WHITE = Srgb.parse("#ffffff");
+const WHITE = Color.parse("#ffffff");
 
 /** The halvings of the opacity search, enough for a step below one 8-bit alpha level. */
 const OPACITY_STEPS = 9;
@@ -312,6 +306,8 @@ export class Resolution {
     readonly level: number;
     /** The colors resolved so far. */
     readonly #colors = new Map<RoleName, string>();
+    /** The colors resolved so far, read once from their hex form. */
+    readonly #shades = new Map<RoleName, Color>();
     /** The roles being resolved, which a role must not read through again. */
     readonly #resolving = new Set<RoleName>();
 
@@ -322,6 +318,19 @@ export class Resolution {
         this.#palettes = palettes;
         this.scheme = scheme;
         this.level = level;
+    }
+
+    /** Resolve a role's color, read from its hex form once. */
+    #shade(name: RoleName): Color {
+        // reuse the color read before
+        const known = this.#shades.get(name);
+        if (known !== undefined) {
+            return known;
+        }
+        const shade = Color.parse(this.color(name));
+        this.#shades.set(name, shade);
+
+        return shade;
     }
 
     /** Resolve a role's color. */
@@ -354,10 +363,11 @@ export class Resolution {
         }
 
         // measure a translucent role blended over the role it reads on
-        const under = this.color(ground);
-        const blended = Srgb.parse(Srgb.composite(this.color(name), under));
+        const background = this.#shade(ground);
+        const blended = Color.parse(this.color(name)).composite(background);
+        const shown = Color.parse(blended.toString("hex"));
 
-        return Math.abs(blended.contrast(Srgb.parse(under), measure));
+        return Math.abs(shown.contrast(background, measure));
     }
 
     /** Read a floor at the level. */
@@ -366,11 +376,11 @@ export class Resolution {
     }
 
     /** Pick the label that reads best on a background. */
-    label(palette: Palette, background: Srgb): Srgb {
+    label(palette: Palette, background: Color): Color {
         // measure each candidate on the background and take the strongest
         const dark = TEXT_LIGHTNESS.light;
         const candidates = [WHITE, palette.tone(dark), this.#palettes.base.tone(dark)];
-        const reading = (candidate: Srgb) => Math.abs(candidate.contrast(background, "apca"));
+        const reading = (candidate: Color) => Math.abs(candidate.contrast(background, "apca"));
 
         // prefer the candidates at or above the label ratio, where any are
         const legible = candidates.filter(
@@ -388,11 +398,11 @@ export class Resolution {
         switch (source.kind) {
             case "shift": {
                 // move the role's color in lightness, its chroma partly with it
-                const color = Oklch.parse(this.color(source.from));
-                const lightness = color.lightness + source.lightness[this.scheme];
-                const ratio = color.lightness === 0 ? 1 : lightness / color.lightness;
-                const chroma = color.chroma * ratio ** CHROMA_EXPONENT;
-                const shifted = new Oklch(lightness, chroma, color.hue).hex();
+                const [from, fromChroma, hue] = this.#shade(source.from).to("oklch").values;
+                const lightness = from / 100 + source.lightness[this.scheme];
+                const ratio = from === 0 ? 1 : lightness / (from / 100);
+                const chroma = fromChroma * ratio ** CHROMA_EXPONENT;
+                const shifted = new Color("oklch", [lightness * 100, chroma, hue]).toString("hex");
 
                 return this.#translucent(shifted, source.alpha, role);
             }
@@ -404,19 +414,19 @@ export class Resolution {
                     source.from === undefined
                         ? offset
                         : Math.max(
-                              Oklch.parse(this.color(source.from)).lightness + offset,
+                              this.#shade(source.from).to("oklch").values[0] / 100 + offset,
                               source.least ?? 0,
                           );
 
                 // settle an opaque tone in lightness, a translucent one in opacity
                 return source.alpha === undefined
-                    ? palette.tone(this.#settle(palette, start, role)).hex
-                    : this.#translucent(palette.tone(start).hex, source.alpha, role);
+                    ? palette.tone(this.#settle(palette, start, role)).toString("hex")
+                    : this.#translucent(palette.tone(start).toString("hex"), source.alpha, role);
             }
             case "solid": {
                 const palette = this.#palettes[source.palette];
 
-                return palette.tone(this.#settle(palette, palette.lightness, role)).hex;
+                return palette.tone(this.#settle(palette, palette.lightness, role)).toString("hex");
             }
             case "label": {
                 // pick among the candidates of the palette the background grows from
@@ -428,7 +438,7 @@ export class Resolution {
                 const under = this.#roles[on].source;
                 const palette = this.#palettes["palette" in under ? under.palette : "base"];
 
-                return this.label(palette, Srgb.parse(this.color(on))).hex;
+                return this.label(palette, this.#shade(on)).toString("hex");
             }
             case "color": {
                 // keep a declared color at the standard level, raising its contrast above it
@@ -440,7 +450,7 @@ export class Resolution {
                 }
                 const palette = Palette.of(declared);
 
-                return palette.tone(this.#settle(palette, palette.lightness, role)).hex;
+                return palette.tone(this.#settle(palette, palette.lightness, role)).toString("hex");
             }
         }
     }
@@ -454,47 +464,56 @@ export class Resolution {
         }
         const opacity = typeof alpha === "number" ? alpha : alpha[this.scheme];
         if (reading === undefined) {
-            return Srgb.translucent(color, opacity);
+            return translucent(color, opacity);
         }
 
         // find the least opacity at or above the declared one whose blend reads at the floor on every ground
-        const grounds = reading.on.map((on) => this.color(on));
+        const grounds = reading.on.map((on) => this.#shade(on));
         const floor = this.floor(reading.contrast);
         const reads = (candidate: number) =>
             grounds.every((ground) => {
-                const blended = Srgb.composite(Srgb.translucent(color, candidate), ground);
+                // blend the quantized color over the ground, quantized as a page shows it
+                const blended = Color.parse(translucent(color, candidate)).composite(ground);
+                const shown = Color.parse(blended.toString("hex"));
 
-                return Math.abs(Srgb.parse(blended).contrast(Srgb.parse(ground), "apca")) >= floor;
+                return Math.abs(shown.contrast(ground, "apca")) >= floor;
             });
         let low = opacity;
         let high = 1;
         if (reads(low) || !reads(high)) {
-            return Srgb.translucent(color, reads(low) ? low : high);
+            return translucent(color, reads(low) ? low : high);
         }
         for (let step = 0; step < OPACITY_STEPS; step += 1) {
             const middle = (low + high) / 2;
             [low, high] = reads(middle) ? [low, middle] : [middle, high];
         }
 
-        return Srgb.translucent(color, high);
+        return translucent(color, high);
+    }
+
+    /** Report whether a color's best label reads on it at a floor and at the label ratio. */
+    #isLabelled(palette: Palette, color: Color, floor: Floor): boolean {
+        const best = this.label(palette, color);
+
+        return (
+            Math.abs(best.contrast(color, "apca")) >= this.floor(floor) &&
+            best.contrast(color, "wcag") >= LABEL_RATIO
+        );
     }
 
     /** Find the lightness nearest a start at which a role and its label read. */
     #settle(palette: Palette, start: number, role: Role): number {
         // require the role's reading on every ground and its label's at the level
         const { reading, labelled } = role;
-        const grounds = (reading?.on ?? []).map((on) => Srgb.parse(this.color(on)));
+        const grounds = (reading?.on ?? []).map((on) => this.#shade(on));
         const [background] = grounds;
-        const passes = (color: Srgb) =>
+        const passes = (color: Color) =>
             (reading === undefined ||
                 grounds.every(
                     (ground) =>
                         Math.abs(color.contrast(ground, "apca")) >= this.floor(reading.contrast),
                 )) &&
-            (labelled === undefined ||
-                (Math.abs(this.label(palette, color).contrast(color, "apca")) >=
-                    this.floor(labelled) &&
-                    this.label(palette, color).contrast(color, "wcag") >= LABEL_RATIO));
+            (labelled === undefined || this.#isLabelled(palette, color, labelled));
 
         // move a solid toward its label's side, so a fill under white text deepens
         if (background === undefined || role.source.kind === "solid") {
@@ -512,7 +531,7 @@ export class Resolution {
                 start
             );
         }
-        const isLighter = start >= Oklch.parse(background.hex).lightness;
+        const isLighter = start >= background.to("oklch").values[0] / 100;
 
         return (
             palette.nearest(start, passes, isLighter ? "lighter" : "darker") ?? (isLighter ? 1 : 0)
@@ -601,4 +620,9 @@ function label(on: RoleName): Role {
 /** A palette's seed as a graphic standing out from the background, such as a chart's line. */
 function mark(palette: PaletteName): Role {
     return new Role({ kind: "solid", palette }, { on: ["background"], contrast: GRAPHIC_CONTRAST });
+}
+
+/** Give a hex color an opacity from 0 to 1, as eight hex digits. */
+function translucent(hex: string, alpha: number): string {
+    return Color.parse(hex).with("alpha", alpha).toString("hex");
 }
