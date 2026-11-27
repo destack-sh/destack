@@ -94,9 +94,9 @@ function otherValue(
         return value.choices.find((choice) => choice.value !== current)?.value ?? "";
     } else if (value.kind === "boolean") {
         return current !== true;
-    } else if (value.kind === "json" && LocalReference.root(value.schema) === "color") {
+    } else if (value.kind === "json" && LocalReference.root(value.schema) === "style.color") {
         return CHANGED_COLOR;
-    } else if (value.kind === "json" && LocalReference.root(value.schema) === "palette") {
+    } else if (value.kind === "json" && LocalReference.root(value.schema) === "style.palette") {
         return [CHANGED_COLOR];
     } else if (value.kind === "number") {
         const low = value.minimum ?? 0;
