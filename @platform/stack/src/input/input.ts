@@ -28,7 +28,7 @@ export const HOME_INPUT: PlatformInput = {
         name: "@destack/home",
     },
     repository: "@destack/home",
-    commit: "3d0b410b1447dc420dc5521b0d65bcef2f8c1f44",
+    commit: "39422eb4c37d82f01db38b3d84a41e01494a56b7",
     directory: ".",
 };
 
