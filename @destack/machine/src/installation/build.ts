@@ -129,7 +129,7 @@ export function implementBuild(options: BuildOptions) {
         methods: {
             create: {
                 handle: async (context, next) => {
-                    // key the build by its source, outputs and version, whose live build the creation answers
+                    // key the build by its source, outputs and version, whose running or succeeded build the creation answers
                     const source = BuildSource.parse(context.input.source);
                     const { outputs = null, version = null } = context.input;
                     const key = Build.key({ source, outputs, version });
@@ -185,7 +185,7 @@ export function implementBuild(options: BuildOptions) {
                         }),
                     );
 
-                    // start its compile as the package's code, leaving a live build the creation answers that already ended
+                    // start its compile as the package's code, leaving a succeeded build the creation answers
                     if (created.state === "running") {
                         const started = compile.start(
                             { build: created.id },
