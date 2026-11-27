@@ -1,6 +1,8 @@
+import closeIcon from "@destack/icon/phosphor/x";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, radius, shadow, space, stroke, weight, width } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
@@ -16,6 +18,7 @@ import {
     untrack,
     useContext,
     useEnvironment,
+    useLocale,
 } from "@destack/view";
 import { transition } from "@destack/theme/motion";
 import { tabbablesIn } from "../focus/index.ts";
@@ -36,6 +39,7 @@ import { Timeout } from "@destack/view/primitives/timer";
 import { type HoverEvent, SafePolygon } from "../interaction/index.ts";
 import { type Anchor, Position, PositionAnchor, ANCHOR_PROPERTIES } from "../position/index.ts";
 import { type ElementPartProperties, renderPart, type Render } from "../part/index.ts";
+import { Icon } from "../icon/index.ts";
 import { Viewport } from "./viewport.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import {
@@ -76,6 +80,8 @@ const styles = style.create({
     },
     content: {
         outlineStyle: "none",
+        // set its own text, as its element inherits from wherever it sits in the page
+        textAlign: "start",
         width: width.popover,
         maxWidth: `calc(100vw - 2 * ${space[1]})`,
         maxHeight: `calc(100dvh - 2 * ${space[1]})`,
@@ -102,6 +108,28 @@ const styles = style.create({
     },
     title: {
         fontWeight: weight.medium,
+    },
+    // a title and its close button on one line, as a popover without a description heads
+    titled: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: space[2],
+    },
+    close: {
+        display: "inline-grid",
+        placeItems: "center",
+        width: space[6],
+        height: space[6],
+        padding: 0,
+        borderWidth: 0,
+        borderRadius: radius[2],
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.muted },
+        },
+        color: color.mutedForeground,
+        cursor: "pointer",
     },
     description: {
         color: color.mutedForeground,
@@ -584,8 +612,10 @@ export type PopoverTriggerProperties<Payload = unknown> = ElementPartProperties 
 /** The properties of a popover's content besides its declared ones: its anchor and gap. */
 export interface PopoverContentAttributes extends Omit<
     JSX.HTMLAttributes<HTMLElement>,
-    "class" | "ref" | "onBeforeToggle" | "onToggle"
+    "class" | "ref" | "onBeforeToggle" | "onToggle" | "title"
 > {
+    /** The heading it shows with a button closing it, as design tools head a detail popover. */
+    readonly title?: JSX.Element;
     /** Handle a non-modal popover element opening or closing, after the popover follows it. */
     readonly onToggle?: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) => void;
     /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
@@ -674,7 +704,38 @@ export const PopoverContent = defineComponent({
         // read the popover and its placement
         const popover = usePopover();
         const { scheduler } = useEnvironment();
-        const rest = omit(properties, "anchor", "side", "align", "sideOffset", "onToggle", "width");
+        const rest = omit(
+            properties,
+            "anchor",
+            "side",
+            "align",
+            "sideOffset",
+            "onToggle",
+            "width",
+            "title",
+            "children",
+        );
+        const locale = useLocale();
+
+        // head the content by its title and a button closing it, where it has a title
+        const children = (): JSX.Element => (
+            <>
+                <Show when={properties.title}>
+                    {(title) => (
+                        <PopoverHeader xstyle={styles.titled}>
+                            <PopoverTitle>{title()}</PopoverTitle>
+                            <PopoverClose
+                                aria-label={locale.render(t.context("action")`Close`)}
+                                xstyle={styles.close}
+                            >
+                                <Icon icon={closeIcon} />
+                            </PopoverClose>
+                        </PopoverHeader>
+                    )}
+                </Show>
+                {properties.children}
+            </>
+        );
         const modalRest = omit(rest, "tabindex");
         const label = (): string | undefined =>
             properties["aria-label"] === undefined
@@ -740,6 +801,9 @@ export const PopoverContent = defineComponent({
                                 popover.follow(event);
                                 properties.onToggle?.(event);
                             },
+                            get children() {
+                                return children();
+                            },
                         },
                     )}
                 >
@@ -757,6 +821,7 @@ export const PopoverContent = defineComponent({
                         data-align={properties.align}
                         {...modalRest}
                         ref={(element) => popover.setContent(element)}
+                        children={children()}
                         onCancel={(event) => popover.requestModal(event)}
                         onClose={() => popover.followModal()}
                         {...style.attributes(
