@@ -297,6 +297,90 @@
         "103u9wbwp9u2p": {
             "source": "One color across the box.",
             "translation": "Un colore su tutto il riquadro."
+        },
+        "14h7jvcx39i1k": {
+            "source": "Row",
+            "context": "option",
+            "translation": "Riga"
+        },
+        "12q6ioub7x83a": {
+            "source": "Side by side, in the text's direction.",
+            "translation": "Uno accanto all’altro, nella direzione del testo."
+        },
+        "2tgw2erwg2bce": {
+            "source": "Column",
+            "context": "option",
+            "translation": "Colonna"
+        },
+        "3qnasrplm7wm1": {
+            "source": "One below the other.",
+            "translation": "Uno sotto l’altro."
+        },
+        "1f9479ojgc88g": {
+            "source": "Start",
+            "context": "option",
+            "translation": "Inizio"
+        },
+        "1mz0be0sw91cl": {
+            "source": "Center",
+            "context": "option",
+            "translation": "Centro"
+        },
+        "2m131cvd4sryp": {
+            "source": "End",
+            "context": "option",
+            "translation": "Fine"
+        },
+        "1zdu1f8jgnaae": {
+            "source": "Space between",
+            "context": "option",
+            "translation": "Spazio tra"
+        },
+        "23ao1ir24cc1l": {
+            "source": "Layer",
+            "context": "option",
+            "translation": "Livello"
+        },
+        "2m9y8ld3vk2vb": {
+            "source": "The box and what it holds.",
+            "translation": "Il riquadro e ciò che contiene."
+        },
+        "2kxc71l1du20e": {
+            "source": "Backdrop",
+            "context": "option",
+            "translation": "Sfondo"
+        },
+        "e3wkn3dmd56a": {
+            "source": "What shows through behind the box, as frosted glass does.",
+            "translation": "Ciò che traspare dietro il riquadro, come il vetro smerigliato."
+        },
+        "2odpjd37zixk8": {
+            "source": "Inside",
+            "context": "option",
+            "translation": "Interno"
+        },
+        "2atd2w750a7al": {
+            "source": "Within the box, as a border.",
+            "translation": "Dentro il riquadro, come un bordo."
+        },
+        "g56m46i0znjf": {
+            "source": "Outside",
+            "context": "option",
+            "translation": "Esterno"
+        },
+        "ij5mqfptv88i": {
+            "source": "Around the box, as an outline that takes no room.",
+            "translation": "Attorno al riquadro, come un contorno che non occupa spazio."
+        },
+        "11znuk1qty2ip": {
+            "source": "Dashed",
+            "context": "option",
+            "translation": "Tratteggiato"
+        },
+        "ohubqvnsnvq4": {
+            "source": "Dotted",
+            "context": "option",
+            "translation": "Punteggiato"
         }
     }
 }

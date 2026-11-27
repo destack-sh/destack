@@ -297,6 +297,90 @@
         "103u9wbwp9u2p": {
             "source": "One color across the box.",
             "translation": "Uma cor em toda a caixa."
+        },
+        "14h7jvcx39i1k": {
+            "source": "Row",
+            "context": "option",
+            "translation": "Linha"
+        },
+        "12q6ioub7x83a": {
+            "source": "Side by side, in the text's direction.",
+            "translation": "Lado a lado, na direção do texto."
+        },
+        "2tgw2erwg2bce": {
+            "source": "Column",
+            "context": "option",
+            "translation": "Coluna"
+        },
+        "3qnasrplm7wm1": {
+            "source": "One below the other.",
+            "translation": "Um abaixo do outro."
+        },
+        "1f9479ojgc88g": {
+            "source": "Start",
+            "context": "option",
+            "translation": "Início"
+        },
+        "1mz0be0sw91cl": {
+            "source": "Center",
+            "context": "option",
+            "translation": "Centro"
+        },
+        "2m131cvd4sryp": {
+            "source": "End",
+            "context": "option",
+            "translation": "Fim"
+        },
+        "1zdu1f8jgnaae": {
+            "source": "Space between",
+            "context": "option",
+            "translation": "Espaço entre"
+        },
+        "23ao1ir24cc1l": {
+            "source": "Layer",
+            "context": "option",
+            "translation": "Camada"
+        },
+        "2m9y8ld3vk2vb": {
+            "source": "The box and what it holds.",
+            "translation": "A caixa e o que contém."
+        },
+        "2kxc71l1du20e": {
+            "source": "Backdrop",
+            "context": "option",
+            "translation": "Fundo"
+        },
+        "e3wkn3dmd56a": {
+            "source": "What shows through behind the box, as frosted glass does.",
+            "translation": "O que se vê por trás da caixa, como vidro fosco."
+        },
+        "2odpjd37zixk8": {
+            "source": "Inside",
+            "context": "option",
+            "translation": "Dentro"
+        },
+        "2atd2w750a7al": {
+            "source": "Within the box, as a border.",
+            "translation": "Dentro da caixa, como uma borda."
+        },
+        "g56m46i0znjf": {
+            "source": "Outside",
+            "context": "option",
+            "translation": "Fora"
+        },
+        "ij5mqfptv88i": {
+            "source": "Around the box, as an outline that takes no room.",
+            "translation": "À volta da caixa, como um contorno que não ocupa espaço."
+        },
+        "11znuk1qty2ip": {
+            "source": "Dashed",
+            "context": "option",
+            "translation": "Tracejado"
+        },
+        "ohubqvnsnvq4": {
+            "source": "Dotted",
+            "context": "option",
+            "translation": "Pontilhado"
         }
     }
 }

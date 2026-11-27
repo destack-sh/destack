@@ -297,6 +297,90 @@
         "103u9wbwp9u2p": {
             "source": "One color across the box.",
             "translation": "Eine Farbe über die ganze Fläche."
+        },
+        "14h7jvcx39i1k": {
+            "source": "Row",
+            "context": "option",
+            "translation": "Zeile"
+        },
+        "12q6ioub7x83a": {
+            "source": "Side by side, in the text's direction.",
+            "translation": "Nebeneinander, in Leserichtung."
+        },
+        "2tgw2erwg2bce": {
+            "source": "Column",
+            "context": "option",
+            "translation": "Spalte"
+        },
+        "3qnasrplm7wm1": {
+            "source": "One below the other.",
+            "translation": "Untereinander."
+        },
+        "1f9479ojgc88g": {
+            "source": "Start",
+            "context": "option",
+            "translation": "Anfang"
+        },
+        "1mz0be0sw91cl": {
+            "source": "Center",
+            "context": "option",
+            "translation": "Mitte"
+        },
+        "2m131cvd4sryp": {
+            "source": "End",
+            "context": "option",
+            "translation": "Ende"
+        },
+        "1zdu1f8jgnaae": {
+            "source": "Space between",
+            "context": "option",
+            "translation": "Abstand dazwischen"
+        },
+        "23ao1ir24cc1l": {
+            "source": "Layer",
+            "context": "option",
+            "translation": "Ebene"
+        },
+        "2m9y8ld3vk2vb": {
+            "source": "The box and what it holds.",
+            "translation": "Die Fläche und ihr Inhalt."
+        },
+        "2kxc71l1du20e": {
+            "source": "Backdrop",
+            "context": "option",
+            "translation": "Hintergrund"
+        },
+        "e3wkn3dmd56a": {
+            "source": "What shows through behind the box, as frosted glass does.",
+            "translation": "Was hinter der Fläche durchscheint, wie bei Milchglas."
+        },
+        "2odpjd37zixk8": {
+            "source": "Inside",
+            "context": "option",
+            "translation": "Innen"
+        },
+        "2atd2w750a7al": {
+            "source": "Within the box, as a border.",
+            "translation": "In der Fläche, als Rahmen."
+        },
+        "g56m46i0znjf": {
+            "source": "Outside",
+            "context": "option",
+            "translation": "Außen"
+        },
+        "ij5mqfptv88i": {
+            "source": "Around the box, as an outline that takes no room.",
+            "translation": "Um die Fläche herum, als Kontur ohne eigenen Platz."
+        },
+        "11znuk1qty2ip": {
+            "source": "Dashed",
+            "context": "option",
+            "translation": "Gestrichelt"
+        },
+        "ohubqvnsnvq4": {
+            "source": "Dotted",
+            "context": "option",
+            "translation": "Gepunktet"
         }
     }
 }

@@ -119,6 +119,33 @@ const fill = FillStack.css([
 ]);
 ```
 
+### Lengths, edges, effects, text, layout and motion
+
+The other design values follow CSS's value types and W3C design tokens, each a schema with an id and a `css` writer.
+
+| Value         | Id            | Shape                                                     | CSS                                |
+| ------------- | ------------- | --------------------------------------------------------- | ---------------------------------- |
+| `Dimension`   | `dimension`   | `"12px"`, `"1.5rem"`, `"50%"`                             | a length or percentage             |
+| `Corners`     | `corners`     | `{ topLeft, topRight, bottomRight, bottomLeft }`          | `border-radius`                    |
+| `BoxSides`    | `boxSides`    | `{ top, right, bottom, left }`                            | `padding`, `margin`, `inset`       |
+| `Stroke`      | `stroke`      | `{ color, width, align, style }`                          | `border` inside, `outline` outside |
+| `ShadowStack` | `shadowStack` | `{ color, x, y, blur, spread, isInset }[]`                | `box-shadow`                       |
+| `Blur`        | `blur`        | `{ kind: "layer" \| "backdrop", radius }`                 | `filter`, `backdrop-filter`        |
+| `Typography`  | `typography`  | `{ family, size, weight, lineHeight, letterSpacing }`     | `font-*`, `line-height`            |
+| `Transform`   | `transform`   | `{ x, y, rotate, scaleX, scaleY }`                        | `translate`, `rotate`, `scale`     |
+| `Layout`      | `layout`      | `{ direction, gap, align, justify, isWrapping, padding }` | flexbox, as auto layout            |
+| `Transition`  | `transition`  | `{ duration, delay, easing }`                             | `transition`                       |
+
+```ts
+import { ShadowStack, Stroke } from "@destack/style";
+
+// raise a card with a hairline and a soft drop
+const border = Stroke.css({ color: "#00000014", width: "1px", align: "inside", style: "solid" });
+const shadow = ShadowStack.css([
+    { color: "#0000001f", x: "0", y: "8px", blur: "24px", spread: "-4px", isInset: false },
+]);
+```
+
 ### Palettes
 
 A `Palette` is a list of colors with the id `palette`, narrowed as any array schema is.
