@@ -4,7 +4,7 @@ import { BranchEntry } from "../branch/entry.ts";
 import { RelationGraph } from "../query/query.ts";
 import { Condition, Key, OrderBy, TABLE, Table, RelationalQueryBuilder } from "@destack/db";
 import { JsonValue, present, schema } from "@destack/schema";
-import type { HookHandler, ServerContext } from "../workload/workload.ts";
+import type { HostHandler, ServerContext } from "../workload/workload.ts";
 import { Subject } from "@destack/sync";
 import { MethodContext } from "../method/context.ts";
 import type { Session } from "../method/reader.ts";
@@ -20,7 +20,7 @@ import {
 import { ObjectError } from "../error/index.ts";
 
 /** An installation's object hooks, run in its isolate for its space's store. */
-export class HookServer implements HookHandler {
+export class HookServer implements HostHandler {
     /** The types whose hooks the server runs. */
     readonly types: readonly ObjectType[];
     /** The relations between the types the hooks' calls may name. */

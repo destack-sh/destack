@@ -11,7 +11,8 @@ import { Health } from "../server/health.ts";
 
 import type {
     EphemeralHost,
-    HookHandler,
+    HostHandler,
+    HostKind,
     ServerContext,
     Workload,
     WorkloadContext,
@@ -185,8 +186,8 @@ export class WorkloadInstance implements AsyncDisposable {
     }
 
     /** What the workload does with its store's hook requests, refusing a workload serving none. */
-    requireHookHandler(): HookHandler {
-        return this.#current.requireHookHandler();
+    requireHandler(kind: HostKind): HostHandler {
+        return this.#current.requireHandler(kind);
     }
 
     /** Request shutdown. */
@@ -266,7 +267,7 @@ class WorkloadStart {
     /** What the start does with its hibernated sockets' events, absent for a start without them. */
     #sockets: SocketHandler | undefined;
     /** What the start does with its store's hook requests, absent for a start serving none. */
-    #hooks: HookHandler | undefined;
+    #handlers: { readonly [Kind in HostKind]?: HostHandler } = {};
     /** The shutdown. */
     #closing?: Promise<void>;
     /** The start's captures of failures no caller awaits, on its environment's telemetry. */
@@ -321,7 +322,10 @@ class WorkloadStart {
             start.#store = implementation.store;
             start.#running = start.#run(implementation.store, implementation.control ?? (() => []));
             start.#sockets = implementation.sockets;
-            start.#hooks = implementation.hooks;
+            start.#handlers = {
+                ...(implementation.hooks === undefined ? {} : { hooks: implementation.hooks }),
+                ...(implementation.views === undefined ? {} : { views: implementation.views }),
+            };
 
             // reject a cancelled start
             start.#controller.signal.throwIfAborted();
@@ -507,12 +511,13 @@ class WorkloadStart {
     }
 
     /** What the start does with its store's hook requests, refusing a start serving none. */
-    requireHookHandler(): HookHandler {
-        if (this.#hooks === undefined) {
-            throw ObjectError.of("HOOKS_NOT_FOUND", "workload hooks not found");
+    requireHandler(kind: HostKind): HostHandler {
+        const handler = this.#handlers[kind];
+        if (handler === undefined) {
+            throw ObjectError.of("HANDLER_NOT_FOUND", `workload ${kind} not found`);
         }
 
-        return this.#hooks;
+        return handler;
     }
 
     /** Abort the start's background work. */

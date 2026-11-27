@@ -7,6 +7,8 @@ import {
 } from "@destack/package";
 import type { ObjectStore } from "../server/store.ts";
 import type { ControllerSet, BlobStore, DatabaseConnection } from "@destack/db/database";
+import type { ExchangeSubject } from "@destack/access/token";
+import type { ObjectConnection } from "../replica/connection.ts";
 import type { Environment } from "@destack/environment";
 import type { DatabaseSchema, Table } from "@destack/db";
 import type { Identifier, JsonValue } from "@destack/schema";
@@ -130,6 +132,8 @@ export interface ServerContext {
     readonly remote: ObjectRemote;
     /** Connect to the store of a package at `<installation>--<space>` through the host's egress. */
     readonly connect: (address: string, packageId: PackageId) => ObjectRemote;
+    /** Connect to the space's stack as a subject the installation serves, through the egress. */
+    readonly act: (subject: ExchangeSubject) => ObjectConnection;
     /** Call the packages at an address through the host's egress as the installation. */
     readonly at: (address: string) => {
         readonly url: string;
@@ -156,11 +160,34 @@ export interface WorkloadImplementation {
     /** What the workload does with its hibernated sockets' messages and closes. */
     readonly sockets?: SocketHandler;
     /** What the workload does with its space store's requests to run its objects' hooks. */
-    readonly hooks?: HookHandler;
+    readonly hooks?: HostHandler;
+    /** What the workload does with its host's requests to render its views as their visitors. */
+    readonly views?: HostHandler;
 }
 
-/** What a workload does with its space store's requests to run its objects' hooks. */
-export interface HookHandler {
-    /** Answer a request to run a hook. */
+/** The kinds of requests a host sends a workload beside calls: hooks to run and views to render. */
+export type HostKind = "hooks" | "views";
+
+/** What a workload does with one kind of its host's requests. */
+export interface HostHandler {
+    /** Answer one of the host's requests. */
     readonly fetch: (request: Request) => Promise<Response>;
 }
+
+/** Start rendering a package's views on a views workload's or a store's context. */
+export type ViewsStart = (context: {
+    /** The installation's server context, which reaches the space's stack as the visitor. */
+    readonly server?: Pick<ServerContext, "act">;
+    /** The memory databases the render's replicas open. */
+    readonly ephemeral?: EphemeralHost;
+    /** The environment the renders run in. */
+    readonly environment: Environment;
+}) => WorkloadImplementation & { readonly views: HostHandler };
+
+/** Recognise views starts, as a views workload's module exports them. */
+export const ViewsStart = {
+    /** Report whether a module's export is a views start. */
+    is(value: unknown): value is ViewsStart {
+        return typeof value === "function";
+    },
+};

@@ -54,6 +54,9 @@ export async function testServerContext(
         url: `https://fixture--${space}.test`,
         remote: IDLE,
         connect: () => IDLE,
+        act: () => {
+            throw new TypeError("the fixture acts for no subject");
+        },
         at: (address) => ({
             url: address,
             fetch: () => Promise.reject(new Error(`the idle machine cannot call '${address}'`)),

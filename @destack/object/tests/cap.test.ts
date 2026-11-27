@@ -72,6 +72,9 @@ async function serveInstalledNotes(world: Environment) {
         connect: () => {
             throw new TypeError("the fixture reaches no installation");
         },
+        act: () => {
+            throw new TypeError("the fixture acts for no subject");
+        },
         at: () => {
             throw new TypeError("the fixture fetches no address");
         },
