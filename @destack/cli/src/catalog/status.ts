@@ -1,4 +1,11 @@
-import { Installation, installation, bucket, database } from "@destack/stack/object";
+import {
+    Installation,
+    installation,
+    bucket,
+    database,
+    edit,
+    EditOutput,
+} from "@destack/stack/object";
 import { GitReference } from "@destack/git";
 import { RelationalQuery } from "@destack/object/client";
 import { principal } from "@destack/access";
@@ -99,6 +106,57 @@ export class InstallationStatus {
         this.version = fields.version;
         this.resources = fields.resources;
         this.waiting = fields.waiting;
+    }
+
+    /** Wait for an edit's run, then for the installation to apply a later revision. */
+    static async edited(
+        id: Identifier<"installation">,
+        run: string,
+        before: string | null,
+        context: CommandContext,
+    ): Promise<void> {
+        // follow the run and the installation as the person
+        const space = await context.requireSpace();
+        const launcher = await context.launcher();
+        await using opened = new AsyncDisposableStack();
+        const native = await context.native();
+        const { query } = await native.open(
+            launcher,
+            { space },
+            { installation, run: edit.run },
+            opened,
+        );
+        const watching = new AbortController();
+        opened.defer(() => watching.abort());
+        const states = RelationalQuery.latest(
+            {
+                edited: query.run.findFirst({ where: { id: schema.identifier("run").parse(run) } }),
+                installed: query.installation.findFirst({ where: { id } }),
+            },
+            watching.signal,
+        );
+
+        // TODO #Broken: an edit's push through its storage lease leaves the branch's reference row behind, so the installation never applies it and this waits
+        // end once the run completed and the installation applies a later revision, refusing a run that did not complete
+        for await (const { edited, installed } of states) {
+            if (edited?.state === "failed" || edited?.state === "cancelled") {
+                const reason = edited.failure?.message ?? edited.state;
+                throw CliError.of(
+                    "EDIT_BROKEN",
+                    `edit of installation '${id}' is broken: it ended with '${reason}'`,
+                );
+            }
+            const isApplied =
+                installed !== undefined &&
+                installed.appliedRevisionId !== null &&
+                installed.appliedRevisionId !== before;
+            const done =
+                edited?.state === "completed" ? EditOutput.parse(edited.output) : undefined;
+            const isUnchanged = done !== undefined && done.commit === done.base;
+            if (done !== undefined && (isUnchanged || isApplied)) {
+                return;
+            }
+        }
     }
 
     /** Follow an installation of the space with its resources, and the plan it waits on. */

@@ -10,7 +10,7 @@ import { type Identifier, type JsonObject, present, schema, Version } from "@des
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { type CommandBody, type CommandCall, CommandOption } from "../command/command.ts";
-import { HOME_APPLICATION } from "@destack/account/object";
+import { HOME_APPLICATION, MAIN_APPLICATION } from "@destack/account/object";
 import type { CommandContext, CommandEnvironment } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 import { InstallationStatus } from "./status.ts";
@@ -164,6 +164,11 @@ export const installCommand: CommandBody = {
             argument: "name",
         },
         ...INSTALLATION_PARENT_OPTIONS,
+        standalone: {
+            type: "boolean",
+            description:
+                "Install it apart from the space's main installation, on an origin of its own",
+        },
         yes: { type: "boolean", description: "Approve each plan the installation waits on" },
     },
     isJson: true,
@@ -186,6 +191,28 @@ export const installCommand: CommandBody = {
             target = await InstallationTarget.release(read, context);
         }
 
+        // add a release or tag to the space's main installation, which serves it on its origin, unless asked apart
+        const isApproved = options["yes"] === true;
+        const main =
+            read.kind === "release" && options["standalone"] !== true
+                ? await target.add(isApproved, context)
+                : undefined;
+        if (main !== undefined) {
+            await InstallationStatus.drive(main, isApproved, json, context);
+            await context.terminal.print(
+                json
+                    ? JSON.stringify({ id: main, name: MAIN_APPLICATION, ...target.output })
+                    : context.terminal.event(
+                          "Added",
+                          "done",
+                          `to '${MAIN_APPLICATION}'`,
+                          target.detail,
+                      ),
+            );
+
+            return;
+        }
+
         // install it, and follow it until its space serves it
         const { id, name } = await target.install(
             named,
@@ -193,7 +220,7 @@ export const installCommand: CommandBody = {
             InstallationParentOption.read(options),
             context,
         );
-        await InstallationStatus.drive(id, options["yes"] === true, json, context);
+        await InstallationStatus.drive(id, isApproved, json, context);
 
         // report what it runs and its version
         await context.terminal.print(
@@ -488,6 +515,43 @@ export class InstallationTarget {
             output: { package: packageName, repository: named, branch, directory },
             detail: `${packageName} from ${named}#${branch} · updates on push`,
         });
+    }
+
+    /** Add the package to the space's main installation, none without a main. */
+    async add(
+        isApproved: boolean,
+        context: CommandContext,
+    ): Promise<Identifier<"installation"> | undefined> {
+        // find the space's main installation, which a space without one lacks
+        const space = await context.requireSpace();
+        const consent = isApproved ? "approve" : "ask";
+        const stacks = await context.package(stackPackage, await context.locate(), consent);
+        const [main] = (
+            await stacks.installation.list({
+                scope: space,
+                where: { name: MAIN_APPLICATION },
+                limit: 1,
+            })
+        ).items;
+        if (main === undefined) {
+            return undefined;
+        }
+
+        // require the package at its tag, else its version, committing the change to main's branch
+        const name = String(this.output["package"]);
+        const range = this.output["tag"] ?? this.output["version"] ?? LATEST_TAG;
+        const { run } = await stacks.installation.edit({
+            scope: space,
+            id: main.id,
+            requestId: RequestId.create((await context.native()).environment),
+            operations: [{ kind: "dependency.add", package: name, range }],
+            message: `add ${name}`,
+        });
+
+        // wait until main serves the edit, refusing a failed one
+        await InstallationStatus.edited(main.id, run, main.appliedRevisionId, context);
+
+        return main.id;
     }
 
     /** Create the package's installation under a name, or change its installed one's version. */
