@@ -524,7 +524,14 @@ export class BuildStore<
 
     /** Tell which of some blobs the store has, one flag per digest, its layer's among them. */
     async has(digests: readonly Digest[]): Promise<boolean[]> {
-        // locate the bytes, and read the records of the manifests and images among them
+        const located = await this.locate(digests);
+
+        return digests.map((digest) => located.has(digest));
+    }
+
+    /** Tell which objects lie here complete, manifests and images only once recorded complete. */
+    async complete(digests: readonly Digest[]): Promise<boolean[]> {
+        // locate the bytes, and read the records of the stored manifests and images among them, the layer's shipped complete
         const located = await this.locate(digests);
         const stored = digests.filter((digest) => located.has(digest));
         const records =
@@ -540,6 +547,7 @@ export class BuildStore<
                       .where(inArray(buildManifest.digest, stored));
         const incomplete = new Set(
             records
+                .filter((record) => this.layer.head(record.digest) === undefined)
                 .filter((record) => !record.isComplete || !this.#isMounted(record.layer))
                 .map((record) => record.digest),
         );
