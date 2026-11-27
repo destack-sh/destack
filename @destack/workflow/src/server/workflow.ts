@@ -79,6 +79,8 @@ export function implementWorkflow<Input, Output, Waits extends ObjectType, Name 
                                     attempts: row.attempts,
                                     wakeAt: null,
                                     failure: row.failure,
+                                    waitType: row.waitType,
+                                    waitCondition: row.waitCondition,
                                 }),
                             ),
                         );

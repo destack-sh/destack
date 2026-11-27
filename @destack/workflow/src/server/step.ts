@@ -73,6 +73,8 @@ export class Step<Waits extends ObjectType = ObjectType> {
     readonly #recorded: ReadonlyMap<string, StepRecord>;
     /** The names taken in this advance in order, which no two steps share. */
     readonly #taken: string[];
+    /** The recorded failures this advance threw again, which a retry would throw the same. */
+    readonly #replayed = new Set<unknown>();
     /** The recorded steps' names, by their place in the run. */
     readonly #positions: ReadonlyMap<number, string>;
     /** The spans and durations of the steps. */
@@ -368,7 +370,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             // answer recorded output again by its schema, else do the work once and record it
             const completed = Step.#completed(this.#take(name));
             if (completed !== undefined) {
-                return output.parse(Step.#replay(completed));
+                return output.parse(this.#replay(completed));
             }
             const done = output.parse(await work());
             await this.#complete(name, { output: recorded(done) });
@@ -389,7 +391,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             const recordedStep = this.#take(name);
             const completed = Step.#completed(recordedStep);
             if (completed !== undefined) {
-                return output.parse(Step.#replay(completed));
+                return output.parse(this.#replay(completed));
             }
 
             // place it on the runner once, then wait until the runner ends it
@@ -454,7 +456,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             MethodContext.results(this.#store.objects, [listing], [page])[0].items[0];
         const completed = Step.#completed(recordedStep);
         if (completed !== undefined) {
-            const replayed = Step.#replay(completed);
+            const replayed = this.#replay(completed);
 
             return replayed === null ? undefined : first(replayed);
         }
@@ -498,7 +500,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         if (completed !== undefined) {
             return schema
                 .enum(["requested", "approved", "rejected"])
-                .parse(Step.#replay(completed));
+                .parse(this.#replay(completed));
         }
 
         // ask each approver once with the waiting step, asking again those who decided before
@@ -564,7 +566,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         const recordedStep = this.#take(name);
         const completed = Step.#completed(recordedStep);
         if (completed !== undefined) {
-            return output.parse(Step.#replay(completed));
+            return output.parse(this.#replay(completed));
         }
 
         // start the run as this run's actor under a key the step derives, recording it with the waiting step
@@ -739,7 +741,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         const [result] = MethodContext.results(
             this.#store.objects,
             [call],
-            [Step.#replay(recordedStep)],
+            [this.#replay(recordedStep)],
         );
 
         return result;
@@ -841,10 +843,17 @@ export class Step<Waits extends ObjectType = ObjectType> {
         return recordedStep?.completedAt === null ? undefined : recordedStep;
     }
 
-    /** Answer a recorded step: its output, or its failure thrown again. */
-    static #replay(recordedStep: StepRecord): JsonValue {
+    /** Report whether an error is a recorded failure this advance threw again. */
+    isReplayed(error: unknown): boolean {
+        return this.#replayed.has(error);
+    }
+
+    /** Answer a recorded step: its output, or its final failure thrown again and remembered. */
+    #replay(recordedStep: StepRecord): JsonValue {
         if (recordedStep.failure !== null) {
-            throw Failure.error(recordedStep.failure);
+            const failed = Failure.error(recordedStep.failure);
+            this.#replayed.add(failed);
+            throw failed;
         }
 
         return recordedStep.output;
