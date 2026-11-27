@@ -8,7 +8,6 @@ import {
     TOKEN_PARAMETER,
     VIEW_PARAMETER,
     ViewAddress,
-    objectUrl,
 } from "@destack/view/declare";
 
 /** The deep links to views and objects under a universe's desktop scheme. */
@@ -115,9 +114,7 @@ export class Link {
     format(address: Address): string {
         // link the object at the open path of its space's origin without a domain
         if ("object" in address) {
-            const options = address.view === undefined ? {} : { view: address.view };
-
-            return `${this.scheme}://${address.space}${objectUrl(address.object, options)}`;
+            return `${this.scheme}://${address.space}${ObjectAddress.openPath(address)}`;
         }
 
         // link the view below its installation's origin without a domain
