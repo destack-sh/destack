@@ -136,7 +136,6 @@ export class InstallationStatus {
             watching.signal,
         );
 
-        // TODO #Broken: an edit's push through its storage lease leaves the branch's reference row behind, so the installation never applies it and this waits
         // end once the run completed and the installation applies a later revision, refusing a run that did not complete
         for await (const { edited, installed } of states) {
             if (edited?.state === "failed" || edited?.state === "cancelled") {
@@ -146,6 +145,7 @@ export class InstallationStatus {
                     `edit of installation '${id}' is broken: it ended with '${reason}'`,
                 );
             }
+            // TODO #Broken: an edit's lease push leaves its reference row stale, so this waits
             const isApplied =
                 installed !== undefined &&
                 installed.appliedRevisionId !== null &&
