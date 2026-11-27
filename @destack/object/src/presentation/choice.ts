@@ -1,8 +1,10 @@
 import type { Hue } from "@destack/style";
 import type { Localization } from "@destack/locale";
 import type { Moment } from "@destack/db";
-import type { JsonValue } from "@destack/schema";
+import type { JsonObject, JsonValue } from "@destack/schema";
+import type { ObjectReference } from "@destack/sync";
 import type { Hit } from "../client/access.ts";
+import type { ObjectType } from "../object/object.ts";
 import type { FieldChoice } from "../field/choice.ts";
 import type { Icon } from "../trait/presentable.ts";
 
@@ -38,6 +40,17 @@ export const Choice = {
         };
     },
 
+    /** Read an object as a choice in a locale, as its type presents its row at a moment. */
+    object(
+        type: ObjectType,
+        reference: ObjectReference,
+        row: JsonObject,
+        moment: Moment,
+        localization: Localization,
+    ): Choice {
+        return { value: reference, ...type.appearance(row, moment, localization) };
+    },
+
     /** Read a search's hit as a choice in a locale, as it looks at a moment. */
     hit(
         { type, reference, row, excerpt }: Hit,
@@ -45,8 +58,7 @@ export const Choice = {
         localization: Localization,
     ): Choice {
         return {
-            value: reference,
-            ...type.appearance(row, moment, localization),
+            ...Choice.object(type, reference, row, moment, localization),
             ...(excerpt === undefined ? {} : { excerpt }),
         };
     },
