@@ -23,6 +23,13 @@ export const CHANNEL_NAMES: Readonly<Record<ColorChannel, Message>> = {
     lightness: t.context("label")`Lightness`,
     brightness: t.context("label")`Brightness`,
     chroma: t.context("label")`Chroma`,
+    whiteness: t.context("label")`Whiteness`,
+    blackness: t.context("label")`Blackness`,
+    greenRed: t.context("label")`Green to red`,
+    blueYellow: t.context("label")`Blue to yellow`,
+    x: t.context("label")`X`,
+    y: t.context("label")`Y`,
+    z: t.context("label")`Z`,
     alpha: t.context("label")`Opacity`,
 };
 

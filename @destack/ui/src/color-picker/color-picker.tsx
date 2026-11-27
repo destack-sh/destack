@@ -51,6 +51,8 @@ import {
 
 export { type ColorPickerOptions, useColorPicker } from "./control.ts";
 
+/** The spaces of a lightness, a chroma and a hue, whose area lays out chroma and lightness. */
+const POLAR: ReadonlySet<ColorSpace> = new Set(["lch", "oklch"]);
 /** The points an area is painted in along each side, smooth once the screen scales them. */
 const POINTS = 48;
 
@@ -356,13 +358,13 @@ export const ColorArea = defineComponent({
         const colorSpace = (): ColorSpace => properties.colorSpace;
         const xChannel = (): ColorChannel =>
             properties.xChannel ??
-            (colorSpace() === "oklch" ? "chroma" : COLOR_CHANNELS[colorSpace()][1]);
+            (POLAR.has(colorSpace()) ? "chroma" : COLOR_CHANNELS[colorSpace()][1]);
         const yChannel = (): ColorChannel =>
             properties.yChannel ??
-            (colorSpace() === "oklch" ? "lightness" : COLOR_CHANNELS[colorSpace()][2]);
+            (POLAR.has(colorSpace()) ? "lightness" : COLOR_CHANNELS[colorSpace()][2]);
         const current = (): Color => picker.color(colorSpace());
         const share = (channel: ColorChannel): number => {
-            const { min, max } = Color.range(channel);
+            const { min, max } = current().range(channel);
 
             return (current().get(channel) - min) / (max - min);
         };
@@ -387,8 +389,8 @@ export const ColorArea = defineComponent({
         const moveTo = (x: number, y: number): void => {
             picker.set(
                 current()
-                    .with(xChannel(), stepAt(xChannel(), x))
-                    .with(yChannel(), stepAt(yChannel(), y)),
+                    .with(xChannel(), stepAt(current(), xChannel(), x))
+                    .with(yChannel(), stepAt(current(), yChannel(), y)),
             );
         };
         const follow = ({ clientX, clientY }: PointerEvent): void => {
@@ -454,7 +456,7 @@ export const ColorArea = defineComponent({
             event.preventDefault();
             const [channel, count] = found[1];
             const large = event.shiftKey && Math.abs(count) === 1 ? LARGE_STEP : 1;
-            const { step } = Color.range(channel);
+            const { step } = current().range(channel);
             picker.set(current().with(channel, current().get(channel) + count * large * step));
             picker.commit();
         };
@@ -476,7 +478,7 @@ export const ColorArea = defineComponent({
             fill: () => current().with("alpha", 1).toString(),
             attributes: () => ({
                 "aria-valuetext": valueText(),
-                ...Color.range(xChannel()),
+                ...current().range(xChannel()),
                 disabled: picker.isDisabled(),
                 value: current().get(xChannel()),
             }),
@@ -612,13 +614,13 @@ export const ColorSlider = defineComponent({
         const base = (): Color => {
             // show a hue at its most vivid, and each channel without the alpha but its own
             const shown = properties.channel === "alpha" ? current() : current().with("alpha", 1);
-            const isVivid = properties.channel === "hue" && colorSpace() !== "oklch";
+            const isVivid = properties.channel === "hue" && !POLAR.has(colorSpace());
 
             return isVivid ? new Color("hsb", [shown.get("hue"), 100, 100]) : shown;
         };
         const image = (): string => {
             // list the colors from one end of the channel to the other
-            const { min, max } = Color.range(properties.channel);
+            const { min, max } = current().range(properties.channel);
             const start = base();
             const colors = Array.from({ length: STOPS + 1 }, (_, index) =>
                 start.with(properties.channel, min + (index / STOPS) * (max - min)).toString(),
@@ -635,9 +637,9 @@ export const ColorSlider = defineComponent({
                 data-slot="color-slider"
                 aria-label={locale.render(CHANNEL_NAMES[properties.channel])}
                 {...rest}
-                min={Color.range(properties.channel).min}
-                max={Color.range(properties.channel).max}
-                step={Color.range(properties.channel).step}
+                min={current().range(properties.channel).min}
+                max={current().range(properties.channel).max}
+                step={current().range(properties.channel).step}
                 disabled={properties.disabled === true || picker.isDisabled()}
                 value={[current().get(properties.channel)]}
                 onValueChange={([value]) => {
@@ -769,7 +771,7 @@ function ColorNumberField(
     const picker = useColorPicker();
     const locale = useLocale();
     const current = (): Color => picker.color(properties.colorSpace);
-    const range = () => Color.range(properties.channel);
+    const range = () => current().range(properties.channel);
     const rest = omit(properties, "channel", "colorSpace", "xstyle");
 
     return (
@@ -906,8 +908,8 @@ function paint(
         return;
     }
     const image = context.createImageData(POINTS, POINTS);
-    const along = Color.range(horizontal);
-    const up = Color.range(vertical);
+    const along = base.range(horizontal);
+    const up = base.range(vertical);
     for (let row = 0; row < POINTS; row += 1) {
         const line = base.with(vertical, up.max - (row / (POINTS - 1)) * (up.max - up.min));
         for (let column = 0; column < POINTS; column += 1) {
@@ -920,8 +922,8 @@ function paint(
 }
 
 /** Read the step of a channel at a share of its range. */
-function stepAt(channel: ColorChannel, share: number): number {
-    const { min, max, step } = Color.range(channel);
+function stepAt(shown: Color, channel: ColorChannel, share: number): number {
+    const { min, max, step } = shown.range(channel);
 
     return Math.round((min + Math.min(Math.max(share, 0), 1) * (max - min)) / step) * step;
 }
