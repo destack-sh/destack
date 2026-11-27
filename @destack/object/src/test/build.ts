@@ -27,6 +27,7 @@ const SERVER_OUTPUT: PackageOutput = {
     views: {},
     directory: "server",
     exports: { [SERVER_EXPORT]: { path: "server/index.js", imports: [] } },
+    inlined: {},
     peers: {},
 };
 
