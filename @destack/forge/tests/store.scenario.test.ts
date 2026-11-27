@@ -288,7 +288,7 @@ test("serve and retain a release's npm units and Bun output", async () => {
         {
             role: "app",
             package: TINY,
-            outputs: { bun: { ...output, exports: {}, peers: {} } },
+            outputs: { bun: { ...output, exports: {}, peers: {}, inlined: {} } },
         },
         crypto,
     );
@@ -299,6 +299,7 @@ test("serve and retain a release's npm units and Bun output", async () => {
             bun: {
                 ...output,
                 exports: { ".": { path: "bun/index.js", imports: ["tiny"] } },
+                inlined: {},
                 peers: {},
             },
         },
