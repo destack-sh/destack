@@ -1,5 +1,4 @@
-import { isMotionReduced } from "@destack/view/motion";
-import { LayoutAnimation } from "../motion/layout.ts";
+import { isMotionReduced, readMotionTiming } from "@destack/view/motion";
 
 /** How far content slides as another takes its place, in pixels, as much as a row is tall. */
 const SLIDE = 32;
@@ -75,7 +74,7 @@ export class Viewport {
                 ? `${String(sign * Math.sign(x) * SLIDE)}px 0px`
                 : `0px ${String(sign * Math.sign(y) * SLIDE)}px`;
         this.#element.append(leaving);
-        const timing = new LayoutAnimation(this.#element).timing("short");
+        const timing = readMotionTiming(this.#element);
         current.animate(
             [
                 { translate: way(1), opacity: 0 },

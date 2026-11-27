@@ -9,16 +9,15 @@ import {
     createContext,
     createMemo,
     createSignal,
+    createUniqueId,
     type JSX,
     omit,
     onCleanup,
     Show,
     untrack,
     useContext,
-    useEnvironment,
     useLocale,
 } from "@destack/view";
-import type { Environment } from "@destack/environment";
 import {
     type DragItem,
     DragAnnouncer,
@@ -33,7 +32,8 @@ import {
     type DroppableOptions,
     useDragManager,
 } from "../drag/index.ts";
-import { LayoutAnimation } from "../motion/layout.ts";
+import { startViewTransition } from "@destack/view/motion";
+import { present } from "@destack/schema";
 import {
     contentOr,
     type ElementPartProperties,
@@ -267,8 +267,10 @@ export class SortableControl {
     readonly #marked: Accessor<{ readonly id: string; readonly drop: SortableDrop } | undefined>;
     /** How far each item makes room for the dragged one, found once per step of the drag. */
     readonly #rooms: Accessor<ReadonlyMap<string, number>>;
-    /** The display whose next frame an animation waits for. */
-    readonly #environment: Environment<"display">;
+    /** The sortable's element, which its transitions run in. */
+    #element: HTMLElement | undefined;
+    /** The name a dropped item and its preview share as the item lands. */
+    readonly #name = `sortable-${createUniqueId().replaceAll(/[^\w-]/gu, "")}`;
     /** The containers by their ids. */
     readonly #lists = new Map<string, SortableList>();
     /** The bounds of each container's items as the drag lifted, none for a virtual list's. */
@@ -279,14 +281,9 @@ export class SortableControl {
     readonly #mounts: CollectionBuilder<string>;
 
     /** Create the state of a sortable from its root's properties. */
-    constructor(
-        properties: SortableProperties,
-        manager: DragManager,
-        environment: Environment<"display">,
-    ) {
+    constructor(properties: SortableProperties, manager: DragManager) {
         // animate every move the drags drop on the lists
         this.properties = properties;
-        this.#environment = environment;
         this.manager = manager;
         this.#mounts = new CollectionBuilder();
 
@@ -322,53 +319,41 @@ export class SortableControl {
         });
     }
 
-    /** Run a move and animate each item from where it was to where the move puts it, after FLIP. */
+    /** Run a move as a view transition, each item morphing to where the move puts it. */
     animate(move: () => void): void {
-        // remember where each item was, unless the person wants reduced motion
-        const elements = [...this.#items.values()].flatMap((entry) => {
-            const element = entry.element();
-
-            return element === undefined ? [] : [element];
-        });
-        const [first] = elements;
-        const isStill = first === undefined || !new LayoutAnimation(first).isEnabled();
-        const before = new Map(
-            elements.map((element) => [element, element.getBoundingClientRect()]),
-        );
-
-        // land the dragged item from under the pointer
-        const operation = this.manager.current();
-        const dragged =
-            operation === undefined || operation.pointer === "keyboard"
-                ? undefined
-                : this.elementOf(operation.item);
-        const stood = dragged === undefined ? undefined : before.get(dragged);
-        if (operation !== undefined && dragged !== undefined && stood !== undefined) {
-            before.set(
-                dragged,
-                new DOMRect(
-                    stood.x + operation.offsetX,
-                    stood.y + operation.offsetY,
-                    stood.width,
-                    stood.height,
-                ),
-            );
-        }
-        move();
-        if (isStill) {
-            return;
+        // land the dragged item from its preview under the pointer, sharing one name
+        const root = present(this.#element, "a sortable's element");
+        const dragged = this.manager.current()?.item;
+        const landing = dragged === undefined ? undefined : this.elementOf(dragged);
+        const preview = root.querySelector<HTMLElement>("[data-slot=drag-preview]");
+        const isLanding = landing !== undefined && preview !== null;
+        if (isLanding) {
+            preview.style.viewTransitionName = this.#name;
         }
 
-        // once the move renders, play each item that moved from its old place to its new one
-        void this.#environment.display.frame().then(() => {
-            for (const [element, was] of before) {
-                new LayoutAnimation(element).stop();
-                const now = element.getBoundingClientRect();
-                if (element.isConnected) {
-                    new LayoutAnimation(element).from(was.left - now.left, was.top - now.top);
+        // morph every other item to where the move puts it
+        const items = [...this.#items.values()]
+            .flatMap((entry) => entry.element() ?? [])
+            .filter((element) => !isLanding || element !== landing);
+        void startViewTransition(
+            root,
+            () => {
+                move();
+                if (isLanding) {
+                    landing.style.viewTransitionName = this.#name;
                 }
+            },
+            items,
+        ).then(() => {
+            if (isLanding) {
+                landing.style.viewTransitionName = "";
             }
         });
+    }
+
+    /** Attach the sortable's element, which its transitions run in. */
+    setElement(element: HTMLElement): void {
+        this.#element = element;
     }
 
     /** Read the id of the dragged item, none between drags. */
@@ -902,13 +887,14 @@ export type SortableHandleProperties = SortableElementProperties<
 export function Sortable(properties: SortableProperties): JSX.Element {
     // move the items by drags that report each drop as a move
     const drags = useDragManager();
-    const control = new SortableControl(properties, drags.manager, useEnvironment());
+    const control = new SortableControl(properties, drags.manager);
     const manager = control.manager;
     const rest = omit(properties, "onMove", "nesting", "indicator", "children");
 
     return (
         <SortableContext value={control}>
             {renderPart("div", "sortable", rest, null, {
+                ref: (element: HTMLElement) => control.setElement(element),
                 get "data-dragging"() {
                     return manager.operation() === undefined ? undefined : "";
                 },

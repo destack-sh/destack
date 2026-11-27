@@ -1,7 +1,7 @@
+import { isMotionReduced, readMotionTiming } from "@destack/view/motion";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import * as style from "@destack/style";
-import { LayoutAnimation } from "../motion/layout.ts";
 import { transition } from "@destack/theme/motion";
 import { space } from "@destack/theme/tokens.stylex";
 
@@ -372,7 +372,7 @@ export const Position = {
     /** Animate a shown overlay to where it now is from where it was. */
     animate(content: HTMLElement, from: DOMRect): void {
         // move at once where the person wants less motion, or the page has no animations
-        if (!new LayoutAnimation(content).isEnabled()) {
+        if (isMotionReduced(content)) {
             return;
         }
 
@@ -392,7 +392,7 @@ export const Position = {
                     height: `${String(to.height)}px`,
                 },
             ],
-            new LayoutAnimation(content).timing("short"),
+            readMotionTiming(content),
         );
     },
 

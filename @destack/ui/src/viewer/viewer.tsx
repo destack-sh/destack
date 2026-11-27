@@ -27,7 +27,7 @@ import {
     useEnvironment,
     useLocale,
 } from "@destack/view";
-import { isMotionReduced } from "@destack/view/motion";
+import { isMotionReduced, readMotionTiming } from "@destack/view/motion";
 import { createIdleTimer } from "@destack/view/primitives/idle";
 import {
     ActionButton,
@@ -57,7 +57,6 @@ import {
     mergeProperties,
     renderPart,
 } from "../part/index.ts";
-import { LayoutAnimation } from "../motion/layout.ts";
 import { useViewer, ViewerContext, type ViewerControl, type ViewerState } from "./control.ts";
 import { FIT, type Frame, type Place, type Point } from "./scale.ts";
 
@@ -1054,7 +1053,7 @@ function morph(
             { transform: "none", clipPath: "inset(0px 0px)" },
         ],
         {
-            ...new LayoutAnimation(element).timing("short"),
+            ...readMotionTiming(element),
             direction,
             fill: direction === "reverse" ? "forwards" : "none",
         },

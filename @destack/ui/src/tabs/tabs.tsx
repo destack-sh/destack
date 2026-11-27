@@ -30,7 +30,6 @@ import {
 } from "@destack/view";
 import { CollectionBuilder } from "../collection/index.ts";
 import { Icon } from "../icon/index.ts";
-import { createLayoutAnimation } from "../motion/layout.ts";
 import { OverflowContext, OverflowEntryContext, useOverflowEntry } from "../overflow/index.ts";
 import {
     type ElementPartProperties,
@@ -654,15 +653,6 @@ export const TabsList = defineComponent({
             }
         };
 
-        // move the tabs to their places as they open, close and move
-        createLayoutAnimation({
-            elements: () =>
-                control.list.items
-                    .items()
-                    .flatMap((tab) => control.element(tab.key) ?? tab.element() ?? []),
-            around: () => element,
-        });
-
         // bring the selected tab into view
         createEffect(
             () => {
@@ -711,7 +701,10 @@ export const TabsList = defineComponent({
                             return (
                                 <div
                                     role="presentation"
-                                    ref={(created) => (element = created)}
+                                    ref={(created) => {
+                                        element = created;
+                                        control.setElement(created);
+                                    }}
                                     {...style.attributes([
                                         styles.content,
                                         contents[variant()],

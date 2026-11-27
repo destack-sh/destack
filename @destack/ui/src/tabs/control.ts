@@ -14,6 +14,8 @@ import {
 } from "@destack/view";
 import type { Direction } from "@destack/locale";
 import type { Action } from "@destack/object";
+import { present } from "@destack/schema";
+import { startViewTransition } from "@destack/view/motion";
 import { CollectionBuilder } from "../collection/index.ts";
 import { ListState } from "../focus/index.ts";
 import {
@@ -83,6 +85,8 @@ export class TabsControl {
     readonly list: ListState;
     /** The prefix of every id of the tabs and panels. */
     readonly #prefix: string;
+    /** The element the tabs scroll in, which their moves and closes transition in. */
+    #element: HTMLElement | undefined;
     /** Replace the selected value and tell the change handler. */
     readonly #setValue: (value: string | undefined) => void;
 
@@ -296,18 +300,31 @@ export class TabsControl {
     move(value: string, by: number): void {
         // moving its element may drop the focus
         const isFocused = this.list.focus.isFocused();
-        this.properties.onMove?.(value, this.values().indexOf(value) + by);
-        flush();
-        if (isFocused) {
-            this.tab(value)?.focus();
-        }
+        this.#transition(() => {
+            this.properties.onMove?.(value, this.values().indexOf(value) + by);
+            flush();
+            if (isFocused) {
+                this.tab(value)?.focus();
+            }
+        });
     }
 
     /** Ask the owner to close a tab, unless it has no close button. */
     close(value: string): void {
         if (untrack(() => this.isClosable(value))) {
-            this.properties.onClose?.(value);
+            this.#transition(() => this.properties.onClose?.(value));
         }
+    }
+
+    /** Attach the element the tabs scroll in. */
+    setElement(element: HTMLElement): void {
+        this.#element = element;
+    }
+
+    /** Run a change of the tabs as a view transition, each tab morphing to its new place. */
+    #transition(update: () => void): void {
+        const tabs = this.list.items.items().flatMap((tab) => this.element(tab.key) ?? []);
+        void startViewTransition(present(this.#element, "a tab list"), update, tabs);
     }
 
     /** Read the element of a tab itself. */
