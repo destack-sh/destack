@@ -616,6 +616,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             value,
             icon: this.icon,
             description: this.description,
+            default: this.initial === undefined ? undefined : JsonValue.of(this.initial.value),
         });
     }
 

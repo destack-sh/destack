@@ -48,13 +48,17 @@ const SCHEMA_KINDS: Readonly<Partial<Record<string, "text" | "boolean">>> = {
 const SCHEMA = schema.looseObject({
     type: schema.string(),
     options: schema.array(schema.string()).exactOptional(),
-    def: schema.looseObject({ innerType: schema.unknown().exactOptional() }),
+    def: schema.looseObject({
+        innerType: schema.unknown().exactOptional(),
+        defaultValue: schema.unknown().exactOptional(),
+    }),
 });
 
 /** A property of a method's input as JSON Schema: its type and its choices. */
 const PROPERTY = schema.looseObject({
     type: schema.unknown().exactOptional(),
     enum: schema.array(schema.string()).exactOptional(),
+    default: schema.json().exactOptional(),
 });
 
 /** Whether a person must give an input, may, or leaves it to its default. */
@@ -96,11 +100,13 @@ export class ActionInput {
     readonly icon: IconName | undefined;
     /** One sentence on what it takes and when to change it, absent for none. */
     readonly description: Message | undefined;
+    /** The value in force while none is given, absent where none is declared. */
+    readonly default: JsonValue | undefined;
 
     /** Create an input. */
     constructor(
         definition: Pick<ActionInput, "name" | "label" | "presence" | "value"> &
-            Partial<Pick<ActionInput, "icon" | "description">> &
+            Partial<Pick<ActionInput, "icon" | "description" | "default">> &
             Partial<Pick<ActionInput, "variable">>,
     ) {
         // take the name, the label, the presence and the value
@@ -111,6 +117,7 @@ export class ActionInput {
         this.variable = definition.variable;
         this.icon = definition.icon;
         this.description = definition.description;
+        this.default = definition.default;
     }
 
     /** Read an input as its definition declares it. */
@@ -132,14 +139,15 @@ export class ActionInput {
             });
         } else if (definition instanceof ContextVariable) {
             const { label, key: variable, isOptional } = definition;
-            const { presence, value } = ActionInput.of(name, definition.value);
+            const inner = ActionInput.of(name, definition.value);
 
             return new ActionInput({
                 name,
                 label,
-                presence: isOptional ? "default" : presence,
-                value,
+                presence: isOptional ? "default" : inner.presence,
+                value: inner.value,
                 variable,
+                default: inner.default,
             });
         } else if ("actionInput" in definition) {
             return definition.actionInput(name);
@@ -162,7 +170,16 @@ export class ActionInput {
                         SCHEMA_KINDS[inner.type],
                     );
 
-        return new ActionInput({ name, label: undefined, presence, value });
+        // take the value a defaulted schema gives in place of none
+        const { defaultValue } = outer.def;
+
+        return new ActionInput({
+            name,
+            label: undefined,
+            presence,
+            value,
+            default: defaultValue === undefined ? undefined : JsonValue.of(defaultValue),
+        });
     }
 
     /** The objects the input takes, absent for a value or a choice. */
@@ -231,7 +248,7 @@ export class ActionInput {
     /** Describe the input by its name, its label, its presence and what it takes. */
     describe(): ActionInputDescription {
         // describe its choices, or its objects
-        const { name, label, presence, value, variable, icon, description } = this;
+        const { name, label, presence, value, variable, icon, description, default: given } = this;
         const shared = {
             name,
             ...(label === undefined ? {} : { label }),
@@ -240,6 +257,7 @@ export class ActionInput {
             ...(variable === undefined ? {} : { variable }),
             ...(icon === undefined ? {} : { icon }),
             ...(description === undefined ? {} : { description }),
+            ...(given === undefined ? {} : { default: given }),
         };
         if (value.kind === "choice") {
             return { ...shared, choices: [...value.choices] };
@@ -295,13 +313,14 @@ export class ActionInput {
             variable: description.variable,
             icon,
             description: description.description,
+            default: description.default,
         });
     }
 
     /** Read an input a JSON Schema takes. */
     static ofSchema(name: string, value: JsonValue, presence: InputPresence): ActionInput {
         // take one of its choices, or a value of its type
-        const { type, enum: choices } = PROPERTY.parse(value);
+        const { type, enum: choices, default: given } = PROPERTY.parse(value);
         const taken: ActionValue =
             choices !== undefined
                 ? { kind: "choice", choices: choices.map((each) => ({ value: each })) }
@@ -312,7 +331,7 @@ export class ActionInput {
                         typeof type === "string" ? SCHEMA_KINDS[type] : undefined,
                     );
 
-        return new ActionInput({ name, label: undefined, presence, value: taken });
+        return new ActionInput({ name, label: undefined, presence, value: taken, default: given });
     }
 }
 
@@ -344,6 +363,8 @@ export const ActionInputDescription = schema.object({
     icon: IconName.exactOptional(),
     /** One sentence on what it takes and when to change it. */
     description: Message.exactOptional(),
+    /** The value in force while none is given, as JSON Schema's `default` says it. */
+    default: schema.json().exactOptional(),
 });
 /** An input of an action, as its declaration describes it. */
 export type ActionInputDescription = schema.Infer<typeof ActionInputDescription>;
