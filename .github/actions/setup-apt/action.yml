@@ -45,9 +45,9 @@ runs:
         - name: Install packages
           shell: bash
           run: |
-              # install from the archives alone, with nothing to install when the image already has them
+              # install the archives offline, deconfiguring an installed version an upgrade in them breaks until its own upgrade is configured
               shopt -s nullglob
               archives=(~/.cache/apt-archives/*.deb)
               if [ ${#archives[@]} -gt 0 ]; then
-                  sudo dpkg --install "${archives[@]}"
+                  sudo dpkg --install --auto-deconfigure "${archives[@]}"
               fi
