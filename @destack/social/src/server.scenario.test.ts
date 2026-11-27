@@ -1,6 +1,6 @@
 import { nth, present } from "@destack/schema";
 import { activity, subscription } from "@destack/notification/object";
-import { expect, refusal, test } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { Body, comment, type Mention } from "./object/index.ts";
 import { type Actor, article, TestSocial } from "./test/index.ts";
 
@@ -205,7 +205,7 @@ test("notify a principal mentioned twice in one comment once, and answer a reply
     expect([replied.threadId, Body.parse(replied.body).text]).toEqual([first.id, "Done"]);
 });
 
-test("subscribe a thread's author, repliers and newly mentioned principals, each privately, refuse a stranger's mention, and resubscribe on a new mention", async () => {
+test("subscribe a thread's author, repliers and newly mentioned principals, each privately, skip a mentioned stranger, and resubscribe on a new mention", async () => {
     await using fixture = await TestSocial.open();
     const { scope, actors } = fixture;
     const subscriptions = async (actor: Actor) =>
@@ -248,7 +248,7 @@ test("subscribe a thread's author, repliers and newly mentioned principals, each
         subscription.call("create", { ...scope, ...TestSocial.host(article, draft.id) }),
     );
 
-    // refuse mentioning someone who cannot read the article
+    // mention two readers and dave, who cannot read the article
     const text = "@bob, @carol and @dave, see the agent's notes";
     const create = (mentions: readonly Mention[]) =>
         fixture.call(
@@ -262,22 +262,15 @@ test("subscribe a thread's author, repliers and newly mentioned principals, each
     const bob = { offset: 0, length: 4, principal: actors.bob };
     const carol = { offset: 6, length: 6, principal: actors.carol };
     const dave = { offset: 17, length: 5, principal: actors.dave };
-    const strangers = await refusal(create([bob, carol, dave]));
 
-    // subscribe a thread's author to it and the mentioned to the article with their reasons
-    const first = await create([bob, carol]);
+    // subscribe the author to the thread and the mentioned readers to the article, skipping dave
+    const first = await create([bob, carol, dave]);
     expect([
-        strangers,
         await subscriptions("alice"),
         await subscriptions("bob"),
         await subscriptions("carol"),
         await subscriptions("dave"),
     ]).toEqual([
-        [
-            "FORBIDDEN",
-            "RECIPIENT_DENIED",
-            `article '${draft.id}' is forbidden: user '${actors.dave.id}' cannot read it`,
-        ],
         [
             ["article", "author"],
             ["comment", "author"],
