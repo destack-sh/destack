@@ -1,6 +1,7 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { type Render, renderPart } from "../part/index.ts";
+import { mergeProperties, type PartAttributes, type Render, renderPart } from "../part/index.ts";
+import { Hint } from "../tooltip/index.ts";
 import {
     color,
     motion,
@@ -78,7 +79,7 @@ const styles = style.create({
 const variants = style.create({
     default: {},
     outline: { borderColor: color.input },
-    segmented: { flex: "1 1 0", minWidth: 0, borderRadius: radius[2] },
+    segmented: { flex: "1 1 0", minWidth: 0, overflow: "hidden", borderRadius: radius[2] },
 });
 
 /** The height and padding of each size. */
@@ -86,6 +87,13 @@ const sizes = style.create({
     sm: { minWidth: size[1], height: size[1], gap: space[1], paddingInline: space[2] },
     default: { minWidth: size[2], height: size[2], paddingInline: space[2] },
     lg: { minWidth: size[3], height: size[3], paddingInline: space[3] },
+});
+
+/** The square of each size, for a toggle showing only its icon. */
+const squares = style.create({
+    sm: { width: size[1], paddingInline: 0 },
+    default: { width: size[2], paddingInline: 0 },
+    lg: { width: size[3], paddingInline: 0 },
 });
 
 /** The height of each size of a segment, inside its track's inset so the track has the size. */
@@ -118,12 +126,19 @@ const TOGGLE_PROPERTIES = {
         .labeled(t.context("label")`Disabled`)
         .described(t`Refuses presses where the setting cannot change now.`)
         .default(false),
+    isIconOnly: field
+        .boolean()
+        .labeled(t.context("label")`Icon only`)
+        .described(t`Shows only the icon, square, named by its label for assistive technology.`)
+        .default(false),
 };
 
 /** The look of a toggle: its variant, its size and whether it is on. */
 export interface ToggleLook {
     /** The look. */
     readonly variant: ToggleVariant;
+    /** Whether it shows only its icon, square. */
+    readonly isIconOnly: boolean;
     /** The height and padding. */
     readonly size: ToggleSize;
     /** Whether the toggle is on. */
@@ -145,6 +160,8 @@ export interface ToggleAttributes extends Omit<
     readonly xstyle?: style.Styles;
     /** Render another element with the toggle's attributes, the native button by default. */
     readonly render?: Render;
+    /** What its tooltip says, its label where it shows only its icon, and no tooltip otherwise. */
+    readonly tooltip?: JSX.Element;
 }
 
 /** Return the StyleX styles of a toggle in its look. */
@@ -158,6 +175,7 @@ function toggleVariants(look: ToggleLook): style.Styles {
         styles.toggle,
         variants[look.variant],
         sizes[look.size],
+        look.isIconOnly && squares[look.size],
         look.variant === "segmented" && segments[look.size],
         look.variant !== "default" && !look.pressed && styles.off,
         look.pressed && state.on,
@@ -178,9 +196,11 @@ export const Toggle = Object.assign(
                 properties,
                 "variant",
                 "size",
+                "isIconOnly",
                 "pressed",
                 "defaultPressed",
                 "onPressedChange",
+                "tooltip",
             );
             const [isPressed, setPressed] = createControllableSignal({
                 isControlled: () => properties.pressed !== undefined,
@@ -189,30 +209,43 @@ export const Toggle = Object.assign(
                 onChange: (isNext) => properties.onPressedChange?.(isNext),
             });
 
-            // mark the part, report its state and flip it
-            return renderPart(
-                "button",
-                "toggle",
-                rest,
-                () =>
-                    toggleVariants({
-                        variant: properties.variant,
-                        size: properties.size,
-                        pressed: isPressed(),
-                    }),
-                {
-                    type: "button" as const,
-                    get "data-pressed"() {
-                        return isPressed() ? "" : undefined;
+            // mark the part, report its state and flip it, an icon named by its label in a hint
+            const toggle = (attributes: PartAttributes): JSX.Element =>
+                renderPart(
+                    "button",
+                    "toggle",
+                    mergeProperties(attributes, rest),
+                    () =>
+                        toggleVariants({
+                            variant: properties.variant,
+                            size: properties.size,
+                            isIconOnly: properties.isIconOnly,
+                            pressed: isPressed(),
+                        }),
+                    {
+                        type: "button" as const,
+                        get "data-pressed"() {
+                            return isPressed() ? "" : undefined;
+                        },
+                        get "aria-pressed"() {
+                            return isPressed() ? "true" : "false";
+                        },
+                        onClick: () => {
+                            // flip the state and tell the change handler
+                            setPressed(!isPressed());
+                        },
                     },
-                    get "aria-pressed"() {
-                        return isPressed() ? "true" : "false";
-                    },
-                    onClick: () => {
-                        // flip the state and tell the change handler
-                        setPressed(!isPressed());
-                    },
-                },
+                );
+
+            return (
+                <Hint
+                    text={
+                        properties.tooltip ??
+                        (properties.isIconOnly ? properties["aria-label"] : undefined)
+                    }
+                >
+                    {toggle}
+                </Hint>
             );
         },
     }),

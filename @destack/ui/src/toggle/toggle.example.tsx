@@ -10,6 +10,7 @@ export const toggleBold = defineExample({
     description: t`A toggle that turns bold text on and off.`,
     properties: {
         variant: "outline",
+        isIconOnly: true,
         "aria-label": "Bold",
     },
     render: (properties) => (
@@ -26,6 +27,7 @@ export const toggleBoldPressed = defineExample({
     description: t`The bold toggle turned on.`,
     properties: {
         variant: "outline",
+        isIconOnly: true,
         "aria-label": "Bold",
         defaultPressed: true,
     },

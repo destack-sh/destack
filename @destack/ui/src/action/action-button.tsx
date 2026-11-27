@@ -14,10 +14,9 @@ import {
     useActions,
     useLocale,
 } from "@destack/view";
-import { contentOr, mergeProperties, type PartAttributes } from "../part/index.ts";
+import { contentOr, type PartAttributes } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 
 /** The style of the keys in a button's tooltip. */
 const styles = style.create({
@@ -124,48 +123,38 @@ export function ActionButton<Inputs extends ActionInputs>(
     );
 
     return (
-        <Tooltip>
-            <TooltipTrigger
-                render={(attributes) => (
-                    <Button
-                        {...mergeProperties(attributes, {
-                            ref: (element: HTMLElement) => (created = element),
-                        })}
-                        data-slot="action-button"
-                        {...rest}
-                        {...(properties.href === undefined ? {} : { render: link })}
-                        data-action={properties.action.name}
-                        aria-label={isAlone() ? title() : undefined}
-                        isIconOnly={isAlone()}
-                        aria-pressed={pressed()}
-                        variant={
-                            own.isOn() === true ? "secondary" : (properties.variant ?? "default")
-                        }
-                        aria-keyshortcuts={
-                            keys() === undefined
-                                ? undefined
-                                : Shortcut.aria(keys() ?? "", isCommand())
-                        }
-                        aria-disabled={isDisabled() ? "true" : undefined}
-                        onClick={run}
-                    />
-                )}
-            >
-                <Show when={properties.icon}>
-                    {(icon) => <Icon icon={icon()} weight={properties.weight ?? "regular"} />}
-                </Show>
-                <Show when={!isAlone()}>{contentOr(properties, () => title())}</Show>
-            </TooltipTrigger>
-            <TooltipContent>
-                {title()}
-                <Show when={keys()}>
-                    {(shortcut) => (
-                        <span {...style.attrs(styles.keys)}>
-                            {Shortcut.format(shortcut(), isCommand())}
-                        </span>
-                    )}
-                </Show>
-            </TooltipContent>
-        </Tooltip>
+        <Button
+            ref={(element: HTMLElement) => (created = element)}
+            data-slot="action-button"
+            {...rest}
+            {...(properties.href === undefined ? {} : { render: link })}
+            data-action={properties.action.name}
+            aria-label={isAlone() ? title() : undefined}
+            isIconOnly={isAlone()}
+            aria-pressed={pressed()}
+            variant={own.isOn() === true ? "secondary" : (properties.variant ?? "default")}
+            aria-keyshortcuts={
+                keys() === undefined ? undefined : Shortcut.aria(keys() ?? "", isCommand())
+            }
+            aria-disabled={isDisabled() ? "true" : undefined}
+            onClick={run}
+            tooltip={
+                <>
+                    {title()}
+                    <Show when={keys()}>
+                        {(shortcut) => (
+                            <span {...style.attrs(styles.keys)}>
+                                {Shortcut.format(shortcut(), isCommand())}
+                            </span>
+                        )}
+                    </Show>
+                </>
+            }
+        >
+            <Show when={properties.icon}>
+                {(icon) => <Icon icon={icon()} weight={properties.weight ?? "regular"} />}
+            </Show>
+            <Show when={!isAlone()}>{contentOr(properties, () => title())}</Show>
+        </Button>
     );
 }

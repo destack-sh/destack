@@ -31,7 +31,8 @@ import {
 } from "@destack/view/declare";
 import { field } from "@destack/object";
 import { t } from "@destack/locale";
-import { type Render, renderPart } from "../part/index.ts";
+import { mergeProperties, type PartAttributes, type Render, renderPart } from "../part/index.ts";
+import { Hint } from "../tooltip/index.ts";
 import { useJoin } from "../join/index.ts";
 import { Spinner } from "../spinner/index.ts";
 
@@ -276,6 +277,8 @@ export interface ButtonAttributes extends Omit<
     readonly xstyle?: style.Styles;
     /** Render another element with the button's attributes, such as a link. */
     readonly render?: Render;
+    /** What its tooltip says, its label where it shows only its icon, and no tooltip otherwise. */
+    readonly tooltip?: JSX.Element;
 }
 
 /** The look of a button: its variant, size, shape and whether it shows only its icon. */
@@ -320,6 +323,7 @@ export const Button = Object.assign(
                 "loading",
                 "disabled",
                 "children",
+                "tooltip",
             );
             const isBusy = (): boolean => properties.loading === true;
             const isWaiting = untrack(() => "loading" in properties);
@@ -358,51 +362,69 @@ export const Button = Object.assign(
                 }
             };
 
-            // mark the part and give it its styles with the caller's last
-            return renderPart(
-                "button",
-                "button",
-                merge(
-                    untrack(() => properties.render) === undefined
-                        ? { type: "button" as const }
-                        : {},
-                    rest,
-                    isWaiting ? { onClick: click } : {},
-                ),
-                () => [buttonVariants(properties), isWaiting && styles.busy, join()],
-                {
-                    get "data-variant"() {
-                        return properties.variant;
-                    },
-                    get "data-size"() {
-                        return properties.size;
-                    },
-                    get "aria-busy"() {
-                        return isBusy() ? "true" : undefined;
-                    },
-                    get disabled() {
-                        return properties.disabled ? true : undefined;
-                    },
-                    get "aria-disabled"() {
-                        return isBusy() ? "true" : properties["aria-disabled"];
-                    },
-                    get children() {
-                        return isWaiting ? (
-                            <>
-                                <span {...style.attrs(styles.label, isSpinning() && styles.hidden)}>
-                                    {properties.children}
-                                </span>
-                                <Show when={isSpinning()}>
-                                    <span {...style.attrs(styles.spinner)}>
-                                        <Spinner aria-hidden="true" />
+            // mark the part and give it its styles with the caller's last, a tooltip's attributes first
+            const button = (attributes: PartAttributes): JSX.Element =>
+                renderPart(
+                    "button",
+                    "button",
+                    merge(
+                        untrack(() => properties.render) === undefined
+                            ? { type: "button" as const }
+                            : {},
+                        mergeProperties(attributes, rest),
+                        isWaiting ? { onClick: click } : {},
+                    ),
+                    () => [buttonVariants(properties), isWaiting && styles.busy, join()],
+                    {
+                        get "data-variant"() {
+                            return properties.variant;
+                        },
+                        get "data-size"() {
+                            return properties.size;
+                        },
+                        get "aria-busy"() {
+                            return isBusy() ? "true" : undefined;
+                        },
+                        get disabled() {
+                            return properties.disabled ? true : undefined;
+                        },
+                        get "aria-disabled"() {
+                            return isBusy() ? "true" : properties["aria-disabled"];
+                        },
+                        get children() {
+                            return isWaiting ? (
+                                <>
+                                    <span
+                                        {...style.attrs(
+                                            styles.label,
+                                            isSpinning() && styles.hidden,
+                                        )}
+                                    >
+                                        {properties.children}
                                     </span>
-                                </Show>
-                            </>
-                        ) : (
-                            properties.children
-                        );
+                                    <Show when={isSpinning()}>
+                                        <span {...style.attrs(styles.spinner)}>
+                                            <Spinner aria-hidden="true" />
+                                        </span>
+                                    </Show>
+                                </>
+                            ) : (
+                                properties.children
+                            );
+                        },
                     },
-                },
+                );
+
+            // name an icon by its label in a hint, or hint what the caller gives
+            return (
+                <Hint
+                    text={
+                        properties.tooltip ??
+                        (properties.isIconOnly ? properties["aria-label"] : undefined)
+                    }
+                >
+                    {button}
+                </Hint>
             );
         },
     }),

@@ -4,7 +4,8 @@ import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import * as style from "@destack/style";
 import { Button } from "./index.ts";
-import { classes, markup, render } from "@destack/view/test";
+import { classes, markup, render, stubPopovers } from "@destack/view/test";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import { renderPart } from "../part/index.ts";
 
 /** The styles of a part that draws a button. */
@@ -105,4 +106,37 @@ test("mark a loading button busy and refuse clicks, with a spinner once it takes
         gone: [null, null, false, false],
         clicks: ["save"],
     });
+});
+
+test("hint an icon-only button by its label, a button's own tooltip where given, none for text", () => {
+    stubPopovers();
+    const { container } = render(() => (
+        <>
+            <Button isIconOnly aria-label="Archive">
+                A
+            </Button>
+            <Button tooltip="Moves it out of the inbox">Archive</Button>
+            <Button>Save</Button>
+            <Tooltip>
+                <TooltipTrigger
+                    render={(attributes) => <Button isIconOnly aria-label="Pin" {...attributes} />}
+                />
+                <TooltipContent>Pin to the top</TooltipContent>
+            </Tooltip>
+        </>
+    ));
+
+    // reach each button from the keyboard, reading the tooltip it shows
+    const hints = [...container.querySelectorAll<HTMLElement>("button")].map((button) => {
+        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true }));
+        button.focus();
+        flush();
+        const hint = document.querySelector("[role=tooltip][data-popover-open]")?.textContent;
+        button.blur();
+        flush();
+
+        return hint;
+    });
+
+    expect(hints).toEqual(["Archive", "Moves it out of the inbox", undefined, "Pin to the top"]);
 });
