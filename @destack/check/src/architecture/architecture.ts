@@ -1,9 +1,10 @@
 import { join } from "node:path";
 import type { FileSystem } from "@destack/environment";
-import { present, schema } from "@destack/schema";
+import { present } from "@destack/schema";
 import type { Diagnostic } from "../diagnostic/diagnostic.ts";
 import { CheckError } from "../error/index.ts";
 import { Workspace } from "../workspace/workspace.ts";
+import { readManifest } from "../check/manifest.ts";
 
 /** The scope of the packages the architecture lays out. */
 const SCOPE = "@destack/";
@@ -16,24 +17,6 @@ const LAYER_HEADING = /^## (?:\d+ )?(.+)$/u;
 
 /** A package's row: its linked name, its description and its prior art. */
 const PACKAGE_ROW = /^\| \[`(@[^`]+)`\]\([^)]*\) \| (.+?) \| [^|]* \|$/u;
-
-/** The fields of a package.json the architecture reads. */
-const PackageManifest = schema.looseObject({
-    /** The package's name. */
-    name: schema.string(),
-    /** What the package does. */
-    description: schema.string(),
-    /** Its run-time dependencies. */
-    dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
-    /** Its peer dependencies. */
-    peerDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
-    /** Which peer dependencies are optional, by name. */
-    peerDependenciesMeta: schema
-        .record(schema.string(), schema.looseObject({ optional: schema.boolean().exactOptional() }))
-        .exactOptional(),
-    /** Its optional dependencies. */
-    optionalDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
-});
 
 /** A workspace package as the architecture checks it. */
 export interface ArchitecturePackage {
@@ -128,8 +111,11 @@ export class Architecture {
         const read = await Promise.all(
             members.map(async (member) => {
                 // read its description and its dependencies under the scope, leaving out optional peers
-                const path = join(workspace.root, member.directory, "package.json");
-                const manifest = PackageManifest.parse(JSON.parse(await files.readTextFile(path)));
+                const folder = join(workspace.root, member.directory);
+                const manifest = present(
+                    await readManifest(folder, files),
+                    `the package.json of ${folder}`,
+                );
                 const peers = Object.keys(manifest.peerDependencies ?? {}).filter(
                     (name) => manifest.peerDependenciesMeta?.[name]?.optional !== true,
                 );
@@ -140,8 +126,11 @@ export class Architecture {
                 ].filter((name) => name.startsWith(SCOPE));
 
                 return [
-                    manifest.name,
-                    { description: manifest.description, dependencies },
+                    present(manifest.name, `the name of ${folder}`),
+                    {
+                        description: present(manifest.description, `the description of ${folder}`),
+                        dependencies,
+                    },
                 ] as const;
             }),
         );

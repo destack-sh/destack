@@ -1,9 +1,10 @@
 import { expect, test } from "vitest";
+import type { Manifest } from "../check/manifest.ts";
 import { checkMarkdown, fixMarkdown } from "./index.ts";
 
-/** Codes reported for a Markdown document, a package README when given its description. */
-function codes(text: string, description?: string): string[] {
-    return checkMarkdown("note.md", text, description).map((diagnostic) => {
+/** Codes reported for a Markdown document, a package README when given its manifest. */
+function codes(text: string, manifest?: Manifest): string[] {
+    return checkMarkdown("note.md", text, manifest).map((diagnostic) => {
         if (diagnostic.code === undefined) {
             throw new TypeError("a markdown finding has no code");
         }
@@ -43,10 +44,12 @@ test("allow top-level sections when front matter names the title", () => {
     expect(codes('---\ntitle: "Notes"\n---\n\n# Read\n\n# Write\n')).toEqual([]);
 });
 
-test("start a package README with its package's description", () => {
+test("title a package README with its name and start it with its description", () => {
     const readme = "# @destack/mail\n\nSend email over SMTP.\n\n## Overview\n";
+    const mail = { name: "@destack/mail", description: "Send email over SMTP." };
     expect([
-        codes(readme, "Send email over SMTP."),
-        codes(readme, "Send email over SMTP, SES or a printer."),
-    ]).toEqual([[], ["markdown(readme-description)"]]);
+        codes(readme, mail),
+        codes(readme, { ...mail, description: "Send email over SMTP, SES or a printer." }),
+        codes(readme, { ...mail, name: "@destack/post" }),
+    ]).toEqual([[], ["markdown(readme-description)"], ["markdown(readme-title)"]]);
 });

@@ -1,3 +1,5 @@
+import { present } from "@destack/schema";
+import type { Manifest } from "../check/manifest.ts";
 import type { Diagnostic } from "../diagnostic/diagnostic.ts";
 
 /** Words whose trailing period does not end a sentence. */
@@ -34,7 +36,7 @@ interface SourceLine {
 export function checkMarkdown(
     filename: string,
     text: string,
-    description: string | undefined,
+    manifest: Manifest | undefined,
 ): Diagnostic[] {
     // run each rule over the classified lines
     const lines = classifyLines(text);
@@ -42,7 +44,7 @@ export function checkMarkdown(
         ...checkSentences(lines),
         ...checkHeadings(lines, /^---\n(?:.*\n)*?title:/u.test(text)),
         ...checkFences(lines),
-        ...(description === undefined ? [] : checkDescription(lines, description)),
+        ...(manifest === undefined ? [] : checkReadme(lines, manifest)),
     ];
 
     // convert character positions to UTF-8 byte offsets
@@ -234,26 +236,44 @@ function checkHeadings(lines: readonly SourceLine[], hasTitle: boolean): Finding
     return findings;
 }
 
-/** Report a package README whose first prose line is not its package's description. */
-function checkDescription(lines: readonly SourceLine[], description: string): Finding[] {
-    // find the first prose line after the title
+/** Report a package README whose title or first line differs from its package. */
+function checkReadme(lines: readonly SourceLine[], manifest: Manifest): Finding[] {
+    // read the name and description the package's checks require
+    const name = present(manifest.name, "the package's name");
+    const description = present(manifest.description, "the package's description");
+
+    // find the title and the first prose line after it
     const title = lines.findIndex((line) => line.region === "prose" && line.text.startsWith("# "));
     const index = lines.findIndex(
         (line, at) => at > title && line.region === "prose" && line.text.trim() !== "",
     );
+    const titled = lines[title];
     const line = lines[index];
+    const findings: Finding[] = [];
 
-    return line === undefined || line.text === description
-        ? []
-        : [
-              {
-                  code: "readme-description",
-                  message: `start the README with the package's description: '${description}'`,
-                  line: index,
-                  column: 0,
-                  offset: line.start,
-              },
-          ];
+    // require the package's name as the title
+    if (titled !== undefined && titled.text !== `# ${name}`) {
+        findings.push({
+            code: "readme-title",
+            message: `title the README with the package's name: '# ${name}'`,
+            line: title,
+            column: 0,
+            offset: titled.start,
+        });
+    }
+
+    // require the package's description as the first line
+    if (line !== undefined && line.text !== description) {
+        findings.push({
+            code: "readme-description",
+            message: `start the README with the package's description: '${description}'`,
+            line: index,
+            column: 0,
+            offset: line.start,
+        });
+    }
+
+    return findings;
 }
 
 /** Report fenced code blocks without a language. */

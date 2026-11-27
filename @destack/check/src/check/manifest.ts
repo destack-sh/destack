@@ -12,6 +12,14 @@ export const Manifest = schema.looseObject({
     dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
     /** The development dependencies. */
     devDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    /** The dependencies a dependent supplies. */
+    peerDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    /** Which peer dependencies are optional, by name. */
+    peerDependenciesMeta: schema
+        .record(schema.string(), schema.looseObject({ optional: schema.boolean().exactOptional() }))
+        .exactOptional(),
+    /** The dependencies a package runs without when they fail to install. */
+    optionalDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
     /** The program a package runs as, or its programs by command name. */
     bin: schema
         .union([schema.string(), schema.record(schema.string(), schema.string())])

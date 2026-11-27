@@ -14,6 +14,7 @@ import { runBun } from "./tool.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { CheckResult, type Diagnostic } from "../diagnostic/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
+import { type Manifest, readManifest } from "./manifest.ts";
 import { Architecture } from "../architecture/index.ts";
 import { CheckError } from "../error/index.ts";
 import type { LintSettings } from "../lint/package.ts";
@@ -22,12 +23,6 @@ import { schema } from "@destack/schema";
 
 /** The file that lays out a workspace's packages in layers. */
 const ARCHITECTURE_FILE = "ARCHITECTURE.md";
-
-/** A package.json: a package's description, or a workspace's packages. */
-const Manifest = schema.looseObject({
-    description: schema.string().min(1).exactOptional(),
-    workspaces: schema.array(schema.string()).exactOptional(),
-});
 
 /** The diagnostics of an oxlint JSON report. */
 const Report = schema.looseObject({ diagnostics: schema.unknown() });
@@ -136,8 +131,8 @@ async function checkMarkdownFiles(
                 text = fixed;
             }
         }
-        const description = await readmeDescription(file, files);
-        diagnostics.push(...checkMarkdown(relative(directory, file), text, description));
+        const manifest = await readmeManifest(file, files);
+        diagnostics.push(...checkMarkdown(relative(directory, file), text, manifest));
 
         // check the layers of an architecture against its workspace's packages
         if (basename(file) === ARCHITECTURE_FILE) {
@@ -151,25 +146,23 @@ async function checkMarkdownFiles(
     return diagnostics;
 }
 
-/** Read the description of a README's package, none for another file. */
-async function readmeDescription(file: string, files: FileSystem): Promise<string | undefined> {
+/** Read the manifest of a README's package, none for another file or a workspace's root. */
+async function readmeManifest(file: string, files: FileSystem): Promise<Manifest | undefined> {
     // read the sibling package.json of a README
-    const manifest = join(dirname(file), "package.json");
-    if (basename(file) !== "README.md" || !(await files.exists(manifest))) {
+    const read =
+        basename(file) === "README.md" ? await readManifest(dirname(file), files) : undefined;
+    if (read === undefined || read.workspaces !== undefined) {
         return undefined;
     }
-    // read a package's description, refusing a package without one, and none for a workspace's root
-    const read = Manifest.parse(JSON.parse(await files.readTextFile(manifest)));
-    if (read.workspaces !== undefined) {
-        return undefined;
-    } else if (read.description === undefined) {
+    // refuse a package without a name or a description, which its README restates
+    else if (read.name === undefined || read.description === undefined) {
         throw CheckError.of(
             "CONFIGURATION_INVALID",
-            `package '${dirname(manifest)}' is invalid: its package.json has no description`,
+            `package '${dirname(file)}' is invalid: its package.json has no name or no description`,
         );
     }
 
-    return read.description;
+    return read;
 }
 
 /** Report whether a selected file or directory contains JavaScript or TypeScript sources. */
