@@ -1,4 +1,4 @@
-import { Palette } from "@destack/color";
+import { Palette } from "@destack/style";
 import { t } from "@destack/locale";
 import { field } from "@destack/object";
 import { schema } from "@destack/schema";
