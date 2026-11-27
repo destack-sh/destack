@@ -161,8 +161,24 @@ export class BrowserTab<
     }
 
     /** Call an object type's mutating method by name as one mutation, predicted at the device. */
-    call(object: ObjectType, name: string, input: JsonObject): Submission<unknown> {
-        return this.#remote.mutate(this.scope, object, name, input);
+    call(
+        object: ObjectType,
+        name: string,
+        input: JsonObject,
+        then?: (mutation: Pick<MutationContext, "read">) => Promise<void>,
+    ): Submission<unknown> {
+        // read as of the prediction once the device predicted it
+        const submission = this.#remote.mutate(this.scope, object, name, input);
+        if (then === undefined) {
+            return submission;
+        }
+        const predicted = submission.predicted.then(async (value) => {
+            await then({ read: (live) => live.read() });
+
+            return value;
+        });
+
+        return { predicted, confirmed: submission.confirmed };
     }
 
     /** Predict several calls together at the device and queue them as one mutation. */

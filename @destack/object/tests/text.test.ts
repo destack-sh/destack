@@ -181,6 +181,36 @@ function digits(length: number, offset = 0): string {
     return Array.from({ length }, (_, index) => String((index + offset) % 10)).join("");
 }
 
+test("read a call's prediction through its transaction before it commits", async () => {
+    // run in a world of its own, moving its time while the work waits
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    await (async () => {
+        const { connection } = await serveDocuments(world);
+        const alice = await openClient(world, users.alice, connection(users.alice));
+        await alice.live.ready;
+
+        // create a document, reading the followed documents as of its prediction
+        const order: string[] = [];
+        let read: readonly string[] = [];
+        const created = alice.client.call(
+            document,
+            "create",
+            { title: "Plan" },
+            async (mutation) => {
+                read = (await mutation.read(alice.live)).map((row) => row["title"]);
+                order.push("read");
+            },
+        );
+        await created.predicted;
+        order.push("predicted");
+        await created.confirmed;
+
+        // expect the read to see the predicted document, before the prediction settles
+        expect({ read, order }).toEqual({ read: ["Plan"], order: ["read", "predicted"] });
+    })();
+});
+
 test("edit a text through chunk splits, read it assembled, undo exactly and guard it", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");

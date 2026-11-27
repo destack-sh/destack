@@ -313,12 +313,12 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
 
         return {
             ready: live.ready,
-            read: async () => {
+            read: async (connection) => {
                 // read the other only where the first has nothing
-                const value = await live.read();
+                const value = await live.read(connection);
                 const other = isNothing(value) ? await openOther() : undefined;
 
-                return other === undefined ? value : await other.read();
+                return other === undefined ? value : await other.read(connection);
             },
             watch: (signal) => RelationalQuery.#watchEither(live, isNothing, openOther, signal),
             close: async () => {
@@ -409,7 +409,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
     ): LiveQuery<Value> {
         return {
             ready: live.ready,
-            read: async () => shape(await live.read()),
+            read: async (connection) => shape(await live.read(connection)),
             watch: (signal) => RelationalQuery.watched(live, shape, signal),
             close: () => live.close(),
         };
