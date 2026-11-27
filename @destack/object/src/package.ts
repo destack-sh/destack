@@ -5,7 +5,7 @@ import { call } from "./audit/call.ts";
 import { branch, branchChange, branchEntry } from "./branch/object.ts";
 import { approval, changeRequest } from "./approval/index.ts";
 import { ObjectError } from "./error/error.ts";
-import { chunk } from "./text/table.ts";
+import { textChunkTable, textNodeTable } from "./text/table.ts";
 import { counter } from "./trait/numbered.ts";
 import { formerKey } from "./object/former.ts";
 import { activity } from "./history/activity.ts";
@@ -31,6 +31,6 @@ export default definePackage({
         activity,
     ],
     // keep the text, number counters and former keys of every package's objects in each space
-    tables: [chunk, counter, formerKey],
+    tables: [textChunkTable, textNodeTable, counter, formerKey],
     errors: ObjectError,
 });

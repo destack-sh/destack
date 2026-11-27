@@ -8,7 +8,7 @@ import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { chunk, CHUNK_CHARACTERS, defineObject, field, TextSequence } from "../src/index.ts";
+import { textChunkTable, CHUNK_CHARACTERS, defineObject, field, TextSequence } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
@@ -113,7 +113,7 @@ test("list the objects with every word of a search in their searchable fields an
     });
 
     // search titles, bodies across chunks, both together, and words no document has
-    const chunks = await storage.database.select().from(chunk);
+    const chunks = await storage.database.select().from(textChunkTable);
     const titles = async (search: string) =>
         (
             await store.query(

@@ -176,8 +176,7 @@ import {
     Searchable,
     type SearchableDefinition,
 } from "../trait/searchable.ts";
-import { Chunk } from "../text/chunk.ts";
-import { chunk } from "../text/table.ts";
+import { textChunkTable, textNodeTable } from "../text/table.ts";
 import type {
     TraitPermissionOf,
     TraitPermission,
@@ -195,7 +194,6 @@ import type { DeclarationHandler } from "../server/stack.ts";
 import { Casing } from "./name.ts";
 import type { PermissionScope } from "@destack/access";
 import { ObjectPolicy } from "./access.ts";
-import type { KnownDeclaration } from "./description.ts";
 import { type ConstraintColumn, ObjectTable, type TraitOf, type TraitTable } from "./table.ts";
 import { FormerKey } from "./former.ts";
 import type { ObjectConstraint } from "./constraint.ts";
@@ -2207,7 +2205,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     attaches(child: ObjectType): boolean {
         return (
             this.attachments.some((attachment) => child.same(attachment.object)) ||
-            (child.table === chunk && this.text.length > 0)
+            (child.table === textChunkTable && this.text.length > 0)
         );
     }
 
@@ -2871,34 +2869,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         };
     }
 
-    /** List object types with the chunk type their text fields need. */
-    static served(objects: readonly ObjectType[]): ObjectType[] {
-        const owners = objects.filter((object) => object.text.length > 0);
-
-        return owners.length === 0 ? [...objects] : [...objects, Chunk.object(owners)];
-    }
-
-    /** List the declarations installed types resolve against: served types, scopes and policies. */
-    static known(
-        objects: readonly ObjectType[],
-        policies: readonly (Policy | ObjectType | TableMapping)[],
-    ): KnownDeclaration[] {
-        // add the scope types enclosing the served types, up to the universe
-        const served = ObjectType.served(objects);
-        const scopes = new Set(served.flatMap((type) => type.scopes));
-        for (const scope of scopes) {
-            scope.scopes.forEach((enclosing) => scopes.add(enclosing));
-        }
-
-        return [
-            ...served,
-            ...[...scopes].filter((scope) => !served.some((type) => type.same(scope))),
-            ...policies.filter(
-                (policy) => policy instanceof Policy || policy instanceof ObjectType,
-            ),
-        ];
-    }
-
     /** List the types some types refer to or live in, transitively, leaving out the given ones. */
     static referenced(objects: readonly ObjectType[]): ObjectType[] {
         // walk the references and enclosing scope types of each type found
@@ -2940,7 +2910,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return [type.table];
         }
 
-        return [type.table, ...SYSTEM_TABLES, ...(type.text.length === 0 ? [] : [chunk])];
+        return [
+            type.table,
+            ...SYSTEM_TABLES,
+            ...(type.text.length === 0 ? [] : [textChunkTable, textNodeTable]),
+        ];
     }
 
     /** Derive a type's members, each once on first use, the given ones as they are. */

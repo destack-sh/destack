@@ -6,6 +6,7 @@ import { FractionalIndex } from "../field/fractional-index.ts";
 import { Procedure } from "../procedure/index.ts";
 import { MAX_PAGE_LIMIT } from "./page.ts";
 import { ParentReference } from "../trait/nested.ts";
+import { TextSpan } from "../sequence/index.ts";
 import type {
     CallerField,
     GuardedField,
@@ -31,7 +32,9 @@ import type { TrackedProcedures } from "../trait/tracked.ts";
 import type { TextProcedures } from "../trait/text.ts";
 import type { TransitionProcedures } from "../trait/transition.ts";
 
-import { TextSpan } from "../sequence/index.ts";
+/** The most spans a created text carries: 10,000 characters with a mark changing every five. */
+const TEXT_SPANS = 2_000;
+
 /** The schemas an object's procedures compose. */
 export interface ObjectSchema {
     /** The object as callers see it. */
@@ -495,7 +498,15 @@ export type WrittenFields<
     Object extends ObjectType,
     Declaration extends Method,
     IsPartial extends boolean,
-> = ColumnFields<Object, WrittenName<Object, Declaration>, IsPartial, FilledName<Declaration>>;
+> = ColumnFields<Object, WrittenName<Object, Declaration>, IsPartial, FilledName<Declaration>> &
+    (IsPartial extends true ? {} : TextFields<Object, WrittenName<Object, Declaration>>);
+
+/** The text fields a creation writes first, each as the spans it starts with. */
+type TextFields<Object extends ObjectType, Written extends string> = {
+    readonly [Name in Extract<Written, TextFieldName<Object["fields"]>>]-?: schema.ExactOptional<
+        schema.Schema<readonly TextSpan[]>
+    >;
+};
 
 /** The columns a creation's handler fills where the caller leaves them out. */
 type FilledName<Declaration extends Method> = NonNullable<Declaration["filled"]>[number];
@@ -641,8 +652,15 @@ const ObjectProcedure = {
         return (names, isPartial) =>
             Object.fromEntries(
                 (names ?? (isPartial ? object.updated : object.written)).map((name) => {
-                    // take each written column's schema
+                    // take a text field's spans, which its chunks store
                     const field = object.fields[name];
+                    if (field?.type === "text") {
+                        const spans = schema.array(TextSpan).max(TEXT_SPANS);
+
+                        return [name, spans.exactOptional()];
+                    }
+
+                    // take each written column's schema
                     const value = object.table[TABLE].columns[name]?.definition.json;
                     const isRequired = field?.required === true && field.access?.read !== undefined;
 

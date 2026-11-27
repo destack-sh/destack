@@ -18,7 +18,7 @@ import { RequestId, Scope } from "@destack/sync";
 import { type ObjectConnection } from "../src/client/index.ts";
 import { ObjectClient } from "../src/device/index.ts";
 import {
-    chunk,
+    textChunkTable,
     CHUNK_CHARACTERS,
     Chunk,
     defineObject,
@@ -26,9 +26,9 @@ import {
     RICH_TEXT,
     TextSequence,
     type TextEdit,
-    nodeEntry,
+    textNodeTable,
     TextSpan,
-    TextTypes,
+    TextType,
     type TextMark,
     tablesOf,
     shareable,
@@ -161,7 +161,7 @@ async function openClient(world: Environment, name: Identifier<"user">, remote: 
 
 /** Read each chunk's field, position and characters, in position order. */
 async function chunks(database: DatabaseConnection) {
-    const rows = await database.select().from(chunk);
+    const rows = await database.select().from(textChunkTable);
 
     return rows
         .toSorted((left, right) => (left.position < right.position ? -1 : 1))
@@ -403,7 +403,7 @@ test("predict edits on two clients, converge after push, undo one exactly and hi
 
         // store no chunks for a caller without read
         await carol.live.ready;
-        const stored = await carol.client.database.select().from(chunk);
+        const stored = await carol.client.database.select().from(textChunkTable);
         expect([await body(carol.live), stored]).toEqual([[], []]);
         expect([alice.errors, bob.errors, carol.errors]).toEqual([[], [], []]);
     })();
@@ -571,7 +571,7 @@ test("format a body with marks and nodes, order marks on the store, index mentio
         id: "mark.1",
         type: "bold",
         value: true,
-        ...line.range(0, 5, TextTypes.bold),
+        ...line.range(0, 5, TextType.bold),
         order: null,
     };
     const href = { href: "https://destack.sh" };
@@ -579,7 +579,7 @@ test("format a body with marks and nodes, order marks on the store, index mentio
         id: "mark.2",
         type: "link",
         value: href,
-        ...line.range(6, 11, TextTypes.link),
+        ...line.range(6, 11, TextType.link),
         order: null,
     };
     const heading = { type: "heading", value: { level: 1 } };
@@ -593,13 +593,13 @@ test("format a body with marks and nodes, order marks on the store, index mentio
 
     // read the spans, the marks ordered by the store, and the indexed mention
     const marks = async () =>
-        (await database.select().from(chunk)).flatMap((row) =>
+        (await database.select().from(textChunkTable)).flatMap((row) =>
             row.marks.map((mark) => [mark.id, mark.order]),
         );
     const references = async () =>
-        (await database.select().from(nodeEntry))
-            .filter((row) => row["nodeType"] === "mention")
-            .map((row) => [row["nodeType"], row["nodeValue"]]);
+        (await database.select().from(textNodeTable))
+            .filter((row) => row.type === "mention")
+            .map((row) => [row.type, row.value, row.count]);
     expect([await read(), await marks(), await references()]).toEqual([
         [
             { node: heading },
@@ -612,7 +612,7 @@ test("format a body with marks and nodes, order marks on the store, index mentio
             ["mark.1", 1],
             ["mark.2", 2],
         ],
-        [["mention", mention.value]],
+        [["mention", mention.value, 1]],
     ]);
 
     // undo the formatting exactly, dropping the marks and the mention's index row
@@ -683,7 +683,7 @@ test("continue a run as one piece on the store, apart from the same run in anoth
     await edit([{ insert: "ll", run: "alice.1", start: 2, after: { run: "alice.1", offset: 1 } }]);
     await edit([{ insert: "o", run: "alice.1", start: 4, after: { run: "alice.1", offset: 3 } }]);
     const runs = (
-        await database.select().from(chunk).where(eq(chunk.parentId, created.id))
+        await database.select().from(textChunkTable).where(eq(textChunkTable.parentId, created.id))
     ).flatMap((row) => row.runs);
 
     // refuse continuing past a gap, and repeating elements the run has
@@ -740,7 +740,7 @@ test("keep a mark on its words when chunks split and move them, and grow it as p
                 id: "mark.1",
                 type: "bold",
                 value: true,
-                ...line.range(2996, 3000, TextTypes.bold),
+                ...line.range(2996, 3000, TextType.bold),
                 order: null,
             },
         },
@@ -754,7 +754,7 @@ test("keep a mark on its words when chunks split and move them, and grow it as p
         { insert: "s!", run: "alice.3", start: 0, after: { run: "alice.1", offset: 2999 } },
     ]);
     // read the grown bold word and its one chunk
-    const rows = await database.select().from(chunk);
+    const rows = await database.select().from(textChunkTable);
     const holders = rows.filter((row) => row.marks.length > 0);
     const read = (await alice.document.get({ spaceId, id: created.id })).body;
     expect({
@@ -791,7 +791,7 @@ test("predict a mark last on a client until the store orders it, then read it or
         id: "mark.1",
         type: "bold",
         value: true,
-        ...sequence.range(0, 5, TextTypes.bold),
+        ...sequence.range(0, 5, TextType.bold),
         order: null,
     };
     const marked = text.edit([{ mark: bold }]);
@@ -871,4 +871,35 @@ test("tell whether a document's body has the elements a reader asks about", asyn
         past: await contains("user", 5),
         other: await contains("other", 0),
     }).toEqual({ first: true, last: true, past: false, other: false });
+});
+
+test("create a text with marks and a mention", async () => {
+    // create a body that starts bold and mentions bob
+    const world = testSimulation().environment("test");
+    const { connect, database } = await serveDocuments(world);
+    const alice = connect(users.alice);
+    const mention = { type: "mention", value: principal.user.reference("universe", users.bob) };
+    const spans = [
+        { text: "hello", marks: { bold: true } },
+        { text: " world " },
+        { node: mention },
+    ];
+    const created = await alice.document.create({
+        spaceId,
+        requestId: RequestId.create(world),
+        title: "Plan",
+        body: spans,
+    });
+
+    // read the body back, and the mention's node row
+    const nodes = (await database.select().from(textNodeTable)).map((row) => [
+        row.type,
+        row.value,
+        row.count,
+    ]);
+    expect([
+        created.body,
+        (await alice.document.get({ spaceId, id: created.id })).body,
+        nodes,
+    ]).toEqual([spans, spans, [["mention", mention.value, 1]]]);
 });

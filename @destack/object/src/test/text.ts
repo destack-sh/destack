@@ -10,7 +10,7 @@ import {
     TextRope,
     TextSchema,
     TextSequence,
-    TextTypes,
+    TextType,
     type TextEdit,
     type TextMarkType,
 } from "../sequence/index.ts";
@@ -159,7 +159,7 @@ export class TextDriver implements Driver<TextStep, TextObservation> {
         // choose a range and order the mark
         const from = this.#below(length - 1);
         const to = Math.min(length, from + 1 + this.#below(15));
-        const type: TextMarkType = name === "highlight" ? SCHEMA.markType(name) : TextTypes[name];
+        const type: TextMarkType = name === "highlight" ? SCHEMA.markType(name) : TextType[name];
         const values = { bold: true, link: { href: "https://destack.sh" }, highlight: "ada" };
         this.#counter += 1;
         this.#order += 1;

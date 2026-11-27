@@ -8,8 +8,9 @@ import type { Procedure, ReplayFields, TargetFields } from "../method/procedure.
 import type { ObjectType, TextFieldName } from "../object/object.ts";
 import { TextElement, TextEdit } from "../sequence/index.ts";
 import { permission } from "@destack/access";
-import { Chunk, Containment, Undo, TEXT_READ } from "../text/chunk.ts";
-import { chunk } from "../text/table.ts";
+import { Chunk, Containment, Undo } from "../text/chunk.ts";
+import { TEXT_READ, textChunkPolicy, textNodePolicy } from "../text/policy.ts";
+import { textChunkTable, textNodeTable } from "../text/table.ts";
 import type { TraitBehavior } from "./trait.ts";
 import { Execution } from "../method/execution.ts";
 
@@ -69,7 +70,7 @@ export type TextProcedures<Object extends ObjectType> = {
     >;
 };
 
-/** Text fields stored in chunks and changed only by edits. */
+/** Text fields stored in chunks, written at creation and by edits after. */
 export const text: TraitBehavior<TextDefinition> = {
     options: (definition) => {
         // collect the text fields and the update and reading permissions
@@ -90,16 +91,14 @@ export const text: TraitBehavior<TextDefinition> = {
     },
     columns: () => ({}),
     constraints: () => [],
-    // delete chunks with their owner
+    // delete chunks and nodes with their owner
     table: (_options, object) => ({
-        dependents: [
-            {
-                from: () => chunk,
-                key: "parentId",
-                where: { parentPackageId: object.packageId, parentType: object.name },
-                onDelete: "cascade",
-            },
-        ],
+        dependents: [textChunkTable, textNodeTable].map((table) => ({
+            from: () => table,
+            key: "parentId",
+            where: { parentPackageId: object.packageId, parentType: object.name },
+            onDelete: "cascade" as const,
+        })),
     }),
     policy: (options, object, permissions) => {
         // derive the text permission from the reading one
@@ -109,9 +108,15 @@ export const text: TraitBehavior<TextDefinition> = {
             );
         }
 
+        // join the open parent relations of the text types, as an attachment joins its type's
+        const contributes = [textChunkPolicy, textNodePolicy].map((policy) => ({
+            policy,
+            relation: "parent",
+        }));
+
         return options.reading === undefined
-            ? {}
-            : { permissions: { [TEXT_READ]: permission(options.reading) } };
+            ? { contributes }
+            : { permissions: { [TEXT_READ]: permission(options.reading) }, contributes };
     },
     methods: (options): Record<string, Method> =>
         options.permission === undefined
@@ -132,12 +137,12 @@ export const text: TraitBehavior<TextDefinition> = {
             );
         }
 
-        // refuse methods writing text fields
+        // refuse methods writing text fields, other than creations
         for (const [name, declared] of Object.entries(object.methods)) {
             const written = declared.fields?.find((field) => options.fields.includes(field));
-            if (written !== undefined) {
+            if (written !== undefined && declared.kind !== "create") {
                 throw new TypeError(
-                    `method '${name}' of ${object.name} cannot write text field ${written}: only edit changes it`,
+                    `method '${name}' of ${object.name} cannot write text field ${written}: only creations and edit write it`,
                 );
             }
         }

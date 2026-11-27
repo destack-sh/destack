@@ -1,15 +1,13 @@
 import type { ObjectReference } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
-import { through } from "@destack/access";
 import { Table } from "@destack/db";
 import type { Transaction, Snapshot } from "@destack/db/database";
-import { schema, canonicalize, Identifier, present } from "@destack/schema";
+import { schema, canonicalize, Identifier, type JsonValue, present, Uuid } from "@destack/schema";
 
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { MethodContext } from "../method/context.ts";
 import { Step } from "../method/step.ts";
-import { method } from "../method/builder.ts";
-import { type ObjectDefinition, ObjectType } from "../object/object.ts";
+import type { ObjectType } from "../object/object.ts";
 import {
     TextRope,
     TextRun,
@@ -22,20 +20,21 @@ import {
 } from "../sequence/index.ts";
 import { TextField } from "../field/field.ts";
 import { counter } from "../trait/numbered.ts";
-import { chunk, CHUNKS, runEntry } from "./table.ts";
+import { textChunkTable, runEntry, textNodeTable } from "./table.ts";
 import { Execution } from "../method/execution.ts";
 
 import type {} from "@destack/package/import-meta";
-import { argument, plural, t } from "@destack/locale";
 
-/** The owner permission whose holders read its text. */
-export const TEXT_READ = "text";
+export { TEXT_READ } from "./policy.ts";
 
 /** Segments text into the characters a person reads. */
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /** One chunk of a text. */
-type Chunk = typeof chunk.$inferSelect;
+type Chunk = typeof textChunkTable.$inferSelect;
+
+/** One node a text field holds, with how many times it holds it. */
+type TextNodeRow = typeof textNodeTable.$inferSelect;
 
 /** The input of an edit: the text field and its edits in order. */
 const EDIT_INPUT = schema.looseObject({
@@ -73,56 +72,6 @@ export type Undo = schema.Infer<typeof Undo>;
 
 /** Pieces of the texts of owners, read through their owner. */
 export const Chunk = {
-    /** Declare the chunk type of the owners served together. */
-    object(owners: readonly ObjectType[]): ObjectType {
-        // require owners in one kind of scope
-        const first = present(owners[0], "an owner with text");
-        const isOneScope = owners.every(
-            (owner) =>
-                owner.scopes.length === first.scopes.length &&
-                owner.scopes.every((scope, index) => scope.same(first.scopes[index])),
-        );
-        if (!isOneScope) {
-            throw new TypeError("objects with text must use one kind of scope per database");
-        }
-
-        // declare chunks read through their owner, stored in text's chunk table
-        const methods = { list: method.list("read") };
-        const definition: ObjectDefinition = {
-            name: "chunk",
-            plural: CHUNKS,
-            title: t`${plural(argument("count"), { one: "Text chunk", other: "Text chunks" })}`,
-            scope: first.scope,
-            nested: { in: "any", add: TEXT_READ },
-            relations: { parent: { subjects: [...owners], grantedBy: null } },
-            permissions: { read: through("parent", TEXT_READ) },
-            methods,
-            mapping: {
-                table: chunk,
-                id: "id",
-                scope: "scope",
-                attributes: {},
-                relations: {
-                    parent: {
-                        column: "parentId",
-                        subject: {
-                            packageId: "parentPackageId",
-                            type: "parentType",
-                            scope: "scope",
-                        },
-                    },
-                },
-            },
-        };
-
-        return ObjectType.assemble(import.meta.destack.package, {
-            ...definition,
-            table: chunk,
-            methods,
-            source: definition,
-        });
-    },
-
     /** Report whether an owner's text field contains every element. */
     async contains(
         view: Pick<Snapshot, "read">,
@@ -143,7 +92,9 @@ export const Chunk = {
         const rows =
             ids.length === 0
                 ? []
-                : await view.read(chunk).findMany({ where: { ...parent, id: { in: ids } } });
+                : await view
+                      .read(textChunkTable)
+                      .findMany({ where: { ...parent, id: { in: ids } } });
         const pieces = rows.flatMap((row) => row.runs);
 
         return elements.every((element) =>
@@ -164,7 +115,7 @@ export const Chunk = {
                 ? []
                 : await transaction
                       .view()
-                      .read(chunk)
+                      .read(textChunkTable)
                       .findMany({
                           where: {
                               scope,
@@ -207,48 +158,25 @@ export const Chunk = {
 
     /** Apply a call's edits to one text field, writing the changed chunks. */
     async edit(context: MethodContext, execution: Execution): Promise<Undo> {
-        // read the chunks the edits touch
         const { field, edits } = EDIT_INPUT.parse(context.input);
-        const owner = context.object;
-        const parent: Parent = {
-            scope: context.scope,
-            parentPackageId: owner.policy.definition.packageId,
-            parentType: owner.name,
-            parentId: present(context.id, `the edited ${owner.name}'s identifier`),
-            field,
-        };
-        const rows = await readTouched(context, parent, edits);
+        const id = present(context.id, `the edited ${context.object.name}'s identifier`);
 
-        // order the marks at the home, a prediction leaving them last until it does
-        const marked = edits.filter((edit) => "mark" in edit).length;
-        const first =
-            !execution.isPredicted && marked > 0
-                ? await issueOrders(context, execution, parent, marked)
-                : undefined;
-        let issued = 0;
-        const ordered = edits.map((edit): TextEdit => {
-            if (!("mark" in edit)) {
-                return edit;
-            }
-            const order = first === undefined ? null : first + issued;
-            issued += 1;
+        return { inverse: await editField(context, execution, id, field, edits) };
+    },
 
-            return { mark: { ...edit.mark, order } };
-        });
-
-        // apply each edit
-        const allowed = textSchema(owner, field);
-        const { sequence, inverse } = applyEdits(rows, ordered, field, allowed);
-
-        // cut the text back into chunks and write them
-        const chunks = await recut(context, parent, rows, sequence);
-        await Execution.write(
-            execution,
-            context,
-            ...chunks.map(({ before, after }) => ({ table: chunk, before, after })),
-        );
-
-        return { inverse };
+    /** Write a created object's first text in a field, as one editor's edit of the empty text. */
+    async start(
+        context: MethodContext,
+        execution: Execution,
+        id: string,
+        field: string,
+        spans: readonly TextSpan[],
+    ): Promise<void> {
+        const run = Uuid.v7(context.environment);
+        const edits = startingEdits(spans, textSchema(context.object, field), run);
+        if (edits.length > 0) {
+            await editField(context, execution, id, field, edits);
+        }
     },
 
     /** Compose edits into the previous ones when they type or delete the next characters. */
@@ -325,6 +253,126 @@ function continues(last: TextEdit, edits: readonly TextEdit[], undo: readonly Te
     }
 }
 
+/** Apply edits to an object's text field, write its changed chunks and nodes, answer the undo. */
+async function editField(
+    context: MethodContext,
+    execution: Execution,
+    id: string,
+    field: string,
+    edits: readonly TextEdit[],
+): Promise<TextEdit[]> {
+    // read the chunks the edits touch
+    const owner = context.object;
+    const parent: Parent = {
+        scope: context.scope,
+        parentPackageId: owner.policy.definition.packageId,
+        parentType: owner.name,
+        parentId: id,
+        field,
+    };
+    const rows = await readTouched(context, parent, edits);
+
+    // order the marks at the home, a prediction leaving them last until it does
+    const marked = edits.filter((edit) => "mark" in edit).length;
+    const first =
+        !execution.isPredicted && marked > 0
+            ? await issueOrders(context, execution, parent, marked)
+            : undefined;
+    let issued = 0;
+    const ordered = edits.map((edit): TextEdit => {
+        if (!("mark" in edit)) {
+            return edit;
+        }
+        const order = first === undefined ? null : first + issued;
+        issued += 1;
+
+        return { mark: { ...edit.mark, order } };
+    });
+
+    // apply each edit
+    const allowed = textSchema(owner, field);
+    const { sequence, inverse } = applyEdits(rows, ordered, field, allowed);
+
+    // cut the text back into chunks, and count the field's nodes again by the chunks it changed
+    const chunks = await recut(context, parent, rows, sequence);
+    const nodes = await recount(context, parent, chunks);
+    await Execution.write(
+        execution,
+        context,
+        ...chunks.map(({ before, after }) => ({ table: textChunkTable, before, after })),
+        ...nodes.map(({ before, after }) => ({ table: textNodeTable, before, after })),
+    );
+
+    return inverse;
+}
+
+/** Build the edits that write spans into an empty text as one run, with their marks. */
+function startingEdits(spans: readonly TextSpan[], allowed: TextSchema, run: string): TextEdit[] {
+    // insert each stretch and node in order, each after the last element
+    const inserts: TextEdit[] = [];
+    let offset = 0;
+    for (const span of spans) {
+        const insert = "text" in span ? span.text : span.node;
+        const length = typeof insert === "string" ? insert.length : 1;
+        if (length > 0) {
+            const after = offset === 0 ? {} : { after: { run, offset: offset - 1 } };
+            inserts.push({ insert, run, start: offset, ...after });
+            offset += length;
+        }
+    }
+
+    // mark each stretch of spans with one value of a type, over the inserted text
+    const sequence = inserts.reduce((text, each) => text.apply(each), new TextSequence());
+    const marks: TextEdit[] = [];
+    let at = 0;
+    const open = new Map<string, { readonly value: JsonValue; readonly from: number }>();
+
+    // close a type's open stretch into a mark
+    const close = (type: string, to: number) => {
+        // refuse a mark type the field does not allow
+        const opened = open.get(type);
+        const declared = allowed.marks.get(type);
+        if (declared === undefined) {
+            throw ObjectError.of(
+                "TEXT_EDIT_INVALID",
+                `mark ${type} is invalid: the field allows no such mark`,
+            );
+        }
+        if (opened !== undefined) {
+            const range = sequence.range(opened.from, to, declared);
+            marks.push({
+                mark: {
+                    id: `${run}.${marks.length + 1}`,
+                    type,
+                    value: opened.value,
+                    ...range,
+                    order: null,
+                },
+            });
+        }
+        open.delete(type);
+    };
+    for (const span of spans) {
+        const values = "text" in span ? (span.marks ?? {}) : {};
+        for (const [type, opened] of open) {
+            if (canonicalize(values[type] ?? null) !== canonicalize(opened.value)) {
+                close(type, at);
+            }
+        }
+        for (const [type, value] of Object.entries(values)) {
+            if (!open.has(type)) {
+                open.set(type, { value, from: at });
+            }
+        }
+        at += "text" in span ? span.text.length : 1;
+    }
+    for (const type of open.keys()) {
+        close(type, at);
+    }
+
+    return [...inserts, ...marks];
+}
+
 /** Count the characters edits undoing deletions restore, absent when one restores no text. */
 function restoredCharacters(undo: readonly TextEdit[]): number | undefined {
     let count = 0;
@@ -394,7 +442,7 @@ async function readChunks(
     parent: Parent,
     within: { readonly from: string; readonly to: string } | undefined,
 ): Promise<Chunk[]> {
-    const rows = await context.read(chunk).findMany({
+    const rows = await context.read(textChunkTable).findMany({
         where: {
             ...parent,
             ...(within === undefined ? {} : { position: { gte: within.from, lte: within.to } }),
@@ -419,7 +467,9 @@ async function readTouched(
     const rows =
         ids.length === 0
             ? []
-            : await context.read(chunk).findMany({ where: { ...parent, id: { in: ids } } });
+            : await context
+                  .read(textChunkTable)
+                  .findMany({ where: { ...parent, id: { in: ids } } });
     const first = isAtStart ? await readFirst(context, parent) : [];
     const found = orderChunks([...rows, ...first.filter((row) => !ids.includes(row.id))]);
 
@@ -558,7 +608,7 @@ function editedElements(edits: readonly TextEdit[]): {
 /** Read a text field's first chunk, none for an empty field. */
 async function readFirst(context: MethodContext, parent: Parent): Promise<Chunk[]> {
     return context
-        .read(chunk)
+        .read(textChunkTable)
         .findMany({ where: { ...parent }, orderBy: { position: "asc" }, limit: 1 });
 }
 
@@ -627,6 +677,83 @@ async function issueOrders(
     return first;
 }
 
+/** Count a field's nodes again from the chunks an edit changed. */
+async function recount(
+    context: MethodContext,
+    parent: Parent,
+    chunks: readonly ChunkChange[],
+): Promise<{ readonly before: TextNodeRow | null; readonly after: TextNodeRow | null }[]> {
+    // add each node the changed chunks hold now, and take away each they held before
+    const deltas = new Map<
+        string,
+        {
+            readonly type: string;
+            readonly key: string;
+            readonly value: JsonValue;
+            readonly delta: number;
+        }
+    >();
+    const count = (runs: readonly TextRun[], sign: number) => {
+        for (const run of runs) {
+            if ("node" in run) {
+                const key = canonicalize(run.node.value);
+                const name = `${run.node.type}\n${key}`;
+                const known = deltas.get(name) ?? {
+                    type: run.node.type,
+                    key,
+                    value: run.node.value,
+                    delta: 0,
+                };
+                deltas.set(name, { ...known, delta: known.delta + sign });
+            }
+        }
+    };
+    for (const { before, after } of chunks) {
+        count(before?.runs ?? [], -1);
+        count(after.runs, 1);
+    }
+    const changed = [...deltas.values()].filter(({ delta }) => delta !== 0);
+    if (changed.length === 0) {
+        return [];
+    }
+
+    // read the field's rows of those nodes
+    const known = await context.read(textNodeTable).findMany({
+        where: {
+            parentPackageId: parent.parentPackageId,
+            parentType: parent.parentType,
+            parentId: parent.parentId,
+            field: parent.field,
+            key: { in: changed.map(({ key }) => key) },
+        },
+    });
+
+    // write each count, and delete a node the field no longer holds
+    return changed.map(({ type, key, value, delta }) => {
+        // add the change to the field's count
+        const before = known.find((row) => row.type === type && row.key === key) ?? null;
+        const total = (before?.count ?? 0) + delta;
+        if (total < 0) {
+            throw new TypeError(`${type} node of field '${parent.field}' counts below zero`);
+        }
+        const after =
+            total === 0
+                ? null
+                : before === null
+                  ? Table.complete(textNodeTable, {
+                        ...parent,
+                        id: Identifier.create("node", context.environment),
+                        type,
+                        key,
+                        value,
+                        count: total,
+                    })
+                  : { ...before, count: total };
+
+        return { before, after };
+    });
+}
+
 /** Assemble a text's sequence from its chunks in position order, with their marks. */
 function joinChunks(rows: readonly Pick<Chunk, "position" | "runs" | "marks">[]): TextSequence {
     const ordered = orderChunks(rows);
@@ -683,7 +810,7 @@ async function recut(
         }
         for (const group of groups) {
             before = FractionalIndex.between(before, after);
-            const created = Table.complete(chunk, {
+            const created = Table.complete(textChunkTable, {
                 ...parent,
                 id: Identifier.create("chunk", context.environment),
                 position: before,
@@ -712,7 +839,7 @@ async function nextPosition(
     if (position === undefined) {
         return undefined;
     }
-    const [after] = await context.read(chunk).findMany({
+    const [after] = await context.read(textChunkTable).findMany({
         where: { ...parent, position: { gt: position } },
         orderBy: { position: "asc" },
         limit: 1,

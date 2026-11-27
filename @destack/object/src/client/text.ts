@@ -1,13 +1,14 @@
 import { Uuid } from "@destack/schema";
-import type { ObjectOf, ObjectType } from "../object/index.ts";
+import type { ObjectType } from "../object/index.ts";
 import { TextRope, TextSequence, type TextChange, type TextEdit } from "../sequence/index.ts";
-import { chunk } from "../text/table.ts";
+import { textChunk } from "../text/object.ts";
+import type { textChunkTable } from "../text/table.ts";
 import type { LiveQuery, Submission } from "./access.ts";
 import type { ObjectNode } from "./node.ts";
 import { Observable } from "./observable.ts";
 
 /** A chunk row of the replica. */
-type TextRow = Pick<typeof chunk.$inferSelect, "runs" | "marks">;
+type TextRow = Pick<typeof textChunkTable.$inferSelect, "runs" | "marks">;
 
 /** One text field of an object as an editor edits it. */
 export class TextDocument {
@@ -40,9 +41,8 @@ export class TextDocument {
 
     /** Follow one text field of an object on a client. */
     constructor(client: ObjectNode, object: ObjectType, id: string, field: string) {
-        // require a text field served with chunks
-        const chunks = client.objects.find((type) => TextDocument.isChunkType(type));
-        if (chunks === undefined || !object.text.includes(field)) {
+        // require a text field
+        if (!object.text.includes(field)) {
             throw new TypeError(`object '${object.name}' has no text field '${field}'`);
         }
         this.#client = client;
@@ -53,7 +53,7 @@ export class TextDocument {
 
         // follow the field's chunks in position order
         const query = client
-            .queryType(chunks)
+            .queryType(textChunk)
             .findMany({
                 where: { parentType: object.name, parentId: id, field },
                 orderBy: { position: "asc" },
@@ -148,10 +148,5 @@ export class TextDocument {
     /** Read a chunk row's sequence. */
     static sequence(row: TextRow): TextSequence {
         return new TextSequence(row.runs, row.marks);
-    }
-
-    /** Report whether an object type stores its rows in the chunk table, without guarded fields. */
-    static isChunkType(type: ObjectType): type is ObjectOf<{ table: typeof chunk; fields: {} }> {
-        return type.table === chunk;
     }
 }

@@ -61,6 +61,7 @@ import { Execution, type StoreExecution } from "./execution.ts";
 import { BranchWrite } from "../branch/write.ts";
 import { Numbered } from "../trait/numbered.ts";
 import { Replay } from "../audit/replay.ts";
+import type { TextSpan } from "../sequence/index.ts";
 
 /** The values of a draw: the integers a double represents exactly, 2^53. */
 const RANDOM_RANGE = 2 ** 53;
@@ -215,10 +216,11 @@ export class MethodContext<
                     moment: { now: caller.now, timeZone: this.environment.timeZone },
                     places: [],
                 },
-                read: async (type, reference) => {
-                    const row = await this.read(type).findFirst({ where: { id: reference.id } });
+                read: async (type, references) => {
+                    const ids = references.map((reference) => reference.id);
+                    const rows = await this.read(type).findMany({ where: { id: { in: ids } } });
 
-                    return row === undefined ? undefined : JsonValue.object(row);
+                    return rows.map((row) => JsonValue.object(row));
                 },
             },
         );
@@ -765,10 +767,11 @@ export class MethodContext<
         await location.store.acquire(follow, at);
     }
 
-    /** Insert an object of the package's own type as its create method writes it. */
+    /** Insert an object of the package's own type as its create method does, with its texts. */
     async insert<Inserted extends Table>(
         type: ObjectType & { readonly table: Inserted },
         values: Readonly<Partial<Insert<Inserted>>>,
+        texts: Readonly<Record<string, readonly TextSpan[]>> = {},
     ): Promise<Select<Inserted>> {
         // refuse another package's type, and a call outside the store
         const location = this.#location;
@@ -798,7 +801,7 @@ export class MethodContext<
             object: type,
             name: "create",
             method: type.method("create"),
-            input: { ...input, ...parent },
+            input: { ...input, ...texts, ...parent },
             id: undefined,
             target: undefined,
         });

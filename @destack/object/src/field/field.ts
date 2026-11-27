@@ -1337,9 +1337,9 @@ export class StateField<Machine extends StateMachine = StateMachine> extends Fie
     }
 }
 
-/** A text field, stored in chunks and changed only by edits, empty at first. */
+/** A text field stored in chunks, written at creation and by edits after. */
 export class TextField extends Field<
-    FieldConfigurationOf<{ value: readonly TextSpan[]; default: true; written: false }>
+    FieldConfigurationOf<{ value: readonly TextSpan[]; default: true; written: "create" }>
 > {
     /** The marks and nodes the field allows beside characters. */
     readonly schema: TextSchema;
@@ -1356,7 +1356,7 @@ export class TextField extends Field<
             },
             ...WRITTEN,
             isDefault: true,
-            written: false,
+            written: "create",
         });
         this.schema = TextSchema.of(...types);
     }

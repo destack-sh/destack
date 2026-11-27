@@ -116,7 +116,7 @@ export class Catalog {
         /** The server or isolate the package was read from, which a later compile reuses it for. */
         readonly source: PackageImplementation | Isolate;
     }[];
-    /** The types the packages declare, without the chunk types serving their text. */
+    /** The types the packages declare, without the text types serving their text. */
     readonly declared: readonly ObjectType[];
     /** The object types served. */
     readonly objects: readonly ObjectType[];
@@ -242,7 +242,7 @@ export class Catalog {
         const implementedFollows = implementations
             .flatMap((each) => Catalog.#follows(each.definition))
             .flatMap((each) => each.shape.objects);
-        const known = ObjectType.known(implemented, [
+        const known = new RelationGraph(implemented).known([
             ...givenPolicies,
             ...ObjectType.referenced(implemented),
             ...implementedFollows,
@@ -353,7 +353,8 @@ export class Catalog {
         const policies = Catalog.#policies(declared, referencing, shapes);
 
         // store the ephemeral and events types
-        const objects = ObjectType.served(declared);
+        const relations = new RelationGraph(declared);
+        const objects = relations.objects;
         Catalog.#serveStores(objects, given);
 
         // authorize the objects and the replicas the policies do not already decide
@@ -425,7 +426,7 @@ export class Catalog {
             ),
             providers,
             machine,
-            known: ObjectType.known(declared, policies),
+            known: relations.known(policies),
             branch: objects.some((type) => type.same(branchType.object)) ? branchType : undefined,
             refused,
             waiting,

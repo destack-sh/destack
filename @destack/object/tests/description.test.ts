@@ -53,7 +53,7 @@ import { TABLE, declareState } from "@destack/db";
 import { principal, through } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
 import { canonicalize, nth, schema, toJsonSchema } from "@destack/schema";
-import { Chunk } from "../src/text/index.ts";
+import { textChunk } from "../src/text/index.ts";
 import { space } from "../src/test/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
 import { defineKind } from "@destack/package";
@@ -444,7 +444,7 @@ test("refuse code and unknown declarations at their path", () => {
 
 test("describe a type over another package's table by the table's name, and declare it over that same table", () => {
     // describe the chunk type, which maps the text module's table
-    const chunked = Chunk.object([sample]);
+    const chunked = textChunk;
     const description = ObjectDescription.of(chunked);
     const declared = ObjectTypePool.of([sample, space]).declare([description]);
 

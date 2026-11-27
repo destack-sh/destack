@@ -15,6 +15,8 @@ import { ObjectReference } from "@destack/sync";
 import { conceal, CallError } from "../error/call.ts";
 import { ObjectError } from "../error/error.ts";
 import { MethodContext, RecordedRow } from "../method/context.ts";
+import { TextSpan } from "../sequence/index.ts";
+import { Chunk } from "../text/chunk.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 import { Method, type MethodConfiguration, type MethodConflict } from "../method/method.ts";
 import { Step } from "../method/step.ts";
@@ -23,6 +25,9 @@ import { Numbered } from "../trait/numbered.ts";
 import { Orderable } from "../trait/orderable.ts";
 import { list } from "../query/list.ts";
 import { ObjectRecord, BatchItem, MATCH, UPDATED_ITEM } from "../method/record.ts";
+
+/** The spans a creation gives a text field, none for an empty text. */
+const STARTING_SPANS = schema.array(TextSpan);
 
 /** The record verbs a store runs for the built-in method kinds: create, update, delete and list. */
 export const RecordExecution = {
@@ -207,6 +212,7 @@ export const RecordExecution = {
                             throw ObjectRecord.itemFailure(context.object, itemIndex, error);
                         },
                     );
+                    await RecordExecution.startTexts(item, id, execution);
                 }
             });
         } catch (error) {
@@ -482,8 +488,17 @@ export const RecordExecution = {
             await Numbered.raise(context.object, row, context, execution);
         }
         await RecordExecution.recordCreation(context, context.id, execution);
+        await RecordExecution.startTexts(context, context.id, execution);
 
         return row;
+    },
+
+    /** Write the first text a creation's input gives each of its object's text fields. */
+    async startTexts(context: MethodContext, id: string, execution: Execution): Promise<void> {
+        for (const field of context.object.text) {
+            const spans = STARTING_SPANS.parse(context.input[field] ?? []);
+            await Chunk.start(context, execution, id, field, spans);
+        }
     },
 
     /** Change the fields a conflict updates on an existing object, as its update permits. */
