@@ -10,7 +10,7 @@ import {
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
 import { mapValues, Version } from "@destack/schema";
 import type { Message } from "@destack/locale";
-import { Hue } from "@destack/color";
+import { Hue } from "@destack/style";
 import { IconName } from "@destack/icon/name";
 import { MountPath, Capability } from "./description.ts";
 import type { Action } from "./action.ts";

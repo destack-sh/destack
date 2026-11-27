@@ -25,7 +25,6 @@
     },
     "dependencies": {
         "@destack/access": "workspace:*",
-        "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -36,6 +35,7 @@
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/style": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@lezer/common": "1.5.6",
