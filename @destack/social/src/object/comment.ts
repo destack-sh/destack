@@ -214,7 +214,7 @@ export class Comment {
         return mentioned.length === 0
             ? []
             : [
-                  mention.call({
+                  commentMention.call({
                       source: this.source,
                       recipients: mentioned,
                       reason: "mention",
@@ -328,8 +328,9 @@ const answerInThread = {
     text: { placeholder: "Reply", button: "Send" },
 } as const;
 
+// TODO #Cleanup: fold into the text `mentioned` notification once comment bodies are rich text
 /** A comment mentions the recipient. */
-export const mention = defineNotification({
+export const commentMention = defineNotification({
     name: "mention",
     title: t.context("action")`Mentions`,
     description: t`Someone mentions you in a comment.`,
