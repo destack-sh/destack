@@ -280,6 +280,9 @@ export class TagFieldControl {
 
     /** Type text, adding each tag it has whole. */
     type(words: string): void {
+        // keep the edit first, as adding a tag renders the input again
+        this.#setTyped(words);
+
         // add those before the last delimiter, and type on after it
         const parts = words.split(this.#delimiter());
         const rest = parts.pop() ?? "";
