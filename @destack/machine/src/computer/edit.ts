@@ -84,8 +84,13 @@ export class Edit {
                 return { base, commit: base };
             }
 
-            // compile the package
-            await this.#context.builder.compile(directory, signal);
+            // compile the package, unless the edit only adds dependencies, which code that never imported them cannot break
+            const isAdding = this.#input.operations.every(
+                (operation) => operation.kind === "dependency.add",
+            );
+            if (!isAdding) {
+                await this.#context.builder.compile(directory, signal);
+            }
 
             // push the commit while the branch is still at its base, else find whether it moved
             const commit = { message, author, paths };
