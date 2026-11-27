@@ -409,35 +409,44 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     static platform(
         name: (typeof PLATFORM_PACKAGES)[number],
         workspace: Workspace,
+        shipped: Readonly<Record<string, Version>>,
     ): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL(`../../../node_modules/${name}/`, import.meta.url));
 
-        return TestDistribution.compile(workspace, directory, Version.development);
+        return TestDistribution.compile(workspace, directory, Version.development, shipped);
     }
 
     /** Build the desktop from its workspace directory, as production's distribution ships it. */
-    static desktop(workspace: Workspace): ReturnType<typeof TestDistribution.compile> {
+    static desktop(
+        workspace: Workspace,
+        shipped: Readonly<Record<string, Version>>,
+    ): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL("../../../../desktop/", import.meta.url));
 
-        return TestDistribution.compile(workspace, directory, Version.development);
+        return TestDistribution.compile(workspace, directory, Version.development, shipped);
     }
 
     /** Build the package the test computers run, as the distribution ships it. */
-    static runtime(workspace: Workspace): ReturnType<typeof TestDistribution.compile> {
+    static runtime(
+        workspace: Workspace,
+        shipped: Readonly<Record<string, Version>>,
+    ): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL("../../../", import.meta.url));
 
-        return TestDistribution.compile(workspace, directory, Version.development);
+        return TestDistribution.compile(workspace, directory, Version.development, shipped);
     }
 
-    /** Build every unit of a workspace package at a version, and make its image. */
+    /** Build and image every unit of a package at a version, beside the run's shipped ones. */
     static async compile(
         workspace: Workspace,
         directory: string,
         version: Version,
+        shipped: Readonly<Record<string, Version>>,
     ): Promise<{ readonly image: Digest; readonly units: ReadonlyMap<string, Digest> }> {
-        // build and make an image of each unit
+        // build and make an image of each unit, the shipped packages it reaches at their versions
         const opened = await workspace.package(directory);
-        const imaged = await opened.imageUnits({ versions: { [opened.root.name]: version } });
+        const versions = { ...shipped, [opened.root.name]: version };
+        const imaged = await opened.imageUnits({ versions });
         const units = new Map([...imaged].map(([name, { image }]) => [name, image] as const));
 
         return { image: found(units, opened.root.name), units };
