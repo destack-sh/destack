@@ -99,6 +99,34 @@ const POP_ISOLATE = "\u2069";
 
 /** The localizations people read in. */
 export const Localization = {
+    /** Follow a localization that changes, each member read from the current one as it is used. */
+    follow(current: () => Localization): Localization {
+        return {
+            get tag() {
+                return current().tag;
+            },
+            get direction() {
+                return current().direction;
+            },
+            get week() {
+                return current().week;
+            },
+            render: <Names extends string>(
+                message: Message<Names>,
+                ...rest: RenderArguments<Names>
+            ) => current().render(message, ...rest),
+            number: (...number) => current().number(...number),
+            parseNumber: (...parse) => current().parseNumber(...parse),
+            money: (...amount) => current().money(...amount),
+            date: (...date) => current().date(...date),
+            dateRange: (...range) => current().dateRange(...range),
+            plainDate: (...date) => current().plainDate(...date),
+            plainDateRange: (...range) => current().plainDateRange(...range),
+            list: (...list) => current().list(...list),
+            relative: (...time) => current().relative(...time),
+        };
+    },
+
     /** Bind a locale to the catalogs of the packages whose messages it renders. */
     of(
         tag: LocaleTag,

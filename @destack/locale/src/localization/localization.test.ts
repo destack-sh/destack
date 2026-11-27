@@ -70,6 +70,20 @@ test("render a message in the nearest translation along the reader's chain", () 
     ]);
 });
 
+test("follow a changing localization, each use reading the current one", () => {
+    // follow the source language, then German once its catalog arrives
+    let current = Localization.of("en", []);
+    const followed = Localization.follow(() => current);
+    const before = [followed.tag, followed.render(archived(1)), followed.number(1234.5)];
+    current = Localization.of("de", [GERMAN]);
+    const after = [followed.tag, followed.render(archived(1)), followed.number(1234.5)];
+
+    expect({ before, after }).toEqual({
+        before: ["en", `Archived 1 note in ${OPEN}Trips${CLOSE}`, "1,234.5"],
+        after: ["de", `1 Notiz in ${OPEN}Trips${CLOSE} archiviert`, "1.234,5"],
+    });
+});
+
 test("render a message no catalog translates in its source text and language", () => {
     expect([
         Localization.of("en-GB", [GERMAN]).render(archived(1)),
