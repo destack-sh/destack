@@ -20,6 +20,14 @@ export type Corners = schema.Infer<typeof cornersJson>;
 
 /** The radius of each corner of a box, as CSS rounds them. */
 export const Corners = Object.assign(cornersJson, {
+    /** Square corners, as CSS starts. */
+    initial: {
+        topLeft: { value: 0, unit: "px" },
+        topRight: { value: 0, unit: "px" },
+        bottomRight: { value: 0, unit: "px" },
+        bottomLeft: { value: 0, unit: "px" },
+    } satisfies Corners,
+
     /** Round every corner by one radius. */
     all(radius: Bindable<Dimension>): Corners {
         return { topLeft: radius, topRight: radius, bottomRight: radius, bottomLeft: radius };
@@ -51,6 +59,14 @@ export type BoxSides = schema.Infer<typeof boxSidesJson>;
 
 /** A length at each side of a box, as CSS pads, offsets and insets them. */
 export const BoxSides = Object.assign(boxSidesJson, {
+    /** No length on any side, as CSS starts. */
+    initial: {
+        top: { value: 0, unit: "px" },
+        right: { value: 0, unit: "px" },
+        bottom: { value: 0, unit: "px" },
+        left: { value: 0, unit: "px" },
+    } satisfies BoxSides,
+
     /** Give every side one length. */
     all(length: Bindable<Dimension>): BoxSides {
         return { top: length, right: length, bottom: length, left: length };

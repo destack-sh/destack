@@ -30,6 +30,12 @@ export const EASINGS = {
     "ease-in-out": { curve: [0.42, 0, 0.58, 1], title: t.context("option")`Ease in and out` },
 } satisfies Record<Easing, { readonly curve: CubicBezier; readonly title: Message }>;
 
+/** The steps Newton's method takes to solve a curve's x, more than CSS's precision needs. */
+const NEWTON_STEPS = 8;
+
+/** The slope below which Newton's method stops, as a flat curve's x barely moves. */
+const NEWTON_FLAT = 1e-6;
+
 /** How a change eases, as the design token format's cubic Bézier: two control points' x and y. */
 export const CubicBezier = Object.assign(cubicBezierJson, {
     /** Find the easing CSS names a curve with, if any. */
@@ -50,6 +56,23 @@ export const CubicBezier = Object.assign(cubicBezierJson, {
             : EASINGS[easing].curve;
     },
 
+    /** Read how far a curve has eased at a share of its time, solving its x for its y. */
+    at(curve: CubicBezier, progress: number): number {
+        // find the curve's parameter whose x is the progress by Newton's steps, as browsers do
+        const [x1, y1, x2, y2] = curve;
+        let parameter = progress;
+        for (let step = 0; step < NEWTON_STEPS; step += 1) {
+            const gradient = slopeAt(parameter, x1, x2);
+            if (Math.abs(gradient) < NEWTON_FLAT) {
+                break;
+            }
+            const next = parameter - (pointAt(parameter, x1, x2) - progress) / gradient;
+            parameter = Math.min(Math.max(next, 0), 1);
+        }
+
+        return pointAt(parameter, y1, y2);
+    },
+
     /** A curve, or a reference to a cubic Bézier token in its place. */
     bindable: Reference.or(cubicBezierJson, "cubicBezier"),
 
@@ -61,3 +84,25 @@ export const CubicBezier = Object.assign(cubicBezierJson, {
         );
     },
 });
+
+/** Read one coordinate of a curve from 0 to 1 at a parameter, between its two control points. */
+function pointAt(parameter: number, first: number, second: number): number {
+    const rest = 1 - parameter;
+
+    return (
+        3 * rest * rest * parameter * first +
+        3 * rest * parameter * parameter * second +
+        parameter ** 3
+    );
+}
+
+/** Read the slope of one coordinate of a curve at a parameter. */
+function slopeAt(parameter: number, first: number, second: number): number {
+    const rest = 1 - parameter;
+
+    return (
+        3 * rest * rest * first +
+        6 * rest * parameter * (second - first) +
+        3 * parameter * parameter * (1 - second)
+    );
+}

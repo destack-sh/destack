@@ -72,7 +72,7 @@ function read(text: string): Shadow | undefined {
     // refuse a shadow without a color, its two offsets, or a length CSS writes otherwise
     if (color === undefined || offsetX === undefined || offsetY === undefined) {
         return undefined;
-    } else if (lengths.length > 4 || lengths.includes(undefined)) {
+    } else if (lengths.length > 4 || lengths.some((length) => length === undefined)) {
         return undefined;
     }
 

@@ -1,10 +1,16 @@
 import { type Message, t } from "@destack/locale";
 import { schema } from "@destack/schema";
 
-/** What a box does with content past its edges, as CSS's `overflow` names it. */
-export const Overflow = schema
+/** What a box does with content past its edges, as JSON. */
+const overflowJson = schema
     .enum(["visible", "hidden", "clip", "scroll", "auto"])
     .meta({ id: "style.overflow", title: "Overflow" });
+
+/** What a box does with content past its edges, as CSS's `overflow` names it. */
+export const Overflow = Object.assign(overflowJson, {
+    /** Content shown past the edges, as CSS starts. */
+    initial: "visible" satisfies schema.Infer<typeof overflowJson>,
+});
 /** What a box does with content past its edges. */
 export type Overflow = schema.Infer<typeof Overflow>;
 

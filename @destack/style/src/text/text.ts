@@ -108,6 +108,15 @@ export type TextFormat = schema.Infer<typeof textFormatJson>;
 
 /** How text is laid out in its box: aligned, cased, decorated, wrapped and truncated. */
 export const TextFormat = Object.assign(textFormatJson, {
+    /** The format CSS starts from: start-aligned, as typed, undecorated, wrapped and whole. */
+    initial: {
+        align: "start",
+        case: "none",
+        decoration: "none",
+        wrap: "wrap",
+        truncation: { kind: "none" },
+    } satisfies TextFormat,
+
     /** Lay text out as CSS's text properties, clamping its lines where it truncates. */
     css(format: TextFormat): TextFormatStyle {
         // cut text past its lines with an ellipsis, as CSS clamps lines

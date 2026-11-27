@@ -279,6 +279,9 @@ const CSS_COLOR = new RegExp(
     "u",
 );
 
+/** The most a color moves in OKLab as hexadecimal rounds each channel to 1/255, and some room. */
+const HEX_ROUNDING = 0.005;
+
 /** The room a channel may leave its range by before a color is out of a screen's. */
 const GAMUT_TOLERANCE = 0.0001;
 
@@ -641,6 +644,14 @@ export class Color {
 
             return { colorSpace: this.space, components, ...alpha };
         }
+    }
+
+    /** Write the color as plainly as CSS reads it: hexadecimal where sRGB shows it, else OKLCH. */
+    plain(): string {
+        // keep hexadecimal while it loses no more than its own rounding
+        const hex = this.toString("hex");
+
+        return Color.parse(hex).distance(this) <= HEX_ROUNDING ? hex : this.toString("oklch");
     }
 
     /** Write the color as CSS reads it. */

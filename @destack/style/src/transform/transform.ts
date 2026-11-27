@@ -21,6 +21,15 @@ export type Transform = schema.Infer<typeof transformJson>;
 
 /** How a box is moved, turned and scaled, as CSS's translate, rotate and scale properties do. */
 export const Transform = Object.assign(transformJson, {
+    /** No transform: in place, upright and at its own size. */
+    initial: {
+        x: { value: 0, unit: "px" },
+        y: { value: 0, unit: "px" },
+        rotate: 0,
+        scaleX: 1,
+        scaleY: 1,
+    } satisfies Transform,
+
     /** Move, turn and scale a box as CSS's individual transform properties. */
     css(transform: Transform): TransformStyle {
         return {

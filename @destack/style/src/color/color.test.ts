@@ -302,3 +302,11 @@ test("map a wide gamut color into sRGB by its chroma, keeping it exact in its ow
         { colorSpace: "display-p3", components: [1, 0, 0] },
     ]);
 });
+
+test("write a color plainly: hexadecimal where sRGB shows it, else OKLCH", () => {
+    expect(
+        ["oklab(0.295167 -0.0296881 -0.0283 / 0.18)", "rgb(255 0 0)", "oklch(0.7 0.3 145)"].map(
+            (text) => Color.parse(text).plain(),
+        ),
+    ).toEqual(["#12313c2e", "#ff0000", "oklch(70% 0.3 145)"]);
+});

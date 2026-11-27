@@ -168,6 +168,13 @@ export type Position = schema.Infer<typeof positionJson>;
 
 /** Where a box is placed: how, and how it follows its container across and down. */
 export const Position = Object.assign(positionJson, {
+    /** The position CSS starts from: in flow, pinned to the top left. */
+    initial: {
+        kind: "static",
+        x: { kind: "start", offset: { value: 0, unit: "px" } },
+        y: { kind: "start", offset: { value: 0, unit: "px" } },
+    } satisfies Position,
+
     /** Place a box as CSS's `position`, insets and margins, centering a fixed or fit size. */
     css(position: Position): PositionStyle {
         const x = Constraint.css(position.x);
