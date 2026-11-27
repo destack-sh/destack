@@ -50,8 +50,7 @@ export function defineNotification<Payload extends schema.Schema>(
             title: action.title,
             ...(action.isDestructive ? { isDestructive: true } : {}),
             ...(text === undefined ? {} : { text }),
-            type: call.object.typeReference,
-            method: call.method,
+            call: call.describe(),
             ...(target === undefined ? {} : { target }),
         });
     });

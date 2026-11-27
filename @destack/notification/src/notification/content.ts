@@ -1,8 +1,7 @@
 import { type Localization, Message } from "@destack/locale";
-import type { Action } from "@destack/object";
+import { type Action, ActionCallDescription } from "@destack/object";
 import { DeclarationName } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
-import { ObjectTypeReference } from "@destack/sync";
 
 /** The content every channel shows, rendered in its recipient's locale. */
 export const NotificationContent = schema.object({
@@ -82,10 +81,8 @@ export type NotificationAction = schema.Infer<typeof NotificationAction>;
 export const NotificationActionDescription = NotificationAction.extend({
     /** The button's label. */
     title: Message,
-    /** The type whose method it calls, of the declaring package. */
-    type: ObjectTypeReference,
-    /** The mutating method it calls, given the recipient's text as `text` where it asks. */
-    method: schema.string().min(1),
+    /** The call it makes on the declaring package's type, the recipient's text as `text`. */
+    call: ActionCallDescription,
     /** The payload field identifying the object it calls, the source when absent. */
     target: schema.string().min(1).exactOptional(),
 });

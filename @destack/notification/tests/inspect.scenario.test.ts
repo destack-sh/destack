@@ -46,8 +46,22 @@ test("describe a declared notification for manifests with its actions, and key i
                 name: "document.reply",
                 title: reply.title,
                 text: { placeholder: "Reply", button: "Send" },
-                type: document.typeReference,
-                method: "reply",
+                call: {
+                    ...document.typeReference,
+                    method: "reply",
+                    input: { text: { placeholder: "text" } },
+                    target: "documents",
+                    inputs: [
+                        {
+                            kind: "object",
+                            name: "documents",
+                            presence: "required",
+                            source: "selected",
+                            type: document.typeReference,
+                        },
+                        { kind: "text", name: "text", presence: "required" },
+                    ],
+                },
             },
         ],
     });

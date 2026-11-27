@@ -2,7 +2,7 @@ import { type Localization, Message } from "@destack/locale";
 import { MethodContext, type MethodContextOf, type ResultOf } from "@destack/object";
 import { defineKind, PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
+import { Duration, JsonValue, present, schema, toJsonSchema, zip } from "@destack/schema";
 import { NotificationError } from "../error/error.ts";
 import { ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Activity, activity, NotificationName } from "../object/activity.ts";
@@ -332,10 +332,15 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
 
         // find the type the action calls among the served ones
         const row = context.target;
-        const key = ObjectTypeReference.key(declared.type);
-        const called = context.objects.find(
-            (object) => ObjectTypeReference.key(object.typeReference) === key,
-        );
+        const { call } = declared;
+        const typeOf = (reference: ObjectTypeReference) =>
+            context.objects.find(
+                (object) =>
+                    ObjectTypeReference.key(object.typeReference) ===
+                    ObjectTypeReference.key(reference),
+            );
+        const key = ObjectTypeReference.key(call);
+        const called = typeOf(call);
         if (called === undefined) {
             throw NotificationError.of(
                 "ACTION_TYPE_NOT_FOUND",
@@ -343,13 +348,21 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
             );
         }
 
-        // make the call as the person acting, on the target the payload identifies, else on the source
+        // perform the action as the person acting, on the target the payload identifies, else on the source
+        const action = {
+            name,
+            call: called.describedCall(name, call, (reference) =>
+                present(typeOf(reference), `the type ${ObjectTypeReference.key(reference)}`),
+            ),
+        };
         const id = NotificationType.#target(row, declared);
-        const input = {
-            ...called.target({ scope: row.scope, id }),
+        const values = {
+            ...(call.target === undefined
+                ? {}
+                : { [call.target]: { ...called.typeReference, scope: row.scope, id } }),
             ...(text === undefined ? {} : { text }),
         };
-        await context.mutate(context.caller, [called.call(declared.method, input)]);
+        await context.perform(context.caller, action, { values });
 
         return row;
     }
@@ -364,11 +377,11 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         }
         // require the source to be of the type the action calls
         else if (
-            row.parentPackageId !== action.type.packageId ||
-            row.parentType !== action.type.type
+            row.parentPackageId !== action.call.packageId ||
+            row.parentType !== action.call.type
         ) {
             throw new TypeError(
-                `action '${action.name}' calls ${action.type.type}, not the source '${row.parentType}'`,
+                `action '${action.name}' calls ${action.call.type}, not the source '${row.parentType}'`,
             );
         }
 
