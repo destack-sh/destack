@@ -1523,6 +1523,7 @@ export class InstallationOriginServer {
         const document = new Response(rendered.body, rendered);
         document.headers.set("cache-control", "no-store");
         document.headers.set("permissions-policy", policy);
+        document.headers.set("supports-loading-mode", "credentialed-prerender");
 
         return request.method === "HEAD" ? new Response(null, document) : document;
     }
