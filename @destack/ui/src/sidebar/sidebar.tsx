@@ -582,11 +582,11 @@ export type SidebarMenuButtonAttributes = SidebarElementProperties<
     JSX.ButtonHTMLAttributes<HTMLButtonElement> & JSX.AnchorHTMLAttributes<HTMLAnchorElement>
 > & {
     /** The link target, which renders the button as a link. */
-    readonly href?: string;
+    readonly href?: string | undefined;
     /** The name a tooltip shows while the sidebar is collapsed to its icons. */
-    readonly tooltip?: string;
+    readonly tooltip?: string | undefined;
     /** Render another element with the button's attributes, such as a router's link. */
-    readonly render?: Render;
+    readonly render?: Render | undefined;
 };
 
 /** The properties people change in a nested sidebar entry's controls and inspector. */
