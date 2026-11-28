@@ -3,7 +3,7 @@ import { mapValues } from "@destack/schema";
 import { Column, type ColumnDefinition, type ValueOf } from "../table/column.ts";
 import { type Select, TABLE, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
+import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/encryption.ts";
 
 /** The fields of a selection: columns, fragments, whole tables or nested groups. */
 export interface Selection {

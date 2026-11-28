@@ -2,7 +2,7 @@ import { gcmsiv } from "@noble/ciphers/aes.js";
 import { schema } from "@destack/schema";
 import type { Random } from "@destack/environment";
 import type { Encryption } from "../table/column.ts";
-import type { Dialect } from "../dialect/dialect.ts";
+import type { ColumnCipher } from "./encryption.ts";
 
 /** The label the column key derives under from a database's identity root. */
 const COLUMN_LABEL = { label: "@destack/db/column", context: "" } as const;
@@ -13,14 +13,11 @@ const ENCRYPTED_PREFIX = "v1.";
 /** The bytes of a random nonce, which AES-GCM-SIV also survives repeating (RFC 8452). */
 const NONCE_BYTES = 12;
 
-/** The dialect of an encrypted value's text form, as encrypted columns store text. */
-export const ENCRYPTED_DIALECT: Dialect = "sqlite";
-
 /** The values a driver takes for an encrypted column, stored as their JSON text. */
 const EncryptedValue = schema.union([schema.string(), schema.number(), schema.boolean()]);
 
 /** Encrypts a database's sensitive columns at rest with AES-GCM-SIV (RFC 8452). */
-export class ColumnCipher {
+export class AesColumnCipher implements ColumnCipher {
     /** The 256-bit column key. */
     readonly #key: Uint8Array<ArrayBuffer>;
     /** The randomness the random nonces draw from. */
@@ -41,8 +38,8 @@ export class ColumnCipher {
             }) => Promise<Uint8Array<ArrayBuffer>>;
         },
         random: Random,
-    ): Promise<ColumnCipher> {
-        return new ColumnCipher(await root.derive(COLUMN_LABEL), random);
+    ): Promise<AesColumnCipher> {
+        return new AesColumnCipher(await root.derive(COLUMN_LABEL), random);
     }
 
     /** Encrypt a column's driver value as text bound to the column. */
@@ -53,7 +50,7 @@ export class ColumnCipher {
             encryption === "randomized"
                 ? this.#random.bytes(NONCE_BYTES)
                 : new Uint8Array(NONCE_BYTES);
-        const ciphertext = ColumnCipher.#aead(this.#key, nonce, column).encrypt(plaintext);
+        const ciphertext = AesColumnCipher.#aead(this.#key, nonce, column).encrypt(plaintext);
         const encrypted = new Uint8Array([...nonce, ...ciphertext]);
 
         return `${ENCRYPTED_PREFIX}${encrypted.toBase64({ alphabet: "base64url", omitPadding: true })}`;
@@ -72,7 +69,7 @@ export class ColumnCipher {
             alphabet: "base64url",
         });
         const nonce = bytes.subarray(0, NONCE_BYTES);
-        const plaintext = ColumnCipher.#decrypt(
+        const plaintext = AesColumnCipher.#decrypt(
             this.#key,
             nonce,
             column,
@@ -80,20 +77,6 @@ export class ColumnCipher {
         );
 
         return EncryptedValue.parse(JSON.parse(new TextDecoder().decode(plaintext)));
-    }
-
-    /** Require the cipher of a sensitive column, which a database declaring one opens with. */
-    static require(
-        cipher: ColumnCipher | undefined,
-        column: { readonly definition: { readonly name: string } },
-    ): ColumnCipher {
-        if (cipher === undefined) {
-            throw new TypeError(
-                `cannot encrypt sensitive column '${column.definition.name}': the database has no key`,
-            );
-        }
-
-        return cipher;
     }
 
     /** Decrypt a value, refusing one encrypted under another key or for another column. */
@@ -104,7 +87,7 @@ export class ColumnCipher {
         ciphertext: Uint8Array,
     ): Uint8Array {
         try {
-            return ColumnCipher.#aead(key, nonce, column).decrypt(ciphertext);
+            return AesColumnCipher.#aead(key, nonce, column).decrypt(ciphertext);
         } catch (error) {
             throw new TypeError(`cannot decrypt ${column} with the database key`, {
                 cause: error,

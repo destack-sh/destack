@@ -17,7 +17,7 @@ import { Predicate } from "./predicate.ts";
 import type { Comparable } from "./condition.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import type { ColumnCipher } from "../database/cipher.ts";
+import type { ColumnCipher } from "../database/encryption.ts";
 import { Projection, type Selection } from "./selection.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { Cache } from "../cache/cache.ts";

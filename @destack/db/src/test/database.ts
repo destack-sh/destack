@@ -19,7 +19,7 @@ import {
 } from "../migration/state.ts";
 import * as sqlite from "../bun/connection.ts";
 import * as postgresql from "../postgres/index.ts";
-import { ColumnCipher } from "../database/cipher.ts";
+import { AesColumnCipher } from "../database/cipher.ts";
 import { LOG_EPOCH } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
 import { sql } from "../sql/index.ts";
@@ -47,7 +47,7 @@ const SQLITE_WAL_SUFFIXES = ["-wal", "-shm"] as const;
 const TEMPLATE_NODE = "template";
 
 /** The cipher of every test database, a fixed key so schemas reused across test processes open. */
-export const TEST_CIPHER = new ColumnCipher(new Uint8Array(32).fill(7), HOST.random);
+export const TEST_CIPHER = new AesColumnCipher(new Uint8Array(32).fill(7), HOST.random);
 
 /** The connections a test process pools, past a world's 18 open transactions: 88 for 4 workers. */
 const TEST_POOL_CONNECTIONS = 20;
