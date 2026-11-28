@@ -1,6 +1,6 @@
 import { Condition, type Moment } from "@destack/db";
 import { PackageError, PackageId } from "@destack/package";
-import { type JsonObject, JsonValue, schema } from "@destack/schema";
+import { type JsonObject, JsonValue, present, schema } from "@destack/schema";
 import { ObjectReference, type ObjectTypeReference } from "@destack/sync";
 import { ObjectError, refuseInput } from "../error/error.ts";
 import { Field } from "../field/field.ts";
@@ -150,6 +150,29 @@ export class ActionCall {
             inputs: isTargeted ? [target, ...inputs] : inputs,
             template: Template.of(input),
             target: isTargeted ? TARGET_INPUT : undefined,
+        });
+    }
+
+    /** Build the call setting one field of the selected objects through an update method. */
+    static field(object: ObjectType, method: string, field: string): ActionCall {
+        // take the selected objects and the one field's value
+        const target = new ActionInput({
+            name: TARGET_INPUT,
+            label: undefined,
+            presence: "required",
+            value: { kind: "object", type: object, source: "selected", where: undefined },
+        });
+        const input = present(
+            object.inputs(method).find(({ name }) => name === field),
+            `field '${field}' of ${object.name}'s method '${method}'`,
+        );
+
+        return new ActionCall(method, {
+            object,
+            method,
+            inputs: [target, input],
+            template: Template.of({ [input.name]: new Variable(input.name) }),
+            target: TARGET_INPUT,
         });
     }
 

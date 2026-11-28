@@ -1,5 +1,5 @@
 import type { IconName } from "@destack/icon/name";
-import { type Localization, type Message, t } from "@destack/locale";
+import { argument, type Localization, type Message, t } from "@destack/locale";
 import { ObjectAppearance } from "../presentation/appearance.ts";
 import { Layout } from "../layout/layout.ts";
 import { ObjectDetail } from "../presentation/detail.ts";
@@ -76,7 +76,13 @@ import {
 } from "../declare/variable.ts";
 import { ModuleMetadata, type PackageVersion } from "@destack/package";
 import { type Delivery, EventKind, type EventRetention, EventTable } from "@destack/event";
-import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "../field/field.ts";
+import {
+    Field,
+    type FieldsByColumn,
+    type FieldType,
+    type ReferenceOf,
+    type TextField,
+} from "../field/field.ts";
 import type { Handler, TypesOf } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
 import { Method, METHOD_KINDS, type MethodKind, type Phase } from "../method/method.ts";
@@ -286,6 +292,20 @@ const TARGET_FIELD = "id";
 
 /** The method kinds whose input writes the object's fields by name. */
 const WRITING_KINDS: ReadonlySet<MethodKind> = new Set(["create", "update"]);
+
+/** The fields people set one value of: words, numbers, choices, times and other objects. */
+const SET_TYPES: ReadonlySet<FieldType> = new Set([
+    "string",
+    "integer",
+    "number",
+    "boolean",
+    "time",
+    "enum",
+    "state",
+    "reference",
+    "subject",
+    "object",
+]);
 
 /** A method's input as JSON Schema: an object with its properties and the required ones. */
 const METHOD_INPUT = schema.looseObject({
@@ -1632,7 +1652,60 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 : [this.#action(name, title)];
         });
 
-        return [...own, ...derived];
+        // derive an action setting each field an update writes, left out by the declared ones
+        const named = new Set(declared.map((action) => action.name));
+        const set = this.updated.flatMap((field) => {
+            // take a setter no declared action replaces, running on every selected object
+            const action = this.setter(field);
+            if (action === undefined || named.has(action.name)) {
+                return [];
+            }
+            const { method } = present(action.call, `the call of '${action.name}'`);
+
+            return rows.every((row) => this.#runsOn(method, row)) ? [action] : [];
+        });
+
+        return [...own, ...derived, ...set];
+    }
+
+    /** Find the update method clients call that writes a field people set, none for another. */
+    #updating(this: ObjectType, field: string): string | undefined {
+        // skip the fields of other types, then take the first update writing the field
+        const type = this.fields[field]?.type;
+        if (type === undefined || !SET_TYPES.has(type)) {
+            return undefined;
+        }
+
+        return Object.keys(this.methods).find((name) => {
+            const method = this.method(name);
+
+            return (
+                method.kind === "update" &&
+                this.#isClientMethod(name) &&
+                (method.fields === undefined || method.fields.includes(field))
+            );
+        });
+    }
+
+    /** Build the action setting a field by its label, none for a field no update writes. */
+    setter(this: ObjectType, field: string): Action | undefined {
+        // find the update writing the field
+        const method = this.#updating(field);
+        if (method === undefined) {
+            return undefined;
+        }
+
+        // name it by the field, and title it by the field's label in the reader's language
+        const named = this.fields[field]?.relation ?? field;
+        const name = Action.nameOf(this, `set${Casing.pascal(named)}`);
+        const label = this.fields[field]?.label ?? field;
+        const title = t.context("action")`Change ${argument("field")}`;
+
+        return new Action(
+            this.package,
+            { name, title: { ...title, values: { field: label } } },
+            ActionCall.field(this, method, field),
+        );
     }
 
     /** Build a method's own action, with the method's name on the type. */

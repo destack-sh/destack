@@ -2,7 +2,7 @@ import { testIdentity } from "../test/index.ts";
 import { none, principal } from "@destack/access";
 import { now } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { argument, plural, t } from "@destack/locale";
+import { argument, Localization, plural, SOURCE_LOCALE, t } from "@destack/locale";
 import { PackageVersion, PackageId } from "@destack/package";
 import {
     Identifier,
@@ -517,9 +517,15 @@ test("offer the declared actions meeting their condition, then each titled metho
         started: names([started]),
         both: names([todo, started]),
     }).toEqual({
-        todo: ["ticket.escalate", "ticket.edit", "ticket.delete", "ticket.start"],
-        started: ["ticket.edit", "ticket.delete", "ticket.finish"],
-        both: ["ticket.edit", "ticket.delete"],
+        todo: [
+            "ticket.escalate",
+            "ticket.edit",
+            "ticket.delete",
+            "ticket.start",
+            "ticket.setTitle",
+        ],
+        started: ["ticket.edit", "ticket.delete", "ticket.finish", "ticket.setTitle"],
+        both: ["ticket.edit", "ticket.delete", "ticket.setTitle"],
     });
 });
 
@@ -882,6 +888,30 @@ const team = defineObject(
     (method) => ({ create: method.create("create"), edit: method.update("update") }),
 );
 
+test("offer setting each field an update writes, by its label, on the selected objects", () => {
+    // read the action setting a team's status
+    const action = present(
+        team
+            .actions([{ id: "team-1" }], [], PERSON.moment)
+            .find(({ name }) => name === "team.setStatus"),
+        "the action setting a team's status",
+    );
+
+    expect({
+        title: Localization.of(SOURCE_LOCALE, []).render(action.title),
+        inputs: action.inputs.map(({ name, value }) => [name, value.kind]),
+        method: action.call?.method,
+    }).toEqual({
+        // read the label isolated from the title around it, as MessageFormat 2 isolates every value
+        title: "Change \u2068status\u2069",
+        inputs: [
+            ["target", "object"],
+            ["status", "choice"],
+        ],
+        method: "edit",
+    });
+});
+
 test("read a field named as a variable's own name, and start a creation as its place does", async () => {
     // add a team named after the current one
     const copy = defineAction(
@@ -966,11 +996,11 @@ test("offer only what runs on an object as it is: in use, archived, in the trash
         managed: names({ managerInstallationId: "installation-1" }),
         detached: names({ managerInstallationId: "installation-1", detachedAt: 1 }),
     }).toEqual({
-        used: ["page.update", "page.delete", "page.archive"],
+        used: ["page.update", "page.delete", "page.archive", "page.setTitle"],
         archived: ["page.delete", "page.unarchive"],
         deleted: ["page.restore", "page.purge"],
-        managed: ["page.update", "page.delete", "page.archive", "page.detach"],
-        detached: ["page.update", "page.delete", "page.archive", "page.attach"],
+        managed: ["page.update", "page.delete", "page.archive", "page.detach", "page.setTitle"],
+        detached: ["page.update", "page.delete", "page.archive", "page.attach", "page.setTitle"],
     });
 });
 
@@ -1000,8 +1030,8 @@ test("offer a method's own action beside one that presets some of it", () => {
 
     // expect the edit beside both, and the methods every object takes
     expect([names([close]), names([rename])]).toEqual([
-        ["team.close", "team.edit"],
-        ["team.rename", "team.edit"],
+        ["team.close", "team.edit", "team.setName", "team.setStatus"],
+        ["team.rename", "team.edit", "team.setName", "team.setStatus"],
     ]);
 });
 

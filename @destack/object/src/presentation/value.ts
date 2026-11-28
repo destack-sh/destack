@@ -19,6 +19,7 @@ export type ObjectValue =
     | (Choice & { readonly kind: "choice"; readonly value: string | number })
     | (Choice & { readonly kind: "state"; readonly value: string; readonly stage: StateStage })
     | { readonly kind: "reference"; readonly value: string; readonly target: string }
+    | { readonly kind: "subject"; readonly value: string }
     | { readonly kind: "json"; readonly value: JsonValue };
 
 /** The kind of value each field type stores, besides absence. */
@@ -37,7 +38,7 @@ const KINDS: Readonly<Record<FieldType, Exclude<ObjectValue["kind"], "absent">>>
     binary: "json",
     json: "json",
     message: "json",
-    subject: "json",
+    subject: "subject",
     object: "json",
     file: "json",
     blob: "json",
@@ -90,6 +91,8 @@ export const ObjectValue = {
             return { ...choiceOf(field, state, localization), kind, value: state, stage };
         } else if (kind === "reference" && target !== undefined) {
             return { kind, value: schema.string().parse(value), target };
+        } else if (kind === "subject") {
+            return { kind, value: schema.string().parse(value) };
         } else if (kind === "choice") {
             const chosen = schema.union([schema.string(), schema.number()]).parse(value);
 
