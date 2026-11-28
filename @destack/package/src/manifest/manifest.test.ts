@@ -1,9 +1,9 @@
 import { expect, refusal, test } from "@destack/test";
-import { PackageManifest } from "./manifest.ts";
+import { MANIFEST_FORMAT, PackageManifest } from "./manifest.ts";
 
 /** A manifest's fields beside its package. */
 const FIELDS = {
-    formatVersion: 8,
+    formatVersion: MANIFEST_FORMAT,
     role: "app",
     destack: "2026.11.0",
     language: "typescript",

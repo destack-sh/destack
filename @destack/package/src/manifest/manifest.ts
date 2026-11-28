@@ -14,7 +14,7 @@ import { PackageOutput } from "./output.ts";
 import type { Runtime } from "../runtime/index.ts";
 
 /** The manifest format a build writes. */
-export const MANIFEST_FORMAT = 8;
+export const MANIFEST_FORMAT = 9;
 
 /** The directory of a build's catalogs, which every runtime loads. */
 export const CATALOG_DIRECTORY = "locale";
