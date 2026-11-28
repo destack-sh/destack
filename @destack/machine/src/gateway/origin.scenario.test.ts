@@ -714,6 +714,7 @@ test("launch a view onto a session cookie serving its document", async () => {
             spaceTitle: "home",
             apps: [
                 {
+                    installation: installation.id,
                     name: "notes",
                     view: "home",
                     title: {
@@ -793,6 +794,7 @@ test("serve anonymous visitors and refuse forged credentials", async () => {
                 spaceTitle: "home",
                 apps: [
                     {
+                        installation: installation.id,
                         name: "notes",
                         view: "home",
                         title: {

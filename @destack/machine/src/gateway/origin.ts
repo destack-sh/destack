@@ -665,9 +665,7 @@ export class InstallationOriginServer {
     async #apps(): Promise<ViewApp[]> {
         const served = await Installation.list(this.#space.database, this.#space.id, "served");
         const apps = await Promise.all(
-            served.map(
-                async (each) => await ViewApp.of(each.name, (await this.#image(each)).reader),
-            ),
+            served.map(async (each) => await ViewApp.of(each, (await this.#image(each)).reader)),
         );
 
         return apps
