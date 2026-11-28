@@ -1,3 +1,4 @@
+import type { SpanContext } from "@destack/telemetry";
 import { quote } from "../dialect/quote.ts";
 import { placed } from "../sql/index.ts";
 import type { Session } from "../database/session.ts";
@@ -24,6 +25,8 @@ export class TransactionIdentity {
     readonly #session: Session;
     /** The connection's state: whether it has a log, and the searched tables. */
     readonly #connection: ConnectionState;
+    /** The span the transaction runs in, which a pass its changes wake links to. */
+    readonly #span: SpanContext | undefined;
     /** The stamped SQLite marker, absent before the first logged write. */
     #stamped: Promise<string | undefined> | undefined;
     /** The PostgreSQL transaction's stamped time, absent before its first logged write. */
@@ -37,6 +40,7 @@ export class TransactionIdentity {
     constructor(session: Session, connection: ConnectionState) {
         this.#session = session;
         this.#connection = connection;
+        this.#span = connection.transactionSpans.current();
     }
 
     /** Read the identity, stamping it as PostgreSQL's `pg_current_xact_id` assigns it. */
@@ -187,7 +191,9 @@ export class TransactionIdentity {
 
         // keep the span the transaction runs in under the id PostgreSQL assigned
         const { transactionSpans } = this.#connection;
-        const kept = timed.then(([row]) => transactionSpans.add(schema.string().parse(row?.[0])));
+        const kept = timed.then(([row]) =>
+            transactionSpans.add(schema.string().parse(row?.[0]), this.#span),
+        );
 
         // surface a failure at the close
         kept.catch(() => undefined);
@@ -224,7 +230,7 @@ export class TransactionIdentity {
             id,
             connection.clock.now(),
         ]);
-        connection.transactionSpans.add(id);
+        connection.transactionSpans.add(id, this.#span);
 
         return id;
     }

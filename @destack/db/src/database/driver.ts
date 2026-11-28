@@ -137,12 +137,15 @@ export class DatabaseDriver {
             );
         };
 
-        // run a transaction outside any span in a database client span of its own, a statement on its owner's
-        const isOpening =
-            SpanPath.of(context.active()) === undefined && operation === "TRANSACTION";
+        // run a transaction outside any span in a client span of its own, and each statement inside one
+        const isRunning = SpanPath.of(context.active()) !== undefined;
+        const isSpanned = operation === "TRANSACTION" ? !isRunning : isRunning;
 
-        return isOpening
-            ? state.scope.span(operation, attributes, measured, { kind: "client", duration: false })
+        return isSpanned
+            ? state.scope.span(operation ?? "QUERY", attributes, measured, {
+                  kind: "client",
+                  duration: false,
+              })
             : measured();
     }
 

@@ -15,16 +15,20 @@ export class TransactionSpans {
         this.#scope = scope;
     }
 
-    /** Keep the active span as a logging transaction's, forgetting the oldest transaction. */
-    add(transaction: string): void {
+    /** Read the active span, as a transaction starting now runs in it. */
+    current(): SpanContext | undefined {
+        return this.#scope.span.current()?.spanContext();
+    }
+
+    /** Keep the span a logging transaction runs in, forgetting the oldest transaction. */
+    add(transaction: string, span: SpanContext | undefined): void {
         // leave a transaction outside any span
-        const span = this.#scope.span.current();
         if (span === undefined) {
             return;
         }
 
         // keep it, forgetting the oldest beyond the kept ones
-        this.#spans.set(transaction, span.spanContext());
+        this.#spans.set(transaction, span);
         const [oldest] = this.#spans.keys();
         if (this.#spans.size > KEPT_TRANSACTIONS && oldest !== undefined) {
             this.#spans.delete(oldest);

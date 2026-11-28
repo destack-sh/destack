@@ -15,11 +15,11 @@ test("keep the active span of each transaction, none outside a span, and forget 
     const scope = TelemetryScope.of(import.meta.destack.package, telemetry);
     const spans = new TransactionSpans(scope);
 
-    // add one transaction outside a span, then one more than the kept ones inside a span
-    spans.add("outside");
+    // add one transaction outside a span, then one more than the kept ones inside a span, each in the span active as it starts
+    spans.add("outside", spans.current());
     await scope.span("test.write", {}, () => {
         for (let transaction = 0; transaction <= KEPT_TRANSACTIONS; transaction += 1) {
-            spans.add(String(transaction));
+            spans.add(String(transaction), spans.current());
         }
     });
 
