@@ -1,5 +1,5 @@
 {
-    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "$schema": "https://destack.app/schemas/destack.json",
     "id": "package-01a1163a-5b58-7186-babe-f11d9dd55476",
     "role": "builtin",
     "language": "typescript",

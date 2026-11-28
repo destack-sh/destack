@@ -44,7 +44,7 @@ async function writePackage(
 ): Promise<string> {
     const directory = await files.makeTemporaryDirectory("configuration-");
     const definition = {
-        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        $schema: "https://destack.app/schemas/destack.json",
         id: "package-01a0c80b-614d-75ac-841e-b27280bf3db3",
         role: "library",
         language: "typescript",
@@ -179,7 +179,7 @@ test("write lint and format settings at the workspace root and compiler settings
     await files.writeTextFile(
         join(member, "destack.json"),
         JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: "package-01a0c80b-614d-75ac-841e-b27280bf3db3",
             role: "library",
             language: "typescript",
@@ -205,7 +205,7 @@ test("write lint and format settings at the workspace root and compiler settings
     await files.writeTextFile(
         join(workspace, "destack.json"),
         JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             workspace: { check: { expect: [expectation] } },
         }),
     );
@@ -235,7 +235,7 @@ test("write lint and format settings at the workspace root and compiler settings
     await files.writeTextFile(
         join(notes, "destack.json"),
         JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: "package-01a0c80b-614d-75ac-841e-b27280bf3db4",
             role: "app",
             language: "typescript",
