@@ -47,6 +47,7 @@ export const ViewError = defineErrorFamily({
 
         // unavailable
         GEOLOCATION_UNAVAILABLE: {},
+        RENDER_UNAVAILABLE: {},
 
         // unreachable
         CATALOG_UNREACHABLE: {},

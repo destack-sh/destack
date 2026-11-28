@@ -266,14 +266,26 @@ async function openReplica(
     }
     const named = ObjectType.keyed(opened);
     const { environment, remote, ephemeral } = reached;
-    const database = await ephemeral.open(ObjectClient.tables(named));
-    stack.defer(() => database.close());
 
-    // follow the scope as the visitor until the render ends
-    return await ObjectClient.start(
+    // open the replica on its own stack, which closes what it opened should the open fail
+    await using replica = new AsyncDisposableStack();
+    const database = await ephemeral.open(ObjectClient.tables(named));
+    replica.defer(() => database.close());
+    const client = await ObjectClient.start(
         { database, objects: named, scope, caller: asked.visitor.subject, environment, remote },
-        stack,
+        replica,
     );
+
+    // follow the scope as the visitor until the render ends, closing a replica opened after it ended
+    if (stack.disposed) {
+        throw ViewError.of(
+            "RENDER_UNAVAILABLE",
+            `render of view '${view.name}' is unavailable: it ended before scope '${scope}' opened`,
+        );
+    }
+    stack.use(replica.move());
+
+    return client;
 }
 
 /** Load a static view's pages module, refusing a view of another mode. */
