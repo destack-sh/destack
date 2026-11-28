@@ -90,6 +90,9 @@ async function openSample(
         base: "",
         universe: SAMPLE_UNIVERSE,
         catalogs: [],
+        spaceAddress: "home--example",
+        spaceTitle: "Home",
+        apps: [],
         user: principal.user.reference(Scope.universe.id, SAMPLE_USER),
     };
 

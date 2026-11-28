@@ -1,7 +1,9 @@
 import { DeclarationName, OriginPath } from "@destack/package";
 import { Digest, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
+import { SpaceAddress } from "@destack/account/address";
 import { ViewError } from "../error/error.ts";
+import { ViewApp } from "./app.ts";
 
 /** A scope: the universe, or an identifier such as `space-<uuid>`. */
 const SCOPE_SEGMENT =
@@ -77,6 +79,12 @@ const viewContext = schema.object({
     installation: schema.string().min(1),
     /** The space of the installation. */
     space: schema.string().min(1),
+    /** The space's address, with its name and its account's handle. */
+    spaceAddress: SpaceAddress,
+    /** The space's title as people read it: its title, else its name. */
+    spaceTitle: schema.string().min(1),
+    /** The space's apps, by installation name. */
+    apps: schema.array(ViewApp),
     /** The account of the space. */
     account: schema.string().min(1),
     /** The declared view's name. */

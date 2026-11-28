@@ -81,6 +81,9 @@ export default async function setup(project: TestProject): Promise<() => Promise
         catalogs: (await reader.files())
             .map((file) => file.path)
             .filter((path) => Catalog.isPath(path)),
+        spaceAddress: "home--example",
+        spaceTitle: "Home",
+        apps: [],
     } satisfies ViewContext;
 
     // answer the example page, the modules and the package's files

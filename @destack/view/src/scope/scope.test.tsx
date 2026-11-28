@@ -82,6 +82,9 @@ const CONTEXT = {
     base: "",
     universe: "https://destack.app",
     catalogs: [],
+    spaceAddress: "home--example",
+    spaceTitle: "Home",
+    apps: [],
     user: principal.user.reference(Scope.universe.id, "user-01996ab0-0000-7000-8000-000000000003"),
 };
 

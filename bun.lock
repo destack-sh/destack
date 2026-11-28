@@ -1532,6 +1532,7 @@
         "@destack/account": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
+        "@destack/icon": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
