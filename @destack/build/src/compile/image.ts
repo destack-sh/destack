@@ -197,6 +197,8 @@ export class ImageBundle {
             readonly platform: ReadonlyMap<string, ReadonlySet<string>>;
             /** The exports to bundle: every one, or the subpaths the build's importers import. */
             readonly exports: "every" | ReadonlySet<string>;
+            /** The host's builtin images the bundle inlines, by package name. */
+            readonly hosted: ReadonlyMap<string, BuildImage>;
         },
     ): Promise<Digest> {
         // bundle in a span naming the root's package, logged with its duration
@@ -251,6 +253,7 @@ export class ImageBundle {
                     .toSorted()
                     .map((name) => [name, [...(linked.platform.get(name) ?? [])].toSorted()]),
                 exports: linked.exports === "every" ? "every" : [...linked.exports].toSorted(),
+                hosted: [...linked.hosted.values()].map((hosted) => hosted.root).toSorted(),
             },
             store.environment.crypto,
         );
@@ -270,7 +273,7 @@ export class ImageBundle {
                 value,
                 "browser",
                 PREFIXES.builds,
-                new Map(),
+                linked.hosted,
                 read,
                 "export",
             );
@@ -665,7 +668,7 @@ export class ImageBundle {
                         (await options.load(url)) !== undefined;
                     const source = isModule ? undefined : await options.asset(url);
 
-                    // emit a module as a chunk at its build's path, any other file as an asset
+                    // emit a module or a hashed asset at its build's path, any other file by its name
                     const chunk = () =>
                         this.emitFile({
                             type: "chunk",
@@ -673,7 +676,11 @@ export class ImageBundle {
                             fileName: present(located, `module '${url}'`).path,
                         });
                     const file = (bytes: Uint8Array<ArrayBuffer>) =>
-                        this.emitFile({ type: "asset", name: posix.basename(url), source: bytes });
+                        this.emitFile(
+                            isAsset
+                                ? { type: "asset", fileName: located.path, source: bytes }
+                                : { type: "asset", name: posix.basename(url), source: bytes },
+                        );
                     const reference =
                         emitted.get(url) ??
                         (isModule ? chunk() : source === undefined ? undefined : file(source));
