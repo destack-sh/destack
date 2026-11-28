@@ -113,6 +113,20 @@ test("translate the same source text of two packages by each package's own catal
     ]);
 });
 
+test("render a message given as another's value in the reader's language, from its own package", () => {
+    // write the mail package's action title around a label the notes package translates
+    const label = t.withModule(NOTES)`Priority`;
+    const title = t.withModule(MAIL)`Change ${argument("field")}`;
+    const catalogs: Catalog[] = [
+        { package: NOTES.package.id, locale: "de", messages: { [label.id]: "Priorität" } },
+        { package: MAIL.package.id, locale: "de", messages: { [title.id]: "{$field} ändern" } },
+    ];
+
+    expect(Localization.of("de", catalogs).render(title, { field: label })).toBe(
+        `${OPEN}Priorität${CLOSE} ändern`,
+    );
+});
+
 test("ask for the catalogs of a package whose message renders without any", () => {
     // render a notes message with its catalogs, and a mail message without any
     const requested: string[] = [];

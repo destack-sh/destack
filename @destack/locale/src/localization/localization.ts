@@ -2,7 +2,7 @@ import { type NumberFormat, NumberParser } from "../number/index.ts";
 import { MessageFormat } from "messageformat";
 import { type Direction, Locale, type LocaleTag } from "../locale/locale.ts";
 import type { Catalog } from "../message/catalog.ts";
-import type { Message } from "../message/message.ts";
+import { Message } from "../message/message.ts";
 import { type JsonValue, type PlainDate, TimeZone, type Week } from "@destack/schema";
 import type { PackageId } from "@destack/package";
 
@@ -170,14 +170,23 @@ export const Localization = {
             tag,
             direction: runs,
             week: Locale.week(tag),
-            render: (message, ...[supplied]) => {
+            render: function rendered(message, ...[supplied]) {
                 // ask for the catalogs of a package rendering without any
                 if (!packages.has(message.package)) {
                     request?.(message.package);
                 }
 
+                // render each value that is a message itself, such as a field's label in an action's title
+                const values: Record<string, unknown> = Object.fromEntries(
+                    Object.entries({ ...message.values, ...supplied }).map(([name, value]) => {
+                        const inner = Message.safeParse(value);
+
+                        return [name, inner.success ? rendered(inner.data) : value];
+                    }),
+                );
                 const [text, written] = render(
-                    { ...message, values: { ...message.values, ...supplied } },
+                    message,
+                    values,
                     chain,
                     source,
                     translations,
@@ -211,6 +220,7 @@ export const Localization = {
 /** Render a message in the nearest translation of its package, with the locale that has it. */
 function render(
     message: Message,
+    values: Readonly<Record<string, unknown>>,
     chain: readonly LocaleTag[],
     source: LocaleTag,
     translations: ReadonlyMap<string, Catalog>,
@@ -220,12 +230,12 @@ function render(
     for (const tag of chain) {
         const translated = translations.get(`${message.package}\u0000${tag}`)?.messages[message.id];
         if (translated !== undefined) {
-            return [format(compile(tag, translated), message.values), tag];
+            return [format(compile(tag, translated), values), tag];
         }
     }
 
     // read the source text in the source language
-    return [format(compile(source, message.source), message.values), source];
+    return [format(compile(source, message.source), values), source];
 }
 
 /** Isolate text from the direction of the text around it, its first letter setting its own. */
