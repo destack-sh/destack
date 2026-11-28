@@ -679,18 +679,22 @@ export class InstallationOriginServer {
     async #image(
         found: Installation,
     ): Promise<{ readonly image: Digest; readonly reader: BuildReader }> {
-        // read the revision the installation follows
-        const revision = await InstallationRevision.followed(this.#space.database, found);
-        if (revision === undefined) {
+        // refuse an installation following no revision yet
+        const followed = found.targetRevisionId;
+        if (followed === null) {
             throw MachineError.of(
                 "REVISION_UNAVAILABLE",
                 `'${found.name}' is unavailable: it has no revision to serve yet`,
             );
         }
 
-        // read the revision's image and its root once per revision
-        return await InstallationOriginServer.#memo(this.#builds, revision.id, async () => {
+        // read the revision's image and its root once per revision, as revisions never change
+        return await InstallationOriginServer.#memo(this.#builds, followed, async () => {
             // pull the revision's image and open its root
+            const revision = present(
+                await InstallationRevision.followed(this.#space.database, found),
+                `the revision ${followed}`,
+            );
             const built = await Build.require(
                 this.#space.database.snapshot(),
                 this.#space.id,
@@ -1452,7 +1456,10 @@ export class InstallationOriginServer {
         const entry = resolution.url(resolution.root, shown.entrypoint);
         // read the space's address from the page's label, whichever domain its machine serves
         const [label = ""] = url.hostname.split(".");
-        const origin = present(InstallationOrigin.parse(label), `the installation origin of ${label}`);
+        const origin = present(
+            InstallationOrigin.parse(label),
+            `the installation origin of ${label}`,
+        );
         const context: ViewContext = {
             installation: found.id,
             space: this.#space.id,
