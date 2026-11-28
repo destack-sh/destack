@@ -1227,17 +1227,14 @@ export class Replica {
             return () => {};
         }
 
-        // replace the armed silence at each stream start and page
+        // replace the armed silence at each stream start and page, a timer cheaper to stop than a sleep's signal
         const { clock } = database.state;
-        let waking = new AbortController();
+        let timer: number | undefined;
+        signal.addEventListener("abort", () => clock.clearTimeout(timer), { once: true });
 
         return () => {
-            waking.abort();
-            waking = new AbortController();
-            clock.sleep(lag * SILENT_LAGS, AbortSignal.any([signal, waking.signal])).then(
-                () => silent(),
-                () => {},
-            );
+            clock.clearTimeout(timer);
+            timer = signal.aborted ? undefined : clock.setTimeout(silent, lag * SILENT_LAGS);
         };
     }
 
