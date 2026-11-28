@@ -148,7 +148,7 @@ test("leave a sidebar that cannot collapse as a column on narrow screens, where 
     // render in a tab whose display matches the phone's narrow screen query
     await using simulation = testSimulation();
     const browsers = new BrowserSimulation(simulation, {
-        media: { "(max-width: 47.999rem)": true },
+        media: { "(width < 48rem)": true },
     });
     const environment = browsers.environment("phone");
 
@@ -172,7 +172,7 @@ test("leave a sidebar that cannot collapse as a column on narrow screens, where 
     );
     flush();
 
-    // show the settings column in place, and the notebooks as the phone's sheet titled for assistive technology
+    // show the settings column in place, and the notebooks both in place, hidden by CSS on the phone, and as its sheet titled for assistive technology
     expect(
         [...container.querySelectorAll("[data-slot=sidebar]")].map((sidebar) => [
             sidebar.textContent,
@@ -180,6 +180,7 @@ test("leave a sidebar that cannot collapse as a column on narrow screens, where 
         ]),
     ).toEqual([
         ["Settings", null],
+        ["Notebooks", null],
         ["SidebarNotebooks", "true"],
     ]);
 });
