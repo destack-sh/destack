@@ -384,13 +384,8 @@ export class Feed implements Cache {
         start: { readonly row: Row; readonly cursor: string } | undefined,
         use: (dataflow: Dataflow) => Promise<Value>,
     ): Promise<Value> {
-        // read at the latest commit this process saw, which the feed may not have read yet
-        const committed = async () => {
-            const head = await this.#head();
-            const sequence = this.database.state.commits.sequence;
-
-            return { ...head, sequence: Math.max(head.sequence, sequence) };
-        };
+        // read at the log's committed head, which the feed may not have read yet
+        const committed = () => this.database.log.position();
 
         return this.#useShared(queries, audience, start, committed, async (shared) =>
             use(shared.dataflow),
