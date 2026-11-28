@@ -8,7 +8,8 @@ import type { EphemeralHost, ViewsStart } from "@destack/object/workload";
 import { present } from "@destack/schema";
 import type { ThemeDescription } from "@destack/theme";
 import type { StaticSite, View } from "../declare/view.ts";
-import { CONTEXT_ELEMENT } from "../declare/context.ts";
+import { CONTEXT_ELEMENT, type ViewContext } from "../declare/context.ts";
+import { ViewApp } from "../declare/app.ts";
 import { type PageHead, RenderRequest } from "../declare/render.ts";
 import { createRequestEvent, createSSRResponse, renderToStream } from "@solidjs/web";
 import { ViewError } from "../error/error.ts";
@@ -62,12 +63,13 @@ export class PageServer {
             return await endpoint({ request, origin: render.origin, environment });
         }
 
-        // link the context, stylesheets, preloads and entry at the end of the head
+        // link the context, stylesheets, preloads and entry at the end of the head, prerendering the space's other apps on hover
         const context =
             head.context === undefined
                 ? []
                 : [
                       `<script type="application/json" id="${CONTEXT_ELEMENT}">${JSON.stringify(head.context).replaceAll("<", "\\u003c")}</script>`,
+                      PageServer.speculation(head.context, new URL(request.url)),
                   ];
         const links = [
             ...context,
@@ -147,6 +149,17 @@ export class PageServer {
         };
 
         return await createSSRResponse(linked, event);
+    }
+
+    /** Write the speculation rules prerendering the space's other apps once a person hovers one. */
+    static speculation(context: ViewContext, page: URL): string {
+        // prerender each app but the page's own at its main view, moderately eager as Chrome reads a hover
+        const urls = context.apps
+            .filter((app) => app.installation !== context.installation)
+            .map((app) => ViewApp.href(app, context.spaceAddress, page));
+        const rules = { prerender: [{ urls, eagerness: "moderate" }] };
+
+        return `<script type="speculationrules">${JSON.stringify(rules).replaceAll("<", "\\u003c")}</script>`;
     }
 
     /** Load the view's pages module once. */
