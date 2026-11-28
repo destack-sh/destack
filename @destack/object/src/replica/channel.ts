@@ -9,6 +9,7 @@ import {
     mapValues,
     present,
     schema,
+    share,
 } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { Subject } from "@destack/sync";
@@ -953,15 +954,21 @@ export class ChannelRemote implements ObjectRemote {
     ): Promise<void> {
         // follow the read on the node, as long as its party keeps it
         const { from: to, id } = frame;
-        const refresh = async () => {
-            channel.notify({ kind: "value", to, id, value: await live.read() });
+        let sent: { readonly value: unknown } | undefined;
+        const send = (value: unknown) => {
+            // send a value unless it equals the last one sent
+            if (sent === undefined || share(sent.value, value) !== sent.value) {
+                sent = { value };
+                channel.notify({ kind: "value", to, id, value });
+            }
         };
+        const refresh = async () => send(await live.read());
         try {
             // send each read of the query, and a read whenever the party's write predicts
             await live.ready;
             party.add(refresh);
             for await (const value of live.watch(signal)) {
-                channel.notify({ kind: "value", to, id, value });
+                send(value);
             }
         } finally {
             party.delete(refresh);
