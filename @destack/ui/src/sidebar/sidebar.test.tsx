@@ -172,7 +172,7 @@ test("leave a sidebar that cannot collapse as a column on narrow screens, where 
     );
     flush();
 
-    // show the settings column in place, and the notebooks both in place, hidden by CSS on the phone, and as its sheet titled for assistive technology
+    // show the settings column in place, and the notebooks both in place, hidden by CSS on the phone, and as its sheet, empty until it opens
     expect(
         [...container.querySelectorAll("[data-slot=sidebar]")].map((sidebar) => [
             sidebar.textContent,
@@ -181,6 +181,6 @@ test("leave a sidebar that cannot collapse as a column on narrow screens, where 
     ).toEqual([
         ["Settings", null],
         ["Notebooks", null],
-        ["SidebarNotebooks", "true"],
+        ["", "true"],
     ]);
 });

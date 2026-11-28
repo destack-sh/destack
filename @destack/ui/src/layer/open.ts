@@ -1,6 +1,7 @@
 import {
     type Accessor,
     createContext,
+    createEffect,
     createSignal,
     flush,
     type JSX,
@@ -113,6 +114,10 @@ export type OpenChildren<Payload> =
 export class OpenState<Payload = unknown> {
     /** Whether the overlay is open. */
     readonly isOpen: Accessor<boolean>;
+    /** Whether the overlay's content is on the page: while open, and while it leaves. */
+    readonly isPresent: Accessor<boolean>;
+    /** Set whether the content left the page, as its exit motion ended. */
+    readonly #setGone: (isGone: boolean) => void;
     /** The trigger it last opened from, a root's own one until then. */
     readonly trigger: Accessor<OpenTrigger<Payload> | undefined>;
     /** Whether the keyboard opened or closed it last, which no motion follows. */
@@ -155,6 +160,27 @@ export class OpenState<Payload = unknown> {
         this.isOpen = () => (properties.open === undefined ? own() : properties.open);
         this.#setOwn = setOwn;
         this.#properties = properties;
+
+        // keep the content on the page from opening until its exit motion ends, never in between
+        const [isGone, setGone] = createSignal(true, { ownedWrite: true });
+        this.isPresent = () => this.isOpen() || !isGone();
+        this.#setGone = setGone;
+        createEffect(this.isOpen, (isOpen) => {
+            if (isOpen) {
+                setGone(false);
+            }
+        });
+    }
+
+    /** Take the content off the page once its exit motion ends, unless it opened again. */
+    unmount(content: HTMLElement): void {
+        void Promise.allSettled(content.getAnimations().map((motion) => motion.finished)).then(
+            () => {
+                if (!untrack(this.isOpen)) {
+                    this.#setGone(true);
+                }
+            },
+        );
     }
 
     /** What the overlay shows for the trigger it last opened from. */

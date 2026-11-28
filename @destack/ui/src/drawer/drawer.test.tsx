@@ -6,12 +6,12 @@ import { Drawer, DrawerContent, DrawerTitle } from "./index.ts";
 test("place a drawer against its side, with a handle above a bottom drawer's content", () => {
     const { container } = render(() => (
         <>
-            <Drawer>
+            <Drawer defaultOpen>
                 <DrawerContent>
                     <DrawerTitle>Share</DrawerTitle>
                 </DrawerContent>
             </Drawer>
-            <Drawer>
+            <Drawer defaultOpen>
                 <DrawerContent side="right">
                     <DrawerTitle>Details</DrawerTitle>
                 </DrawerContent>
@@ -19,7 +19,7 @@ test("place a drawer against its side, with a handle above a bottom drawer's con
         </>
     ));
     expect(markup(container)).toBe(
-        '<dialog id="id-1" data-closed="" closedby="any" data-side="bottom" data-slot="drawer-content" aria-labelledby="id-2"><div data-slot="drawer-handle" aria-hidden="true"></div><h2 id="id-2" data-slot="drawer-title">Share</h2></dialog><dialog id="id-3" data-closed="" closedby="any" data-side="right" data-slot="drawer-content" aria-labelledby="id-4"><h2 id="id-4" data-slot="drawer-title">Details</h2></dialog>',
+        '<dialog id="id-1" data-open="" closedby="any" data-side="bottom" data-slot="drawer-content" aria-labelledby="id-2" open=""><div data-slot="drawer-handle" aria-hidden="true"></div><h2 id="id-2" data-slot="drawer-title">Share</h2></dialog><dialog id="id-3" data-open="" closedby="any" data-side="right" data-slot="drawer-content" aria-labelledby="id-4" open=""><h2 id="id-4" data-slot="drawer-title">Details</h2></dialog>',
     );
 });
 

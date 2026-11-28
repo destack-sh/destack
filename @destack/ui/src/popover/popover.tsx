@@ -9,11 +9,15 @@ import {
     type Accessor,
     createContext,
     createEffect,
+    createSignal,
     createUniqueId,
     flush,
+    isHydrating,
+    isServer,
     type JSX,
     omit,
     onCleanup,
+    onSettled,
     Show,
     untrack,
     useContext,
@@ -717,9 +721,14 @@ export const PopoverContent = defineComponent({
         );
         const locale = useLocale();
 
-        // head the content by its title and a button closing it, where it has a title
+        // mount the parts while on the page, and in server markup, which opens without scripts
+        const [isServed, setServed] = createSignal(isServer || isHydrating(), { ownedWrite: true });
+        onSettled(() => {
+            setServed(false);
+        });
         const children = (): JSX.Element => (
-            <>
+            <Show when={isServed() || popover.state.isPresent()}>
+                {/* Title and close button, where it has a title */}
                 <Show when={properties.title}>
                     {(title) => (
                         <PopoverHeader xstyle={styles.titled}>
@@ -734,7 +743,7 @@ export const PopoverContent = defineComponent({
                     )}
                 </Show>
                 {properties.children}
-            </>
+            </Show>
         );
         const modalRest = omit(rest, "tabindex");
         const label = (): string | undefined =>
@@ -797,9 +806,12 @@ export const PopoverContent = defineComponent({
                             },
                             onBeforeToggle: (event) => popover.request(event),
                             onToggle: (event) => {
-                                // follow the platform before the caller's handler
+                                // follow the platform before the caller's handler, then leave the page once hidden
                                 popover.follow(event);
                                 properties.onToggle?.(event);
+                                if (event.newState === "closed") {
+                                    popover.state.unmount(event.currentTarget);
+                                }
                             },
                             get children() {
                                 return children();
@@ -823,7 +835,11 @@ export const PopoverContent = defineComponent({
                         ref={(element) => popover.setContent(element)}
                         children={children()}
                         onCancel={(event) => popover.requestModal(event)}
-                        onClose={() => popover.followModal()}
+                        onClose={(event) => {
+                            // follow the platform, then leave the page once closed
+                            popover.followModal();
+                            popover.state.unmount(event.currentTarget);
+                        }}
                         {...style.attributes(
                             [
                                 text.sm,

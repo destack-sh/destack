@@ -163,10 +163,11 @@ test("run nothing once the person cancels, and ask anew", async () => {
     // cancel the form, then open it again
     const { container, ran } = drawNote();
     await pressButton(container, "Rename");
+    const dialog = document.querySelector("form")?.closest("dialog");
     [...document.querySelectorAll("button")].find((each) => each.textContent === "Cancel")?.click();
     await wait(0);
     flush();
-    const closed = document.querySelector("form")?.closest("dialog")?.open;
+    const closed = dialog?.open;
     await pressButton(container, "Rename");
     const isOpen = document.querySelector("form")?.closest("dialog")?.open;
 

@@ -45,7 +45,7 @@ export const colorPickerLabel = defineExample({
         const [color, setColor] = createSignal("#0090ff");
 
         return (
-            <Popover>
+            <Popover defaultOpen>
                 <PopoverTrigger
                     render={(attributes) => (
                         <Button {...attributes} variant="outline">

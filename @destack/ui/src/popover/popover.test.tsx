@@ -14,7 +14,7 @@ import {
 } from "./index.ts";
 import { present } from "@destack/schema";
 import { createSignal, flush, Show } from "@destack/view";
-import { markup, render } from "@destack/view/test";
+import { markup, render, stubPopovers } from "@destack/view/test";
 
 test("toggle a popover from its trigger through the platform's popover target, anchored to the trigger by name", () => {
     const { container } = render(() => (
@@ -25,23 +25,25 @@ test("toggle a popover from its trigger through the platform's popover target, a
     ));
     expect(markup(container)).toBe(
         '<button data-slot="popover-trigger" type="button" id="id-1-trigger" popovertarget="id-1" aria-haspopup="dialog" aria-controls="id-1" data-anchor-name="--id-1">Share</button>' +
-            '<div data-position-anchor="--id-1" data-slot="popover-content" id="id-1" popover="auto" role="dialog" tabindex="-1" aria-labelledby="id-1-trigger" data-closed="" data-side="bottom" data-align="start">Anyone with the link can view.</div>',
+            '<div data-position-anchor="--id-1" data-slot="popover-content" id="id-1" popover="auto" role="dialog" tabindex="-1" aria-labelledby="id-1-trigger" data-closed="" data-side="bottom" data-align="start"></div>',
     );
 });
 
 test("move the focus into a shown popover, to its first control, unless one has it", () => {
+    stubPopovers();
+
     // show a popover with controls, one without, and one whose second control took the focus
     const { container } = render(() => (
         <>
-            <Popover>
+            <Popover defaultOpen>
                 <PopoverContent id="controls">
                     <button type="button">First</button>
                 </PopoverContent>
             </Popover>
-            <Popover>
+            <Popover defaultOpen>
                 <PopoverContent id="text">Nothing to press</PopoverContent>
             </Popover>
-            <Popover>
+            <Popover defaultOpen>
                 <PopoverContent id="taken">
                     <button type="button">First</button>
                     <button type="button">Second</button>
@@ -143,7 +145,7 @@ test("open a modal popover as a modal dialog anchored by name on top of the stac
         changes,
     ]).toEqual([
         '<button data-slot="popover-trigger" type="button" id="id-1-trigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="id-1">Share</button>' +
-            '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-closed="" data-side="bottom" data-align="start"><button type="button">Copy link</button></dialog>',
+            '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-closed="" data-side="bottom" data-align="start"></dialog>',
         [
             true,
             true,

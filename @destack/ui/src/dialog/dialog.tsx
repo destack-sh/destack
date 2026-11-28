@@ -382,10 +382,15 @@ export const DialogContent = defineComponent({
                     },
                     ref: (dialog) => (element = dialog),
                     onCancel: (event) => control.request(event),
-                    onClose: (event) => control.follow(event.currentTarget),
+                    onClose: (event) => {
+                        // follow the platform, then leave the page once closed
+                        control.follow(event.currentTarget);
+                        control.state.unmount(event.currentTarget);
+                    },
                     get children() {
+                        // mount the parts only while on the page, as most dialogs stay closed
                         return (
-                            <>
+                            <Show when={control.state.isPresent()}>
                                 {properties.children}
                                 <Show when={properties.showCloseButton}>
                                     <Button
@@ -402,7 +407,7 @@ export const DialogContent = defineComponent({
                                         <Icon name="x" />
                                     </Button>
                                 </Show>
-                            </>
+                            </Show>
                         );
                     },
                 })}

@@ -70,10 +70,6 @@ export class TooltipControl<Payload = unknown> extends HoverPopover<Payload> {
     readonly #clock: Clock;
     /** Set whether the tooltip shows without motion. */
     readonly #setInstant: (isInstant: boolean) => void;
-    /** Whether the tooltip's content is on the page: while open, and while it leaves. */
-    readonly isPresent: Accessor<boolean>;
-    /** Set whether the tooltip's content left the page, as its exit motion ended. */
-    readonly #setGone: (isGone: boolean) => void;
 
     /** Create a tooltip of the nearest group, waiting the group's delay on the page's clock. */
     constructor(options: TooltipOptions = {}) {
@@ -91,29 +87,10 @@ export class TooltipControl<Payload = unknown> extends HoverPopover<Payload> {
         this.isInstant = isInstant;
         this.#setInstant = setInstant;
 
-        // keep the content on the page from opening until its exit motion ends, never in between
-        const [isGone, setGone] = createSignal(true, { ownedWrite: true });
-        this.isPresent = () => this.isOpen() || !isGone();
-        this.#setGone = setGone;
-
-        // count the tooltip in its group as it shows and hides, its content on the page once shown
+        // count the tooltip in its group as it shows and hides
         createEffect(this.isOpen, (isShown, wasShown) => {
             group.follow(isShown, wasShown, clock.now());
-            if (isShown) {
-                setGone(false);
-            }
         });
-    }
-
-    /** Take the content off the page once its exit motion ends, unless it opened again. */
-    unmount(content: HTMLElement): void {
-        void Promise.allSettled(content.getAnimations().map((motion) => motion.finished)).then(
-            () => {
-                if (!untrack(this.isOpen)) {
-                    this.#setGone(true);
-                }
-            },
-        );
     }
 
     /** Leave the content to the group, which says whether a tooltip moves. */
@@ -321,7 +298,8 @@ export function TooltipTrigger<Payload = unknown>(
             },
             get "aria-describedby"() {
                 // point at the tooltip only while it is on the page
-                return tooltip.isPresent() && (given === undefined || tooltip.state.isFrom(element))
+                return tooltip.state.isPresent() &&
+                    (given === undefined || tooltip.state.isFrom(element))
                     ? tooltip.id
                     : undefined;
             },
@@ -366,7 +344,7 @@ export const TooltipContent = defineComponent({
         const tooltip = useTooltip();
 
         return (
-            <Show when={tooltip.isPresent()}>
+            <Show when={tooltip.state.isPresent()}>
                 <TooltipBody {...properties} />
             </Show>
         );
@@ -436,7 +414,7 @@ function TooltipBody(
                         // follow the platform, then leave the page once hidden
                         tooltip.follow(event);
                         if (event.newState === "closed") {
-                            tooltip.unmount(event.currentTarget);
+                            tooltip.state.unmount(event.currentTarget);
                         }
                     },
                 }),

@@ -81,12 +81,12 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
 
     // the server renders the defaults with their hydration keys: an expanded sidebar on a wide screen and an empty stack
     expect(html.replaceAll(CLASS_ATTRIBUTE, "").replaceAll(ICON_BODY, "$1$2")).toBe(
-        '<div _hk=004040 data-slot="sidebar-wrapper">' +
-            '<div _hk=00404140 data-slot="sidebar" id="000" data-open data-variant="sidebar" data-side="left"><div _hk=00404141>' +
-            '<div _hk=0040414240 data-slot="sidebar-content">Notebooks</div></div></div>' +
-            '<button _hk=00404850 data-variant="ghost" data-size="default" type="button" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true" data-slot="sidebar-trigger">' +
-            '<svg _hk=00404851 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
-            '<section _hk=00404i1 aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
+        '<div _hk=005040 data-slot="sidebar-wrapper">' +
+            '<div _hk=00504140 data-slot="sidebar" id="000" data-open data-variant="sidebar" data-side="left"><div _hk=00504141>' +
+            '<div _hk=0050414240 data-slot="sidebar-content">Notebooks</div></div></div>' +
+            '<button _hk=00504950 data-variant="ghost" data-size="default" type="button" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true" data-slot="sidebar-trigger">' +
+            '<svg _hk=00504951 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
+            '<section _hk=00504j1 aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
             '<ol popover="manual" data-slot="toaster-stack" style="--x-height:0px"></ol></section></div>',
     );
 });

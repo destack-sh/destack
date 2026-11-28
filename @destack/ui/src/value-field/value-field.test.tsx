@@ -206,7 +206,9 @@ test("add, move and remove the colors of a palette between the fewest and the mo
     // adding repeats the last color up to the most, a swatch's popover moves its color and removes it
     press(container, "Add color");
     press(container, "Add color");
+    press(container, "Color 1");
     press(document.body, "Move later", "Color 1");
+    press(container, "Color 3");
     press(document.body, "Remove color", "Color 3");
 
     expect(given).toEqual([
@@ -392,6 +394,7 @@ test("cut text after some lines", () => {
         truncation: { kind: "none" },
     };
     const { container, given } = draw(typeOf(TextFormat), start);
+    press(container, "Text settings");
     press(container, "Cut after lines");
     fill(container, "Lines", "3");
 

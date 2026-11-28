@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { markup, render } from "@destack/view/test";
+import { markup, render, stubPopovers } from "@destack/view/test";
 import { Button } from "../button/index.ts";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { ButtonGroup, ButtonGroupSeparator } from "./index.ts";
@@ -19,12 +19,13 @@ test("render a group of buttons with a vertical separator between them", () => {
 });
 
 test("join a group's buttons and leave the buttons inside its popover apart", () => {
+    stubPopovers();
     const { container } = render(() => (
         <>
             <Button>Alone</Button>
             <ButtonGroup>
                 <Button>Joined</Button>
-                <Popover>
+                <Popover defaultOpen>
                     <PopoverTrigger>More</PopoverTrigger>
                     <PopoverContent>
                         <Button>Inside</Button>
