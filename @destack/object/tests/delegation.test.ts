@@ -121,6 +121,9 @@ test("act with the space's delegation to its installation, refusing without one,
         connect: () => {
             throw new TypeError("the fixture reaches no installation");
         },
+        connectAs: () => {
+            throw new TypeError("the fixture acts for no subject");
+        },
         at: () => {
             throw new TypeError("the fixture fetches no address");
         },

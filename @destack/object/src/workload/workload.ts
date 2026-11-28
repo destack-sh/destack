@@ -7,6 +7,8 @@ import {
 } from "@destack/package";
 import type { ObjectStore } from "../server/store.ts";
 import type { ControllerSet, BlobStore, DatabaseConnection } from "@destack/db/database";
+import type { ExchangeSubject } from "@destack/access/token";
+import type { ObjectConnection } from "../replica/connection.ts";
 import type { Environment } from "@destack/environment";
 import type { DatabaseSchema, Table } from "@destack/db";
 import type { Identifier, JsonValue } from "@destack/schema";
@@ -41,6 +43,19 @@ export interface Workload extends Declaration {
         context: WorkloadContext,
     ) => WorkloadImplementation | Promise<WorkloadImplementation>;
 }
+
+/** Recognise workloads, as a workload's module exports its own. */
+export const Workload = {
+    /** Report whether a module's export is a declared workload. */
+    is(value: unknown): value is Workload {
+        return (
+            typeof value === "object" &&
+            value !== null &&
+            "start" in value &&
+            typeof value.start === "function"
+        );
+    },
+};
 
 /** Declare a workload. */
 export function defineWorkload(
@@ -130,6 +145,8 @@ export interface ServerContext {
     readonly remote: ObjectRemote;
     /** Connect to the store of a package at `<installation>--<space>` through the host's egress. */
     readonly connect: (address: string, packageId: PackageId) => ObjectRemote;
+    /** Connect to the space's stack as a subject the installation serves, through the egress. */
+    readonly connectAs: (subject: ExchangeSubject) => ObjectConnection;
     /** Call the packages at an address through the host's egress as the installation. */
     readonly at: (address: string) => {
         readonly url: string;
@@ -156,11 +173,7 @@ export interface WorkloadImplementation {
     /** What the workload does with its hibernated sockets' messages and closes. */
     readonly sockets?: SocketHandler;
     /** What the workload does with its space store's requests to run its objects' hooks. */
-    readonly hooks?: HookHandler;
-}
-
-/** What a workload does with its space store's requests to run its objects' hooks. */
-export interface HookHandler {
-    /** Answer a request to run a hook. */
-    readonly fetch: (request: Request) => Promise<Response>;
+    readonly hook?: { readonly fetch: (request: Request) => Promise<Response> };
+    /** What the workload does with its host's requests to render its views as their visitors. */
+    readonly view?: { readonly fetch: (request: Request) => Promise<Response> };
 }

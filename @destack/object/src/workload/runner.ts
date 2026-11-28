@@ -20,9 +20,11 @@ import type { Package } from "../declare/package.ts";
 
 import { refusal } from "../error/report.ts";
 import { Egress } from "../declare/egress.ts";
+import { Exchange } from "@destack/access/token";
+import { ObjectConnection } from "../replica/connection.ts";
 import { PackageMount } from "../declare/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
-import { HOOK_PATH, PARTITION_HEADER, PARTITION_PARAMETER, type WorkloadStart } from "./start.ts";
+import { HOST_PATHS, PARTITION_HEADER, PARTITION_PARAMETER, type WorkloadStart } from "./start.ts";
 import {
     Hibernation,
     SOCKET_HEADER,
@@ -285,6 +287,21 @@ export class WorkloadRunner implements AsyncDisposable {
                     `${Egress.url(start.egress, address)}${PackageMount.path(packageId)}`,
                     start.secret,
                 ),
+            connectAs: (subject) =>
+                ObjectConnection.open({
+                    url: ObjectConnection.url(stack),
+                    authorize: async (request) => {
+                        // sign as the installation, asking its egress to act as the subject
+                        const headers = new Headers(request.headers);
+                        headers.set("authorization", `Bearer ${start.secret}`);
+                        for (const [name, value] of Object.entries(Exchange.ask(subject))) {
+                            headers.set(name, value);
+                        }
+
+                        return new Request(request, { headers });
+                    },
+                    environment: runner.environment,
+                }),
             fetch: (request) => runner.environment.network.fetch(request),
             url: start.url,
             at: (address) => ({
@@ -342,9 +359,11 @@ export class WorkloadRunner implements AsyncDisposable {
         if (pathname.startsWith(`${SOCKET_PATH}/`)) {
             return this.#socket(request);
         }
-        // hand the store's request to run a hook to the workload
-        else if (pathname === HOOK_PATH && request.method === "POST") {
-            return this.#hook(request);
+        // hand the host's request to run a hook or render a view to the workload
+        else if (pathname === HOST_PATHS.hook && request.method === "POST") {
+            return this.#host("hook", request);
+        } else if (pathname === HOST_PATHS.view && request.method === "POST") {
+            return this.#host("view", request);
         }
         // serve the package the mount refers to
         else if (mounted !== undefined && served !== undefined) {
@@ -397,10 +416,10 @@ export class WorkloadRunner implements AsyncDisposable {
         );
     }
 
-    /** Hand the workload its store's request to run a hook, answering a refusal as it is. */
-    async #hook(request: Request): Promise<Response> {
+    /** Hand the workload one of its host's requests, answering a refusal as it is. */
+    async #host(kind: "hook" | "view", request: Request): Promise<Response> {
         try {
-            return await this.instance.requireHookHandler().fetch(request);
+            return await this.instance.requireHandler(kind).fetch(request);
         } catch (error) {
             return refusal(error, this.#telemetry);
         }

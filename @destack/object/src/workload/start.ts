@@ -15,8 +15,8 @@ export const PARTITION_PARAMETER = "partition";
 /** The header carrying the head of the client's request a front door hands on. */
 export const CLIENT_HEAD_HEADER = "Destack-Client-Head";
 
-/** The path at which a runner takes its space store's requests to run its objects' hooks. */
-export const HOOK_PATH = "/.destack/hook";
+/** The paths at which a runner takes its host's requests to run hooks and render views. */
+export const HOST_PATHS = { hook: "/.destack/hook", view: "/.destack/view" } as const;
 
 /** How a workload samples and batches its telemetry, as its machine resolves it. */
 export const WorkloadTelemetry = schema.object({
