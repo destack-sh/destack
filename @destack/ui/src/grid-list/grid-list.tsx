@@ -275,20 +275,41 @@ export class GridListControl<Item> {
             },
             { equals: (previous, next) => previous.join() === next.join() },
         );
+
+        // change the estimate only when a kept row's size changes
+        const sizes = createMemo(
+            () => {
+                const { keys } = this.#rows();
+
+                return new Map(
+                    this.delegate
+                        .rows()
+                        .flatMap((row, index) =>
+                            row.kind === "cells" && row.size !== undefined
+                                ? [[keys[index] ?? index, row.size.height] as const]
+                                : [],
+                        ),
+                );
+            },
+            {
+                equals: (previous, next) =>
+                    [...next].every(([key, height]) => (previous.get(key) ?? height) === height),
+            },
+        );
         this.#virtualizer = new Virtualizer({
             count: () => this.delegate.rows().length,
-            estimateSize: () => {
+            estimateSize: createMemo(() => {
                 // take the height of a row of cells with a size, else the estimate
-                const rows = this.delegate.rows();
+                sizes();
 
-                return (index) => {
-                    const row = rows[index];
+                return (index: number) => {
+                    const row = untrack(() => this.delegate.rows())[index];
 
                     return row?.kind === "cells" && row.size !== undefined
                         ? row.size.height + gap
                         : rowHeight;
                 };
-            },
+            }),
             itemKey: () => {
                 const { keys } = this.#rows();
 
