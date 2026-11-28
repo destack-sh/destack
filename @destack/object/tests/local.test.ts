@@ -180,6 +180,65 @@ test("trace a tab's create through its device as one tree, another tab's party t
     ]);
 });
 
+test("send a followed query only its new and changed rows, keeping each unchanged row's object", async () => {
+    // follow the space's travel notebooks and its work notebooks, with one travel notebook
+    const { simulation, party, query } = await openParty();
+    await party.mutate(spaceId, notebook, "create", { name: "Travel" }).confirmed;
+    const travel = query.notebook.findMany({ where: { name: "Travel" } }).subscribe();
+    const work = query.notebook.findMany({ where: { name: "Work" } }).subscribe();
+    onTestFinished(async () => {
+        await travel.close();
+        await work.close();
+    });
+    await Promise.all([travel.ready, work.ready]);
+    const [first] = await travel.read();
+
+    // create another travel notebook, which changes the travel query alone
+    const written = party.mutate(spaceId, notebook, "create", { name: "Travel" });
+    await written.predicted;
+    await written.confirmed;
+    const [again, added] = await travel.read();
+
+    // expect one value sent within the create, with the new row alone, and the earlier row kept
+    const { spans } = simulation.telemetry;
+    const call = spans.findLast(
+        (span) => span.name === "mutate" && span.parentSpanContext === undefined,
+    );
+    const sent = spans.filter(
+        (span) =>
+            span.name === "destack.channel.value" &&
+            span.spanContext().traceId === call?.spanContext().traceId,
+    );
+    expect({
+        sent: sent.map((span) => span.attributes["destack.channel.items"]),
+        isKept: again === first,
+        added: added?.name,
+        work: await work.read(),
+    }).toEqual({ sent: [2], isKept: true, added: "Travel", work: [] });
+});
+
+test("follow the same rows once for two readers, the second reading on after the first closes", async () => {
+    // follow the space's notebooks twice through one party, then close the first reader
+    const { simulation, party, query } = await openParty();
+    const first = query.notebook.findMany().subscribe();
+    const second = query.notebook.findMany().subscribe();
+    onTestFinished(() => second.close());
+    await Promise.all([first.ready, second.ready]);
+    const sends = simulation.telemetry.spans.filter(
+        (span) =>
+            span.name === "destack.channel.receive" &&
+            span.attributes["destack.channel.frame"] === "send",
+    ).length;
+    await first.close();
+
+    // create a notebook, then read it through the second reader
+    await party.mutate(spaceId, notebook, "create", { name: "Travel" }).confirmed;
+    await expect.poll(async () => (await second.read()).map((row) => row.name)).toEqual(["Travel"]);
+
+    // expect the node to have taken one send for both readers' follow
+    expect(sends).toEqual(1);
+});
+
 test("open another scope's tab over a tab's party, closing it leaving the party", async () => {
     // open the space's tab, and a second tab of it over the first one's party
     const simulation = testSimulation();

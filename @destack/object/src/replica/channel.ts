@@ -187,6 +187,14 @@ const Frame = schema.discriminatedUnion("kind", [
 /** A frame between a channel's parties and the node serving them. */
 type Frame = schema.Infer<typeof Frame>;
 
+/** A followed query's change: its rows' keys in order, and the rows new or changed since. */
+const RowChange = schema.object({
+    order: schema.array(schema.string()),
+    rows: schema.array(sync.Item),
+});
+/** A followed query's change. */
+type RowChange = schema.Infer<typeof RowChange>;
+
 /** The address of the frames the node serving a channel takes. */
 const NODE = "node";
 
@@ -266,6 +274,8 @@ export class ChannelRemote implements ObjectRemote {
     readonly #base: ChannelRemote | undefined;
     /** The parties sharing this one's channel, by party, which its listener hands their frames. */
     readonly #parties = new Map<string, ChannelRemote>();
+    /** The rows the party follows, by send, each followed once however many readers it has. */
+    readonly #follows = new Map<string, { readonly live: LiveItems; readers: number }>();
     /** Trace this party's calls: a span and a duration each. */
     readonly #traced: ReturnType<typeof traceCalls>;
     /** The environment the party runs in, whose randomness names its write sessions. */
@@ -422,21 +432,47 @@ export class ChannelRemote implements ObjectRemote {
 
             return present(compiled, `the compiled query of ${object.name}`);
         };
-        const items = schema.array(sync.Item);
         const groups = schema.array(sync.AggregateGroup);
 
         return {
-            rows: (object, query, options): LiveItems => ({
-                query: compile(object, query),
-                ...this.#live(ChannelRemote.#read("rows", scope, object, query, options), (value) =>
-                    items.parse(value),
-                ),
-            }),
+            rows: (object, query, options): LiveItems => {
+                const send = ChannelRemote.#read("rows", scope, object, query, options);
+
+                return this.#share(send, () => ({
+                    query: compile(object, query),
+                    ...this.#live(send, ChannelRemote.#applied()),
+                }));
+            },
             results: (object, query, options) =>
                 this.#live(ChannelRemote.#read("results", scope, object, query, options), (value) =>
                     groups.parse(value),
                 ),
         };
+    }
+
+    /** Follow some rows once for every reader of the same send, closing them after the last. */
+    #share(send: Send, open: () => LiveItems): LiveItems {
+        // take the rows already followed for the send, else follow them
+        const key = JSON.stringify(send);
+        const followed = this.#follows.get(key) ?? { live: open(), readers: 0 };
+        followed.readers += 1;
+        this.#follows.set(key, followed);
+
+        // close them once their last reader lets go, once per reader
+        let isClosed = false;
+        const close = async () => {
+            if (isClosed) {
+                return;
+            }
+            isClosed = true;
+            followed.readers -= 1;
+            if (followed.readers === 0) {
+                this.#follows.delete(key);
+                await followed.live.close();
+            }
+        };
+
+        return { ...followed.live, close };
     }
 
     /** Call an object type's mutating method at the node, predicted there first. */
@@ -922,14 +958,20 @@ export class ChannelRemote implements ObjectRemote {
             else if (send.verb === "rows" || send.verb === "results" || send.verb === "search") {
                 const party = follows.get(to) ?? new Set();
                 follows.set(to, party);
-                await ChannelRemote.#follow(
-                    channel,
-                    frame,
-                    ChannelRemote.#followed(send, await nodes(send.scope)),
-                    party,
-                    scope,
-                    signal,
-                ).finally(() => {
+                const node = await nodes(send.scope);
+                const following =
+                    send.verb === "rows"
+                        ? ChannelRemote.#follow(
+                              { channel, frame, party, scope, signal },
+                              ChannelRemote.#rows(send, node),
+                              ChannelRemote.#rowChanges(),
+                          )
+                        : ChannelRemote.#follow(
+                              { channel, frame, party, scope, signal },
+                              ChannelRemote.#followed(send, node),
+                              ChannelRemote.#wholeChanges(),
+                          );
+                await following.finally(() => {
                     // forget a party once it follows nothing
                     if (party.size === 0) {
                         follows.delete(to);
@@ -1107,27 +1149,35 @@ export class ChannelRemote implements ObjectRemote {
         );
     }
 
-    /** Stream a read's values from a node: the first once ready, then one per change. */
-    static async #follow(
-        channel: Channel<Frame>,
-        frame: Extract<Frame, { readonly kind: "send" }>,
-        live: LiveQuery<unknown>,
-        party: Set<() => Promise<void>>,
-        scope: TelemetryScope,
-        signal: AbortSignal,
+    /** Stream a read's changes from a node: the first once ready, then one per change. */
+    static async #follow<Value>(
+        followed: {
+            readonly channel: Channel<Frame>;
+            readonly frame: Extract<Frame, { readonly kind: "send" }>;
+            readonly party: Set<() => Promise<void>>;
+            readonly scope: TelemetryScope;
+            readonly signal: AbortSignal;
+        },
+        live: LiveQuery<Value>,
+        changes: (value: Value) => unknown,
     ): Promise<void> {
-        // follow the read on the node, as long as its party keeps it
+        // follow the read on the node, as long as its party keeps it, sending only what changed
+        const { channel, frame, party, scope, signal } = followed;
         const { from: to, id } = frame;
-        const send = async (value: unknown) => {
+        const send = async (value: Value) => {
+            const changed = changes(value);
+            if (changed === undefined) {
+                return;
+            }
             await scope.span("destack.channel.value", { [ITEMS_ATTRIBUTE]: count(value) }, () =>
-                channel.notify({ kind: "value", to, id, value }),
+                channel.notify({ kind: "value", to, id, value: changed }),
             );
         };
         const refresh = async () => {
             await send(await live.read());
         };
         try {
-            // send each read of the query, and a read whenever the party's write predicts
+            // send each change of the query, and its rows again whenever the party's write predicts
             await live.ready;
             party.add(refresh);
             for await (const value of live.watch(signal)) {
@@ -1139,9 +1189,87 @@ export class ChannelRemote implements ObjectRemote {
         }
     }
 
+    /** Reduce a query's rows to their keys and the new or changed rows, none when unchanged. */
+    static #rowChanges(): (items: readonly sync.Item[]) => RowChange | undefined {
+        let sent:
+            | { readonly order: readonly string[]; readonly rows: ReadonlyMap<string, string> }
+            | undefined;
+
+        return (items) => {
+            // key each row by its object, keeping its JSON to tell a changed row from a sent one
+            const keyed = items.map((item) => ({
+                key: ChannelRemote.#key(item),
+                item,
+                json: JSON.stringify(item),
+            }));
+            const order = keyed.map(({ key }) => key);
+            const rows = keyed
+                .filter(({ key, json }) => sent?.rows.get(key) !== json)
+                .map(({ item }) => item);
+
+            // send nothing for the same rows in the same order
+            const isSame =
+                sent !== undefined &&
+                rows.length === 0 &&
+                sent.order.length === order.length &&
+                sent.order.every((key, index) => key === order[index]);
+            sent = { order, rows: new Map(keyed.map(({ key, json }) => [key, json])) };
+
+            return isSame ? undefined : { order, rows };
+        };
+    }
+
+    /** Reduce a followed value to itself when it changed, none when it equals the last one sent. */
+    static #wholeChanges(): (value: unknown) => unknown {
+        let sent: string | undefined;
+
+        return (value) => {
+            // send it unless it equals the last value sent
+            const json = JSON.stringify(value);
+            const isSame = json === sent;
+            sent = json;
+
+            return isSame ? undefined : value;
+        };
+    }
+
+    /** Apply a query's changes to the rows kept by key, each unchanged row the same object. */
+    static #applied(): (value: unknown) => readonly sync.Item[] {
+        const kept = new Map<string, sync.Item>();
+
+        return (value) => {
+            // keep each new or changed row, parsing only those
+            const change = RowChange.parse(value);
+            for (const row of change.rows) {
+                kept.set(ChannelRemote.#key(row), row);
+            }
+
+            // list the rows in order, letting go of those the query left
+            const ordered = change.order.map((key) => present(kept.get(key), `the row '${key}'`));
+            const listed = new Set(change.order);
+            for (const key of kept.keys()) {
+                if (!listed.has(key)) {
+                    kept.delete(key);
+                }
+            }
+
+            return ordered;
+        };
+    }
+
+    /** Read a followed row's key: its object's identifier. */
+    static #key(item: sync.Item): string {
+        const id = item.row["id"];
+        if (typeof id !== "string") {
+            throw new TypeError("a followed row has no identifier");
+        }
+
+        return id;
+    }
+
     /** Follow a read on a node, its values as the channel sends them. */
     static #followed(
-        send: Extract<Send, { readonly verb: "rows" | "results" | "search" }>,
+        send: Extract<Send, { readonly verb: "results" | "search" }>,
         node: ObjectNode,
     ): LiveQuery<unknown> {
         // search the named types, sending each hit's type by reference
@@ -1163,14 +1291,34 @@ export class ChannelRemote implements ObjectRemote {
             );
         }
 
-        // follow a read of one object type
+        // follow the groups of one object type
+        const { object, query, options } = ChannelRemote.#target(send, node);
+
+        return node.subscriber.results(object, query, options);
+    }
+
+    /** Follow the rows of one object type on a node. */
+    static #rows(send: Extract<Send, { readonly verb: "rows" }>, node: ObjectNode): LiveItems {
+        const { object, query, options } = ChannelRemote.#target(send, node);
+
+        return node.subscriber.rows(object, query, options);
+    }
+
+    /** Read a followed send's object type on a node, its query and its time to live. */
+    static #target(
+        send: Extract<Send, { readonly verb: "rows" | "results" }>,
+        node: ObjectNode,
+    ): {
+        readonly object: ObjectType;
+        readonly query: Omit<ObjectQuery, "object" | "package">;
+        readonly options: SubscribeOptions;
+    } {
+        // find the type on the node, and keep the rest of the query
         const { object: name, package: packageId, ...query } = send.query;
         const object = ChannelRemote.#object(node, packageId, name);
         const options = send.ttl === undefined ? {} : { ttl: send.ttl };
 
-        return send.verb === "rows"
-            ? node.subscriber.rows(object, query, options)
-            : node.subscriber.results(object, query, options);
+        return { object, query, options };
     }
 
     /** Find a node's object type by package and name, refusing one it lacks. */
