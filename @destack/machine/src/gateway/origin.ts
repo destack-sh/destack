@@ -664,18 +664,22 @@ export class InstallationOriginServer {
     async #image(
         found: Installation,
     ): Promise<{ readonly image: Digest; readonly reader: BuildReader }> {
-        // read the revision the installation follows
-        const revision = await InstallationRevision.followed(this.#space.database, found);
-        if (revision === undefined) {
+        // refuse an installation following no revision yet
+        const followed = found.targetRevisionId;
+        if (followed === null) {
             throw MachineError.of(
                 "REVISION_UNAVAILABLE",
                 `'${found.name}' is unavailable: it has no revision to serve yet`,
             );
         }
 
-        // read the revision's image and its root once per revision
-        return await InstallationOriginServer.#memo(this.#builds, revision.id, async () => {
+        // read the revision's image and its root once per revision, as revisions never change
+        return await InstallationOriginServer.#memo(this.#builds, followed, async () => {
             // pull the revision's image and open its root
+            const revision = present(
+                await InstallationRevision.followed(this.#space.database, found),
+                `the revision ${followed}`,
+            );
             const built = await Build.require(
                 this.#space.database.snapshot(),
                 this.#space.id,
@@ -1497,6 +1501,7 @@ export class InstallationOriginServer {
         const document = new Response(rendered.body, rendered);
         document.headers.set("cache-control", "no-store");
         document.headers.set("permissions-policy", policy);
+        document.headers.set("supports-loading-mode", "credentialed-prerender");
 
         return request.method === "HEAD" ? new Response(null, document) : document;
     }
