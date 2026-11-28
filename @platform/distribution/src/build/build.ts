@@ -6,6 +6,7 @@ import type { PlatformDefinition } from "@destack/account/server";
 import * as stacks from "@platform/stack";
 import { PLATFORM_INPUTS } from "@platform/stack";
 import { Claim, PackageMount, RetryAfter, SERVER_EXPORT, SpaceMount } from "@destack/object";
+import { VIEW_EXPORT } from "@destack/view/declare";
 import { InstallationDefinition } from "@destack/stack/declare";
 import {
     CompilerPool,
@@ -500,34 +501,61 @@ export class PlatformBuild implements AsyncDisposable {
 
     /** Map each shipped package a machine runs in its process to its server's specifier. */
     serverBundle(): Readonly<Record<string, string>> {
-        // take the packages the stacks install, each on the host or as a builtin machines link
-        const declared = [...Object.values(EXPORTS), ...STACK_EXPORTS].map((name) => stacks[name]);
-        const installations = declared.flatMap((stack) =>
-            Object.values(INSTALLATIONS.parse(stack.definition["installations"] ?? {})),
-        );
-        const inProcess = new Set(
-            installations.filter((each) => each.isolation === "host").map((each) => each.packageId),
-        );
-        const installed = new Set(installations.map((each) => each.packageId));
-
-        // map each such release exporting a server, refusing one installed on the host without one
-        const bundled: Record<string, string> = {};
+        // refuse a package installed on the host without a server
+        const bundled = this.#bundle(SERVER_EXPORT);
+        const { inProcess } = PlatformBuild.#installed();
         for (const { manifest } of this.readers) {
             const { id, name } = PackageManifest.package(manifest);
-            const isServing = Object.values(manifest.outputs).some(
-                (output) => output.exports[SERVER_EXPORT] !== undefined,
-            );
-            if (inProcess.has(id) && !isServing) {
+            if (inProcess.has(id) && bundled[name] === undefined) {
                 throw new Error(`'${name}' is installed on the host but exports no server`);
-            } else if (
-                isServing &&
-                (inProcess.has(id) || (installed.has(id) && manifest.role === "builtin"))
-            ) {
-                bundled[name] = `${name}${SERVER_EXPORT.slice(1)}`;
             }
         }
 
         return bundled;
+    }
+
+    /** Map each package a machine runs in its process to its renderer's specifier. */
+    viewsBundle(): Readonly<Record<string, string>> {
+        return this.#bundle(VIEW_EXPORT);
+    }
+
+    /** Map each package a machine runs in its process to the specifier of one of its exports. */
+    #bundle(subpath: string): Record<string, string> {
+        // take the packages the stacks install, each on the host or as a builtin machines link
+        const { inProcess, installed } = PlatformBuild.#installed();
+
+        // map each such release exporting the subpath
+        const bundled: Record<string, string> = {};
+        for (const { manifest } of this.readers) {
+            const { id, name } = PackageManifest.package(manifest);
+            const isExporting = Object.values(manifest.outputs).some(
+                (output) => output.exports[subpath] !== undefined,
+            );
+            const isInProcess =
+                inProcess.has(id) || (installed.has(id) && manifest.role === "builtin");
+            if (isExporting && isInProcess) {
+                bundled[name] = `${name}${subpath.slice(1)}`;
+            }
+        }
+
+        return bundled;
+    }
+
+    /** Read the packages the platform's stacks install, and those they install on the host. */
+    static #installed(): { readonly inProcess: Set<string>; readonly installed: Set<string> } {
+        const declared = [...Object.values(EXPORTS), ...STACK_EXPORTS].map((name) => stacks[name]);
+        const installations = declared.flatMap((stack) =>
+            Object.values(INSTALLATIONS.parse(stack.definition["installations"] ?? {})),
+        );
+
+        return {
+            inProcess: new Set(
+                installations
+                    .filter((each) => each.isolation === "host")
+                    .map((each) => each.packageId),
+            ),
+            installed: new Set(installations.map((each) => each.packageId)),
+        };
     }
 
     /** Write the releases cloud Workers run as assets once per layer, answering its directory. */
