@@ -219,6 +219,49 @@ const taskDropped = defineTable(
     NEXT_RELEASE,
 );
 
+/** Workloads of the current release, each described by its entry. */
+const workloadOne = defineTable(
+    "workload",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        name: text("name").notNull(),
+        description: json("description", schema.object({ entry: schema.string() })).notNull(),
+    },
+    { log: {} },
+    CURRENT_RELEASE,
+);
+
+/** Workloads of the next release, their descriptions converted to name each one's kind. */
+const workloadTwo = defineTable(
+    "workload",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        name: text("name").notNull(),
+        description: json(
+            "description",
+            schema.object({ kind: schema.string(), entry: schema.string() }),
+        ).notNull(),
+    },
+    {
+        log: {},
+        convert: {
+            2: {
+                description: Expression.object({
+                    kind: Expression.case(
+                        Expression.column("name"),
+                        [{ when: "hooks", then: Expression.literal("hook") }],
+                        Expression.literal("call"),
+                    ),
+                    entry: Expression.path(Expression.column("description"), "entry"),
+                }),
+            },
+        },
+    },
+    NEXT_RELEASE,
+);
+
 /** Tasks after adding a list, which earlier tasks are on none of, in the next release. */
 const taskListed = defineTable(
     "task",
@@ -699,6 +742,34 @@ test("convert rows to a new release and log the converted values", async () => {
             Change.after(change)?.priority,
         ]),
     ).toEqual([["update", { id: "a" }, "normal", "high"]]);
+});
+
+test("convert a JSON column into an object and log the column's stored value", async () => {
+    // store a workload of the earlier release
+    const database = await open([workloadTwo]);
+    await database.migrate([workloadOne]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(table(workloadOne))} (id, scope, name, description) VALUES ('a', 'inbox', 'hooks', '{"entry":"."}')`,
+            ),
+    );
+    const before = (await database.log.position()).sequence;
+
+    // convert its description, then read the row and its logged change
+    await database.migrate([workloadTwo]);
+    const rows = await database.select().from(workloadTwo);
+    const changes = await database.log.read({ tables: [workloadTwo], after: before });
+
+    // expect the object in the row and in the log, as the column reads it
+    const converted = { kind: "hook", entry: "." };
+    expect({
+        rows,
+        logged: changes.changes.map((change) => Change.after(change)?.description),
+    }).toEqual({
+        rows: [{ id: "a", scope: "inbox", name: "hooks", description: converted }],
+        logged: [converted],
+    });
 });
 
 test("fill a nullable column of any kind with a conversion to null, and refuse it for a required one", async () => {

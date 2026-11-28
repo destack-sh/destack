@@ -1435,7 +1435,11 @@ function renderAssignment(
     // fill an all-null conversion with a bare null, which takes the column's type
     const rendered = produced === "null" ? sql`NULL` : Expression.render(expression, stored);
 
-    return inline(rendered, state.table.dialect);
+    // store a JSON value as SQLite's plain text, dropping the JSON subtype a log trigger would nest
+    const isSqliteJson = declared.kind === "json" && state.table.dialect === "sqlite";
+    const filled = isSqliteJson ? sql`(${rendered} || '')` : rendered;
+
+    return inline(filled, state.table.dialect);
 }
 
 /** Decide whether a column needs a value from each row: required, without default or generator. */
