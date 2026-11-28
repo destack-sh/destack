@@ -179,9 +179,13 @@ export const Localization = {
                 // render each value that is a message itself, such as a field's label in an action's title
                 const values: Record<string, unknown> = Object.fromEntries(
                     Object.entries({ ...message.values, ...supplied }).map(([name, value]) => {
-                        const inner = Message.safeParse(value);
+                        // parse only objects, as a message is one and most values are not
+                        const inner =
+                            typeof value === "object" && value !== null
+                                ? Message.safeParse(value)
+                                : undefined;
 
-                        return [name, inner.success ? rendered(inner.data) : value];
+                        return [name, inner?.success === true ? rendered(inner.data) : value];
                     }),
                 );
                 const [text, written] = render(
