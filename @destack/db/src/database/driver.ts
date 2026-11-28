@@ -6,6 +6,7 @@ import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverStatement } from "../sql/index.ts";
 import type { Session } from "./session.ts";
 import { SpanPath } from "@destack/environment";
+import type { Context } from "@destack/telemetry";
 import { LOG_TABLES } from "../log/schema.ts";
 import type {} from "@destack/package/import-meta";
 
@@ -71,7 +72,7 @@ export class DatabaseDriver {
     run<Value>(operation: () => PromiseLike<Value>, statement: DriverStatement): Promise<Value> {
         // classify failures and measure the statement, bound to the submitter's context as its queue runs it from another flow
         const { context } = this.state.environment.telemetry;
-        const reported = context.bind(context.active(), () =>
+        const reported = context.bind(this.#context(), () =>
             this.#measure(statement, async () => {
                 try {
                     return await operation();
@@ -82,6 +83,14 @@ export class DatabaseDriver {
         );
 
         return this.transaction ? this.transaction.run(reported) : this.state.run(reported);
+    }
+
+    /** Read the context a statement measures in, its transaction's unless nested within it. */
+    #context(): Context {
+        const active = this.state.environment.telemetry.context.active();
+        const opened = this.transaction?.context;
+
+        return opened === undefined || SpanPath.isWithin(active, opened) ? active : opened;
     }
 
     /** Run a statement measured on its owner's span, a transaction outside any on its own. */

@@ -1,4 +1,5 @@
 import { DatabaseError, isAborted, wraps } from "../error/index.ts";
+import type { Context } from "@destack/telemetry";
 import type { TransactionIdentity } from "../log/transaction.ts";
 
 /** The lifetime of a transaction callback and its queries. */
@@ -17,6 +18,8 @@ export class TransactionState {
     readonly scripted: Set<string>;
     /** The outermost transaction's log identity, stamped at its first write. */
     readonly identity: TransactionIdentity;
+    /** The telemetry context the transaction runs in, which its statements measure in. */
+    readonly context: Context;
     /** Mark the writes a replica's before each that derives rows, absent for the home's. */
     replicaMark: (() => Promise<unknown>) | undefined = undefined;
 
@@ -25,12 +28,14 @@ export class TransactionState {
         written: Set<string>,
         scripted: Set<string>,
         identity: TransactionIdentity,
+        context: Context,
         signal?: AbortSignal,
     ) {
-        // store the outermost transaction's writes, scripts and identity, and the signal
+        // store the outermost transaction's writes, scripts, identity and context, and the signal
         this.written = written;
         this.scripted = scripted;
         this.identity = identity;
+        this.context = context;
         this.signal = signal;
     }
 

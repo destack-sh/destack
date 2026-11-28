@@ -738,7 +738,10 @@ export class DatabaseConnection<
         identity: TransactionIdentity,
         signal?: AbortSignal,
     ): Promise<Value> {
-        const state = new TransactionState(written, scripted, identity, signal);
+        // run it in the context it opened in, as its outer transaction's for a nested one
+        const { telemetry } = this.state.environment;
+        const context = this.driver.transaction?.context ?? telemetry.context.active();
+        const state = new TransactionState(written, scripted, identity, context, signal);
         const transaction = new DatabaseConnection(
             new DatabaseDriver(session, this.state, state, this.driver.reads),
             this.tables,

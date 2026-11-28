@@ -1,4 +1,6 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, test, testOn } from "@destack/test";
+import { BrowserContext } from "@destack/environment/browser";
+import { TelemetryScope } from "@destack/telemetry";
 import { testSimulation } from "@destack/test/world";
 import { SimulatedTelemetry } from "@destack/environment/simulation";
 import { asc, defineTable, sql, TABLE, text } from "../index.ts";
@@ -137,3 +139,37 @@ test("tell commit waiters of a row's write, and nothing of a moved checkpoint", 
         told: [[note[TABLE].sqlName]],
     });
 });
+
+testOn("sqlite")(
+    "measure a transaction's statements in its span after an await loses the context",
+    async () => {
+        // run on a browser's context, which keeps nothing across an await outside compiled modules
+        await using simulation = testSimulation();
+        const world = simulation.environment("test");
+        const context = new BrowserContext();
+        const environment = { ...world, telemetry: { ...world.telemetry, context } };
+        const storage = await TestDatabase.create([note], { environment, isMigrated: true });
+        onTestFinished(() => storage.close());
+        const scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+
+        // write two notes in a span, the second after an await that loses the context
+        await scope.span("test.write", {}, () =>
+            storage.database.transaction(async (transaction) => {
+                await transaction.insert(note).values({ id: "a", body: "first" }).execute();
+                await Promise.resolve();
+                await transaction.insert(note).values({ id: "b", body: "second" }).execute();
+            }),
+        );
+
+        // expect both writes in the transaction's span
+        const { spans } = simulation.telemetry;
+        const names = new Map(spans.map((span) => [span.spanContext().spanId, span.name]));
+        const writes = spans
+            .filter((span) => span.name === "INSERT")
+            .map((span) => [names.get(span.parentSpanContext?.spanId ?? ""), span.name]);
+        expect(writes).toEqual([
+            ["destack.transaction.run", "INSERT"],
+            ["destack.transaction.run", "INSERT"],
+        ]);
+    },
+);
