@@ -237,7 +237,7 @@ export class ObjectSource {
         }
 
         // record the caller's request for its session, and keep the caller's live link open while it streams
-        const caller = ObjectSource.#caller(context);
+        const caller = ObjectSource.#caller(context, subscription);
         const requested =
             caller === undefined
                 ? undefined
@@ -1224,7 +1224,7 @@ export class ObjectSource {
         // read the subscription by its publication, refusing invalid parameters, and require an authenticated caller
         const read = this.publication(subscription).read(subscription);
         this.store.requireProtocolSubscription(context, subscription);
-        const caller = ObjectSource.#caller(context);
+        const caller = ObjectSource.#caller(context, subscription);
         if (caller === undefined) {
             throw ObjectError.of(
                 "CREDENTIAL_UNAUTHENTICATED",
@@ -1234,14 +1234,20 @@ export class ObjectSource {
         await this.request(read, caller);
     }
 
-    /** Key an authenticated caller by subject and credential, absent for an anonymous one. */
-    static #caller(context: RequestContext): string | undefined {
-        // tell apart one subject's followers by their credentials, such as two devices or two tabs
+    /** Key an authenticated caller by subject, credential and log, absent for an anonymous one. */
+    static #caller(
+        context: RequestContext,
+        subscription: Pick<sync.Subscription, "revision">,
+    ): string | undefined {
+        // tell apart one subject's followers by credential and by the database each replicates into
         const { authentication } = context;
+        if (authentication === undefined) {
+            return undefined;
+        }
+        const subject = Subject.key(authentication.caller.subject);
+        const credential = Credential.key(authentication.credential);
 
-        return authentication === undefined
-            ? undefined
-            : `${Subject.key(authentication.caller.subject)} ${Credential.key(authentication.credential)}`;
+        return `${subject} ${credential} ${subscription.revision.log}`;
     }
 
     /** Stream a replica's pages to a database in this process, never back to their source. */
