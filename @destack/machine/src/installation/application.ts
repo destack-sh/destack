@@ -104,7 +104,7 @@ export interface ApplicationOptions {
     /** The release the machine links of each package, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
-    readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
+    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
     /** The images of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
     /** The space's blobs, storing the states its revisions require. */

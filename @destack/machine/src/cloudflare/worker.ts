@@ -252,11 +252,11 @@ export class PartitionObject {
             else if (url.pathname.startsWith(`${CONTENT_PATH}/`)) {
                 return await served.host.content(request);
             }
-            // send an npm client on, else serve the space, keeping the socket of an upgrade its store accepts
+            // answer the universe's own paths, else serve the space, keeping the socket of an upgrade its store accepts
             else {
-                const npm = await machine.npm(request);
-                if (npm !== undefined) {
-                    return npm;
+                const universal = await machine.serveUniverse(request);
+                if (universal !== undefined) {
+                    return universal;
                 }
                 const answer = await served.space.fetch(request);
                 const isAccepted =
@@ -531,8 +531,8 @@ export class PartitionObject {
         });
 
         // serve the space on the one machine, enrolled by the universe's declaration of it, started now
-        const shipped = await WorkerdDistribution.read();
-        const bundle = await ServerBundle.read(shipped);
+        const bundled = await WorkerdDistribution.read();
+        const bundle = await ServerBundle.read(bundled);
         const startedAt = cloud.environment.clock.now();
         const machine = new Machine({
             id: cloud.id,
@@ -562,8 +562,8 @@ export class PartitionObject {
             // run in process the servers the deploy bundled with the machine
             server: (image) => Promise.resolve(bundle.server(image)),
             views: (image) => Promise.resolve(bundle.views(image)),
-            linked: DistributionManifest.builtins(shipped, "workerd"),
-            shipped: DistributionManifest.releases(shipped, "workerd"),
+            linked: DistributionManifest.builtins(bundled, "workerd"),
+            bundled: DistributionManifest.releases(bundled, "workerd"),
             endpoint: bindings.DESTACK_ORIGIN,
             destack: { oldest: OLDEST_DESTACK, newest: machinePackage.version },
             authenticate: async (request, audience, partition) => {

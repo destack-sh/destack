@@ -628,7 +628,7 @@ test("open the build each package's installation in a space version, and none fo
         InstallationTarget.reader(database.snapshot(), ids.space, packageId, undefined, {
             space,
             linked: new Map(),
-            shipped: new Map(),
+            bundled: new Map(),
         }).then(
             (reader) => reader?.manifest.package.version,
             (error: unknown) => (error instanceof Error ? error.message : error),

@@ -91,7 +91,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     readonly stacks: PlatformDefinition["stacks"];
     /** The stack each region's home runs. */
     readonly home: StackRelease;
-    /** The root builds of the shipped releases: the platform's units, stacks and given builds. */
+    /** The root builds of the bundled releases: the platform's units, stacks and given builds. */
     readonly builds: readonly BuildReader[];
     /** The manifest of the releases the distribution ships, each with its role. */
     readonly manifest: DistributionManifest;
@@ -105,7 +105,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     /** The layers this process writes or wrote, by their releases, each written once. */
     static readonly #distributed = new Map<string, Promise<string>>();
 
-    /** Take the stacks, the builds, the shipped releases, their platform, layer and store. */
+    /** Take the stacks, the builds, the bundled releases, their platform, layer and store. */
     private constructor(
         stacks: PlatformDefinition["stacks"],
         home: StackRelease,
@@ -115,7 +115,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         layer: BuildLayer,
         store: LocalBuildStore,
     ) {
-        // set the stacks, the region homes', the builds, the shipped releases, their layer and their store
+        // set the stacks, the region homes', the builds, the bundled releases, their layer and their store
         this.stacks = stacks;
         this.home = home;
         this.builds = builds;
@@ -150,10 +150,10 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const extra = await Promise.all(
             given.map((build) => TestDistribution.#imageAt(build, store)),
         );
-        const shipped = await TestDistribution.shipped(store, built, extra);
+        const bundled = await TestDistribution.bundled(store, built, extra);
         const target = DistributionPlatform.of(host.host);
         const releases = await Promise.all(
-            shipped.map(async (image) => {
+            bundled.map(async (image) => {
                 const root = await store.get((await store.image(image)).root);
 
                 return {
@@ -163,10 +163,10 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
                 };
             }),
         );
-        const layer = await TestDistribution.layer(shipped, store);
+        const layer = await TestDistribution.layer(bundled, store);
 
-        // read the root of every shipped release, which the distribution opens by version
-        const builds = await Promise.all(shipped.map((image) => store.root(image)));
+        // read the root of every bundled release, which the distribution opens by version
+        const builds = await Promise.all(bundled.map((image) => store.root(image)));
 
         // hand the store to the distribution
         opened.move();
@@ -338,7 +338,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     }
 
     /** List the run's images a distribution ships: the platform, its stacks, builtins and more. */
-    static async shipped(
+    static async bundled(
         store: Pick<LocalBuildStore, "get" | "image">,
         built: Readonly<Record<string, Digest>>,
         given: readonly Digest[],
@@ -388,64 +388,64 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return DistributionManifest.releases(this.manifest, this.platform);
     }
 
-    /** Open a shipped release of a package by its version, refusing one the distribution lacks. */
+    /** Open a bundled release of a package by its version, refusing one the distribution lacks. */
     async open(packageId: PackageId, release: string): Promise<BuildReader> {
-        const shipped = this.builds.find(({ manifest }) => {
+        const bundled = this.builds.find(({ manifest }) => {
             const built = manifest.package;
 
             return "id" in built && built.id === packageId && built.version === release;
         });
-        if (shipped === undefined) {
+        if (bundled === undefined) {
             throw MachineError.of(
                 "PACKAGE_NOT_FOUND",
                 `release '${release}' of this package on the test computer not found`,
             );
         }
 
-        return shipped;
+        return bundled;
     }
 
     /** Build a platform package from the workspace, found through machine's dependency on it. */
     static platform(
         name: (typeof PLATFORM_PACKAGES)[number],
         workspace: Workspace,
-        shipped: Readonly<Record<string, Version>>,
+        bundled: Readonly<Record<string, Version>>,
     ): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL(`../../../node_modules/${name}/`, import.meta.url));
 
-        return TestDistribution.compile(workspace, directory, Version.development, shipped);
+        return TestDistribution.compile(workspace, directory, Version.development, bundled);
     }
 
     /** Build the desktop from its workspace directory, as production's distribution ships it. */
     static desktop(
         workspace: Workspace,
-        shipped: Readonly<Record<string, Version>>,
+        bundled: Readonly<Record<string, Version>>,
     ): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL("../../../../desktop/", import.meta.url));
 
-        return TestDistribution.compile(workspace, directory, Version.development, shipped);
+        return TestDistribution.compile(workspace, directory, Version.development, bundled);
     }
 
     /** Build the package the test computers run, as the distribution ships it. */
     static runtime(
         workspace: Workspace,
-        shipped: Readonly<Record<string, Version>>,
+        bundled: Readonly<Record<string, Version>>,
     ): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL("../../../", import.meta.url));
 
-        return TestDistribution.compile(workspace, directory, Version.development, shipped);
+        return TestDistribution.compile(workspace, directory, Version.development, bundled);
     }
 
-    /** Build and image every unit of a package at a version, beside the run's shipped ones. */
+    /** Build and image every unit of a package at a version, beside the run's bundled ones. */
     static async compile(
         workspace: Workspace,
         directory: string,
         version: Version,
-        shipped: Readonly<Record<string, Version>>,
+        bundled: Readonly<Record<string, Version>>,
     ): Promise<{ readonly image: Digest; readonly units: ReadonlyMap<string, Digest> }> {
-        // build and make an image of each unit, the shipped packages it reaches at their versions
+        // build and make an image of each unit, the bundled packages it reaches at their versions
         const opened = await workspace.package(directory);
-        const versions = { ...shipped, [opened.root.name]: version };
+        const versions = { ...bundled, [opened.root.name]: version };
         const imaged = await opened.imageUnits({ versions });
         const units = new Map([...imaged].map(([name, { image }]) => [name, image] as const));
 

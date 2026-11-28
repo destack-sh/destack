@@ -83,7 +83,7 @@ export interface RevisionOptions {
     /** The release the machine links of each package, which its spaces run before any revision. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
-    readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
+    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
     /** The images of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
 }
@@ -223,7 +223,7 @@ export const InstallationTarget = {
         return { installed, requirements };
     },
 
-    /** Resolve the row a declared version names, or the host's image for a shipped release. */
+    /** Resolve the row a declared version names, or the host's image for a bundled release. */
     async resolveDeclared(
         packageId: PackageId,
         version: InstallationVersion,
@@ -235,10 +235,10 @@ export const InstallationTarget = {
         readonly hostImage: Digest | null;
     }> {
         // run a release the host ships as the host's build of it, which needs no registry row
-        const shipped = options.shipped.get(packageId)?.package.version;
+        const bundled = options.bundled.get(packageId)?.package.version;
         if (
             version.kind === "host" ||
-            (version.kind === "release" && version.version === shipped)
+            (version.kind === "release" && version.version === bundled)
         ) {
             const provided = InstallationTarget.provided(packageId, options);
 
@@ -328,15 +328,15 @@ export const InstallationTarget = {
     /** Read the release this machine links or ships of a package, none for one it lacks. */
     provided(
         packageId: PackageId,
-        options: Pick<RevisionOptions, "linked" | "shipped">,
+        options: Pick<RevisionOptions, "linked" | "bundled">,
     ): PackageRelease | undefined {
-        return options.linked.get(packageId) ?? options.shipped.get(packageId);
+        return options.linked.get(packageId) ?? options.bundled.get(packageId);
     },
 
     /** Read the release this machine provides of a package, which one following the host's runs. */
     host(
         packageId: PackageId,
-        options: Pick<RevisionOptions, "linked" | "shipped">,
+        options: Pick<RevisionOptions, "linked" | "bundled">,
     ): PackageRelease {
         const provided = InstallationTarget.provided(packageId, options);
         if (provided === undefined) {
@@ -353,7 +353,7 @@ export const InstallationTarget = {
     running(
         installed: Pick<Installation, "packageId" | "versionType">,
         recorded: Digest,
-        options: Pick<RevisionOptions, "linked" | "shipped">,
+        options: Pick<RevisionOptions, "linked" | "bundled">,
     ): Digest | undefined {
         const { packageId } = installed;
 
@@ -481,7 +481,7 @@ export const InstallationTarget = {
         spaceId: Identifier<"space">,
         packageId: PackageId,
         installationId: Identifier<"installation"> | undefined,
-        options: Pick<RevisionOptions, "linked" | "shipped"> & {
+        options: Pick<RevisionOptions, "linked" | "bundled"> & {
             readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
         },
     ): Promise<BuildReader | undefined> {

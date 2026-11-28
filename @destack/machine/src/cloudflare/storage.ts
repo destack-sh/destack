@@ -148,7 +148,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         return new DurableObjectSpaceStorage(options, declared, host, database);
     }
 
-    /** Open the space's builds in the object's storage, over the shipped releases. */
+    /** Open the space's builds in the object's storage, over the bundled releases. */
     async builds(releases: BuildLayer): Promise<BuildStore> {
         // index the pulled builds in the object's storage, their blobs below the space's prefix
         const { environment, space } = this.#options;

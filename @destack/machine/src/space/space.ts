@@ -357,7 +357,7 @@ export class Space {
     readonly universe: UniverseOrigin;
     /** The space's blobs, stored while its rows reference them. */
     readonly blobs: BlobStore;
-    /** The space's own builds, over the machine's shipped layer and builds. */
+    /** The space's own builds, over the machine's bundled layer and builds. */
     readonly builds: BuildStore;
     /** The import maps of the space's images, by image, runtime and base, each mapped once. */
     readonly #maps = new Map<string, Promise<ImportMap>>();
@@ -628,13 +628,13 @@ export class Space {
         version?: string,
     ): Promise<BuildReader | undefined> {
         // read the installed release and the distribution's
-        const { linked, shipped } = this.machine;
+        const { linked, bundled } = this.machine;
         const installed = await InstallationTarget.reader(view, spaceId, packageId, undefined, {
             linked,
-            shipped,
+            bundled,
             space: this,
         });
-        const distributed = shipped.get(packageId);
+        const distributed = bundled.get(packageId);
         const isInstalled =
             installed !== undefined &&
             (version === undefined || installed.manifest.package.version === version);
@@ -2361,7 +2361,7 @@ export class Space {
         });
     }
 
-    /** Resolve what the space's declared stack follows, the host's for a shipped version. */
+    /** Resolve what the space's declared stack follows, the host's for a bundled version. */
     async #resolveStack(spaceId: Identifier<"space">): Promise<ResolvedStack> {
         // read the declared stack, and resolve what it follows at its forge
         const [declared] = await this.database

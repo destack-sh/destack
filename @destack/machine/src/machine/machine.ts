@@ -2,6 +2,7 @@ import { Failure } from "@destack/error";
 import { ObjectError } from "@destack/object/error";
 import { type BuildImage, PackageManifest } from "@destack/package/manifest";
 import { BuildObject, type BuildStore, RemoteBuildStore } from "@destack/build/store";
+import type { WorkspaceRegistry } from "@destack/build";
 import type * as packageRuntime from "@destack/package/runtime";
 import { Traffic } from "../gateway/traffic.ts";
 import { Authentication, Caller, principal } from "@destack/access";
@@ -113,6 +114,12 @@ const SPACE_ROOT_PREFIX = "space:";
 /** The path npm clients ask for a handle's packages, which lie at the handle's forge. */
 const NPM_PATH = /^\/\.npm(\/@([^/%]+)(?:\/|%2[fF]).+)$/u;
 
+/** The path of destack.json's JSON Schema at the universe's origin. */
+const SCHEMA_PATH = "/schemas/destack.json";
+
+/** The package shipping destack.json's JSON Schema, and the schema's path in its build. */
+const SCHEMA_SOURCE = { name: "@destack/package", path: "schemas/destack.json" };
+
 /** The oldest Destack version whose releases a machine runs. */
 export const OLDEST_DESTACK = "2026.11.0";
 
@@ -154,7 +161,7 @@ export type MachineOptions = Pick<
         Omit<MethodInput<typeof accountObject.machine, "report">, "id" | "version" | "runtimes">
     >;
     /** Every release the machine ships, whose manifests its registry answers before any forge's. */
-    readonly shipped: readonly PackageRelease[];
+    readonly bundled: readonly PackageRelease[];
     /** The Destack versions whose releases the machine runs: the oldest it supports and its own. */
     readonly destack: VersionRange;
     /** The relay a personal machine tunnels through while enrolled, absent for none. */
@@ -237,7 +244,7 @@ export class Machine {
     /** The images of the linked releases, pulled once, by package name. */
     #linkedImages: Promise<ReadonlyMap<string, BuildImage>> | undefined;
     /** The releases the machine ships, by package. */
-    readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
+    readonly bundled: ReadonlyMap<PackageId, PackageRelease>;
     /** The URL the machine answers at: a cloud machine's declared origin, else its local one. */
     readonly endpoint: string;
     /** The origin the machine answers at: its endpoint, else its relayed name once renewed. */
@@ -322,11 +329,11 @@ export class Machine {
         this.views = options.views;
         this.#linked = new Map(options.linked);
         this.#relayMemory = options.relayMemory;
-        this.shipped = new Map(
-            options.shipped.map((each) => [PackageId.parse(each.package.id), each]),
+        this.bundled = new Map(
+            options.bundled.map((each) => [PackageId.parse(each.package.id), each]),
         );
         this.#trusted = new Set(
-            [...options.shipped, ...options.linked.values()].map((each) => each.image),
+            [...options.bundled, ...options.linked.values()].map((each) => each.image),
         );
 
         // set where peers call the machine and how it verifies and reports
@@ -421,12 +428,12 @@ export class Machine {
         );
     }
 
-    /** Resolve a release's image: a shipped release first, else at its publisher's forge. */
+    /** Resolve a release's image: a bundled release first, else at its publisher's forge. */
     async resolve(packageId: PackageId, named: string): Promise<Digest> {
-        // take the shipped release at the version
-        const shipped = PackageRelease.select([...this.shipped.values()], packageId, named);
-        if (shipped !== undefined) {
-            return shipped.image;
+        // take the bundled release at the version
+        const bundled = PackageRelease.select([...this.bundled.values()], packageId, named);
+        if (bundled !== undefined) {
+            return bundled.image;
         }
 
         // resolve a release version once, and a tag each time, as a tag moves
@@ -592,6 +599,16 @@ export class Machine {
         }
 
         return enrollment;
+    }
+
+    /** Read the registry this machine's builds resolve Destack packages from: its universe's. */
+    async registry(): Promise<WorkspaceRegistry> {
+        // send the builtins' scopes to its universe's npm address
+        const builtins = await this.builds.builtins();
+        const scopes = builtins.map((name) => `@${PackageName.split(name).handle}`);
+        const { universe } = await this.enrolled("resolving Destack packages");
+
+        return { url: `${universe.origin}/.npm/`, scopes: [...new Set(scopes)] };
     }
 
     /** Report whether this machine is enrolled. */
@@ -1127,8 +1144,8 @@ export class Machine {
 
     /** Serve a request at the machine's own hosts, in the space it names. */
     async serve(request: Request, voucher?: Voucher): Promise<Response> {
-        // refuse while not serving, and send an npm client on
-        const refused = this.#refusal(request) ?? (await this.npm(request));
+        // refuse while not serving, and answer the universe's own paths
+        const refused = this.#refusal(request) ?? (await this.serveUniverse(request));
         if (refused !== undefined) {
             return refused;
         }
@@ -1146,13 +1163,21 @@ export class Machine {
         return relay === undefined ? this.#serve(routed, voucher) : relay.fetch(request);
     }
 
-    /** Send an npm client at the universe's origin to the forge of the handle it asks for. */
-    async npm(request: Request): Promise<Response | undefined> {
-        // take a request below the npm path at the universe's origin, leaving every other origin's paths to it
+    /** Answer the universe's own paths: npm clients to their forge, and destack.json's schema. */
+    async serveUniverse(request: Request): Promise<Response | undefined> {
+        // take a request at the universe's origin, leaving every other origin's paths to it
         const url = new URL(request.url);
         const [, path, handle] = NPM_PATH.exec(url.pathname) ?? [];
         const isUniverse = url.origin === (await this.universe()).origin;
-        if (path === undefined || handle === undefined || !isUniverse) {
+        if (!isUniverse) {
+            return undefined;
+        }
+        // answer destack.json's schema from the bundled package declaring it
+        else if (url.pathname === SCHEMA_PATH) {
+            return await this.#schema();
+        }
+        // leave every other path but npm's
+        else if (path === undefined || handle === undefined) {
             return undefined;
         }
 
@@ -1172,6 +1197,19 @@ export class Machine {
         );
     }
 
+    /** Answer destack.json's JSON Schema from the package that declares it. */
+    async #schema(): Promise<Response> {
+        // answer the schema file of that bundled package
+        const bundled = await this.builds.bundled(SCHEMA_SOURCE.name);
+        const build = await this.builds.contents(
+            present(bundled, `the bundled build of '${SCHEMA_SOURCE.name}'`),
+        );
+
+        return new Response(await build.load(SCHEMA_SOURCE.path), {
+            headers: { "content-type": "application/schema+json", "cache-control": "no-cache" },
+        });
+    }
+
     /** Serve a request to a name the machine takes: an installation origin's or a route's. */
     async serveName(request: Request): Promise<Response> {
         // refuse before the machine enrolls and while it is paused
@@ -1180,8 +1218,8 @@ export class Machine {
             return refused;
         }
 
-        // send an npm client on, whose encoded package names no route's path takes
-        const sent = await this.npm(request);
+        // answer the universe's own paths, whose encoded package names no route's path takes
+        const sent = await this.serveUniverse(request);
         if (sent !== undefined) {
             return sent;
         }

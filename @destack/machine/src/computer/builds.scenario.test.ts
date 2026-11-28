@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { GitAuthor } from "@destack/git";
 import { Account } from "@destack/account/object";
 import { installation, build, edit, installationRevision } from "@destack/stack/object";
@@ -69,9 +70,8 @@ async function pushHome(published: readonly string[] = []) {
         hosting: "platform",
     });
 
-    // lay out the site package in a working tree, installing its scope from the universe's registry
-    const { universe } = await home.machine.enrolled("laying out the site");
-    const worktree = await writeSite(directory, files, universe.origin);
+    // lay out the site package in a working tree
+    const worktree = await writeSite(directory, files);
 
     // list the repository's references again
     const list = () =>
@@ -208,7 +208,7 @@ async function servedForge(home: TestComputer, region: Identifier<"space">, pers
 }
 
 /** Lay out the site package in a new git working tree, returning its path. */
-async function writeSite(directory: string, files: FileSystem, universe: string): Promise<string> {
+async function writeSite(directory: string, files: FileSystem): Promise<string> {
     // write the package manifest
     const worktree = join(directory, "worktree");
     await files.mkdir(join(worktree, "src"), { recursive: true });
@@ -226,23 +226,12 @@ async function writeSite(directory: string, files: FileSystem, universe: string)
     await files.writeTextFile(
         join(worktree, "destack.json"),
         JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: SITE,
             role: "library",
             language: "typescript",
             runtimes: ["bun"],
         }),
-    );
-
-    // install its scopes from the universe's registry, as a new checkout does
-    await files.writeTextFile(
-        join(worktree, "bunfig.toml"),
-        [
-            "[install.scopes]",
-            `"@destack" = { url = "${universe}/.npm/" }`,
-            `"@example" = { url = "${universe}/.npm/" }`,
-            "",
-        ].join("\n"),
     );
 
     // write its module and start the repository
@@ -823,6 +812,23 @@ test("depend on a published app in one checked commit on main, its lock pinning 
         dependencies: { "@example/journal": "latest" },
         locked: `@example/journal@${FIXTURE_RELEASE}`,
     });
+});
+
+test("answer destack.json's schema at the universe's origin from the package that declares it", async () => {
+    // ask for the schema at the universe's origin
+    const { home } = await TestComputer.home();
+    const { universe } = await home.machine.enrolled("asking for the schema");
+    const answer = await home.browse(new Request(`${universe.origin}/schemas/destack.json`));
+
+    // expect the schema file of the package declaring destack.json, as JSON Schema
+    const declared = await home.environment.files.readTextFile(
+        fileURLToPath(import.meta.resolve("@destack/package/schemas/destack.json")),
+    );
+    expect([answer.status, answer.headers.get("content-type"), await answer.text()]).toEqual([
+        200,
+        "application/schema+json",
+        declared,
+    ]);
 });
 
 test("send npm clients to the forge at the universe's origin alone, leaving a machine's own paths to it", async () => {

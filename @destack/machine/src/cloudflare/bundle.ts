@@ -13,26 +13,26 @@ export const VIEWS_BUNDLE_MODULE = "destack:views";
 
 /** The servers a cloud machine runs in its process, compiled into its Worker by its deploy. */
 export class ServerBundle {
-    /** The bundled server of each shipped package, by package name. */
+    /** The bundled server of each bundled package, by package name. */
     readonly #servers: ReadonlyMap<string, PackageImplementation>;
-    /** The bundled view workload of each shipped package with views, by package name. */
+    /** The bundled view workload of each bundled package with views, by package name. */
     readonly #views: ReadonlyMap<string, Workload>;
-    /** The distribution the deploy shipped. */
-    readonly #shipped: DistributionManifest;
+    /** The distribution the deploy bundled. */
+    readonly #bundled: DistributionManifest;
 
     /** Keep the bundled servers beside the distribution they ship with. */
     private constructor(
         servers: ReadonlyMap<string, PackageImplementation>,
         views: ReadonlyMap<string, Workload>,
-        shipped: DistributionManifest,
+        bundled: DistributionManifest,
     ) {
         this.#servers = servers;
         this.#views = views;
-        this.#shipped = shipped;
+        this.#bundled = bundled;
     }
 
     /** Read the servers the deploy supplied, refusing a module exporting anything else. */
-    static async read(shipped: DistributionManifest): Promise<ServerBundle> {
+    static async read(bundled: DistributionManifest): Promise<ServerBundle> {
         // read the servers the deploy supplied, refusing an export that is no package implementation
         const suppliedServers: { readonly default: Readonly<Record<string, unknown>> } =
             await import("destack:servers");
@@ -65,22 +65,22 @@ export class ServerBundle {
             }),
         );
 
-        return new ServerBundle(servers, views, shipped);
+        return new ServerBundle(servers, views, bundled);
     }
 
-    /** Find the bundled server of a shipped release's image, none without one, refusing others. */
+    /** Find the bundled server of a bundled release's image, none without one, refusing others. */
     server(image: Digest): PackageImplementation | undefined {
         return this.#servers.get(this.#shippedName(image));
     }
 
-    /** Find the bundled view workload of a shipped release's image, none without one. */
+    /** Find the bundled view workload of a bundled release's image, none without one. */
     views(image: Digest): Workload | undefined {
         return this.#views.get(this.#shippedName(image));
     }
 
-    /** Read the package name of a shipped release's image, refusing one the deploy did not ship. */
+    /** Read the package name of a bundled release's image, refusing one the deploy did not ship. */
     #shippedName(image: Digest): string {
-        const release = DistributionManifest.releases(this.#shipped, "workerd").find(
+        const release = DistributionManifest.releases(this.#bundled, "workerd").find(
             (each) => each.image === image,
         );
         if (release === undefined) {

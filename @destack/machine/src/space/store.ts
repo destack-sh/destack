@@ -309,7 +309,7 @@ function installationOptions(
         isEnforcingEntitlements: space.machine.isEnforcingEntitlements,
         database: space.database,
         linked: space.machine.linked,
-        shipped: space.machine.shipped,
+        bundled: space.machine.bundled,
         trusted: space.machine.trusted,
     };
 }

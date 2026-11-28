@@ -291,13 +291,13 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         fixture: string,
         workspace: Workspace,
         version: Version,
-        shipped: Readonly<Record<string, Version>>,
+        bundled: Readonly<Record<string, Version>>,
     ): ReturnType<typeof TestDistribution.compile> {
         return TestDistribution.compile(
             workspace,
             new TestFixture(fixture).directory,
             version,
-            shipped,
+            bundled,
         );
     }
 

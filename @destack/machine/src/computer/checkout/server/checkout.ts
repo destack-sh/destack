@@ -1,5 +1,4 @@
 import type { FileSystem } from "@destack/environment";
-import { PackageName } from "@destack/package";
 import type { CommandHost } from "../../process/command.ts";
 import { join } from "node:path";
 import { GitReference } from "@destack/git";
@@ -20,12 +19,6 @@ const INSTALL_MILLISECONDS = 5 * 60_000;
 
 /** How long a push of a working tree may take: 1 minute, a 100 MB pack at 2 MB/s. */
 const PUSH_MILLISECONDS = 60_000;
-
-/** The file Bun reads a package's registries from. */
-const BUNFIG_FILE = "bunfig.toml";
-
-/** The bunfig table giving each scope its registry. */
-const SCOPES_TABLE = "[install.scopes]";
 
 /** The machine's checkouts: their working trees' registration and members. */
 export class CheckoutServer {
@@ -148,6 +141,7 @@ export class CheckoutServer {
         await Workspace.install(root, host, {
             isFrozen: false,
             signal: host.clock.timeout(INSTALL_MILLISECONDS),
+            registry: await this.machine.registry(),
         });
 
         // commit everything as the person, and push the commit to its branch
@@ -199,15 +193,6 @@ export class CheckoutServer {
             versions: Object.fromEntries(linked.map(([name, each]) => [name, each.version])),
         };
         await template.write(directory, parameters, await compilers.toolchain(), host.files);
-
-        // add the universe's npm address for the scopes of the package and its Destack dependencies
-        const { universe } = await machine.enrolled("making a package");
-        const names = [source.name, ...template.workspace, ...linked.map(([name]) => name)];
-        const scopes = [...new Set(names.map((name) => `@${PackageName.split(name).handle}`))];
-        const path = join(directory, BUNFIG_FILE);
-        const existing = (await host.files.exists(path)) ? await host.files.readTextFile(path) : "";
-        const registries = withScopes(existing, scopes.toSorted(), `${universe.origin}/.npm/`);
-        await host.files.writeFile(path, new TextEncoder().encode(registries));
     }
 
     /** List the Destack packages of a working tree's workspace, by path below its root. */
@@ -233,21 +218,4 @@ export class CheckoutServer {
 
         return members.flat().toSorted();
     }
-}
-
-/** Write scopes' registry into a bunfig's text, keeping the scopes it sets and its other tables. */
-function withScopes(bunfig: string, scopes: readonly string[], url: string): string {
-    // leave out the scopes the text sets already
-    const lines = bunfig.split("\n");
-    const added = scopes
-        .filter((scope) => !lines.some((line) => line.trimStart().startsWith(`"${scope}"`)))
-        .map((scope) => `"${scope}" = { url = "${url}" }`);
-
-    // add them below the text's scopes table, or in a table of their own at its end
-    const header = lines.findIndex((line) => line.trim() === SCOPES_TABLE);
-    if (header === -1) {
-        return [...lines, SCOPES_TABLE, ...added, ""].join("\n");
-    }
-
-    return lines.toSpliced(header + 1, 0, ...added).join("\n");
 }

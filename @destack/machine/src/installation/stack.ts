@@ -388,7 +388,7 @@ async function appliedDefinition(
 /** Where a stack revision applies. */
 export interface StackApplicationOptions extends Pick<
     RevisionOptions,
-    "space" | "linked" | "shipped"
+    "space" | "linked" | "bundled"
 > {
     /** The object store running the handlers' calls as its principal. */
     readonly store: Pick<
@@ -460,7 +460,7 @@ async function readDescriptions(
     snapshot: Pick<Snapshot, "read">,
     stack: Installation,
     following: readonly Installation[],
-    options: Pick<StackApplicationOptions, "space" | "linked" | "shipped">,
+    options: Pick<StackApplicationOptions, "space" | "linked" | "bundled">,
 ): Promise<ObjectDescription[][]> {
     return await Promise.all(
         following.map(async (entry) => {

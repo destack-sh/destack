@@ -108,7 +108,7 @@ async function openBoard(
         // publish a missing package the host lacks, then install it
         if (installed === undefined) {
             const build = await TestDistribution.fixture(fixture);
-            if (!computer.machine.shipped.has(packageId)) {
+            if (!computer.machine.bundled.has(packageId)) {
                 await home.publish(TestDistribution.imageOf(fixture));
             }
             await computer.install(login.id, space, build, name);

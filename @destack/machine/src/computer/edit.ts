@@ -151,7 +151,11 @@ export class Edit {
             operation.kind.startsWith("dependency."),
         );
         const lockfile = isDepending
-            ? await Workspace.install(tree.directory, environment, { isFrozen: false, signal })
+            ? await Workspace.install(tree.directory, environment, {
+                  isFrozen: false,
+                  signal,
+                  registry: await this.#context.machine.registry(),
+              })
             : undefined;
 
         // answer the changed paths within the tree

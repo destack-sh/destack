@@ -146,8 +146,8 @@ export interface ComputerOptions {
     /** The local object types the device stores beside its logins, settings and visits, by key. */
     readonly localObjects: Readonly<Record<string, ObjectType>>;
     /** The releases the computer ships: its servers, builtins and the platform's stacks. */
-    readonly shipped: DistributionManifest;
-    /** The shipped releases' builds with what they run, read in place. */
+    readonly bundled: DistributionManifest;
+    /** The bundled releases' builds with what they run, read in place. */
     readonly layer: BuildLayer;
     /** Open the keychain of a service's secrets. */
     readonly keychain: (service: string) => Keychain;
@@ -312,10 +312,10 @@ export class Computer implements AsyncDisposable {
 
                 // read the releases the distribution ships on the host, its builtins linked to the servers the machine loads
                 const platform = DistributionPlatform.of(options.environment.host);
-                const shipped = DistributionManifest.releases(options.shipped, platform);
-                const linked = DistributionManifest.builtins(options.shipped, platform);
+                const bundled = DistributionManifest.releases(options.bundled, platform);
+                const linked = DistributionManifest.builtins(options.bundled, platform);
 
-                // open the machine's builds over the shipped builds read in place, the compilers and the spaces' storage
+                // open the machine's builds over the bundled builds read in place, the compilers and the spaces' storage
                 const builds = stack.use(await Computer.#openBuilds(options, database));
 
                 // share the builtins with the servers the machine loads, from its compiled table or its files
@@ -428,7 +428,7 @@ export class Computer implements AsyncDisposable {
                     server: (image) => processes.server(image),
                     views: (image) => processes.views(image),
                     linked,
-                    shipped,
+                    bundled,
                     endpoint,
                     destack: { oldest: OLDEST_DESTACK, newest: MACHINE_PACKAGE.version },
                     ...(options.relay === undefined
@@ -699,12 +699,12 @@ export class Computer implements AsyncDisposable {
         });
     }
 
-    /** Open the machine's builds: blobs below its directory, shipped builds read in place. */
+    /** Open the machine's builds: blobs below its directory, bundled builds read in place. */
     static async #openBuilds(
         options: Pick<ComputerOptions, "directory" | "environment" | "layer">,
         database: SqliteDatabase,
     ): Promise<LocalBuildStore> {
-        // store the blobs in a directory, indexed in the machine's database, layered over the shipped builds
+        // store the blobs in a directory, indexed in the machine's database, layered over the bundled builds
         const { environment } = options;
         const directory = join(options.directory, "builds");
         const storage = await LocalBlobStorage.open(join(directory, "files"), environment, {
@@ -1024,10 +1024,10 @@ export class Computer implements AsyncDisposable {
     /** Open the layer a distribution declares, else an empty one. */
     static async #layer(
         directory: string,
-        shipped: DistributionManifest,
+        bundled: DistributionManifest,
         environment: Environment<"files">,
     ): Promise<BuildLayer> {
-        return shipped.isLayered
+        return bundled.isLayered
             ? await BuildLayer.open(join(directory, DISTRIBUTION_LAYER), environment)
             : BuildLayer.empty();
     }
@@ -1038,7 +1038,7 @@ export class Computer implements AsyncDisposable {
         "directory" | "universe" | "port" | "relay"
     > & {
         /** The directory of the distribution the computer ships: its manifest and its layer. */
-        readonly shipped: string;
+        readonly bundled: string;
     } {
         // take the universe the environment names, else the universe's
         const environment = host.process.variables;
@@ -1071,11 +1071,11 @@ export class Computer implements AsyncDisposable {
 
         // ship the distribution the environment names, else the one in a release's resources
         const { executable, runtime } = host.process;
-        const bundled = runtime.isStandalone
+        const resources = runtime.isStandalone
             ? join(Distribution.resources(executable), DISTRIBUTION_DIRECTORY)
             : undefined;
-        const shipped = environment["DESTACK_DISTRIBUTION"] ?? bundled;
-        if (shipped === undefined) {
+        const bundled = environment["DESTACK_DISTRIBUTION"] ?? resources;
+        if (bundled === undefined) {
             throw MachineError.of(
                 "CONFIGURATION_BROKEN",
                 "DESTACK_DISTRIBUTION is not set outside a release",
@@ -1087,7 +1087,7 @@ export class Computer implements AsyncDisposable {
             universe,
             port,
             ...(relay === undefined ? {} : { relay }),
-            shipped,
+            bundled,
         };
     }
 
@@ -1146,7 +1146,7 @@ export class Computer implements AsyncDisposable {
         const toolchain = isStandalone
             ? () => installed.distribution.toolchain()
             : async () => Toolchain.workspace();
-        const shipped = await BunDistribution.read(configuration.shipped, environment.files);
+        const bundled = await BunDistribution.read(configuration.bundled, environment.files);
         const started = await Computer.start({
             isolation: "sandbox",
             directory,
@@ -1155,8 +1155,8 @@ export class Computer implements AsyncDisposable {
             port,
             ...(configuration.relay === undefined ? {} : { relay: configuration.relay }),
             ...bundle,
-            shipped,
-            layer: await Computer.#layer(configuration.shipped, shipped, environment),
+            bundled,
+            layer: await Computer.#layer(configuration.bundled, bundled, environment),
             keychain: (service) => new BunKeychain(service, environment.files, store),
             process: {
                 version: MACHINE_PACKAGE.version,

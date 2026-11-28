@@ -267,7 +267,7 @@ const JWT_FORM = /^[\w-]+\.[\w-]+\.[\w-]*$/u;
 /** The version of the account fixture's stand-in stacks, which the fixture's space builds again. */
 const STACK_VERSION = "2026.9.0";
 
-/** The export of the shipped platform stack that every account's home runs. */
+/** The export of the bundled platform stack that every account's home runs. */
 const HOME_EXPORT = "home";
 
 /** The seed of the simulated worlds templates write and restores run in. */
@@ -1037,7 +1037,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             return options.world;
         }
 
-        // open the universe, its spaces born with the stack the fixtures' forge publishes, the platform's home with the shipped one
+        // open the universe, its spaces born with the stack the fixtures' forge publishes, the platform's home with the bundled one
         const { storage, world } = stored;
         const environment = simulation.environment(UNIVERSE_NODE);
         const { source } = await TestSpace.releases(environment.crypto);
@@ -1202,17 +1202,17 @@ export class TestSpace implements AsyncDisposable, TestScope {
         for (const build of [stack.platform, stack.stack, stack.object]) {
             await imageBuild(builds, build, []);
         }
-        const shipped: PackageRelease[] = [];
+        const bundled: PackageRelease[] = [];
         for (const build of withForge.linked ?? []) {
             const { image } = await imageBuild(builds, build, []);
-            shipped.push({ package: PackageManifest.package(build.manifest), image });
+            bundled.push({ package: PackageManifest.package(build.manifest), image });
         }
         const linked = new Map<PackageId, PackageRelease>(
             [
                 { package: PackageVersion.of(stackPackage), image: stack.image },
                 { package: PackageVersion.of(objectPackage), image: stack.objectImage },
                 ...(lifetime.linked ?? []),
-                ...shipped,
+                ...bundled,
             ].map((release) => [release.package.id, release]),
         );
         // read the machine's row at the universe, which says how it enrolled
@@ -1290,12 +1290,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
                     ),
                 views: async () => undefined,
                 linked: world.machines.get(test.id)?.linked ?? linked,
-                shipped: [
+                bundled: [
                     {
                         package: PackageManifest.package(stack.platform.manifest),
                         image: stack.platformImage,
                     },
-                    ...shipped,
+                    ...bundled,
                 ],
                 endpoint:
                     options.origin ?? (await test.directory.answering(test.id, test.clock.now())),

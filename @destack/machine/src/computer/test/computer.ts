@@ -551,7 +551,7 @@ export class TestComputer implements AsyncDisposable {
                 startedAt: simulation.clock.now(),
             },
             ...(options.runtime === undefined ? {} : { runtime: options.runtime }),
-            shipped: distribution.manifest,
+            bundled: distribution.manifest,
             layer: distribution.layer,
             ...(options.distribution === undefined ? {} : { distribution: options.distribution }),
             ...(enrollment === undefined ? {} : { enrollment }),
@@ -709,7 +709,7 @@ export class TestComputer implements AsyncDisposable {
                         defer,
                     );
                     const { id } = PackageManifest.package(build.manifest);
-                    if (!sent.has(fixture) && !home.machine.shipped.has(id)) {
+                    if (!sent.has(fixture) && !home.machine.bundled.has(id)) {
                         sent.add(fixture);
                         await home.publish(TestDistribution.imageOf(fixture), owner);
                     }
@@ -852,7 +852,7 @@ export class TestComputer implements AsyncDisposable {
         await this.world.distribution.publish(image, publisher, this.machine);
     }
 
-    /** Install a build's shipped or published release in a space as a person, until applied. */
+    /** Install a build's bundled or published release in a space as a person, until applied. */
     async install(
         login: Identifier<"login">,
         spaceId: Identifier<"space">,
@@ -902,7 +902,7 @@ export class TestComputer implements AsyncDisposable {
         return await service.installation.get({ scope: spaceId, id: installed.id });
     }
 
-    /** Resolve the version row of an installation of a release, the host's for a shipped one. */
+    /** Resolve the version row of an installation of a release, the host's for a bundled one. */
     async #version(packageId: PackageId, version: string) {
         const { machine } = this.computer;
         const resolved = await InstallationTarget.resolveDeclared(

@@ -250,7 +250,7 @@ export class CloudMachine {
         });
     }
 
-    /** Open the releases the deploy shipped with the Worker version, read in place. */
+    /** Open the releases the deploy bundled with the Worker version, read in place. */
     releases(): Promise<BuildLayer> {
         return BuildLayer.assets(this.bindings.RELEASES, this.environment.crypto);
     }

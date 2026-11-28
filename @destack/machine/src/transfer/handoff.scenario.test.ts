@@ -100,16 +100,16 @@ test("serve a moving space's target only the blobs the space's rows reference an
     ]);
 });
 
-test("copy up a shipped release a moving space's rows reference, for a target that ships none", async () => {
+test("copy up a bundled release a moving space's rows reference, for a target that ships none", async () => {
     // ship notes' release in the machine's layer
     const host = testHost();
     const directory = await host.files.makeTemporaryDirectory("destack-layer-");
     const build = await fixtureBuild(ids.package, "2026.9.0", host.crypto);
-    const shipped = await TestBuildStore.layer([build], directory, host);
-    const image = present(shipped.images[0], "the shipped image");
+    const bundled = await TestBuildStore.layer([build], directory, host);
+    const image = present(bundled.images[0], "the bundled image");
 
-    // move the space with a snapshot row referencing the shipped image
-    const fixture = await TestSpace.open({ layer: shipped.layer });
+    // move the space with a snapshot row referencing the bundled image
+    const fixture = await TestSpace.open({ layer: bundled.layer });
     const now = fixture.machine.clock.now();
     const target = await fixture.universe.enroll(fixture.owner, ids.account, "http://target.test/");
     await fixture.serve();
@@ -164,7 +164,7 @@ test("copy up a shipped release a moving space's rows reference, for a target th
         missing: await (await fixture.space).blobs.missing([image]),
     }).toEqual({
         listed: [image, ...referenced].toSorted(),
-        root: shipped.layer.image(image)?.root,
+        root: bundled.layer.image(image)?.root,
         missing: [],
     });
 });

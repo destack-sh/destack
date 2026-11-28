@@ -67,14 +67,14 @@ async function setup(
         // ship the runtime, the desktop, the platform packages and the stacks with their units, as a platform build does
         const shipping = new Set<string>([STACK_FIXTURE, START_FIXTURE]);
 
-        // stamp the shipped packages in every build, so a unit several packages reach is one build
+        // stamp the bundled packages in every build, so a unit several packages reach is one build
         const fixtureNames = await Promise.all(
             [...shipping].map(
                 async (fixture) =>
                     (await workspace.package(new TestFixture(fixture).directory)).root.name,
             ),
         );
-        const shipped = Object.fromEntries(
+        const bundled = Object.fromEntries(
             [RUNTIME_PACKAGE, DESKTOP_PACKAGE, ...PLATFORM_PACKAGES, ...fixtureNames].map(
                 (name) => [name, Version.development] as const,
             ),
@@ -84,13 +84,13 @@ async function setup(
                 RUNTIME_PACKAGE,
                 built,
                 true,
-                () => TestDistribution.runtime(workspace, shipped),
+                () => TestDistribution.runtime(workspace, bundled),
             ] as const,
             [
                 DESKTOP_PACKAGE,
                 built,
                 true,
-                () => TestDistribution.desktop(workspace, shipped),
+                () => TestDistribution.desktop(workspace, bundled),
             ] as const,
             ...PLATFORM_PACKAGES.map(
                 (name) =>
@@ -98,7 +98,7 @@ async function setup(
                         name,
                         built,
                         true,
-                        () => TestDistribution.platform(name, workspace, shipped),
+                        () => TestDistribution.platform(name, workspace, bundled),
                     ] as const,
             ),
             ...[...WORLD_FIXTURES, STACK_FIXTURE, START_FIXTURE, ...SCENARIO_FIXTURES].map(
@@ -112,7 +112,7 @@ async function setup(
                                 name,
                                 workspace,
                                 shipping.has(name) ? Version.development : FIXTURE_RELEASE,
-                                shipped,
+                                bundled,
                             ),
                     ] as const,
             ),
@@ -127,7 +127,7 @@ async function setup(
                                 workspace,
                                 directory,
                                 FIXTURE_RELEASE,
-                                shipped,
+                                bundled,
                             ),
                     ] as const,
             ),
@@ -135,7 +135,7 @@ async function setup(
         await phase("build", () =>
             Promise.all(
                 builds.map(async ([name, digests, isShipped, build]) => {
-                    // make an image of the package, and take each unit a shipped package runs with
+                    // make an image of the package, and take each unit a bundled package runs with
                     const { image, units } = await span(
                         "destack.test.setup.package",
                         { "destack.package.name": name },
@@ -169,7 +169,7 @@ async function setup(
 
         // write the layer every computer ships once here, so no test pays for it
         await phase("layer", async () => {
-            const layered = await TestDistribution.shipped(store, built, []);
+            const layered = await TestDistribution.bundled(store, built, []);
             await store.writeLinkedLayer(layered, COMPUTER_RUNTIMES);
         });
     }

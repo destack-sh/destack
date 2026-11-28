@@ -112,7 +112,7 @@ export class Builder {
             return this.#linked;
         }
 
-        // pull every build each image lists with all its files, which the shipped layer lacks
+        // pull every build each image lists with all its files, which the bundled layer lacks
         const { linked } = this.#machine;
         const pulling = Promise.all(
             [...linked.values()].map(async (release) => {
@@ -194,7 +194,12 @@ export class Builder {
         try {
             const { path, isLockfileChanged } = await git.mirror(found, source.commit);
             if (isLockfileChanged) {
-                await Workspace.install(path, this.#environment, { isFrozen: true, signal });
+                const registry = await this.#machine.registry();
+                await Workspace.install(path, this.#environment, {
+                    isFrozen: true,
+                    signal,
+                    registry,
+                });
             }
 
             return {
@@ -222,7 +227,8 @@ export class Builder {
         const release = async () => this.#compilers.release(root);
         try {
             await GitLease.checkout(lease, source.commit, root, environment, signal);
-            await Workspace.install(root, environment, { isFrozen: true, signal });
+            const registry = await this.#machine.registry();
+            await Workspace.install(root, environment, { isFrozen: true, signal, registry });
         } catch (error) {
             await release();
             throw error;
