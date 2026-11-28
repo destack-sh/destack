@@ -212,6 +212,61 @@
             "source": "Command palette",
             "context": "title",
             "translation": "Paleta de comandos"
+        },
+        "1vvavu98cpjs9": {
+            "source": "Not available right now",
+            "context": "title",
+            "translation": "No disponible ahora mismo"
+        },
+        "3d0jkpz0pd18h": {
+            "source": "It should be back in a moment.",
+            "translation": "Debería volver en un momento."
+        },
+        "3hc4umwzadxcy": {
+            "source": "Nothing here",
+            "context": "title",
+            "translation": "Aquí no hay nada"
+        },
+        "2um0p28ysag5d": {
+            "source": "There is no page at this address, or it moved.",
+            "translation": "No hay ninguna página en esta dirección, o se ha movido."
+        },
+        "1uptvt0hs8r2g": {
+            "source": "You don't have access",
+            "context": "title",
+            "translation": "No tienes acceso"
+        },
+        "1sva77bvg696s": {
+            "source": "Ask whoever runs this space to share it with you.",
+            "translation": "Pide a quien gestiona este espacio que lo comparta contigo."
+        },
+        "vdxk9vkaikm7": {
+            "source": "Sign in to continue",
+            "context": "title",
+            "translation": "Inicia sesión para continuar"
+        },
+        "2m0hz2q20s96w": {
+            "source": "Your session ended, so sign in again.",
+            "translation": "Tu sesión ha terminado, así que vuelve a iniciar sesión."
+        },
+        "3u593kvupkrx4": {
+            "source": "Something went wrong",
+            "context": "title",
+            "translation": "Algo salió mal"
+        },
+        "1sc1ly2ehc2s6": {
+            "source": "Try again in a moment.",
+            "translation": "Vuelve a intentarlo en un momento."
+        },
+        "3oy4kj0m95r5u": {
+            "source": "Try again",
+            "context": "action",
+            "translation": "Reintentar"
+        },
+        "256e6tx0bbzob": {
+            "source": "Sign in",
+            "context": "action",
+            "translation": "Iniciar sesión"
         }
     }
 }

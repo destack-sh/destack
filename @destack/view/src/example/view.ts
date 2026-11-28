@@ -116,7 +116,8 @@ async function openSample(
 
     // mount the declared packages offline beside the scopes
     const packages = new Map(view.packages.map((handle) => [handle.id, OFFLINE]));
-    const { default: component } = await view.component();
+    const { FALLBACKS } = await import("../page/fallback.tsx");
+    const component = await view.load(FALLBACKS);
 
     return {
         component,

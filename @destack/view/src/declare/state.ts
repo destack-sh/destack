@@ -1,22 +1,36 @@
 import { Failure } from "@destack/error";
+import { type Message, SOURCE_LOCALE, Localization, t } from "@destack/locale";
 
-/** The states the platform answers a page load in when no view can. */
-export type ViewState = "starting" | "not-found" | "error";
-
-/** The status of an app still starting, which a browser loads again after its Retry-After. */
-const STARTING_STATUS = 503;
-
-/** The status of a missing app or view. */
-const NOT_FOUND_STATUS = 404;
+/** The states a page shows when its view cannot draw. */
+export type ViewState = "unavailable" | "not-found" | "forbidden" | "unauthorized" | "failed";
 
 /** The headers a state's page keeps from its refusal, such as a cleared session cookie. */
 const KEPT_HEADERS = ["retry-after", "set-cookie", "cache-control"];
 
-/** The title of each state's page. */
-const TITLES: Readonly<Record<ViewState, string>> = {
-    starting: "Starting…",
-    "not-found": "Not found",
-    error: "Something went wrong",
+/** How each state reads to the person: its title, and what happened or what to do. */
+const STATES: Readonly<
+    Record<ViewState, { readonly title: Message; readonly description: Message }>
+> = {
+    unavailable: {
+        title: t.context("title")`Not available right now`,
+        description: t`It should be back in a moment.`,
+    },
+    "not-found": {
+        title: t.context("title")`Nothing here`,
+        description: t`There is no page at this address, or it moved.`,
+    },
+    forbidden: {
+        title: t.context("title")`You don't have access`,
+        description: t`Ask whoever runs this space to share it with you.`,
+    },
+    unauthorized: {
+        title: t.context("title")`Sign in to continue`,
+        description: t`Your session ended, so sign in again.`,
+    },
+    failed: {
+        title: t.context("title")`Something went wrong`,
+        description: t`Try again in a moment.`,
+    },
 };
 
 /** The pages of the states the platform answers page loads in. */
@@ -29,26 +43,35 @@ export const ViewState = {
         );
     },
 
-    /** Read the state of a refusal's status. */
-    of(status: number): ViewState {
-        // read an app starting, a missing one, and any other failure
-        if (status === STARTING_STATUS) {
-            return "starting";
-        } else if (status === NOT_FOUND_STATUS) {
+    /** Read the state a failure leaves a page in, by its call error code. */
+    of(failure: Pick<Failure, "code">): ViewState {
+        // read a page not served yet, a missing page, a denied or signed out person, and any other failure
+        if (failure.code === "SERVICE_UNAVAILABLE") {
+            return "unavailable";
+        } else if (failure.code === "NOT_FOUND") {
             return "not-found";
+        } else if (failure.code === "FORBIDDEN") {
+            return "forbidden";
+        } else if (failure.code === "UNAUTHORIZED") {
+            return "unauthorized";
         } else {
-            return "error";
+            return "failed";
         }
+    },
+
+    /** Read how a state reads to the person: its title and its description. */
+    describe(state: ViewState): { readonly title: Message; readonly description: Message } {
+        return STATES[state];
     },
 
     /** Answer the platform's refusal of a page load with its state's page. */
     async document(response: Response): Promise<Response> {
-        // read the refusal's message, and how long a starting app asks to wait
-        const state = ViewState.of(response.status);
+        // read the refusal's state, and how long an unavailable page asks to wait
         const failure = await Failure.read(response);
+        const state = ViewState.of(failure);
         const retryAfter = response.headers.get("retry-after");
         const refresh =
-            state === "starting" && retryAfter !== null
+            state === "unavailable" && retryAfter !== null
                 ? `<meta http-equiv="refresh" content="${retryAfter}">\n`
                 : "";
 
@@ -65,13 +88,16 @@ export const ViewState = {
                 }
             }
         }
+        // write the state's title and description in the source language, as server pages do
+        const localization = Localization.of(SOURCE_LOCALE, []);
+        const { title, description } = STATES[state];
         const html = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-${refresh}<title>${escape(TITLES[state])}</title>
+${refresh}<title>${escape(localization.render(title))}</title>
 <style>
 body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 15px/1.5 system-ui, sans-serif; background: Canvas; color: CanvasText; }
 main { max-width: 32rem; padding: 2rem; text-align: center; }
@@ -81,8 +107,8 @@ p { margin: 0; opacity: 0.7; }
 </head>
 <body>
 <main data-state="${state}">
-<h1>${escape(TITLES[state])}</h1>
-<p>${escape(failure.message)}</p>
+<h1>${escape(localization.render(title))}</h1>
+<p>${escape(localization.render(description))}</p>
 </main>
 </body>
 </html>

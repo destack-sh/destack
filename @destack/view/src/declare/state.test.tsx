@@ -1,11 +1,13 @@
+import { CALL_ERROR_STATUSES, type CallErrorCode } from "@destack/error";
 import { expect, test } from "@destack/test";
 import { ViewState } from "./state.ts";
 
 /** Answer a refusal as the machine does: its failure as JSON, with its headers. */
-function refused(status: number, reason: string, message: string, headers: HeadersInit = {}) {
+function refused(code: CallErrorCode, reason: string, message: string, headers: HeadersInit = {}) {
+    const status = CALL_ERROR_STATUSES[code];
     const failure = {
         defined: true,
-        code: "SERVICE_UNAVAILABLE",
+        code,
         status,
         message,
         reason,
@@ -35,7 +37,7 @@ test("answer a refused page load with its state's page, a starting app reloading
     // refuse a page load while the app starts, and for a missing view
     const starting = await ViewState.document(
         refused(
-            503,
+            "SERVICE_UNAVAILABLE",
             "INSTALLATION_UNAVAILABLE",
             "installation 'home' is unavailable: this space does not serve it yet",
             {
@@ -44,7 +46,7 @@ test("answer a refused page load with its state's page, a starting app reloading
         ),
     );
     const missing = await ViewState.document(
-        refused(404, "VIEW_NOT_FOUND", "home mounts no view x"),
+        refused("NOT_FOUND", "VIEW_NOT_FOUND", "home mounts no view x"),
     );
 
     expect({
@@ -59,7 +61,7 @@ test("answer a refused page load with its state's page, a starting app reloading
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta name="color-scheme" content="light dark">
-      <title>Not found</title>
+      <title>Nothing here</title>
       <style>
       body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 15px/1.5 system-ui, sans-serif; background: Canvas; color: CanvasText; }
       main { max-width: 32rem; padding: 2rem; text-align: center; }
@@ -69,8 +71,8 @@ test("answer a refused page load with its state's page, a starting app reloading
       </head>
       <body>
       <main data-state="not-found">
-      <h1>Not found</h1>
-      <p>home mounts no view x</p>
+      <h1>Nothing here</h1>
+      <p>There is no page at this address, or it moved.</p>
       </main>
       </body>
       </html>
@@ -88,7 +90,7 @@ test("answer a refused page load with its state's page, a starting app reloading
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta name="color-scheme" content="light dark">
       <meta http-equiv="refresh" content="1">
-      <title>Starting…</title>
+      <title>Not available right now</title>
       <style>
       body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 15px/1.5 system-ui, sans-serif; background: Canvas; color: CanvasText; }
       main { max-width: 32rem; padding: 2rem; text-align: center; }
@@ -97,9 +99,9 @@ test("answer a refused page load with its state's page, a starting app reloading
       </style>
       </head>
       <body>
-      <main data-state="starting">
-      <h1>Starting…</h1>
-      <p>installation 'home' is unavailable: this space does not serve it yet</p>
+      <main data-state="unavailable">
+      <h1>Not available right now</h1>
+      <p>It should be back in a moment.</p>
       </main>
       </body>
       </html>

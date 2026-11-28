@@ -43,8 +43,9 @@ export class ViewPage {
         view: View,
         declared: { readonly theme?: ThemeDescription },
     ): Promise<ViewPage> {
-        // load the component and the view's own shell
-        const { default: component } = await view.component();
+        // load the view's root and its own shell
+        const { FALLBACKS } = await import("../page/fallback.tsx");
+        const component = await view.load(FALLBACKS);
         const { render } = view;
         const own =
             render.mode === "static" && render.document !== undefined

@@ -16,6 +16,9 @@ import {
 } from "@destack/object";
 import type { Package } from "@destack/object";
 import type { Component } from "solid-js";
+import { Failure } from "@destack/error";
+import { createComponent } from "../solid/component.ts";
+import { Errored, Loading } from "../solid/flow.ts";
 import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
 import type { Message } from "@destack/locale";
@@ -105,8 +108,28 @@ export interface ViewDefinition {
     readonly packages?: readonly Package[];
     /** Load the module whose default export is the root component. */
     readonly component: () => Promise<{ readonly default: Component }>;
+    /** Load the component drawn while the view's code or data is pending, else the runtime's. */
+    readonly loading?: () => Promise<{ readonly default: Component }>;
+    /** Load the component drawn with the failure when the view fails, else the runtime's. */
+    readonly error?: () => Promise<{ readonly default: Component<ErrorFallbackProperties> }>;
     /** How the view renders, in the browser when absent. */
     readonly render?: ViewRender;
+}
+
+/** What a view's error part draws with: how the view failed, and a way to try again. */
+export interface ErrorFallbackProperties {
+    /** How the view failed. */
+    readonly failure: Failure;
+    /** Draw the view again. */
+    readonly retry: () => void;
+}
+
+/** The runtime's parts a view draws where it declares none of its own. */
+export interface ViewFallbacks {
+    /** The part drawn while the view's code or data is pending. */
+    readonly loading: Component;
+    /** The part drawn when the view fails. */
+    readonly error: Component<ErrorFallbackProperties>;
 }
 
 /** An object type a view presents: the one it opens by default, or one offered beside it. */
@@ -137,6 +160,10 @@ export class View {
     readonly packages: readonly Package[];
     /** Load the module whose default export is the root component. */
     readonly component: ViewDefinition["component"];
+    /** Load the component drawn while the view's code or data is pending, else the runtime's. */
+    readonly loading: ViewDefinition["loading"];
+    /** Load the component drawn when the view fails, else the runtime's. */
+    readonly error: ViewDefinition["error"];
     /** How the view renders. */
     readonly render: ViewRender;
 
@@ -160,7 +187,39 @@ export class View {
         this.audience = definition.audience ?? "person";
         this.packages = definition.packages ?? [];
         this.component = definition.component;
+        this.loading = definition.loading;
+        this.error = definition.error;
         this.render = definition.render ?? { mode: "client" };
+    }
+
+    /** Load the view's root: its component inside its error and loading parts. */
+    async load(fallbacks: ViewFallbacks): Promise<Component> {
+        // load the three parts together, the runtime's where the view declares none
+        const [shown, waiting, failing] = await Promise.all([
+            this.component(),
+            this.loading?.() ?? { default: fallbacks.loading },
+            this.error?.() ?? { default: fallbacks.error },
+        ]);
+
+        // draw the failure of anything inside, else the pending part, else the component
+        return () =>
+            createComponent(Errored, {
+                fallback: (error: () => unknown, reset: () => void) =>
+                    createComponent(failing.default, {
+                        failure: Failure.of(error()),
+                        retry: reset,
+                    }),
+                get children() {
+                    return createComponent(Loading, {
+                        get fallback() {
+                            return createComponent(waiting.default, {});
+                        },
+                        get children() {
+                            return createComponent(shown.default, {});
+                        },
+                    });
+                },
+            });
     }
 
     /** What the page runtime reads as the person: their settings and their profile's language. */
