@@ -1058,7 +1058,7 @@ export class ObjectClient<
             ready: followed.ready,
             read: async () =>
                 object.storage === "local"
-                    ? (await this.#dataflow(await named, compiled)).results(await named)
+                    ? await this.#results(await named, compiled)
                     : this.#pickReplica(object.storage).results(
                           this.database,
                           await named,
@@ -1445,28 +1445,28 @@ export class ObjectClient<
         return { ...query, scopes: read.filter((scope) => held.safeParse(scope).success) };
     }
 
-    /** Read a query's items from the local replica. */
+    /** Read a query's items from the local replica, stepping its shared dataflow. */
     async #items(name: string, query: sync.Query): Promise<readonly Item[]> {
-        return (await this.#dataflow(name, query)).read(name);
+        const read = await this.#read(query);
+
+        return await this.#local.read(
+            { [name]: read },
+            syncDataflow.EVERYONE,
+            undefined,
+            (dataflow) => dataflow.read(name),
+        );
     }
 
-    /** Load a query over the local database through the local feed's upstream. */
-    async #dataflow(name: string, query: sync.Query): Promise<syncDataflow.Dataflow> {
-        // read through the local feed's upstream
-        const upstream = present(this.#local.upstream, "the local feed's upstream");
-        const dataflow = new syncDataflow.Dataflow(
-            { [name]: await this.#read(query) },
-            {
-                audience: syncDataflow.EVERYONE,
-                database: this.database,
-                upstream,
-                changesThrough: syncDataflow.Dataflow.changesThrough(this.database),
-                isMaterialized: true,
-            },
-        );
-        await dataflow.load(await syncDataflow.View.latest(this.database));
+    /** Read an aggregate query's groups from the local replica, stepping its shared dataflow. */
+    async #results(name: string, query: sync.Query): Promise<readonly sync.AggregateGroup[]> {
+        const read = await this.#read(query);
 
-        return dataflow;
+        return await this.#local.read(
+            { [name]: read },
+            syncDataflow.EVERYONE,
+            undefined,
+            (dataflow) => dataflow.results(name),
+        );
     }
 
     /** Split a query by storage: its storage's query, and key lookups of the other's rows. */
