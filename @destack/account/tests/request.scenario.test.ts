@@ -18,7 +18,7 @@ import {
     placement,
     session,
 } from "../src/object/index.ts";
-import { InstallationOrigin } from "../src/address/index.ts";
+import { InstallationOrigin, UNIVERSE_PAGES } from "../src/address/index.ts";
 import {
     DOMAINS,
     ISSUER,
@@ -373,13 +373,14 @@ test("refuse reviewing a request without its reference, and deciding one by a ma
     ]);
 });
 
-test("locate a signed-in person's Home once its machine reports it serving, starting before and while the machine answers nowhere, and refuse a signed-out browser", async () => {
+test("locate a signed-in person's Home once it serves, starting before, sending page loads there, and refuse a signed-out browser", async () => {
     // sign a person up, which places their home at the region's machine, starting
     await using fixture = await TestAccount.open();
     const { person, browser } = await fixture.signInBrowser("ada@example.com", "ada");
     const located = async (): Promise<unknown> =>
         await (await browser.fetch(HOME_LOCATION_PATH)).json();
     const placed = await located();
+    const startingPage = await browser.navigate(HOME_LOCATION_PATH);
 
     // report the home serving as its machine does, then withdraw the machine's endpoint
     const home = Account.home(Account.personal(person.id));
@@ -397,6 +398,7 @@ test("locate a signed-in person's Home once its machine reports it serving, star
                 .where(eq(placement.table.spaceId, home)),
     );
     const serving = await located();
+    const servingPage = await browser.navigate(HOME_LOCATION_PATH);
     await TestDirectory.writeMachine(
         fixture.database,
         row.machineId,
@@ -406,12 +408,17 @@ test("locate a signed-in person's Home once its machine reports it serving, star
     );
     const unanswered = await located();
     const signedOut = await fixture.browser().fetch(HOME_LOCATION_PATH);
+    const signedOutPage = await fixture.browser().navigate(HOME_LOCATION_PATH);
 
     expect({
         placed,
         serving,
         unanswered,
         signedOut: [signedOut.status, await signedOut.json()],
+        pages: [startingPage, servingPage, signedOutPage].map((page) => [
+            page.status,
+            TestBrowser.location(page),
+        ]),
     }).toEqual({
         placed: { status: "starting" },
         serving: {
@@ -427,6 +434,11 @@ test("locate a signed-in person's Home once its machine reports it serving, star
                 domain: "@destack/account",
                 message: "authentication required: the person is not signed in",
             },
+        ],
+        pages: [
+            [302, `${UNIVERSE.origin}/`],
+            [302, `${UNIVERSE.url("ada.destack.space")}/`],
+            [302, `${UNIVERSE.origin}${UNIVERSE_PAGES.signIn}`],
         ],
     });
 });

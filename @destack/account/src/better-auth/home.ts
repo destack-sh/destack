@@ -3,7 +3,7 @@ import { createAuthEndpoint, getSessionFromCtx } from "better-auth/api";
 import type { Clock } from "@destack/environment";
 import type { DatabaseConnection } from "@destack/db/database";
 import { present } from "@destack/schema";
-import type { UniverseOrigin } from "../address/address.ts";
+import { UNIVERSE_PAGES, type UniverseOrigin } from "../address/address.ts";
 import { Directory } from "../client/directory.ts";
 import { HOME_LOCATION_PATH } from "../authentication/path.ts";
 import { HomeLocation } from "../authentication/request.ts";
@@ -36,7 +36,7 @@ export const Home = {
         return { status: "serving", url: `${universe.installation(origin, located.url)}/` };
     },
 
-    /** Serve where the signed-in person's Home answers, for the views at the universe's origin. */
+    /** Serve where the signed-in person's Home answers, sending a page load straight there. */
     plugin(database: DatabaseConnection, clock: Clock, universe: UniverseOrigin): BetterAuthPlugin {
         return {
             id: "destack-home",
@@ -47,9 +47,15 @@ export const Home = {
                     { method: "GET" },
                     async (context) =>
                         await refusing(async () => {
-                            // refuse a signed-out browser
+                            // send a signed-out page load to sign in, and refuse a signed-out call
+                            const isPageLoad =
+                                context.request?.headers.get("sec-fetch-mode") === "navigate";
                             const session = await getSessionFromCtx(context);
-                            if (session === null) {
+                            if (session === null && isPageLoad) {
+                                throw context.redirect(
+                                    `${universe.origin}${UNIVERSE_PAGES.signIn}`,
+                                );
+                            } else if (session === null) {
                                 throw AccountError.of(
                                     "SIGN_IN_UNAUTHENTICATED",
                                     "authentication required: the person is not signed in",
@@ -61,6 +67,15 @@ export const Home = {
                                 universe,
                                 clock.now(),
                             );
+
+                            // send a page load to a serving Home, else to the start page, which waits for it
+                            if (isPageLoad) {
+                                throw context.redirect(
+                                    located.status === "serving"
+                                        ? located.url
+                                        : `${universe.origin}/`,
+                                );
+                            }
 
                             return context.json(HomeLocation.parse(located));
                         }),
