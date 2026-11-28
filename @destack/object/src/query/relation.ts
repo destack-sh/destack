@@ -49,7 +49,7 @@ type RelationsOf<Object extends ObjectType, Objects extends ObjectType> =
                   ParentRelation<Object, Configuration["parent"], Objects> &
                   TreeRelations<Object, Configuration> &
                   ChildRelations<Object, Objects> &
-                  JunctionRelations<ChildRelations<Object, Objects>, Objects>
+                  JunctionRelations<Object, ChildRelations<Object, Objects>, Objects>
         : never;
 
 /** The relations of a type's reference fields, each to one object of its type or of several. */
@@ -143,31 +143,28 @@ type ChildOf<Object extends ObjectType, Objects> =
                   : never
         : never;
 
-/** The relations through each child relation to what the children relate one of. */
-type JunctionRelations<Children, Objects> = {
-    readonly [Path in JunctionPath<Children, Objects>]: Path extends `${infer Near}.${infer Far}`
-        ? Near extends keyof Children
-            ? Children[Near] extends Many<infer Junction>
-                ? Junction extends ObjectType<infer Configuration>
-                    ? Far extends keyof ReferenceRelations<Configuration, Objects>
-                        ? ReferenceRelations<Configuration, Objects>[Far] extends One<infer Target>
-                            ? Many<Target>
-                            : never
-                        : never
-                    : never
+/** The relations through each junction child to the type it joins, by that type's plural. */
+type JunctionRelations<Object extends ObjectType, Children, Objects> = {
+    readonly [Plural in PluralOf<JoinedOf<Object, Children, Objects>>]: Many<
+        ObjectByPlural<JoinedOf<Object, Children, Objects>, Plural>
+    >;
+};
+
+/** The types a type's junction children join it to, other than itself. */
+type JoinedOf<Object extends ObjectType, Children, Objects> = {
+    [Near in keyof Children]: Children[Near] extends Many<infer Junction>
+        ? Junction extends ObjectType<infer Configuration>
+            ? Configuration["isJunction"] extends true
+                ? Exclude<TargetsOf<ReferenceRelations<Configuration, Objects>>, Object>
                 : never
             : never
         : never;
-};
+}[keyof Children];
 
-/** The `<children>.<target>` names of the relations through child relations. */
-type JunctionPath<Children, Objects> = {
-    [Near in keyof Children & string]: Children[Near] extends Many<infer Junction>
-        ? Junction extends ObjectType<infer Configuration>
-            ? `${Near}.${keyof ReferenceRelations<Configuration, Objects> & string}`
-            : never
-        : never;
-}[keyof Children & string];
+/** The types some relations relate one of. */
+type TargetsOf<Relations> = {
+    [Name in keyof Relations]: Relations[Name] extends One<infer Target> ? Target : never;
+}[keyof Relations];
 
 /** The identities of the attachment types an object type takes. */
 type AttachmentsOf<Object extends ObjectType> =

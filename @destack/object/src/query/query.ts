@@ -85,12 +85,23 @@ export class RelationGraph {
             tables.set(object.table, this.#direct(object));
         }
 
-        // relate through join types: a child type's reference to a third type
-        for (const named of tables.values()) {
-            for (const [near, first] of Object.entries(named)) {
-                for (const [far, relation] of QueryDerivation.junctions(first, tables)) {
-                    named[`${near}.${far}`] ??= relation;
+        // relate the two types each junction joins to each other, by the other type's plural
+        const typed = new Map(this.#listed.map((type) => [type.table, type]));
+        for (const [table, named] of tables) {
+            const joined = Object.values(named)
+                .filter((first) => typed.get(first.table)?.isJunction === true)
+                .flatMap((first) => QueryDerivation.junctions(first, tables))
+                .filter(([, relation]) => relation.table !== table);
+            for (const [, relation] of joined) {
+                // refuse a joined type's plural another relation of the type takes
+                const far = present(typed.get(relation.table), "the joined type");
+                if (named[far.plural] !== undefined) {
+                    const near = present(typed.get(table), "the joining type");
+                    throw new TypeError(
+                        `object '${near.name}' relates to '${far.plural}' twice: through a junction and another relation`,
+                    );
                 }
+                named[far.plural] = relation;
             }
         }
         this.relations = new Relations(tables);
@@ -421,7 +432,7 @@ const QueryDerivation = {
         });
     },
 
-    /** Relate through a to-many join type to each referenced type, keyed by reference name. */
+    /** Relate through a junction's to-many relation to each type it references. */
     junctions(
         first: Relation,
         tables: ReadonlyMap<ObjectType["table"], Readonly<Record<string, Relation>>>,

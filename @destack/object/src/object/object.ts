@@ -581,6 +581,8 @@ export interface ObjectDefinition<
     readonly aggregates?: Readonly<Record<string, ObjectAggregate>>;
     /** The attachments the objects take. */
     readonly attachments?: readonly Attachment[];
+    /** Whether each object joins two other types, which relate to each other through these. */
+    readonly isJunction?: true;
     /** Checks, indexes, unique constraints and foreign keys over the columns, by name. */
     readonly constraints?: Readonly<Record<string, ObjectConstraint>>;
     /** Unique indexes the key index has across databases, by name. */
@@ -866,6 +868,8 @@ export interface ObjectConfiguration {
     readonly owner: string | undefined;
     /** The identities of the attachment types the objects take, never for none. */
     readonly attachments: string;
+    /** Whether the objects join two other types, which relate to each other through them. */
+    readonly isJunction: boolean;
 }
 
 /** An object type of a declared signature, each absent member at its widest. */
@@ -1163,6 +1167,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The attachments the objects take. */
     get attachments(): readonly Attachment[] {
         return this.declared.attachments;
+    }
+
+    /** Whether the objects join two other types, which relate to each other through them. */
+    get isJunction(): boolean {
+        return this.declared.isJunction === true;
     }
 
     /** The unique indexes the key index has across databases, by name. */
@@ -2873,6 +2882,16 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     static #declared(
         definition: ObjectDefinition & { readonly source: ObjectDefinition },
     ): ObjectDeclared {
+        // refuse a junction that joins other than two types, each by one reference
+        const references = Object.values(definition.fields ?? {}).filter(
+            (declared) => declared.target !== undefined,
+        );
+        if (definition.isJunction === true && references.length !== 2) {
+            throw new TypeError(
+                `object '${definition.name}' is a junction, so it references exactly two types, not ${references.length}`,
+            );
+        }
+
         return {
             ...definition,
             identity: definition.identity ?? definition.name,
@@ -3797,6 +3816,7 @@ type MappingConfiguration<Definition extends ObjectDefinition, Methods> = {
     readonly parent: undefined;
     readonly owner: Option<Definition, "owner">;
     readonly attachments: never;
+    readonly isJunction: false;
     readonly storage: "durable";
     readonly events: undefined;
     readonly supplied: Option<Definition, "declarable", readonly never[]>[number];
@@ -4018,6 +4038,7 @@ type TableConfiguration<Definition extends ObjectDefinition, Methods> = {
         : undefined;
     readonly owner: Option<Definition, "owner">;
     readonly attachments: IdentityOf<Option<Definition, "attachments", []>[number]["object"]>;
+    readonly isJunction: Option<Definition, "isJunction"> extends true ? true : false;
     readonly storage: StorageKind<Option<Definition, "storage", "durable">>;
     readonly events: StorageKind<Option<Definition, "storage", "durable">> extends "events"
         ? EventKind<EventShapeOf<DefinedTable<Definition>>, EventDataOf<DefinedTable<Definition>>>
