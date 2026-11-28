@@ -114,8 +114,8 @@ test("pin the compiler's version to the workspace image it compiles", async () =
 
     // pair the version with its image: changed output takes a new COMPILER_VERSION and this digest
     expect({ version: COMPILER_VERSION, image }).toEqual({
-        version: 13,
-        image: "6a321e53d6adfc2d0cddf5722465a5a559bab9ffc1091452e529053e4a266a48",
+        version: 14,
+        image: "8a314996d80e9ff0a8203b3fdb7ab95b693df003a344501a074ad0797a1f2d09",
     });
 });
 
