@@ -30,8 +30,12 @@ export class TextDocument {
     readonly #query: LiveQuery<readonly TextRow[]>;
     /** The sequence of each chunk row of the replica, by row. */
     #rows = new Map<TextRow, TextSequence>();
-    /** The edit calls whose prediction the replica lacks, in order. */
+    /** The edit calls the server has not confirmed or refused, in order. */
     #pending: (readonly TextEdit[])[] = [];
+    /** The reads of the chunks started so far. */
+    #reads = 0;
+    /** The latest read whose chunks the text took. */
+    #taken = 0;
     /** The text with the pending edits. */
     readonly #rope = new Observable(new TextRope());
     /** Stops following the replica. */
@@ -60,11 +64,13 @@ export class TextDocument {
             })
             .subscribe();
         this.#query = query;
-        this.ready = query.ready.then(async () => this.#rebase(await query.read()));
+        this.ready = query.ready.then(async () => this.#refresh());
 
         // take every change the replica sees until closed
         this.#following = (async () => {
             for await (const rows of query.watch(this.#stop.signal)) {
+                // take them over every read started before them
+                this.#taken = this.#reads;
                 this.#rebase(rows);
             }
         })();
@@ -106,13 +112,19 @@ export class TextDocument {
             edits,
         });
 
-        // drop them once their prediction lands or fails, and renew the site after a refusal
-        const landed = async () => {
+        // rebase once the prediction lands, and drop the edits once the server settles them
+        const settled = async () => {
             this.#pending = this.#pending.filter((pending) => pending !== edits);
-            this.#rebase(await this.#query.read());
+            await this.#refresh();
         };
-        void submission.predicted.then(landed, landed);
-        submission.confirmed.catch(() => this.#renew());
+        void submission.predicted.then(
+            () => this.#refresh(),
+            () => this.#refresh(),
+        );
+        void submission.confirmed.then(settled, async () => {
+            this.#renew();
+            await settled();
+        });
 
         return { predicted: submission.predicted.then(() => {}), confirmed: submission.confirmed };
     }
@@ -132,6 +144,16 @@ export class TextDocument {
         this.#clock = 0;
     }
 
+    /** Read the replica's chunks and take them, unless a later read's chunks came first. */
+    async #refresh(): Promise<void> {
+        const read = ++this.#reads;
+        const rows = await this.#query.read();
+        if (read > this.#taken) {
+            this.#taken = read;
+            this.#rebase(rows);
+        }
+    }
+
     /** Take the replica's chunks and apply the pending edits over them. */
     #rebase(rows: readonly TextRow[]): void {
         // read each new row's sequence once
@@ -140,9 +162,13 @@ export class TextDocument {
             rows.map((row) => [row, known.get(row) ?? TextDocument.sequence(row)]),
         );
 
-        // apply the edits the replica lacks
+        // apply the unsettled edits, skipping an insertion the chunks hold since its prediction landed
         const replica = new TextRope([...this.#rows.values()]);
-        this.#rope.set(this.#pending.flat().reduce((rope, edit) => rope.apply(edit), replica));
+        this.#rope.set(
+            this.#pending
+                .flat()
+                .reduce((rope, edit) => (rope.holds(edit) ? rope : rope.apply(edit)), replica),
+        );
     }
 
     /** Read a chunk row's sequence. */

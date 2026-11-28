@@ -158,15 +158,30 @@ export class TextRope {
         return covered;
     }
 
-    /** Find the chunk holding an element, refusing one no chunk holds. */
-    #holder(element: TextElement): number {
-        // scan the pieces in one tight pass
+    /** Report whether an edit is an insertion whose elements a chunk holds already. */
+    holds(edit: TextEdit): boolean {
+        return "insert" in edit && this.#find({ run: edit.run, offset: edit.start }) !== undefined;
+    }
+
+    /** Find the chunk holding an element, none when no chunk holds it, in one tight pass. */
+    #find(element: TextElement): number | undefined {
         for (const [index, chunk] of this.chunks.entries()) {
             for (const piece of chunk.runs) {
                 if (TextSequence.contains(piece, element)) {
                     return index;
                 }
             }
+        }
+
+        return undefined;
+    }
+
+    /** Find the chunk holding an element, refusing one no chunk holds. */
+    #holder(element: TextElement): number {
+        // take the holding chunk
+        const index = this.#find(element);
+        if (index !== undefined) {
+            return index;
         }
 
         throw new RangeError(
