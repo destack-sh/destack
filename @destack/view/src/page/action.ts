@@ -1,5 +1,5 @@
 import { isServer } from "@solidjs/web";
-import { DeclarationReference } from "@destack/package/declare";
+import { type DeclarationKey, DeclarationReference } from "@destack/package/declare";
 import { type Accessor, createSignal, onCleanup, type Setter, useContext } from "solid-js";
 import { ObjectReference } from "@destack/sync";
 import { type Localization, Shortcut, t } from "@destack/locale";
@@ -170,8 +170,8 @@ export type ActionFail = (action: Action, reason: string | undefined) => void;
 export interface ActionRegistryOptions {
     /** The person's key combinations by setting key, null for an unbound one. */
     readonly keybindings?: Accessor<Readonly<Record<string, Shortcut | null>>>;
-    /** The keys the view binds to actions, by action name. */
-    readonly keys?: Readonly<Record<string, ActionKeybinding>>;
+    /** The keys the view binds to actions, by declaration key. */
+    readonly keys?: Readonly<Record<DeclarationKey, ActionKeybinding>>;
 }
 
 /** The actions a running page's components handle, and the objects the person selects in it. */
@@ -201,7 +201,7 @@ export class ActionRegistry {
     /** Read the person's key combinations by setting key, null for an unbound one. */
     readonly #keybindings: Accessor<Readonly<Record<string, Shortcut | null>>>;
     /** The keys the view binds to actions, by action name, over the actions' own. */
-    readonly #keys: Readonly<Record<string, ActionKeybinding>>;
+    readonly #keys: Readonly<Record<DeclarationKey, ActionKeybinding>>;
     /** The strokes a person types of shortcuts pressed after one another. */
     readonly sequence = new ShortcutSequence<DeclarationReference>();
     /** Count the changes to the handlers, which readers of the actions follow. */
@@ -724,7 +724,9 @@ export class ActionRegistry {
     keybindings(action: Action, isCommand: boolean): readonly Shortcut[] {
         const chosen = this.#keybindings()[DeclarationReference.key(action.reference)];
 
-        return ActionKeybinding.on(this.#keys[action.name] ?? action.keybinding, isCommand, chosen);
+        const viewed = this.#keys[DeclarationReference.key(action.reference)];
+
+        return ActionKeybinding.on(viewed ?? action.keybinding, isCommand, chosen);
     }
 
     /** Run the innermost action a key press binds, of a part where one asks. */

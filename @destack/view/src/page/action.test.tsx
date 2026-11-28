@@ -246,7 +246,7 @@ test("bind a view's key to an action over its own, and a person's own key over t
     const [keys, setKeys] = createSignal<Readonly<Record<string, string | null>>>({});
     const actions = new ActionRegistry({
         keybindings: keys,
-        keys: { pick: ActionKeybinding.of("v") },
+        keys: { [DeclarationReference.key(pick.reference)]: ActionKeybinding.of("v") },
     });
     const viewed = [actions.keybindings(pick, false), actions.keybindings(other, false)];
     setKeys({ [DeclarationReference.key(pick.reference)]: "w" });

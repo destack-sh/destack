@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { none } from "@destack/access";
-import { defineObject } from "@destack/object";
+import { ActionKeybinding, defineObject } from "@destack/object";
 import { PackageVersion, PackageId } from "@destack/package";
 import { account, space } from "@destack/account/object";
 import { describeView } from "../inspect/index.ts";
@@ -70,6 +70,24 @@ test("describe a declared view by its name, presented and opened types, categori
             render: { mode: "client" },
         },
     ]);
+});
+
+test("bind a view's keys to its own package's actions, by each action's declaration key", () => {
+    // bind the note's status and title setters in a notes view
+    const view = defineView(
+        {
+            name: "notes",
+            title: t`Notes`,
+            keys: { "note.setStatus": "s", "note.setTitle": ["t", "shift+t"] },
+            component: () => Promise.reject(new Error("loaded")),
+        },
+        { package: notes },
+    );
+
+    expect(view.keys).toEqual({
+        [`${notes.id}/note.setStatus`]: ActionKeybinding.of("s"),
+        [`${notes.id}/note.setTitle`]: ActionKeybinding.of(["t", "shift+t"]),
+    });
 });
 
 test("open each object type in the scopes it lives in: space types in the space and home, account types in the account", () => {

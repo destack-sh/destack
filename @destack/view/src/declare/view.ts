@@ -2,6 +2,7 @@ import { GrantDeclaration } from "@destack/access";
 import { user } from "@destack/account/object";
 import { setting } from "@destack/setting/object";
 import { DeclarationName, defineKind, ModuleMetadata, type PackageVersion } from "@destack/package";
+import { type DeclarationKey, DeclarationReference } from "@destack/package/declare";
 import {
     type ViewAudience,
     type ViewCategory,
@@ -18,7 +19,6 @@ import type { Component } from "solid-js";
 import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
 import type { Message } from "@destack/locale";
-import { mapValues } from "@destack/schema";
 
 /** The name of the workload a build derives to render its package's views as their visitors. */
 export const VIEW_WORKLOAD = "view";
@@ -97,7 +97,7 @@ export interface ViewDefinition {
     readonly presents?: readonly Presentation[];
     /** The roles clients open the view in, such as a person's start view. */
     readonly categories?: readonly ViewCategory[];
-    /** The keys the view binds to the actions it presents, by name, over each action's own. */
+    /** The keys the view binds to its package's actions, by action name, over each action's own. */
     readonly keys?: Readonly<Record<string, ActionKeybindingDefinition>>;
     /** Who the view serves: a signed-in person by default, or anyone. */
     readonly audience?: ViewAudience;
@@ -129,8 +129,8 @@ export class View {
     readonly presents: readonly Presentation[];
     /** The roles clients open the view in. */
     readonly categories: readonly ViewCategory[];
-    /** The keys the view binds to the actions it presents, by action name. */
-    readonly keys: Readonly<Record<string, ActionKeybinding>>;
+    /** The keys the view binds to its package's actions, by declaration key. */
+    readonly keys: Readonly<Record<DeclarationKey, ActionKeybinding>>;
     /** Who the view serves. */
     readonly audience: ViewAudience;
     /** The packages the view calls as its user. */
@@ -148,7 +148,15 @@ export class View {
         this.objects = definition.objects ?? [];
         this.presents = definition.presents ?? [];
         this.categories = definition.categories ?? [];
-        this.keys = mapValues(definition.keys ?? {}, (keys) => ActionKeybinding.of(keys));
+        this.keys = Object.fromEntries(
+            Object.entries(definition.keys ?? {}).map(([name, keys]) => [
+                DeclarationReference.key({
+                    packageId: owner.id,
+                    name: DeclarationName.parse(name),
+                }),
+                ActionKeybinding.of(keys),
+            ]),
+        );
         this.audience = definition.audience ?? "person";
         this.packages = definition.packages ?? [];
         this.component = definition.component;
