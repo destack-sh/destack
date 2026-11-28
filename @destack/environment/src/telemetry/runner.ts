@@ -129,7 +129,7 @@ export const SpanRunner = {
             // start the span below the active one, entered in the span path
             const parent = context.active();
             const kind = how.kind === undefined ? SpanKind.INTERNAL : SPAN_KINDS[how.kind];
-            const startTime = clock.now();
+            const startTime = stamp(clock);
             const links = [...(how.links ?? [])];
             const leveled =
                 how.level === undefined
@@ -171,7 +171,7 @@ export const SpanRunner = {
                 const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
                 const elapsed = clock === Clock.system ? {} : { [SPAN_ELAPSED_ATTRIBUTE]: seconds };
                 span.setAttributes({ ...failed, ...totals, ...listed, ...outermost, ...elapsed });
-                span.end(clock.now());
+                span.end(stamp(clock));
                 if (how.duration !== false) {
                     const bounded = how.duration?.attributes ?? {};
                     const recorded = typeof bounded === "function" ? bounded() : bounded;
@@ -340,4 +340,9 @@ function follow<Stream extends AsyncIterable<unknown>>(
 /** Report whether a value is a stream. */
 function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
     return value !== null && typeof value === "object" && Symbol.asyncIterator in value;
+}
+
+/** Stamp a span on a clock, the system clock at the high-resolution timer's precision. */
+function stamp(clock: Pick<Clock, "now">): number {
+    return clock === Clock.system ? performance.timeOrigin + performance.now() : clock.now();
 }
