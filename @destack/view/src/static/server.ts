@@ -100,12 +100,13 @@ export class ViewServer {
             return await endpoint({ request, origin: render.origin, environment: rendered });
         }
 
-        // link the context, stylesheets, preloads and entry at the end of the head
+        // link the context, stylesheets, preloads and entry at the end of the head, prerendering a hovered link to another installation
         const context =
             head.context === undefined
                 ? []
                 : [
                       `<script type="application/json" id="${CONTEXT_ELEMENT}">${JSON.stringify(head.context).replaceAll("<", "\\u003c")}</script>`,
+                      ViewServer.#speculation(new URL(request.url)),
                   ];
         const links = [
             ...context,
@@ -299,6 +300,17 @@ export class ViewServer {
         stack.use(replica.move());
 
         return client;
+    }
+
+    /** Write the speculation rule prerendering a hovered link to another origin of the site. */
+    static #speculation(page: URL): string {
+        // match every origin below the page's domain but the page's own, moderately eager as Chrome reads a hover
+        const [, ...below] = page.hostname.split(".");
+        const site = `${page.protocol}//*.${below.join(".")}${page.port === "" ? "" : `:${page.port}`}/*`;
+        const where = { and: [{ href_matches: site }, { not: { href_matches: "/*" } }] };
+        const rules = { prerender: [{ source: "document", where, eagerness: "moderate" }] };
+
+        return `<script type="speculationrules">${JSON.stringify(rules).replaceAll("<", "\\u003c")}</script>`;
     }
 
     /** Pass a response's body on, closing what its render opened once the body ends or cancels. */
