@@ -129,7 +129,7 @@ export function Chrome(properties: ChromeProperties): JSX.Element {
     const context = useView();
     const page = new URL(useEnvironment().navigation.currentEntry.url);
     const home = () => context.apps.find((app) => app.isHome);
-    const isOwn = (app: ViewApp) => app.name === context.installation;
+    const isOwn = (app: ViewApp) => app.installation === context.installation;
     const href = (app: ViewApp) => ViewApp.href(app, context.spaceAddress, page);
 
     // title the person's own space as Personal, apart from the Home app, any other by its title
