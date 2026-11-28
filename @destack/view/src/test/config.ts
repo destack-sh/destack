@@ -4,6 +4,9 @@ import type { Environment } from "@destack/environment";
 import { builtinModules } from "node:module";
 import { fileURLToPath } from "node:url";
 
+/** The Solid libraries views use, whose JSX the view's transforms compile, never Bun. */
+const SOLID_LIBRARIES = /\/node_modules\/(?:solid-js|@solidjs\/[^/]+)\//u;
+
 /** How a test configuration compiles components beside its DOM. */
 export interface ViewTestOptions {
     /** Compile components to hydrate pages a server rendered. */
@@ -52,6 +55,8 @@ export function defineConfiguration(
                 environment: isBrowser
                     ? "node"
                     : fileURLToPath(new URL("environment.ts", import.meta.url)),
+                // compile the Solid libraries views use through the view's transforms, as an app reaches them only through view
+                server: { deps: { inline: [SOLID_LIBRARIES] } },
                 ...configuration.test,
                 ...(isBrowser
                     ? { globalSetup: [configuration.test?.globalSetup ?? [], setup].flat() }
