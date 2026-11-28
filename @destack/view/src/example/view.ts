@@ -8,6 +8,7 @@ import { ObjectConnection, ObjectRemote } from "@destack/object/client";
 import { ObjectClient } from "@destack/object/device";
 import type { ExampleObjects } from "@destack/package/declare";
 import { Digest } from "@destack/schema";
+import { setting } from "@destack/setting/object";
 import { Scope } from "@destack/sync";
 import { CONTEXT_SCOPES, type ViewContext } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
@@ -36,6 +37,9 @@ const SAMPLE_ACCOUNT = "account-01996ab0-0000-7000-8000-00000000e003";
 
 /** The sample person. */
 const SAMPLE_USER = "user-01996ab0-0000-7000-8000-00000000e004";
+
+/** The installation serving the sample view. */
+const SAMPLE_INSTALLATION = "installation-01996ab0-0000-7000-8000-00000000e005";
 
 /** The address of the sample space's packages, which never answer. */
 const OFFLINE = { url: "https://sample.invalid", fetch: () => new Promise<Response>(() => {}) };
@@ -81,7 +85,7 @@ async function openSample(
     // name the sample person in the sample space
     const { view, objects } = properties;
     const context: ViewContext = {
-        installation: "installation-sample",
+        installation: SAMPLE_INSTALLATION,
         space: SAMPLE_SPACE,
         account: SAMPLE_ACCOUNT,
         home: SAMPLE_HOME,
@@ -113,6 +117,10 @@ async function openSample(
             clients.set(scope, client);
         }
     }
+
+    // open the person's scope with their settings, which the view's components read and write, without a device's
+    const person = await openScope(context.user.id, [setting], context.user, environment, signal);
+    clients.set(context.user.id, person);
 
     // mount the declared packages offline beside the scopes
     const packages = new Map(view.packages.map((handle) => [handle.id, OFFLINE]));
