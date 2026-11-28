@@ -7,7 +7,7 @@ import type { WorkloadContext, WorkloadImplementation } from "@destack/object/wo
 import stackPackage, { HOOK_PATH } from "../package.ts";
 
 /** The name of the workload a build derives to serve its package's object hooks. */
-export const HOOK_WORKLOAD = "hooks";
+export const HOOK_WORKLOAD = "hook";
 
 /** Start serving the hooks of the types packages route, reaching the store through the host. */
 export function serveHooks(
@@ -38,6 +38,6 @@ export function serveHooks(
             },
         });
 
-        return { packages: [], hooks };
+        return { packages: [], hook: hooks };
     };
 }

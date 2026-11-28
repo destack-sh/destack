@@ -1,6 +1,6 @@
 import { installation } from "./installation.ts";
 import { principal } from "@destack/access";
-import { type Select, type Condition, type RowImage } from "@destack/db";
+import { type Select, type Condition, Expression, type RowImage } from "@destack/db";
 import { SERVER_RUNTIMES } from "@destack/package/runtime";
 import { type ObjectOf, defineObject, field, Status } from "@destack/object";
 import { DirectoryGrant, PackageId } from "@destack/package";
@@ -19,6 +19,9 @@ export const DEPLOYMENT_RUNTIMES = [...SERVER_RUNTIMES, PROCESS_RUNTIME] as cons
 /** A runtime a deployment runs on. */
 export type DeploymentRuntime = (typeof DEPLOYMENT_RUNTIMES)[number];
 
+/** The keys of a workload description older deployments stored before edition 2. */
+const DESCRIBED = ["entrypoint", "packages", "resources", "secrets", "compute", "sandbox"] as const;
+
 /** One workload of an installation revision deployed from one build output. */
 export const deployment = defineObject(
     {
@@ -26,6 +29,24 @@ export const deployment = defineObject(
         plural: "deployments",
         title: t`${plural(argument("count"), { one: "Deployment", other: "Deployments" })}`,
         scope: space,
+        // edition 2: record the requests each workload answers, the hook workload by its old name
+        convert: {
+            2: {
+                description: Expression.object({
+                    kind: Expression.case(
+                        Expression.column("workload"),
+                        [{ when: "hooks", then: Expression.literal("hook") }],
+                        Expression.literal("call"),
+                    ),
+                    ...Object.fromEntries(
+                        DESCRIBED.map((key) => [
+                            key,
+                            Expression.path(Expression.column("description"), key),
+                        ]),
+                    ),
+                }),
+            },
+        },
         fields: {
             /** The persistent package installation. */
             installation: field.reference(
