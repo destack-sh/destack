@@ -1,6 +1,6 @@
 import { t } from "@destack/locale";
 import { defineAction } from "@destack/object";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test, vi } from "@destack/test";
 import { createSignal, Errored, flush, handle, omit } from "@destack/view";
 import { markup, render } from "@destack/view/test";
 import {
@@ -15,6 +15,7 @@ import {
     GridListLoading,
     type GridListMove,
     GridListProvider,
+    GridListViewport,
 } from "./index.ts";
 
 /** The digits of a test grid list, four of them. */
@@ -405,6 +406,54 @@ function drawLetters(order: "manual" | "sorted" = "manual") {
 
     return { container, moves, peeked, setEmpty, focus };
 }
+
+test("leave the rows alone on an insert, reading no row's height again", () => {
+    // render three letters, one to a row, counting each row measured
+    const [letters, setLetters] = createSignal(["a", "b", "c"], { ownedWrite: true });
+    const measured: string[] = [];
+    const viewport = vi
+        .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+        .mockReturnValue(DOMRect.fromRect({ width: 400, height: 400 }));
+    const height = vi
+        .spyOn(HTMLElement.prototype, "offsetHeight", "get")
+        .mockImplementation(function (this: HTMLElement) {
+            if (this.dataset["slot"] === "grid-list-row") {
+                measured.push(this.textContent);
+            }
+
+            return 36;
+        });
+    onTestFinished(() => {
+        viewport.mockRestore();
+        height.mockRestore();
+    });
+    render(() => {
+        const grid = new GridListControl<string>({
+            sections: () => [{ key: "letters", label: "Letters", items: letters() }],
+            key: (letter) => letter,
+            text: (letter) => letter,
+        });
+
+        return (
+            <GridListProvider control={grid}>
+                <GridListViewport>
+                    <GridList control={grid} label={(letter) => letter}>
+                        {(cell) => (
+                            <div {...omit(cell, "item", "isActive", "isSelected")}>{cell.item}</div>
+                        )}
+                    </GridList>
+                </GridListViewport>
+            </GridListProvider>
+        );
+    });
+    flush();
+
+    // add a fourth letter, its row measured by its resize observer
+    setLetters(["a", "b", "c", "d"]);
+    flush();
+
+    expect(measured).toEqual([]);
+});
 
 test("head sections without items where empty ones show", () => {
     const { container, setEmpty } = drawLetters();
