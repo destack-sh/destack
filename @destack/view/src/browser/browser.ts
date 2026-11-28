@@ -259,8 +259,7 @@ export async function mount(
                     connection.close();
                 }
                 try {
-                    const { tabs } = await tabbing;
-                    await Promise.all([...tabs.values()].map((tab) => tab.close()));
+                    await (await tabbing).close();
                     await election.close();
                 } finally {
                     await telemetry.shutdown();
@@ -610,6 +609,7 @@ async function openTabs(
     readonly tabs: Map<string, BrowserTab>;
     readonly open: ViewMount["open"];
     readonly ready: Promise<void>;
+    readonly close: () => Promise<void>;
 }> {
     // follow a person's own settings and profile, and list the parts each scope plays for the view
     const { device } = devices;
@@ -641,24 +641,29 @@ async function openTabs(
 
     // open a scope's tab over the device, usable at once as its sends wait for the device, ready once its access replica holds the scope's chain
     const instruments = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
-    const openTab = (scope: string, played: readonly DeviceRole[]) => {
-        const tab = BrowserTab.open({
-            name,
-            election,
-            objects: DeviceRole.objects(view.objects, played),
-            scope,
-            caller: context.user,
-            ...(device === undefined ? {} : { device }),
-            environment,
-        });
+    const traced = (tab: BrowserTab) => {
         const ready = instruments.span(
             "destack.tab.ready",
-            { "destack.scope.id": scope },
+            { "destack.scope.id": tab.scope },
             () => tab.ready,
         );
 
         return { tab, ready };
     };
+
+    // join the device's channel once, through the first context scope's tab or the space's, and open each other scope over it
+    const [[first, played] = [context.space, []], ...rest] = [...roles];
+    const base = BrowserTab.open({
+        name,
+        election,
+        objects: DeviceRole.objects(view.objects, played),
+        scope: first,
+        caller: context.user,
+        ...(device === undefined ? {} : { device }),
+        environment,
+    });
+    const openTab = (scope: string, plays: readonly DeviceRole[]) =>
+        traced(base.at(scope, DeviceRole.objects(view.objects, plays)));
 
     // open another space of the person while a component asks, closing its tab once it stops
     const open = async (scope: string, signal: AbortSignal) => {
@@ -673,7 +678,10 @@ async function openTabs(
     };
 
     // open the context's scopes, each in the parts it plays
-    const opened = [...roles].map(([scope, played]) => ({ scope, ...openTab(scope, played) }));
+    const opened = [
+        ...(roles.size === 0 ? [] : [{ scope: first, ...traced(base) }]),
+        ...rest.map(([scope, plays]) => ({ scope, ...openTab(scope, plays) })),
+    ];
     const tabs = new Map(opened.map(({ scope, tab }) => [scope, tab] as const));
 
     // be ready once every tab is, the person's own settings and profile synced for the page
@@ -681,7 +689,7 @@ async function openTabs(
     const synced = own === undefined ? [] : [syncOwn(own, context.user.id)];
     const ready = Promise.all([...opened.map((each) => each.ready), ...synced]).then(() => {});
 
-    return { tabs, open, ready };
+    return { tabs, open, ready, close: () => base.close() };
 }
 
 /** Follow the person's settings and profile in their tab, settling once their first rows arrive. */
