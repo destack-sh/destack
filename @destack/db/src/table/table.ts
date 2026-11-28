@@ -444,6 +444,33 @@ export class TableDefinition<
         this.#treeColumns = options.tree;
     }
 
+    /** Read the declaration the table was created with, under other conversions. */
+    declared(convert: Readonly<Record<number, RowConversion>>): {
+        readonly declaration: TableDeclaration;
+        readonly options: { readonly tree?: TreeColumns; readonly source?: Table };
+    } {
+        return {
+            declaration: {
+                constraints: this.#declared,
+                retention: this.retention,
+                expiry: this.expiry,
+                isAppendOnly: this.isAppendOnly,
+                generation: this.generation,
+                moved: this.moved,
+                convert,
+                aggregates: this.aggregates,
+                dependents: this.dependents,
+                predefined: this.predefined,
+                fullText: this.fullText,
+                globalIndexes: this.#globalIndexes,
+            },
+            options: {
+                ...(this.#treeColumns === undefined ? {} : { tree: this.#treeColumns }),
+                ...(this.source === undefined ? {} : { source: this.source }),
+            },
+        };
+    }
+
     /** The multikey indexes the table declares. */
     get multikeyIndexes(): readonly MultikeyIndex[] {
         this.#multikeyIndexes ??= this.#declared()

@@ -7,7 +7,7 @@ import type { DatabaseConnection, DatabaseEnvironment } from "../database/connec
 import type { Model } from "../query/model.ts";
 import { Dialect } from "../dialect/dialect.ts";
 import type { RunRecord } from "./run.ts";
-import type { Table } from "../table/table.ts";
+import { TABLE, Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
 import {
     createStamp,
@@ -100,6 +100,27 @@ export class TestDatabase<
             name: "db.client.operation.duration",
             attributes: { "db.namespace": database.state.name },
         };
+    }
+
+    /** Read a table as of an earlier edition: the same table without the conversions after it. */
+    static edition<Definition extends Table>(table: Definition, edition: number): Definition {
+        // keep the conversions leading up to the edition
+        const definition = table[TABLE];
+        const convert = Object.fromEntries(
+            Object.entries(definition.convert).filter(([leading]) => Number(leading) <= edition),
+        );
+
+        // declare the same table and columns under only those conversions
+        const { declaration, options } = definition.declared(convert);
+        const identity = {
+            package: definition.package,
+            name: definition.name,
+            sqlName: definition.sqlName,
+        };
+        const earlier = new Table(identity, definition.columns, declaration, options);
+
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- the same table and columns under fewer conversions
+        return Object.assign(earlier, definition.columns) as unknown as Definition;
     }
 
     /** Read the database the test's project runs against, or a given project's in its setup. */

@@ -1077,6 +1077,55 @@ const taskRequired = defineTable(
     NEXT_RELEASE,
 );
 
+/** Issues whose level `warning` became `warn` in their second edition. */
+const issueLevels = defineTable(
+    "issue",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        level: text("level").notNull(),
+    },
+    {
+        log: {},
+        convert: {
+            2: {
+                level: Expression.case(
+                    Expression.column("level"),
+                    [{ when: "warning", then: Expression.literal("warn") }],
+                    Expression.column("level"),
+                ),
+            },
+        },
+    },
+    CURRENT_RELEASE,
+);
+
+test("store rows at a table's first edition, then convert them on migrating to its second", async () => {
+    // store a warning and an error at the first edition
+    const first = TestDatabase.edition(issueLevels, 1);
+    const database = await open([first]);
+    await database.migrate([first]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(table(issueLevels))} (id, scope, level) VALUES ('a', 'inbox', 'warning'), ('b', 'inbox', 'error')`,
+            ),
+    );
+
+    // convert the warning on migrating to the second edition, leaving the error
+    const plan = await database.migrate([issueLevels]);
+    expect({
+        steps: review(plan),
+        rows: await database.select().from(issueLevels).orderBy(issueLevels.id),
+    }).toEqual({
+        steps: [`fallible convert table/${table(issueLevels)}: convert rows to edition 2`],
+        rows: [
+            { id: "a", scope: "inbox", level: "warn" },
+            { id: "b", scope: "inbox", level: "error" },
+        ],
+    });
+});
+
 test("fill a new required column without a default by its edition's conversion over existing rows", async () => {
     // migrate tasks with rows to a release requiring a priority its conversion derives
     const database = await open([taskRequired]);
