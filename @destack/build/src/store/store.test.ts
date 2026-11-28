@@ -120,6 +120,7 @@ function bunOutputs(
         entries.map((entrypoint) => [
             entrypoint.slice(2),
             {
+                kind: "call" as const,
                 entrypoint,
                 packages: [],
                 resources: [],

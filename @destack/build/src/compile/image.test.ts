@@ -65,3 +65,42 @@ test("drop unused imports of modules without side effects, bundled or external",
         imports: bundle.chunks.flatMap((chunk) => chunk.imports),
     }).toEqual({ logged: ["effectful"], imports: [] });
 });
+
+test("keep each hashed asset at its build's path and hash the name of any other file", async () => {
+    // resolve an image whose root module names a hashed font in its asset directory and a plain file
+    const crypto = testHost().crypto;
+    const resolution = await ModuleResolution.of(
+        { imports: {}, scopes: {} },
+        ROOT,
+        PREFIXES,
+        async () => [],
+        crypto,
+    );
+    const code = [
+        'export const font = new URL("./asset/plex-DMJ8VG8y.woff2", import.meta.url).href;',
+        'export const icon = new URL("./icon.svg", import.meta.url).href;',
+    ].join("\n");
+    const bytes = new TextEncoder().encode("bytes");
+
+    // bundle the root with each file's bytes
+    const bundle = await ImageBundle.of(
+        resolution,
+        [resolution.url(ROOT, "output/browser/index.js")],
+        {
+            directory: "output/browser",
+            load: async (url) => (url.endsWith("index.js") ? code : undefined),
+            map: async () => undefined,
+            asset: async () => bytes,
+            hasSideEffects: async () => false,
+            external: () => undefined,
+            linked: new Set(),
+        },
+    );
+
+    // expect the map, the icon under a hashed name, and the font under its own, which renders address
+    expect(bundle.assets.map((asset) => asset.path)).toEqual([
+        "output/browser/index.js.map",
+        "output/browser/asset/icon-SWxIwwnE.svg",
+        "output/browser/asset/plex-DMJ8VG8y.woff2",
+    ]);
+});

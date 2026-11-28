@@ -669,6 +669,27 @@ export class WorkspacePackage {
         return await this.#image(this.root, root, units);
     }
 
+    /** Bundle a release image's browser output, its builtins inlined to what its entries reach. */
+    async release(image: Digest): Promise<Digest> {
+        // inline the host's builtins the workspace compiled against, by package name
+        const hosted = new Map(
+            await Promise.all(
+                this.workspace.host.map(
+                    async (each) =>
+                        [(await this.workspace.manifest(each.root)).package.name, each] as const,
+                ),
+            ),
+        );
+
+        return await ImageBundle.release(image, this.#store, {
+            builtins: new Set(),
+            shared: new Set(),
+            platform: new Map(),
+            exports: "every",
+            hosted,
+        });
+    }
+
     /** Build and make an image of every unit, by name, each as soon as what it reads is built. */
     async imageUnits(
         shared: WorkspaceUnitOptions,
@@ -727,6 +748,7 @@ export class WorkspacePackage {
                     builtins,
                     shared: sharedUnits,
                     platform,
+                    hosted: new Map(),
                     exports: "every" as const,
                 };
                 const released = isImageBundled
@@ -860,6 +882,7 @@ export class WorkspacePackage {
                     builtins: new Set<string>(),
                     shared: units,
                     platform: new Map(),
+                    hosted: new Map(),
                     exports: found(reached, unit),
                 };
                 const released = await this.#store.image(
@@ -902,7 +925,13 @@ export class WorkspacePackage {
     ): Promise<ReadonlySet<Digest>> {
         // bundle the image with its reachable units external, so its bundle imports only those it uses
         const reached = await this.#bundledUnits(await this.#store.image(digest));
-        const linked = { builtins, shared: reached, platform, exports: "every" as const };
+        const linked = {
+            builtins,
+            shared: reached,
+            platform,
+            hosted: new Map(),
+            exports: "every" as const,
+        };
         const released = await this.#store.image(
             await ImageBundle.release(digest, this.#store, linked),
         );
