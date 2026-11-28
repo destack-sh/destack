@@ -91,6 +91,7 @@ const invoice = defineObject(
             team: field.reference(team, { delete: "restrict" }),
             status: field.state({
                 initial: "draft",
+                final: [],
                 transitions: {
                     finalize: { from: ["draft"], to: "open", permission: "manage" },
                 },

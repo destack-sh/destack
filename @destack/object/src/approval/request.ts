@@ -55,6 +55,7 @@ export const changeRequest = defineObject(
             /** Whether the change is open, applied, failed, rejected or withdrawn. */
             state: field.state({
                 initial: "open",
+                final: ["applied", "failed", "rejected", "withdrawn"],
                 transitions: {
                     apply: {
                         from: ["open"],

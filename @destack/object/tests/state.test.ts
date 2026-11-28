@@ -20,6 +20,7 @@ const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000
 /** A review machine shared by the declarations below. */
 const review = {
     initial: "pending",
+    final: ["approved"],
     transitions: { approve: { from: ["pending"], to: "approved", permission: "review" } },
 } as const;
 
@@ -58,6 +59,7 @@ test("record a transition's declared fields with its state, refusing a call with
                 reason: field.string().optional(),
                 review: field.state({
                     initial: "pending",
+                    final: ["rejected"],
                     transitions: {
                         reject: {
                             from: ["pending"],

@@ -42,6 +42,7 @@ const task = defineObject({
         size: field.enum(["s", "l"]),
         review: field.state({
             initial: "asked",
+            final: ["approved"],
             states: {
                 asked: { title: t`Asked` },
                 approved: { title: t`Approved`, color: "green" },
@@ -96,6 +97,7 @@ test("refuse a look of a state no transition reaches, and an enum of no value", 
     expect(() =>
         field.state({
             initial: "asked",
+            final: ["approved"],
             states: { lost: { title: t`Lost` } },
             transitions: { approve: { from: ["asked"], to: "approved", permission: "edit" } },
         }),

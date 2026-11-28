@@ -466,7 +466,7 @@ A place is what a part of a page gives to the actions in it, and an input reads 
 | Who owns the values | How to declare them                                                                    |
 | ------------------- | -------------------------------------------------------------------------------------- |
 | code                | ``field.enum({ low: { title: t`Low`, icon: "arrow-down", color: "gray" } })``          |
-| code, as states     | ``field.state({ initial, transitions, states: { open: { title: t`Open` } } })``        |
+| code, as states     | ``field.state({ initial, final, transitions, states: { open: { title: t`Open` } } })`` |
 | people              | an object type with an appearance and `orderable`, and `field.reference(status)` to it |
 | nobody reads them   | `field.enum(["current", "staged"])`                                                    |
 
@@ -807,6 +807,7 @@ const invoice = defineObject({
         team: field.reference(team, { delete: "restrict" }),
         status: field.state({
             initial: "draft",
+            final: [],
             transitions: { finalize: { from: ["draft"], to: "open", permission: "write" } },
         }),
     },

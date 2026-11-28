@@ -42,6 +42,7 @@ export const approval = defineObject(
             /** Whether the approver has yet to decide, approved, or rejected. */
             state: field.state({
                 initial: "requested",
+                final: ["approved", "rejected"],
                 transitions: {
                     approve: {
                         from: ["requested", "rejected"],

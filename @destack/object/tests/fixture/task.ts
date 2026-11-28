@@ -63,6 +63,7 @@ export const task = defineObject(
             origin: field.object().optional(),
             status: field.state({
                 initial: "open",
+                final: ["done", "cancelled"],
                 transitions: {
                     start: { from: ["open"], to: "active", permission: "work" },
                     complete: { from: ["open", "active"], to: "done", permission: "work" },

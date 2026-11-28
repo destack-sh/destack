@@ -133,6 +133,8 @@ export interface FieldAccess {
 export interface StateMachine {
     /** The state new objects start in. */
     readonly initial: string;
+    /** The states the work ends in, such as done, which a transition such as reopen may leave. */
+    readonly final: readonly string[];
     /** How each state looks, by state, as stored without it. */
     readonly states?: ChoiceDefinitions;
     /** Transitions by method name. */
@@ -155,7 +157,7 @@ export interface StateMachine {
     >;
 }
 
-/** Where a state lies in its machine: initial, active, or final where no transition leaves. */
+/** Where a state lies in its machine: initial, final as the machine declares, else active. */
 export type StateStage = "initial" | "active" | "final";
 
 /** A state machine a field follows. */
@@ -175,17 +177,14 @@ export const StateMachine = {
 
     /** Read where a state lies in a machine. */
     stage(machine: StateMachine, state: string): StateStage {
-        // start at the initial state, end where no transition leaves, and pass the rest
-        const isLeft = Object.values(machine.transitions).some((transition) =>
-            transition.from.includes(state),
-        );
+        // start at the initial state, end in a declared final one, and pass the rest
         if (state === machine.initial) {
             return "initial";
-        } else if (isLeft) {
-            return "active";
+        } else if (machine.final.includes(state)) {
+            return "final";
         }
 
-        return "final";
+        return "active";
     },
 };
 
@@ -1318,6 +1317,12 @@ export class StateField<Machine extends StateMachine = StateMachine> extends Fie
         const unknown = Object.keys(machine.states ?? {}).find((name) => !names.includes(name));
         if (unknown !== undefined) {
             throw new TypeError(`state '${unknown}' is invalid: no transition reaches it`);
+        }
+
+        // refuse to end in a state the machine never reaches
+        const unreached = machine.final.find((name) => !names.includes(name));
+        if (unreached !== undefined) {
+            throw new TypeError(`final state '${unreached}' is invalid: no transition reaches it`);
         }
 
         // start in the initial state, which only transitions change

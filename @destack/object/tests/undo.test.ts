@@ -57,6 +57,7 @@ const page = defineObject(
             body: field.string().optional(),
             status: field.state({
                 initial: "draft",
+                final: [],
                 transitions: {
                     publish: { from: ["draft"], to: "published", permission: "write" },
                     retract: { from: ["published"], to: "draft", permission: "write" },
