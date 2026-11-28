@@ -7630,6 +7630,99 @@
         "2jmy9kry40zwi": {
             "source": "This value cannot be read",
             "translation": "Deze waarde kan niet worden gelezen"
+        },
+        "1c5ez5wi4koqm": {
+            "source": "You don't have access to {$app}",
+            "context": "title",
+            "translation": "Je hebt geen toegang tot {$app}"
+        },
+        "1hiiiohywjloa": {
+            "source": "It takes a few seconds the first time.",
+            "translation": "De eerste keer duurt het een paar seconden."
+        },
+        "1p48g6ak5jr1r": {
+            "source": "Tasks asking the person to sign in.",
+            "translation": "Tasks dat de persoon vraagt in te loggen."
+        },
+        "1sva77bvg696s": {
+            "source": "Ask whoever runs this space to share it with you.",
+            "translation": "Vraag wie deze space beheert om hem met je te delen."
+        },
+        "256e6tx0bbzob": {
+            "source": "Sign in",
+            "context": "action",
+            "translation": "Inloggen"
+        },
+        "2m3ib55pe8ymx": {
+            "source": "A device without a network, offering to try again.",
+            "translation": "Een apparaat zonder netwerk dat aanbiedt het opnieuw te proberen."
+        },
+        "2otdsrlgnoq7p": {
+            "source": "You're offline",
+            "context": "title",
+            "translation": "Je bent offline"
+        },
+        "2um0p28ysag5d": {
+            "source": "There is no page at this address, or it moved.",
+            "translation": "Er is geen pagina op dit adres, of hij is verplaatst."
+        },
+        "2xrtvzz796isw": {
+            "source": "Destack reconnects as soon as you're back online.",
+            "translation": "Destack maakt opnieuw verbinding zodra je weer online bent."
+        },
+        "35n71oc3413xj": {
+            "source": "An address with nothing at it, and the way home.",
+            "translation": "Een adres zonder iets erop, en de weg naar huis."
+        },
+        "3hc4umwzadxcy": {
+            "source": "Nothing here",
+            "context": "title",
+            "translation": "Hier is niets"
+        },
+        "3o2hziwmxg7ai": {
+            "source": "Go home",
+            "context": "action",
+            "translation": "Naar home"
+        },
+        "3olqge76sdp1o": {
+            "source": "Starting {$app}",
+            "context": "title",
+            "translation": "{$app} start"
+        },
+        "3pcbhquqof4kv": {
+            "source": "Something went wrong as it started. Try again, or go home.",
+            "translation": "Er ging iets mis bij het starten. Probeer het opnieuw of ga naar home."
+        },
+        "3tne0o30casil": {
+            "source": "Tasks starting, the page trying again on its own.",
+            "translation": "Tasks dat start, terwijl de pagina het zelf opnieuw probeert."
+        },
+        "3tsrr01ys0jp9": {
+            "source": "Details",
+            "context": "action",
+            "translation": "Details"
+        },
+        "d632j9t3qf87": {
+            "source": "Tasks failing to start, with its error under the details.",
+            "translation": "Tasks dat niet start, met de fout onder de details."
+        },
+        "j3f4xp9tvm77": {
+            "source": "Sign in to open {$app}.",
+            "translation": "Log in om {$app} te openen."
+        },
+        "ppzgwb65yxqj": {
+            "source": "Tasks the person has no access to, and the way home.",
+            "translation": "Tasks waar de persoon geen toegang toe heeft, en de weg naar huis."
+        },
+        "vdxk9vkaikm7": {
+            "source": "Sign in to continue",
+            "context": "title",
+            "translation": "Log in om verder te gaan"
+        },
+        "ypgadqx5szkw": {
+            "source": "{$app} couldn't start",
+            "context": "title",
+            "translation": "{$app} kon niet starten"
         }
     }
 }

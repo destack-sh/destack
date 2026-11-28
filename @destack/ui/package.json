@@ -151,7 +151,8 @@
         "./drag": "./src/drag/index.ts",
         "./board": "./src/board/index.ts",
         "./event-calendar": "./src/event-calendar/index.ts",
-        "./timeline": "./src/timeline/index.ts"
+        "./timeline": "./src/timeline/index.ts",
+        "./refusal": "./src/refusal/index.ts"
     },
     "scripts": {
         "emoji": "bun run scripts/emoji.ts",
