@@ -7723,6 +7723,21 @@
             "source": "{$app} couldn't start",
             "context": "title",
             "translation": "{$app} n'a pas pu démarrer"
+        },
+        "33i4g9yuhv0ug": {
+            "source": "Home",
+            "context": "title",
+            "translation": "Accueil"
+        },
+        "1eycrsx4xrry9": {
+            "source": "Search",
+            "context": "action",
+            "translation": "Rechercher"
+        },
+        "3gmbhmrcbdlon": {
+            "source": "Apps",
+            "context": "title",
+            "translation": "Apps"
         }
     }
 }

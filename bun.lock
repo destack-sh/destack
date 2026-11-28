@@ -1374,6 +1374,7 @@
     "@destack/ui": {
       "name": "@destack/ui",
       "dependencies": {
+        "@destack/account": "workspace:*",
         "@destack/code": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",

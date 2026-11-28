@@ -152,13 +152,15 @@
         "./board": "./src/board/index.ts",
         "./event-calendar": "./src/event-calendar/index.ts",
         "./timeline": "./src/timeline/index.ts",
-        "./refusal": "./src/refusal/index.ts"
+        "./refusal": "./src/refusal/index.ts",
+        "./chrome": "./src/chrome/index.ts"
     },
     "scripts": {
         "emoji": "bun run scripts/emoji.ts",
         "generate": "bun run src/chart/generate.ts"
     },
     "dependencies": {
+        "@destack/account": "workspace:*",
         "@destack/code": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
