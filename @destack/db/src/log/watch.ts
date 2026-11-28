@@ -256,21 +256,20 @@ export class CommitWatch {
                 }
 
                 // register before checking, and pass the tables committed since the last check
-                const checked = new AbortController();
-                const next = this.#next(AbortSignal.any([signal, checked.signal]));
+                const next = this.#next(signal);
                 const tables: ReadonlySet<string> = new Set(committed);
                 committed.clear();
 
                 // check the committed tables
                 const isPassed = await check(tables).catch(async (error: unknown) => {
                     // settle the registered wait
-                    checked.abort();
-                    await Promise.allSettled([next]);
+                    next.cancel();
+                    await Promise.allSettled([next.settled]);
                     throw error;
                 });
                 if (isPassed) {
-                    checked.abort();
-                    await next;
+                    next.cancel();
+                    await next.settled;
                     wait?.pass(true);
 
                     return true;
@@ -278,7 +277,7 @@ export class CommitWatch {
 
                 // open the wait's span at the first failed check, as only a failed check waits
                 wait ??= this.#openWait(attributes);
-                await next;
+                await next.settled;
             }
         } catch (error) {
             wait?.pass(false);
@@ -400,32 +399,32 @@ export class CommitWatch {
         });
     }
 
-    /** Wait for the next commit or the abort. */
-    #next(signal: AbortSignal): Promise<void> {
-        return new Promise((resolve, reject) => {
-            // end at once when already aborted
-            if (signal.aborted) {
-                resolve();
+    /** Wait for the next commit or the abort, with a cancel ending the wait at once. */
+    #next(signal: AbortSignal): { readonly settled: Promise<void>; readonly cancel: () => void } {
+        // end at once when already aborted
+        if (signal.aborted) {
+            return { settled: Promise.resolve(), cancel: () => {} };
+        }
 
-                return;
+        // end at the next commit or failure, or at the abort or cancel
+        const { promise, resolve, reject } = Promise.withResolvers<void>();
+        const end = () => {
+            this.#waiting.delete(wake);
+            signal.removeEventListener("abort", end);
+            resolve();
+        };
+        const wake = (failure?: unknown) => {
+            signal.removeEventListener("abort", end);
+            if (failure === undefined) {
+                resolve();
+            } else {
+                reject(failure);
             }
+        };
+        this.#waiting.add(wake);
+        signal.addEventListener("abort", end, { once: true });
 
-            // end at the next commit, failure or abort
-            const wake = (failure?: unknown) => {
-                signal.removeEventListener("abort", abort);
-                if (failure === undefined) {
-                    resolve();
-                } else {
-                    reject(failure);
-                }
-            };
-            const abort = () => {
-                this.#waiting.delete(wake);
-                resolve();
-            };
-            this.#waiting.add(wake);
-            signal.addEventListener("abort", abort, { once: true });
-        });
+        return { settled: promise, cancel: end };
     }
 
     /** Forget the tokens of rounds before the last pause, whose echoes the outage may have lost. */
