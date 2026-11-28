@@ -57,8 +57,16 @@ export class PageUndo {
             })().catch((error: unknown) => globalThis.reportError(error));
         }
 
-        // close every open group as a gesture starts
+        // close every open group as a gesture starts, once for the events one input fires in one task
+        let isClosing = false;
         const close = () => {
+            if (isClosing) {
+                return;
+            }
+            isClosing = true;
+            queueMicrotask(() => {
+                isClosing = false;
+            });
             for (const stack of this.stacks) {
                 void stack.close().catch((error: unknown) => globalThis.reportError(error));
             }
