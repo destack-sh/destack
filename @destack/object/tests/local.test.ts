@@ -129,9 +129,15 @@ test("query and write a space's objects through the device, the party keeping no
     await notebooks.close();
 });
 
-test("trace a tab's create through its device as one tree, from the call to its rows", async () => {
-    // serve a device to a party on the tabs' channel
-    const { simulation, party, query } = await openParty();
+test("trace a tab's create through its device as one tree, another tab's party taking none of it", async () => {
+    // serve a device to a party on the tabs' channel, beside another tab's idle party
+    const { simulation, environment, party, query } = await openParty();
+    const idle = new ChannelRemote(
+        broadcastChannel("destack:notes", environment),
+        RequestId.create(environment),
+        environment,
+    );
+    onTestFinished(() => idle.close());
 
     // follow the notebooks, then create one and wait for its confirmation
     const notebooks = query.notebook.findMany().subscribe();
@@ -172,6 +178,50 @@ test("trace a tab's create through its device as one tree, from the call to its 
         "mutate > destack.channel.receive value",
         "mutate > destack.channel.refresh",
     ]);
+});
+
+test("open another scope's tab over a tab's party, closing it leaving the party", async () => {
+    // open the space's tab, and a second tab of it over the first one's party
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const { connection } = await serveNotes({ simulation, node: "browser" });
+    const alice = Identifier.create("user", world);
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const objects = { notebook, note, draft };
+    const caller = principal.user.reference("universe", alice);
+    const browser = principal.device.reference("universe", Identifier.create("device", world));
+    const election = openElection(
+        deviceWorker({
+            database: await deviceDatabase(objects, environment),
+            objects,
+            caller,
+            device: browser,
+            remote: (scope: string) => connection(alice).at(scope),
+            environment,
+        }),
+        environment,
+    );
+    const tab = BrowserTab.open({
+        environment,
+        name: "notes",
+        objects,
+        scope: spaceId,
+        caller,
+        election,
+    });
+    onTestFinished(() => tab.close());
+    const other = tab.at(spaceId, { notebook });
+    await other.ready;
+
+    // write through the second tab, close it, then write and read through the first
+    await other.mutate(notebook).create({ name: "Travel" }).confirmed;
+    await other.close();
+    await tab.mutate(notebook).create({ name: "Work" }).confirmed;
+    const names = (await tab.query.notebook.findMany({ orderBy: { name: "asc" } })).map(
+        (row) => row.name,
+    );
+
+    expect(names).toEqual(["Travel", "Work"]);
 });
 
 test("make a space tab ready once its device replicates the scope chain", async () => {
@@ -767,7 +817,7 @@ async function openParty() {
     onTestFinished(() => party.close());
     const query = ObjectQueryBuilder.of(party.subscriber(spaceId, Object.values(objects)), objects);
 
-    return { simulation, party, query };
+    return { simulation, environment, party, query };
 }
 
 /** Stand for the notes device's election with a worker for the rest of the test. */

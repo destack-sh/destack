@@ -60,8 +60,12 @@ export class BrowserTab<
     readonly undoStack: ObjectNode["undoStack"];
     /** Settles once the device has the caller's access rows, or refuses with why not. */
     readonly ready: Promise<void>;
-    /** The device the tab reads and writes through. */
+    /** The device the tab reads and writes through, as a party sharing the page's one channel. */
     readonly #remote: ChannelRemote;
+    /** The page's election of the device. */
+    readonly #election: DeviceElection;
+    /** The tab that joined the channel, which leaves it, absent for that tab itself. */
+    readonly #base: BrowserTab | undefined;
 
     /** Read and write one scope through the device on a channel. */
     private constructor(
@@ -73,9 +77,12 @@ export class BrowserTab<
             readonly election: DeviceElection;
             readonly environment: Environment;
         },
+        base?: BrowserTab,
     ) {
         // read and write the scope's object types at the device
         this.#remote = remote;
+        this.#election = options.election;
+        this.#base = base;
         this.scope = options.scope;
         this.caller = options.caller;
         this.objects = Object.values(options.objects);
@@ -212,7 +219,22 @@ export class BrowserTab<
         return this.#remote.check(this.scope, object, id, permission);
     }
 
-    /** Leave the device's channel. */
+    /** Open another scope's tab over this one's party on the device's channel. */
+    at<const Selected extends Readonly<Record<string, ObjectType>>>(
+        scope: string,
+        objects: Selected,
+    ): BrowserTab<Selected> {
+        const { caller, environment } = this;
+        const election = this.#election;
+
+        return new BrowserTab(
+            this.#remote.at(),
+            { objects, scope, caller, election, environment },
+            this.#base ?? this,
+        );
+    }
+
+    /** Abandon the tab's sends, and leave the device's channel as the tab that joined it. */
     async close(): Promise<void> {
         await this.#remote.close();
     }
