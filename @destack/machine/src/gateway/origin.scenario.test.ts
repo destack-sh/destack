@@ -710,6 +710,23 @@ test("launch a view onto a session cookie serving its document", async () => {
         context: {
             installation: installation.id,
             space: spaceId,
+            spaceAddress: opened.address,
+            spaceTitle: "home",
+            apps: [
+                {
+                    name: "notes",
+                    view: "home",
+                    title: {
+                        id: "2a2ghv7lojr0r",
+                        package: objectPackage.id,
+                        source: "Test",
+                        values: {},
+                    },
+                    icon: "cube",
+                    color: "blue",
+                    isHome: false,
+                },
+            ],
             account: owner.account,
             home: owner.home,
             view: "home",
@@ -772,6 +789,23 @@ test("serve anonymous visitors and refuse forged credentials", async () => {
             {
                 installation: installation.id,
                 space: spaceId,
+                spaceAddress: opened.address,
+                spaceTitle: "home",
+                apps: [
+                    {
+                        name: "notes",
+                        view: "home",
+                        title: {
+                            id: "2a2ghv7lojr0r",
+                            package: objectPackage.id,
+                            source: "Test",
+                            values: {},
+                        },
+                        icon: "cube",
+                        color: "blue",
+                        isHome: false,
+                    },
+                ],
                 account: computer.world.owner.account,
                 view: "home",
                 build: image,

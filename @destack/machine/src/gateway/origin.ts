@@ -56,6 +56,7 @@ import {
     TOKEN_PARAMETER,
     ViewAddress,
     EXAMPLE_VIEW,
+    ViewApp,
     ViewContext,
     ViewPath,
     ViewState,
@@ -658,6 +659,20 @@ export class InstallationOriginServer {
         const { image, reader } = await this.#image(found);
 
         return { installation: found, image, reader, visitor, linkSecrets, mount: mount ?? ROOT };
+    }
+
+    /** List the space's apps: its served installations with a main view, by name. */
+    async #apps(): Promise<ViewApp[]> {
+        const served = await Installation.list(this.#space.database, this.#space.id, "served");
+        const apps = await Promise.all(
+            served.map(
+                async (each) => await ViewApp.of(each.name, (await this.#image(each)).reader),
+            ),
+        );
+
+        return apps
+            .filter((app) => app !== undefined)
+            .toSorted((left, right) => (left.name < right.name ? -1 : 1));
     }
 
     /** Read the image an installation serves and its root, once per revision. */
@@ -1435,9 +1450,15 @@ export class InstallationOriginServer {
             this.#space.id,
         );
         const entry = resolution.url(resolution.root, shown.entrypoint);
+        // read the space's address from the page's label, whichever domain its machine serves
+        const [label = ""] = url.hostname.split(".");
+        const origin = present(InstallationOrigin.parse(label), `the installation origin of ${label}`);
         const context: ViewContext = {
             installation: found.id,
             space: this.#space.id,
+            spaceAddress: SpaceAddress.of({ space: origin.space, handle: origin.handle }),
+            spaceTitle: space.title ?? space.name,
+            apps: await this.#apps(),
             account: space.scope,
             view: name,
             build: page.image,
