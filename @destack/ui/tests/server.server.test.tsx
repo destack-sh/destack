@@ -30,7 +30,10 @@ afterAll(() => warn.mockRestore());
 test("render every line of long code and a long diff to a string, the last ones in color", async () => {
     // render more lines than come near a screen, far past what is parsed at once
     await using simulation = testSimulation();
-    const server = BrowserEnvironment.server(simulation.environment("server"));
+    const server = BrowserEnvironment.server(
+        simulation.environment("server"),
+        "https://example.test/",
+    );
     const lines = Array.from(
         { length: 200 },
         (_, line) => `const value${String(line)} = 1; // ${"x".repeat(500)}\n`,
@@ -60,7 +63,10 @@ test("render every line of long code and a long diff to a string, the last ones 
 test("render a sidebar and a toaster to a string without a browser, open and with no toasts", async () => {
     // render on a server's environment in a world of its own
     await using simulation = testSimulation();
-    const server = BrowserEnvironment.server(simulation.environment("server"));
+    const server = BrowserEnvironment.server(
+        simulation.environment("server"),
+        "https://example.test/",
+    );
     const html = renderToString(() => (
         <PageRoot environment={server} actions={new ActionRegistry()}>
             <SidebarProvider>
@@ -88,7 +94,10 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
 test("render every exported component's examples to strings without a browser, writing no state", async () => {
     // render the examples of each component the package exports on a server's environment
     await using simulation = testSimulation();
-    const server = BrowserEnvironment.server(simulation.environment("server"));
+    const server = BrowserEnvironment.server(
+        simulation.environment("server"),
+        "https://example.test/",
+    );
     const rendered = new Set<string>();
     const failures: string[] = [];
     for (const [name, examples] of EXAMPLES) {
