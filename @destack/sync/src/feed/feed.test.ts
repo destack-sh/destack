@@ -622,6 +622,39 @@ test("read a commit at once while a watcher keeps the feed following behind it",
     expect(read.map((item) => item.row["title"])).toEqual(["Apples"]);
 });
 
+test("read a query's items again as the same list until a commit changes its rows", async () => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
+    const query = { table: note, scopes: ["inbox"], orderBy: { title: "asc" } } satisfies Query;
+    const read = () =>
+        feed.read({ notes: query }, EVERYONE, undefined, (dataflow) => dataflow.read("notes"));
+
+    // read the notes twice, then once after a note commits
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values([{ ...first, id: "a", title: "Apples" }]),
+    );
+    const earlier = await read();
+    const second = await read();
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values([{ ...first, id: "b", title: "Bread" }]),
+    );
+    const third = await read();
+
+    // expect the same list until the commit, then a new one with both notes
+    expect({
+        isKept: second === earlier,
+        isNew: third !== second,
+        titles: third.map((item) => item.row["title"]),
+    }).toEqual({ isKept: true, isNew: true, titles: ["Apples", "Bread"] });
+});
+
 test("watch projects with their tasks, reordering one project's tasks and leaving the other project as it was", async () => {
     await using simulation = new Simulation({
         world: testWorldOptions(),

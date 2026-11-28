@@ -58,6 +58,8 @@ export class Dataflow implements Arrangement {
 
     /** The current log position, absent before the first hydration. */
     #position: LogPosition | undefined;
+    /** Each root's items as last read, until a step or a load changes them. */
+    readonly #read = new Map<string, Promise<readonly Item[]>>();
     /** What the pipelines share. */
     readonly #context: Context;
     /** Each node's pipeline, absent for stateless nodes. */
@@ -256,8 +258,9 @@ export class Dataflow implements Arrangement {
 
     /** Forget everything and select nothing as of a position. */
     forget(position: LogPosition): void {
-        // select nothing as of the position
+        // select nothing as of the position, forgetting the items read
         this.#position = position;
+        this.#read.clear();
         for (const pipeline of this.#pipelines.values()) {
             pipeline.forget();
         }
@@ -291,7 +294,9 @@ export class Dataflow implements Arrangement {
 
     /** Select every root's rows and results as of a run's position, yielding after each page. */
     hydrate(run: Run, start?: Row): Promise<AsyncGenerator<void>> {
-        // run the pages in the run's span, which ends once the reader takes the last page
+        // forget the items read, then run the pages in the run's span, which ends once the reader takes the last page
+        this.#read.clear();
+
         return this.#scope.span("destack.dataflow.hydrate", {}, () => this.#hydrate(run, start));
     }
 
@@ -373,7 +378,8 @@ export class Dataflow implements Arrangement {
 
     /** Decide each changed row, then emit the patch. */
     async #step(run: Run): Promise<void> {
-        // take each changed row's first and last image
+        // forget the items read, which the changes may change, and take each changed row's first and last image
+        this.#read.clear();
         const transitions = new Map<Table, Map<string, Transition>>();
         for (const change of run.changes) {
             const rows = transitions.get(change.table) ?? new Map<string, Transition>();
@@ -439,14 +445,28 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Read a root's current items: its rows with what their includes select. */
-    async read(name: string): Promise<readonly Item[]> {
+    /** Read a root's current items with their includes, kept until the rows change. */
+    read(name: string): Promise<readonly Item[]> {
+        // take the items read since the last change, else nest them
+        const known = this.#read.get(name);
+        if (known !== undefined) {
+            return known;
+        }
         const pipeline = this.#root(name);
         if (!(pipeline instanceof Selection)) {
             throw new TypeError(`dataflow query '${name}' reads groups, not rows`);
         }
+        const items = this.#nest(pipeline, [""]).then((nested) => found(nested, ""));
+        this.#read.set(name, items);
 
-        return found(await this.#nest(pipeline, [""]), "");
+        // forget a read that failed, so the next one nests again
+        items.catch(() => {
+            if (this.#read.get(name) === items) {
+                this.#read.delete(name);
+            }
+        });
+
+        return items;
     }
 
     /** Read an aggregate root's current groups. */
