@@ -191,6 +191,7 @@ export class Pager {
                     : actions.filter(
                           (action) =>
                               action.call !== undefined &&
+                              action.call.isWhole &&
                               type.method(action.call.method).kind === NARROWED[intent],
                       );
             const [single, ...others] = listed;
