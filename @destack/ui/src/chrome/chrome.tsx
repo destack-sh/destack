@@ -1,5 +1,7 @@
 import { SpaceAddress } from "@destack/account/address";
 import type { IconName } from "@destack/icon";
+import homeIcon from "@destack/icon/phosphor/house";
+import searchIcon from "@destack/icon/phosphor/magnifying-glass";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
@@ -153,7 +155,7 @@ export function Chrome(properties: ChromeProperties): JSX.Element {
                         </SidebarMenuItem>
                         <SidebarMenuItem>
                             <SidebarMenuButton onClick={() => actions.start(palette, null)}>
-                                <Icon name="magnifying-glass" />
+                                <Icon icon={searchIcon} />
                                 {locale.render(t.context("action")`Search`)}
                             </SidebarMenuButton>
                             <SidebarMenuBadge>
@@ -164,7 +166,7 @@ export function Chrome(properties: ChromeProperties): JSX.Element {
                             {(own) => (
                                 <SidebarMenuItem>
                                     <SidebarMenuButton href={href(own())} active={isOwn(own())}>
-                                        <Icon name="house" />
+                                        <Icon icon={homeIcon} />
                                         {locale.render(t.context("title")`Home`)}
                                     </SidebarMenuButton>
                                 </SidebarMenuItem>
