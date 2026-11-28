@@ -182,6 +182,7 @@ export const subscription = defineObject(
             /** Where the provider's billing of the subscription stands. */
             status: field.state({
                 initial: "incomplete",
+                final: ["canceled", "incomplete_expired"],
                 transitions: {
                     trial: { from: ["incomplete"], to: "trialing", permission: "provide" },
                     activate: {

@@ -30,6 +30,7 @@ export const checkoutSession = defineObject(
             /** Where the purchase stands. */
             status: field.state({
                 initial: "open",
+                final: ["complete", "expired"],
                 transitions: {
                     complete: {
                         from: ["open"],

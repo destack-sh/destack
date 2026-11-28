@@ -30,6 +30,7 @@ export const seller = defineObject(
             /** Where the provider's onboarding of the account stands. */
             status: field.state({
                 initial: "onboarding",
+                final: [],
                 transitions: {
                     activate: {
                         from: ["onboarding", "restricted"],
