@@ -1,5 +1,5 @@
 import { eq, type Select } from "@destack/db";
-import { ColumnCipher, type DatabaseConnection } from "@destack/db/database";
+import { AesColumnCipher, type DatabaseConnection } from "@destack/db/database";
 import type { IdentityRegistry } from "./registry.ts";
 import { identityKey, type SigningKey } from "./key.ts";
 import { Identity } from "./identity.ts";
@@ -245,7 +245,7 @@ export class IdentityKeystore {
 
         // derive the column key from the root of the identity this process stores
         const root = present(await this.deriver(database, subject), `the keys of ${subject}`);
-        database.key(await ColumnCipher.derive(root, database.state.environment.random));
+        database.key(await AesColumnCipher.derive(root, database.state.environment.random));
     }
 
     /** Rotate an identity's signing keys, and return the published operation's digest. */
