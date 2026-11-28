@@ -238,6 +238,20 @@ export function declareState(
     const named = new Set(declared.map((table) => table[TABLE].sqlName));
     const aggregates = describeAggregates(included, named, isReplica);
 
+    // describe each table once, as each table reads the foreign keys of every other
+    const descriptions = new Map<Table, TableDescription>();
+    const describe = (table: Table): TableDescription => {
+        // describe a table the first time it is asked for
+        const found = descriptions.get(table);
+        if (found !== undefined) {
+            return found;
+        }
+        const described = describeTable(table, dialect);
+        descriptions.set(table, described);
+
+        return described;
+    };
+
     return included.map((table) => {
         // describe the table with its log
         const definition = table[TABLE];
@@ -247,7 +261,7 @@ export function declareState(
         const conversions = describeConversions(table);
         const predefined = describePredefined(table, dialect);
         const isReplicated = replicated.has(definition.sqlName);
-        const database = { dialect, local, replicated };
+        const database = { local, replicated, describe };
         const dependents = isReplica
             ? []
             : [
@@ -257,7 +271,7 @@ export function declareState(
         const aggregated = aggregates.get(definition.sqlName);
 
         // keep a replicated table's keys unique among its home rows, leaving references logical
-        const described = withinDatabase(describeTable(table, dialect), local, replicated);
+        const described = withinDatabase(describe(table), local, replicated);
         const kept = isReplicated ? asReplicated(described, dialect) : described;
 
         return {
@@ -953,21 +967,21 @@ function describeReferences(
     source: Table,
     target: Table,
     database: {
-        /** The dialect the foreign keys are described in. */
-        readonly dialect: Dialect;
         /** The SQL names of the database's tables. */
         readonly local: ReadonlySet<string>;
         /** The SQL names of the replicated tables. */
         readonly replicated: ReadonlySet<string>;
+        /** Describe a table in the database's dialect. */
+        readonly describe: (table: Table) => TableDescription;
     },
 ): DependentDescription[] {
     // take a replicated table's foreign keys to the target, a local table whose rows all live here
-    const { dialect, local, replicated } = database;
+    const { local, replicated, describe } = database;
     const name = target[TABLE].sqlName;
     if (!replicated.has(source[TABLE].sqlName) || !local.has(name) || replicated.has(name)) {
         return [];
     }
-    const keys = describeTable(source, dialect).constraints.filter(
+    const keys = describe(source).constraints.filter(
         (constraint): constraint is ForeignKeyDescription =>
             constraint.kind === "foreignKey" && constraint.table === name,
     );
