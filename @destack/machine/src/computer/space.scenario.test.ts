@@ -677,6 +677,7 @@ test("stamp a sandboxed instance's telemetry with its installation", async () =>
         .where(eq(stackObject.installation.table.id, boardId));
     const instance = present(running, "the board's instance").instanceId;
     const image = present(built?.image, "the board's build image");
+    const { root } = await computer.machine.builds.image(image);
 
     // read the started records the board's runner exported to its machine
     const { events } = (await computer.machine.space(space)).volume;
@@ -695,9 +696,9 @@ test("stamp a sandboxed instance's telemetry with its installation", async () =>
                 entry.keys.build,
             ]);
 
-    // record it under the board's installation, its running instance and its build
+    // record it under the board's installation, its running instance and its image's root build
     await computer.waitUntil(sourced, async () => (await started()).length > 0);
-    expect([await started(), computer.captured()]).toEqual([[[boardId, instance, image]], []]);
+    expect([await started(), computer.captured()]).toEqual([[[boardId, instance, root]], []]);
 });
 
 test("authorize a move by step-up and its fence by a bound token", async () => {

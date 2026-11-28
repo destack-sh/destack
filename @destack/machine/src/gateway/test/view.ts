@@ -22,7 +22,7 @@ import { ResourceDeclaration } from "@destack/resource";
 import type { JsonObject } from "@destack/schema";
 import { SecretDeclaration } from "@destack/vault/declare";
 import { TestVault } from "@destack/vault/test";
-import { VIEW_KIND } from "@destack/view/declare";
+import { VIEW_KIND, VIEW_WORKLOAD } from "@destack/view/declare";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import { describedTables } from "@destack/object/test";
 
@@ -31,6 +31,9 @@ const SITE_ORIGIN = "https://example.test";
 
 /** The main module a view build's browser output exports, as a compiled view's index. */
 const BROWSER_MAIN = "browser/index.js";
+
+/** The module a view build's server output runs its view workload from. */
+const VIEWS_MODULE = `server/workload/${VIEW_WORKLOAD}.js`;
 
 /** In-memory builds of view packages, whose files the gateway's tests serve. */
 export const TestViewBuild = {
@@ -130,6 +133,13 @@ export const TestViewBuild = {
             exports["./example"] = { path: options.example.entrypoint, imports };
         }
 
+        // render the client views in a server output's view workload, as a view build derives it
+        const isRendering = Object.values(views).some((view) => view.render.mode === "client");
+        const rendering = isRendering ? TestViewBuild.views(built) : undefined;
+        for (const [path, bytes] of rendering?.files ?? []) {
+            files.set(path, bytes);
+        }
+
         return MemoryBuild.of(built, declared, crypto, {
             files,
             requires,
@@ -146,10 +156,73 @@ export const TestViewBuild = {
                     inlined: {},
                     peers: {},
                 },
+                ...rendering?.outputs,
             },
         });
     },
+
+    /** Write the view workload a view build derives for client views: its module and output. */
+    views(built: PackageVersion): {
+        readonly files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
+        readonly outputs: Readonly<Record<string, PackageOutput>>;
+    } {
+        return {
+            files: new Map([[VIEWS_MODULE, new TextEncoder().encode(viewsModule(built))]]),
+            outputs: {
+                server: {
+                    runtime: "bun",
+                    emit: true,
+                    workloads: {
+                        [VIEW_WORKLOAD]: {
+                            kind: "view",
+                            entrypoint: `./workload/${VIEW_WORKLOAD}`,
+                            packages: [],
+                            resources: [],
+                            secrets: [],
+                            compute: {},
+                            sandbox: {},
+                        },
+                    },
+                    views: {},
+                    directory: "server",
+                    exports: {
+                        [`./workload/${VIEW_WORKLOAD}`]: {
+                            path: VIEWS_MODULE,
+                            imports: ["@destack/object/bun", "@destack/object/workload"],
+                        },
+                    },
+                    inlined: {},
+                    peers: {},
+                },
+            },
+        };
+    },
 };
+
+/** Write a view workload answering each render with its request's head and context. */
+function viewsModule(built: PackageVersion): string {
+    const owner = JSON.stringify({ id: built.id, name: built.name, version: built.version });
+
+    return [
+        'import { hostWorkload } from "@destack/object/bun";',
+        'import { defineWorkload } from "@destack/object/workload";',
+        `const owner = ${owner};`,
+        "const escape = (url) => url.replaceAll('&', '&amp;').replaceAll('\"', '&quot;').replaceAll('<', '&lt;');",
+        "const document = (asked) => [",
+        "    '<!doctype html><html><head>',",
+        "    `<script type=\"application/json\" id=\"destack-view\">${JSON.stringify(asked.context).replaceAll('<', '\\\\u003c')}</script>`,",
+        '    ...asked.head.stylesheets.map((href) => `<link rel="stylesheet" href="${escape(href)}">`),',
+        '    ...asked.head.preloads.map((href) => `<link rel="modulepreload" href="${escape(href)}">`),',
+        '    `<script type="module" src="${escape(asked.head.script)}" async></script>`,',
+        "    '</head><body></body></html>',",
+        "].join('');",
+        "const start = () => ({ packages: [], view: { fetch: async (request) => new Response(document(await request.json()), { headers: { 'content-type': 'text/html; charset=utf-8' } }) } });",
+        `const workload = defineWorkload({ name: ${JSON.stringify(VIEW_WORKLOAD)}, start }, { package: owner });`,
+        "export default workload;",
+        "export const Workload = hostWorkload(workload, {});",
+        "if (import.meta.main) await Workload.run();",
+    ].join("\n");
+}
 
 /** Describe how a written view's declaration renders, a static one at the test origin. */
 function renderOf(render: ViewRender): JsonObject {

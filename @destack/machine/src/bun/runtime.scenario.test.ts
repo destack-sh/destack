@@ -112,6 +112,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
                     emit: true,
                     workloads: {
                         notes: {
+                            kind: "call",
                             entrypoint: "./workload/notes",
                             packages: [],
                             resources: [],
@@ -160,6 +161,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
         image,
         output: "bun",
         workload: "notes",
+        kind: "call",
         enabled: [],
         sandbox: {},
         directories: [],
@@ -455,6 +457,7 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
 
     // spec a workload granted the one host
     const workload = {
+        kind: "call" as const,
         entrypoint: "./workload/fetch",
         packages: [],
         resources: [],
@@ -509,6 +512,7 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
         image,
         output: "bun",
         workload: "fetch",
+        kind: "call",
         scope,
         enabled: [],
         sandbox: {

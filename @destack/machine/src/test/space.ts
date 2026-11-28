@@ -1288,6 +1288,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
                     world.servers.find(
                         (server) => machine.linked.get(server.package.id)?.image === image,
                     ),
+                views: async () => undefined,
                 linked: world.machines.get(test.id)?.linked ?? linked,
                 shipped: [
                     {

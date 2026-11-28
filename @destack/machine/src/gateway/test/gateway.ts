@@ -78,6 +78,7 @@ export function openGateway(
             observe: options.observe ?? refuse("receive telemetry"),
             borrow,
             mounts: options.mounts ?? (() => []),
+            views: () => undefined,
             instance: { implements: () => false },
             universe: UNIVERSE,
             identityOf: () => {

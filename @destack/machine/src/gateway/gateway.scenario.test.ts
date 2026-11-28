@@ -109,6 +109,7 @@ const tasks: InstanceSpec = {
     ),
     output: "bun",
     workload: "main",
+    kind: "call",
     enabled: [],
     sandbox: {},
     directories: [],

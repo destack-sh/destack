@@ -75,6 +75,7 @@ test("connect a workload to its bound bucket over S3 at its machine's egress, an
         image: Digest.parse("d".repeat(64)),
         output: "bun",
         workload: "main",
+        kind: "call",
         enabled: [],
         sandbox: {},
         directories: [],

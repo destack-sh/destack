@@ -7,7 +7,7 @@ import { Digest, schema, type Identifier, present, Uuid } from "@destack/schema"
 import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { Issuer, Session, UserIdentity } from "@destack/account/client";
 import type { GrantRequest } from "@destack/account/authentication";
-import { TokenCache } from "@destack/access/token";
+import { type ExchangeSubject, PersonCredential, TokenCache } from "@destack/access/token";
 import { Launcher, type LauncherMachine } from "../launcher/index.ts";
 import {
     InstallationMount,
@@ -20,8 +20,7 @@ import {
     refusal,
 } from "@destack/object";
 import { Build, InstallationRevision, Installation, installation } from "@destack/stack/object";
-import type { ExchangeSubject, Gateway, GatewaySpace } from "./gateway.ts";
-import { PageCredential } from "./credential.ts";
+import type { Gateway, GatewaySpace } from "./gateway.ts";
 import { OtlpSignal } from "@destack/telemetry/otlp";
 import {
     ANONYMOUS,
@@ -136,7 +135,7 @@ export class InstallationOriginServer {
     /** The space whose installations' origins it serves. */
     readonly #space: GatewaySpace;
     /** The gateway routing a page's calls into the space, exchanging its person's tokens. */
-    readonly #gateway: Pick<Gateway, "serve" | "record" | "exchange" | "act">;
+    readonly #gateway: Pick<Gateway, "serve" | "record" | "exchange" | "act" | "render">;
     /** The static site of each build served so far, none for a build without, by build and view. */
     readonly #sites = new Map<string, Promise<StaticHost | undefined>>();
     /** The build of each revision served so far, which a revision never changes, by revision. */
@@ -159,7 +158,7 @@ export class InstallationOriginServer {
     /** Serve the origins of a space's installations through its gateway. */
     constructor(
         space: GatewaySpace,
-        gateway: Pick<Gateway, "serve" | "record" | "exchange" | "act">,
+        gateway: Pick<Gateway, "serve" | "record" | "exchange" | "act" | "render">,
     ) {
         this.#space = space;
         this.#gateway = gateway;
@@ -587,7 +586,7 @@ export class InstallationOriginServer {
         // require a person acting through the installation under one grant, within their session or client
         const { caller, credential } = await this.#verify(request, token, found);
         const [grant, ...further] = caller.grants;
-        const within = PageCredential.safeParse(credential.id);
+        const within = PersonCredential.safeParse(credential.id);
         const isWithin = credential.kind === "client" || credential.kind === "session";
         if (!isWithin || !within.success || grant === undefined || further.length > 0) {
             throw MachineError.of(
@@ -1436,50 +1435,67 @@ export class InstallationOriginServer {
             this.#space.id,
         );
         const entry = resolution.url(resolution.root, shown.entrypoint);
-        const document = ViewContext.document(
-            {
-                installation: found.id,
-                space: this.#space.id,
-                account: space.scope,
-                view: name,
-                build: page.image,
-                base,
-                universe: this.#space.universe.origin,
-                catalogs: await InstallationOriginServer.#memo(
-                    this.#catalogs,
-                    `${page.image} ${base}`,
-                    () => this.#catalogPaths(reader, builds),
-                ),
-                ...(visitor.kind === "person"
-                    ? {
-                          user: visitor.subject,
-                          home: accountObject.Account.home(
-                              accountObject.Account.personal(
-                                  schema.identifier("user").parse(visitor.subject.id),
-                              ),
-                          ),
-                      }
-                    : { user: ANONYMOUS }),
-                ...(target === undefined ? {} : { target }),
-            },
-            entry,
-            view.stylesheets,
-            await InstallationOriginServer.#memo(
-                this.#preloads,
-                `${page.image} ${base} ${entry}`,
-                () =>
-                    resolution.preloads(entry, async (module) => {
-                        // read a module's code
-                        const located = present(resolution.locate(module), `module '${module}'`);
-                        const build = await this.#reader(located.build);
-                        const file = await build.file(located.path);
-
-                        return file.mediaType === MODULE_TYPE
-                            ? new TextDecoder().decode(await build.load(file.path))
-                            : undefined;
-                    }),
+        const context: ViewContext = {
+            installation: found.id,
+            space: this.#space.id,
+            account: space.scope,
+            view: name,
+            build: page.image,
+            base,
+            universe: this.#space.universe.origin,
+            catalogs: await InstallationOriginServer.#memo(
+                this.#catalogs,
+                `${page.image} ${base}`,
+                () => this.#catalogPaths(reader, builds),
             ),
+            ...(visitor.kind === "person"
+                ? {
+                      user: visitor.subject,
+                      home: accountObject.Account.home(
+                          accountObject.Account.personal(
+                              schema.identifier("user").parse(visitor.subject.id),
+                          ),
+                      ),
+                  }
+                : { user: ANONYMOUS }),
+            ...(target === undefined ? {} : { target }),
+        };
+        const preloads = await InstallationOriginServer.#memo(
+            this.#preloads,
+            `${page.image} ${base} ${entry}`,
+            () =>
+                resolution.preloads(entry, async (module) => {
+                    // read a module's code
+                    const located = present(resolution.locate(module), `module '${module}'`);
+                    const build = await this.#reader(located.build);
+                    const file = await build.file(located.path);
+
+                    return file.mediaType === MODULE_TYPE
+                        ? new TextDecoder().decode(await build.load(file.path))
+                        : undefined;
+                }),
         );
+
+        // render the example page on the device, and a view on the server as its visitor, linking what the page loads
+        const rendered =
+            name === EXAMPLE_VIEW
+                ? ViewContext.document(context, entry, view.stylesheets, preloads)
+                : await this.#gateway.render(found.id, {
+                      view: name,
+                      url: url.href,
+                      head: { script: entry, stylesheets: view.stylesheets, preloads },
+                      context,
+                      visitor:
+                          visitor.kind === "person"
+                              ? {
+                                    subject: visitor.subject,
+                                    grants: visitor.grants,
+                                    credential: visitor.credential,
+                                }
+                              : { subject: ANONYMOUS, grants: [] },
+                  });
+        const document = new Response(rendered.body, rendered);
+        document.headers.set("cache-control", "no-store");
         document.headers.set("permissions-policy", policy);
 
         return request.method === "HEAD" ? new Response(null, document) : document;
@@ -1871,7 +1887,7 @@ type PagePerson = ExchangeSubject & {
     /** The kind of visitor. */
     readonly kind: "person";
     /** The person's session or client that launched the page. */
-    readonly credential: PageCredential;
+    readonly credential: PersonCredential;
 };
 
 /** Who a page serves: a person, or an anonymous visitor reading what anyone may. */
@@ -1902,7 +1918,7 @@ const PageSession = schema.object({
     /** The person (RFC 7519 sub). */
     sub: schema.identifier("user"),
     /** The person's session or client that launched the page, which its tokens live within. */
-    credential: PageCredential,
+    credential: PersonCredential,
     /** The person's grant to the installation. */
     grant: GrantClaim,
     /** The installation whose origin sets the session. */

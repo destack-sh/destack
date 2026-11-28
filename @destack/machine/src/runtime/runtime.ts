@@ -4,7 +4,7 @@ import { TelemetryScope, type UpDownCounter } from "@destack/telemetry";
 import type { Random } from "@destack/environment";
 import { type Authentication, CALLER_HEADER, Caller } from "@destack/access";
 import type { DirectoryGrant, PackageId, Sandbox } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest, type WorkloadKind } from "@destack/package/manifest";
 import { BucketKind, S3_PROVIDER } from "@destack/bucket";
 import { type ResourceId, type ResourceRecord } from "@destack/resource";
 import type { Digest, Identifier, JsonValue } from "@destack/schema";
@@ -123,6 +123,8 @@ export interface InstanceSpec {
     readonly output: string;
     /** The package-local workload. */
     readonly workload: string;
+    /** The requests the workload answers. */
+    readonly kind: WorkloadKind;
     /** What the workload may use beyond the bare sandbox. */
     readonly sandbox: Sandbox;
     /** The package's capabilities the installation runs with. */
@@ -157,6 +159,8 @@ export interface EgressCaller {
               readonly instanceId: Identifier<"instance">;
               /** The deployment the instance runs. */
               readonly deploymentId: Identifier<"deployment">;
+              /** The kind of the instance's workload. */
+              readonly workload: WorkloadKind;
           }
         | {
               readonly kind: "store";
@@ -169,14 +173,15 @@ export interface EgressCaller {
 export const EgressCaller = {
     /** Read an instance's workload as the caller of its egress. */
     of(spec: InstanceSpec): EgressCaller {
-        const { scope, installationId, resources, installations, instanceId, deploymentId } = spec;
+        const { scope, installationId, resources, installations, instanceId, deploymentId, kind } =
+            spec;
 
         return {
             scope,
             installationId,
             resources,
             installations,
-            runs: { kind: "instance", instanceId, deploymentId },
+            runs: { kind: "instance", instanceId, deploymentId, workload: kind },
         };
     },
 

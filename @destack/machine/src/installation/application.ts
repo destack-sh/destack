@@ -78,7 +78,6 @@ import { ResourceError, UnreachablePlan } from "@destack/resource/error";
 import type { Runtime } from "../runtime/runtime.ts";
 import type { Binder } from "../resource/binding.ts";
 import { Approval } from "./approval.ts";
-import { HOOK_WORKLOAD } from "@destack/stack/workload";
 import { BOOTSTRAP_PACKAGES } from "@destack/stack/declare";
 import { InstallationAccess } from "./access.ts";
 
@@ -934,7 +933,7 @@ export class ApplicationInstallation {
         const isServed =
             isHosted ||
             Object.values(build.manifest.outputs).some((output) =>
-                Object.hasOwn(output.workloads, HOOK_WORKLOAD),
+                Object.values(output.workloads).some((workload) => workload.kind === "hook"),
             );
         if (isHooked && !isServed) {
             const message = `${build.manifest.package.name} routes hooks, but nothing serves them: declare @destack/stack`;
@@ -947,7 +946,7 @@ export class ApplicationInstallation {
         const isAnswered =
             isHosted ||
             Object.values(build.manifest.outputs).some((output) =>
-                Object.keys(output.workloads).some((workload) => workload !== HOOK_WORKLOAD),
+                Object.values(output.workloads).some((workload) => workload.kind === "call"),
             );
         if (isAdapted && !isAnswered) {
             const message = `${build.manifest.package.name} declares mounts, but no workload of its build answers them`;
@@ -1415,6 +1414,7 @@ export class ApplicationInstallation {
             name: PROCESS_WORKLOAD,
             runtime: PROCESS_RUNTIME,
             description: {
+                kind: "call",
                 entrypoint: ".",
                 packages: [],
                 resources: [],

@@ -1,7 +1,8 @@
 import { Authentication, Caller } from "@destack/access";
 import { Identifier, type UuidEnvironment, present } from "@destack/schema";
 import type { Subject } from "@destack/sync";
-import type { ExchangeSubject, ExchangeTarget, TokenExchange } from "../gateway.ts";
+import type { ExchangeSubject } from "@destack/access/token";
+import type { ExchangeTarget, TokenExchange } from "../gateway.ts";
 
 /** A machine's token exchange that records each exchange and verifies its own numbered tokens. */
 export class RecordingTokenExchange implements TokenExchange {

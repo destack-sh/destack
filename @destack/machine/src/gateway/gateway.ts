@@ -5,14 +5,14 @@ import {
     Instance,
     Installation,
 } from "@destack/stack/object";
+import type { RenderRequest } from "@destack/view/declare";
 import type { Voucher } from "@destack/object/server";
 import type { BuildStore } from "@destack/build/store";
-import type { PageCredential } from "./credential.ts";
 import { ViewState } from "@destack/view/declare";
 import * as accountObject from "@destack/account/object";
 import {
     type WorkloadInstance,
-    HOOK_PATH,
+    HOST_PATHS,
     ROUTE_HEADER,
     SOCKET_HEADER,
     SOCKET_INSTANCE_HEADER,
@@ -47,7 +47,13 @@ import {
 import { PeerCall } from "./peer.ts";
 import type { IdentityKeystore } from "@destack/account/identity";
 import type { Machine } from "../machine/index.ts";
-import { Bearer, Exchange, TOKEN_LIFETIME_MILLISECONDS, TokenCache } from "@destack/access/token";
+import {
+    Bearer,
+    Exchange,
+    type ExchangeSubject,
+    TOKEN_LIFETIME_MILLISECONDS,
+    TokenCache,
+} from "@destack/access/token";
 import { Bucket } from "@destack/db";
 import { Attribution } from "@destack/package/stack";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
@@ -76,7 +82,6 @@ import { Subject } from "@destack/sync";
 import { InstallationOriginServer } from "./origin.ts";
 import { MachineError } from "../error/index.ts";
 import { Failure } from "@destack/error";
-import { HOOK_WORKLOAD } from "@destack/stack/workload";
 import { InstallationOrigin, S3Origin, SpaceAddress } from "@destack/account/address";
 import { RouteRequest } from "./route.ts";
 import { PartitionRequest } from "../space/route.ts";
@@ -84,6 +89,9 @@ import type {} from "@destack/package/import-meta";
 
 /** The milliseconds a caller waits for a deploying installation: an instance starts in seconds. */
 const DEPLOYMENT_RETRY_MILLISECONDS = 1000;
+
+/** How long a call waits for a starting instance, a stalled start's bound as Bun boots in 0.1 s. */
+const START_WAIT_MILLISECONDS = 30_000;
 
 /** The path below which a person's own tools call through the space's connections. */
 const CONNECTION_PATH = "/.destack/connection";
@@ -155,13 +163,9 @@ export interface ExchangeTarget {
     readonly audience: PackageId;
     /** The space the token is bound to, absent for a package of the universe. */
     readonly scope?: Identifier<"space">;
+    /** What the token lets its caller do: read alone, absent for whatever its caller may. */
+    readonly access?: "read";
 }
-
-/** Whom an exchanged token acts for: the person under their grants, within a credential. */
-export type ExchangeSubject = Pick<Caller, "subject" | "grants"> & {
-    /** The person's session or client the token lives within, ending with it. */
-    readonly credential?: PageCredential;
-};
 
 /** How a machine acts for the subjects of its installations' calls under their grants. */
 export interface TokenExchange {
@@ -191,6 +195,7 @@ export type GatewaySpace = Pick<
     | "contain"
     | "root"
     | "imports"
+    | "views"
 > & {
     /** The space's workload, which tells the protocols its packages implement. */
     readonly instance: Pick<WorkloadInstance, "implements">;
@@ -280,6 +285,7 @@ export class Gateway {
                             ? {}
                             : { grants: asked.grants.map((grant) => grant.id) }),
                         ...(asked.credential === undefined ? {} : { credential: asked.credential }),
+                        ...(target.access === undefined ? {} : { access: target.access }),
                     }),
                 ),
             verify: (token, target) =>
@@ -790,7 +796,7 @@ export class Gateway {
         request: Request,
         caller: { readonly authentication: Authentication | undefined; readonly voucher: Voucher },
     ): Promise<Response> {
-        const newest = await this.#newest(installationId, () => true);
+        const newest = await this.#newest(installationId, (endpoint) => endpoint.kind === "call");
 
         return this.#forward(
             this.#runtime(newest.runtime),
@@ -807,20 +813,17 @@ export class Gateway {
         request: HandlerRequest,
     ): Promise<HandlerAnswer> {
         // pick the newest running instance of the hooks workload
-        const newest = await this.#newest(
-            installationId,
-            (endpoint) => endpoint.workload === HOOK_WORKLOAD,
-        );
+        const newest = await this.#newest(installationId, (endpoint) => endpoint.kind === "hook");
 
         // send the request and read its answer, throwing a refusal
-        const sent = new Request(`http://localhost${HOOK_PATH}`, {
+        const sent = new Request(`http://localhost${HOST_PATHS.hook}`, {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify(request),
         });
         const answered = await this.#runtime(newest.runtime).deliver(
             newest.instanceId,
-            HOOK_PATH,
+            HOST_PATHS.hook,
             sent,
         );
         if (!answered.ok) {
@@ -830,10 +833,37 @@ export class Gateway {
         return HandlerAnswer.parse(await answered.json());
     }
 
+    /** Render an installation's view for its visitor, streaming the page. */
+    async render(
+        installationId: Identifier<"installation">,
+        render: RenderRequest,
+    ): Promise<Response> {
+        // send the render to the store's process for an installation it serves there
+        const sent = new Request(`http://localhost${HOST_PATHS.view}`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(render),
+        });
+        const local = this.#space.views(installationId);
+        if (local !== undefined) {
+            return await local.fetch(sent);
+        }
+
+        // else pick the newest running instance of the view workload
+        const newest = await this.#newest(installationId, (endpoint) => endpoint.kind === "view");
+
+        // send the render and stream its page back
+        return await this.#runtime(newest.runtime).deliver(
+            newest.instanceId,
+            HOST_PATHS.view,
+            sent,
+        );
+    }
+
     /** Find an installation's newest running deployment that serves a call, refusing none. */
     async #newest(
         installationId: Identifier<"installation">,
-        serves: (endpoint: Endpoint) => boolean,
+        serves: (endpoint: Omit<Endpoint, "instanceId">) => boolean,
     ): Promise<Endpoint> {
         // take the newest release among the running deployments that serve the call
         const endpoints = await this.#endpoints(installationId);
@@ -842,6 +872,20 @@ export class Gateway {
             .toSorted((left, right) => Version.compare(right.release, left.release));
         if (newest !== undefined) {
             return newest;
+        }
+
+        // wait for an active deployment serving the call to run, as a cold start holds its requests
+        const { database } = this.#space;
+        const isPending = async () =>
+            (await Instance.pending(database, installationId)).some(serves);
+        if (await isPending()) {
+            await database.log.waitUntil(
+                async () =>
+                    (await this.#endpoints(installationId)).some(serves) || !(await isPending()),
+                AbortSignal.timeout(START_WAIT_MILLISECONDS),
+            );
+
+            return await this.#newest(installationId, serves);
         }
 
         // ask the caller to wait while the installation still deploys, else refuse
@@ -855,13 +899,22 @@ export class Gateway {
                 `deployment of installation '${installationId}' is unavailable: it is starting`,
                 { data: { retryAfter: DEPLOYMENT_RETRY_MILLISECONDS } },
             );
-        } else {
+        }
+
+        // refuse with the start failure of an instance that would serve it, else as served by none
+        const failed = await Instance.failure(this.#space.database, installationId);
+        if (failed !== undefined) {
             throw MachineError.of(
                 "DEPLOYMENT_UNAVAILABLE",
-                `deployment of installation '${installationId}' is unavailable: none running serves the call`,
+                `deployment of installation '${installationId}' is unavailable: its instance is not ready: '${failed}'`,
                 { data: {} },
             );
         }
+        throw MachineError.of(
+            "DEPLOYMENT_UNAVAILABLE",
+            `deployment of installation '${installationId}' is unavailable: none running serves the call`,
+            { data: {} },
+        );
     }
 
     /** List the running instances serving an installation. */
@@ -1008,6 +1061,7 @@ export class Gateway {
         const target = {
             audience: destination.audience,
             ...Gateway.#scope(caller, destination),
+            ...(Gateway.#isRendering(caller) ? { access: "read" as const } : {}),
         };
         const own = () =>
             Gateway.#authentication(caller, destination, this.#space.machine.clock.now());
@@ -1015,20 +1069,23 @@ export class Gateway {
         // serve an installation or package on this machine, as the caller or its asked subject
         if (destination.kind === "installation" || destination.kind === "package") {
             const voucher = async () =>
-                asked === undefined ? own() : await this.act(acting, asked, target);
+                asked === undefined ? own() : await this.vouch(acting, asked, target);
 
             return destination.kind === "installation"
                 ? this.ingress(destination.installationId, destination.path, call, await voucher())
                 : destination.fetch(call, voucher);
         }
-        // call out with the installation's token, or its subject's exchanged one
+        // call out with the installation's token, its subject's exchanged one, or none for anyone
         else {
-            const token =
-                asked === undefined
-                    ? await this.#sign(own(), caller.scope)
-                    : await this.exchange(acting, asked, target);
             const headers = new Headers(call.headers);
-            headers.set("authorization", `Bearer ${token}`);
+            if (asked === undefined) {
+                headers.set("authorization", `Bearer ${await this.#sign(own(), caller.scope)}`);
+            } else if (!Caller.isAnonymous(asked)) {
+                headers.set(
+                    "authorization",
+                    `Bearer ${await this.exchange(acting, asked, target)}`,
+                );
+            }
             const remote = Gateway.#target(destination.url, url);
 
             return this.#space.machine.send(copyRequest(call, { headers }, remote));
@@ -1278,6 +1335,30 @@ export class Gateway {
         return this.#tokens.verify(token, target);
     }
 
+    /** Vouch for a subject an installation acts for: anyone as a visitor, a person as exchanged. */
+    async vouch(
+        acting: Subject,
+        asked: ExchangeSubject,
+        target: ExchangeTarget,
+    ): Promise<Authentication> {
+        // vouch for anyone without an exchange, as an anonymous visitor proves nothing
+        if (Caller.isAnonymous(asked)) {
+            const now = this.#space.machine.clock.now();
+            const visitor = Authentication.visitor(
+                asked.subject.id,
+                target.audience,
+                now,
+                TOKEN_LIFETIME_MILLISECONDS,
+            );
+
+            return target.access === undefined
+                ? visitor
+                : { ...visitor, credential: { ...visitor.credential, access: target.access } };
+        }
+
+        return await this.act(acting, asked, target);
+    }
+
     /** Sign an installation's token for a call leaving the machine, as the space. */
     async #sign(authentication: Authentication, spaceId: Identifier<"space">): Promise<string> {
         const { database, machine } = this.#space;
@@ -1286,6 +1367,11 @@ export class Gateway {
             .issue(authentication, machine.clock.now(), machine.environment);
 
         return issued.accessToken;
+    }
+
+    /** Report whether a caller is an instance rendering views, whose calls only ever read. */
+    static #isRendering(caller: EgressCaller): boolean {
+        return caller.runs.kind === "instance" && caller.runs.workload === "view";
     }
 
     /** Bind a call's authentication to the space it targets. */
@@ -1359,8 +1445,9 @@ export class Gateway {
 
     /** Append an instance's OTLP/JSON export to its space as the machine, stamped by emitter. */
     async telemetry(spec: InstanceSpec, signal: OtlpSignal, body: unknown): Promise<void> {
+        // attribute its frames through the build it runs
         const emitter = { installation: spec.installationId, instance: spec.instanceId };
-        await this.record({ ...emitter, build: spec.image }, signal, body);
+        await this.record({ ...emitter, build: await spec.build.digest() }, signal, body);
     }
 
     /** Record an installation's export: stamp its emitter, attribute its frames, forward it. */

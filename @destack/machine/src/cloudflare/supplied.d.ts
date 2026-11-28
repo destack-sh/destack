@@ -4,3 +4,10 @@ declare module "destack:servers" {
     const servers: Readonly<Record<string, unknown>>;
     export default servers;
 }
+
+/** The view workloads a cloud machine runs in its process, supplied to its bundle by its deploy. */
+declare module "destack:views" {
+    /** The view workload each shipped package exports, by package name. */
+    const views: Readonly<Record<string, unknown>>;
+    export default views;
+}

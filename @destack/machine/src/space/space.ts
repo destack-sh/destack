@@ -107,6 +107,7 @@ import {
     InstallationRoot,
     PackageContext,
     type ServerContext,
+    type WorkloadImplementation,
     type WorkloadContext,
     WorkloadInstance,
 } from "@destack/object/workload";
@@ -274,7 +275,12 @@ interface InstallationRun {
         | { readonly kind: "failed"; readonly error: unknown };
     /** The server or isolate running it, or why it failed to load or start. */
     readonly outcome:
-        | { readonly kind: "server"; readonly server: PackageImplementation }
+        | {
+              readonly kind: "server";
+              readonly server: PackageImplementation;
+              /** What renders its views in the store's process, absent without client views. */
+              readonly views: WorkloadImplementation["view"];
+          }
         | { readonly kind: "isolate"; readonly isolate: Isolate }
         | {
               readonly kind: "failed";
@@ -369,6 +375,9 @@ export class Space {
     #runs:
         | { readonly start: SpaceStart; readonly runs: ReadonlyMap<string, InstallationRun> }
         | undefined;
+    /** What renders each installation's views in the store's process, by installation. */
+    #views: ReadonlyMap<Identifier<"installation">, NonNullable<WorkloadImplementation["view"]>> =
+        new Map();
     /** The space's running workload, once started. */
     #instance: WorkloadInstance | undefined;
     /** The space store's side of its machine's sockets, absent where the runtime keeps them. */
@@ -724,6 +733,11 @@ export class Space {
             declarations,
             send: async (request) => (await this.#current().gateway.promise).hook(row.id, request),
         });
+    }
+
+    /** Find what renders an installation's views in the store's process, absent for none. */
+    views(installationId: Identifier<"installation">): WorkloadImplementation["view"] {
+        return this.#views.get(installationId);
     }
 
     /** The space as a principal. */
@@ -1254,7 +1268,13 @@ export class Space {
                           .span(
                               "destack.space.serve.start",
                               InstallationTarget.attributes(entry.installation),
-                              () => this.#serve(entry, load, { signal, trusted, connections }),
+                              () =>
+                                  this.#serve(entry, load, {
+                                      signal,
+                                      trusted,
+                                      connections,
+                                      context: start.context,
+                                  }),
                           )
                           .catch((error: unknown) => {
                               // report an installation that fails to start, and start the space without it
@@ -1292,6 +1312,15 @@ export class Space {
             }
         }
         this.#runs = { start, runs };
+        this.#views = new Map(
+            installed.flatMap(({ installation: row }, index) => {
+                const outcome = runs.get(present(keys[index], "the installation's key"))?.outcome;
+
+                return outcome?.kind === "server" && outcome.views !== undefined
+                    ? [[row.id, outcome.views] as const]
+                    : [];
+            }),
+        );
 
         return { servers, isolates, serving };
     }
@@ -1515,6 +1544,7 @@ export class Space {
             readonly signal: AbortSignal;
             readonly trusted: readonly PackageImplementation[];
             readonly connections: DisposableStack;
+            readonly context: WorkloadContext;
         },
     ): Promise<InstallationRun["outcome"]> {
         // serve a loaded server in the store, activated once its revision and any lent grant exist
@@ -1545,7 +1575,14 @@ export class Space {
             const activation = (stopped: AbortSignal) =>
                 this.#activate(row, revisionId, isLent, AbortSignal.any([signal, stopped]));
 
-            return { kind: "server", server: stored.at({ ...context, activation }) };
+            // render its views in the store's process too, on the store's memory databases
+            const workload = await this.machine.views(image);
+            const views =
+                workload === undefined
+                    ? undefined
+                    : (await workload.start({ ...run.context, server: context })).view;
+
+            return { kind: "server", server: stored.at({ ...context, activation }), views };
         }
         // run another package's hooks in its isolate, which binds its resources itself
         else {
@@ -1713,7 +1750,12 @@ export class Space {
                 url,
                 fetch: send,
                 headers: (options) =>
-                    Exchange.ask(Exchange.of(options.context?.authentication?.caller)),
+                    Exchange.ask(
+                        Exchange.of(
+                            options.context?.authentication?.caller,
+                            options.context?.authentication?.credential,
+                        ),
+                    ),
             },
             this.machine.environment,
         );
@@ -1974,6 +2016,23 @@ export class Space {
                 InstallationTarget.settings(this.database, reader, { scope, installation: id }),
             ),
             remote: stack,
+            connectAs: (subject) =>
+                ObjectConnection.open({
+                    scope,
+                    url: ObjectConnection.url(STACK_ORIGIN),
+                    websocket: (url, protocols) =>
+                        host.open(
+                            (upgrade) =>
+                                this.call(stackPackage.id, upgrade, async () =>
+                                    (await this.#current().gateway.promise).vouch(signer, subject, {
+                                        audience: stackPackage.id,
+                                        scope,
+                                    }),
+                                ),
+                            WebSocketUpgrade.to(url, protocols),
+                        ),
+                    environment: machine.environment,
+                }),
             connect: (address, packageId) => {
                 // connect to the package's store at the address through egress, once per package and address
                 const key = `${address} ${packageId}`;
@@ -3088,7 +3147,7 @@ export class Space {
     /** Read the subject the space acts for: a person or a delegate, refusing any other caller. */
     #subject(caller: Caller): Pick<Caller, "subject" | "grants"> {
         const subject = Exchange.of(caller);
-        if (subject === undefined) {
+        if (subject === undefined || Caller.isAnonymous(subject)) {
             throw MachineError.of(
                 "SUBJECT_DENIED",
                 "acting on behalf is forbidden: the space acts for a person or a delegate alone",

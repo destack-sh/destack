@@ -19,6 +19,7 @@ export const TAGS: Readonly<Record<string, string>> = { latest: "2026.10.0" };
 
 /** The workload every fixture build's server output has. */
 export const workload = {
+    kind: "call" as const,
     entrypoint: ".",
     packages: [],
     resources: [],

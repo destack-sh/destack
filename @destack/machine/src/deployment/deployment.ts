@@ -551,6 +551,7 @@ class Reconcile {
                 image,
                 output: current.output,
                 workload: current.workload,
+                kind: current.description.kind,
                 sandbox: current.description.sandbox,
                 enabled: current.enabled,
                 directories: current.directories,

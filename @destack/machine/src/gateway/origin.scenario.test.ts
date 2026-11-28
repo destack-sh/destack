@@ -230,10 +230,17 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
         },
     ];
 
+    // render the board in the view workload a view build derives
+    const rendering = TestViewBuild.views(tasks);
+
     return MemoryBuild.of(tasks, declared, crypto, {
-        files: new Map([[board.entrypoint, new TextEncoder().encode("export {};\n")]]),
+        files: new Map([
+            [board.entrypoint, new TextEncoder().encode("export {};\n")],
+            ...rendering.files,
+        ]),
         tables: describedTables(declared, tasks.id, KNOWN_TYPES),
         outputs: {
+            ...rendering.outputs,
             browser: {
                 runtime: "browser",
                 emit: true,
@@ -556,11 +563,12 @@ function eventsOf(stream: string): string[] {
         .map((line) => line.slice("event: ".length));
 }
 
-/** Read the context in a view's document. */
+/** Read the context in a view's document, else the body of a response without one. */
 async function contextOf(document: Response): Promise<unknown> {
-    const embedded = /id="destack-view">(.*)<\/script>/u.exec(await document.text());
+    const text = await document.text();
+    const embedded = /id="destack-view">(.*?)<\/script>/u.exec(text);
 
-    return embedded === null ? undefined : JSON.parse(nth(embedded, 1));
+    return embedded === null ? text : JSON.parse(nth(embedded, 1));
 }
 
 test("stream a page's reload once its installation serves another build", async () => {
@@ -1798,7 +1806,7 @@ test("serve a view's modules at URLs of their build and resolution, gzipped wher
     const address = new URL(header(page.traded, "location"), page.launched.url).href;
     const document = await (await page.fetch(new Request(address))).text();
     const entry = nth(
-        present(/<script type="module" src="([^"]+)">/u.exec(document), "the entry"),
+        present(/<script type="module" src="([^"]+)"/u.exec(document), "the entry"),
         1,
     );
     const preloads = [...document.matchAll(/<link rel="modulepreload" href="([^"]+)">/gu)].map(

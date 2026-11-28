@@ -105,6 +105,7 @@ test("apply a bound connection's key to a workload's calls below its resource wi
         image: Digest.parse("d".repeat(64)),
         output: "bun",
         workload: "main",
+        kind: "call",
         enabled: [],
         sandbox: {},
         directories: [],

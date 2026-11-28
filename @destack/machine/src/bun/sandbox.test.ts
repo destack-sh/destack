@@ -49,6 +49,7 @@ const spec: InstanceSpec = {
     ),
     output: "bun",
     workload: "indexer",
+    kind: "call",
     enabled: [],
     sandbox: {},
     directories: [],

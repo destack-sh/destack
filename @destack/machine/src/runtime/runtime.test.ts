@@ -148,6 +148,7 @@ test("bind a workload's own provisioned resources by name, refusing another pack
             .parse("deployment-01996ab0-0000-7000-8000-0000000000f3"),
         output: "bun",
         workload: "main",
+        kind: "call",
         scope,
         build,
         image: IMAGE,

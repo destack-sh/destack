@@ -9,7 +9,7 @@ import {
     type InstallationRevision,
 } from "@destack/stack/object";
 import type { Environment } from "@destack/environment";
-import { eq, isNotNull, Table } from "@destack/db";
+import { type Database, eq, isNotNull, Table } from "@destack/db";
 import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
@@ -25,17 +25,14 @@ import { onTestFinished } from "@destack/test";
 import { workload } from "./build.ts";
 
 /** Open a migrated space database with the space's scope and row, in a world of its own. */
-export async function openSpaceDatabase(): Promise<{
+export async function openSpaceDatabase(declared: Database = spaceDatabase): Promise<{
     readonly database: DatabaseConnection;
     readonly crypto: Environment["crypto"];
     readonly now: number;
 }> {
     // open the space's database
     const world = testSimulation().environment("test");
-    const storage = await TestDatabase.create(spaceDatabase, {
-        environment: world,
-        isMigrated: true,
-    });
+    const storage = await TestDatabase.create(declared, { environment: world, isMigrated: true });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const now = world.clock.now();
