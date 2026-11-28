@@ -10,6 +10,8 @@ import { VIEW_KIND } from "./view.ts";
 
 /** An app of the space: an installation with a main view, as its package presents itself. */
 const viewApp = schema.object({
+    /** The installation, as the context of its pages names it. */
+    installation: schema.string().min(1),
     /** The installation's name in its space, which its origin names. */
     name: schema.string().min(1),
     /** The view its origin opens. */
@@ -27,7 +29,10 @@ const viewApp = schema.object({
 /** An app of the space: an installation with a main view, as its package presents itself. */
 export const ViewApp = Object.assign(viewApp, {
     /** Read the app an installation's build makes, none for a package without a main view. */
-    async of(name: string, build: BuildReader): Promise<ViewApp | undefined> {
+    async of(
+        installation: { readonly id: string; readonly name: string },
+        build: BuildReader,
+    ): Promise<ViewApp | undefined> {
         // read the build's views and its package's presentation
         const views = Object.fromEntries(
             (await VIEW_KIND.read(build)).map((view) => [view.name, view.description]),
@@ -41,7 +46,8 @@ export const ViewApp = Object.assign(viewApp, {
         }
 
         return {
-            name,
+            installation: installation.id,
+            name: installation.name,
             view: main,
             title: presented.description.title,
             icon: presented.description.icon,

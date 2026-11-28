@@ -5,6 +5,7 @@ import { ViewApp } from "./app.ts";
 test("open an app's main view at its installation origin beside the page's, on the page's port", () => {
     // write a task app of Ada's home space from a page of another installation of it
     const app: ViewApp = {
+        installation: "installation-01996ab0-0000-7000-8000-0000000000e1",
         name: "tasks",
         view: "tasks",
         title: t`Tasks`,
