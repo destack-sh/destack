@@ -82,10 +82,14 @@ export class PageServer {
         // stream the page under the request, as the router reads its path from it, refusing a shell without a head
         const { provideRequestEvent } = await import("@solidjs/web/storage");
         const event = createRequestEvent(request);
+        let failure: { readonly error: unknown } | undefined;
         const stream = provideRequestEvent(event, () =>
             renderToStream(() => this.page.render(mount, this.page.root(environment)), {
-                // report each render error a boundary contains, as the device renders that part again
-                onError: (error: unknown) => globalThis.reportError(error),
+                // report each render error, keeping the first for a page that renders no shell
+                onError: (error: unknown) => {
+                    failure ??= { error };
+                    globalThis.reportError(error);
+                },
                 onHead: () => {
                     throw ViewError.of(
                         "PAGE_HEAD_REQUIRED",
@@ -95,20 +99,50 @@ export class PageServer {
             }),
         );
 
-        // splice the links into the chunk closing the head, passing every other chunk on as it flushes
+        // render until the shell flushes, holding its chunks, and splice the links into the chunk closing the head
+        const held: string[] = [];
+        let writable: { write: (chunk: string) => void; end: () => void } | undefined;
         let isLinked = false;
+        let isEnded = false;
+        const flushed = Promise.withResolvers<void>();
+        stream.pipe({
+            write: (chunk: string) => {
+                // link the head once, into the chunk closing it
+                const isClosing = !isLinked && chunk.includes("</head>");
+                isLinked ||= isClosing;
+                const spliced = isClosing ? chunk.replace("</head>", `${links}</head>`) : chunk;
+
+                // hold it while no response reads, else write it
+                if (writable === undefined) {
+                    held.push(spliced);
+                } else {
+                    writable.write(spliced);
+                }
+                flushed.resolve();
+            },
+            end: () => {
+                isEnded = true;
+                writable?.end();
+                flushed.resolve();
+            },
+        });
+        await flushed.promise;
+
+        // fail a page whose render ended before its shell, as no status can follow a body
+        if (held.length === 0 && failure !== undefined) {
+            throw failure.error;
+        }
+
+        // pass the held chunks on, then every later one as it flushes
         const linked = {
-            pipe: (writable: { write: (chunk: string) => void; end: () => void }) => {
-                stream.pipe({
-                    write: (chunk: string) => {
-                        const isClosing = !isLinked && chunk.includes("</head>");
-                        isLinked ||= isClosing;
-                        writable.write(
-                            isClosing ? chunk.replace("</head>", `${links}</head>`) : chunk,
-                        );
-                    },
-                    end: () => writable.end(),
-                });
+            pipe: (target: { write: (chunk: string) => void; end: () => void }) => {
+                for (const chunk of held.splice(0)) {
+                    target.write(chunk);
+                }
+                writable = target;
+                if (isEnded) {
+                    target.end();
+                }
             },
         };
 
