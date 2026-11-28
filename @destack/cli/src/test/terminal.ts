@@ -185,13 +185,15 @@ export class TerminalFixture {
         const objects = await this.wait(
             this.native.open(session, { space: home, installation: name }, { type }, stack),
         );
-        const read = () => objects.query.type.findFirst({ where: { id } });
+        const live = objects.query.type.findFirst({ where: { id } }).subscribe();
+        stack.defer(() => live.close());
+        await live.ready;
         await this.computer.waitUntil(
             objects.database,
-            async () => (await read()) !== undefined,
+            async () => (await live.read()) !== undefined,
             INSTALLED_MILLISECONDS,
         );
-        const row = present(await read(), `the ${type.name} ${id}`);
+        const row = present(await live.read(), `the ${type.name} ${id}`);
 
         return schema.jsonObject().parse(JSON.parse(JSON.stringify(row)));
     }
