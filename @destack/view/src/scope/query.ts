@@ -1,6 +1,6 @@
 import { account, space, user } from "@destack/account/object";
 import { type Method, type MutationName, type ObjectType } from "@destack/object";
-import { type JsonObject, mapValues, present } from "@destack/schema";
+import { type JsonObject, mapValues, present, share } from "@destack/schema";
 import type {
     Mutator,
     ObjectNode,
@@ -158,10 +158,13 @@ async function* follow<Value>(
             await live.ready;
             yield await live.read();
         }
-        // else follow it live
+        // else follow it live, keeping the unchanged parts of each value, as keyed lists key by them
         else {
+            let earlier: Value | undefined;
             for await (const value of live.watch(signal)) {
-                yield value;
+                const shared = share(earlier, value);
+                earlier = shared;
+                yield shared;
             }
         }
     } finally {
