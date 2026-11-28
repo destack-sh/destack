@@ -38,3 +38,46 @@ onSqlite("keep every commit through coalesced writes", async () => {
     reopened.close();
     expect(read).toEqual([120, "note 119", "ok"]);
 });
+
+onSqlite(
+    "read back held writes within a transaction, reading other pages without passing them down",
+    async () => {
+        // open a database whose page cache holds two pages, so reads reach the file
+        const sqlite = await init();
+        const vfs = new CoalescingVfs(sqlite, "unix");
+        const database = new sqlite.oo1.DB({ filename: "/interleaved.db", vfs: vfs.name });
+        database.exec(
+            "PRAGMA locking_mode = EXCLUSIVE; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA cache_size = 2;",
+        );
+        database.exec("CREATE TABLE note (id INTEGER PRIMARY KEY, title TEXT, body TEXT)");
+
+        // insert and read back in each transaction, past several pages
+        const counted: number[] = [];
+        for (let index = 0; index < 40; index += 1) {
+            database.exec("BEGIN");
+            database.exec({
+                sql: "INSERT INTO note (title, body) VALUES (?, ?)",
+                bind: [`note ${index}`, "x".repeat(900)],
+            });
+            counted.push(
+                Number(database.selectValue("SELECT count(*) FROM note WHERE body <> ''")),
+            );
+            database.exec("COMMIT");
+        }
+        database.close();
+
+        // reopen the file without the coalescing VFS
+        const reopened = new sqlite.oo1.DB({ filename: "/interleaved.db", vfs: "unix" });
+        reopened.exec("PRAGMA locking_mode = EXCLUSIVE;");
+        const read = [
+            reopened.selectValue("SELECT count(*) FROM note"),
+            reopened.selectValue("SELECT title FROM note ORDER BY id DESC LIMIT 1"),
+            reopened.selectValue("PRAGMA integrity_check"),
+        ];
+        reopened.close();
+        expect([counted, read]).toEqual([
+            Array.from({ length: 40 }, (_, index) => index + 1),
+            [40, "note 39", "ok"],
+        ]);
+    },
+);
