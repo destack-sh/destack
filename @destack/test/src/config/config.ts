@@ -420,22 +420,23 @@ function cachePlugin(environment: Environment<"files" | "process">): Plugin {
 
 /** Digest the workspace's package definitions and the module transform's sources. */
 async function definitions(environment: Environment<"files" | "process">): Promise<string> {
-    // find the workspace root listing the packages
+    // find the workspace root listing the packages, else take a lone package and those it links
     const { files } = environment;
     const start = environment.process.workingDirectory;
     let root = start;
     let workspaces = await readWorkspaces(root, files);
-    while (workspaces === undefined) {
-        if (dirname(root) === root) {
-            throw new TypeError(`no workspace above '${start}'`);
-        }
+    while (workspaces === undefined && dirname(root) !== root) {
         root = dirname(root);
         workspaces = await readWorkspaces(root, files);
     }
+    const listed =
+        workspaces === undefined
+            ? [start, ...(await linked(start, files))]
+            : await members(root, workspaces, files);
 
     // read each package's destack.json and package.json, skipping dependencies and hidden folders
     const packages: string[] = [];
-    for (const member of await members(root, workspaces, files)) {
+    for (const member of listed) {
         const found = await walk(member, files);
         packages.push(
             ...found.filter((file) => ["destack.json", "package.json"].includes(basename(file))),
@@ -504,6 +505,20 @@ async function members(
     }
 
     return expanded;
+}
+
+/** List the scoped packages a lone package links in its node_modules. */
+async function linked(directory: string, files: FileSystem): Promise<string[]> {
+    // take each scoped package below the lone package's node_modules
+    const modules = join(directory, "node_modules");
+    const scopes = (await entriesOf(modules, files)).filter((entry) => entry.name.startsWith("@"));
+    const found: string[] = [];
+    for (const scope of scopes) {
+        const each = await entriesOf(join(modules, scope.name), files);
+        found.push(...each.map((entry) => join(modules, scope.name, entry.name)));
+    }
+
+    return found;
 }
 
 /** List the files below a directory, skipping dependencies and hidden folders. */
