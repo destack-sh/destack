@@ -22,6 +22,7 @@ const task = defineObject(
             priority: field.enum(["low", "normal", "high"]).default("normal"),
             status: field.state({
                 initial: "open",
+                final: ["done"],
                 transitions: { complete: { from: ["open"], to: "done", permission: "edit" } },
             }),
         },

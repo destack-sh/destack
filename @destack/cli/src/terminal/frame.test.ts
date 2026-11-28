@@ -39,6 +39,7 @@ const issue = defineObject({
         /** Where the issue stands. */
         state: field.state({
             initial: "todo",
+            final: ["done"],
             transitions: {
                 start: { from: ["todo"], to: "started", permission: "write" },
                 finish: { from: ["started"], to: "done", permission: "write" },
