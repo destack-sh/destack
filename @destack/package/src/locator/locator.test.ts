@@ -6,7 +6,7 @@ import { expect, test } from "@destack/test";
 import { PackageLocator } from "./locator.ts";
 
 /** The schema every package definition references. */
-const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
+const SCHEMA = "https://destack.app/schemas/destack.json";
 
 /** Write a Destack package declaring a version, with one module, into a directory. */
 async function writePackage(

@@ -6,7 +6,7 @@
             "properties": {
                 "$schema": {
                     "type": "string",
-                    "pattern": "^https:\\/\\/destack\\.app\\/schemas\\/[^/]+\\/destack\\.json$"
+                    "pattern": "^https:\\/\\/destack\\.app\\/schemas\\/(?:[^/]+\\/)?destack\\.json$"
                 },
                 "id": {
                     "type": "string",
@@ -70,6 +70,14 @@
                     "items": {
                         "type": "string",
                         "pattern": "^(?:[^./\\\\A-Za-z\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|[A-Za-z](?:[^:/\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*)?|\\.[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\\\x00-\\x1f\\x7f]+)(?:\\/(?:[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.[^./\\\\\\x00-\\x1f\\x7f][^/\\\\\\x00-\\x1f\\x7f]*|\\.\\.[^/\\\\\\x00-\\x1f\\x7f]+))*$"
+                    }
+                },
+                "scopes": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "pattern": "^@[a-z0-9][a-z0-9._-]*$"
                     }
                 },
                 "shares": {
@@ -589,7 +597,7 @@
             "properties": {
                 "$schema": {
                     "type": "string",
-                    "pattern": "^https:\\/\\/destack\\.app\\/schemas\\/[^/]+\\/destack\\.json$"
+                    "pattern": "^https:\\/\\/destack\\.app\\/schemas\\/(?:[^/]+\\/)?destack\\.json$"
                 },
                 "workspace": {
                     "type": "object",

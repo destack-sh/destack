@@ -10,7 +10,7 @@ import { type BuildContent, BuildWriter } from "../manifest/writer.ts";
 const ENTRY_MODULE = "src/index.ts";
 
 /** The schema address of a build's destack.json in memory, the release the fixtures declare. */
-const DEFINITION_SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
+const DEFINITION_SCHEMA = "https://destack.app/schemas/destack.json";
 
 /** The Destack version the fixtures are built with: this checkout's. */
 const DESTACK_VERSION = import.meta.destack.package.version;

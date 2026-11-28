@@ -90,6 +90,11 @@ export const PackageName = Object.assign(
     },
 );
 
+/** A package scope: `@<account handle>`, as npm scopes a package name. */
+export const PackageScope = schema.string().regex(/^@[a-z0-9][a-z0-9._-]*$/u);
+/** A package scope. */
+export type PackageScope = schema.Infer<typeof PackageScope>;
+
 /** An account's Git repository name, a DNS label of at most 63 characters (RFC 1035 2.3.4). */
 export const RepositoryName = schema.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u);
 /** An account's Git repository name. */

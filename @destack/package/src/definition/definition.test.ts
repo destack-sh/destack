@@ -38,7 +38,7 @@ test("read the modules a host starts, refusing an empty list and a path outside 
 /** Write a destack.json listing extensions. */
 function definition(extensions: readonly string[]): string {
     return JSON.stringify({
-        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        $schema: "https://destack.app/schemas/destack.json",
         id: "package-01996ab0-0000-7000-8000-0000000000a1",
         role: "library",
         language: "typescript",
@@ -120,7 +120,7 @@ test("refuse an app's server and providers, test kits and any app in a builtin, 
 test("refuse an app without its package or with a free subpath, and a library with a package", () => {
     // check each role's exports, keeping each refusal's message
     const notes = PackageDefinition.parse({
-        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        $schema: "https://destack.app/schemas/destack.json",
         id: "package-01996ab0-0000-7000-8000-000000000a01",
         role: "app",
         language: "typescript",
@@ -162,7 +162,7 @@ test("refuse an app without its package or with a free subpath, and a library wi
 test("refuse a declaration or kind comparison whose export leaves out a server runtime the package runs on", () => {
     // declare a builtin on Bun and workerd defining the object kind, its comparison in ./inspect
     const objects = PackageDefinition.parse({
-        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        $schema: "https://destack.app/schemas/destack.json",
         id: "package-01996ab0-0000-7000-8000-000000000a02",
         role: "builtin",
         language: "typescript",

@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { Language } from "./language.ts";
 import { Runtime, SERVER_RUNTIMES } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
-import { DependencyName, PackageId, PackageName } from "./package.ts";
+import { DependencyName, PackageId, PackageName, PackageScope } from "./package.ts";
 import {
     DeclarationConstructorMap,
     DeclarationKindDefinition,
@@ -54,7 +54,7 @@ const CheckSettings = schema.object({
 /** The JSON Schema address of the release that wrote a definition. */
 const SchemaAddress = schema
     .string()
-    .regex(/^https:\/\/destack\.app\/schemas\/[^/]+\/destack\.json$/u);
+    .regex(/^https:\/\/destack\.app\/schemas\/(?:[^/]+\/)?destack\.json$/u);
 
 /** The settings a workspace root shares with its members. */
 const WorkspaceSettings = schema.object({
@@ -97,6 +97,8 @@ const definition = schema.object({
     runtimes: schema.array(Runtime).min(1).exactOptional(),
     /** The modules a host starts beside the bin, such as Worker scripts. */
     entrypoints: schema.array(PackagePath).min(1).exactOptional(),
+    /** The scopes of other publishers' Destack packages it depends on. */
+    scopes: schema.array(PackageScope).min(1).exactOptional(),
     /** The packages the package's programs share with the code they load, beyond the builtins. */
     shares: schema.array(DependencyName).min(1).exactOptional(),
     /** What the package's workloads and views always use beyond the bare sandbox. */
