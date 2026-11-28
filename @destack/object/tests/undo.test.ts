@@ -556,7 +556,7 @@ test("compose a drag's updates in as many replica statements as its second", asy
         ["0"],
         ["600"],
     ]);
-    expect({ second, last }).toEqual({ second: 19, last: 19 });
+    expect({ second, last }).toEqual({ second: 18, last: 18 });
 });
 
 test("follow whether a party can undo and redo as its stacks change", async () => {

@@ -1,7 +1,6 @@
 import {
     and,
     asc,
-    boolean,
     defineTable,
     desc,
     eq,
@@ -49,8 +48,6 @@ export const undoEntry = defineTable(
         group: text("group").notNull(),
         /** Whether the entry is on the undo or the redo stack. */
         state: textEnum("state", ["done", "undone"]).notNull(),
-        /** Whether the next mutation may join the entry's group. */
-        isOpen: boolean("is_open").notNull(),
         /** The steps it last applied. */
         steps: json("steps", schema.json()).notNull(),
         /** The mutation that last applied them. */
@@ -93,6 +90,8 @@ export class UndoStack {
     readonly client: ObjectClient;
     /** The latest toggle, which the next one waits for. */
     #toggling: Promise<unknown> = Promise.resolve();
+    /** The entry whose group the next mutation may join, absent once closed. */
+    #open: string | undefined = undefined;
 
     /** Create a client's undo and redo stacks. */
     constructor(client: ObjectClient) {
@@ -110,13 +109,10 @@ export class UndoStack {
     }
 
     /** Close the open group, so the next mutation starts a new one. */
-    async close(): Promise<void> {
-        await this.client.database.transaction(async (transaction) => {
-            await transaction
-                .update(undoEntry)
-                .set({ isOpen: false })
-                .where(and(eq(undoEntry.scope, this.client.scope), eq(undoEntry.isOpen, true)));
-        });
+    close(): Promise<void> {
+        this.#open = undefined;
+
+        return Promise.resolve();
     }
 
     /** Read the client's latest entry in a state: the last done, or the first undone. */
@@ -164,19 +160,15 @@ export class UndoStack {
         const scoped = eq(undoEntry.scope, this.client.scope);
         await database.delete(undoEntry).where(and(scoped, eq(undoEntry.state, "undone")));
 
-        // close the latest entry
+        // take the latest entry, and close its group
         const [latest] = await database
             .select()
             .from(undoEntry)
             .where(scoped)
             .orderBy(desc(undoEntry.sequence))
             .limit(1);
-        if (latest?.isOpen === true) {
-            await database
-                .update(undoEntry)
-                .set({ isOpen: false })
-                .where(eq(undoEntry.id, latest.id));
-        }
+        const isOpen = latest !== undefined && latest.id === this.#open;
+        this.#open = undefined;
 
         // require an inverse for every call
         const isUndoable =
@@ -193,7 +185,7 @@ export class UndoStack {
         // join the latest entry's group while open, within the delay, when every step composes into its steps
         const time = this.client.environment.clock.now();
         const composed =
-            latest !== undefined && latest.isOpen && time - latest.time < UNDO_DELAY
+            isOpen && time - latest.time < UNDO_DELAY
                 ? this.#composeStored(latest.steps, steps)
                 : undefined;
 
@@ -201,8 +193,9 @@ export class UndoStack {
         if (latest !== undefined && composed !== undefined && latest.mutationId === composable) {
             await database
                 .update(undoEntry)
-                .set({ steps: schema.json().parse(composed), isOpen: true, time })
+                .set({ steps: schema.json().parse(composed), time })
                 .where(eq(undoEntry.id, latest.id));
+            this.#open = latest.id;
 
             return composed;
         }
@@ -215,11 +208,11 @@ export class UndoStack {
             sequence: (latest?.sequence ?? 0) + 1,
             group: isJoining ? latest.group : id,
             state: "done",
-            isOpen: true,
             steps: schema.json().parse(steps),
             mutationId: id,
             time,
         });
+        this.#open = id;
 
         // drop the groups past the depth after starting one
         if (!isJoining) {
@@ -467,6 +460,9 @@ export class UndoStack {
                     );
                 }
 
+                // close the group
+                this.#open = undefined;
+
                 // fold the group into its first entry, holding the inverse steps in the new state
                 await database
                     .delete(undoEntry)
@@ -476,7 +472,6 @@ export class UndoStack {
                     .set({
                         steps: schema.json().parse(steps),
                         state: to,
-                        isOpen: false,
                         mutationId,
                         time: this.client.environment.clock.now(),
                     })
