@@ -268,10 +268,19 @@ function renderMount(
         );
     };
 
+    // open each scope's replica once for the whole render, as every node of the scope shares it
+    const replicas = new Map<string, Promise<ObjectClient>>();
+    const open = (scope: string) => {
+        const opening = replicas.get(scope) ?? openReplica(scope, view, asked, reached, stack);
+        replicas.set(scope, opening);
+
+        return opening;
+    };
+
     return {
         context: asked.context,
         clients: () => new Map(),
-        open: (scope) => openReplica(scope, view, asked, reached, stack),
+        open,
         packages: new Map(),
         origin: refuse("origin"),
         connect: refuse("connect"),
