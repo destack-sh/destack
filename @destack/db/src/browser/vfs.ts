@@ -139,7 +139,7 @@ export class CoalescingVfs {
             methods.installMethod(member, CoalescingVfs.#pointer(base, member));
         }
 
-        // hold each write back, and pass the held ones down before a sync, read, size, cut or close
+        // hold each write back, and pass the held ones down before a sync, an overlapping read, a size, cut or close
         methods.installMethods({
             xWrite: (file: WasmPointer, source: WasmPointer, length: number, offset: bigint) => {
                 const bytes = wasm.heap8u().slice(source, source + length);
@@ -150,7 +150,8 @@ export class CoalescingVfs {
             xSync: (file: WasmPointer, flags: number) =>
                 this.#flush(file) || below.xSync(file, flags),
             xRead: (file: WasmPointer, target: WasmPointer, length: number, offset: bigint) =>
-                this.#flush(file) || below.xRead(file, target, length, offset),
+                (this.#overlaps(file, Number(offset), length) ? this.#flush(file) : 0) ||
+                below.xRead(file, target, length, offset),
             xFileSize: (file: WasmPointer, size: WasmPointer) =>
                 this.#flush(file) || below.xFileSize(file, size),
             xTruncate: (file: WasmPointer, size: bigint) =>
@@ -214,6 +215,13 @@ export class CoalescingVfs {
         }
 
         return 0;
+    }
+
+    /** Report whether a file holds back a write within a range, which a read of it must see. */
+    #overlaps(file: WasmPointer, offset: number, length: number): boolean {
+        return this.#writes(file).some(
+            (write) => write.offset < offset + length && offset < write.offset + write.bytes.length,
+        );
     }
 
     /** Read the writes an open file holds back. */
