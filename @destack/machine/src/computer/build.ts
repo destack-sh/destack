@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { type CompilerPool, outputsOf, Workspace, type WorkspacePackage } from "@destack/build";
 import type { PackageVersion } from "@destack/package";
 import type { BuildReader, BuildImage } from "@destack/package/manifest";
-import { Digest, type Identifier, type Version } from "@destack/schema";
+import { Digest, type Identifier, Version } from "@destack/schema";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
 import { RemoteBuildStore } from "@destack/build/store";
 import { build, type CompileOutput } from "@destack/stack/object";
@@ -71,10 +71,14 @@ export class Builder {
         );
         const root = await compiled.digest();
 
+        // bundle a release's browser output, its builtins inlined to what its entries reach
+        const built = await workspacePackage.image(root);
+        const isRelease = input.version !== null && Version.isRelease(input.version);
+        const image = isRelease ? await workspacePackage.release(built) : built;
+
         // push the build and the graphs the image attaches to the space
         const endpoint = await this.#machine.options(stackPackage, input.scope);
         const pushing = new RemoteBuildStore(`${endpoint.url}${PUSH_PATH}/`, endpoint.fetch);
-        const image = await workspacePackage.image(root);
         await pushing.push(this.#compilers.store, [image], signal);
 
         return { image, outputs: [...outputs] };

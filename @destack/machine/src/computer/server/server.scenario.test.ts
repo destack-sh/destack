@@ -314,12 +314,15 @@ test("send a desktop's telemetry to its person's home", async () => {
     );
     expect([exported.status, await exported.text()]).toEqual([200, "{}"]);
 
-    // read it back from the home's events
+    // read the desktop's records back from the home's events, beside its own installations' logs
     const { events } = (await machine.space(home)).volume;
     const logged = await events.query(log.eventKind(), { scopes: [home] }, { limit: 10 });
-    expect(
-        logged.events.map((found) => [found.keys["name"], LogData.parse(found.data).body]),
-    ).toEqual([["inbox.failed", "the inbox stopped"]]);
+    const desktop = logged.events.flatMap((found) => {
+        const data = LogData.parse(found.data);
+
+        return data.instrumentation.name === scope.name ? [[found.keys["name"], data.body]] : [];
+    });
+    expect(desktop).toEqual([["inbox.failed", "the inbox stopped"]]);
 });
 
 test("serve spaces only while the machine is enrolled", async () => {

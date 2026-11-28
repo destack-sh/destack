@@ -1,4 +1,6 @@
 import type { Program } from "@destack/package/bun";
+import { VIEW_EXPORT } from "@destack/view/declare";
+import { ViewsStart } from "@destack/object/workload";
 import type { PackageRelease } from "@destack/package";
 import { RequestBody, SERVER_EXPORT } from "@destack/object";
 import { Authentication } from "@destack/access";
@@ -185,6 +187,33 @@ export class BunRuntime implements Runtime {
             throw MachineError.of(
                 "SERVER_BROKEN",
                 `'${build.manifest.package.name}' exports no package implementation as its server`,
+            );
+        }
+
+        return exported;
+    }
+
+    /** Load the start of the views an image's root renders into this process, absent for none. */
+    async views(image: Digest): Promise<ViewsStart | undefined> {
+        // take none of a root without a views workload
+        const build = await this.#packages.root(image);
+        const output = Object.values(build.manifest.outputs).find(
+            (each) => each.runtime === BUN_RUNTIME,
+        );
+        if (output?.exports[VIEW_EXPORT] === undefined) {
+            return undefined;
+        }
+
+        // import it, refusing a module exporting no views start
+        const module = await this.import(image, VIEW_EXPORT);
+        const exported =
+            typeof module === "object" && module !== null && "default" in module
+                ? module.default
+                : undefined;
+        if (!ViewsStart.is(exported)) {
+            throw MachineError.of(
+                "SERVER_BROKEN",
+                `'${build.manifest.package.name}' exports no views start from its views workload`,
             );
         }
 
@@ -710,15 +739,18 @@ export class BunRuntime implements Runtime {
         return present(tree.directories[name], `the directory of ${name}`);
     }
 
-    /** Refuse an image whose builds run a native addon on Bun. */
+    /** Refuse an image whose builds Bun loads run a native addon. */
     async #requireNoAddon(image: BuildImage): Promise<void> {
-        for (const build of BuildImage.builds(image)) {
+        const loaded = await BuildImage.loads(image, BUN_RUNTIME, (needed) =>
+            this.#packages.get(needed),
+        );
+        for (const build of loaded) {
             const reader = await this.#packages.contents(build);
             const addon = (await reader.runFiles([BUN_RUNTIME])).find((file) =>
                 PackageFile.isAddon(file.path),
             );
             if (addon !== undefined) {
-                const { name, version } = PackageManifest.package(reader.manifest);
+                const { name, version } = reader.manifest.package;
                 throw MachineError.of(
                     "RELEASE_INVALID",
                     `release '${name}@${version}' is invalid: it runs the native addon '${addon.path}', which only host packages may`,

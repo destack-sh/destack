@@ -78,7 +78,7 @@ import { ResourceError, UnreachablePlan } from "@destack/resource/error";
 import type { Runtime } from "../runtime/runtime.ts";
 import type { Binder } from "../resource/binding.ts";
 import { Approval } from "./approval.ts";
-import { HOOK_WORKLOAD } from "@destack/stack/workload";
+import { DERIVED_WORKLOADS, HOOK_WORKLOAD } from "@destack/stack/workload";
 import { BOOTSTRAP_PACKAGES } from "@destack/stack/declare";
 import { InstallationAccess } from "./access.ts";
 
@@ -947,7 +947,7 @@ export class ApplicationInstallation {
         const isAnswered =
             isHosted ||
             Object.values(build.manifest.outputs).some((output) =>
-                Object.keys(output.workloads).some((workload) => workload !== HOOK_WORKLOAD),
+                Object.keys(output.workloads).some((workload) => !DERIVED_WORKLOADS.has(workload)),
             );
         if (isAdapted && !isAnswered) {
             const message = `${build.manifest.package.name} declares mounts, but no workload of its build answers them`;

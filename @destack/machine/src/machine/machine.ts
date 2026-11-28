@@ -70,7 +70,12 @@ import {
 } from "@destack/tunnel";
 import { Bearer, type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/token";
 import { RequestId, Scope, type Publisher } from "@destack/sync";
-import { type EphemeralHost, HibernationHost, type SocketDelivery } from "@destack/object/workload";
+import {
+    type EphemeralHost,
+    HibernationHost,
+    type SocketDelivery,
+    type ViewsStart,
+} from "@destack/object/workload";
 import { ProcessRelay, Tunnel } from "@destack/relay/server";
 import { SocketBridge } from "../gateway/bridge.ts";
 import {
@@ -129,6 +134,7 @@ export type MachineOptions = Pick<
     | "runtimes"
     | "alarm"
     | "server"
+    | "views"
     | "endpoint"
     | "authenticate"
     | "authorizeSpace"
@@ -218,6 +224,8 @@ export class Machine {
     readonly alarm: Alarm | undefined;
     /** Load the server an image's root exports into the machine's process, absent for none. */
     readonly server: (image: Digest) => Promise<PackageImplementation | undefined>;
+    /** Load the views start of an image's root into the machine's process, absent for none. */
+    readonly views: (image: Digest) => Promise<ViewsStart | undefined>;
     /** The images of the releases the machine runs in its process: those it ships or links. */
     readonly #trusted: Set<Digest>;
     /** The releases of the packages the machine links, by package. */
@@ -311,6 +319,7 @@ export class Machine {
                 : new SocketBridge(this.hibernation, options.environment);
         this.alarm = options.alarm;
         this.server = options.server;
+        this.views = options.views;
         this.#linked = new Map(options.linked);
         this.#relayMemory = options.relayMemory;
         this.shipped = new Map(
@@ -414,7 +423,7 @@ export class Machine {
 
     /** Resolve a release's image: a shipped release first, else at its publisher's forge. */
     async resolve(packageId: PackageId, named: string): Promise<Digest> {
-        // take a shipped release first, a dev build of it among them
+        // take the shipped release at the version
         const shipped = PackageRelease.select([...this.shipped.values()], packageId, named);
         if (shipped !== undefined) {
             return shipped.image;

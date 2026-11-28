@@ -267,7 +267,7 @@ test("stamp an instance's telemetry with its installation, refusing a claimed em
                                     },
                                     {
                                         key: "destack.build.manifest",
-                                        value: { stringValue: "d".repeat(64) },
+                                        value: { stringValue: await run.build.digest() },
                                     },
                                 ],
                             },

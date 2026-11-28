@@ -561,6 +561,7 @@ export class PartitionObject {
             alarm: this.#alarms.alarm(SPACE_PARTY),
             // run in process the servers the deploy bundled with the machine
             server: (image) => Promise.resolve(bundle.server(image)),
+            views: (image) => Promise.resolve(bundle.views(image)),
             linked: DistributionManifest.builtins(shipped, "workerd"),
             shipped: DistributionManifest.releases(shipped, "workerd"),
             endpoint: bindings.DESTACK_ORIGIN,

@@ -157,6 +157,8 @@ export interface EgressCaller {
               readonly instanceId: Identifier<"instance">;
               /** The deployment the instance runs. */
               readonly deploymentId: Identifier<"deployment">;
+              /** The package-local workload the instance runs. */
+              readonly workload: string;
           }
         | {
               readonly kind: "store";
@@ -169,14 +171,22 @@ export interface EgressCaller {
 export const EgressCaller = {
     /** Read an instance's workload as the caller of its egress. */
     of(spec: InstanceSpec): EgressCaller {
-        const { scope, installationId, resources, installations, instanceId, deploymentId } = spec;
+        const {
+            scope,
+            installationId,
+            resources,
+            installations,
+            instanceId,
+            deploymentId,
+            workload,
+        } = spec;
 
         return {
             scope,
             installationId,
             resources,
             installations,
-            runs: { kind: "instance", instanceId, deploymentId },
+            runs: { kind: "instance", instanceId, deploymentId, workload },
         };
     },
 

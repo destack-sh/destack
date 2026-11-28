@@ -426,6 +426,7 @@ export class Computer implements AsyncDisposable {
                     },
                     alarm: undefined,
                     server: (image) => processes.server(image),
+                    views: (image) => processes.views(image),
                     linked,
                     shipped,
                     endpoint,
