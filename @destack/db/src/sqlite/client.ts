@@ -65,8 +65,8 @@ export class SqliteWorkQueue {
     readonly #waiting = new Map<Scheduler, number>();
     /** The turns queued behind earlier work, oldest first. */
     readonly #queued: QueuedTurn[] = [];
-    /** The watch refusing queued turns past their deadlines, absent while none waits. */
-    #watch: AbortController | undefined;
+    /** The timer refusing the oldest queued turn at its deadline, absent while none waits. */
+    #watch: { readonly clock: DatabaseEnvironment["clock"]; readonly timer: number } | undefined;
     /** The queue's spans and durations, as a pool of one connection. */
     readonly #scope: TelemetryScope;
     /** The telemetry whose active context each turn runs in, as its work was queued. */
@@ -207,45 +207,38 @@ export class SqliteWorkQueue {
             });
 
             // watch the deadlines while any turn waits
-            this.#watch ??= this.#follow(clock);
+            if (this.#watch === undefined) {
+                this.#follow(clock);
+            }
         });
 
         return queued.finally(() => this.#leave(scheduler));
     }
 
-    /** Refuse each queued turn once its deadline passes, sleeping until the oldest one's. */
-    #follow(clock: DatabaseEnvironment["clock"]): AbortController {
-        const watch = new AbortController();
-        void (async () => {
-            // refuse the oldest turn past its deadline, else sleep until its deadline
-            for (let oldest = this.#oldest(); oldest !== undefined; oldest = this.#oldest()) {
-                const left = oldest.deadline - clock.now();
-                if (left > 0) {
-                    await clock.sleep(left, watch.signal);
-                } else {
-                    oldest.isDone = true;
-                    oldest.reject(
-                        DatabaseError.of(
-                            "CONNECTION_UNAVAILABLE",
-                            `the connection is unavailable: a transaction still had it after ${this.#wait} ms`,
-                        ),
-                    );
-                }
-            }
-        })()
-            .catch((error: unknown) => {
-                // end quietly once the queue drains and stops the watch
-                if (!watch.signal.aborted) {
-                    throw error;
-                }
-            })
-            .finally(() => {
-                if (this.#watch === watch) {
-                    this.#watch = undefined;
-                }
-            });
+    /** Refuse the turns past their deadlines, then time the oldest one's, while any turn waits. */
+    #follow(clock: DatabaseEnvironment["clock"]): void {
+        // refuse each oldest turn its deadline passed
+        this.#watch = undefined;
+        let oldest = this.#oldest();
+        while (oldest !== undefined && oldest.deadline <= clock.now()) {
+            oldest.isDone = true;
+            oldest.reject(
+                DatabaseError.of(
+                    "CONNECTION_UNAVAILABLE",
+                    `the connection is unavailable: a transaction still had it after ${this.#wait} ms`,
+                ),
+            );
+            oldest = this.#oldest();
+        }
 
-        return watch;
+        // time the next deadline, a timer cheaper to stop than a sleep's signal
+        if (oldest !== undefined) {
+            const timer = clock.setTimeout(
+                () => this.#follow(clock),
+                oldest.deadline - clock.now(),
+            );
+            this.#watch = { clock, timer };
+        }
     }
 
     /** Read the oldest turn still waiting, dropping the ones done. */
@@ -259,8 +252,8 @@ export class SqliteWorkQueue {
 
     /** Stop the watch once no turn waits. */
     #settle(): void {
-        if (this.#oldest() === undefined) {
-            this.#watch?.abort();
+        if (this.#oldest() === undefined && this.#watch !== undefined) {
+            this.#watch.clock.clearTimeout(this.#watch.timer);
             this.#watch = undefined;
         }
     }
