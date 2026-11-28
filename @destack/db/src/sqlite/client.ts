@@ -69,6 +69,8 @@ export class SqliteWorkQueue {
     #watch: AbortController | undefined;
     /** The queue's spans and durations, as a pool of one connection. */
     readonly #scope: TelemetryScope;
+    /** The telemetry whose active context each turn runs in, as its work was queued. */
+    readonly #telemetry: Environment["telemetry"];
     /** The pool's name, as OpenTelemetry's `db.client.connection.pool.name` reports it. */
     readonly #pool: string;
     /** The connections idle and in use. */
@@ -79,6 +81,7 @@ export class SqliteWorkQueue {
         // count the file's one connection idle, then store the wait
         this.#pool = name;
         this.#scope = TelemetryScope.of(import.meta.destack.package, telemetry);
+        this.#telemetry = telemetry;
         this.#connectionStates = this.#scope.metric.upDownCounter("db.client.connection.count", {
             unit: "{connection}",
             attributes: {
@@ -121,7 +124,9 @@ export class SqliteWorkQueue {
     ): Promise<Value> {
         // take the turn, at once on an idle queue and a bounded time behind earlier work, timing every take
         const turn = this.#tail;
-        const start = () => this.#start(work, environment.scheduler);
+        const { context } = this.#telemetry;
+        const queuing = context.active();
+        const start = () => context.with(queuing, () => this.#start(work, environment.scheduler));
         const queued = this.#measureWait(() =>
             this.#pending === 0 ? turn : this.#turn(turn, environment),
         ).then(start);

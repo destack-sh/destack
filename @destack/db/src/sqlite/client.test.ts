@@ -1,6 +1,8 @@
 import { TEST_START } from "@destack/test/world";
 import { expect, refusal, testOn } from "@destack/test";
 import { SimulatedClock } from "@destack/environment/simulation";
+import { SpanPath } from "@destack/environment";
+import { BrowserContext } from "@destack/environment/browser";
 import { environmentOn } from "../test/environment.ts";
 import { SqliteWorkQueue } from "./client.ts";
 
@@ -38,6 +40,29 @@ onSqlite(
 
         // find the queue idle, with no timer armed for the turn
         expect([armed, await second]).toEqual([undefined, "second"]);
+    },
+);
+
+onSqlite(
+    "run queued work in the context it was queued in, as a browser keeps no async context",
+    async () => {
+        // queue work in one span while earlier work runs in another, on a browser's context
+        const environment = environmentOn(new SimulatedClock(TEST_START));
+        const context = new BrowserContext();
+        const queue = new SqliteWorkQueue({ ...environment.telemetry, context }, "memory");
+        const slow = Promise.withResolvers<void>();
+        const first = context.with(SpanPath.enter(context.active(), "first"), () =>
+            queue.run(async () => {
+                await slow.promise;
+            }, environment),
+        );
+        const second = context.with(SpanPath.enter(context.active(), "second"), () =>
+            queue.run(async () => SpanPath.of(context.active()), environment),
+        );
+        slow.resolve();
+        await first;
+
+        expect(await second).toEqual("second");
     },
 );
 
