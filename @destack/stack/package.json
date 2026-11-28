@@ -16,7 +16,8 @@
         "./error": "./src/error/index.ts",
         "./build": "./src/build/index.ts",
         "./source": "./src/source/index.ts",
-        "./setting": "./src/setting/index.ts"
+        "./setting": "./src/setting/index.ts",
+        "./chrome": "./src/chrome/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",
@@ -26,6 +27,7 @@
         "@destack/db": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/git": "workspace:*",
+        "@destack/icon": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/mail": "workspace:*",
         "@destack/object": "workspace:*",
@@ -34,7 +36,10 @@
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
+        "@destack/style": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/ui": "workspace:*",
         "@destack/view": "workspace:*",
         "@destack/workflow": "workspace:*"
     },
