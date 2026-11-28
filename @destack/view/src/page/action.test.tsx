@@ -1,7 +1,14 @@
 import { Localization, t } from "@destack/locale";
 import { expect, expectTypeOf, onTestFinished, test, vi } from "@destack/test";
 import { createMemo, createSignal, flush } from "solid-js";
-import { type Action, defineAction, defineVariable, ObjectError, Place } from "@destack/object";
+import {
+    type Action,
+    ActionKeybinding,
+    defineAction,
+    defineVariable,
+    ObjectError,
+    Place,
+} from "@destack/object";
 import { PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { schema } from "@destack/schema";
@@ -199,7 +206,7 @@ test("run the innermost action a key binds, by the person's keys, leaving fields
     calendar.append(field);
     const pick = defineAction({ name: "pick", title: t`Pick`, keybinding: "p" });
     const [keys, setKeys] = createSignal<Readonly<Record<string, string | null>>>({});
-    const actions = new ActionRegistry(keys);
+    const actions = new ActionRegistry({ keybindings: keys });
     const ran: string[] = [];
     actions.handle(pick, { run: () => void ran.push("page") });
     actions.handle(plan, { run: () => void ran.push("calendar") }, calendar);
@@ -230,6 +237,22 @@ test("run the innermost action a key binds, by the person's keys, leaving fields
         ran: ["calendar", "page", "page", "calendar"],
         keys: [["q"], ["p"]],
     });
+});
+
+test("bind a view's key to an action over its own, and a person's own key over the view's", () => {
+    // bind pick to v in the view, then to w for the person
+    const pick = defineAction({ name: "pick", title: t`Pick`, keybinding: "p" });
+    const other = defineAction({ name: "other", title: t`Other`, keybinding: "o" });
+    const [keys, setKeys] = createSignal<Readonly<Record<string, string | null>>>({});
+    const actions = new ActionRegistry({
+        keybindings: keys,
+        keys: { pick: ActionKeybinding.of("v") },
+    });
+    const viewed = [actions.keybindings(pick, false), actions.keybindings(other, false)];
+    setKeys({ [DeclarationReference.key(pick.reference)]: "w" });
+    flush();
+
+    expect([...viewed, actions.keybindings(pick, false)]).toEqual([["v"], ["o"], ["w"]]);
 });
 
 test("run a key on what the pointer rests on where nothing has the focus, but no destructive one", async () => {

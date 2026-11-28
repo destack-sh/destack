@@ -35,7 +35,7 @@ export class ViewPage {
         this.view = view;
         this.component = component;
         this.document = document;
-        this.actions = new ActionRegistry();
+        this.actions = new ActionRegistry({ keys: view.keys });
     }
 
     /** Open a view's page, in the view's own shell or the runtime's under the package's theme. */

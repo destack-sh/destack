@@ -178,7 +178,7 @@ export async function mount(
             const [keybindings, setKeybindings] = createSignal(first.keybindings, {
                 ownedWrite: true,
             });
-            const actions = new ActionRegistry(keybindings);
+            const actions = new ActionRegistry({ keybindings, keys: view.keys });
             const mounted: ViewMount = {
                 context,
                 clients,

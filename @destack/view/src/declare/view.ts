@@ -8,12 +8,17 @@ import {
     ViewDescription,
     type ViewPresentationPriority,
 } from "@destack/package/manifest";
-import type { ObjectType } from "@destack/object";
+import {
+    ActionKeybinding,
+    type ActionKeybindingDefinition,
+    type ObjectType,
+} from "@destack/object";
 import type { Package } from "@destack/object";
 import type { Component } from "solid-js";
 import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
 import type { Message } from "@destack/locale";
+import { mapValues } from "@destack/schema";
 
 /** The name of the workload a build derives to render its package's views as their visitors. */
 export const VIEW_WORKLOAD = "view";
@@ -92,6 +97,8 @@ export interface ViewDefinition {
     readonly presents?: readonly Presentation[];
     /** The roles clients open the view in, such as a person's start view. */
     readonly categories?: readonly ViewCategory[];
+    /** The keys the view binds to the actions it presents, by name, over each action's own. */
+    readonly keys?: Readonly<Record<string, ActionKeybindingDefinition>>;
     /** Who the view serves: a signed-in person by default, or anyone. */
     readonly audience?: ViewAudience;
     /** The packages the view calls as its user, such as observability. */
@@ -122,6 +129,8 @@ export class View {
     readonly presents: readonly Presentation[];
     /** The roles clients open the view in. */
     readonly categories: readonly ViewCategory[];
+    /** The keys the view binds to the actions it presents, by action name. */
+    readonly keys: Readonly<Record<string, ActionKeybinding>>;
     /** Who the view serves. */
     readonly audience: ViewAudience;
     /** The packages the view calls as its user. */
@@ -139,6 +148,7 @@ export class View {
         this.objects = definition.objects ?? [];
         this.presents = definition.presents ?? [];
         this.categories = definition.categories ?? [];
+        this.keys = mapValues(definition.keys ?? {}, (keys) => ActionKeybinding.of(keys));
         this.audience = definition.audience ?? "person";
         this.packages = definition.packages ?? [];
         this.component = definition.component;

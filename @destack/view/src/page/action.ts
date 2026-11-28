@@ -166,6 +166,14 @@ export type ActionAsk = (question: ActionQuestion) => Promise<ActionValues | und
 /** Tell a person an action failed, with the reason its error declares, absent for none. */
 export type ActionFail = (action: Action, reason: string | undefined) => void;
 
+/** The keys a page's registry binds, beside the actions' own. */
+export interface ActionRegistryOptions {
+    /** The person's key combinations by setting key, null for an unbound one. */
+    readonly keybindings?: Accessor<Readonly<Record<string, Shortcut | null>>>;
+    /** The keys the view binds to actions, by action name. */
+    readonly keys?: Readonly<Record<string, ActionKeybinding>>;
+}
+
 /** The actions a running page's components handle, and the objects the person selects in it. */
 export class ActionRegistry {
     /** The handled actions, by setting key. */
@@ -192,6 +200,8 @@ export class ActionRegistry {
     #fails: readonly ActionFail[] = [];
     /** Read the person's key combinations by setting key, null for an unbound one. */
     readonly #keybindings: Accessor<Readonly<Record<string, Shortcut | null>>>;
+    /** The keys the view binds to actions, by action name, over the actions' own. */
+    readonly #keys: Readonly<Record<string, ActionKeybinding>>;
     /** The strokes a person types of shortcuts pressed after one another. */
     readonly sequence = new ShortcutSequence<DeclarationReference>();
     /** Count the changes to the handlers, which readers of the actions follow. */
@@ -203,10 +213,11 @@ export class ActionRegistry {
     /** Replace the clients. */
     readonly #setClients: Setter<readonly ObjectNode[]>;
 
-    /** Create a page's registry without handlers, its keys the person's, else the declared ones. */
-    constructor(keybindings: Accessor<Readonly<Record<string, Shortcut | null>>> = () => ({})) {
-        // follow the changes to the handlers
-        this.#keybindings = keybindings;
+    /** Create a page's registry without handlers, the person's keys over the view's. */
+    constructor(options: ActionRegistryOptions = {}) {
+        // follow the changes to the handlers, binding the view's keys over the actions' own
+        this.#keybindings = options.keybindings ?? (() => ({}));
+        this.#keys = options.keys ?? {};
         const [revision, setRevision] = createSignal(0, { ownedWrite: true });
         this.#revision = revision;
         this.#setRevision = setRevision;
@@ -713,7 +724,7 @@ export class ActionRegistry {
     keybindings(action: Action, isCommand: boolean): readonly Shortcut[] {
         const chosen = this.#keybindings()[DeclarationReference.key(action.reference)];
 
-        return ActionKeybinding.on(action.keybinding, isCommand, chosen);
+        return ActionKeybinding.on(this.#keys[action.name] ?? action.keybinding, isCommand, chosen);
     }
 
     /** Run the innermost action a key press binds, of a part where one asks. */

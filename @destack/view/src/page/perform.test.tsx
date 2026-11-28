@@ -201,8 +201,15 @@ test("call a method on the objects selected across spaces, and leave what it doe
         bread: bread?.scope,
     }).toEqual({
         names: ["card.finish", "card.follow", "card.add"],
-        // the finished cards offer no finish, their own methods beside the declared action
-        listed: ["card.add", "card.follow", "card.update", "card.delete"],
+        // the finished cards offer no finish, their own methods and field setters beside the declared action
+        listed: [
+            "card.add",
+            "card.follow",
+            "card.update",
+            "card.delete",
+            "card.setTitle",
+            "card.setStatus",
+        ],
         again: `FamilyError: cannot call 'card.update': it does not apply to card '${apples?.id}'`,
         nowhere: ["card.add"],
         bread: BOARDS[0],
