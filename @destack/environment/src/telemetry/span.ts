@@ -1,7 +1,7 @@
 import { type Attributes, type Context, createContextKey } from "@opentelemetry/api";
 
 /** The attributes that name a measurement's target: names, types, kinds, methods and namespaces. */
-const NAMING = /\.(?:name|type|kind|method|namespace)$/u;
+const TARGET = /\.(?:name|type|kind|method|namespace)$/u;
 
 /** The attributes naming the system or the outcome rather than the target, such as the engine. */
 const EXCLUDED: ReadonlySet<string> = new Set(["db.system.name", "rpc.system.name", "error.type"]);
@@ -34,22 +34,41 @@ class SpanEntry {
 export const SpanPath = {
     /** Label a span: its name, then the values of the attributes naming its target. */
     label(name: string, attributes: Attributes): string {
-        const named = SpanPath.naming(attributes);
+        const target = SpanPath.target(attributes);
 
-        return named === "" || named === name ? name : `${name}[${named}]`;
+        return target === "" || target === name ? name : `${name}[${target}]`;
     },
 
-    /** Join the values of the attributes that name a measurement's target. */
-    naming(attributes: Attributes): string {
-        return Object.entries(attributes)
-            .filter(([key]) => NAMING.test(key) && !EXCLUDED.has(key))
-            .map(([, value]) => String(value))
-            .join(":");
+    /** Read a measurement's target: the values of the attributes that name it, joined. */
+    target(attributes: Attributes): string {
+        // join the values in one pass, as every span labels itself
+        let target: string | undefined = undefined;
+        for (const key in attributes) {
+            if (TARGET.test(key) && !EXCLUDED.has(key)) {
+                const value = String(attributes[key]);
+                target = target === undefined ? value : `${target}:${value}`;
+            }
+        }
+
+        return target ?? "";
     },
 
     /** Enter a span in a context below the spans already running there, with empty totals. */
     enter(context: Context, label: string): Context {
         return context.setValue(PATH_KEY, new SpanEntry(label, innermost(context)));
+    },
+
+    /** Decide whether a context runs inside the innermost span of another, or in that span. */
+    isWithin(context: Context, outer: Context): boolean {
+        // walk up from the inner context's span, looking for the outer one's
+        const target = innermost(outer);
+        for (let entry = innermost(context); entry !== undefined; entry = entry.parent) {
+            if (entry === target) {
+                return true;
+            }
+        }
+
+        return false;
     },
 
     /** Read the span path running in a context, outermost first, absent outside any span. */

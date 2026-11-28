@@ -372,16 +372,16 @@ export class SimulatedTelemetry implements Telemetry {
         // merge the points by target
         const groups = new Map<string, Histogram[]>();
         for (const point of points) {
-            const named = SpanPath.naming(point.attributes);
-            groups.set(named, [...(groups.get(named) ?? []), point.value]);
+            const target = SpanPath.target(point.attributes);
+            groups.set(target, [...(groups.get(target) ?? []), point.value]);
         }
 
         // write the whole, then the groups, the costliest first
         lines.push(`  ${name}  ${SimulatedTelemetry.#summary([...groups.values()].flat(), scale)}`);
         const ordered = [...groups].toSorted(([, left], [, right]) => summed(right) - summed(left));
-        for (const [named, values] of groups.size > 1 ? ordered : []) {
+        for (const [target, values] of groups.size > 1 ? ordered : []) {
             lines.push(
-                `    ${named || "(unnamed)"}  ${SimulatedTelemetry.#summary(values, scale)}`,
+                `    ${target || "(unnamed)"}  ${SimulatedTelemetry.#summary(values, scale)}`,
             );
         }
     }
@@ -425,12 +425,12 @@ export class SimulatedTelemetry implements Telemetry {
                 if (metric.dataPointType === DataPointType.HISTOGRAM) {
                     const sum = unit === "s" ? "seconds" : "sum";
                     for (const point of metric.dataPoints) {
-                        const named = SpanPath.naming(point.attributes);
+                        const target = SpanPath.target(point.attributes);
                         add(`${name}.count`, point.value.count);
                         add(`${name}.${sum}`, point.value.sum ?? 0);
-                        if (named !== "") {
-                            add(`${name}.count.${named}`, point.value.count);
-                            add(`${name}.${sum}.${named}`, point.value.sum ?? 0);
+                        if (target !== "") {
+                            add(`${name}.count.${target}`, point.value.count);
+                            add(`${name}.${sum}.${target}`, point.value.sum ?? 0);
                         }
                     }
                 }
