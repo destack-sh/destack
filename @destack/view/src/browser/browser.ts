@@ -1,7 +1,6 @@
 import { Action, type ObjectType, Place } from "@destack/object";
 import { createSignal } from "solid-js";
 import { TelemetryScope } from "@destack/telemetry";
-import type { Environment } from "@destack/environment";
 import type { BrowserCapability, BrowserEnvironment } from "@destack/environment/browser";
 import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
@@ -30,7 +29,9 @@ import { destackTheme } from "@destack/theme/declare";
 import { Presentation, type Page, PRESENTED_SETTINGS } from "./presentation.ts";
 import type { View } from "../declare/view.ts";
 import type { ViewMount } from "../page/context.ts";
-import { renderView } from "../page/mount.ts";
+import { hydrate } from "@solidjs/web";
+import type { Environment } from "@destack/environment";
+import { ViewPage } from "../static/page.ts";
 import { appendFaces } from "../document/font.tsx";
 import { destackFonts } from "../document/typeface.ts";
 import { recordVisits } from "./visit.ts";
@@ -96,9 +97,10 @@ export async function mount(
         "destack.page.mount",
         { "destack.view.name": view.name },
         async () => {
-            // load the view's component beside the tabs, as it needs none of them
-            const component = instruments.span("destack.page.component", {}, () =>
-                view.component(),
+            // open the view's page beside the tabs, as it needs none of them
+            const rendered = { ...environment, telemetry };
+            const opening = instruments.span("destack.page.component", {}, () =>
+                ViewPage.open(view, declared),
             );
 
             // open the view's scopes below the page's base, a person's own scope on this browser's device
@@ -116,7 +118,7 @@ export async function mount(
                 : undefined;
             const authorization = new PageAuthorization(root, environment);
             const call = pageOrigin(root, authorization);
-            const { tabs, open, ready } = await instruments.span("destack.page.tabs", {}, () =>
+            const tabbing = instruments.span("destack.page.tabs", {}, () =>
                 openTabs(
                     context,
                     view,
@@ -124,7 +126,6 @@ export async function mount(
                     { ...environment, telemetry },
                 ),
             );
-            const clients: ReadonlyMap<string, ObjectNode> = tabs;
             const packages = mountPackages(view.packages, context.space, call);
             const connections = new Map<string, ObjectConnection>();
             const connect = (path: string, scope: string): ObjectConnection => {
@@ -144,21 +145,14 @@ export async function mount(
                 return connection;
             };
 
-            // resolve what the page shows its person, or a visitor under the package's theme, else Destack's
+            // present the page as this browser last showed it, else its defaults, under the package's theme
             const stopping = new AbortController();
             const theme = declared.theme === undefined ? destackTheme : new Theme(declared.theme);
-            const page = { context, packageId: view.package.id, theme };
-            const shown =
-                device === undefined
-                    ? visitor(page, environment.locale)
-                    : follow(
-                          present(tabs.get(context.user.id), "the person's own scope"),
-                          page,
-                          device,
-                          stopping.signal,
-                      );
+            const presented = { context, packageId: view.package.id, theme };
+            const visiting =
+                device === undefined ? visitor(presented, environment.locale) : undefined;
             const first = await instruments.span("destack.page.presentation", {}, () =>
-                firstPresentation(page, shown, device === undefined, environment),
+                firstPresentation(presented, visiting, environment),
             );
             appendFaces(document, destackFonts);
             restyle(first);
@@ -173,13 +167,42 @@ export async function mount(
                 );
             }
 
-            // render the root component under the view, its clients and its actions, once its package's catalogs arrive
-            const { default: Component } = await component;
+            // hydrate the server's page in the language it rendered, its scopes empty until the device's tabs open
+            const page = await opening;
+            const [clients, setClients] = createSignal<ReadonlyMap<string, ObjectNode>>(new Map(), {
+                ownedWrite: true,
+            });
+            const [localization, setLocalization] = createSignal(page.root(rendered).localization, {
+                ownedWrite: true,
+            });
             const [keybindings, setKeybindings] = createSignal(first.keybindings, {
                 ownedWrite: true,
             });
             const actions = new ActionRegistry(keybindings);
-            actions.attach({ clients, scope: context.space });
+            const mounted: ViewMount = {
+                context,
+                clients,
+                open: async (scope, closing) => {
+                    // take the device's tab of a scope it holds, else open another space's
+                    const opened = await tabbing;
+
+                    return opened.tabs.get(scope) ?? (await opened.open(scope, closing));
+                },
+                packages,
+                origin: call,
+                connect,
+            };
+            const dispose = await instruments.span("destack.page.hydrate", {}, () =>
+                hydrate(
+                    () =>
+                        page.render(mounted, {
+                            actions,
+                            localization: Localization.follow(localization),
+                            environment: rendered,
+                        }),
+                    document,
+                ),
+            );
 
             // act on the object the view opened for, and offer the package's actions on the types it opens
             const { target } = context;
@@ -200,47 +223,56 @@ export async function mount(
                     actions.offer(Action.of(name, description, read));
                 }
             }
-            const rendering = await instruments.span("destack.page.render", {}, () =>
-                LocalizedRendering.open(
-                    (locale, localization) =>
-                        renderView(Component, document.body, {
-                            package: { ...view.package, version: release },
-                            environment: { ...environment, telemetry },
-                            localization,
-                            actions,
-                            mount: {
-                                context,
-                                clients,
-                                open,
-                                packages,
-                                origin: call,
-                                connect,
-                            },
-                        }),
-                    {
-                        owner: view.package.id,
-                        locale: first.locale,
-                        signal: stopping.signal,
-                        environment,
-                        origin: root,
-                        catalogs: new Set(context.catalogs),
-                    },
-                ),
-            );
+
+            // localize the page in its person's language once its own package's catalogs arrive
+            const localizing = await PageLocalization.open(setLocalization, {
+                owner: view.package.id,
+                locale: first.locale,
+                signal: stopping.signal,
+                environment,
+                origin: root,
+                catalogs: new Set(context.catalogs),
+            });
 
             // run the person's key combinations and open the command palette over the view
-            let presented = first;
+            let shown = first;
             const overlay = new PaletteOverlay({
                 actions,
                 declared: declared.actions,
                 navigation,
-                localization: () => rendering.localization,
-                presentation: () => presented,
+                localization: () => localizing.localization,
+                presentation: () => shown,
             });
             overlay.listen(stopping.signal);
+            actions.handle(palette, { run: (event) => overlay.open(event.element) });
 
-            // handle the standard actions: undo and redo across the page's scopes, a group per gesture, and the palette
-            const pageUndo = new PageUndo([...clients.values()].map((client) => client.undoStack));
+            // record a visit of the view as it loads and each time it moves to another path
+            const scope = TelemetryScope.of({ ...view.package, version: release }, telemetry);
+            recordVisits(view.name, scope, environment, stopping.signal);
+
+            // release the page's rendering, connections, tabs and telemetry on unmount
+            const unmount = async () => {
+                // stop the page's work and close its connections
+                stopping.abort();
+                dispose();
+                for (const connection of connections.values()) {
+                    connection.close();
+                }
+                try {
+                    const { tabs } = await tabbing;
+                    await Promise.all([...tabs.values()].map((tab) => tab.close()));
+                    await election.close();
+                } finally {
+                    await telemetry.shutdown();
+                }
+            };
+            window.addEventListener("pagehide", () => void unmount(), { once: true });
+
+            // follow the device once its tabs open: its scopes, undo across them and the person's presentation
+            const { tabs, ready } = await tabbing;
+            setClients(tabs);
+            actions.attach({ clients: tabs, scope: context.space });
+            const pageUndo = new PageUndo([...tabs.values()].map((client) => client.undoStack));
             pageUndo.listen(stopping.signal);
             actions.handle(undo, {
                 run: async () => {
@@ -254,16 +286,23 @@ export async function mount(
                 },
                 isEnabled: pageUndo.canRedo,
             });
-            actions.handle(palette, { run: (event) => overlay.open(event.element) });
+            const following =
+                visiting ??
+                follow(
+                    present(tabs.get(context.user.id), "the person's own scope"),
+                    presented,
+                    present(device, "the person's device"),
+                    stopping.signal,
+                );
 
-            // restyle on each change, render again in a new language and follow the keybindings
+            // restyle on each change, localize in a new language and follow the keybindings
             void (async () => {
-                for await (const next of shown) {
+                for await (const next of following) {
                     restyle(next);
-                    rendering.switch(next.locale);
-                    presented = next;
+                    localizing.switch(next.locale);
+                    shown = next;
                     setKeybindings(next.keybindings);
-                    Presentation.cache(page, next, environment.storage);
+                    Presentation.cache(presented, next, environment.storage);
                 }
             })().catch((error: unknown) => {
                 if (!stopping.signal.aborted) {
@@ -271,28 +310,7 @@ export async function mount(
                 }
             });
 
-            // record a visit of the view as it loads and each time it moves to another path
-            const scope = TelemetryScope.of({ ...view.package, version: release }, telemetry);
-            recordVisits(view.name, scope, environment, stopping.signal);
-
-            // release the page's rendering, connections, tabs and telemetry on unmount
-            const unmount = async () => {
-                // stop the page's work and close its connections
-                stopping.abort();
-                rendering.dispose();
-                for (const connection of connections.values()) {
-                    connection.close();
-                }
-                try {
-                    await Promise.all([...tabs.values()].map((tab) => tab.close()));
-                    await election.close();
-                } finally {
-                    await telemetry.shutdown();
-                }
-            };
-
-            // unmount once the page goes, mounted once its tabs are ready, failing with a device that cannot open
-            window.addEventListener("pagehide", () => void unmount(), { once: true });
+            // fail with a device that cannot open
             await instruments.span("destack.page.ready", {}, () => ready);
 
             return unmount;
@@ -316,10 +334,10 @@ interface RenderingOptions {
     readonly catalogs: ReadonlySet<string>;
 }
 
-/** A view rendered in its person's language, loading each package's catalogs on first use. */
-class LocalizedRendering {
-    /** Render the view in a language under a localization, returning how to remove it. */
-    readonly #render: (locale: LocaleTag, localization: Localization) => () => void;
+/** A page's localization in its person's language, loading each package's catalogs on first use. */
+class PageLocalization {
+    /** Publish a localization to the page, which renders its messages again in place. */
+    readonly #publish: (localization: Localization) => void;
     /** The package whose build serves the page, beside whose catalogs the others sit. */
     readonly #owner: PackageId;
     /** Abort the loads once the page goes. */
@@ -332,19 +350,17 @@ class LocalizedRendering {
     readonly #catalogs: Map<LocaleTag, Map<PackageId, Catalog[]>>;
     /** The language rendered. */
     #locale: LocaleTag;
-    /** The localization rendered, which the page's own overlays render their messages in. */
+    /** The localization published, which the page's own overlays render their messages in. */
     #localization: Localization;
-    /** Remove the current rendering. */
-    #dispose: () => void;
 
-    /** Draw a view in a language with its own package's catalogs. */
+    /** Localize a page in a language with its own package's catalogs. */
     private constructor(
-        render: (locale: LocaleTag, localization: Localization) => () => void,
+        publish: (localization: Localization) => void,
         options: RenderingOptions,
         own: Catalog[],
     ) {
-        // keep the renderer, the language and the own package's catalogs, and draw
-        this.#render = render;
+        // keep the publisher, the language and the own package's catalogs, and publish
+        this.#publish = publish;
         this.#owner = options.owner;
         this.#source = options;
         this.#signal = options.signal;
@@ -352,25 +368,25 @@ class LocalizedRendering {
         this.#catalogs = new Map([[options.locale, new Map([[options.owner, own]])]]);
         this.#locale = options.locale;
         this.#localization = this.#localize();
-        this.#dispose = this.#render(this.#locale, this.#localization);
+        publish(this.#localization);
     }
 
-    /** Render a view in a language once its own package's catalogs arrive. */
+    /** Localize a page in a language once its own package's catalogs arrive. */
     static async open(
-        render: (locale: LocaleTag, localization: Localization) => () => void,
+        publish: (localization: Localization) => void,
         options: RenderingOptions,
-    ): Promise<LocalizedRendering> {
+    ): Promise<PageLocalization> {
         const own = await fetchCatalogs(options.owner, options.locale, options.owner, options);
 
-        return new LocalizedRendering(render, options, own);
+        return new PageLocalization(publish, options, own);
     }
 
-    /** The localization rendered. */
+    /** The localization published. */
     get localization(): Localization {
         return this.#localization;
     }
 
-    /** Render in a language once the catalogs of every package the page renders arrive. */
+    /** Localize in a language once the catalogs of every package the page renders arrive. */
     switch(locale: LocaleTag): void {
         // keep the language when it stays
         if (locale === this.#locale) {
@@ -382,12 +398,7 @@ class LocalizedRendering {
         this.#refresh(locale, [...this.#packages]);
     }
 
-    /** Remove the rendering. */
-    dispose(): void {
-        this.#dispose();
-    }
-
-    /** Load a package's catalogs once its first message renders, drawing again with them. */
+    /** Load a package's catalogs once its first message renders, publishing again with them. */
     #request(packageId: PackageId): void {
         // load a package once, in the language shown
         if (!this.#packages.has(packageId)) {
@@ -396,13 +407,14 @@ class LocalizedRendering {
         }
     }
 
-    /** Load some packages' catalogs in a language, drawing again while it is shown. */
+    /** Load some packages' catalogs in a language, publishing again while it is shown. */
     #refresh(locale: LocaleTag, packages: readonly PackageId[]): void {
         this.#load(locale, packages).then(
             () => {
-                // draw while the page still shows the language
+                // publish while the page still shows the language
                 if (locale === this.#locale && !this.#signal.aborted) {
-                    this.#draw();
+                    this.#localization = this.#localize();
+                    this.#publish(this.#localization);
                 }
             },
             (error: unknown) => globalThis.reportError(error),
@@ -423,13 +435,6 @@ class LocalizedRendering {
                 );
             }),
         );
-    }
-
-    /** Draw the view again in the language shown, with the catalogs loaded for it. */
-    #draw(): void {
-        this.#dispose();
-        this.#localization = this.#localize();
-        this.#dispose = this.#render(this.#locale, this.#localization);
     }
 
     /** Bind the language shown to its loaded catalogs, asking for each package's on first use. */
@@ -698,22 +703,22 @@ async function syncOwn(tab: BrowserTab, scope: string): Promise<void> {
 /** Take a page's first presentation: the person's last in this browser, else defaults. */
 async function firstPresentation(
     page: Page,
-    shown: AsyncGenerator<Presentation, void>,
-    isVisitor: boolean,
+    visiting: AsyncGenerator<Presentation, void> | undefined,
     environment: Pick<BrowserEnvironment, "storage" | "locale">,
 ): Promise<Presentation> {
     // show a person their last presentation in this browser, else the defaults until their device answers
-    const remembered = isVisitor ? undefined : Presentation.cached(page, environment.storage);
+    const remembered =
+        visiting === undefined ? Presentation.cached(page, environment.storage) : undefined;
     if (remembered !== undefined) {
         return remembered;
     }
     // show a person this browser has not shown the page the defaults
-    else if (!isVisitor) {
+    else if (visiting === undefined) {
         return Presentation.resolve(page, { locale: environment.locale, chain: [] }, [], []);
     }
 
     // show a visitor the page's own presentation
-    const opened = await shown.next();
+    const opened = await visiting.next();
     if (opened.done === true) {
         throw new TypeError("the visitor's presentation ended before the page showed");
     }

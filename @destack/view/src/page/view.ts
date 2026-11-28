@@ -17,7 +17,7 @@ export function useConnect(): (path: string, scope: string) => ObjectConnection 
 
 /** Read the open client of one of the mounted view's scopes. */
 export function useClient(scope: string): ObjectNode {
-    const client = useMount().clients.get(scope);
+    const client = useMount().clients().get(scope);
     if (client === undefined) {
         throw ViewError.of(
             "SCOPE_BLOCKED",

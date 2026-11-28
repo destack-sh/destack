@@ -15,7 +15,7 @@ import { ViewError } from "../error/error.ts";
 import { ActionRegistry } from "../page/action.ts";
 import { ViewRoot, type ViewRootProperties } from "../page/mount.ts";
 import { type IslandProperties, IslandSlot } from "./island.tsx";
-import { StaticPage, TELEMETRY_META } from "./page.ts";
+import { ViewPage, TELEMETRY_META } from "./page.ts";
 
 /** The telemetry a page starts, exporting to the origin serving it. */
 type PageTelemetry = Awaited<ReturnType<typeof startTelemetry>>;
@@ -31,12 +31,9 @@ export async function hydrateStatic(
 ): Promise<void> {
     // hydrate the page under the page's telemetry
     const telemetry = await startPageTelemetry(view, environment);
-    const page = await StaticPage.open(
-        view,
-        declared,
-        Environment.instrument(environment, telemetry),
-    );
-    const dispose = hydrate(() => page.render(), document);
+    const page = await ViewPage.open(view, declared);
+    const rendered = Environment.instrument(environment, telemetry);
+    const dispose = hydrate(() => page.render(null, page.root(rendered)), document);
 
     // run the keys of its actions, and follow the page until it goes
     const closing = new AbortController();

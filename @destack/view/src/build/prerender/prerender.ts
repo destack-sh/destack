@@ -4,7 +4,8 @@ import type { Environment, Subprocess } from "@destack/environment";
 import { PackagePath } from "@destack/package/file";
 import { present, schema } from "@destack/schema";
 import { ViewError } from "../../error/error.ts";
-import type { PageHead, RouteTable } from "../../static/page.ts";
+import { PageHead } from "../../declare/render.ts";
+import type { RouteTable } from "../../static/serve.ts";
 
 /** The longest a request's response may take, in milliseconds. */
 const RESPONSE_TIMEOUT = 10_000;
@@ -25,12 +26,7 @@ export const RenderPlan = schema.object({
     /** The site's public origin. */
     origin: schema.url(),
     /** What each page's head links. */
-    head: schema.object({
-        /** The module each page loads. */
-        script: schema.string(),
-        /** The stylesheets each page links, in order. */
-        stylesheets: schema.array(schema.string()).readonly(),
-    }),
+    head: PageHead,
 });
 /** What a renderer renders. */
 export type RenderPlan = schema.Infer<typeof RenderPlan>;

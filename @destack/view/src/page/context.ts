@@ -1,4 +1,4 @@
-import { createContext, NotReadyError, useContext } from "solid-js";
+import { type Accessor, createContext, NotReadyError, useContext } from "solid-js";
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import type { TelemetryScope } from "@destack/telemetry";
 import type { ClientOptions, Endpoint, ObjectNode, ObjectConnection } from "@destack/object/client";
@@ -9,8 +9,8 @@ import type { ActionRegistry } from "./action.ts";
 export interface ViewMount {
     /** What the host gives the view. */
     readonly context: ViewContext;
-    /** The clients of the scopes the view opens, by scope. */
-    readonly clients: ReadonlyMap<string, ObjectNode>;
+    /** The clients of the scopes the view opens, by scope: the server's, then the device's. */
+    readonly clients: Accessor<ReadonlyMap<string, ObjectNode>>;
     /** Open another space with the objects the view opens in spaces, until the signal aborts. */
     readonly open: (scope: string, signal: AbortSignal) => Promise<ObjectNode>;
     /** How the view calls the packages it declares, by package identifier. */

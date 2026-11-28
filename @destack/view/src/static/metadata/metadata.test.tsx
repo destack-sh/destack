@@ -6,7 +6,10 @@ import { siteEndpoints } from "./metadata.ts";
 test("answer each site file at its path with its media type, the robots naming the sitemap", async () => {
     // answer every endpoint at the site's origin
     await using simulation = testSimulation();
-    const environment = BrowserEnvironment.server(simulation.environment("site"));
+    const environment = BrowserEnvironment.server(
+        simulation.environment("site"),
+        "https://example.test/",
+    );
     const endpoints = siteEndpoints({
         sitemap: ["/"],
         robots: { rules: [{ userAgent: "*", allow: ["/"] }] },

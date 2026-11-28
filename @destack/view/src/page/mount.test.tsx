@@ -83,7 +83,7 @@ function readText(locale: LocaleTag, environment: BrowserEnvironment): string {
         actions: new ActionRegistry(),
         mount: {
             context: CONTEXT,
-            clients: new Map(),
+            clients: () => new Map(),
             packages: new Map(),
             open: noSpace,
             origin: noOrigin,
@@ -184,7 +184,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
         actions: new ActionRegistry(),
         mount: {
             context: CONTEXT,
-            clients: new Map(),
+            clients: () => new Map(),
             packages,
             open: noSpace,
             origin: noOrigin,
@@ -217,7 +217,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
             actions: new ActionRegistry(),
             mount: {
                 context: CONTEXT,
-                clients: new Map(),
+                clients: () => new Map(),
                 packages: new Map(),
                 open: noSpace,
                 origin: noOrigin,
@@ -251,7 +251,7 @@ test("show the time on the view's clock, moving on each second until the view go
         actions: new ActionRegistry(),
         mount: {
             context: CONTEXT,
-            clients: new Map(),
+            clients: () => new Map(),
             packages: new Map(),
             open: noSpace,
             origin: noOrigin,

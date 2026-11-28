@@ -1,4 +1,5 @@
 export * from "./page.ts";
+export * from "./serve.ts";
 export * from "./metadata/index.ts";
 export { ViewDocument, type ViewDocumentProperties } from "./document.tsx";
 export { island, IslandContext, IslandPage, type IslandProperties, IslandSlot } from "./island.tsx";

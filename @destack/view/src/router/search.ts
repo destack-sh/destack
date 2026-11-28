@@ -1,5 +1,5 @@
-import { getRequestEvent, isServer } from "@solidjs/web";
-import { mapValues, present, type schema } from "@destack/schema";
+import { isServer } from "@solidjs/web";
+import { mapValues, type schema } from "@destack/schema";
 import {
     type Accessor,
     createEffect,
@@ -7,14 +7,9 @@ import {
     createSignal,
     onCleanup,
     untrack,
-    useContext,
 } from "solid-js";
-import { RouterContext } from "@solidjs/router";
 import { useEnvironment } from "../page/context.ts";
 import { ViewError } from "../error/error.ts";
-
-/** The origin a router's location resolves against on the server. */
-const SERVER_ORIGIN = "http://page.invalid";
 
 /** How setting URL state moves through history, scrolls and treats defaults. */
 export interface Options {
@@ -424,20 +419,9 @@ interface PageAddress {
 
 /** Follow the page's address: the request's on the server, the tab's in the browser. */
 function usePageAddress(): PageAddress {
-    // read the address on the server: the router's it renders inside, else the request's, which no write changes
+    // read the address on the server: the URL its environment renders, which no write changes
     if (isServer) {
-        const router = useContext(RouterContext);
-        const event = getRequestEvent();
-        if (router === undefined && event === undefined) {
-            throw ViewError.of(
-                "PAGE_ADDRESS_BROKEN",
-                "URL state renders on the server only under a router or a request",
-            );
-        }
-        const url =
-            router === undefined
-                ? new URL(present(event, "the request").request.url)
-                : new URL(`${router.location.pathname}${router.location.search}`, SERVER_ORIGIN);
+        const url = new URL(useEnvironment().navigation.currentEntry.url);
 
         return {
             url: () => url,

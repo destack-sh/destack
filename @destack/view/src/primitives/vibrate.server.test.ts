@@ -11,7 +11,7 @@ test("follow a vibration and a pulse on the server without touching a motor", ()
     const read: boolean[] = [];
     renderToString(() =>
         createComponent(EnvironmentContext, {
-            value: BrowserEnvironment.server(testHost()),
+            value: BrowserEnvironment.server(testHost(), "https://example.test/"),
             get children() {
                 read.push(createVibrate(200).vibrating(), createPulse(2).pulsing());
 

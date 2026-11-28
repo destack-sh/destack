@@ -11,12 +11,19 @@ import type {
 } from "@destack/package/build";
 import {
     BROWSER_SANDBOX,
+    ComputeDefinition,
     type DeclarationDescription,
     OriginPath,
     type PackageId,
     Sandbox,
 } from "@destack/package";
-import { type PackageOutput, ViewDescription, ViewRender } from "@destack/package/manifest";
+import {
+    type PackageOutput,
+    ViewDescription,
+    ViewRender,
+    WorkloadDescription,
+} from "@destack/package/manifest";
+import { WorkloadModule } from "@destack/object/workload";
 import { ACTION_KIND, ActionDescription, OBJECT_KIND } from "@destack/object";
 import { OBJECTS_ENTRYPOINT } from "@destack/object/build";
 import { present, Version } from "@destack/schema";
@@ -28,7 +35,7 @@ import { prerender } from "./prerender/index.ts";
 import { pagesPlugin } from "./pages.ts";
 import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";
 import { ViewError } from "../error/error.ts";
-import { VIEW_KIND } from "../declare/view.ts";
+import { VIEW_EXPORT, VIEW_KIND, VIEW_WORKLOAD } from "../declare/view.ts";
 
 /** The prefix of the modules the view build generates. */
 const GENERATED = "virtual:@destack/view/";
@@ -38,6 +45,9 @@ export const PREFIX = `${GENERATED}view/`;
 
 /** The generated module serving the object types the package's client views open on its device. */
 const DEVICE_MODULE = `${GENERATED}device`;
+
+/** The generated module running a server output's views workload. */
+const WORKLOAD_MODULE = `${GENERATED}workload`;
 
 /** The entrypoint of the device module, which the device worker imports. */
 const DEVICE_ENTRYPOINT = "./device";
@@ -69,7 +79,7 @@ type DeclaredRender = ReturnType<typeof ViewRender.declaration.parse>;
 /** What a view build reads: the package, its declarations, examples, scenarios and modules. */
 export type ViewPackage = Pick<
     Compilation,
-    "package" | "packages" | "directory" | "declarations" | "locate" | "definitions"
+    "package" | "packages" | "directory" | "declarations" | "locate" | "definitions" | "runtime"
 >;
 
 /** A static view's render as its declaration describes it. */
@@ -115,16 +125,32 @@ export const viewExtension: BuildExtension = {
             compilation.entry(EXAMPLE_ENTRYPOINT, EXAMPLE_MODULE);
         }
 
+        // render the package's views as their visitors in a server output's views workload
+        if (isRendering(compilation)) {
+            compilation.entry(VIEW_EXPORT, WORKLOAD_MODULE);
+        }
+
         // address a server output's assets where an origin publishes them, in a library too
         const isServer = compilation.runtime === "bun";
 
         return [entryPlugin(views, compilation), ...(isServer ? [assetPlugin()] : [])];
     },
     describe(compilation, compiled) {
-        // describe each view of a browser output by its entry, stylesheets, browser abilities and presented types
+        // describe a server output's views workload: no packages, bindings or sandbox abilities
         if (compilation.runtime !== "browser") {
-            return {};
+            const workload = WorkloadDescription.parse({
+                entrypoint: VIEW_EXPORT,
+                packages: [],
+                resources: [],
+                secrets: [],
+                compute: ComputeDefinition.merge(),
+                sandbox: Sandbox.select(compilation.sandbox, []),
+            });
+
+            return isRendering(compilation) ? { workloads: { [VIEW_WORKLOAD]: workload } } : {};
         }
+
+        // describe each view of a browser output by its entry, stylesheets, browser abilities and presented types
         const declared = compilation.sandbox;
         const sandbox = Sandbox.select(
             declared,
@@ -204,6 +230,7 @@ async function prerenderViews(
             {
                 script: `/${view.entrypoint}`,
                 stylesheets: view.stylesheets.map((path) => `/${path}`),
+                preloads: [],
             },
             context.environment,
         );
@@ -465,6 +492,12 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
                 const isServer = options?.ssr === true;
                 if (id === `\0${WORKER_MODULE}`) {
                     return workerModule();
+                } else if (id === `\0${WORKLOAD_MODULE}`) {
+                    return workloadModule(
+                        locate(compilation).filter((entry) => entry.render.mode !== "static"),
+                        compilation,
+                        declared,
+                    );
                 } else if (id === `\0${DEVICE_MODULE}`) {
                     return deviceModule(
                         views.filter((entry) => entry.render.mode !== "static"),
@@ -482,6 +515,39 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
             },
         },
     };
+}
+
+/** Report whether a compilation is a server output of a package with client views. */
+function isRendering(compilation: ViewPackage): boolean {
+    const isServer = compilation.runtime === "bun" || compilation.runtime === "workerd";
+
+    return isServer && locate(compilation).some((view) => view.render.mode !== "static");
+}
+
+/** Write the module of a package's views workload, rendering its client views. */
+function workloadModule(
+    views: readonly LocatedView[],
+    compilation: ViewPackage,
+    declared: string,
+): string {
+    // host the workload on the output's runtime, its views listed by local name
+    const runtime = compilation.runtime === "bun" ? "bun" : "workerd";
+    const listed = views.map((_, index) => `view${index}`).join(", ");
+    const module = JSON.stringify({ package: compilation.package });
+
+    return WorkloadModule.write(
+        [
+            'import { defineWorkload } from "@destack/object/workload";',
+            `import { serveViews } from "${VIEW_PACKAGE}/static";`,
+            ...views.map((view, index) => WorkloadModule.import(view, `view${index}`)),
+            `const views = serveViews([${listed}], ${declared});`,
+            "export default views;",
+            `const workload = defineWorkload({ name: ${JSON.stringify(VIEW_WORKLOAD)}, start: views }, ${module});`,
+        ],
+        "workload",
+        [],
+        runtime,
+    );
 }
 
 /** Write a browser output's example page module, showing the declaration its address gives. */
@@ -614,17 +680,17 @@ function entryModule(
     // render a static view's pages on the server, linking the page's assets each request names
     if (isServer) {
         return [
-            `import { BrowserEnvironment, Environment, StaticPage } from "${VIEW_PACKAGE}/static";`,
+            `import { Environment, PageServer } from "${VIEW_PACKAGE}/static";`,
             imported,
             ``,
-            `const page = await StaticPage.open(view, ${declared}, BrowserEnvironment.server(Environment.system));`,
+            `const page = await PageServer.open(view, ${declared}, Environment.system);`,
             ``,
             `export function routes() {`,
             `    return page.routes();`,
             `}`,
             ``,
-            `export function respond(request, assets) {`,
-            `    return page.respond(request, assets);`,
+            `export function respond(request, head, mount) {`,
+            `    return page.respond(request, head, mount);`,
             `}`,
             ``,
         ].join("\n");
