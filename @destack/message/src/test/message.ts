@@ -449,7 +449,7 @@ function messageBuild(crypto: Crypto) {
         server: {
             runtime: "bun",
             emit: true,
-            workloads: { [HOOK_WORKLOAD]: workload },
+            workloads: { [HOOK_WORKLOAD]: { ...workload, kind: "hook" } },
             views: {},
         },
     });
