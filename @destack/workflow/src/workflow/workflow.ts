@@ -258,6 +258,7 @@ function declareRun(
                 /** Whether the run is due, waits to wake, is paused, or ended. */
                 state: field.state({
                     initial: "pending",
+                    final: ["completed", "failed", "cancelled"],
                     transitions: {
                         wait: {
                             from: ["pending", "waiting"],
@@ -550,6 +551,7 @@ function declareTrigger(
                 /** Whether the trigger fires, is paused, or stopped on a failure until reset. */
                 state: field.state({
                     initial: "active",
+                    final: ["stopped"],
                     transitions: {
                         pause: { from: ["active"], to: "paused", permission: "manage" },
                         resume: { from: ["paused"], to: "active", permission: "manage" },
