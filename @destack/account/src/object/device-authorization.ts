@@ -31,6 +31,7 @@ export const deviceAuthorization = defineObject(
             /** Whether the person approved, denied or has yet to decide, decided once. */
             status: field.state({
                 initial: "pending",
+                final: ["approved", "denied"],
                 transitions: {
                     approve: {
                         from: ["pending"],
