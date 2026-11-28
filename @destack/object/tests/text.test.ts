@@ -37,7 +37,7 @@ import { implementPackage } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { nth, schema, type Identifier } from "@destack/schema";
+import { nth, present, schema, type Identifier } from "@destack/schema";
 import { Environment } from "@destack/environment";
 import objectPackage from "../src/package.ts";
 import { argument, plural, t } from "@destack/locale";
@@ -798,7 +798,9 @@ test("predict a mark last on a client until the store orders it, then read it or
     const predicted = text.rope.read().marks.map((mark) => mark.order);
     await marked.confirmed;
     await expect.poll(() => text.rope.read().marks.map((mark) => mark.order)).toEqual([1]);
-    const spans = text.rope.read().spans(document.fields.body.schema);
+    const spans = text.rope
+        .read()
+        .spans(present(document.fields.body.textSchema, "the body's text schema"));
     expect({ predicted, spans, errors: alice.errors }).toEqual({
         predicted: [null],
         spans: [{ text: "hello", marks: { bold: true } }, { text: " world" }],

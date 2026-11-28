@@ -175,6 +175,15 @@ export const StateMachine = {
         return [machine.initial, ...others];
     },
 
+    /** Find the transition leading from one state to another, none where no transition does. */
+    between(machine: StateMachine, from: string, to: string): string | undefined {
+        const found = Object.entries(machine.transitions).find(
+            ([, transition]) => transition.to === to && transition.from.includes(from),
+        );
+
+        return found?.[0];
+    },
+
     /** Read where a state lies in a machine. */
     stage(machine: StateMachine, state: string): StateStage {
         // start at the initial state, end in a declared final one, and pass the rest
@@ -294,8 +303,8 @@ export interface FieldConfiguration {
     readonly default: boolean;
     /** Whether reading the value requires a separate permission. */
     readonly guarded: boolean;
-    /** Whether callers write the value: always, only at creation, or never. */
-    readonly written: boolean | "create";
+    /** Whether callers write the value: always, only at creation, only after it, or never. */
+    readonly written: boolean | "create" | "update";
     /** Whether the value is sensitive. */
     readonly sensitive: boolean;
     /** Whether creation fills the value with the caller, outside server-only creations. */
@@ -480,6 +489,8 @@ interface FieldOptions<Configuration extends FieldConfiguration> {
     readonly description?: Message;
     /** How people read a number field's values. */
     readonly format?: NumberFormat;
+    /** The values an integer field takes, with how each looks. */
+    readonly choices?: ChoiceDefinitions;
     /** Whether a subject field accepts the subjects and sets other types contribute. */
     readonly isOpen?: boolean;
     /** How a sensitive value is encrypted at rest, randomly unless a lookup finds it by value. */
@@ -520,6 +531,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly description: Message | undefined;
     /** How people read a number field's values, absent for plain numbers and other fields. */
     readonly format: NumberFormat | undefined;
+    /** The values an integer field takes, with how each looks, absent for any whole number. */
+    readonly #choices: ChoiceDefinitions | undefined;
     /** Whether a subject field accepts contributed subjects and sets. */
     readonly isOpen: boolean;
     /** How a sensitive value is encrypted at rest, randomly unless a lookup finds it by value. */
@@ -544,6 +557,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         this.icon = definition.icon;
         this.description = definition.description;
         this.format = definition.format;
+        this.#choices = definition.choices;
         this.isOpen = definition.isOpen ?? false;
         this.encryption = definition.encryption ?? "randomized";
         this.access = definition.access;
@@ -628,19 +642,39 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             : undefined;
     }
 
-    /** The values an enum or a state takes, with how each looks, absent for other fields. */
+    /** The values an enum, a state or an integer with choices takes, with how each looks. */
     get choices(): readonly FieldChoice[] | undefined {
-        // read an enum's values, or a machine's states from the initial one as they are reached
+        // read the builder's values, a machine's states, or the declared choices
         const { machine, source } = this;
-        const values =
-            source.builder === "enum"
-                ? source.arguments[0]
-                : machine === undefined
-                  ? undefined
-                  : StateMachine.states(machine);
-        const choices = source.builder === "enum" ? source.arguments[1] : machine?.states;
+        const own = this.#choices;
 
-        return values?.map((value) => ({ value, ...choices?.[value] }));
+        // read an enum's values
+        if (source.builder === "enum") {
+            const looks = source.arguments[1];
+
+            return source.arguments[0].map((value) => ({ value, ...looks?.[value] }));
+        }
+        // read a machine's states from the initial one as they are reached
+        else if (machine !== undefined) {
+            const looks = machine.states;
+
+            return StateMachine.states(machine).map((value) => ({ value, ...looks?.[value] }));
+        }
+        // read an integer's declared choices, each by its number
+        else if (own !== undefined) {
+            return Object.entries(own).map(([key, look]) => ({ value: Number(key), ...look }));
+        }
+
+        return undefined;
+    }
+
+    /** The marks and nodes a text field allows beside characters, absent for other fields. */
+    get textSchema(): TextSchema | undefined {
+        const { source } = this;
+
+        return source.builder === "text"
+            ? TextSchema.of(...(source.arguments[0] ?? []))
+            : undefined;
     }
 
     /** The state machine the value follows. */
@@ -1043,6 +1077,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.icon === undefined ? {} : { icon: this.icon }),
             ...(this.description === undefined ? {} : { description: this.description }),
             ...(this.format === undefined ? {} : { format: this.format }),
+            ...(this.#choices === undefined ? {} : { choices: this.#choices }),
             isOpen: this.isOpen,
             encryption: this.encryption,
             ...(this.access === undefined ? {} : { access: this.access }),
@@ -1086,6 +1121,25 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         build: BuildColumn<Value>,
     ): FieldOf<{ value: Value }> {
         return new Field<FieldConfigurationOf<{ value: Value }>>({ source, build, ...WRITTEN });
+    }
+
+    /** Define an integer field taking some numbers, each with how it looks. */
+    static chosen(choices: ChoiceDefinitions): FieldOf<{ value: number }> {
+        // refuse a key that is no whole number
+        const values = Object.keys(choices).map(Number);
+        if (values.length === 0 || values.some((value) => !Number.isInteger(value))) {
+            throw new TypeError("an integer field's choices are keyed by whole numbers");
+        }
+
+        // store only the numbers chosen from, as JSON Schema's enum writes them
+        const chosen = schema.literal(values);
+
+        return new Field<FieldConfigurationOf<{ value: number }>>({
+            source: { builder: "integer", arguments: [] },
+            build: (name) => integer(name).validate(chosen),
+            choices,
+            ...WRITTEN,
+        });
     }
 
     /** Read what a field of a plain kind takes, any JSON for a field of none. */
@@ -1305,7 +1359,7 @@ function string<Validator extends schema.Schema<string> = schema.Schema<string>>
 
 /** A field following a state machine, with the machine it follows. */
 export class StateField<Machine extends StateMachine = StateMachine> extends Field<
-    FieldConfigurationOf<{ value: StateOf<Machine>; default: true; written: false }>
+    FieldConfigurationOf<{ value: StateOf<Machine>; default: true; written: "update" }>
 > {
     /** The state machine the field follows. */
     readonly #machine: Machine;
@@ -1325,14 +1379,14 @@ export class StateField<Machine extends StateMachine = StateMachine> extends Fie
             throw new TypeError(`final state '${unreached}' is invalid: no transition reaches it`);
         }
 
-        // start in the initial state, which only transitions change
+        // start in the initial state, which updates change through the transitions
         super({
             source: { builder: "state", arguments: [machine] },
             initial: { value: machine.initial },
             build: (name) => textEnum(name, names),
             ...WRITTEN,
             isDefault: true,
-            written: false,
+            written: "update",
         });
         this.#machine = machine;
     }
@@ -1347,9 +1401,6 @@ export class StateField<Machine extends StateMachine = StateMachine> extends Fie
 export class TextField extends Field<
     FieldConfigurationOf<{ value: readonly TextSpan[]; default: true; written: "create" }>
 > {
-    /** The marks and nodes the field allows beside characters. */
-    readonly schema: TextSchema;
-
     /** Declare a text field with the mark and node types it allows. */
     constructor(types: readonly (TextMarkType | TextNodeType)[]) {
         super({
@@ -1364,7 +1415,6 @@ export class TextField extends Field<
             isDefault: true,
             written: "create",
         });
-        this.schema = TextSchema.of(...types);
     }
 
     /** The field's meaning: a text stored in chunks. */
@@ -1379,7 +1429,12 @@ export const field = {
     string,
 
     /** A whole number within the exactly representable range, or that a schema validates. */
-    integer(validator?: schema.Schema<number>): FieldOf<{ value: number }> {
+    integer(validator?: schema.Schema<number> | ChoiceDefinitions): FieldOf<{ value: number }> {
+        // take some numbers, each with how it looks, as an enum takes strings
+        if (validator !== undefined && !(validator instanceof schema.Schema)) {
+            return Field.chosen(validator);
+        }
+
         // refuse a schema of other numbers
         if (validator !== undefined && toJsonSchema(validator).type !== "integer") {
             throw new TypeError("an integer field takes a schema of whole numbers");

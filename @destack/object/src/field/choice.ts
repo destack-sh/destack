@@ -19,8 +19,8 @@ export type ChoiceDefinition = schema.Infer<typeof ChoiceDefinition>;
 
 /** A value a field stores one of, with how it looks where its declaration says. */
 export const FieldChoice = schema.object({
-    /** The value. */
-    value: schema.string(),
+    /** The value: an enum's or a state's name, or an integer's number. */
+    value: schema.union([schema.string(), schema.number().int()]),
     /** The value as people read it, absent to read it as stored. */
     title: Message.exactOptional(),
     /** The icon, by its name in the icon set. */

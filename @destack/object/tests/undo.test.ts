@@ -219,6 +219,22 @@ test("invert each trait's methods into the calls that undo them, and leave the r
         undefined,
     ]);
 
+    // restore a state an update moved with the other fields it wrote
+    const moved = {
+        input: { ...target, title: "B", status: "published" },
+        before: { title: "A", status: "draft" },
+        after: { title: "B", status: "published" },
+    };
+    expect(invert("update", { ...moved, current: moved.after })).toEqual([
+        {
+            type: page.typeReference,
+            method: "update",
+            release: page.package.version,
+            edition: 1,
+            input: { ...target, title: "A", status: "draft" },
+        },
+    ]);
+
     // move back under the parent the page left, and transition back to the state it left
     expect([
         invert("move", {

@@ -16,7 +16,7 @@ export type ObjectValue =
       }
     | { readonly kind: "boolean"; readonly value: boolean }
     | { readonly kind: "time"; readonly value: number }
-    | (Choice & { readonly kind: "choice"; readonly value: string })
+    | (Choice & { readonly kind: "choice"; readonly value: string | number })
     | (Choice & { readonly kind: "state"; readonly value: string; readonly stage: StateStage })
     | { readonly kind: "reference"; readonly value: string; readonly target: string }
     | { readonly kind: "json"; readonly value: JsonValue };
@@ -73,7 +73,8 @@ export const ObjectValue = {
         }
 
         // read the value by its field's kind
-        const kind = KINDS[field.type];
+        const kind =
+            field.choices !== undefined && field.type === "integer" ? "choice" : KINDS[field.type];
         const machine = field.machine;
         const target = field.target?.().name;
         if (kind === "number") {
@@ -90,7 +91,7 @@ export const ObjectValue = {
         } else if (kind === "reference" && target !== undefined) {
             return { kind, value: schema.string().parse(value), target };
         } else if (kind === "choice") {
-            const chosen = schema.string().parse(value);
+            const chosen = schema.union([schema.string(), schema.number()]).parse(value);
 
             return { ...choiceOf(field, chosen, localization), kind, value: chosen };
         } else if (kind === "text" || kind === "reference") {
@@ -102,7 +103,7 @@ export const ObjectValue = {
 };
 
 /** Read a field's stored value as a choice, titled as stored where the field lists it no more. */
-function choiceOf(field: Field, value: string, localization: Localization): Choice {
+function choiceOf(field: Field, value: string | number, localization: Localization): Choice {
     const listed = field.choices?.find((each) => each.value === value);
 
     return Choice.of(listed ?? { value }, localization);

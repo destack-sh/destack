@@ -1,5 +1,5 @@
 import type { Permission } from "@destack/access";
-import { Duration, present, type schema } from "@destack/schema";
+import { Duration, present, schema } from "@destack/schema";
 import { TABLE, type Row, Table, LogPosition } from "@destack/db";
 import type { ActivityTable } from "../history/activity.ts";
 import { defineMethod, type Method } from "../method/method.ts";
@@ -10,6 +10,7 @@ import type { Procedure, ReplayFields, RowSchema, TargetFields } from "../method
 import { type TraitPermission, type TraitBehavior, callableTrait } from "./trait.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 import { t } from "@destack/locale";
+import { Transitions } from "./transition.ts";
 
 /** The options of history tracking. */
 export interface TrackedDefinition<
@@ -98,12 +99,24 @@ export const Tracked = {
                     }),
                 );
 
+                // move each state back only as a transition does
+                for (const name of Object.keys(changes).filter((each) =>
+                    context.object.states.includes(each),
+                )) {
+                    await Transitions.require(
+                        context,
+                        name,
+                        schema.string().parse(changes[name]),
+                        false,
+                    );
+                }
+
                 return Object.keys(changes).length === 0
                     ? target
                     : context.update(Table.values(context.object.table, changes));
             },
             inverse: (step) => {
-                // restore reverted fields unchanged since
+                // restore reverted fields unchanged since, each state only along a transition back
                 const current = step.current;
                 if (current === undefined) {
                     return undefined;
@@ -118,10 +131,11 @@ export const Tracked = {
                     ...Step.target(step),
                     ...restored,
                 });
+                const isRestoring =
+                    Object.keys(restored).length > 0 &&
+                    Step.isReversible(step, Object.keys(restored));
 
-                return Object.keys(restored).length === 0 || update === undefined
-                    ? undefined
-                    : [update];
+                return !isRestoring || update === undefined ? undefined : [update];
             },
         });
     },

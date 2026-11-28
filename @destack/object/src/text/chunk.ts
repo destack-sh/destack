@@ -18,7 +18,6 @@ import {
     type TextSchema,
     type TextSpan,
 } from "../sequence/index.ts";
-import { TextField } from "../field/field.ts";
 import { counter } from "../trait/numbered.ts";
 import { textChunkTable, runEntry, textNodeTable } from "./table.ts";
 import { Execution } from "../method/execution.ts";
@@ -766,12 +765,12 @@ function joinChunks(rows: readonly Pick<Chunk, "position" | "runs" | "marks">[])
 
 /** Read the schema of an owner's text field. */
 function textSchema(owner: ObjectType, field: string): TextSchema {
-    const declared = owner.fields[field];
-    if (!(declared instanceof TextField)) {
+    const allowed = owner.fields[field]?.textSchema;
+    if (allowed === undefined) {
         throw new TypeError(`object '${owner.name}' has no text field '${field}'`);
     }
 
-    return declared.schema;
+    return allowed;
 }
 
 /** Cut an edited text back into chunk rows. */

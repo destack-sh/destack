@@ -660,8 +660,10 @@ type ObjectTypeDefinition<Configuration extends ObjectConfiguration> = ObjectDef
     readonly table: Configuration["table"];
     readonly methods: Configuration["methods"];
     readonly guards: Readonly<Record<string, string>>;
+    readonly created: readonly string[];
     readonly written: readonly string[];
     readonly updated: readonly string[];
+    readonly states: readonly string[];
     readonly sensitive: readonly string[];
     readonly text: readonly string[];
     readonly source: ObjectDefinition;
@@ -1123,14 +1125,24 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
-    /** The fields callers write. */
+    /** The fields callers write at creation. */
+    get created(): readonly string[] {
+        return this.definition.created;
+    }
+
+    /** The fields callers write, at creation, after it, or both. */
     get written(): readonly string[] {
         return this.definition.written;
     }
 
-    /** The fields callers write after creation, every written field but the immutable ones. */
+    /** The fields callers write after creation, the states moving through their transitions. */
     get updated(): readonly string[] {
         return this.definition.updated;
+    }
+
+    /** The state fields an update moves through their transitions. */
+    get states(): readonly string[] {
+        return this.definition.states;
     }
 
     /** The columns with sensitive values. */
@@ -2807,11 +2819,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     ): ObjectTypeDefinition<ObjectConfiguration> {
         // list the fields by what callers may do with them
         const fields = Object.entries(definition.fields ?? {});
+        const created = fields
+            .filter(([, declared]) => declared.written === true || declared.written === "create")
+            .map(([name]) => name);
         const written = fields
             .filter(([, declared]) => declared.written !== false)
             .map(([name]) => name);
         const updated = fields
-            .filter(([, declared]) => declared.written === true)
+            .filter(([, declared]) => declared.written === true || declared.written === "update")
+            .map(([name]) => name);
+        const states = fields
+            .filter(([, declared]) => declared.written === "update")
             .map(([name]) => name);
 
         // refuse an update of a field written only at creation
@@ -2840,8 +2858,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return {
             ...definition,
             identity: definition.identity ?? definition.name,
+            created,
             written,
             updated,
+            states,
             guards,
             sensitive,
             text: texts,
@@ -2941,8 +2961,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                     table: assembled.table,
                     methods: assembled.methods,
                     guards: assembled.guards,
+                    created: assembled.created,
                     written: assembled.written,
                     updated: assembled.updated,
+                    states: assembled.states,
                     sensitive: assembled.sensitive,
                     text: assembled.text,
                     events: assembled.events,
@@ -3756,8 +3778,9 @@ export type MethodsOf<Definition extends ObjectDefinition> = Definition extends 
     ? MethodBuilder<ForeignTable<Definition>, string, Listed<DeclaredPermissions<Definition>>>
     : MethodBuilder<
           DefinedTable<Definition>,
-          WrittenField<DefinedFields<Definition>>,
-          Listed<DefinedPermissions<Definition>>
+          CreatedField<DefinedFields<Definition>>,
+          Listed<DefinedPermissions<Definition>>,
+          UpdatedField<DefinedFields<Definition>>
       >;
 
 /** The configuration of an object type over another package's table, with its declared methods. */
@@ -3965,7 +3988,7 @@ type TableConfiguration<Definition extends ObjectDefinition, Methods> = {
             Methods & KindMethodsOf<Definition, Methods>,
             DefinedPermissions<Definition>,
             DefinedTable<Definition>,
-            WrittenField<DefinedFields<Definition>>,
+            CreatedField<DefinedFields<Definition>>,
             Option<Definition, "recoverable"> extends undefined ? true : false
         > &
         KindMethodsOf<Definition, Methods> &
@@ -4274,12 +4297,14 @@ export type CallerField<Fields extends Readonly<Record<string, Field>>> = {
 
 /** The name of a field callers write after creation. */
 export type UpdatedField<Fields extends Readonly<Record<string, Field>>> = {
-    [Name in keyof Fields & string]: Fields[Name] extends { readonly written: true } ? Name : never;
+    [Name in keyof Fields & string]: Fields[Name] extends { readonly written: true | "update" }
+        ? Name
+        : never;
 }[keyof Fields & string];
 
-/** The name of a field callers write. */
-export type WrittenField<Fields extends Readonly<Record<string, Field>>> = {
-    [Name in keyof Fields & string]: Fields[Name] extends { readonly written: false }
+/** The name of a field callers write at creation. */
+export type CreatedField<Fields extends Readonly<Record<string, Field>>> = {
+    [Name in keyof Fields & string]: Fields[Name] extends { readonly written: false | "update" }
         ? never
         : Name;
 }[keyof Fields & string];

@@ -146,7 +146,7 @@ export const ObjectRecord = {
 
     /** Restore the updated fields a step wrote that stayed unchanged since. */
     restoreUpdated(step: Step): readonly sync.Call[] | undefined {
-        const written = step.object.written.filter((name) => Object.hasOwn(step.input, name));
+        const written = step.object.updated.filter((name) => Object.hasOwn(step.input, name));
 
         return restoreFields(step, written, (input) => Step.record(step, step.name, input));
     },
@@ -166,6 +166,16 @@ export const ObjectRecord = {
         if (guarded !== undefined) {
             throw new TypeError(
                 `object ${object.name} guards field '${guarded}', so it cannot apply many updates at once`,
+            );
+        }
+    },
+
+    /** Refuse moving states many at once, as each object moves through its own transition. */
+    requireUnmoved(object: ObjectType, written: readonly string[]): void {
+        const moved = written.find((name) => object.states.includes(name));
+        if (moved !== undefined) {
+            throw new TypeError(
+                `object ${object.name} moves state '${moved}' through transitions, so it cannot apply many updates at once`,
             );
         }
     },
@@ -226,14 +236,14 @@ function restoreFields(
         return undefined;
     }
 
-    // restore the fields unchanged since
+    // restore the fields unchanged since, each state only along a transition back
     const restored = Object.fromEntries(
         fields
             .filter((name) => Step.same(current[name], step.after?.[name]))
             .map((name) => [name, step.before?.[name] ?? null]),
     );
     const restoring =
-        Object.keys(restored).length === 0
+        Object.keys(restored).length === 0 || !Step.isReversible(step, Object.keys(restored))
             ? undefined
             : call({ ...Step.target(step), ...restored });
 

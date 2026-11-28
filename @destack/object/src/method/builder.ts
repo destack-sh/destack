@@ -33,13 +33,14 @@ import {
 import { type InputObject, InputSchema } from "./input.ts";
 import { Casing } from "../object/name.ts";
 import { ListFields, QueryFields, ViewFields } from "../replica/replica.ts";
-import type { ObjectType, WrittenField } from "../object/object.ts";
+import type { ObjectType, CreatedField } from "../object/object.ts";
 
 import type { StoreExecution } from "./execution.ts";
 
 import { BatchIds, ObjectRecord, TagFields } from "./record.ts";
 
 import type { MethodLimits } from "./limits.ts";
+import { Transitions } from "../trait/transition.ts";
 import type { Message } from "@destack/locale";
 
 /** The most items one bulk creation takes, as many as one list page reads. */
@@ -61,7 +62,7 @@ export interface CreateOptions<
     Visibility extends MethodVisibility,
     Sum extends Variants = Variants,
     Filled extends string = string,
-    Written extends string = string,
+    Created extends string = string,
 > {
     /** Who may call the creation; server-only creations take the caller fields as input. */
     readonly visibility?: Visibility;
@@ -84,7 +85,7 @@ export interface CreateOptions<
     /** How often the method runs per key, and whose limit a call counts against. */
     readonly limits?: MethodLimits;
     /** What a creation answers when the row it writes matches an existing one on a unique key. */
-    readonly onConflict?: MethodConflict<NoInfer<Written>>;
+    readonly onConflict?: MethodConflict<NoInfer<Created>>;
 }
 
 /** How a bulk creation creates: its written fields and creator. */
@@ -218,9 +219,11 @@ function bulkUpdate<
             output: BatchPayload,
         }),
         validate: (object) => {
+            // refuse fields an update of many objects cannot write alike
             ObjectRecord.requireUnrecorded(object);
             ObjectRecord.requireUnguarded(object, options.fields);
             ObjectRecord.requireUnnumbered(object, options.fields);
+            ObjectRecord.requireUnmoved(object, options.fields);
         },
         handler: (context, execution) =>
             match === undefined
@@ -385,7 +388,7 @@ export type IsSum<Sum> = [NonNullable<Sum>] extends [never]
 type MatchFields<Object extends ObjectType, Declaration extends Method> = ColumnFields<
     Object,
     string extends NonNullable<Declaration["match"]>[number]
-        ? WrittenField<Object["fields"]>
+        ? CreatedField<Object["fields"]>
         : NonNullable<Declaration["match"]>[number],
     true
 >;
@@ -398,8 +401,9 @@ type CreationFields<Object extends ObjectType> = Object["storage"] extends "even
 /** The method declarations of one object type, typed by its table, fields and permissions. */
 export class MethodBuilder<
     Definition extends Table = Table,
-    Written extends string = string,
+    Created extends string = string,
     Granted extends string = string,
+    Updated extends string = string,
 > {
     /** Read one object. */
     get<const Permission extends Granted>(permission: Permission) {
@@ -452,7 +456,7 @@ export class MethodBuilder<
     /** Create an object from the fields the caller writes. */
     create<
         const Permission extends Granted,
-        const Fields extends Written = Written,
+        const Fields extends Created = Created,
         Input extends InputObject = never,
         Prepared extends schema.Schema = never,
         const Visibility extends MethodVisibility = "client",
@@ -461,7 +465,7 @@ export class MethodBuilder<
     >(
         this: MethodBuilder<Definition>,
         permission: Permission,
-        options: CreateOptions<Fields, Input, Prepared, Visibility, Sum, Filled, Written> = {},
+        options: CreateOptions<Fields, Input, Prepared, Visibility, Sum, Filled, Created> = {},
     ) {
         // relate the creation's creator, and answer the object its unique key matches on a conflict
         const { creator, onConflict, ...declared } = options;
@@ -536,7 +540,7 @@ export class MethodBuilder<
     /** Create one object per item from the fields the caller writes. */
     createMany<
         const Permission extends Granted,
-        const Fields extends Written = Written,
+        const Fields extends Created = Created,
         const Visibility extends MethodVisibility = "client",
     >(permission: Permission, options: CreateManyOptions<Fields, Visibility>) {
         // relate the creation's creator
@@ -589,10 +593,10 @@ export class MethodBuilder<
         });
     }
 
-    /** Update an object's written fields. */
+    /** Update an object's fields written after creation, its states through their transitions. */
     update<
         const Permission extends Granted,
-        const Fields extends Written = Written,
+        const Fields extends Updated = Updated,
         Input extends InputObject = never,
         Prepared extends schema.Schema = never,
         const Visibility extends MethodVisibility = "client",
@@ -639,6 +643,17 @@ export class MethodBuilder<
                     await execution.authorization.requireWritable(context, context.id, execution);
                 }
 
+                // move each state the call changes only as a transition between the two states does
+                const moved = changed.filter(
+                    (name) =>
+                        context.object.fields[name]?.machine !== undefined &&
+                        context.input[name] !== context.target[name],
+                );
+                for (const name of moved) {
+                    const to = schema.string().parse(context.input[name]);
+                    await Transitions.require(context, name, to, execution.isPredicted);
+                }
+
                 return Method.handle(this, context, execution);
             },
         });
@@ -647,7 +662,7 @@ export class MethodBuilder<
     /** Update every matching object the caller may change, returning the count. */
     updateMany<
         const Permission extends Granted,
-        const Fields extends Written = Written,
+        const Fields extends Updated = Updated,
         const Match extends string = string,
         const Visibility extends MethodVisibility = "client",
     >(permission: Permission, options: UpdateManyOptions<Fields, Match, Visibility>) {
@@ -673,7 +688,7 @@ export class MethodBuilder<
     /** Update each listed object at its revision, all or none, returning the count. */
     updateItems<
         const Permission extends Granted,
-        const Fields extends Written = Written,
+        const Fields extends Updated = Updated,
         const Visibility extends MethodVisibility = "client",
     >(
         permission: Permission,

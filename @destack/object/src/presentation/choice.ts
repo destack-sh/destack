@@ -33,7 +33,7 @@ export const Choice = {
     ): Choice {
         return {
             value,
-            title: title === undefined ? value : localization.render(title),
+            title: title === undefined ? String(value) : localization.render(title),
             ...(icon === undefined ? {} : { icon: { icon } }),
             ...(color === undefined ? {} : { color }),
             ...(description === undefined ? {} : { description: localization.render(description) }),

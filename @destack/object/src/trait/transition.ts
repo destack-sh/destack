@@ -1,10 +1,12 @@
 import { Table } from "@destack/db";
 import { ObjectError } from "../error/error.ts";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 
 import { Step } from "../method/step.ts";
 import { Casing } from "../object/name.ts";
-import type { StateField, StateMachine } from "../field/field.ts";
+import { type StateField, StateMachine } from "../field/field.ts";
+import type { MethodContext } from "../method/context.ts";
+import type { MethodConfiguration } from "../method/method.ts";
 import { defineMethod, Method, type MethodVisibility } from "../method/method.ts";
 import {
     type Procedure,
@@ -106,6 +108,31 @@ export type TransitionProcedures<Object extends ObjectType, Declaration extends 
 
 /** The methods changing state fields through their transitions. */
 export const Transitions = {
+    /** Require a transition moving an object's state field to a state, and its permission. */
+    async require(
+        context: MethodContext<MethodConfiguration, unknown, string>,
+        field: string,
+        to: string,
+        isPredicted: boolean,
+    ): Promise<void> {
+        // find the transition from the state the object is in, refusing a move none makes
+        const machine = present(context.object.fields[field]?.machine, `state field '${field}'`);
+        const from = schema.string().parse(present(context.target, "the object")[field]);
+        const name = StateMachine.between(machine, from, to);
+        if (name === undefined) {
+            throw ObjectError.of(
+                "TRANSITION_BLOCKED",
+                `cannot move ${context.object.name} '${field}' from '${from}' to '${to}': no transition leads there`,
+            );
+        }
+
+        // require the transition's permission of a call its store decides
+        if (!isPredicted) {
+            const { permission } = present(machine.transitions[name], `transition '${name}'`);
+            await context.require(context.object.permission(permission), context.reference());
+        }
+    },
+
     /** Change one state field through one transition. */
     method(field: string, name: string, transition: StateMachine["transitions"][string]): Method {
         return defineMethod<{ kind: "transition" }>({

@@ -1,6 +1,7 @@
 import { canonicalize, type JsonObject, type JsonValue } from "@destack/schema";
 import type * as sync from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
+import { StateMachine } from "../field/field.ts";
 import type { MethodKind } from "./method.ts";
 
 /** A call that happened, with the target's rows before, after and now in their JSON form. */
@@ -81,5 +82,23 @@ export const Step = {
     /** Decide whether two field values have the same JSON form. */
     same(left: JsonValue | undefined, right: JsonValue | undefined): boolean {
         return canonicalize(left ?? null) === canonicalize(right ?? null);
+    },
+
+    /** Decide whether restoring a step moves each state it changed back along a transition. */
+    isReversible(step: Step, names: readonly string[]): boolean {
+        return names.every((name) => {
+            // pass a field that is no state, or a state the step left as it was
+            const machine = step.object.fields[name]?.machine;
+            const [from, to] = [step.after?.[name], step.before?.[name]];
+            if (machine === undefined || Step.same(from, to)) {
+                return true;
+            }
+
+            return (
+                typeof from === "string" &&
+                typeof to === "string" &&
+                StateMachine.between(machine, from, to) !== undefined
+            );
+        });
     },
 };

@@ -15,7 +15,7 @@ import type {
     SensitiveField,
     TextFieldName,
     UpdatedField,
-    WrittenField,
+    CreatedField,
 } from "../object/object.ts";
 import type { MethodKind } from "./kind.ts";
 import { Casing } from "../object/name.ts";
@@ -484,7 +484,7 @@ type OptionalKeys<Record> = {
 type WrittenName<Object extends ObjectType, Declaration extends Method> =
     | (string extends NonNullable<Declaration["fields"]>[number]
           ? Declaration extends { readonly kind: "create" | "createMany" }
-              ? WrittenField<Object["fields"]>
+              ? CreatedField<Object["fields"]>
               : UpdatedField<Object["fields"]>
           : NonNullable<Declaration["fields"]>[number])
     | (Declaration extends { readonly kind: "create" | "createMany" }
@@ -651,7 +651,7 @@ const ObjectProcedure = {
 
         return (names, isPartial) =>
             Object.fromEntries(
-                (names ?? (isPartial ? object.updated : object.written)).map((name) => {
+                (names ?? (isPartial ? object.updated : object.created)).map((name) => {
                     // take a text field's spans, which its chunks store
                     const field = object.fields[name];
                     if (field?.type === "text") {

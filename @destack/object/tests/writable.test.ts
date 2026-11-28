@@ -14,7 +14,7 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
-import { recoverable } from "../src/index.ts";
+import { method, recoverable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The public space the labels live in. */
@@ -108,9 +108,12 @@ function declare(methods: "update" | "delete"): () => unknown {
                     },
                     traits: [recoverable({ within: { days: 30 }, by: "manage" })],
                 },
-                (method) =>
+                () =>
                     methods === "update"
-                        ? { update: method.update("write", { fields: ["name", "color"] }) }
+                        ? {
+                              // update the immutable color through the untyped builder, which the typed one refuses
+                              update: method.update("write", { fields: ["name", "color"] }),
+                          }
                         : { delete: false },
             ),
         );

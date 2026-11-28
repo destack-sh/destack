@@ -1,6 +1,6 @@
 import { none } from "@destack/access";
 import { argument, Localization, plural, SOURCE_LOCALE, t } from "@destack/locale";
-import { schema } from "@destack/schema";
+import { schema, toJsonSchema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { BoardLayout } from "../layout/board.ts";
 import { defineObject, ObjectDescription, ObjectTypePool } from "../object/index.ts";
@@ -8,6 +8,7 @@ import { Choice } from "../presentation/choice.ts";
 import { ObjectValue } from "../presentation/value.ts";
 import { orderable } from "../trait/index.ts";
 import { space } from "../test/space.ts";
+import { RICH_TEXT } from "../sequence/rich.ts";
 import { field } from "./field.ts";
 
 /** The locale declarations are written in. */
@@ -76,6 +77,41 @@ test("list an enum's and a state's values in order, each looking as declared, el
         ],
         undefined,
     ]);
+});
+
+test("take an integer's choices by number, and store only the numbers chosen from", () => {
+    // declare a rank of three numbers, two looking as declared
+    const rank = field.integer({
+        0: { title: t`None`, icon: "minus" },
+        1: { title: t`Urgent`, color: "red" },
+        4: { title: t`Low` },
+    });
+    const column = rank.column("rank", "test", "durable");
+
+    expect({
+        choices: rank.choices?.map((choice) => Choice.of(choice, SOURCE)),
+        stored: [0, 1, 2, 4].map((value) => column.definition.schema.safeParse(value).success),
+        // write the numbers as JSON Schema's enum, as a method's input describes them
+        described: toJsonSchema(column.definition.schema),
+    }).toEqual({
+        choices: [
+            { value: 0, title: "None", icon: { icon: "minus" } },
+            { value: 1, title: "Urgent", color: "red" },
+            { value: 4, title: "Low" },
+        ],
+        stored: [true, true, false, true],
+        described: {
+            $schema: "https://json-schema.org/draft/2020-12/schema",
+            type: "number",
+            enum: [0, 1, 4],
+        },
+    });
+});
+
+test("refuse integer choices keyed by no whole number", () => {
+    expect(() => field.integer({ high: { title: t`High` } })).toThrow(
+        new TypeError("an integer field's choices are keyed by whole numbers"),
+    );
 });
 
 test("describe how an enum's and a state's values look, and declare them the same from data", () => {
@@ -157,4 +193,11 @@ test("order objects within a reference's objects, a move writing the reference",
         ordering: { within: ["statusId"] },
         moves: ["statusId"],
     });
+});
+
+test("keep a text field's marks and nodes through its modifiers, as a label", () => {
+    expect([
+        field.text(RICH_TEXT).labeled(t`Notes`).textSchema,
+        field.string().labeled(t`Title`).textSchema,
+    ]).toEqual([field.text(RICH_TEXT).textSchema, undefined]);
 });
