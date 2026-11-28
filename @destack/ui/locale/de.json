@@ -7738,6 +7738,11 @@
             "source": "Apps",
             "context": "title",
             "translation": "Apps"
+        },
+        "uush6sp3lngr": {
+            "source": "Personal",
+            "context": "title",
+            "translation": "Persönlich"
         }
     }
 }

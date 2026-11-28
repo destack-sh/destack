@@ -132,10 +132,10 @@ export function Chrome(properties: ChromeProperties): JSX.Element {
     const isOwn = (app: ViewApp) => app.name === context.installation;
     const href = (app: ViewApp) => ViewApp.href(app, context.spaceAddress, page);
 
-    // title the person's home space as Home, any other by its own title
+    // title the person's own space as Personal, apart from the Home app, any other by its title
     const title =
         context.home === context.space
-            ? locale.render(t.context("title")`Home`)
+            ? locale.render(t.context("title")`Personal`)
             : context.spaceTitle;
     const { handle } = SpaceAddress.origin(context.spaceAddress);
 
