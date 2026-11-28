@@ -198,9 +198,10 @@ const VIEWS: readonly TaskView[] = [
 function choicesOfField(own: Field): readonly TaskChoice[] {
     const localization = Localization.of("en", []);
 
+    // read each value as text, as the studio's enums and states store it
     return (own.choices ?? []).map((choice) => ({
         ...Choice.of(choice, localization),
-        value: choice.value,
+        value: String(choice.value),
     }));
 }
 

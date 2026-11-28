@@ -37,7 +37,10 @@ test("label and describe every declared property, and title each of its choices 
             const untitled =
                 input.value.kind === "choice"
                     ? input.value.choices.filter(
-                          (choice) => choice.title === undefined && /\p{L}/u.test(choice.value),
+                          (choice) =>
+                              choice.title === undefined &&
+                              typeof choice.value === "string" &&
+                              /\p{L}/u.test(choice.value),
                       )
                     : [];
 
