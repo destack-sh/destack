@@ -43,7 +43,7 @@ const { id, name, version } = import.meta.destack.package;
 
 ### PackageDefinition
 
-`destack.json` sits beside `package.json`, which keeps the name, version and dependencies.
+`destack.json` sits beside the regular `package.json` (which keeps the name, version, dependencies, etc. as usual).
 
 | Field                 | What it is                                                                                           |
 | --------------------- | ---------------------------------------------------------------------------------------------------- |
