@@ -15,6 +15,12 @@ import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
 import type { Message } from "@destack/locale";
 
+/** The name of the workload a build derives to render its package's views as their visitors. */
+export const VIEW_WORKLOAD = "view";
+
+/** The export of a server output running its view workload. */
+export const VIEW_EXPORT = `./workload/${VIEW_WORKLOAD}`;
+
 /** What every page's runtime reads as its person, granted to each package with views. */
 const PAGE_PERMISSIONS: GrantDeclaration = {
     user: {

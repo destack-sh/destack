@@ -159,7 +159,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
                 actions: new ActionRegistry(),
                 mount: {
                     context: CONTEXT,
-                    clients: new Map([[BOARD_ID, client]]),
+                    clients: () => new Map([[BOARD_ID, client]]),
                     packages: new Map(),
                     open: noSpace,
                     origin: noOrigin,
@@ -213,7 +213,7 @@ test("follow another query as a filter changes, showing the last rows until it r
                 actions: new ActionRegistry(),
                 mount: {
                     context: CONTEXT,
-                    clients: new Map([[BOARD_ID, client]]),
+                    clients: () => new Map([[BOARD_ID, client]]),
                     packages: new Map(),
                     open: noSpace,
                     origin: noOrigin,
@@ -282,7 +282,7 @@ test("open and close another space with a component", async () => {
             actions: new ActionRegistry(),
             mount: {
                 context: CONTEXT,
-                clients: new Map(),
+                clients: () => new Map(),
                 open,
                 packages: new Map(),
                 origin: noOrigin,
@@ -321,7 +321,7 @@ test("fail access to an object type the view's space does not hold into the erro
                 actions: new ActionRegistry(),
                 mount: {
                     context: CONTEXT,
-                    clients: new Map([[BOARD_ID, client]]),
+                    clients: () => new Map([[BOARD_ID, client]]),
                     packages: new Map(),
                     open: noSpace,
                     origin: noOrigin,
@@ -389,7 +389,7 @@ test("show a setting's value for the page's person, and the device's value once 
                     installation: "installation-01996ab0-0000-7000-8000-000000000006",
                     device: DEVICE_ID,
                 },
-                clients: new Map([[CONTEXT.user.id, client]]),
+                clients: () => new Map([[CONTEXT.user.id, client]]),
                 packages: new Map(),
                 open: noSpace,
                 origin: noOrigin,
@@ -442,7 +442,7 @@ test("refuse following a space's setting as the page's person into the error bou
                 actions: new ActionRegistry(),
                 mount: {
                     context: CONTEXT,
-                    clients: new Map([[BOARD_ID, client]]),
+                    clients: () => new Map([[BOARD_ID, client]]),
                     packages: new Map(),
                     open: noSpace,
                     origin: noOrigin,

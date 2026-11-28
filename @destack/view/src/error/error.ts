@@ -25,6 +25,7 @@ export const ViewError = defineErrorFamily({
         SOURCE_INVALID: {},
         TYPE_INVALID: {},
         VIEW_INVALID: {},
+        VIEW_NOT_FOUND: {},
 
         // required
         EXAMPLE_REQUIRED: {},
@@ -46,6 +47,7 @@ export const ViewError = defineErrorFamily({
 
         // unavailable
         GEOLOCATION_UNAVAILABLE: {},
+        RENDER_UNAVAILABLE: {},
 
         // unreachable
         CATALOG_UNREACHABLE: {},

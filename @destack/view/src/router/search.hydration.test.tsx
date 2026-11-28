@@ -5,7 +5,10 @@ import { NotesAtInvalidPage } from "./search.fixture.tsx";
 import { testBrowser } from "../test/browser.ts";
 
 /** The server's HTML of the fixture, which renders at an address with an invalid page. */
-const { NotesAtInvalidPage: html = "" } = await renderOnServer("src/router/search.fixture.tsx");
+const { NotesAtInvalidPage: html = "" } = await renderOnServer(
+    "src/router/search.fixture.tsx",
+    "https://example.test/notes?q=milk&page=x",
+);
 
 test("render URL state on the server at its defaults, then hydrate without a mismatch and rewrite the invalid value away", async () => {
     // hydrate in the browser at the server's address, which canonicalises the query as hydration ends

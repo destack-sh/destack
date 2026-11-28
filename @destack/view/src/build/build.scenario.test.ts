@@ -124,6 +124,34 @@ test("share an npm package an app's release and a builtin it links both take in"
     });
 });
 
+test("derive the view workload rendering an app's client views on each server output", async () => {
+    // build the notes app, whose views render on the client
+    await using simulation = testSimulation();
+    await using store = await testStore();
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const version = Version.first(simulation.environment("test").clock.now());
+    const workspace = await Workspace.open(NOTES, compilers, { version });
+    const units = await (await workspace.package()).imageUnits({});
+    const { image } = present(units.get("@destack/view-notes-fixture"), "the app's image");
+    const { manifest } = await store.root(image);
+
+    // describe a view workload and export its entry on Bun and workerd, and none in the browser
+    const workloads = Object.fromEntries(
+        Object.values(manifest.outputs).map((output) => [
+            output.runtime,
+            [
+                Object.keys(output.workloads),
+                Object.keys(output.exports).filter((subpath) => subpath.startsWith("./workload/")),
+            ],
+        ]),
+    );
+    expect(workloads).toEqual({
+        browser: [[], []],
+        bun: [["view"], ["./workload/view"]],
+        workerd: [["view"], ["./workload/view"]],
+    });
+});
+
 test("bundle an app's release image, its browser output importing builtins alone", async () => {
     // build the notes app and make its release image on its stored dependency builds
     await using simulation = testSimulation();
@@ -176,7 +204,6 @@ test("bundle an app's release image, its browser output importing builtins alone
         .map((file) => file.path);
     // expect every module with code mapped but the export facades, which only re-export shared chunks, and the device worker's start, which its build ships unmapped
     expect(unmapped).toEqual([
-        "output/browser/asset/worker-CkluHXXU-CKSzFt8K.js",
         "output/browser/asset/worker-CkluHXXU.js",
         "output/browser/src/object/index.js",
         "output/browser/src/view/index.js",

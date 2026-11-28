@@ -1,15 +1,21 @@
 import { join } from "node:path";
 import type { Environment } from "@destack/environment";
 import { BunEnvironment } from "@destack/environment/bun";
-import type { PageHead, RouteTable } from "../../static/page.ts";
+import type { ViewMount } from "../../page/context.ts";
+import type { PageHead } from "../../declare/render.ts";
+import type { RouteTable } from "../../static/server.ts";
 import { planRequests, RENDER_PLAN_FILE, RENDERED_FILE, RenderPlan } from "./prerender.ts";
 
 /** A static view's server entry: its routes and the answer to each request. */
 interface ServerModule {
     /** List the view's routes. */
     readonly routes: () => Promise<RouteTable>;
-    /** Answer a request, linking a page's head. */
-    readonly respond: (request: Request, head: PageHead) => Promise<Response>;
+    /** Answer a request, linking a page's head, under a host's mount or none at build. */
+    readonly respond: (
+        request: Request,
+        head: PageHead,
+        mount: ViewMount | null,
+    ) => Promise<Response>;
 }
 
 /** Render the plan in the directory the parent passes, with its server module. */
@@ -37,7 +43,7 @@ async function renderPlan(environment: Environment<"files" | "process">): Promis
 
     // write each body and its response, reporting each completed one on the standard output
     for (const [index, request] of requests.entries()) {
-        const response = await server.respond(new Request(request.url), plan.head);
+        const response = await server.respond(new Request(request.url), plan.head, null);
         const body = new Uint8Array(await response.arrayBuffer());
         await files.writeFile(join(directory, `${index}.body`), body);
         await files.writeTextFile(

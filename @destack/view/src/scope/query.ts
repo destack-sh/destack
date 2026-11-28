@@ -10,6 +10,7 @@ import type {
 import { type ContextScope, ViewContext } from "../declare/context.ts";
 import { useMount } from "../page/context.ts";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
+import { isServer } from "../solid/component.ts";
 
 /** Where a hook reads and writes: a scope of the view's context, or a scope by its identifier. */
 export interface ScopeOptions {
@@ -24,18 +25,31 @@ export function useQuery<Object extends ObjectType, Value>(
     options: ScopeOptions = {},
 ): Accessor<Value> {
     const nodes = useNode(object, options);
-    const node = createMemo(() => nodes().node);
 
     return createMemo(() => {
-        // build the query on the opened node, tracking what it reads
-        const built = query(node().queryType(object));
-
-        // follow it until the node or what it reads changes, or the component goes
+        // follow the query until the node or what it reads changes, or the component goes
+        const scoped = nodes();
         const stopping = new AbortController();
         onCleanup(() => stopping.abort());
 
-        return follow(built, stopping.signal);
+        // build it on an open node, tracking what it reads
+        if (scoped.kind === "open") {
+            return follow(query(scoped.node.queryType(object)), stopping.signal);
+        }
+
+        // else follow it once the node opens, as the mount's clients replace the opening node
+        return following(scoped.node, (opened) => query(opened.queryType(object)), stopping.signal);
     });
+}
+
+/** Follow a query on a node once it opens. */
+async function* following<Value>(
+    opening: Promise<ObjectNode>,
+    query: (node: ObjectNode) => RelationalQuery<Value>,
+    signal: AbortSignal,
+): AsyncGenerator<Value, void> {
+    const node = await opening;
+    yield* follow(query(node), signal);
 }
 
 /** Call an object type's mutating method on the view's node of its scope, predicted there first. */
@@ -69,10 +83,19 @@ export function useMutation<Object extends ObjectType, Name extends MutationName
 }
 
 /** A scope's node for a hook, held in an object since a memo of a promise awaits it. */
-interface ScopeNode {
-    /** The node, or the node once it opened. */
-    readonly node: ObjectNode | Promise<ObjectNode>;
-}
+type ScopeNode =
+    | {
+          /** The node is open. */
+          readonly kind: "open";
+          /** The node. */
+          readonly node: ObjectNode;
+      }
+    | {
+          /** The node is opening. */
+          readonly kind: "opening";
+          /** The node once it opened. */
+          readonly node: Promise<ObjectNode>;
+      };
 
 /** Read the view's node of an object type's scope, opening a scope outside the view's context. */
 export function useNode(object: ObjectType, options: ScopeOptions): Accessor<ScopeNode> {
@@ -90,16 +113,16 @@ export function useNode(object: ObjectType, options: ScopeOptions): Accessor<Sco
         // take an opened node of the scope
         const mount = useMount();
         const scope = scopeOf(mount.context, object, options);
-        const opened = mount.clients.get(scope);
+        const opened = mount.clients().get(scope);
         if (opened !== undefined) {
-            return { node: held(opened) };
+            return { kind: "open", node: held(opened) };
         }
 
         // open the scope's node until the scope changes or the component goes
         const stopping = new AbortController();
         onCleanup(() => stopping.abort());
 
-        return { node: mount.open(scope, stopping.signal).then(held) };
+        return { kind: "opening", node: mount.open(scope, stopping.signal).then(held) };
     });
 }
 
@@ -123,15 +146,23 @@ export function scopeOf(view: ViewContext, object: ObjectType, options: ScopeOpt
     }
 }
 
-/** Follow one query until the signal aborts. */
+/** Follow one query until the signal aborts, or read it once complete in a server render. */
 async function* follow<Value>(
     query: RelationalQuery<Value>,
     signal: AbortSignal,
 ): AsyncGenerator<Value> {
     const live = query.subscribe();
     try {
-        for await (const value of live.watch(signal)) {
-            yield value;
+        // render one complete snapshot on the server, which ends the page's stream
+        if (isServer) {
+            await live.ready;
+            yield await live.read();
+        }
+        // else follow it live
+        else {
+            for await (const value of live.watch(signal)) {
+                yield value;
+            }
         }
     } finally {
         await live.close();

@@ -10,8 +10,11 @@ import { createServer } from "vite";
 /** The module of the page's root, loaded alone to skip compiling the package's index. */
 const ROOT_MODULE = resolve(import.meta.dirname, "../page/root.ts");
 
-/** Render each component a module of the tested package exports on a server. */
-export async function renderOnServer(module: string): Promise<Record<string, string>> {
+/** Render each component a module of the tested package exports on a server, at a page's URL. */
+export async function renderOnServer(
+    module: string,
+    url = "https://example.test/",
+): Promise<Record<string, string>> {
     // compile the module and Solid's server runtime for the server from the tested package, as builds do
     const host = testHost();
     const root = host.process.workingDirectory;
@@ -51,7 +54,7 @@ export async function renderOnServer(module: string): Promise<Record<string, str
             }
 
             // render each exported component in turn on a server render's environment, past the exports the compiler adds
-            const environment = BrowserEnvironment.server(host);
+            const environment = BrowserEnvironment.server(host, url);
             const rendered: Record<string, string> = {};
             for (const [name, component] of Object.entries(loaded)) {
                 if (name.startsWith("$$")) {

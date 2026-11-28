@@ -3,44 +3,38 @@ import "../styles/styles.ts";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { ThemeDescription } from "@destack/theme";
 import { type Component, createComponent, NoHydration } from "solid-js";
-import { createRequestEvent, createSSRResponse, type JSX, renderToStream } from "@solidjs/web";
-import type { StaticSite, View } from "../declare/view.ts";
-import { ViewError } from "../error/error.ts";
+import type { JSX } from "@solidjs/web";
+import type { View } from "../declare/view.ts";
+import type { ViewMount } from "../page/context.ts";
 import { ActionRegistry } from "../page/action.ts";
-import { ViewRoot } from "../page/mount.ts";
+import { ViewRoot, type ViewRootProperties } from "../page/mount.ts";
 import { ViewDocument } from "./document.tsx";
 import { IslandContext, IslandPage } from "./island.tsx";
 
 /** The meta tag naming where a page's serving origin takes telemetry, absent where none does. */
 export const TELEMETRY_META = "destack-telemetry";
 
-/** A static view's page: its component inside its page shell, prerendered and then hydrated. */
-export class StaticPage {
+/** A view's page: its component inside its page shell, rendered on the server and then hydrated. */
+export class ViewPage {
     /** The view the page shows. */
     readonly view: View;
     /** The view's root component. */
     readonly component: Component;
     /** The page shell wrapping the component. */
     readonly document: Component<{ readonly children?: JSX.Element }>;
-    /** The environment the components run in. */
-    readonly environment: BrowserEnvironment;
     /** The actions the components handle. */
     readonly actions: ActionRegistry;
-    /** The view's pages module once loaded, on the server only. */
-    #pages: Promise<StaticSite> | undefined;
 
-    /** Create a page of a view's loaded component and shell in an environment. */
+    /** Create a page of a view's loaded component and shell. */
     constructor(
         view: View,
         component: Component,
         document: Component<{ readonly children?: JSX.Element }>,
-        environment: BrowserEnvironment,
     ) {
-        // keep the view, its loaded modules and the environment
+        // keep the view and its loaded modules
         this.view = view;
         this.component = component;
         this.document = document;
-        this.environment = environment;
         this.actions = new ActionRegistry();
     }
 
@@ -48,8 +42,7 @@ export class StaticPage {
     static async open(
         view: View,
         declared: { readonly theme?: ThemeDescription },
-        environment: BrowserEnvironment,
-    ): Promise<StaticPage> {
+    ): Promise<ViewPage> {
         // load the component and the view's own shell
         const { default: component } = await view.component();
         const { render } = view;
@@ -69,13 +62,17 @@ export class StaticPage {
                     },
                 }));
 
-        return new StaticPage(view, component, document, environment);
+        return new ViewPage(view, component, document);
     }
 
-    /** Render the page: the component under its view root inside the page shell. */
-    render(): JSX.Element {
-        // render the component under its view root inside the shell
-        const { component, view, environment, actions } = this;
+    /** Render the page: the component under its view root and mount, inside the page shell. */
+    render(
+        mount: ViewMount | null,
+        root: Pick<ViewRootProperties, "actions" | "localization" | "environment">,
+    ): JSX.Element {
+        // render the component under its view root, and the mount a host gives a client view, inside the shell
+        const { component, view } = this;
+        const { actions, localization, environment } = root;
         const page = (): JSX.Element =>
             createComponent(this.document, {
                 get children() {
@@ -83,7 +80,8 @@ export class StaticPage {
                         package: view.package,
                         environment,
                         actions,
-                        localization: Localization.of(SOURCE_LOCALE, []),
+                        localization,
+                        ...(mount === null ? {} : { mount }),
                         get children() {
                             return createComponent(component, {});
                         },
@@ -108,96 +106,14 @@ export class StaticPage {
         });
     }
 
-    /** List the view's paths, not-found path and endpoint paths from its pages module. */
-    async routes(): Promise<RouteTable> {
-        const { paths, notFound, endpoints = {} } = await this.#loadPages();
-
+    /** Read the view root a page first renders with: its own actions, in the source language. */
+    root(
+        environment: BrowserEnvironment,
+    ): Pick<ViewRootProperties, "actions" | "localization" | "environment"> {
         return {
-            paths: [...paths],
-            ...(notFound === undefined ? {} : { notFound }),
-            endpoints: Object.keys(endpoints),
+            actions: this.actions,
+            localization: Localization.of(SOURCE_LOCALE, []),
+            environment,
         };
     }
-
-    /** Load the view's pages module once. */
-    #loadPages(): Promise<StaticSite> {
-        this.#pages ??= loadPages(this.view);
-
-        return this.#pages;
-    }
-
-    /** Answer a request: an endpoint's file at its path, else the page's complete HTML. */
-    async respond(request: Request, head: PageHead): Promise<Response> {
-        // answer an endpoint at its path
-        const { render } = this.view;
-        const { endpoints = {} } = await this.#loadPages();
-        const endpoint = endpoints[new URL(request.url).pathname];
-        if (endpoint !== undefined && render.mode === "static") {
-            return await endpoint({
-                request,
-                origin: render.origin,
-                environment: this.environment,
-            });
-        }
-
-        // render the page under the request, as the router reads its path from it, loading the server's request scope
-        const { provideRequestEvent } = await import("@solidjs/web/storage");
-        const event = createRequestEvent(request);
-        const html = await provideRequestEvent(event, () => renderToStream(() => this.render()));
-
-        // link the stylesheets and load the entry at the end of the head, refusing a document without one
-        if (!html.includes("</head>")) {
-            throw ViewError.of(
-                "PAGE_HEAD_REQUIRED",
-                `head of view '${this.view.name}' is required: its document renders none`,
-            );
-        }
-        const links = [
-            ...(head.telemetry === undefined
-                ? []
-                : [`<meta name="${TELEMETRY_META}" content="${escape(head.telemetry)}">`]),
-            ...head.stylesheets.map((href) => `<link rel="stylesheet" href="${escape(href)}">`),
-            `<script type="module" src="${escape(head.script)}" async></script>`,
-        ];
-
-        return createSSRResponse(html.replace("</head>", `${links.join("")}</head>`), event);
-    }
-}
-
-/** Load a static view's pages module, refusing a view of another mode. */
-function loadPages(view: View): Promise<StaticSite> {
-    const { render } = view;
-    if (render.mode !== "static") {
-        throw ViewError.of(
-            "VIEW_INVALID",
-            `view '${view.name}' is invalid: it prerenders no pages`,
-        );
-    }
-
-    return render.pages();
-}
-
-/** A static view's routes: the paths of its pages, its not-found page and its endpoints. */
-export interface RouteTable {
-    /** The paths prerendered below the view's base. */
-    readonly paths: readonly string[];
-    /** The path rendering the not-found page, none when absent. */
-    readonly notFound?: string;
-    /** The paths of its endpoints. */
-    readonly endpoints: readonly string[];
-}
-
-/** What a page's head links: its entry module, stylesheets and telemetry endpoint, by URL. */
-export interface PageHead {
-    /** The module the page loads. */
-    readonly script: string;
-    /** The stylesheets the page links, in order. */
-    readonly stylesheets: readonly string[];
-    /** The path the origin serving the page takes its telemetry at, absent where it takes none. */
-    readonly telemetry?: string;
-}
-
-/** Escape a URL for an HTML attribute. */
-function escape(url: string): string {
-    return url.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 }

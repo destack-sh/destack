@@ -122,7 +122,7 @@ async function openSample(
         component,
         mount: {
             context,
-            clients,
+            clients: () => clients,
             open: (scope, closing) =>
                 openScope(scope, view.opens(space), context.user, environment, closing),
             packages,
