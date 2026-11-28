@@ -1,7 +1,11 @@
 import { join, relative, resolve } from "node:path";
 import { MODULE_EXTENSIONS } from "../check/sources.ts";
 import type { FileSystem } from "@destack/environment";
+import { schema } from "@destack/schema";
 import { BunLockfile } from "../bun/lockfile.ts";
+
+/** The name a package's manifest gives it. */
+const PackageName = schema.looseObject({ name: schema.string().min(1) });
 
 /** One package of a workspace. */
 export interface WorkspaceMember {
@@ -19,19 +23,22 @@ export class Workspace {
     readonly root: string;
     /** The member packages, the root included when it is named. */
     readonly members: readonly WorkspaceMember[];
+    /** Whether a lockfile pins its dependencies, which a lone package's links elsewhere lack. */
+    readonly isLocked: boolean;
 
     /** Store a workspace's members. */
-    private constructor(root: string, members: readonly WorkspaceMember[]) {
+    private constructor(root: string, members: readonly WorkspaceMember[], isLocked: boolean) {
         this.root = root;
         this.members = members;
+        this.isLocked = isLocked;
     }
 
-    /** Read the workspace enclosing a directory, absent without an enclosing lockfile. */
+    /** Read the workspace enclosing a directory: its lockfile's, else a lone package's own. */
     static async read(directory: string, files: FileSystem): Promise<Workspace | undefined> {
-        // read the lockfile of the enclosing workspace
+        // read the lockfile of the enclosing workspace, else take a lone package as one of its own
         const lockfile = await BunLockfile.read(directory, files);
         if (lockfile === undefined) {
-            return undefined;
+            return await Workspace.#alone(directory, files);
         }
 
         // read the members the lockfile records
@@ -61,7 +68,23 @@ export class Workspace {
             return { directory: path, name, dependencies };
         });
 
-        return new Workspace(lockfile.directory, members);
+        return new Workspace(lockfile.directory, members, true);
+    }
+
+    /** Read a lone package as its own workspace, as an app checked out by itself is. */
+    static async #alone(directory: string, files: FileSystem): Promise<Workspace | undefined> {
+        // take a directory with a named package as the root and only member
+        const manifest = join(directory, "package.json");
+        if (!(await files.exists(manifest))) {
+            return undefined;
+        }
+        const { name } = PackageName.parse(JSON.parse(await files.readTextFile(manifest)));
+
+        return new Workspace(
+            resolve(directory),
+            [{ directory: ".", name, dependencies: [] }],
+            false,
+        );
     }
 
     /** List a member and every member it depends on, directly or through others. */

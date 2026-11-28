@@ -156,8 +156,10 @@ export class Project {
         const planned = await TestPlan.of(this.directory, this.environment.files);
         const hasNode = planned.targets.some((target) => target.kind === "node");
 
-        // run listings, updates, benches and filtered runs as asked, recording nothing
+        // run listings, updates, benches, filtered runs and lone packages as asked, recording nothing
+        const { isLocked } = await this.#workspace();
         const isRecorded =
+            isLocked &&
             options.isListing !== true &&
             options.isUpdating !== true &&
             options.grep === undefined &&
