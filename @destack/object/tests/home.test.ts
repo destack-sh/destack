@@ -15,7 +15,7 @@ import { none, principal, relation, accessTables } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { defineDatabase, eq } from "@destack/db";
 import { ControlLoop } from "@destack/db/database";
-import { present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import { Feed } from "@destack/sync/dataflow";
@@ -304,7 +304,7 @@ async function openRoom(world: Environment, served: Awaited<ReturnType<typeof se
 }
 
 /** Write alice's theme at her person's home, answering its identifier. */
-async function setTheme(home: ObjectStore, value: string): Promise<string> {
+async function setTheme(home: ObjectStore, value: string): Promise<Identifier<"preference">> {
     const [created] = await home.mutate(
         userContext(users.alice, personId, { environment: home.environment }).access(),
         {
@@ -313,7 +313,7 @@ async function setTheme(home: ObjectStore, value: string): Promise<string> {
         },
     );
 
-    return present(created, "the created theme").id;
+    return schema.identifier("preference").parse(present(created, "the created theme").id);
 }
 
 /** Wait until a client's database meets a condition, failing after the replica's bound. */
@@ -737,6 +737,31 @@ test("send the undo of a write of an enclosing scope's row to its home", async (
             "home /store/push",
             "replica /store/watermark",
         ],
+        failures: [],
+    });
+});
+
+test("read a row again at once after a one-shot read unfollowed its query", async () => {
+    // replicate the room's preferences on alice's device, with her theme at her person's home
+    const world = testSimulation().environment("test");
+    const served = await serveHomes(world);
+    const { client, failures } = await openRoom(world, served);
+    const id = await setTheme(served.home, "dark");
+
+    // wait through one live query until the theme arrives
+    const live = client.query.preference.findFirst({ where: { id } }).subscribe();
+    await live.ready;
+    await waitFor(client, async () => (await live.read()) !== undefined);
+    await live.close();
+
+    // read it once at a time, each read following the query again right after the last unfollowed it
+    const values: (string | undefined)[] = [];
+    for (let i = 0; i < 4; i++) {
+        values.push((await client.query.preference.findFirst({ where: { id } }))?.value);
+    }
+
+    expect({ values, failures: failures() }).toEqual({
+        values: ["dark", "dark", "dark", "dark"],
         failures: [],
     });
 });
