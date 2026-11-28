@@ -8,6 +8,7 @@ import {
     type DeclarationDescription,
     type DependencyRelease,
     type PackageVersion,
+    PackageDefinition,
     PackageJson,
     PackageName,
     type graph,
@@ -46,6 +47,17 @@ const UnlockedPackage = schema.looseObject({
 
 /** The lockfile Bun writes at a workspace's root. */
 const LOCKFILE = "bun.lock";
+
+/** The bunfig Bun reads from its configuration directory, beneath a project's own. */
+const GLOBAL_BUNFIG = ".bunfig.toml";
+
+/** Where a building machine resolves Destack packages: its universe's npm address and scopes. */
+export interface WorkspaceRegistry {
+    /** The universe's npm address, such as `https://destack.app/.npm/`. */
+    readonly url: string;
+    /** The scopes it serves beyond the package's own and declared ones: the builtins'. */
+    readonly scopes: readonly string[];
+}
 
 /** The files no build reads: test modules, the tests folder and recipes. */
 const UNREAD_FILES = [/(?:^|\/)[^/]*\.test\.[^/]+$/u, /^tests\//u, /(?:^|\/)justfile$/u];
@@ -201,7 +213,12 @@ export class Workspace {
     static async install(
         directory: string,
         environment: Environment<"files" | "process">,
-        options: { readonly isFrozen: boolean; readonly signal: AbortSignal },
+        options: {
+            readonly isFrozen: boolean;
+            readonly signal: AbortSignal;
+            /** The registry of Destack scopes, undefined where the workspace links them. */
+            readonly registry: WorkspaceRegistry | undefined;
+        },
     ): Promise<string | undefined> {
         // install at the lockfile's workspace, else at the directory
         const { files, process } = environment;
@@ -230,11 +247,28 @@ export class Workspace {
             "--ignore-scripts",
             ...(options.isFrozen ? ["--frozen-lockfile", "--prefer-offline"] : []),
         ];
-        const { code, stderr } = await process.run(command, {
-            workingDirectory: root,
-            variables: { ...process.variables, BUN_BE_BUN: "1" },
-            signal: options.signal,
-        });
+        const configuration =
+            options.registry === undefined
+                ? undefined
+                : await Workspace.#configure(root, options.registry, files);
+        const variables = {
+            ...process.variables,
+            BUN_BE_BUN: "1",
+            ...(configuration === undefined ? {} : { XDG_CONFIG_HOME: configuration }),
+        };
+        let ran: Awaited<ReturnType<typeof process.run>>;
+        try {
+            ran = await process.run(command, {
+                workingDirectory: root,
+                variables,
+                signal: options.signal,
+            });
+        } finally {
+            if (configuration !== undefined) {
+                await files.remove(configuration, { recursive: true, force: true });
+            }
+        }
+        const { code, stderr } = ran;
 
         // fail with Bun's message, naming the workspace's package
         options.signal.throwIfAborted();
@@ -251,6 +285,34 @@ export class Workspace {
         const written = join(root, LOCKFILE);
 
         return (await files.exists(written)) ? written : undefined;
+    }
+
+    /** Write a configuration directory whose bunfig sends Destack scopes to a registry. */
+    static async #configure(
+        root: string,
+        registry: WorkspaceRegistry,
+        files: FileSystem,
+    ): Promise<string> {
+        // take the builtins', own and declared scopes
+        const { name } = (await readPackageJson(root, files)).package;
+        const definition = join(root, "destack.json");
+        const declared = (await files.exists(definition))
+            ? (PackageDefinition.read(await files.readTextFile(definition)).scopes ?? [])
+            : [];
+        const own = PackageName.safeParse(name).success
+            ? [`@${PackageName.split(name).handle}`]
+            : [];
+        const scopes = [...new Set([...registry.scopes, ...own, ...declared])].toSorted();
+
+        // write them into a bunfig Bun merges beneath the workspace's
+        const directory = await files.makeTemporaryDirectory("destack-registry-");
+        const lines = scopes.map((scope) => `"${scope}" = { url = "${registry.url}" }`);
+        await files.writeTextFile(
+            join(directory, GLOBAL_BUNFIG),
+            ["[install.scopes]", ...lines, ""].join("\n"),
+        );
+
+        return directory;
     }
 
     /** Read the lockfile's members, the checkout, the toolchain and the locked npm releases. */

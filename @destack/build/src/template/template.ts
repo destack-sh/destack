@@ -27,6 +27,9 @@ const PACKAGE_EXPORT = "./package";
 /** The fields of a template's package.json that an instance reads and rewrites. */
 type TemplateManifest = schema.Infer<typeof TemplateManifest>;
 
+/** A package file's dependencies by range. */
+const DEPENDENCIES = schema.record(schema.string(), schema.string());
+
 /** Source files copied and renamed when creating a package. */
 export class Template {
     /** The template's source files, including its manifests. */
@@ -146,6 +149,20 @@ export class Template {
             parameters.versions,
         );
         files.set("package.json", encoder.encode(JSON.stringify(released, null, 4) + "\n"));
+
+        // declare the scopes of its Destack dependencies
+        const own = `@${PackageName.split(parameters.name).handle}`;
+        const depended = Object.keys(DEPENDENCIES.parse(released["dependencies"] ?? {}));
+        const scopes = [
+            ...new Set(
+                depended
+                    .filter((name) => Object.hasOwn(parameters.versions, name))
+                    .map((name) => `@${PackageName.split(name).handle}`),
+            ),
+        ].filter((scope) => scope !== own);
+        if (scopes.length > 0) {
+            definition.scopes = scopes.toSorted();
+        }
         files.set("destack.json", encoder.encode(JSON.stringify(definition, null, 4) + "\n"));
 
         // start the package's README with what its manifest says: its name and description

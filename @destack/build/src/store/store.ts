@@ -234,7 +234,7 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
     readonly blobs: BlobStore<Storage>;
     /** The crypto digesting files and the clock of leases. */
     readonly environment: StoreEnvironment;
-    /** The read-only builds the store reads in place, such as a machine's shipped builds. */
+    /** The read-only builds the store reads in place, such as a machine's distribution. */
     readonly layer?: BuildLayer;
     /** How long a stored build lasts unless a root or a use retains it, by default the blobs'. */
     readonly leaseMilliseconds?: number;
@@ -545,7 +545,7 @@ export class BuildStore<
                 .from(buildManifest)
                 .where(inArray(buildManifest.digest, stored.slice(start, start + BATCH_ROWS)));
 
-            // note the records incomplete here, the layer's shipped whole
+            // note the records incomplete here, as the layer's are complete
             for (const record of records) {
                 const isShipped = this.layer.head(record.digest) !== undefined;
                 if (!isShipped && (!record.isComplete || !this.#isMounted(record.layer))) {
@@ -734,7 +734,7 @@ export class BuildStore<
                     ? BuildImage.builds(await this.image(root.digest))
                     : [root.digest];
 
-            // trust the layer for what runtimes run, which is all it ships of a build
+            // trust the layer for what runtimes run, which is all of a build it has
             const isShipped = (build: Digest) =>
                 runtimes !== "all" && this.layer.head(build) !== undefined;
             const stored = builds.filter((build) => !isShipped(build));
@@ -925,6 +925,33 @@ export class BuildStore<
                 ...sourced.flat(),
             ]),
         ];
+    }
+
+    /** List the builtins bundled in the store's layer, by package name. */
+    async builtins(): Promise<string[]> {
+        const bundled = await this.#bundled();
+
+        return bundled
+            .filter(({ manifest }) => manifest.role === "builtin")
+            .map(({ manifest }) => manifest.package.name);
+    }
+
+    /** Read the root build of a package bundled in the store's layer, undefined for none. */
+    async bundled(name: string): Promise<Digest | undefined> {
+        const bundled = await this.#bundled();
+
+        return bundled.find(({ manifest }) => manifest.package.name === name)?.root;
+    }
+
+    /** Read the root build and manifest of each package bundled in the store's layer. */
+    #bundled(): Promise<{ readonly root: Digest; readonly manifest: PackageManifest }[]> {
+        return Promise.all(
+            this.layer.releases.map(async (image) => {
+                const { root } = await this.image(image);
+
+                return { root, manifest: await this.get(root) };
+            }),
+        );
     }
 
     /** Read a stored image's blob once, as images never change, recorded or not. */
@@ -1489,7 +1516,7 @@ export class BuildStore<
     async #recorded(
         digest: Digest,
     ): Promise<{ readonly size: number; readonly isComplete: boolean } | undefined> {
-        // take a layered manifest or image, which the layer ships complete
+        // take a layered manifest or image, which the layer has complete
         const layered = this.layer.head(digest);
         if (layered !== undefined) {
             return { size: layered.size, isComplete: true };

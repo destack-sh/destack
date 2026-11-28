@@ -12,7 +12,7 @@ import { LocalBuildStore } from "../src/store/local.ts";
 import { Toolchain } from "@destack/check/toolchain";
 
 /** The schema every package definition names. */
-const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
+const SCHEMA = "https://destack.app/schemas/destack.json";
 
 /** Write a package's manifest, definition and one module into a directory. */
 async function writePackage(

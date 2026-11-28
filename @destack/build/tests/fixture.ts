@@ -25,7 +25,7 @@ export const THING_FILES: Readonly<Record<string, string>> = {
         dependencies: { "@example/owner": "2026.9.0" },
     }),
     "destack.json": JSON.stringify({
-        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        $schema: "https://destack.app/schemas/destack.json",
         id: "package-01996ab0-0000-7000-8000-00000000000c",
         role: "library",
         language: "typescript",
@@ -40,7 +40,7 @@ export const THING_FILES: Readonly<Record<string, string>> = {
         exports: { ".": "./index.ts", "./inspect": "./inspect.ts" },
     }),
     "node_modules/@example/owner/destack.json": JSON.stringify({
-        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        $schema: "https://destack.app/schemas/destack.json",
         id: "package-01996ab0-0000-7000-8000-00000000000a",
         role: "library",
         language: "typescript",

@@ -475,7 +475,7 @@ test("compile a package with the build extension it declares", async () => {
         const contents: Record<string, string> = {
             "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
             "destack.json": JSON.stringify({
-                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                $schema: "https://destack.app/schemas/destack.json",
                 id: "package-01996ab0-0000-7000-8000-00000000000e",
                 role: "library",
                 language: "typescript",
@@ -553,7 +553,7 @@ test("bundle a dependency's file imported with a query through the extension tha
         const contents: Record<string, string> = {
             "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
             "destack.json": JSON.stringify({
-                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                $schema: "https://destack.app/schemas/destack.json",
                 id: "package-01996ab0-0000-7000-8000-00000000000f",
                 role: "library",
                 language: "typescript",
@@ -641,7 +641,7 @@ test("compile each command the package installs into its Bun output, keeping its
     const contents: Record<string, string> = {
         "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
         "destack.json": JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: "package-01996ab0-0000-7000-8000-000000000011",
             role: "library",
             language: "typescript",
@@ -697,7 +697,7 @@ test("keep the declaration file a package exports for another runtime in a Bun b
     const contents: Record<string, string> = {
         "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
         "destack.json": JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: "package-01996ab0-0000-7000-8000-000000000012",
             role: "library",
             language: "typescript",
@@ -751,7 +751,7 @@ test("keep the files a package imports only for types in its build", async () =>
     const contents: Record<string, string> = {
         "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
         "destack.json": JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: "package-01996ab0-0000-7000-8000-000000000013",
             role: "library",
             language: "typescript",

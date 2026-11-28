@@ -19,7 +19,7 @@ async function writePackage(overrides: readonly string[], files: FileSystem): Pr
     await files.writeTextFile(
         join(directory, "destack.json"),
         JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: "package-01996ab0-0000-7000-8000-000000000a01",
             role: "library",
             language: "typescript",

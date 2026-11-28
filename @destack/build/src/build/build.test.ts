@@ -17,7 +17,7 @@ test("read one module per runtime the shipped exports compile for", async () => 
         await files.writeTextFile(
             join(directory, "destack.json"),
             JSON.stringify({
-                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                $schema: "https://destack.app/schemas/destack.json",
                 ...definition,
             }),
         );

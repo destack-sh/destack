@@ -12,7 +12,7 @@ import { LocalBuildStore } from "../src/store/local.ts";
 import { Toolchain } from "@destack/check/toolchain";
 
 /** The schema every package definition names. */
-const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
+const SCHEMA = "https://destack.app/schemas/destack.json";
 
 /** The extension the leaf package declares, rewriting a marker in every module it transforms. */
 const LEAF_EXTENSION = `/** Rewrite the marker in each module. */

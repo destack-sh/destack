@@ -234,7 +234,7 @@ async function partPackage(app: string, environment: Environment<"files" | "proc
     await files.writeTextFile(
         join(parts, "destack.json"),
         JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: "package-01996ab0-0000-7000-8000-00000000000d",
             role: "library",
             language: "typescript",
@@ -269,7 +269,7 @@ async function partPackage(app: string, environment: Environment<"files" | "proc
     await files.writeTextFile(
         join(owner, "destack.json"),
         JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            $schema: "https://destack.app/schemas/destack.json",
             id: "package-01996ab0-0000-7000-8000-00000000000a",
             role: "library",
             language: "typescript",
