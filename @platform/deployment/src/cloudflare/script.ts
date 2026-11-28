@@ -20,7 +20,7 @@ import type { Deployment } from "../deployment/deployment.ts";
 import type { PlatformBuild } from "@platform/distribution";
 import type { UniverseDefinition } from "@destack/universe";
 import { DISTRIBUTION_MODULE } from "@destack/package";
-import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
+import { SERVER_BUNDLE_MODULE, VIEWS_BUNDLE_MODULE } from "@destack/machine/cloudflare";
 import { PLATFORM, type PlatformRegion, REGIONS } from "@platform/stack";
 import { CloudflareCredentials } from "./credential.ts";
 import { present, schema } from "@destack/schema";
@@ -177,6 +177,7 @@ export class WorkerScript {
             [DISTRIBUTION_MODULE]: { kind: "data", value: build.distribution("workerd") },
             [UNIVERSE_MODULE]: { kind: "data", value: definition },
             [SERVER_BUNDLE_MODULE]: { kind: "imports", specifiers: build.serverBundle() },
+            [VIEWS_BUNDLE_MODULE]: { kind: "imports", specifiers: build.viewsBundle() },
         };
     }
 
