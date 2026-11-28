@@ -129,7 +129,7 @@ export function ActionButton<Inputs extends ActionInputs>(
             {...rest}
             {...(properties.href === undefined ? {} : { render: link })}
             data-action={properties.action.name}
-            aria-label={isAlone() ? title() : undefined}
+            aria-label={properties["aria-label"] ?? (isAlone() ? title() : undefined)}
             isIconOnly={isAlone()}
             aria-pressed={pressed()}
             variant={own.isOn() === true ? "secondary" : (properties.variant ?? "default")}

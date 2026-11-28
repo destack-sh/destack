@@ -308,6 +308,29 @@ test("disable a button while its action does not run, the button staying in the 
     ]);
 });
 
+test("name an icon-only button by its action, or by the name its caller gives where several share it", () => {
+    const { container } = render(
+        () => {
+            handleOnPage(archive, { run: () => undefined });
+
+            return (
+                <>
+                    <ActionButton action={archive} isIconOnly />
+                    <ActionButton action={archive} isIconOnly aria-label="Archive the done tasks" />
+                </>
+            );
+        },
+        { actions: new ActionRegistry() },
+    );
+    flush();
+
+    expect(
+        [...container.querySelectorAll("button")].map((button) =>
+            button.getAttribute("aria-label"),
+        ),
+    ).toEqual(["Archive", "Archive the done tasks"]);
+});
+
 test("follow a link in place of its action", () => {
     const ran: string[] = [];
     const [isEnabled, setEnabled] = createSignal(true, { ownedWrite: true });
