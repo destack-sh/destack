@@ -53,7 +53,7 @@ const note = defineObject({
 /** List the notes, live. */
 function Notes() {
     // read the notes in title order, and rename one
-    const notes = useQuery(note, (query) => query.findMany({ orderBy: { title: "asc" } }));
+    const notes = useQuery({ note }, (query) => query.note.findMany({ orderBy: { title: "asc" } }));
     const update = useMutation(note, "update");
     const rename = (id: string) => update({ id, title: "Groceries" });
 
@@ -92,7 +92,8 @@ A static view has an `origin`, `pages` with its paths, an optional `document`, a
 
 ### Live data
 
-`useQuery(note, (query) => query.findMany(…))` follows a query of notes, as in `@destack/db`, on the person's device.
+`useQuery({ note }, (query) => query.note.findMany(…))` follows a query of notes, as in `@destack/db`, on the person's device.
+Its first argument lists the object types the query relates through, typing each relation as Drizzle's schema does.
 `useMutation(note, "update")` calls a method of notes, as in `@destack/object`, its prediction showing at once.
 Each reads and writes the scope the type lives in for the view, or `{ scope }`: `"home"`, `"account"`, or a space's identifier.
 `useSearch(text, { types, limit })` finds objects as a person types, in the scopes of the view.

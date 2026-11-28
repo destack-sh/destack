@@ -36,7 +36,7 @@ const card = defineObject(
 
 /** List the space's cards by title. */
 function Cards() {
-    const cards = useQuery(card, (query) => query.findMany({ orderBy: { title: "asc" } }));
+    const cards = useQuery({ card }, (query) => query.card.findMany({ orderBy: { title: "asc" } }));
 
     return (
         <ul>

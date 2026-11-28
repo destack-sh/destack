@@ -1,11 +1,13 @@
 import { account, space, user } from "@destack/account/object";
 import { type Method, type MutationName, type ObjectType } from "@destack/object";
 import { type JsonObject, mapValues, present } from "@destack/schema";
-import type {
-    Mutator,
-    ObjectNode,
+import {
+    type Mutator,
+    type ObjectNode,
+    type ObjectQueries,
     ObjectQueryBuilder,
-    RelationalQuery,
+    type RelationalQuery,
+    type Subscriber,
 } from "@destack/object/client";
 import { type ContextScope, ViewContext } from "../declare/context.ts";
 import { useMount } from "../page/context.ts";
@@ -18,38 +20,47 @@ export interface ScopeOptions {
     readonly scope?: ContextScope | Accessor<string>;
 }
 
-/** Follow a query of an object type live on the view's node of its scope. */
-export function useQuery<Object extends ObjectType, Value>(
-    object: Object,
-    query: (builder: ObjectQueryBuilder<Object, ObjectType>) => RelationalQuery<Value>,
+/** Follow a query of some object types live, on the view's node of the queried type's scope. */
+export function useQuery<const Objects extends Readonly<Record<string, ObjectType>>, Value>(
+    objects: Objects,
+    query: (builders: ObjectQueries<Objects>) => RelationalQuery<Value>,
     options: ScopeOptions = {},
 ): Accessor<Value> {
-    const nodes = useNode(object, options);
-
     return createMemo(() => {
-        // follow the query until the node or what it reads changes, or the component goes
-        const scoped = nodes();
-        const stopping = new AbortController();
-        onCleanup(() => stopping.abort());
+        // build the query over the node it reads on, tracking what it reads
+        let node: ObjectNode | undefined;
+        const current = () => present(node, "the query's node");
+        const subscriber: Subscriber = {
+            rows: (object, read, live) => current().subscriber.rows(object, read, live),
+            results: (object, read, live) => current().subscriber.results(object, read, live),
+        };
+        const built = query(ObjectQueryBuilder.of(subscriber, objects));
 
-        // build it on an open node, tracking what it reads
+        // follow it on its type's node until it or what it reads changes, or the component goes
+        const scoped = nodeOf(built.object, options, useMount());
         if (scoped.kind === "open") {
-            return follow(query(scoped.node.queryType(object)), stopping.signal);
+            node = scoped.node;
+
+            return follow(built, scoped.signal);
         }
 
         // else follow it once the node opens, as the mount's clients replace the opening node
-        return following(scoped.node, (opened) => query(opened.queryType(object)), stopping.signal);
+        const opening = scoped.node.then((opened) => {
+            node = opened;
+        });
+
+        return following(opening, built, scoped.signal);
     });
 }
 
-/** Follow a query on a node once it opens. */
+/** Follow a query once its node opens. */
 async function* following<Value>(
-    opening: Promise<ObjectNode>,
-    query: (node: ObjectNode) => RelationalQuery<Value>,
+    opening: Promise<void>,
+    query: RelationalQuery<Value>,
     signal: AbortSignal,
 ): AsyncGenerator<Value, void> {
-    const node = await opening;
-    yield* follow(query(node), signal);
+    await opening;
+    yield* follow(query, signal);
 }
 
 /** Call an object type's mutating method on the view's node of its scope, predicted there first. */
@@ -83,7 +94,7 @@ export function useMutation<Object extends ObjectType, Name extends MutationName
 }
 
 /** A scope's node for a hook, held in an object since a memo of a promise awaits it. */
-type ScopeNode =
+type ScopeNode = (
     | {
           /** The node is open. */
           readonly kind: "open";
@@ -95,10 +106,23 @@ type ScopeNode =
           readonly kind: "opening";
           /** The node once it opened. */
           readonly node: Promise<ObjectNode>;
-      };
+      }
+) & {
+    /** Aborts once the scope changes or the component goes. */
+    readonly signal: AbortSignal;
+};
 
 /** Read the view's node of an object type's scope, opening a scope outside the view's context. */
 export function useNode(object: ObjectType, options: ScopeOptions): Accessor<ScopeNode> {
+    return createMemo(() => nodeOf(object, options, useMount()));
+}
+
+/** Take the mount's node of an object type's scope, opening one outside the view's context. */
+function nodeOf(
+    object: ObjectType,
+    options: ScopeOptions,
+    mount: ReturnType<typeof useMount>,
+): ScopeNode {
     // refuse a node that does not hold the type, on first read as every read of the mount
     const held = (node: ObjectNode) => {
         if (!node.objects.some((type) => type.same(object))) {
@@ -108,22 +132,22 @@ export function useNode(object: ObjectType, options: ScopeOptions): Accessor<Sco
         return node;
     };
 
-    // follow the scope's node, reading the mount on first use
-    return createMemo((): ScopeNode => {
-        // take an opened node of the scope
-        const mount = useMount();
-        const scope = scopeOf(mount.context, object, options);
-        const opened = mount.clients().get(scope);
-        if (opened !== undefined) {
-            return { kind: "open", node: held(opened) };
-        }
+    // stop once the scope changes or the component goes
+    const stopping = new AbortController();
+    onCleanup(() => stopping.abort());
 
-        // open the scope's node until the scope changes or the component goes
-        const stopping = new AbortController();
-        onCleanup(() => stopping.abort());
+    // take an opened node of the scope, else open it
+    const scope = scopeOf(mount.context, object, options);
+    const opened = mount.clients().get(scope);
+    if (opened !== undefined) {
+        return { kind: "open", node: held(opened), signal: stopping.signal };
+    }
 
-        return { kind: "opening", node: mount.open(scope, stopping.signal).then(held) };
-    });
+    return {
+        kind: "opening",
+        node: mount.open(scope, stopping.signal).then(held),
+        signal: stopping.signal,
+    };
 }
 
 /** Read the scope a hook reads and writes: the one asked, else the one the object type lives in. */

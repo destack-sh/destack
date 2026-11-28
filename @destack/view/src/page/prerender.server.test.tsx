@@ -27,7 +27,7 @@ test("render a view's loading fallbacks before any host mounts it, as a prerende
         createComponent(EnvironmentContext, {
             value: BrowserEnvironment.server(testHost(), "https://example.test/"),
             get children() {
-                const notes = useQuery(note, (query) => query.findMany());
+                const notes = useQuery({ note }, (query) => query.note.findMany());
 
                 return [
                     createComponent(Loading, {
@@ -51,6 +51,6 @@ test("render a view's loading fallbacks before any host mounts it, as a prerende
 
     // expect both fallbacks rendered and marked as fallbacks for the browser's hydration, as a host mounts the view only there
     expect(html.replace(/<!--[^>]*-->/gu, "")).toEqual(
-        'loading notesloading space<script>(self.$R=self.$R||{})[""]=[];_$HY.r["02"]="$$f";_$HY.r["03"]="$$f";</script>',
+        'loading notesloading space<script>(self.$R=self.$R||{})[""]=[];_$HY.r["01"]="$$f";_$HY.r["02"]="$$f";</script>',
     );
 });

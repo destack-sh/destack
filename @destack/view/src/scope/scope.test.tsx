@@ -111,7 +111,7 @@ async function openClient(
 
 /** List the board's cards by title, renaming one through the view's mutations. */
 function Cards() {
-    const cards = useQuery(card, (query) => query.findMany({ orderBy: { title: "asc" } }));
+    const cards = useQuery({ card }, (query) => query.card.findMany({ orderBy: { title: "asc" } }));
     const update = useMutation(card, "update");
 
     return (
@@ -193,8 +193,8 @@ test("follow another query as a filter changes, showing the last rows until it r
     onTestFinished(
         renderView(
             () => {
-                const cards = useQuery(card, (query) =>
-                    query.findMany({ where: { title: title() } }),
+                const cards = useQuery({ card }, (query) =>
+                    query.card.findMany({ where: { title: title() } }),
                 );
 
                 return (
@@ -263,9 +263,13 @@ test("open and close another space with a component", async () => {
 
     // list the space's cards by its identifier
     const Opened = () => {
-        const cards = useQuery(card, (query) => query.findMany({ orderBy: { title: "asc" } }), {
-            scope: () => BOARD_ID,
-        });
+        const cards = useQuery(
+            { card },
+            (query) => query.card.findMany({ orderBy: { title: "asc" } }),
+            {
+                scope: () => BOARD_ID,
+            },
+        );
 
         return <For each={cards()}>{(entry) => <li>{entry.title}</li>}</For>;
     };
@@ -309,7 +313,7 @@ test("fail access to an object type the view's space does not hold into the erro
             () => (
                 <Errored fallback={(error) => <p>{failureMessage(error())}</p>}>
                     {(() => {
-                        const boards = useQuery(board, (query) => query.findMany());
+                        const boards = useQuery({ board }, (query) => query.board.findMany());
 
                         return <p>{boards().length} boards</p>;
                     })()}
