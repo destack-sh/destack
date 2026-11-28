@@ -16,6 +16,14 @@
                 "reason": "mapValues is the one typed construction of a record from runtime keys: TypeScript types such a record only by the mapped type its caller states, as Drizzle and tRPC do internally"
             },
             {
+                "files": ["src/collection/share.ts"],
+                "rules": [
+                    "typescript/consistent-type-assertions",
+                    "typescript/no-unsafe-type-assertion"
+                ],
+                "reason": "share is the one typed reconstruction of a value from an earlier one: it returns a value deep-equal to its input, which TypeScript cannot prove of a rebuilt structure, as TanStack Query's replaceEqualDeep casts internally"
+            },
+            {
                 "files": ["src/identifier/brand.ts"],
                 "rules": [
                     "typescript/consistent-type-assertions",

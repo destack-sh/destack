@@ -209,6 +209,13 @@
             }
         },
         {
+            "files": ["@destack/schema/src/collection/share.ts"],
+            "rules": {
+                "typescript/consistent-type-assertions": "off",
+                "typescript/no-unsafe-type-assertion": "off"
+            }
+        },
+        {
             "files": ["@destack/schema/src/identifier/brand.ts"],
             "rules": {
                 "typescript/consistent-type-assertions": "off",
