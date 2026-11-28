@@ -95,6 +95,7 @@ const sample = defineObject(
             member: field.subject(principal.user, principal.installation),
             status: field.state({
                 initial: "open",
+                final: ["closed"],
                 transitions: { close: { from: ["open"], to: "closed", permission: "edit" } },
             }),
             position: field.fractionalIndex(),

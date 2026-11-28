@@ -480,6 +480,7 @@ test("offer the declared actions meeting their condition, then each titled metho
                 title: field.string(schema.string()),
                 state: field.state({
                     initial: "todo",
+                    final: ["done"],
                     transitions: {
                         start: { from: ["todo"], to: "started", permission: "update" },
                         finish: { from: ["started"], to: "done", permission: "update" },
