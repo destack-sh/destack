@@ -187,8 +187,15 @@ const Frame = schema.discriminatedUnion("kind", [
 /** A frame between a channel's parties and the node serving them. */
 type Frame = schema.Infer<typeof Frame>;
 
-/** A frame on the channel with the trace it was sent in, as W3C trace context headers. */
+/** The address of the frames the node serving a channel takes. */
+const NODE = "node";
+
+/** The address of the node's frames every party takes: whether it serves. */
+const PARTIES = "parties";
+
+/** A frame on the channel with its address and the trace it was sent in, as W3C headers. */
 const Envelope = schema.object({
+    to: schema.string(),
     trace: schema.record(schema.string(), schema.string()),
     frame: schema.unknown(),
 });
@@ -253,8 +260,12 @@ export class ChannelRemote implements ObjectRemote {
     #next = 0;
     /** The open sends, by number. */
     readonly #open = new Map<number, OpenSend>();
-    /** Settles once a node serves the channel, renewed each time it stops. */
+    /** Settles once a node serves the channel, renewed each time it stops, as the base keeps it. */
     #serving = Promise.withResolvers<void>();
+    /** The party whose channel this one shares, absent for the party that joined the channel. */
+    readonly #base: ChannelRemote | undefined;
+    /** The parties sharing this one's channel, by party, which its listener hands their frames. */
+    readonly #parties = new Map<string, ChannelRemote>();
     /** Trace this party's calls: a span and a duration each. */
     readonly #traced: ReturnType<typeof traceCalls>;
     /** The environment the party runs in, whose randomness names its write sessions. */
@@ -262,19 +273,48 @@ export class ChannelRemote implements ObjectRemote {
     /** Never aborts: a channel's node does not move. */
     readonly moves = new AbortController().signal;
 
-    /** Join a channel as one party in an environment, probing for its node. */
-    constructor(channel: Channel<unknown>, party: string, environment: Environment) {
-        // listen to the node's frames, then ask whether one serves
-        this.#channel = ChannelRemote.#trace(
-            channel,
-            TelemetryScope.of(import.meta.destack.package, environment.telemetry),
-            environment.telemetry,
-        );
+    /** Join a channel as one party, or share another party's, in an environment. */
+    constructor(
+        channel: Channel<unknown> | { readonly base: ChannelRemote },
+        party: string,
+        environment: Environment,
+    ) {
+        // take the party and its calls' spans
         this.#party = party;
         this.#traced = traceCalls("client", CHANNEL_SYSTEM, environment);
         this.#environment = environment;
-        this.#channel.listen({ receive: (frame) => this.#receive(frame) });
-        this.#channel.notify({ kind: "probe" });
+
+        // share another party's channel, whose listener hands this one its frames
+        if ("base" in channel) {
+            this.#base = channel.base;
+            this.#channel = channel.base.#channel;
+        }
+        // else listen for every party sharing the channel, then ask whether a node serves
+        else {
+            this.#base = undefined;
+            this.#channel = ChannelRemote.#trace(
+                channel,
+                (to) => to === party || to === PARTIES || this.#parties.has(to),
+                TelemetryScope.of(import.meta.destack.package, environment.telemetry),
+                environment.telemetry,
+            );
+            this.#channel.listen({ receive: (frame) => this.#route(frame) });
+            this.#channel.notify({ kind: "probe" });
+        }
+    }
+
+    /** Open another party over this one's channel, with sends of its own. */
+    at(): ChannelRemote {
+        // open it over the channel's joining party, which lists it
+        const base = this.#base ?? this;
+        const party = new ChannelRemote(
+            { base },
+            sync.RequestId.create(this.#environment),
+            this.#environment,
+        );
+        base.#parties.set(party.#party, party);
+
+        return party;
     }
 
     /** Serve a node's remote to every party of a channel as a principal, until stopped. */
@@ -287,7 +327,12 @@ export class ChannelRemote implements ObjectRemote {
     ): () => void {
         // answer each send and probe, tracing each answer, and abort a send its party abandons
         const scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
-        const typed = ChannelRemote.#trace(channel, scope, environment.telemetry);
+        const typed = ChannelRemote.#trace(
+            channel,
+            (to) => to === NODE,
+            scope,
+            environment.telemetry,
+        );
         const traced = traceCalls("server", CHANNEL_SYSTEM, environment);
         const running = new Map<string, AbortController>();
         const follows = new Map<string, Set<() => Promise<void>>>();
@@ -729,6 +774,23 @@ export class ChannelRemote implements ObjectRemote {
 
     /** Leave the channel, abandoning the open sends at the node and failing them here. */
     async close(): Promise<void> {
+        // abandon the party's sends, leaving a shared channel to the party that joined it
+        this.#abandon();
+        if (this.#base !== undefined) {
+            this.#base.#parties.delete(this.#party);
+        }
+        // else leave it with every party sharing it
+        else {
+            for (const party of this.#parties.values()) {
+                party.#abandon();
+            }
+            this.#parties.clear();
+            await this.#channel.close();
+        }
+    }
+
+    /** Abandon the party's open sends at the node, failing them here. */
+    #abandon(): void {
         for (const [id, open] of this.#open) {
             this.#channel.notify({ kind: "abort", from: this.#party, id });
             open.fail(
@@ -738,7 +800,6 @@ export class ChannelRemote implements ObjectRemote {
             );
         }
         this.#open.clear();
-        await this.#channel.close();
     }
 
     /** Send a verb once the node serves, answering its answer until a signal aborts. */
@@ -755,9 +816,10 @@ export class ChannelRemote implements ObjectRemote {
     ): Promise<JsonValue> {
         // wait for the node unless abandoned first, then number the send
         const { signal, page = () => {}, value = () => {} } = options;
+        const base = this.#base ?? this;
         await (signal === undefined
-            ? this.#serving.promise
-            : untilAborted(this.#serving.promise, signal));
+            ? base.#serving.promise
+            : untilAborted(base.#serving.promise, signal));
         signal?.throwIfAborted();
         const id = this.#next;
         this.#next += 1;
@@ -781,6 +843,22 @@ export class ChannelRemote implements ObjectRemote {
             });
         } finally {
             signal?.removeEventListener("abort", abandon);
+        }
+    }
+
+    /** Hand a frame to its party: whether the node serves to every party, an answer to its own. */
+    #route(frame: Frame): void {
+        // tell every party whether the node serves
+        if (frame.kind === "serving" || frame.kind === "stopped") {
+            this.#receive(frame);
+            for (const party of this.#parties.values()) {
+                party.#receive(frame);
+            }
+        }
+        // hand an answer to the party it answers
+        else if ("to" in frame) {
+            const party = this.#parties.get(frame.to) ?? this;
+            party.#receive(frame);
         }
     }
 
@@ -974,14 +1052,15 @@ export class ChannelRemote implements ObjectRemote {
     /** Send frames with their trace, and take each one in a span below its sender's. */
     static #trace(
         channel: Channel<unknown>,
+        isOwn: (to: string) => boolean,
         scope: TelemetryScope,
         telemetry: Environment["telemetry"],
     ): Channel<Frame> {
-        // send each frame with the active trace
+        // send each frame to its address with the active trace
         const notify = (frame: Frame) => {
             const trace = new Headers();
             Telemetry.inject(trace, telemetry);
-            channel.notify({ trace: Object.fromEntries(trace), frame });
+            channel.notify({ to: address(frame), trace: Object.fromEntries(trace), frame });
         };
 
         return {
@@ -992,8 +1071,13 @@ export class ChannelRemote implements ObjectRemote {
                 channel.listen({
                     ...listener,
                     receive: (value) => {
-                        // take each frame below its sender's trace, parsing it in the span
+                        // skip another party's frames before parsing them
                         const envelope = Envelope.parse(value);
+                        if (!isOwn(envelope.to)) {
+                            return;
+                        }
+
+                        // take each own frame below its sender's trace, parsing it in the span
                         const parent = Telemetry.extract(new Headers(envelope.trace), telemetry);
                         const received = telemetry.context.with(parent, () =>
                             scope.span("destack.channel.receive", {}, (span) => {
@@ -1147,4 +1231,17 @@ export class ChannelRemote implements ObjectRemote {
 /** Count a value's items: an array's length, one for another value. */
 function count(value: unknown): number {
     return Array.isArray(value) ? value.length : 1;
+}
+
+/** Address a frame: the node's to their party or to every party, a party's to the node. */
+function address(frame: Frame): string {
+    // address the node's answers to their party, and whether it serves to every party
+    if ("to" in frame) {
+        return frame.to;
+    } else if (frame.kind === "serving" || frame.kind === "stopped") {
+        return PARTIES;
+    }
+
+    // address a party's probes and sends to the node
+    return NODE;
 }
