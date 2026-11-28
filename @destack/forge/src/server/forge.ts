@@ -85,7 +85,7 @@ const NPM_PATH = /\/@([^/]+)\/([^/]+?)(\/-\/[^/]+?-(\d[^/]*)\.tgz)?$/u;
 /** The version npm clients see a host's dev build at, a prerelease before every release. */
 const NPM_DEVELOPMENT = "0.0.0-dev";
 
-/** A builtin the host ships, packed once as npm clients install it. */
+/** A builtin of the host's distribution, packed once as npm clients install it. */
 interface Builtin {
     /** The version npm clients see it at. */
     readonly version: string;
@@ -279,23 +279,14 @@ export class Forge {
         return newest;
     }
 
-    /** Refuse a builtin under a handle other than the one of the builtins the host ships. */
+    /** Refuse a builtin under a handle other than the host's builtins'. */
     static async requireBuiltin(name: string, store: BuildStore): Promise<void> {
-        // read the handles of the builtins the host's distribution ships
-        const shipped = await Promise.all(
-            store.layer.releases.map(async (image) => {
-                const { root } = await store.image(image);
-                const { manifest } = await store.contents(root);
-
-                return manifest.role === "builtin"
-                    ? PackageName.split(manifest.package.name).handle
-                    : undefined;
-            }),
-        );
+        // read the handles of the bundled builtins
+        const handles = (await store.builtins()).map((each) => PackageName.split(each).handle);
 
         // refuse a builtin under another handle, which only the platform's account holds
         const { handle } = PackageName.split(name);
-        if (!shipped.includes(handle)) {
+        if (!handles.includes(handle)) {
             throw ForgeError.of(
                 "BUILTIN_DENIED",
                 `builtin '${name}' is forbidden: only the handle of the host's builtins publishes builtins`,
@@ -366,7 +357,7 @@ export class Forge {
         const found = (await Forge.find(full, reader, home)).package;
         const mount = `${this.#options.endpoint.href}${forgePackage.mounts.npm.path}`;
 
-        // answer a builtin the host ships where no package claims its name
+        // answer a builtin of the host's distribution where no package claims its name
         if (found === undefined) {
             const builtin = await (await this.#builtinsOnce()).get(full)?.();
             if (builtin === undefined) {
@@ -431,16 +422,16 @@ export class Forge {
         return Response.json(listing);
     }
 
-    /** Map each builtin the host ships to its packing once, each packed on its first ask. */
+    /** Map each builtin of the host's distribution to its packing, each packed on its first ask. */
     #builtinsOnce(): Promise<ReadonlyMap<string, () => Promise<Builtin>>> {
         this.#builtins ??= this.#readBuiltins();
 
         return this.#builtins;
     }
 
-    /** Read the name of each release image the host's distribution ships. */
+    /** Read each release of the host's distribution by package name. */
     async #readBuiltins(): Promise<ReadonlyMap<string, () => Promise<Builtin>>> {
-        // read every shipped release at once
+        // read the distribution's releases at once
         const { store } = this;
         const { environment } = this.#options;
         const entries = await Promise.all(
