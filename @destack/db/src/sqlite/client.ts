@@ -2,12 +2,16 @@ import type { DatabaseEnvironment } from "../database/connection.ts";
 import type { Environment, Scheduler } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
+import { Cache } from "../cache/cache.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
 import type { SqlLimits } from "../database/session.ts";
 
 /** SQLite's default limits: 32,766 values since 3.32, SQLITE_MAX_COLUMN 2,000. */
 export const SQLITE_LIMITS: SqlLimits = { variables: 32_766, columns: 2_000 };
+
+/** The most prepared statement texts per connection: a package runs 400 to 600 of 2 to 10 KB. */
+const PREPARED_TEXTS = 512;
 
 /** How long work waits behind earlier work before failing: 30 s, HikariCP's default. */
 const TURN_WAIT_MILLISECONDS = 30_000;
@@ -46,6 +50,45 @@ export interface SqliteConnectionClient extends SqliteQueryClient {
         /** Begin an exclusive transaction. */
         readonly exclusive: () => Promise<Value>;
     };
+}
+
+/** The prepared statements of one connection by text, least recently used first. */
+export class SqliteStatementCache<Statement> {
+    /** Prepare a text's statement. */
+    readonly #prepare: (sql: string) => Statement;
+    /** Release a statement's resources. */
+    readonly #finalize: (statement: Statement) => void;
+    /** The statements by text, finalized once dropped past the bound. */
+    readonly #statements: Cache<Statement>;
+
+    /** Create the cache, counting its takes and evictions as the statement cache. */
+    constructor(
+        environment: DatabaseEnvironment,
+        prepare: (sql: string) => Statement,
+        finalize: (statement: Statement) => void,
+    ) {
+        this.#prepare = prepare;
+        this.#finalize = finalize;
+        this.#statements = new Cache({
+            name: "statement",
+            capacity: PREPARED_TEXTS,
+            scope: TelemetryScope.of(import.meta.destack.package, environment.telemetry),
+            evicted: finalize,
+        });
+    }
+
+    /** Take a text's statement, preparing it the first time. */
+    take(sql: string): Statement {
+        return this.#statements.take(sql, () => this.#prepare(sql));
+    }
+
+    /** Finalize every statement. */
+    close(): void {
+        for (const statement of this.#statements.values()) {
+            this.#finalize(statement);
+        }
+        this.#statements.clear();
+    }
 }
 
 /** The pool name of an in-memory database's queue, as SQLite names such a database. */

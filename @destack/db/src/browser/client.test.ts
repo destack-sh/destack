@@ -1,4 +1,4 @@
-import { expect, onTestFinished, testOn } from "@destack/test";
+import { expect, onTestFinished, testOn, vi } from "@destack/test";
 import init from "@sqlite.org/sqlite-wasm";
 import { asc, eq } from "../index.ts";
 import { WasmClient } from "./client.ts";
@@ -57,3 +57,58 @@ onSqlite(
         ]);
     },
 );
+
+onSqlite(
+    "prepare each statement text of a browser database once, reading its rows each run",
+    async () => {
+        // follow the statements a browser database prepares
+        const world = testSimulation().environment("test");
+        const sqlite = await init();
+        const database = new sqlite.oo1.DB(":memory:");
+        const prepare = vi.spyOn(database, "prepare");
+        const client = new WasmClient(database, world);
+        onTestFinished(() => client.close());
+
+        // read the same text twice with other values
+        const first = await client.values("SELECT ? + 1", [1]);
+        const second = await client.values("SELECT ? + 1", [41]);
+
+        // expect both reads answered by one prepared statement
+        expect({ first, second, prepared: prepare.mock.calls.length }).toEqual({
+            first: [[2]],
+            second: [[42]],
+            prepared: 1,
+        });
+    },
+);
+
+onSqlite("checkpoint a browser database once its commits rest, never inside a commit", async () => {
+    // follow the statements a browser database runs, as its client sends them
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const sqlite = await init();
+    const database = new sqlite.oo1.DB(":memory:");
+    const exec = vi.spyOn(database, "exec");
+    const client = new WasmClient(database, world);
+    onTestFinished(() => client.close());
+    const checkpoints = () =>
+        exec.mock.calls
+            .map(([statement]): unknown => statement)
+            .filter(
+                (statement) => typeof statement === "string" && statement.startsWith("PRAGMA wal"),
+            );
+
+    // commit twice in a burst, then let the commits rest
+    const commit = () =>
+        client.transactionAsync(async (query) => await query.run("SELECT 1", [])).immediate();
+    await commit();
+    await commit();
+    const during = checkpoints().length;
+    await simulation.jump(world.clock.now() + 250);
+
+    // expect one checkpoint after the burst, and none in it
+    expect({ during, after: checkpoints() }).toEqual({
+        during: 0,
+        after: ["PRAGMA wal_checkpoint(PASSIVE)"],
+    });
+});

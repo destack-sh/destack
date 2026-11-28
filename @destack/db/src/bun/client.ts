@@ -4,6 +4,7 @@ import type * as bun from "bun:sqlite";
 import type { DriverValue } from "../table/column.ts";
 import {
     SQLITE_LIMITS,
+    SqliteStatementCache,
     SqliteSavepoint,
     SqliteWorkQueue,
     MEMORY_POOL,
@@ -12,15 +13,13 @@ import {
 } from "../sqlite/client.ts";
 import { SqliteScript } from "../sqlite/script.ts";
 import { present } from "@destack/schema";
-import { TelemetryScope } from "@destack/telemetry";
-import { Cache } from "../cache/cache.ts";
 import type {} from "@destack/package/import-meta";
-
-/** The most prepared statement texts per connection: a package runs 400 to 600 of 2 to 10 KB. */
-const PREPARED_TEXTS = 512;
 
 /** The work queue of each database file by its real path: one writer per file in the process. */
 const FILE_QUEUES = new Map<string, SqliteWorkQueue>();
+
+/** A prepared Bun statement. */
+type BunStatement = bun.Statement<unknown, bun.SQLQueryBindings[]>;
 
 /** Statements on one SQLite database, prepared once per text. */
 export class BunQuery implements SqliteQueryClient {
@@ -29,7 +28,7 @@ export class BunQuery implements SqliteQueryClient {
     /** The database. */
     readonly database: bun.Database;
     /** The prepared statements. */
-    readonly statements: BunStatementCache;
+    readonly statements: SqliteStatementCache<BunStatement>;
     /** The work queue and the environment each turn waits in, absent within a transaction. */
     readonly queue:
         | { readonly work: SqliteWorkQueue; readonly environment: DatabaseEnvironment }
@@ -38,7 +37,7 @@ export class BunQuery implements SqliteQueryClient {
     /** Create the client. */
     constructor(
         database: bun.Database,
-        statements: BunStatementCache,
+        statements: SqliteStatementCache<BunStatement>,
         queue?: { readonly work: SqliteWorkQueue; readonly environment: DatabaseEnvironment },
     ) {
         this.database = database;
@@ -109,10 +108,18 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
     constructor(database: bun.Database, environment: DatabaseEnvironment) {
         // share the file's queue, each turn waited for in the client's environment
         const queue = BunClient.queue(database, environment);
-        super(database, new BunStatementCache(database, environment), {
-            work: queue,
-            environment,
-        });
+        super(
+            database,
+            new SqliteStatementCache(
+                environment,
+                (sql) => database.prepare<unknown, bun.SQLQueryBindings[]>(sql),
+                (statement) => statement.finalize(),
+            ),
+            {
+                work: queue,
+                environment,
+            },
+        );
         this.#queue = queue;
         this.#environment = environment;
     }
@@ -204,39 +211,5 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
             immediate: () => begin("IMMEDIATE"),
             exclusive: () => begin("EXCLUSIVE"),
         };
-    }
-}
-
-/** The prepared statements of one connection by text, least recently used first. */
-export class BunStatementCache {
-    /** The database preparing the statements. */
-    readonly #database: bun.Database;
-    /** The statements by text, finalized once dropped past the bound. */
-    readonly #statements: Cache<bun.Statement<unknown, bun.SQLQueryBindings[]>>;
-
-    /** Create the cache, counting its takes and evictions as the statement cache. */
-    constructor(database: bun.Database, environment: DatabaseEnvironment) {
-        this.#database = database;
-        this.#statements = new Cache({
-            name: "statement",
-            capacity: PREPARED_TEXTS,
-            scope: TelemetryScope.of(import.meta.destack.package, environment.telemetry),
-            evicted: (statement) => statement.finalize(),
-        });
-    }
-
-    /** Take a text's statement, preparing it the first time. */
-    take(sql: string): bun.Statement<unknown, bun.SQLQueryBindings[]> {
-        return this.#statements.take(sql, () =>
-            this.#database.prepare<unknown, bun.SQLQueryBindings[]>(sql),
-        );
-    }
-
-    /** Finalize every statement. */
-    close(): void {
-        for (const statement of this.#statements.values()) {
-            statement.finalize();
-        }
-        this.#statements.clear();
     }
 }
