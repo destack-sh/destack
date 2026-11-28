@@ -1,6 +1,6 @@
 import type { Dialect } from "../dialect/dialect.ts";
 import type { Column, ColumnDefinition, ColumnValue, DriverValue } from "../table/column.ts";
-import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
+import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/encryption.ts";
 import { DatabaseError } from "../error/error.ts";
 
 /** Something that renders as SQL, such as a column, a table, a query or a fragment. */

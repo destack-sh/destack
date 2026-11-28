@@ -17,7 +17,7 @@ import type {} from "@destack/package/import-meta";
 import { classifyError, DatabaseError, type NameTable } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
 import { TransactionSpans } from "./spans.ts";
-import type { ColumnCipher } from "./cipher.ts";
+import type { ColumnCipher } from "./encryption.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
 import { SelectBuilder } from "../query/select.ts";

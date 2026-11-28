@@ -1,6 +1,6 @@
 import { nth } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
-import type { ColumnCipher } from "../database/cipher.ts";
+import type { ColumnCipher } from "../database/encryption.ts";
 import { Column, type DriverValue } from "../table/column.ts";
 import { TABLE, Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";

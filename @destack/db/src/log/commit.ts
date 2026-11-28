@@ -2,7 +2,7 @@ import { nth, canonicalize, present } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
-import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
+import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/encryption.ts";
 import { sql, type SQL } from "../sql/index.ts";
 import { PreparedQuery } from "../query/prepared.ts";
 import type { Column } from "../table/column.ts";

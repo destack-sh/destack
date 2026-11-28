@@ -2,7 +2,7 @@ import { fill, render, sql, SQL, type SQLWrapper } from "../sql/index.ts";
 import { type Select, TABLE, type Table } from "../table/table.ts";
 import type { DatabaseDriver } from "../database/driver.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import type { ColumnCipher } from "../database/cipher.ts";
+import type { ColumnCipher } from "../database/encryption.ts";
 import { Projection, type Selection, type SelectionResult } from "./selection.ts";
 
 /** How a join treats unmatched rows: inner drops them, left includes the source's. */
