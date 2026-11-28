@@ -1,4 +1,8 @@
 import type { Sqlite3Static, WasmPointer } from "@sqlite.org/sqlite-wasm";
+import { type Environment, SpanPath } from "@destack/environment";
+
+/** The milliseconds in a second, as span totals count seconds. */
+const MILLISECONDS = 1000;
 
 /** The members of a VFS the coalescing VFS passes to the VFS below as they are. */
 const VFS_MEMBERS = [
@@ -55,13 +59,19 @@ export class CoalescingVfs {
     readonly name: string;
     /** The runtime. */
     readonly #sqlite: Sqlite3Static;
+    /** The telemetry whose running spans total the reads, writes and syncs below. */
+    readonly #telemetry: Pick<Environment["telemetry"], "context" | "monotonic">;
     /** The writes each open file holds back, by file. */
     readonly #held = new Map<WasmPointer, Write[]>();
     /** The file methods below and this VFS's own over them, once the first file opens. */
     #files: { readonly below: Below; readonly methods: WasmPointer } | undefined;
 
-    /** Register a VFS over a registered one, named after it. */
-    constructor(sqlite: Sqlite3Static, below: string) {
+    /** Register a VFS over a registered one, named after it, totalling its I/O on running spans. */
+    constructor(
+        sqlite: Sqlite3Static,
+        below: string,
+        telemetry: Pick<Environment["telemetry"], "context" | "monotonic">,
+    ) {
         // read the VFS below
         const { capi, wasm } = sqlite;
         const pointer = capi.sqlite3_vfs_find(below);
@@ -72,6 +82,7 @@ export class CoalescingVfs {
         const open = CoalescingVfs.#function(sqlite, base, "xOpen");
         this.name = `${below}-coalescing`;
         this.#sqlite = sqlite;
+        this.#telemetry = telemetry;
 
         // take the VFS below's members, opening each file below and routing its methods here
         const vfs = new capi.sqlite3_vfs();
@@ -124,9 +135,9 @@ export class CoalescingVfs {
         const { capi, wasm } = sqlite;
         const base = new capi.sqlite3_io_methods(pointer);
         const below: Below = {
-            xWrite: CoalescingVfs.#function(sqlite, base, "xWrite"),
-            xRead: CoalescingVfs.#function(sqlite, base, "xRead"),
-            xSync: CoalescingVfs.#function(sqlite, base, "xSync"),
+            xWrite: this.#measured("write", CoalescingVfs.#function(sqlite, base, "xWrite")),
+            xRead: this.#measured("read", CoalescingVfs.#function(sqlite, base, "xRead")),
+            xSync: this.#measured("sync", CoalescingVfs.#function(sqlite, base, "xSync")),
             xFileSize: CoalescingVfs.#function(sqlite, base, "xFileSize"),
             xTruncate: CoalescingVfs.#function(sqlite, base, "xTruncate"),
             xClose: CoalescingVfs.#function(sqlite, base, "xClose"),
@@ -165,6 +176,26 @@ export class CoalescingVfs {
         });
 
         return { below, methods: methods.pointer };
+    }
+
+    /** Total a method below on the running spans: its calls, seconds and bytes moved. */
+    #measured(kind: "read" | "write" | "sync", method: Method): Method {
+        const { context, monotonic } = this.#telemetry;
+
+        return (...values) => {
+            // run it, then add it to the running spans
+            const started = monotonic.now();
+            const code = method(...values);
+            SpanPath.add(context.active(), {
+                [`destack.storage.${kind}.count`]: 1,
+                [`destack.storage.${kind}.duration`]: (monotonic.now() - started) / MILLISECONDS,
+                ...(kind === "sync"
+                    ? {}
+                    : { [`destack.storage.${kind}.bytes`]: Number(values[2]) }),
+            });
+
+            return code;
+        };
     }
 
     /** Pass a file's held writes down in order, one per run, answering the code below. */

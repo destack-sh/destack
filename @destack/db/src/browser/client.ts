@@ -112,7 +112,7 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
         // open the file through the database's pool of access handles, coalescing each commit's writes
         const sqlite = await WasmClient.#sqlite(environment);
         const pool = await sqlite.installOpfsSAHPoolVfs({ name: `destack-${name}` });
-        const coalescing = new CoalescingVfs(sqlite, pool.vfsName);
+        const coalescing = new CoalescingVfs(sqlite, pool.vfsName, environment.telemetry);
         const database = new sqlite.oo1.DB({ filename: `/${name}`, vfs: coalescing.name });
 
         // write ahead without shared memory, as the worker holds the file alone, durable at each commit
