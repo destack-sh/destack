@@ -118,6 +118,7 @@ const task = defineObject(
             /** Whether the task is open or done. */
             status: field.state({
                 initial: "open",
+                final: ["done"],
                 transitions: { complete: { from: ["open"], to: "done", permission: "manage" } },
             }),
         },
