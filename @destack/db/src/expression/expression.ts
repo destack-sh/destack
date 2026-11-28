@@ -496,6 +496,17 @@ export const Expression = {
     /** Read the kind an expression yields. */
     kind(expression: Expression, table: Table, namespace: Namespace = { extras: {} }): Kind {
         // read an all-null expression as real
+        const kind = Expression.kindOf(expression, table, namespace);
+
+        return kind === "null" ? "real" : kind;
+    },
+
+    /** Read the kind of an expression's value over a row, null for one null in every row. */
+    kindOf(
+        expression: Expression,
+        table: Table,
+        namespace: Namespace = { extras: {} },
+    ): Kind | "null" {
         const kind = kindOf(expression, table, namespace);
         if (kind === undefined) {
             throw DatabaseError.of(
@@ -504,7 +515,7 @@ export const Expression = {
             );
         }
 
-        return kind === "null" ? "real" : kind;
+        return kind;
     },
 
     /** Render an expression as SQL, numbers as 64-bit floats. */

@@ -16,6 +16,7 @@ import { canonicalize, Edition, nth, present, Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
 import { DatabaseError } from "../error/error.ts";
 import { inline } from "../sql/render.ts";
+import { sql } from "../sql/index.ts";
 import { Table } from "../table/table.ts";
 import { Address, Plan, type Risk, type Step, type StepKind } from "@destack/resource";
 import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resource/error";
@@ -1404,9 +1405,9 @@ function renderAssignment(
         state.table.columns.find((each) => each.name === column),
         `the converted column '${column}'`,
     );
-    let kind: ReturnType<typeof Expression.kind>;
+    let produced: ReturnType<typeof Expression.kindOf>;
     try {
-        kind = Expression.kind(expression, stored);
+        produced = Expression.kindOf(expression, stored);
     } catch (error) {
         if (!DatabaseError.is(error, "QUERY_INVALID")) {
             throw error;
@@ -1419,7 +1420,8 @@ function renderAssignment(
         return undefined;
     }
 
-    // refuse another kind, reading integers as reals
+    // fill a nullable column of any kind with nulls, and refuse another kind, reading integers as reals
+    const kind = produced === "null" && declared.nullable ? declared.kind : produced;
     const isSameKind = kind === declared.kind || (kind === "real" && declared.kind === "integer");
     if (!isSameKind) {
         problems.push({
@@ -1430,7 +1432,10 @@ function renderAssignment(
         return undefined;
     }
 
-    return inline(Expression.render(expression, stored), state.table.dialect);
+    // fill an all-null conversion with a bare null, which takes the column's type
+    const rendered = produced === "null" ? sql`NULL` : Expression.render(expression, stored);
+
+    return inline(rendered, state.table.dialect);
 }
 
 /** Decide whether a column needs a value from each row: required, without default or generator. */
