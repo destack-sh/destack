@@ -1,0 +1,378 @@
+{
+    "package": "package-01a0d462-1b26-7401-be27-6258e0a32141",
+    "locale": "es",
+    "messages": {
+        "1roxs2hxqvc62": {
+            "source": ".input {$count :number}\n.match $count\none {{Grant}}\n* {{Grants}}",
+            "translation": ".input {$count :number} .match $count one {{Concesión}} * {{Concesiones}}"
+        },
+        "1aqe3csr3fss4": {
+            "source": ".input {$count :number}\n.match $count\none {{Invitation}}\n* {{Invitations}}",
+            "translation": ".input {$count :number} .match $count one {{Invitación}} * {{Invitaciones}}"
+        },
+        "ik58c1jiosdh": {
+            "source": "Create",
+            "context": "action",
+            "translation": "Crear"
+        },
+        "27zfvxkupfxf5": {
+            "source": "Accept",
+            "context": "action",
+            "translation": "Aceptar"
+        },
+        "2nt5uim6jm0pu": {
+            "source": "Delete",
+            "context": "action",
+            "translation": "Eliminar"
+        },
+        "31tio1m1hge0m": {
+            "source": ".input {$count :number}\n.match $count\none {{Proof}}\n* {{Proofs}}",
+            "translation": ".input {$count :number} .match $count one {{Prueba}} * {{Pruebas}}"
+        },
+        "svdtugsb5ktu": {
+            "source": ".input {$count :number}\n.match $count\none {{Relationship}}\n* {{Relationships}}",
+            "translation": ".input {$count :number} .match $count one {{Relación}} * {{Relaciones}}"
+        },
+        "58wrf1enb7z3": {
+            "source": "Check",
+            "context": "action",
+            "translation": "Comprobar"
+        },
+        "1qe08arm0z73n": {
+            "source": "Lookup",
+            "context": "action",
+            "translation": "Buscar"
+        },
+        "1hqar127cxea7": {
+            "source": "Get",
+            "context": "action",
+            "translation": "Obtener"
+        },
+        "1zawffsdpot8w": {
+            "source": "Touch",
+            "context": "action",
+            "translation": "Refrescar"
+        },
+        "q65xff9wv06a": {
+            "source": ".input {$count :number}\n.match $count\none {{Role}}\n* {{Roles}}",
+            "translation": ".input {$count :number} .match $count one {{Rol}} * {{Roles}}"
+        },
+        "913nfw92dmkt": {
+            "source": "Declare",
+            "context": "action",
+            "translation": "Declarar"
+        },
+        "3g136bjzbg7ok": {
+            "source": ".input {$count :number}\n.match $count\none {{Approval}}\n* {{Approvals}}",
+            "translation": ".input {$count :number} .match $count one {{Aprobación}} * {{Aprobaciones}}"
+        },
+        "degwy6b1lh98": {
+            "source": ".input {$count :number}\n.match $count\none {{Change request}}\n* {{Change requests}}",
+            "translation": ".input {$count :number} .match $count one {{Solicitud de cambio}} * {{Solicitudes de cambio}}"
+        },
+        "2gmp9moymq0ke": {
+            "source": ".input {$count :number}\n.match $count\none {{Call}}\n* {{Calls}}",
+            "translation": ".input {$count :number} .match $count one {{Llamada}} * {{Llamadas}}"
+        },
+        "6p4cn70i9avd": {
+            "source": ".input {$count :number}\n.match $count\none {{Branch}}\n* {{Branches}}",
+            "translation": ".input {$count :number} .match $count one {{Rama}} * {{Ramas}}"
+        },
+        "166vj1833ibqt": {
+            "source": "Push",
+            "context": "action",
+            "translation": "Enviar"
+        },
+        "2iiii13pk1lzj": {
+            "source": "Merge",
+            "context": "action",
+            "translation": "Fusionar"
+        },
+        "4q4hmvwrjsyx": {
+            "source": "Discard",
+            "context": "action",
+            "translation": "Descartar"
+        },
+        "lft0lfjvnzoo": {
+            "source": "Rebuild",
+            "context": "action",
+            "translation": "Reconstruir"
+        },
+        "1xtuhuwce8gkp": {
+            "source": ".input {$count :number}\n.match $count\none {{Branch entry}}\n* {{Branch entries}}",
+            "translation": ".input {$count :number} .match $count one {{Entrada de rama}} * {{Entradas de rama}}"
+        },
+        "3vvs7aqax6q": {
+            "source": ".input {$count :number}\n.match $count\none {{Branch change}}\n* {{Branch changes}}",
+            "translation": ".input {$count :number} .match $count one {{Cambio de rama}} * {{Cambios de rama}}"
+        },
+        "1qb0e7vvgpzz7": {
+            "source": "Reserve",
+            "context": "action",
+            "translation": "Reservar"
+        },
+        "1s56a5qaj35z": {
+            "source": "Confirm",
+            "context": "action",
+            "translation": "Confirmar"
+        },
+        "3huj5ryprxtja": {
+            "source": "Release",
+            "context": "action",
+            "translation": "Liberar"
+        },
+        "2awta3u2lhxez": {
+            "source": "Replace",
+            "context": "action",
+            "translation": "Reemplazar"
+        },
+        "27h4fkaiul71u": {
+            "source": "Read owner",
+            "context": "action",
+            "translation": "Leer propietario"
+        },
+        "123pggizd1wde": {
+            "source": "Create notebooks through a person's client, waiting for the prediction or the confirmation, and read them back.",
+            "translation": "Crear cuadernos a través del cliente de una persona, esperar la predicción o la confirmación y volver a leerlos."
+        },
+        "5e9yby7z9xs7": {
+            "source": ".input {$count :number}\n.match $count\none {{Activity}}\n* {{Activities}}",
+            "translation": ".input {$count :number} .match $count one {{Actividad}} * {{Actividades}}"
+        },
+        "p9dbawt3jww2": {
+            "source": ".input {$count :number}\n.match $count\none {{Checkpoint}}\n* {{Checkpoints}}",
+            "translation": ".input {$count :number} .match $count one {{Punto de control}} * {{Puntos de control}}"
+        },
+        "1c71jr09qt9xq": {
+            "source": "No value",
+            "context": "option",
+            "translation": "Sin valor"
+        },
+        "uhphiyv54yoy": {
+            "source": ".input {$count :number}\n.match $count\none {{Device}}\n* {{Devices}}",
+            "translation": ".input {$count :number} .match $count one {{Dispositivo}} * {{Dispositivos}}"
+        },
+        "1zfiaqpm1z0y1": {
+            "source": "Rename teams' keys and get the teams by their former keys, each verb within its statements.",
+            "translation": "Renombrar las claves de los equipos y obtener los equipos por sus claves anteriores, cada verbo dentro de sus sentencias."
+        },
+        "386e8a40bouoq": {
+            "source": "Create, get, list, update, nest and delete notebooks as one person, each verb within its statements.",
+            "translation": "Crear, obtener, listar, actualizar, anidar y eliminar cuadernos como una persona, cada verbo dentro de sus sentencias."
+        },
+        "2eld37waqf0ll": {
+            "source": "Edit",
+            "context": "action",
+            "translation": "Editar"
+        },
+        "98jouda88jdp": {
+            "source": "Archive",
+            "context": "action",
+            "translation": "Archivar"
+        },
+        "1jbmp1vpgkgx4": {
+            "source": "Unarchive",
+            "context": "action",
+            "translation": "Desarchivar"
+        },
+        "5eu527w7lqs9": {
+            "source": "Restore",
+            "context": "action",
+            "translation": "Restaurar"
+        },
+        "2o1d146uekh6s": {
+            "source": "Delete for good",
+            "translation": "Eliminar definitivamente"
+        },
+        "1orpmuzljq6ln": {
+            "source": "Change {$field}",
+            "context": "action",
+            "translation": "Cambiar {$field}"
+        },
+        "1ho2mbolshu9x": {
+            "source": "Move to {$p0}",
+            "translation": "Mover a {$p0}"
+        },
+        "14mrwrdliqivd": {
+            "source": "Objects",
+            "context": "title",
+            "translation": "Objetos"
+        },
+        "2u5v60th7t4cf": {
+            "source": "Declare object types with access, methods and sync, and call them from anywhere.",
+            "translation": "Declarar tipos de objeto con acceso, métodos y sincronización, y llamarlos desde cualquier lugar."
+        },
+        "3s8b5rvnax3us": {
+            "source": "Board by {$p0}",
+            "translation": "Tablero por {$p0}"
+        },
+        "2lz1x9nbe6wxg": {
+            "source": "Calendar by {$p0}",
+            "translation": "Calendario por {$p0}"
+        },
+        "3lahkxjdh6rgs": {
+            "source": "Tree",
+            "context": "option",
+            "translation": "Árbol"
+        },
+        "1xkvnsnjbapvz": {
+            "source": "Timeline",
+            "context": "option",
+            "translation": "Cronología"
+        },
+        "2ma7l0ne3ug6a": {
+            "source": "Gallery",
+            "context": "option",
+            "translation": "Galería"
+        },
+        "1rc7wgzfn0pao": {
+            "source": "Table",
+            "context": "option",
+            "translation": "Tabla"
+        },
+        "2v5y2fv2i78or": {
+            "source": "Append, prepend, insert at random places and delete characters one change at a time.",
+            "translation": "Añadir al final, al principio, insertar en lugares aleatorios y eliminar caracteres, un cambio cada vez."
+        },
+        "2cwwbli43w6jl": {
+            "source": "Build a text of about fifty thousand characters with marks and paragraphs, then type, delete, mark, unmark, insert and change nodes, and read spans in it.",
+            "translation": "Construir un texto de unos cincuenta mil caracteres con marcas y párrafos; luego escribir, eliminar, marcar, desmarcar, insertar y cambiar nodos, y leer fragmentos en él."
+        },
+        "2symgnk1fly1g": {
+            "source": "Build a text of about a million characters with marks and paragraphs, then type, delete, mark, unmark, insert and change nodes, and read spans in it.",
+            "translation": "Construir un texto de un millón de caracteres aproximadamente con marcas y párrafos; luego escribir, eliminar, marcar, desmarcar, insertar y cambiar nodos, y leer fragmentos en él."
+        },
+        "1a4hxmnm96zw7": {
+            "source": "Merge the edits two and then twenty parties made concurrently on one base.",
+            "translation": "Fusionar las ediciones que dos y luego veinte participantes hicieron a la vez sobre una misma base."
+        },
+        "qw3bxzmh7xje": {
+            "source": ".input {$count :number}\n.match $count\none {{Text chunk}}\n* {{Text chunks}}",
+            "translation": ".input {$count :number} .match $count one {{Fragmento de texto}} * {{Fragmentos de texto}}"
+        },
+        "3o5srklfmx4am": {
+            "source": ".input {$count :number}\n.match $count\none {{Text node}}\n* {{Text nodes}}",
+            "translation": ".input {$count :number} .match $count one {{Nodo de texto}} * {{Nodos de texto}}"
+        },
+        "3s3ah96wgo11k": {
+            "source": "Type a sentence into empty pages, each edit within its statements.",
+            "translation": "Escribir una frase en páginas vacías, cada edición dentro de sus sentencias."
+        },
+        "2raw447u08nlr": {
+            "source": "Type a word inside each page's earlier sentence, each edit within its statements.",
+            "translation": "Escribir una palabra dentro de la frase anterior de cada página, cada edición dentro de sus sentencias."
+        },
+        "nn7viowme4u": {
+            "source": "Delete each page's quick, keeping the word another person typed inside it, each edit within its statements.",
+            "translation": "Eliminar el «quick» de cada página conservando la palabra que otra persona escribió dentro, cada edición dentro de sus sentencias."
+        },
+        "20p5zjts0vbyx": {
+            "source": "Archive issues, list them from the archive and unarchive them, each verb within its statements.",
+            "translation": "Archivar incidencias, listarlas desde el archivo y desarchivarlas, cada verbo dentro de sus sentencias."
+        },
+        "2rjsiu4yklogm": {
+            "source": "Bind",
+            "context": "action",
+            "translation": "Vincular"
+        },
+        "2fhragur8e6oq": {
+            "source": "Bind consumer",
+            "context": "action",
+            "translation": "Vincular consumidor"
+        },
+        "kroqwh3400wa": {
+            "source": "Release consumer",
+            "context": "action",
+            "translation": "Liberar consumidor"
+        },
+        "1tvq7mnollipz": {
+            "source": "Observe",
+            "context": "action",
+            "translation": "Observar"
+        },
+        "2kmmoialgwejb": {
+            "source": "Finalize",
+            "context": "action",
+            "translation": "Finalizar"
+        },
+        "izd41gfxg9u5": {
+            "source": "Approve plan",
+            "context": "action",
+            "translation": "Aprobar plan"
+        },
+        "3gib5bxor3r3e": {
+            "source": "Detach",
+            "context": "action",
+            "translation": "Desvincular"
+        },
+        "znfssuh9osnw": {
+            "source": "Attach",
+            "context": "action",
+            "translation": "Vincular"
+        },
+        "31am9ga9u31xm": {
+            "source": "Expire",
+            "context": "action",
+            "translation": "Hacer caducar"
+        },
+        "224cg0h5hlte6": {
+            "source": "Fence scope",
+            "context": "action",
+            "translation": "Aislar ámbito"
+        },
+        "1ac3tqw2mxlqv": {
+            "source": "Unfence scope",
+            "context": "action",
+            "translation": "Dejar de aislar ámbito"
+        },
+        "3t99dpup2y5do": {
+            "source": "Move",
+            "context": "action",
+            "translation": "Mover"
+        },
+        "1yb9s7c1b6rr": {
+            "source": "Create issues numbered within a team and move them to another, each verb within its statements.",
+            "translation": "Crear incidencias numeradas dentro de un equipo y moverlas a otro, cada verbo dentro de sus sentencias."
+        },
+        "3k3fernljvvzc": {
+            "source": "Specify",
+            "context": "action",
+            "translation": "Especificar"
+        },
+        "3txpb5ok4j4l8": {
+            "source": "Purge",
+            "context": "action",
+            "translation": "Purgar"
+        },
+        "3tzlzacou4b1l": {
+            "source": "Restoration",
+            "context": "title",
+            "translation": "Restauración"
+        },
+        "2n8sorixjhpe6": {
+            "source": "Read series",
+            "context": "action",
+            "translation": "Leer serie"
+        },
+        "2hpte27ahuxhw": {
+            "source": "Explain",
+            "context": "action",
+            "translation": "Explicar"
+        },
+        "30yf1c83tbzl1": {
+            "source": "Change",
+            "context": "action",
+            "translation": "Cambiar"
+        },
+        "6k2pv5kvforb": {
+            "source": "Check containment",
+            "context": "action",
+            "translation": "Comprobar contención"
+        },
+        "1nfig4xu8m3v": {
+            "source": "Revert",
+            "context": "action",
+            "translation": "Revertir"
+        }
+    }
+}

@@ -1,0 +1,378 @@
+{
+    "package": "package-01a0d462-1b26-7401-be27-6258e0a32141",
+    "locale": "de",
+    "messages": {
+        "2eld37waqf0ll": {
+            "source": "Edit",
+            "context": "action",
+            "translation": "Bearbeiten"
+        },
+        "1roxs2hxqvc62": {
+            "source": ".input {$count :number}\n.match $count\none {{Grant}}\n* {{Grants}}",
+            "translation": ".input {$count :number} .match $count one {{Freigabe}} * {{Freigaben}}"
+        },
+        "1aqe3csr3fss4": {
+            "source": ".input {$count :number}\n.match $count\none {{Invitation}}\n* {{Invitations}}",
+            "translation": ".input {$count :number} .match $count one {{Einladung}} * {{Einladungen}}"
+        },
+        "ik58c1jiosdh": {
+            "source": "Create",
+            "context": "action",
+            "translation": "Erstellen"
+        },
+        "27zfvxkupfxf5": {
+            "source": "Accept",
+            "context": "action",
+            "translation": "Annehmen"
+        },
+        "2nt5uim6jm0pu": {
+            "source": "Delete",
+            "context": "action",
+            "translation": "Löschen"
+        },
+        "31tio1m1hge0m": {
+            "source": ".input {$count :number}\n.match $count\none {{Proof}}\n* {{Proofs}}",
+            "translation": ".input {$count :number} .match $count one {{Nachweis}} * {{Nachweise}}"
+        },
+        "svdtugsb5ktu": {
+            "source": ".input {$count :number}\n.match $count\none {{Relationship}}\n* {{Relationships}}",
+            "translation": ".input {$count :number} .match $count one {{Beziehung}} * {{Beziehungen}}"
+        },
+        "58wrf1enb7z3": {
+            "source": "Check",
+            "context": "action",
+            "translation": "Prüfen"
+        },
+        "1qe08arm0z73n": {
+            "source": "Lookup",
+            "context": "action",
+            "translation": "Nachschlagen"
+        },
+        "1hqar127cxea7": {
+            "source": "Get",
+            "context": "action",
+            "translation": "Abrufen"
+        },
+        "1zawffsdpot8w": {
+            "source": "Touch",
+            "context": "action",
+            "translation": "Auffrischen"
+        },
+        "q65xff9wv06a": {
+            "source": ".input {$count :number}\n.match $count\none {{Role}}\n* {{Roles}}",
+            "translation": ".input {$count :number} .match $count one {{Rolle}} * {{Rollen}}"
+        },
+        "913nfw92dmkt": {
+            "source": "Declare",
+            "context": "action",
+            "translation": "Deklarieren"
+        },
+        "3g136bjzbg7ok": {
+            "source": ".input {$count :number}\n.match $count\none {{Approval}}\n* {{Approvals}}",
+            "translation": ".input {$count :number} .match $count one {{Genehmigung}} * {{Genehmigungen}}"
+        },
+        "degwy6b1lh98": {
+            "source": ".input {$count :number}\n.match $count\none {{Change request}}\n* {{Change requests}}",
+            "translation": ".input {$count :number} .match $count one {{Änderungsanfrage}} * {{Änderungsanfragen}}"
+        },
+        "2gmp9moymq0ke": {
+            "source": ".input {$count :number}\n.match $count\none {{Call}}\n* {{Calls}}",
+            "translation": ".input {$count :number} .match $count one {{Aufruf}} * {{Aufrufe}}"
+        },
+        "6p4cn70i9avd": {
+            "source": ".input {$count :number}\n.match $count\none {{Branch}}\n* {{Branches}}",
+            "translation": ".input {$count :number} .match $count one {{Zweig}} * {{Zweige}}"
+        },
+        "166vj1833ibqt": {
+            "source": "Push",
+            "context": "action",
+            "translation": "Übertragen"
+        },
+        "2iiii13pk1lzj": {
+            "source": "Merge",
+            "context": "action",
+            "translation": "Zusammenführen"
+        },
+        "4q4hmvwrjsyx": {
+            "source": "Discard",
+            "context": "action",
+            "translation": "Verwerfen"
+        },
+        "lft0lfjvnzoo": {
+            "source": "Rebuild",
+            "context": "action",
+            "translation": "Neu aufbauen"
+        },
+        "1xtuhuwce8gkp": {
+            "source": ".input {$count :number}\n.match $count\none {{Branch entry}}\n* {{Branch entries}}",
+            "translation": ".input {$count :number} .match $count one {{Zweigeintrag}} * {{Zweigeinträge}}"
+        },
+        "3vvs7aqax6q": {
+            "source": ".input {$count :number}\n.match $count\none {{Branch change}}\n* {{Branch changes}}",
+            "translation": ".input {$count :number} .match $count one {{Zweigänderung}} * {{Zweigänderungen}}"
+        },
+        "1qb0e7vvgpzz7": {
+            "source": "Reserve",
+            "context": "action",
+            "translation": "Reservieren"
+        },
+        "1s56a5qaj35z": {
+            "source": "Confirm",
+            "context": "action",
+            "translation": "Bestätigen"
+        },
+        "3huj5ryprxtja": {
+            "source": "Release",
+            "context": "action",
+            "translation": "Freigeben"
+        },
+        "2awta3u2lhxez": {
+            "source": "Replace",
+            "context": "action",
+            "translation": "Ersetzen"
+        },
+        "27h4fkaiul71u": {
+            "source": "Read owner",
+            "context": "action",
+            "translation": "Eigentümer lesen"
+        },
+        "123pggizd1wde": {
+            "source": "Create notebooks through a person's client, waiting for the prediction or the confirmation, and read them back.",
+            "translation": "Notizbücher über den Client einer Person erstellen, auf die Vorhersage oder die Bestätigung warten und sie zurücklesen."
+        },
+        "5e9yby7z9xs7": {
+            "source": ".input {$count :number}\n.match $count\none {{Activity}}\n* {{Activities}}",
+            "translation": ".input {$count :number} .match $count one {{Aktivität}} * {{Aktivitäten}}"
+        },
+        "p9dbawt3jww2": {
+            "source": ".input {$count :number}\n.match $count\none {{Checkpoint}}\n* {{Checkpoints}}",
+            "translation": ".input {$count :number} .match $count one {{Prüfpunkt}} * {{Prüfpunkte}}"
+        },
+        "1c71jr09qt9xq": {
+            "source": "No value",
+            "context": "option",
+            "translation": "Kein Wert"
+        },
+        "uhphiyv54yoy": {
+            "source": ".input {$count :number}\n.match $count\none {{Device}}\n* {{Devices}}",
+            "translation": ".input {$count :number} .match $count one {{Gerät}} * {{Geräte}}"
+        },
+        "1zfiaqpm1z0y1": {
+            "source": "Rename teams' keys and get the teams by their former keys, each verb within its statements.",
+            "translation": "Die Schlüssel von Teams umbenennen und die Teams über ihre früheren Schlüssel abrufen, jedes Verb innerhalb seiner Anweisungen."
+        },
+        "386e8a40bouoq": {
+            "source": "Create, get, list, update, nest and delete notebooks as one person, each verb within its statements.",
+            "translation": "Notizbücher als eine Person erstellen, abrufen, auflisten, aktualisieren, verschachteln und löschen, jedes Verb innerhalb seiner Anweisungen."
+        },
+        "98jouda88jdp": {
+            "source": "Archive",
+            "context": "action",
+            "translation": "Archivieren"
+        },
+        "1jbmp1vpgkgx4": {
+            "source": "Unarchive",
+            "context": "action",
+            "translation": "Aus dem Archiv holen"
+        },
+        "5eu527w7lqs9": {
+            "source": "Restore",
+            "context": "action",
+            "translation": "Wiederherstellen"
+        },
+        "2o1d146uekh6s": {
+            "source": "Delete for good",
+            "translation": "Endgültig löschen"
+        },
+        "1orpmuzljq6ln": {
+            "source": "Change {$field}",
+            "context": "action",
+            "translation": "{$field} ändern"
+        },
+        "1ho2mbolshu9x": {
+            "source": "Move to {$p0}",
+            "translation": "Nach {$p0} verschieben"
+        },
+        "14mrwrdliqivd": {
+            "source": "Objects",
+            "context": "title",
+            "translation": "Objekte"
+        },
+        "2u5v60th7t4cf": {
+            "source": "Declare object types with access, methods and sync, and call them from anywhere.",
+            "translation": "Objekttypen mit Zugriff, Methoden und Synchronisation deklarieren und von überall aufrufen."
+        },
+        "3s8b5rvnax3us": {
+            "source": "Board by {$p0}",
+            "translation": "Board nach {$p0}"
+        },
+        "2lz1x9nbe6wxg": {
+            "source": "Calendar by {$p0}",
+            "translation": "Kalender nach {$p0}"
+        },
+        "3lahkxjdh6rgs": {
+            "source": "Tree",
+            "context": "option",
+            "translation": "Baum"
+        },
+        "1xkvnsnjbapvz": {
+            "source": "Timeline",
+            "context": "option",
+            "translation": "Zeitleiste"
+        },
+        "2ma7l0ne3ug6a": {
+            "source": "Gallery",
+            "context": "option",
+            "translation": "Galerie"
+        },
+        "1rc7wgzfn0pao": {
+            "source": "Table",
+            "context": "option",
+            "translation": "Tabelle"
+        },
+        "2v5y2fv2i78or": {
+            "source": "Append, prepend, insert at random places and delete characters one change at a time.",
+            "translation": "Zeichen einzeln anhängen, voranstellen, an zufälligen Stellen einfügen und löschen."
+        },
+        "2cwwbli43w6jl": {
+            "source": "Build a text of about fifty thousand characters with marks and paragraphs, then type, delete, mark, unmark, insert and change nodes, and read spans in it.",
+            "translation": "Einen Text von etwa fünfzigtausend Zeichen mit Markierungen und Absätzen aufbauen, dann darin tippen, löschen, markieren, Markierungen entfernen, Knoten einfügen und ändern und Abschnitte lesen."
+        },
+        "2symgnk1fly1g": {
+            "source": "Build a text of about a million characters with marks and paragraphs, then type, delete, mark, unmark, insert and change nodes, and read spans in it.",
+            "translation": "Einen Text von etwa einer Million Zeichen mit Markierungen und Absätzen aufbauen, dann darin tippen, löschen, markieren, Markierungen entfernen, Knoten einfügen und ändern und Abschnitte lesen."
+        },
+        "1a4hxmnm96zw7": {
+            "source": "Merge the edits two and then twenty parties made concurrently on one base.",
+            "translation": "Die Bearbeitungen zusammenführen, die zwei und dann zwanzig Beteiligte gleichzeitig auf einer Basis vorgenommen haben."
+        },
+        "qw3bxzmh7xje": {
+            "source": ".input {$count :number}\n.match $count\none {{Text chunk}}\n* {{Text chunks}}",
+            "translation": ".input {$count :number} .match $count one {{Textabschnitt}} * {{Textabschnitte}}"
+        },
+        "3o5srklfmx4am": {
+            "source": ".input {$count :number}\n.match $count\none {{Text node}}\n* {{Text nodes}}",
+            "translation": ".input {$count :number} .match $count one {{Textknoten}} * {{Textknoten}}"
+        },
+        "3s3ah96wgo11k": {
+            "source": "Type a sentence into empty pages, each edit within its statements.",
+            "translation": "Einen Satz in leere Seiten tippen, jede Bearbeitung innerhalb ihrer Anweisungen."
+        },
+        "2raw447u08nlr": {
+            "source": "Type a word inside each page's earlier sentence, each edit within its statements.",
+            "translation": "Ein Wort in den früheren Satz jeder Seite tippen, jede Bearbeitung innerhalb ihrer Anweisungen."
+        },
+        "nn7viowme4u": {
+            "source": "Delete each page's quick, keeping the word another person typed inside it, each edit within its statements.",
+            "translation": "Das „quick“ jeder Seite löschen und das Wort behalten, das eine andere Person darin getippt hat, jede Bearbeitung innerhalb ihrer Anweisungen."
+        },
+        "20p5zjts0vbyx": {
+            "source": "Archive issues, list them from the archive and unarchive them, each verb within its statements.",
+            "translation": "Vorgänge archivieren, aus dem Archiv auflisten und wieder aus dem Archiv holen, jedes Verb innerhalb seiner Anweisungen."
+        },
+        "2rjsiu4yklogm": {
+            "source": "Bind",
+            "context": "action",
+            "translation": "Binden"
+        },
+        "2fhragur8e6oq": {
+            "source": "Bind consumer",
+            "context": "action",
+            "translation": "Verbraucher binden"
+        },
+        "kroqwh3400wa": {
+            "source": "Release consumer",
+            "context": "action",
+            "translation": "Verbraucher freigeben"
+        },
+        "1tvq7mnollipz": {
+            "source": "Observe",
+            "context": "action",
+            "translation": "Beobachten"
+        },
+        "2kmmoialgwejb": {
+            "source": "Finalize",
+            "context": "action",
+            "translation": "Abschließen"
+        },
+        "izd41gfxg9u5": {
+            "source": "Approve plan",
+            "context": "action",
+            "translation": "Plan genehmigen"
+        },
+        "3gib5bxor3r3e": {
+            "source": "Detach",
+            "context": "action",
+            "translation": "Lösen"
+        },
+        "znfssuh9osnw": {
+            "source": "Attach",
+            "context": "action",
+            "translation": "Anhängen"
+        },
+        "31am9ga9u31xm": {
+            "source": "Expire",
+            "context": "action",
+            "translation": "Ablaufen lassen"
+        },
+        "224cg0h5hlte6": {
+            "source": "Fence scope",
+            "context": "action",
+            "translation": "Bereich abgrenzen"
+        },
+        "1ac3tqw2mxlqv": {
+            "source": "Unfence scope",
+            "context": "action",
+            "translation": "Bereichsabgrenzung aufheben"
+        },
+        "3t99dpup2y5do": {
+            "source": "Move",
+            "context": "action",
+            "translation": "Verschieben"
+        },
+        "1yb9s7c1b6rr": {
+            "source": "Create issues numbered within a team and move them to another, each verb within its statements.",
+            "translation": "Vorgänge innerhalb eines Teams nummeriert erstellen und in ein anderes verschieben, jedes Verb innerhalb seiner Anweisungen."
+        },
+        "3k3fernljvvzc": {
+            "source": "Specify",
+            "context": "action",
+            "translation": "Festlegen"
+        },
+        "3txpb5ok4j4l8": {
+            "source": "Purge",
+            "context": "action",
+            "translation": "Endgültig entfernen"
+        },
+        "3tzlzacou4b1l": {
+            "source": "Restoration",
+            "context": "title",
+            "translation": "Wiederherstellung"
+        },
+        "2n8sorixjhpe6": {
+            "source": "Read series",
+            "context": "action",
+            "translation": "Reihe lesen"
+        },
+        "2hpte27ahuxhw": {
+            "source": "Explain",
+            "context": "action",
+            "translation": "Erklären"
+        },
+        "30yf1c83tbzl1": {
+            "source": "Change",
+            "context": "action",
+            "translation": "Ändern"
+        },
+        "6k2pv5kvforb": {
+            "source": "Check containment",
+            "context": "action",
+            "translation": "Enthaltensein prüfen"
+        },
+        "1nfig4xu8m3v": {
+            "source": "Revert",
+            "context": "action",
+            "translation": "Zurücksetzen"
+        }
+    }
+}
