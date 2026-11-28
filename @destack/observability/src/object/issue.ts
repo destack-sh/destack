@@ -187,6 +187,7 @@ export const issue = defineObject(
             /** Where the issue stands: open, resolved, failing again or ignored. */
             status: field.state({
                 initial: "unresolved",
+                final: ["resolved", "ignored"],
                 transitions: {
                     resolve: {
                         from: ["unresolved", "regressed", "ignored"],

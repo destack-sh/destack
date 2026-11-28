@@ -88,6 +88,7 @@ export const alert = defineObject(
             /** Whether it waits out the rule's pending period, fires, or resolved. */
             status: field.state({
                 initial: "pending",
+                final: ["resolved"],
                 transitions: {
                     fire: { from: ["pending"], to: "firing", permission: "detect" },
                     resolve: { from: ["pending", "firing"], to: "resolved", permission: "resolve" },
