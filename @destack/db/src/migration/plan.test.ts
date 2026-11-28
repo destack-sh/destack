@@ -219,6 +219,44 @@ const taskDropped = defineTable(
     NEXT_RELEASE,
 );
 
+/** Tasks after adding a list, which earlier tasks are on none of, in the next release. */
+const taskListed = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        title: text("title").notNull(),
+        urgent: integer("urgent").notNull(),
+        dueAt: integer("due_at"),
+        listId: text("list_id"),
+    },
+    {
+        log: {},
+        convert: { 2: { listId: Expression.literal(null) } },
+        constraints: (task) => [index("task_due").on(task.dueAt)],
+    },
+    NEXT_RELEASE,
+);
+
+/** Tasks after adding a required list, which a conversion to null cannot fill. */
+const taskRequiredList = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        title: text("title").notNull(),
+        urgent: integer("urgent").notNull(),
+        dueAt: integer("due_at"),
+        listId: text("list_id").notNull().default("inbox"),
+    },
+    {
+        log: {},
+        convert: { 2: { listId: Expression.literal(null) } },
+        constraints: (task) => [index("task_due").on(task.dueAt)],
+    },
+    NEXT_RELEASE,
+);
+
 /** Tasks declaring the urgent flag as text. */
 const taskText = defineTable(
     "task",
@@ -661,6 +699,34 @@ test("convert rows to a new release and log the converted values", async () => {
             Change.after(change)?.priority,
         ]),
     ).toEqual([["update", { id: "a" }, "normal", "high"]]);
+});
+
+test("fill a nullable column of any kind with a conversion to null, and refuse it for a required one", async () => {
+    // store a task of the earlier release
+    const database = await open([taskListed]);
+    await database.migrate([taskTwo]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL)`,
+            ),
+    );
+
+    // refuse filling a required text column with nulls, then fill a nullable one
+    const refused = await refusal(database.migrate([taskRequiredList]));
+    await database.migrate([taskListed]);
+
+    expect({
+        refused,
+        rows: await database.select().from(taskListed),
+    }).toEqual({
+        refused: [
+            "PRECONDITION_FAILED",
+            "PLAN_BLOCKED",
+            `cannot reach the desired state: table/${table(taskListed)}/column/list_id: convert list_id to a text: the conversion produces null`,
+        ],
+        rows: [{ id: "a", scope: "inbox", title: "Plan", urgent: 1, dueAt: null, listId: null }],
+    });
 });
 
 test("drop a column in an edition that assigns nothing, updating no rows", async () => {
