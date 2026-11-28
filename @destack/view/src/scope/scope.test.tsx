@@ -14,7 +14,7 @@ import { createSignal } from "../solid/reactive.ts";
 import { useMutation, useQuery, useSetting } from "./index.ts";
 import { defineSetting } from "@destack/setting/declare";
 import { deviceSetting, setting } from "@destack/setting/object";
-import { changed } from "../test/dom.ts";
+import { changed, frame } from "../test/dom.ts";
 import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { ActionRegistry } from "../page/action.ts";
@@ -179,7 +179,13 @@ test("show a query's rows after loading, and re-render only the row a predicted 
     }
     apples.click();
     await changed(element, () => element.textContent === "Apples!Bread", RENDER_MILLISECONDS);
-    expect(element.querySelectorAll("li")[1]).toBe(bread);
+    await frame();
+
+    // measure each value the query showed until the frame showing it, by its items
+    const rendered = simulation.telemetry.spans
+        .filter((span) => span.name === "destack.view.render")
+        .map((span) => span.attributes["destack.view.items"]);
+    expect([element.querySelectorAll("li")[1], rendered.at(-1)]).toEqual([bread, 2]);
 });
 
 test("follow another query as a filter changes, showing the last rows until it reads", async () => {

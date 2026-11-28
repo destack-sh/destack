@@ -1,6 +1,7 @@
 import { account, space, user } from "@destack/account/object";
 import { type Method, type MutationName, type ObjectType } from "@destack/object";
 import { type JsonObject, mapValues, present } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
 import {
     type Mutator,
     type ObjectNode,
@@ -10,9 +11,12 @@ import {
     type Subscriber,
 } from "@destack/object/client";
 import { type ContextScope, ViewContext } from "../declare/context.ts";
-import { useMount } from "../page/context.ts";
+import { useEnvironment, useMount } from "../page/context.ts";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
 import { isServer } from "../solid/component.ts";
+
+/** The span attribute with the items a query's value shows, one for a value of another shape. */
+const ITEMS_ATTRIBUTE = "destack.view.items";
 
 /** Where a hook reads and writes: a scope of the view's context, or a scope by its identifier. */
 export interface ScopeOptions {
@@ -26,6 +30,16 @@ export function useQuery<const Objects extends Readonly<Record<string, ObjectTyp
     query: (builders: ObjectQueries<Objects>) => RelationalQuery<Value>,
     options: ScopeOptions = {},
 ): Accessor<Value> {
+    // measure each value the query shows until the frame that shows it
+    const environment = useEnvironment();
+    const instruments = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    const render = (value: Value) => {
+        const items = Array.isArray(value) ? value.length : 1;
+        void instruments.span("destack.view.render", { [ITEMS_ATTRIBUTE]: items }, () =>
+            environment.display.frame(),
+        );
+    };
+
     return createMemo(() => {
         // build the query over the node it reads on, tracking what it reads
         let node: ObjectNode | undefined;
@@ -41,7 +55,7 @@ export function useQuery<const Objects extends Readonly<Record<string, ObjectTyp
         if (scoped.kind === "open") {
             node = scoped.node;
 
-            return follow(built, scoped.signal);
+            return follow(built, scoped.signal, render);
         }
 
         // else follow it once the node opens, as the mount's clients replace the opening node
@@ -49,7 +63,7 @@ export function useQuery<const Objects extends Readonly<Record<string, ObjectTyp
             node = opened;
         });
 
-        return following(opening, built, scoped.signal);
+        return following(opening, built, scoped.signal, render);
     });
 }
 
@@ -58,9 +72,10 @@ async function* following<Value>(
     opening: Promise<void>,
     query: RelationalQuery<Value>,
     signal: AbortSignal,
+    render: (value: Value) => void,
 ): AsyncGenerator<Value, void> {
     await opening;
-    yield* follow(query, signal);
+    yield* follow(query, signal, render);
 }
 
 /** Call an object type's mutating method on the view's node of its scope, predicted there first. */
@@ -174,6 +189,7 @@ export function scopeOf(view: ViewContext, object: ObjectType, options: ScopeOpt
 async function* follow<Value>(
     query: RelationalQuery<Value>,
     signal: AbortSignal,
+    render: (value: Value) => void,
 ): AsyncGenerator<Value> {
     const live = query.subscribe();
     try {
@@ -185,6 +201,7 @@ async function* follow<Value>(
         // else follow it live
         else {
             for await (const value of live.watch(signal)) {
+                render(value);
                 yield value;
             }
         }
