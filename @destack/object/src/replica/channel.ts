@@ -1,6 +1,6 @@
 import { Caller } from "@destack/access";
-import { type Channel, Condition, Table, typedChannel } from "@destack/db";
-import { type Environment, untilAborted } from "@destack/environment";
+import { type Channel, Condition, Table } from "@destack/db";
+import { type Environment, Telemetry, untilAborted } from "@destack/environment";
 import { Failure } from "@destack/error";
 import {
     Duration,
@@ -12,6 +12,7 @@ import {
 } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { Subject } from "@destack/sync";
+import { TelemetryScope } from "@destack/telemetry";
 import { ObjectError } from "../error/error.ts";
 import { traceCalls } from "../procedure/telemetry.ts";
 import type {
@@ -186,6 +187,12 @@ const Frame = schema.discriminatedUnion("kind", [
 /** A frame between a channel's parties and the node serving them. */
 type Frame = schema.Infer<typeof Frame>;
 
+/** A frame on the channel with the trace it was sent in, as W3C trace context headers. */
+const Envelope = schema.object({
+    trace: schema.record(schema.string(), schema.string()),
+    frame: schema.unknown(),
+});
+
 /** An open send of a party: its pages, then its answer or failure. */
 interface OpenSend {
     /** Take a page of a stream. */
@@ -201,6 +208,15 @@ interface OpenSend {
 /** The RPC system of a channel's calls, as OpenTelemetry's `rpc.system.name` reports it. */
 const CHANNEL_SYSTEM = "destack.channel";
 
+/** The span attribute with a received frame's kind. */
+const FRAME_ATTRIBUTE = "destack.channel.frame";
+
+/** The span attribute with the items a value frame sends, one for a value of another shape. */
+const ITEMS_ATTRIBUTE = "destack.channel.items";
+
+/** The span attribute with the followed queries a write sends again. */
+const QUERIES_ATTRIBUTE = "destack.channel.queries";
+
 /** What a channel's serving side answers with. */
 interface ChannelServed {
     /** The node's remote, for the replica verbs. */
@@ -213,6 +229,8 @@ interface ChannelServed {
     readonly follows: Map<string, Set<() => Promise<void>>>;
     /** The parties' open write sessions, by session. */
     readonly sessions: Map<string, ChannelSession>;
+    /** The spans of the node's answers. */
+    readonly scope: TelemetryScope;
 }
 
 /** A party's open write session at the serving node, until it commits or cancels. */
@@ -247,7 +265,11 @@ export class ChannelRemote implements ObjectRemote {
     /** Join a channel as one party in an environment, probing for its node. */
     constructor(channel: Channel<unknown>, party: string, environment: Environment) {
         // listen to the node's frames, then ask whether one serves
-        this.#channel = typedChannel(channel, Frame);
+        this.#channel = ChannelRemote.#trace(
+            channel,
+            TelemetryScope.of(import.meta.destack.package, environment.telemetry),
+            environment.telemetry,
+        );
         this.#party = party;
         this.#traced = traceCalls("client", CHANNEL_SYSTEM, environment);
         this.#environment = environment;
@@ -264,7 +286,8 @@ export class ChannelRemote implements ObjectRemote {
         nodes: (scope: string) => Promise<ObjectNode>,
     ): () => void {
         // answer each send and probe, tracing each answer, and abort a send its party abandons
-        const typed = typedChannel(channel, Frame);
+        const scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+        const typed = ChannelRemote.#trace(channel, scope, environment.telemetry);
         const traced = traceCalls("server", CHANNEL_SYSTEM, environment);
         const running = new Map<string, AbortController>();
         const follows = new Map<string, Set<() => Promise<void>>>();
@@ -284,7 +307,7 @@ export class ChannelRemote implements ObjectRemote {
                         ChannelRemote.#answer(
                             typed,
                             frame,
-                            { remote, signer, nodes, follows, sessions },
+                            { remote, signer, nodes, follows, sessions, scope },
                             controller.signal,
                         ),
                     ).finally(() => running.delete(key));
@@ -808,7 +831,7 @@ export class ChannelRemote implements ObjectRemote {
         signal: AbortSignal,
     ): Promise<void> {
         const { from: to, id, send } = frame;
-        const { remote, signer, nodes, follows, sessions } = served;
+        const { remote, signer, nodes, follows, sessions, scope } = served;
         try {
             // stream the pages, then end
             if (send.verb === "stream") {
@@ -826,6 +849,7 @@ export class ChannelRemote implements ObjectRemote {
                     frame,
                     ChannelRemote.#followed(send, await nodes(send.scope)),
                     party,
+                    scope,
                     signal,
                 ).finally(() => {
                     // forget a party once it follows nothing
@@ -839,10 +863,14 @@ export class ChannelRemote implements ObjectRemote {
                 const node = await nodes(send.scope);
                 const object = ChannelRemote.#object(node, send.package, send.object);
                 const submission = node.call(object, send.method, send.input);
-                const predicted = await submission.predicted;
+                const predicted = await scope.span(
+                    "destack.channel.predict",
+                    {},
+                    () => submission.predicted,
+                );
 
                 // send the party's followed queries with the prediction before the prediction itself
-                await Promise.all([...(follows.get(to) ?? [])].map((refresh) => refresh()));
+                await ChannelRemote.#refresh(scope, follows.get(to));
                 channel.notify({ kind: "value", to, id, value: predicted });
                 await submission.confirmed;
                 channel.notify({ kind: "answer", to, id, value: null });
@@ -859,7 +887,7 @@ export class ChannelRemote implements ObjectRemote {
                 await submission.predicted.finally(() => sessions.delete(send.session));
 
                 // send the party's followed queries with the prediction, then the prediction and its confirmation
-                await Promise.all([...(follows.get(to) ?? [])].map((refresh) => refresh()));
+                await ChannelRemote.#refresh(scope, follows.get(to));
                 channel.notify({ kind: "value", to, id, value: "predicted" });
                 await submission.confirmed;
                 channel.notify({ kind: "answer", to, id, value: null });
@@ -943,25 +971,83 @@ export class ChannelRemote implements ObjectRemote {
         }
     }
 
+    /** Send frames with their trace, and take each one in a span below its sender's. */
+    static #trace(
+        channel: Channel<unknown>,
+        scope: TelemetryScope,
+        telemetry: Environment["telemetry"],
+    ): Channel<Frame> {
+        // send each frame with the active trace
+        const notify = (frame: Frame) => {
+            const trace = new Headers();
+            Telemetry.inject(trace, telemetry);
+            channel.notify({ trace: Object.fromEntries(trace), frame });
+        };
+
+        return {
+            notify,
+            delivery: (token) => channel.delivery(token),
+            close: () => channel.close(),
+            listen: (listener) =>
+                channel.listen({
+                    ...listener,
+                    receive: (value) => {
+                        // take each frame below its sender's trace, parsing it in the span
+                        const envelope = Envelope.parse(value);
+                        const parent = Telemetry.extract(new Headers(envelope.trace), telemetry);
+                        const received = telemetry.context.with(parent, () =>
+                            scope.span("destack.channel.receive", {}, (span) => {
+                                // read the frame's kind and items, then take it
+                                const frame = Frame.parse(envelope.frame);
+                                span.setAttribute(FRAME_ATTRIBUTE, frame.kind);
+                                if (frame.kind === "value") {
+                                    span.setAttribute(ITEMS_ATTRIBUTE, count(frame.value));
+                                }
+                                listener.receive(frame);
+                            }),
+                        );
+                        received.catch((error: unknown) => globalThis.reportError(error));
+                    },
+                }),
+        };
+    }
+
+    /** Send a party's followed queries again, in a span counting them. */
+    static async #refresh(
+        scope: TelemetryScope,
+        party: ReadonlySet<() => Promise<void>> | undefined,
+    ): Promise<void> {
+        const refreshes = [...(party ?? [])];
+        await scope.span("destack.channel.refresh", { [QUERIES_ATTRIBUTE]: refreshes.length }, () =>
+            Promise.all(refreshes.map((refresh) => refresh())),
+        );
+    }
+
     /** Stream a read's values from a node: the first once ready, then one per change. */
     static async #follow(
         channel: Channel<Frame>,
         frame: Extract<Frame, { readonly kind: "send" }>,
         live: LiveQuery<unknown>,
         party: Set<() => Promise<void>>,
+        scope: TelemetryScope,
         signal: AbortSignal,
     ): Promise<void> {
         // follow the read on the node, as long as its party keeps it
         const { from: to, id } = frame;
+        const send = async (value: unknown) => {
+            await scope.span("destack.channel.value", { [ITEMS_ATTRIBUTE]: count(value) }, () =>
+                channel.notify({ kind: "value", to, id, value }),
+            );
+        };
         const refresh = async () => {
-            channel.notify({ kind: "value", to, id, value: await live.read() });
+            await send(await live.read());
         };
         try {
             // send each read of the query, and a read whenever the party's write predicts
             await live.ready;
             party.add(refresh);
             for await (const value of live.watch(signal)) {
-                channel.notify({ kind: "value", to, id, value });
+                await send(value);
             }
         } finally {
             party.delete(refresh);
@@ -1056,4 +1142,9 @@ export class ChannelRemote implements ObjectRemote {
             data: {},
         });
     }
+}
+
+/** Count a value's items: an array's length, one for another value. */
+function count(value: unknown): number {
+    return Array.isArray(value) ? value.length : 1;
 }

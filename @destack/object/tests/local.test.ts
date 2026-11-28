@@ -110,32 +110,7 @@ test("read a local object one tab writes in another tab through their device, ou
 
 test("query and write a space's objects through the device, the party keeping no database", async () => {
     // serve a device to a party on the tabs' channel, the party keeping nothing but what it reads
-    const simulation = testSimulation();
-    const world = simulation.environment("test");
-    const { connection } = await serveNotes({ simulation, node: "browser" });
-    const alice = Identifier.create("user", world);
-    const environment = new BrowserSimulation(simulation).environment("browser");
-    const objects = { notebook, note, draft };
-    const caller = principal.user.reference("universe", alice);
-    const browser = principal.device.reference("universe", Identifier.create("device", world));
-    openElection(
-        deviceWorker({
-            database: await deviceDatabase(objects, environment),
-            objects,
-            caller,
-            device: browser,
-            remote: (scope: string) => connection(alice).at(scope),
-            environment,
-        }),
-        environment,
-    );
-    const party = new ChannelRemote(
-        broadcastChannel("destack:notes", environment),
-        RequestId.create(environment),
-        environment,
-    );
-    onTestFinished(() => party.close());
-    const query = ObjectQueryBuilder.of(party.subscriber(spaceId, Object.values(objects)), objects);
+    const { party, query } = await openParty();
 
     // follow the space's notebooks, then create one through the device
     const notebooks = query.notebook.findMany().subscribe();
@@ -152,6 +127,51 @@ test("query and write a space's objects through the device, the party keeping no
         predicted: predicted.map((row) => row.name),
     }).toEqual({ before: [], predicted: ["Travel"] });
     await notebooks.close();
+});
+
+test("trace a tab's create through its device as one tree, from the call to its rows", async () => {
+    // serve a device to a party on the tabs' channel
+    const { simulation, party, query } = await openParty();
+
+    // follow the notebooks, then create one and wait for its confirmation
+    const notebooks = query.notebook.findMany().subscribe();
+    await notebooks.ready;
+    const written = party.mutate(spaceId, notebook, "create", { name: "Travel" });
+    await written.predicted;
+    await written.confirmed;
+    await notebooks.close();
+
+    // read the create's trace as its channel spans, each below its parent
+    const { spans } = simulation.telemetry;
+    const call = spans.find(
+        (span) => span.name === "mutate" && span.parentSpanContext === undefined,
+    );
+    const trace = call?.spanContext().traceId;
+    const traced = spans.filter((span) => span.spanContext().traceId === trace);
+    const names = new Map(traced.map((span) => [span.spanContext().spanId, span.name]));
+    const tree = traced
+        .filter((span) => span.name === "mutate" || span.name.startsWith("destack.channel."))
+        .map((span) => {
+            const parent = names.get(span.parentSpanContext?.spanId ?? "") ?? "";
+            const frame = span.attributes["destack.channel.frame"];
+            const kind = typeof frame === "string" ? ` ${frame}` : "";
+
+            return `${parent} > ${span.name}${kind}`;
+        })
+        .toSorted();
+
+    // expect the tab's call, the device's answer below it, its rows, the prediction and the answer
+    expect(tree).toEqual([
+        " > mutate",
+        "destack.channel.receive > mutate",
+        "destack.channel.refresh > destack.channel.value",
+        "destack.channel.value > destack.channel.receive value",
+        "mutate > destack.channel.predict",
+        "mutate > destack.channel.receive answer",
+        "mutate > destack.channel.receive send",
+        "mutate > destack.channel.receive value",
+        "mutate > destack.channel.refresh",
+    ]);
 });
 
 test("make a space tab ready once its device replicates the scope chain", async () => {
@@ -714,6 +734,41 @@ test("follow a nested card from the machine in a tab through its device, and aga
     const second = await open();
     expect({ first, second }).toEqual({ first: ["Milk"], second: ["Milk"] });
 });
+
+/** Serve Alice's device to a party on the tabs' channel, querying the space's notes through it. */
+async function openParty() {
+    // serve Alice's notes, and open her device on the browser
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const { connection } = await serveNotes({ simulation, node: "browser" });
+    const alice = Identifier.create("user", world);
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const objects = { notebook, note, draft };
+    const caller = principal.user.reference("universe", alice);
+    const browser = principal.device.reference("universe", Identifier.create("device", world));
+    openElection(
+        deviceWorker({
+            database: await deviceDatabase(objects, environment),
+            objects,
+            caller,
+            device: browser,
+            remote: (scope: string) => connection(alice).at(scope),
+            environment,
+        }),
+        environment,
+    );
+
+    // join the tabs' channel as a party, querying the space through the device
+    const party = new ChannelRemote(
+        broadcastChannel("destack:notes", environment),
+        RequestId.create(environment),
+        environment,
+    );
+    onTestFinished(() => party.close());
+    const query = ObjectQueryBuilder.of(party.subscriber(spaceId, Object.values(objects)), objects);
+
+    return { simulation, party, query };
+}
 
 /** Stand for the notes device's election with a worker for the rest of the test. */
 function openElection(worker: BrowserTabWorker, environment: Environment<"locks">): DeviceElection {
