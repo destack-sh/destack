@@ -33,10 +33,11 @@ export const BrowserEnvironment = {
         return system;
     },
 
-    /** Build a server render's environment: the server's base, refusing each browser capability. */
-    server(base: Environment): BrowserEnvironment {
+    /** Build a server render's environment at a URL, refusing each browser capability. */
+    server(base: Environment, url: string): BrowserEnvironment {
         return {
             ...base,
+            navigation: Navigation.rendered(url),
             get storage(): never {
                 return refuse("storage");
             },
@@ -45,9 +46,6 @@ export const BrowserEnvironment = {
             },
             get broadcast(): never {
                 return refuse("broadcast");
-            },
-            get navigation(): never {
-                return refuse("navigation");
             },
             get display(): never {
                 return refuse("display");

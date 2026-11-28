@@ -1,3 +1,5 @@
+import { BrowserError } from "../error.ts";
+
 /** An entry of a browser's session history, as the Navigation API's `currentEntry` has it. */
 export interface NavigationEntry {
     /** The entry's URL. */
@@ -133,8 +135,30 @@ class BrowserNavigation implements Navigation {
     }
 }
 
-/** Session histories. */
-export const Navigation: { readonly system: Navigation } = {
+/** The browser's session history, read through the Navigation interface. */
+const systemNavigation: Navigation = new BrowserNavigation();
+
+/** Session histories: the browser's, and a server render's. */
+export const Navigation = {
     /** The browser's session history. */
-    system: new BrowserNavigation(),
+    system: systemNavigation,
+
+    /** Read the URL a server render renders, refusing every move, as a render has no history. */
+    rendered(url: string): Navigation {
+        const refuse = (): never => {
+            throw BrowserError.of(
+                "CAPABILITY_BLOCKED",
+                `cannot navigate from '${url}': a server render has no history`,
+            );
+        };
+
+        return {
+            currentEntry: { url, index: 0, state: undefined },
+            navigate: refuse,
+            assign: refuse,
+            reload: refuse,
+            go: refuse,
+            on: () => ({ [Symbol.dispose]: () => {} }),
+        };
+    },
 };
