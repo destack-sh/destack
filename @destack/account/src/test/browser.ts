@@ -58,6 +58,28 @@ export class TestBrowser {
             },
             ...(payload === undefined ? {} : { body: payload }),
         });
+
+        return await this.#exchange(request);
+    }
+
+    /** Load a page below the base or at a URL as a navigation does, following no redirect. */
+    async navigate(path: string): Promise<Response> {
+        const url = URL.canParse(path) ? path : `${this.base}${path}`;
+        const request = new Request(url, {
+            headers: {
+                accept: "text/html",
+                "sec-fetch-mode": "navigate",
+                "accept-language": this.language,
+                cookie: [...this.cookies].map(([name, value]) => `${name}=${value}`).join("; "),
+            },
+        });
+
+        return await this.#exchange(request);
+    }
+
+    /** Send a request, reading its whole body and storing the cookies it sets. */
+    async #exchange(request: Request): Promise<Response> {
+        // send the request
         const sent = await this.send(request);
 
         // read the whole body like a browser to end the request
