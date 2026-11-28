@@ -81,8 +81,8 @@ const MIN_WIDTH = 208;
 /** The widest a dragged sidebar gets in pixels, 25rem, which leaves the page most of the screen. */
 const MAX_WIDTH = 400;
 
-/** The viewports narrower than 768 pixels, where the sidebar opens as a sheet. */
-const MOBILE_QUERY = "(max-width: 47.999rem)";
+/** The viewports where the sidebar opens as a sheet: the theme's narrow screens. */
+const MOBILE_QUERY = media.maxMd.slice("@media ".length);
 
 /** The sidebar state of the nearest provider, null outside one. */
 const SidebarContext = createContext<SidebarControl | null>(null);
@@ -101,6 +101,10 @@ const styles = style.create({
     contained: {
         height: VIEWPORT_HEIGHT,
         overflow: "hidden",
+    },
+    // leave narrow screens to the sheet before any script runs, as a server render cannot measure
+    collapsing: {
+        display: { default: "flex", [media.maxMd]: "none" },
     },
     sidebar: {
         position: "sticky",
@@ -582,11 +586,11 @@ export type SidebarMenuButtonAttributes = SidebarElementProperties<
     JSX.ButtonHTMLAttributes<HTMLButtonElement> & JSX.AnchorHTMLAttributes<HTMLAnchorElement>
 > & {
     /** The link target, which renders the button as a link. */
-    readonly href?: string;
+    readonly href?: string | undefined;
     /** The name a tooltip shows while the sidebar is collapsed to its icons. */
-    readonly tooltip?: string;
+    readonly tooltip?: string | undefined;
     /** Render another element with the button's attributes, such as a router's link. */
-    readonly render?: Render;
+    readonly render?: Render | undefined;
 };
 
 /** The properties people change in a nested sidebar entry's controls and inspector. */
@@ -669,27 +673,8 @@ export const Sidebar = defineComponent({
                 : styles[properties.collapsible === "icon" ? "icon" : "offcanvas"];
 
         return (
-            <Show
-                when={!control.isMobile() || properties.collapsible === "none"}
-                fallback={
-                    <Sheet
-                        open={control.isMobileOpen()}
-                        onOpenChange={(isOpen) => control.setMobileOpen(isOpen)}
-                    >
-                        <SheetContent
-                            side={properties.side}
-                            data-slot="sidebar"
-                            data-mobile="true"
-                            xstyle={styles.sheet}
-                        >
-                            <SheetTitle xstyle={visuallyHiddenStyle()}>
-                                {locale.render(t.context("title")`Sidebar`)}
-                            </SheetTitle>
-                            <div {...style.attrs(styles.inner)}>{properties.children}</div>
-                        </SheetContent>
-                    </Sheet>
-                }
-            >
+            <>
+                {/* The sidebar beside the page, which CSS hides on narrow screens */}
                 {renderPart(
                     "div",
                     "sidebar",
@@ -698,6 +683,7 @@ export const Sidebar = defineComponent({
                         style.defaultMarker(),
                         text.sm,
                         styles.sidebar,
+                        properties.collapsible !== "none" && styles.collapsing,
                         styles[properties.side],
                         properties.variant === "sidebar" ? null : styles.floating,
                         sizing(),
@@ -732,7 +718,27 @@ export const Sidebar = defineComponent({
                         },
                     },
                 )}
-            </Show>
+
+                {/* The sheet it opens as on narrow screens, closed until its trigger opens it */}
+                <Show when={control.isMobile() && properties.collapsible !== "none"}>
+                    <Sheet
+                        open={control.isMobileOpen()}
+                        onOpenChange={(isOpen) => control.setMobileOpen(isOpen)}
+                    >
+                        <SheetContent
+                            side={properties.side}
+                            data-slot="sidebar"
+                            data-mobile="true"
+                            xstyle={styles.sheet}
+                        >
+                            <SheetTitle xstyle={visuallyHiddenStyle()}>
+                                {locale.render(t.context("title")`Sidebar`)}
+                            </SheetTitle>
+                            <div {...style.attrs(styles.inner)}>{properties.children}</div>
+                        </SheetContent>
+                    </Sheet>
+                </Show>
+            </>
         );
     },
 });
