@@ -14,6 +14,20 @@ import type { Axis } from "../position/index.ts";
 /** The items a virtualizer renders beyond the visible ones on either side. */
 const OVERSCAN = 8;
 
+/** The reactive settings an engine starts with: no items, disabled until its settings arrive. */
+const INERT: ReturnType<typeof reactiveOf> = {
+    count: 0,
+    estimateSize: () => 0,
+    lanes: 1,
+    getItemKey: virtual.defaultKeyExtractor,
+    rangeExtractor: virtual.defaultRangeExtractor,
+    paddingStart: 0,
+    paddingEnd: 0,
+    scrollMargin: 0,
+    enabled: false,
+    isRtl: false,
+};
+
 /** An item a virtualizer renders: its index, key, lane, and where it starts and ends in pixels. */
 export type VirtualItem = virtual.VirtualItem;
 
@@ -113,8 +127,10 @@ export class Virtualizer {
         this.#revision = revision;
         this.orientation = options.orientation ?? "vertical";
         this.lanes = options.lanes ?? (() => 1);
+        // start the engine empty and disabled, leaving the accessors, which may still load, to the settings memo
         const shared = {
-            ...untrack(() => settingsOf(options)),
+            ...fixedOf(options),
+            ...INERT,
             measureElement: virtual.measureElement,
             onChange: () => setRevision((count) => count + 1),
         };
@@ -374,25 +390,20 @@ function rangeOf(options: VirtualizerOptions): (range: VirtualRange) => number[]
 
 /** Read the engine's settings from a virtualizer's options as they stand. */
 function settingsOf(options: VirtualizerOptions) {
+    return { ...fixedOf(options), ...reactiveOf(options) };
+}
+
+/** Read the settings a virtualizer's options give as plain values, which never change. */
+function fixedOf(options: VirtualizerOptions) {
     return {
-        count: options.count(),
-        estimateSize: options.estimateSize(),
         horizontal: options.orientation === "horizontal",
-        lanes: options.lanes?.() ?? 1,
         laneAssignmentMode: options.laneAssignment ?? "estimate",
         gap: options.gap ?? 0,
         overscan: options.overscan ?? OVERSCAN,
-        getItemKey: options.itemKey?.() ?? virtual.defaultKeyExtractor,
-        rangeExtractor: rangeOf(options),
-        paddingStart: options.paddingStart?.() ?? 0,
-        paddingEnd: options.paddingEnd?.() ?? 0,
         scrollPaddingStart: options.scrollPaddingStart ?? 0,
         scrollPaddingEnd: options.scrollPaddingEnd ?? 0,
-        scrollMargin: options.scrollMargin?.() ?? 0,
         anchorTo: options.anchorTo ?? "start",
         followOnAppend: options.followOnAppend ?? false,
-        enabled: options.isEnabled?.() ?? true,
-        isRtl: options.direction?.() === "rtl",
         ...(options.scrollEndThreshold === undefined
             ? {}
             : { scrollEndThreshold: options.scrollEndThreshold }),
@@ -401,5 +412,21 @@ function settingsOf(options: VirtualizerOptions) {
         ...(options.initialMeasurements === undefined
             ? {}
             : { initialMeasurementsCache: [...options.initialMeasurements] }),
+    };
+}
+
+/** Read the settings a virtualizer's options give as accessors, which may change or still load. */
+function reactiveOf(options: VirtualizerOptions) {
+    return {
+        count: options.count(),
+        estimateSize: options.estimateSize(),
+        lanes: options.lanes?.() ?? 1,
+        getItemKey: options.itemKey?.() ?? virtual.defaultKeyExtractor,
+        rangeExtractor: rangeOf(options),
+        paddingStart: options.paddingStart?.() ?? 0,
+        paddingEnd: options.paddingEnd?.() ?? 0,
+        scrollMargin: options.scrollMargin?.() ?? 0,
+        enabled: options.isEnabled?.() ?? true,
+        isRtl: options.direction?.() === "rtl",
     };
 }
